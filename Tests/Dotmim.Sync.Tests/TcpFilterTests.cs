@@ -192,7 +192,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesDownloaded);
                 Assert.Equal(0, s.TotalChangesUploaded);
 
-                var scopeInfo = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
+                var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync();
 
                 // Check we have the correct columns replicated
                 using var c = client.Provider.CreateConnection();
@@ -808,7 +808,7 @@ namespace Dotmim.Sync.Tests
 
                 // IF we launch synchronize on this new scope, it will get all the rows from the server
                 // We are making a shadow copy of previous scope to get the last synchronization metadata
-                var oldClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+                var oldClientScopeInfo = await localOrchestrator.GetScopeInfoAsync();
                 clientScopeV2.ShadowScope(oldClientScopeInfo);
                 await localOrchestrator.SaveClientScopeInfoAsync(clientScopeV2);
 
@@ -971,7 +971,7 @@ namespace Dotmim.Sync.Tests
 
                 // IF we launch synchronize on this new scope, it will get all the rows from the server
                 // We are making a shadow copy of previous scope to get the last synchronization metadata
-                var oldClientScopeInfo = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
+                var oldClientScopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync();
                 clientScopeV2.ShadowScope(oldClientScopeInfo);
                 await agent.LocalOrchestrator.SaveClientScopeInfoAsync(clientScopeV2);
 
@@ -1017,9 +1017,9 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
 
-                var scopeInfo = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
+                var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync();
 
-                await agent.LocalOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.ClientScope | SyncProvision.TrackingTable);
+                await agent.LocalOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.ScopeInfo | SyncProvision.TrackingTable);
 
                 foreach (var setupTable in setup.Tables)
                 {
@@ -1298,13 +1298,13 @@ namespace Dotmim.Sync.Tests
             {
                 // Deprovision everything
                 var localOrchestrator = new LocalOrchestrator(client.Provider, options);
-                var clientScope = await localOrchestrator.GetClientScopeInfoAsync();
+                var clientScope = await localOrchestrator.GetScopeInfoAsync();
 
                 await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
                     | SyncProvision.Triggers
                     | SyncProvision.TrackingTable);
 
-                await localOrchestrator.DeleteClientScopeInfoAsync(clientScope);
+                await localOrchestrator.DeleteScopeInfoAsync(clientScope);
             }
 
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);

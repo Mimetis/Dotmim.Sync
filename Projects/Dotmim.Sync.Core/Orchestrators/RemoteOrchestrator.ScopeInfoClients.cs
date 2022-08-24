@@ -18,7 +18,6 @@ namespace Dotmim.Sync
 {
     public partial class RemoteOrchestrator : BaseOrchestrator
     {
-       
 
 
     }

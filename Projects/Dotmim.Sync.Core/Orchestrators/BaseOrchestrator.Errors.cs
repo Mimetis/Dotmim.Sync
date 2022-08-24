@@ -25,7 +25,7 @@ namespace Dotmim.Sync
         /// The int returned is the conflict count I need 
         /// </summary>
         private async Task<(SyncContext context, TableConflictErrorApplied tableConflictError)>
-            HandleErrorAsync(IScopeInfo scopeInfo, SyncContext context, SyncRow errorRow, DataRowState applyType,
+            HandleErrorAsync(ScopeInfo scopeInfo, SyncContext context, SyncRow errorRow, DataRowState applyType,
                                 SyncTable schemaChangesTable, Exception exception,
                                 Guid senderScopeId, long? lastTimestamp,
                                 DbConnection connection, DbTransaction transaction,

@@ -12,6 +12,8 @@ namespace Dotmim.Sync
     [CollectionDataContract(Name = "params", ItemName = "param"), Serializable]
     public class SyncParameters : ICollection<SyncParameter>, IList<SyncParameter>
     {
+        private static string defaultScopeHash;
+
         /// <summary>
         /// Gets or Sets the InnerCollection (Exposed as Public for serialization purpose)
         /// </summary>
@@ -72,9 +74,32 @@ namespace Dotmim.Sync
         /// <summary>
         /// Clear
         /// </summary>
-        public void Clear()
+        public void Clear() => this.InnerCollection.Clear();
+
+
+        public string GetHash()
         {
-            InnerCollection.Clear();
+            string flatParameters = string.Concat(this.OrderBy(p => p.Name).Select(p => $"{p.Name}.{p.Value}"));
+            var b = Encoding.UTF8.GetBytes(flatParameters);
+            var hash1 = HashAlgorithm.SHA256.Create(b);
+            var hash1String = Convert.ToBase64String(hash1);
+            return hash1String;
+
+        }
+
+        [IgnoreDataMember]
+        public static string DefaultScopeHash
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(defaultScopeHash))
+                {
+                    var b = Encoding.UTF8.GetBytes(SyncOptions.DefaultScopeName);
+                    var hash1 = HashAlgorithm.SHA256.Create(b);
+                    defaultScopeHash = Convert.ToBase64String(hash1);
+                }
+                return defaultScopeHash;
+            }
         }
 
         public SyncParameter this[int index] => InnerCollection[index];

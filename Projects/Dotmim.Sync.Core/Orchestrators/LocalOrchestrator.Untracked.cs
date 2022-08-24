@@ -31,8 +31,8 @@ namespace Dotmim.Sync
             {
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                ClientScopeInfo clientScopeInfo;
-                (context, clientScopeInfo) = await this.InternalLoadClientScopeInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                ScopeInfo clientScopeInfo;
+                (context, clientScopeInfo) = await this.InternalLoadScopeInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (clientScopeInfo.Schema == null || clientScopeInfo.Schema.Tables == null || clientScopeInfo.Schema.Tables.Count <= 0 || !clientScopeInfo.Schema.HasColumns)
                     throw new MissingTablesException(scopeName);
@@ -66,7 +66,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal update untracked rows routine
         /// </summary>
-        internal async Task<(SyncContext context, int updated)> InternalUpdateUntrackedRowsAsync(IScopeInfo scopeInfo, SyncContext context,
+        internal async Task<(SyncContext context, int updated)> InternalUpdateUntrackedRowsAsync(ScopeInfo scopeInfo, SyncContext context,
             SyncTable schemaTable, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Get table builder

@@ -16,7 +16,7 @@ namespace Dotmim.Sync
 {
     public abstract partial class BaseOrchestrator
     {
-        internal async Task<(SyncContext context, bool provisioned)> InternalProvisionAsync(IScopeInfo scopeInfo, SyncContext context, bool overwrite, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool provisioned)> InternalProvisionAsync(ScopeInfo scopeInfo, SyncContext context, bool overwrite, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (Provider == null)
                 throw new MissingProviderException(nameof(InternalProvisionAsync));
@@ -42,33 +42,22 @@ namespace Dotmim.Sync
                 (context, scopeInfo.Schema) = await this.InternalGetSchemaAsync(context, scopeInfo.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Shoudl we create scope
-            if (provision.HasFlag(SyncProvision.ClientScope))
+            if (provision.HasFlag(SyncProvision.ScopeInfo))
             {
                 bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
-                    (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.Client, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
+                    (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
-            // if scope is not null, so obviously we have create the table before, so no need to test
-            if (provision.HasFlag(SyncProvision.ServerScope))
+            if (provision.HasFlag(SyncProvision.ScopeInfoClient))
             {
                 bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Server, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
-                    (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.Server, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            }
-
-            if (provision.HasFlag(SyncProvision.ServerHistoryScope))
-            {
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ServerHistory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (!exists)
-                    (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ServerHistory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             // Sorting tables based on dependencies between them
@@ -120,7 +109,7 @@ namespace Dotmim.Sync
 
         }
 
-        internal async Task<(SyncContext context, bool deprovisioned)> InternalDeprovisionAsync(IScopeInfo scopeInfo, SyncContext context, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool deprovisioned)> InternalDeprovisionAsync(ScopeInfo scopeInfo, SyncContext context, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (Provider == null)
                 throw new MissingProviderException(nameof(InternalDeprovisionAsync));
@@ -205,35 +194,24 @@ namespace Dotmim.Sync
                 }
             }
 
-            if (provision.HasFlag(SyncProvision.ClientScope))
+            if (provision.HasFlag(SyncProvision.ScopeInfo))
             {
                 bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (exists)
                 {
-                    (context, _) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, _) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
             }
 
-            if (provision.HasFlag(SyncProvision.ServerScope))
+            if (provision.HasFlag(SyncProvision.ScopeInfoClient))
             {
                 bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (exists)
-                {
-                    (context, _) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-                }
-            }
-
-            if (provision.HasFlag(SyncProvision.ServerHistoryScope))
-            {
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (exists)
-                    (context, _) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, _) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
             var args = new DeprovisionedArgs(context, provision, scopeInfo.Setup, runner.Connection);

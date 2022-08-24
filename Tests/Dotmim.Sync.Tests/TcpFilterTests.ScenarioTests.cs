@@ -55,7 +55,7 @@ namespace Dotmim.Sync.Tests
             var localOrchestrator = new LocalOrchestrator(client.Provider, options);
 
             // Get the local scope
-            var localScopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+            var localScopeInfo = await localOrchestrator.GetScopeInfoAsync();
 
             // getting local scope did not get the schema
             var schema = await localOrchestrator.GetSchemaAsync(this.FilterSetup);
@@ -92,7 +92,7 @@ namespace Dotmim.Sync.Tests
             //--------------------------
 
             // check if scope table is correctly created
-            var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(clientScope.Name, DbScopeType.Client);
+            var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(clientScope.Name, DbScopeType.ScopeInfo);
             Assert.True(scopeInfoTableExists);
 
             // get the db manager
@@ -128,10 +128,10 @@ namespace Dotmim.Sync.Tests
             //localOrchestrator.OnTableProvisioned(null);
 
             //// Deprovision the database with all tracking tables, stored procedures, triggers and scope
-            await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.ClientScope | SyncProvision.TrackingTable);
+            await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.ScopeInfo | SyncProvision.TrackingTable);
 
             // check if scope table is correctly created
-            scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(clientScope.Name, DbScopeType.Client);
+            scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(clientScope.Name, DbScopeType.ScopeInfo);
             Assert.False(scopeInfoTableExists);
 
             // get the db manager

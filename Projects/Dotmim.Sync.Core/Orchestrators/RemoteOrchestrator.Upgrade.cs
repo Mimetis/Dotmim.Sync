@@ -34,8 +34,8 @@ namespace Dotmim.Sync
                 // Initialize database if needed
                 await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-                List<ServerScopeInfo> serverScopeInfos;
-                (context, serverScopeInfos) = await this.InternalLoadAllServerScopesInfosAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                List<ScopeInfo> serverScopeInfos;
+                (context, serverScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (serverScopeInfos == null || serverScopeInfos.Count <= 0)
                     throw new MissingServerScopeInfoException();
@@ -69,13 +69,13 @@ namespace Dotmim.Sync
                 await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
                 bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Server, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
                     return false;
 
-                List<ServerScopeInfo> serverScopeInfos;
-                (context, serverScopeInfos) = await this.InternalLoadAllServerScopesInfosAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                List<ScopeInfo> serverScopeInfos;
+                (context, serverScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (serverScopeInfos == null || serverScopeInfos.Count <= 0)
                     return false;
@@ -90,7 +90,7 @@ namespace Dotmim.Sync
             }
         }
 
-        internal virtual bool InternalNeedsToUpgrade(List<ServerScopeInfo> serverScopeInfos)
+        internal virtual bool InternalNeedsToUpgrade(List<ScopeInfo> serverScopeInfos)
         {
             var version = SyncVersion.Current;
 
@@ -107,7 +107,7 @@ namespace Dotmim.Sync
         }
 
 
-        internal virtual async Task<(SyncContext context, bool upgraded)> InternalUpgradeAsync(List<ServerScopeInfo> serverScopeInfos, SyncContext context, DbConnection connection, DbTransaction transaction,
+        internal virtual async Task<(SyncContext context, bool upgraded)> InternalUpgradeAsync(List<ScopeInfo> serverScopeInfos, SyncContext context, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
@@ -167,7 +167,7 @@ namespace Dotmim.Sync
                 }
 
                 serverScopeInfo.Version = version.ToString();
-                (context, _) = await this.InternalSaveServerScopeInfoAsync(serverScopeInfo, context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, _) = await this.InternalSaveScopeInfoAsync(serverScopeInfo, context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             }
 
@@ -175,7 +175,7 @@ namespace Dotmim.Sync
 
         }
 
-        private async Task<Version> UpgdrateTo601Async(IScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo601Async(ScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
@@ -199,7 +199,7 @@ namespace Dotmim.Sync
         }
 
 
-        private async Task<Version> UpgdrateTo602Async(IScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        private async Task<Version> UpgdrateTo602Async(ScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var newVersion = new Version(0, 6, 2);
 
@@ -230,7 +230,7 @@ namespace Dotmim.Sync
             return newVersion;
         }
 
-        private async Task<Version> UpgdrateTo700Async(IScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo700Async(ScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
                      CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
@@ -289,7 +289,7 @@ namespace Dotmim.Sync
         }
 
 
-        private async Task<Version> UpgdrateTo801Async(IScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo801Async(ScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
                CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
@@ -316,7 +316,7 @@ namespace Dotmim.Sync
         }
 
 
-        private async Task<Version> UpgdrateTo093Async(IScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo093Async(ScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
                CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
@@ -340,7 +340,7 @@ namespace Dotmim.Sync
             return newVersion;
         }
 
-        private async Task<Version> UpgdrateTo094Async(IScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo094Async(ScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
        CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
@@ -364,7 +364,7 @@ namespace Dotmim.Sync
             return newVersion;
         }
 
-        private async Task<Version> UpgdrateTo095Async(IScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo095Async(ScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
                CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
 
         {
@@ -428,7 +428,7 @@ namespace Dotmim.Sync
         }
 
 
-        private async Task<Version> UpgdrateTo096Async(IScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo096Async(ScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
 
         {
@@ -484,7 +484,7 @@ namespace Dotmim.Sync
         }
 
 
-        private async Task<Version> AutoUpgdrateToNewVersionAsync(IScopeInfo scopeInfo, SyncContext context, Version newVersion, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        private async Task<Version> AutoUpgdrateToNewVersionAsync(ScopeInfo scopeInfo, SyncContext context, Version newVersion, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var message = $"Upgrade to {newVersion} for scope {scopeInfo.Name}.";
             await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);

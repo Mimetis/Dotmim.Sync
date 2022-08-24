@@ -20,7 +20,7 @@ namespace Dotmim.Sync.Web.Client
         /// We can't get changes from server, from a web client orchestrator
         /// </summary>
         public override async Task<ServerSyncChanges>
-                GetChangesAsync(ClientScopeInfo clientScopeInfo, SyncParameters parameters = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+                GetChangesAsync(ScopeInfo clientScopeInfo, SyncParameters parameters = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), clientScopeInfo.Name);
 
@@ -160,7 +160,7 @@ namespace Dotmim.Sync.Web.Client
         /// We can't get changes from server, from a web client orchestrator
         /// </summary>
         public override async Task<ServerSyncChanges>
-                GetEstimatedChangesCountAsync(ClientScopeInfo clientScopeInfo, SyncParameters parameters = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+                GetEstimatedChangesCountAsync(ScopeInfo clientScopeInfo, SyncParameters parameters = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             var context = new SyncContext(Guid.NewGuid(), clientScopeInfo.Name);

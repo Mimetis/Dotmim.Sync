@@ -11,12 +11,13 @@ namespace Dotmim.Sync
 
     public class OperationArgs : ProgressArgs
     {
-        public OperationArgs(SyncContext context, ServerScopeInfo serverScopeInfo, ClientScopeInfo clientScopeInfo, DbConnection connection = null, DbTransaction transaction = null)
+        public OperationArgs(SyncContext context, ScopeInfo serverScopeInfo, ScopeInfo clientScopeInfo, ScopeInfoClient scopeInfoClient, DbConnection connection = null, DbTransaction transaction = null)
         : base(context, connection, transaction)
 
         {
-            this.ServerScopeInfo = serverScopeInfo;
-            this.ClientScopeInfo = clientScopeInfo;
+            this.ScopeInfoFromServer = serverScopeInfo;
+            this.ScopeInfoFromClient = clientScopeInfo;
+            this.ScopeInfoClient = scopeInfoClient;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
 
@@ -27,8 +28,9 @@ namespace Dotmim.Sync
 
         public override int EventId => SyncEventsId.Provisioned.Id;
 
-        public ServerScopeInfo ServerScopeInfo { get; }
-        public ClientScopeInfo ClientScopeInfo { get; }
+        public ScopeInfo ScopeInfoFromServer { get; }
+        public ScopeInfo ScopeInfoFromClient { get; }
+        public ScopeInfoClient ScopeInfoClient { get; }
     }
 
     public static partial class InterceptorsExtensions

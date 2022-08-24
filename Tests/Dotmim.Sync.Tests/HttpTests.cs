@@ -1182,7 +1182,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Ensure scope is created locally
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
+                var clientScope = await agent.LocalOrchestrator.GetScopeInfoAsync();
 
                 // get changes from server, without any changes sent from client side
                 var serverSyncChanges = await webRemoteOrchestrator.GetChangesAsync(clientScope);
@@ -1259,7 +1259,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Ensure scope is created locally
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
+                var clientScope = await agent.LocalOrchestrator.GetScopeInfoAsync();
 
                 // get changes from server, without any changes sent from client side
                 var serverSyncChanges = await webRemoteOrchestrator.GetChangesAsync(clientScope);
@@ -1303,7 +1303,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Ensure scope is created locally
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
+                var clientScope = await agent.LocalOrchestrator.GetScopeInfoAsync();
 
                 // get changes from server, without any changes sent from client side
                 var changes = await webRemoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);
@@ -1379,7 +1379,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Ensure scope is created locally
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
+                var clientScope = await agent.LocalOrchestrator.GetScopeInfoAsync();
 
                 // get changes from server, without any changes sent from client side
                 var changes = await webRemoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);

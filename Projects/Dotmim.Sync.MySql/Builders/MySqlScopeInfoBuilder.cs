@@ -46,7 +46,7 @@ namespace Dotmim.Sync.MySql.Builders
         //Exists Scope Table
         // ------------------------------
 
-        public override DbCommand GetExistsClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetExistsScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = this.ScopeInfoTableName.Unquoted().ToString();
             var command = connection.CreateCommand();
@@ -66,7 +66,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
-        public override DbCommand GetExistsServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetExistsScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
             var command = connection.CreateCommand();
@@ -81,7 +81,7 @@ namespace Dotmim.Sync.MySql.Builders
 
         // Create Table
         // ------------------------------
-        public override DbCommand GetCreateClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetCreateScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
             {
                 var commandText =
@@ -125,7 +125,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
-        public override DbCommand GetCreateServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetCreateScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
 
@@ -150,7 +150,7 @@ namespace Dotmim.Sync.MySql.Builders
 
         // Get all scopes
         // ------------------------------
-        public override DbCommand GetAllClientScopesInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetAllScopeInfosCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText =
                 $@"SELECT sync_scope_id, sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version
@@ -181,7 +181,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
-        public override DbCommand GetAllServerHistoriesScopesInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetAllScopeInfoClientsCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
 
@@ -204,7 +204,7 @@ namespace Dotmim.Sync.MySql.Builders
 
         // Get scope
         // ------------------------------
-        public override DbCommand GetClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText =
                 $@"SELECT sync_scope_id
@@ -258,7 +258,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
-        public override DbCommand GetServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
 
@@ -296,7 +296,7 @@ namespace Dotmim.Sync.MySql.Builders
 
         // Insert Scope
         // ------------------------------
-        public override DbCommand GetInsertClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetInsertScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = this.ScopeInfoTableName.Quoted().ToString();
             var stmtText = new StringBuilder(
@@ -417,7 +417,7 @@ namespace Dotmim.Sync.MySql.Builders
             return command;
 
         }
-        public override DbCommand GetInsertServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetInsertScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
 
@@ -475,7 +475,7 @@ namespace Dotmim.Sync.MySql.Builders
 
         // Update Scope
         // ------------------------------
-        public override DbCommand GetUpdateClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetUpdateScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = this.ScopeInfoTableName.Quoted().ToString();
             var stmtText = new StringBuilder(
@@ -597,7 +597,7 @@ namespace Dotmim.Sync.MySql.Builders
             return command;
 
         }
-        public override DbCommand GetUpdateServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetUpdateScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
 
@@ -655,7 +655,7 @@ namespace Dotmim.Sync.MySql.Builders
 
         // Delete scope
         // ------------------------------
-        public override DbCommand GetDeleteClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetDeleteScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var stmtText = $"Delete From {this.ScopeInfoTableName.Quoted().ToString()} where sync_scope_id=@sync_scope_id and sync_scope_name=@sync_scope_name;";
 
@@ -701,7 +701,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
-        public override DbCommand GetDeleteServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetDeleteScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
 
@@ -732,7 +732,7 @@ namespace Dotmim.Sync.MySql.Builders
 
         // Drop Scope table
         // ------------------------------
-        public override DbCommand GetDropClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetDropScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}";
 
@@ -752,7 +752,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
-        public override DbCommand GetDropServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetDropScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
 
@@ -766,7 +766,7 @@ namespace Dotmim.Sync.MySql.Builders
 
         // Exist Client Scope
         // ------------------------------
-        public override DbCommand GetExistsClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetExistsScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}";
             
@@ -797,7 +797,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
-        public override DbCommand GetExistsServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetExistsScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
             command.Transaction = transaction;

@@ -202,7 +202,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Get changes from server
-            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
+            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
             var changes = await remoteOrchestrator.GetChangesAsync(clientScope, parameters);
 
             Assert.NotNull(changes.ServerBatchInfo);
@@ -279,7 +279,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             }
 
             // Get client scope
-            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
+            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
 
             // Get changes to be populated to the server
             var serverSyncChanges = await remoteOrchestrator.GetChangesAsync(clientScope);
@@ -409,7 +409,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctxServer.SaveChangesAsync();
 
             // Get changes from server
-            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
+            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
             var changes = await remoteOrchestrator.GetChangesAsync(clientScope, parameters);
 
             Assert.NotNull(changes.ServerBatchInfo);
@@ -541,7 +541,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Get changes from server
-            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
+            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
             var changes = await remoteOrchestrator.GetChangesAsync(clientScope, parameters);
 
             Assert.NotNull(changes.ServerBatchInfo);

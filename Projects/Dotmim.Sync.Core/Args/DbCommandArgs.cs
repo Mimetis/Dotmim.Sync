@@ -12,7 +12,7 @@ namespace Dotmim.Sync.Args
 
     public class GetCommandArgs : ProgressArgs
     {
-        public GetCommandArgs(IScopeInfo scopeInfo, SyncContext context, DbCommand command, bool isBatch, SyncTable table, DbCommandType commandType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
+        public GetCommandArgs(ScopeInfo scopeInfo, SyncContext context, DbCommand command, bool isBatch, SyncTable table, DbCommandType commandType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             this.ScopeInfo = scopeInfo;
@@ -23,7 +23,7 @@ namespace Dotmim.Sync.Args
             this.Filter = filter;
         }
 
-        public IScopeInfo ScopeInfo { get; }
+        public ScopeInfo ScopeInfo { get; }
         public DbCommand Command { get; set; }
         public bool IsBatch { get; set; }
         public SyncTable Table { get; }

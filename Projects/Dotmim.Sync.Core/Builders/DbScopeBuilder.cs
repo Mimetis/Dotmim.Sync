@@ -14,34 +14,34 @@ namespace Dotmim.Sync.Builders
 
         public DbScopeBuilder(string scopeInfoTableName) => this.ScopeInfoTableName = ParserName.Parse(scopeInfoTableName);
 
-        public abstract DbCommand GetExistsClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetExistsServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetExistsServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetCreateClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetCreateServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetCreateServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetAllClientScopesInfoCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetAllServerScopesInfoCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetAllServerHistoriesScopesInfoCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetClientScopeInfoCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetServerScopeInfoCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetInsertClientScopeInfoCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetInsertServerScopeInfoCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetInsertServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetDeleteClientScopeInfoCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetDeleteServerScopeInfoCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetDeleteServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetUpdateClientScopeInfoCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetUpdateServerScopeInfoCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetUpdateServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction);
+        public abstract DbCommand GetExistsScopeInfoTableCommand(DbConnection connection, DbTransaction transaction);
+        public abstract DbCommand GetExistsScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction);
+
+        public abstract DbCommand GetCreateScopeInfoTableCommand(DbConnection connection, DbTransaction transaction);
+        public abstract DbCommand GetCreateScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction);
+         
+        public abstract DbCommand GetAllScopeInfosCommand(DbConnection connection, DbTransaction transaction);
+        public abstract DbCommand GetAllScopeInfoClientsCommand(DbConnection connection, DbTransaction transaction);
+
+        public abstract DbCommand GetScopeInfoCommand(DbConnection connection, DbTransaction transaction);
+        public abstract DbCommand GetScopeInfoClientCommand(DbConnection connection, DbTransaction transaction);
+         
+        public abstract DbCommand GetInsertScopeInfoCommand(DbConnection connection, DbTransaction transaction);
+        public abstract DbCommand GetInsertScopeInfoClientCommand(DbConnection connection, DbTransaction transaction);
+
+        public abstract DbCommand GetDeleteScopeInfoCommand(DbConnection connection, DbTransaction transaction);
+        public abstract DbCommand GetDeleteScopeInfoClientCommand(DbConnection connection, DbTransaction transaction);
+
+        public abstract DbCommand GetUpdateScopeInfoCommand(DbConnection connection, DbTransaction transaction);
+        public abstract DbCommand GetUpdateScopeInfoClientCommand(DbConnection connection, DbTransaction transaction);
+
         public abstract DbCommand GetLocalTimestampCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetDropClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetDropServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetDropServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetExistsClientScopeInfoCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetExistsServerScopeInfoCommand(DbConnection connection, DbTransaction transaction);
-        public abstract DbCommand GetExistsServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction);
+
+        public abstract DbCommand GetDropScopeInfoTableCommand(DbConnection connection, DbTransaction transaction);
+        public abstract DbCommand GetDropScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction);
+
+        public abstract DbCommand GetExistsScopeInfoCommand(DbConnection connection, DbTransaction transaction);
+        public abstract DbCommand GetExistsScopeInfoClientCommand(DbConnection connection, DbTransaction transaction);
 
 
 
@@ -64,41 +64,32 @@ namespace Dotmim.Sync.Builders
 
             var command = commandType switch
             {
-                DbScopeCommandType.GetAllClientScopesInfo => GetAllClientScopesInfoCommand(connection, transaction),
-                DbScopeCommandType.GetAllServerScopesInfo => GetAllServerScopesInfoCommand(connection, transaction),
-                DbScopeCommandType.GetAllServerHistoryScopesInfo => GetAllServerHistoriesScopesInfoCommand(connection, transaction),
+                DbScopeCommandType.GetAllScopeInfos => GetAllScopeInfosCommand(connection, transaction),
+                DbScopeCommandType.GetAllScopeInfoClients => GetAllScopeInfoClientsCommand(connection, transaction),
 
-                DbScopeCommandType.GetClientScopeInfo => GetClientScopeInfoCommand( connection, transaction),
-                DbScopeCommandType.GetServerScopeInfo => GetServerScopeInfoCommand(connection, transaction),
-                DbScopeCommandType.GetServerHistoryScopeInfo => GetServerHistoryScopeInfoCommand(connection, transaction),
+                DbScopeCommandType.GetScopeInfo => GetScopeInfoCommand( connection, transaction),
+                DbScopeCommandType.GetScopeInfoClient => GetScopeInfoClientCommand(connection, transaction),
 
-                DbScopeCommandType.CreateClientScopeInfoTable => GetCreateClientScopeInfoTableCommand( connection, transaction),
-                DbScopeCommandType.CreateServerScopeInfoTable => GetCreateServerScopeInfoTableCommand(connection, transaction),
-                DbScopeCommandType.CreateServerHistoryScopeInfoTable => GetCreateServerHistoryScopeInfoTableCommand(connection, transaction),
+                DbScopeCommandType.CreateScopeInfoTable => GetCreateScopeInfoTableCommand( connection, transaction),
+                DbScopeCommandType.CreateScopeInfoClientTable => GetCreateScopeInfoClientTableCommand(connection, transaction),
 
-                DbScopeCommandType.ExistsClientScopeInfoTable => GetExistsClientScopeInfoTableCommand(connection, transaction),
-                DbScopeCommandType.ExistsServerScopeInfoTable => GetExistsServerScopeInfoTableCommand(connection, transaction),
-                DbScopeCommandType.ExistsServerHistoryScopeInfoTable => GetExistsServerHistoryScopeInfoTableCommand(connection, transaction),
+                DbScopeCommandType.ExistsScopeInfoTable => GetExistsScopeInfoTableCommand(connection, transaction),
+                DbScopeCommandType.ExistsScopeInfoClientTable => GetExistsScopeInfoClientTableCommand(connection, transaction),
 
-                DbScopeCommandType.InsertClientScopeInfo => GetInsertClientScopeInfoCommand(connection, transaction),
-                DbScopeCommandType.InsertServerScopeInfo => GetInsertServerScopeInfoCommand(connection, transaction),
-                DbScopeCommandType.InsertServerHistoryScopeInfo => GetInsertServerHistoryScopeInfoCommand(connection, transaction),
+                DbScopeCommandType.InsertScopeInfo => GetInsertScopeInfoCommand(connection, transaction),
+                DbScopeCommandType.InsertScopeInfoClient => GetInsertScopeInfoClientCommand(connection, transaction),
+                
+                DbScopeCommandType.UpdateScopeInfo => GetUpdateScopeInfoCommand(connection, transaction),
+                DbScopeCommandType.UpdateScopeInfoClient => GetUpdateScopeInfoClientCommand(connection, transaction),
 
-                DbScopeCommandType.UpdateClientScopeInfo => GetUpdateClientScopeInfoCommand(connection, transaction),
-                DbScopeCommandType.UpdateServerScopeInfo => GetUpdateServerScopeInfoCommand(connection, transaction),
-                DbScopeCommandType.UpdateServerHistoryScopeInfo => GetUpdateServerHistoryScopeInfoCommand(connection, transaction),
+                DbScopeCommandType.DeleteScopeInfo => GetDeleteScopeInfoCommand(connection, transaction),
+                DbScopeCommandType.DeleteScopeInfoClient => GetDeleteScopeInfoClientCommand(connection, transaction),
 
-                DbScopeCommandType.DeleteClientScopeInfo => GetDeleteClientScopeInfoCommand(connection, transaction),
-                DbScopeCommandType.DeleteServerScopeInfo => GetDeleteServerScopeInfoCommand(connection, transaction),
-                DbScopeCommandType.DeleteServerHistoryScopeInfo => GetDeleteServerHistoryScopeInfoCommand(connection, transaction),
-
-                DbScopeCommandType.ExistClientScopeInfo => GetExistsClientScopeInfoCommand(connection, transaction),
-                DbScopeCommandType.ExistServerScopeInfo => GetExistsServerScopeInfoCommand(connection, transaction),
-                DbScopeCommandType.ExistServerHistoryScopeInfo => GetExistsServerHistoryScopeInfoCommand(connection, transaction),
-
-                DbScopeCommandType.DropClientScopeInfoTable => GetDropClientScopeInfoTableCommand(connection, transaction),
-                DbScopeCommandType.DropServerScopeInfoTable => GetDropServerScopeInfoTableCommand(connection, transaction),
-                DbScopeCommandType.DropServerHistoryScopeInfoTable => GetDropServerHistoryScopeInfoTableCommand(connection, transaction),
+                DbScopeCommandType.ExistScopeInfo => GetExistsScopeInfoCommand(connection, transaction),
+                DbScopeCommandType.ExistScopeInfoClient => GetExistsScopeInfoClientCommand(connection, transaction),
+                
+                DbScopeCommandType.DropScopeInfoTable => GetDropScopeInfoTableCommand(connection, transaction),
+                DbScopeCommandType.DropScopeInfoClientTable => GetDropScopeInfoClientTableCommand(connection, transaction),
 
                 DbScopeCommandType.GetLocalTimestamp => GetLocalTimestampCommand(connection, transaction),
                 _ => throw new Exception($"This DbScopeCommandType {commandType} not exists")

@@ -10,7 +10,7 @@ namespace Dotmim.Sync
 {
     public class ConflictingSetupArgs : ProgressArgs
     {
-        public ConflictingSetupArgs(SyncContext context, SyncSetup setup, ClientScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction)
+        public ConflictingSetupArgs(SyncContext context, SyncSetup setup, ScopeInfo clientScopeInfo, ScopeInfo serverScopeInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction)
         {
             this.Setup = setup;
             this.ClientScopeInfo = clientScopeInfo;
@@ -35,12 +35,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the client scope info used to check if the client is conflicting
         /// </summary>
-        public ClientScopeInfo ClientScopeInfo { get; set; }
+        public ScopeInfo ClientScopeInfo { get; set; }
 
         /// <summary>
         /// Gets the server scope info to check if client is conflicting
         /// </summary>
-        public ServerScopeInfo ServerScopeInfo { get; set; }
+        public ScopeInfo ServerScopeInfo { get; set; }
 
         public override int EventId => SyncEventsId.ConflictingSetup.Id;
     }

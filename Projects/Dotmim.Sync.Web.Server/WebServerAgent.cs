@@ -456,7 +456,8 @@ namespace Dotmim.Sync.Web.Server
             // Get context from request message
             var context = httpMessage.SyncContext;
 
-            var changes = await this.RemoteOrchestrator.GetEstimatedChangesCountAsync(httpMessage.ClientScopeInfo, context.Parameters, default, default, cancellationToken, progress);
+            throw new Exception("Not implemented correctly here");
+            var changes = await this.RemoteOrchestrator.GetEstimatedChangesCountAsync(httpMessage.ClientScopeInfo.Name, Guid.Empty, 0, context.Parameters, default, default, cancellationToken, progress);
 
             var changesResponse = new HttpMessageSendChangesResponse(httpMessage.SyncContext)
             {
@@ -684,9 +685,11 @@ namespace Dotmim.Sync.Web.Server
             ConflictResolutionPolicy serverResolutionPolicy;
 
             // get changes
-            (context, serverSyncChanges, serverChangesApplied, serverResolutionPolicy) =
-                   await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(
-                       httpMessage.ClientScopeInfo, httpMessage.SyncContext, sessionCache.ClientBatchInfo,
+            throw new Exception("Not implemented correctly here");
+            (context, serverSyncChanges, serverChangesApplied, serverResolutionPolicy) = await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(
+                       //httpMessage.ClientScopeInfo, 
+                       null,
+                       httpMessage.SyncContext, sessionCache.ClientBatchInfo,
                        default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // Set session cache infos
@@ -1077,6 +1080,6 @@ namespace Dotmim.Sync.Web.Server
 
         }
 
-      
+
     }
 }

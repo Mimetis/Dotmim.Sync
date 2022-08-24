@@ -25,7 +25,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
         internal virtual async Task<(SyncContext, BatchInfo, DatabaseChangesSelected)> InternalGetChangesAsync(
-                             IScopeInfo scopeInfo, SyncContext context, bool isNew, long? fromLastTimestamp, long? toNewTimestamp, Guid? excludingScopeId,
+                             ScopeInfo scopeInfo, SyncContext context, bool isNew, long? fromLastTimestamp, long? toNewTimestamp, Guid? excludingScopeId,
                              bool supportsMultiActiveResultSets, string batchRootDirectory, string batchDirectoryName,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
@@ -181,7 +181,7 @@ namespace Dotmim.Sync
 
         internal virtual async Task<(SyncContext context, List<BatchPartInfo> batchPartInfos, TableChangesSelected tableChangesSelected)>
             InternalReadSyncTableChangesAsync(
-            IScopeInfo scopeInfo, SyncContext context, Guid? excludintScopeId, SyncTable syncTable,
+            ScopeInfo scopeInfo, SyncContext context, Guid? excludintScopeId, SyncTable syncTable,
             BatchInfo batchInfo, bool isNew, long? lastTimestamp,
             DbConnection connection, DbTransaction transaction,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
@@ -332,7 +332,7 @@ namespace Dotmim.Sync
         /// Gets changes rows count estimation, 
         /// </summary>
         internal virtual async Task<(SyncContext, DatabaseChangesSelected)> InternalGetEstimatedChangesCountAsync(
-                             IScopeInfo scopeInfo, SyncContext context, bool isNew, long? fromLastTimestamp, long? toLastTimestamp, Guid? excludingScopeId,
+                             ScopeInfo scopeInfo, SyncContext context, bool isNew, long? fromLastTimestamp, long? toLastTimestamp, Guid? excludingScopeId,
                              bool supportsMultiActiveResultSets,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
@@ -436,7 +436,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Generate an empty BatchInfo
         /// </summary>
-        internal Task<(BatchInfo, DatabaseChangesSelected)> InternalGetEmptyChangesAsync(IScopeInfo scopeInfo, string dir)
+        internal Task<(BatchInfo, DatabaseChangesSelected)> InternalGetEmptyChangesAsync(ScopeInfo scopeInfo, string dir)
         {
             // Create the batch info, in memory
             var batchInfo = new BatchInfo(scopeInfo.Schema, dir);
@@ -455,7 +455,7 @@ namespace Dotmim.Sync
         /// - SelectInitializedChangesWithFilters   : All changes for first sync with filters
         /// - SelectChangesWithFilters              : All changes filtered by timestamp with filters
         /// </summary>
-        internal async Task<(DbCommand, DbCommandType)> InternalGetSelectChangesCommandAsync(IScopeInfo scopeInfo, SyncContext context, 
+        internal async Task<(DbCommand, DbCommandType)> InternalGetSelectChangesCommandAsync(ScopeInfo scopeInfo, SyncContext context, 
             SyncTable syncTable,  bool isNew, DbConnection connection, DbTransaction transaction)
         {
             DbCommandType dbCommandType;

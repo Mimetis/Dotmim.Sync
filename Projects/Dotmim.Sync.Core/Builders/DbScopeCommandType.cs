@@ -7,41 +7,32 @@ namespace Dotmim.Sync.Builders
 {
     public enum DbScopeCommandType
     {
-        ExistsClientScopeInfoTable,
-        ExistsServerScopeInfoTable,
-        ExistsServerHistoryScopeInfoTable,
+        ExistsScopeInfoTable,
+        ExistsScopeInfoClientTable,
 
-        CreateClientScopeInfoTable,
-        CreateServerScopeInfoTable,
-        CreateServerHistoryScopeInfoTable,
+        CreateScopeInfoTable,
+        CreateScopeInfoClientTable,
 
-        DropClientScopeInfoTable,
-        DropServerScopeInfoTable,
-        DropServerHistoryScopeInfoTable,
+        DropScopeInfoTable,
+        DropScopeInfoClientTable,
 
-        GetAllClientScopesInfo,
-        GetAllServerScopesInfo,
-        GetAllServerHistoryScopesInfo,
+        GetAllScopeInfos,
+        GetAllScopeInfoClients,
 
-        GetClientScopeInfo,
-        GetServerScopeInfo,
-        GetServerHistoryScopeInfo,
+        GetScopeInfo, 
+        GetScopeInfoClient,
 
-        InsertClientScopeInfo,
-        InsertServerScopeInfo,
-        InsertServerHistoryScopeInfo,
+        InsertScopeInfo,
+        InsertScopeInfoClient,
 
-        UpdateClientScopeInfo,
-        UpdateServerScopeInfo,
-        UpdateServerHistoryScopeInfo,
+        UpdateScopeInfo,
+        UpdateScopeInfoClient,
 
-        DeleteClientScopeInfo,
-        DeleteServerScopeInfo,
-        DeleteServerHistoryScopeInfo,
+        DeleteScopeInfo,
+        DeleteScopeInfoClient,
 
-        ExistClientScopeInfo,
-        ExistServerScopeInfo,
-        ExistServerHistoryScopeInfo,
+        ExistScopeInfo,
+        ExistScopeInfoClient,
 
         GetLocalTimestamp,
     }

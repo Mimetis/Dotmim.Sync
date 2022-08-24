@@ -33,8 +33,8 @@ namespace Dotmim.Sync
                 // Initialize database if needed
                 await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-                List<ClientScopeInfo> clientScopeInfos;
-                (context, clientScopeInfos) = await this.InternalLoadAllClientScopesInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                List<ScopeInfo> clientScopeInfos;
+                (context, clientScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (clientScopeInfos == null || clientScopeInfos.Count <= 0)
                     throw new MissingClientScopeInfoException();
@@ -67,13 +67,13 @@ namespace Dotmim.Sync
                 await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
                 bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Client, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
                     return false;
 
-                List<ClientScopeInfo> clientScopeInfos;
-                (context, clientScopeInfos) = await this.InternalLoadAllClientScopesInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                List<ScopeInfo> clientScopeInfos;
+                (context, clientScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (clientScopeInfos == null || clientScopeInfos.Count <= 0)
                     return false;
@@ -87,7 +87,7 @@ namespace Dotmim.Sync
                 throw GetSyncError(context, ex);
             }
         }
-        internal virtual bool InternalNeedsToUpgrade(List<ClientScopeInfo> clientScopeInfos)
+        internal virtual bool InternalNeedsToUpgrade(List<ScopeInfo> clientScopeInfos)
         {
             var version = SyncVersion.Current;
 
@@ -104,7 +104,7 @@ namespace Dotmim.Sync
         }
 
 
-        internal virtual async Task<(SyncContext context, bool upgraded)> InternalUpgradeAsync(List<ClientScopeInfo> clientScopeInfos,
+        internal virtual async Task<(SyncContext context, bool upgraded)> InternalUpgradeAsync(List<ScopeInfo> clientScopeInfos,
                         SyncContext context, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -169,7 +169,7 @@ namespace Dotmim.Sync
                     if (oldVersion != version)
                     {
                         clientScopeInfo.Version = version.ToString();
-                        (context, _) = await this.InternalSaveClientScopeInfoAsync(clientScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        (context, _) = await this.InternalSaveScopeInfoAsync(clientScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                     }
 
                 }
@@ -184,7 +184,7 @@ namespace Dotmim.Sync
 
         }
 
-        private async Task<Version> UpgdrateTo601Async(IScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo601Async(ScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
@@ -231,7 +231,7 @@ namespace Dotmim.Sync
             return newVersion;
         }
 
-        private async Task<Version> UpgdrateTo602Async(IScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        private async Task<Version> UpgdrateTo602Async(ScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
             var newVersion = new Version(0, 6, 2);
@@ -267,7 +267,7 @@ namespace Dotmim.Sync
             return newVersion;
         }
 
-        private async Task<Version> UpgdrateTo700Async(IScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo700Async(ScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
@@ -326,7 +326,7 @@ namespace Dotmim.Sync
         }
 
 
-        private async Task<Version> UpgdrateTo801Async(IScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo801Async(ScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
                        CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
@@ -351,7 +351,7 @@ namespace Dotmim.Sync
             return newVersion;
         }
 
-        private async Task<Version> UpgdrateTo093Async(ClientScopeInfo clientScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo093Async(ScopeInfo clientScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var newVersion = new Version(0, 9, 3);
@@ -368,8 +368,8 @@ namespace Dotmim.Sync
 
             await this.DeprovisionAsync(clientScopeInfo.Name, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            var clientScope = await this.GetClientScopeInfoAsync(clientScopeInfo.Name, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            var serverScope = new ServerScopeInfo
+            var clientScope = await this.GetScopeInfoAsync(clientScopeInfo.Name, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var serverScope = new ScopeInfo
             {
                 Schema = clientScope.Schema,
                 Setup = clientScope.Setup,
@@ -380,7 +380,7 @@ namespace Dotmim.Sync
 
             return newVersion;
         }
-        private async Task<Version> UpgdrateTo094Async(ClientScopeInfo clientScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo094Async(ScopeInfo clientScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var newVersion = new Version(0, 9, 4);
@@ -397,8 +397,8 @@ namespace Dotmim.Sync
 
             await this.DeprovisionAsync(clientScopeInfo.Name, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            var clientScope = await this.GetClientScopeInfoAsync(clientScopeInfo.Name, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            var serverScope = new ServerScopeInfo
+            var clientScope = await this.GetScopeInfoAsync(clientScopeInfo.Name, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var serverScope = new ScopeInfo
             {
                 Schema = clientScope.Schema,
                 Setup = clientScope.Setup,
@@ -410,7 +410,7 @@ namespace Dotmim.Sync
             return newVersion;
         }
 
-        private async Task<Version> UpgdrateTo095Async(ClientScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
+        private async Task<Version> UpgdrateTo095Async(ScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
 
         {
@@ -484,8 +484,8 @@ namespace Dotmim.Sync
             }
 
 
-            List<ClientScopeInfo> clientScopeInfos;
-            (context, clientScopeInfos) = await this.InternalLoadAllClientScopesInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+            List<ScopeInfo> clientScopeInfos;
+            (context, clientScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
             var defaultClientScopeInfo = clientScopeInfos.FirstOrDefault(csi => csi.Name == "DefaultScope");
             if (defaultClientScopeInfo == null)
@@ -497,26 +497,24 @@ namespace Dotmim.Sync
 
             // simulate 0.94 scope without scopename in sp
             // Creating a fake scope info
-            var fakeClientScopeInfo = this.InternalCreateScopeInfo(SyncOptions.DefaultScopeName, DbScopeType.Client);
+            var fakeClientScopeInfo = this.InternalCreateScopeInfo(SyncOptions.DefaultScopeName);
             fakeClientScopeInfo.Setup = scopeInfo.Setup;
 
             await this.InternalDeprovisionAsync(fakeClientScopeInfo, context, provision, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
             await this.InterceptAsync(new UpgradeProgressArgs(context, $"Deprovision scope {scopeInfo.Name}", newVersion, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
             // Delete scope info to be able to recreate it with correct primary keys
-            await this.InternalDeleteClientScopeInfoAsync(scopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+            await this.InternalDeleteScopeInfoAsync(scopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-            scopeInfo.Id = defaultClientScopeInfo.Id;
-            await this.InternalSaveClientScopeInfoAsync(scopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+            await this.InternalSaveScopeInfoAsync(scopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
             // provision with a fake server scope
-            var serverScope = new ServerScopeInfo
+            var serverScope = new ScopeInfo
             {
                 Schema = scopeInfo.Schema,
                 Setup = scopeInfo.Setup,
                 Version = scopeInfo.Version,
-                Name = scopeInfo.Name,
-                IsNewScope = scopeInfo.IsNewScope,
+                Name = scopeInfo.Name
             };
 
             await this.ProvisionAsync(serverScope, provision, true, runner.Connection, runner.Transaction, progress: runner.Progress);
@@ -526,7 +524,7 @@ namespace Dotmim.Sync
 
             return newVersion;
         }
-        private async Task<Version> AutoUpgdrateToNewVersionAsync(IScopeInfo scopeInfo, SyncContext context, Version newVersion, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        private async Task<Version> AutoUpgdrateToNewVersionAsync(ScopeInfo scopeInfo, SyncContext context, Version newVersion, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var message = $"Upgrade to {newVersion}:";
 

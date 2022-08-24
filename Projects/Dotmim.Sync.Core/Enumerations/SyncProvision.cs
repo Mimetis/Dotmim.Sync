@@ -15,8 +15,7 @@ namespace Dotmim.Sync.Enumerations
         TrackingTable = 2,
         StoredProcedures = 4,
         Triggers = 8,
-        ClientScope = 16,
-        ServerScope = 32,
-        ServerHistoryScope = 64,
+        ScopeInfo = 16,
+        ScopeInfoClient = 32,
     }
 }

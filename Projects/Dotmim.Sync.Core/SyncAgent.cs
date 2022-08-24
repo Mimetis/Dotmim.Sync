@@ -257,21 +257,26 @@ namespace Dotmim.Sync
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // on remote orchestrator, get Server scope
-                ServerScopeInfo serverScopeInfo;
-                (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(context, setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+                ScopeInfo sScopeInfo;
+                (context, sScopeInfo) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 bool isConflicting = false;
-                (context, isConflicting, serverScopeInfo) = await this.RemoteOrchestrator.IsConflictingSetupAsync(context, setup, serverScopeInfo).ConfigureAwait(false);
+                (context, isConflicting, sScopeInfo) = await this.RemoteOrchestrator.IsConflictingSetupAsync(context, setup, sScopeInfo).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // On local orchestrator, get scope info.
-                ClientScopeInfo clientScopeInfo;
-                (context, clientScopeInfo) = await this.LocalOrchestrator.InternalGetClientScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                ScopeInfo cScopeInfo;
+                (context, cScopeInfo) = await this.LocalOrchestrator.InternalEnsureScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
 
+                ScopeInfoClient cScopeInfoClient;
+                (context, cScopeInfoClient) = await this.LocalOrchestrator.InternalEnsureScopeInfoClientAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                // Check if we have a problem with the SyncSetup local and the one coming from server
+                // Let a chance to the user to update the local setup accordingly to the server one
                 isConflicting = false;
-                (context, isConflicting, clientScopeInfo, serverScopeInfo) = await this.LocalOrchestrator.IsConflictingSetupAsync(context, setup, clientScopeInfo, serverScopeInfo).ConfigureAwait(false);
+                (context, isConflicting, cScopeInfo, sScopeInfo) = await this.LocalOrchestrator.IsConflictingSetupAsync(context, setup, cScopeInfo, sScopeInfo).ConfigureAwait(false);
 
                 if (isConflicting)
                 {
@@ -281,25 +286,24 @@ namespace Dotmim.Sync
                 }
 
                 // Register local scope id
-                context.ClientScopeId = clientScopeInfo.Id;
+                context.ClientId = cScopeInfoClient.Id;
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-
                 // If we just have create the server scope, we need to provision it
                 // the WebServerAgent will do this setp on the GetServrScopeInfoAsync task, just before
                 // So far, on Http mode, this if() will not be called
-                if (serverScopeInfo != null && serverScopeInfo.IsNewScope)
+                if (sScopeInfo != null && sScopeInfo.IsNewScope)
                 {
                     // 2) Provision
                     var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                    (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalProvisionServerAsync(serverScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    (context, sScopeInfo) = await this.RemoteOrchestrator.InternalProvisionServerAsync(sScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 // Get operation from server
                 SyncOperation operation;
-                (context, operation) = await this.RemoteOrchestrator.InternalGetOperationAsync(serverScopeInfo, clientScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                (context, operation) = await this.RemoteOrchestrator.InternalGetOperationAsync(sScopeInfo, cScopeInfo, cScopeInfoClient, context, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 if (operation != SyncOperation.Normal)
                 {
@@ -311,18 +315,18 @@ namespace Dotmim.Sync
                     }
 
                     // override order to Deprovision client
-                    if (operation == SyncOperation.DeprovisionAndSync && clientScopeInfo.Setup != null && clientScopeInfo.Setup.HasTables)
+                    if (operation == SyncOperation.DeprovisionAndSync && cScopeInfo.Setup != null && cScopeInfo.Setup.HasTables)
                     {
                         var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                        (context, _) = await this.LocalOrchestrator.InternalDeprovisionAsync(clientScopeInfo, context, provision, default, default, cancellationToken, progress).ConfigureAwait(false);
-                        (context, clientScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(serverScopeInfo, clientScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+                        (context, _) = await this.LocalOrchestrator.InternalDeprovisionAsync(cScopeInfo, context, provision, default, default, cancellationToken, progress).ConfigureAwait(false);
+                        (context, cScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(sScopeInfo, cScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
                     }
 
                     if (operation == SyncOperation.DropAllAndSync)
                     {
                         await this.LocalOrchestrator.DropAllAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
                         // Recreated scope info
-                        (context, clientScopeInfo) = await this.LocalOrchestrator.InternalGetClientScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                        (context, cScopeInfo) = await this.LocalOrchestrator.InternalGetScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
                     }
 
                     if (operation == SyncOperation.DropAllAndExit)
@@ -345,24 +349,24 @@ namespace Dotmim.Sync
 
                 // if client is new or schema does not exists or scope name is a new one
                 // We need to get the scope from server
-                if (clientScopeInfo.IsNewScope || clientScopeInfo.Schema == null)
+                if (cScopeInfoClient.IsNewScope || cScopeInfo.Schema == null)
                 {
                     // Provision local database
                     var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                    (context, clientScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(serverScopeInfo, clientScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    (context, cScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(sScopeInfo, cScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 if (setup == null)
-                    setup = clientScopeInfo.Setup;
+                    setup = cScopeInfo.Setup;
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Before call the changes from localorchestrator, check if we are outdated
-                if (serverScopeInfo != null && context.SyncType != SyncType.Reinitialize && context.SyncType != SyncType.ReinitializeWithUpload)
+                if (sScopeInfo != null && context.SyncType != SyncType.Reinitialize && context.SyncType != SyncType.ReinitializeWithUpload)
                 {
                     bool isOutDated = false;
-                    (context, isOutDated) = await this.LocalOrchestrator.IsOutDatedAsync(context, clientScopeInfo, serverScopeInfo).ConfigureAwait(false);
+                    (context, isOutDated) = await this.LocalOrchestrator.IsOutDatedAsync(context, cScopeInfoClient, sScopeInfo).ConfigureAwait(false);
 
                     // if client does not change SyncType to Reinitialize / ReinitializeWithUpload on SyncInterceptor, we raise an error
                     // otherwise, we are outdated, but we can continue, because we have a new mode.
@@ -374,17 +378,18 @@ namespace Dotmim.Sync
 
                 // On local orchestrator, get local changes
                 ClientSyncChanges clientChanges;
-                (context, clientChanges) = await this.LocalOrchestrator.InternalGetChangesAsync(clientScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                (context, clientChanges) = await this.LocalOrchestrator.InternalGetChangesAsync(cScopeInfo, 
+                    context, cScopeInfoClient, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // If we are in reinit mode, force scope last server sync timestamp to null
                 if (context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload)
-                    clientScopeInfo.LastServerSyncTimestamp = null;
+                    cScopeInfoClient.LastServerSyncTimestamp = null;
 
                 // Get if we need to get all rows from the datasource
-                var fromScratch = clientScopeInfo.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
+                var fromScratch = cScopeInfoClient.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
 
                 // IF is new and we have a snapshot directory, try to apply a snapshot
                 if (fromScratch)
@@ -395,13 +400,13 @@ namespace Dotmim.Sync
                     DatabaseChangesSelected snapDatabaseChangesSelected;
 
                     (context, snapRemoteClientTimestamp, snapServerBatchInfo, snapDatabaseChangesSelected)
-                        = await this.RemoteOrchestrator.InternalGetSnapshotAsync(serverScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                        = await this.RemoteOrchestrator.InternalGetSnapshotAsync(sScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                     // Apply snapshot
                     if (snapServerBatchInfo != null)
                     {
-                        (context, result.SnapshotChangesAppliedOnClient, clientScopeInfo) = await this.LocalOrchestrator.InternalApplySnapshotAsync(
-                            clientScopeInfo, context, snapServerBatchInfo, clientChanges.ClientTimestamp, snapRemoteClientTimestamp, snapDatabaseChangesSelected, default, default, cancellationToken, progress).ConfigureAwait(false);
+                        (context, result.SnapshotChangesAppliedOnClient, cScopeInfoClient) = await this.LocalOrchestrator.InternalApplySnapshotAsync(
+                            cScopeInfo, cScopeInfoClient, context, snapServerBatchInfo, clientChanges.ClientTimestamp, snapRemoteClientTimestamp, snapDatabaseChangesSelected, default, default, cancellationToken, progress).ConfigureAwait(false);
                     }
                 }
 
@@ -417,7 +422,7 @@ namespace Dotmim.Sync
                 ConflictResolutionPolicy serverResolutionPolicy;
 
                 (context, serverSyncChanges, serverChangesApplied, serverResolutionPolicy) = 
-                    await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(clientScopeInfo, context, clientChanges.ClientBatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(cScopeInfoClient, context, clientChanges.ClientBatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -428,7 +433,7 @@ namespace Dotmim.Sync
                 // apply is 25%
                 context.ProgressPercentage = 0.75;
                 var clientChangesApplied = await this.LocalOrchestrator.InternalApplyChangesAsync(
-                    clientScopeInfo, context, serverSyncChanges.ServerBatchInfo,
+                    cScopeInfo, cScopeInfoClient, context, serverSyncChanges.ServerBatchInfo,
                     clientChanges.ClientTimestamp, serverSyncChanges.RemoteClientTimestamp, reverseConflictResolutionPolicy, snapshotApplied,
                     serverSyncChanges.ServerChangesSelected, default, default, cancellationToken, progress).ConfigureAwait(false);
 
@@ -492,143 +497,143 @@ namespace Dotmim.Sync
         /// <param name="markRows">
         /// Mark local rows to be uploaded on next call to SynchronizeAsync()
         /// </param>
-        public async Task SetSynchronizedAsync(string scopeName = SyncOptions.DefaultScopeName, SyncSetup setup = default, long? remoteClientTimestamp = default, bool markRows = false, SyncParameters parameters = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            // checkpoints dates
-            var startTime = DateTime.UtcNow;
-            var completeTime = DateTime.UtcNow;
+        //public async Task SetSynchronizedAsync(string scopeName = SyncOptions.DefaultScopeName, SyncSetup setup = default, long? remoteClientTimestamp = default, bool markRows = false, SyncParameters parameters = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        //{
+        //    // checkpoints dates
+        //    var startTime = DateTime.UtcNow;
+        //    var completeTime = DateTime.UtcNow;
 
-            // Create a logger
-            var logger = this.Options.Logger ?? new SyncLogger().AddDebug();
+        //    // Create a logger
+        //    var logger = this.Options.Logger ?? new SyncLogger().AddDebug();
 
-            // Lock sync to prevent multi call to sync at the same time
-            LockSync();
+        //    // Lock sync to prevent multi call to sync at the same time
+        //    LockSync();
 
-            // Context, used to back and forth data between servers
-            var context = new SyncContext(Guid.NewGuid(), scopeName)
-            {
-                // if any parameters, set in context
-                Parameters = parameters,
-                // set sync type (Normal, Reinitialize, ReinitializeWithUpload)
-                SyncType = SyncType.Normal
-            };
+        //    // Context, used to back and forth data between servers
+        //    var context = new SyncContext(Guid.NewGuid(), scopeName)
+        //    {
+        //        // if any parameters, set in context
+        //        Parameters = parameters,
+        //        // set sync type (Normal, Reinitialize, ReinitializeWithUpload)
+        //        SyncType = SyncType.Normal
+        //    };
 
-            // Result, with sync results stats.
-            var result = new SyncResult(context.SessionId)
-            {
-                // set start time
-                StartTime = startTime,
-                CompleteTime = completeTime,
-            };
+        //    // Result, with sync results stats.
+        //    var result = new SyncResult(context.SessionId)
+        //    {
+        //        // set start time
+        //        StartTime = startTime,
+        //        CompleteTime = completeTime,
+        //    };
 
-            this.SessionState = SyncSessionState.Synchronizing;
-            this.SessionStateChanged?.Invoke(this, this.SessionState);
-
-
-            try
-            {
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                // Begin session
-                await this.LocalOrchestrator.BeginSessionAsync(scopeName, cancellationToken, progress).ConfigureAwait(false);
-
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                // .....
-                // Get the scope
-                var clientScopeInfo = await this.LocalOrchestrator.GetClientScopeInfoAsync(scopeName, default, default, cancellationToken, progress).ConfigureAwait(false);
-
-                context.ProgressPercentage = 0.2;
-
-                // local database becomes a not new database
-                var isNewScope = false;
-
-                // on remote orchestrator, get Server scope
-                ServerScopeInfo serverScopeInfo;
-                (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(context, setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
-
-                context.ProgressPercentage = 0.4;
-
-                // If we just have create the server scope, we need to provision it
-                // the WebServerAgent will do this setp on the GetServrScopeInfoAsync task, just before
-                // So far, on Http mode, this if() will not be called
-                if (serverScopeInfo != null && serverScopeInfo.IsNewScope)
-                {
-                    // 2) Provision
-                    var serverProvision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                    (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalProvisionServerAsync(serverScopeInfo, context, serverProvision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
-                }
-
-                context.ProgressPercentage = 0.6;
-
-                // get remote client timestamp 
-                if (!remoteClientTimestamp.HasValue)
-                    remoteClientTimestamp = await this.RemoteOrchestrator.GetLocalTimestampAsync(scopeName, default, default, cancellationToken, progress).ConfigureAwait(false);
+        //    this.SessionState = SyncSessionState.Synchronizing;
+        //    this.SessionStateChanged?.Invoke(this, this.SessionState);
 
 
-                // Provision local database
-                var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                (context, clientScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(serverScopeInfo, clientScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+        //    try
+        //    {
+        //        if (cancellationToken.IsCancellationRequested)
+        //            cancellationToken.ThrowIfCancellationRequested();
 
-                if (setup == null)
-                    setup = clientScopeInfo.Setup;
+        //        // Begin session
+        //        await this.LocalOrchestrator.BeginSessionAsync(scopeName, cancellationToken, progress).ConfigureAwait(false);
 
-                context.ProgressPercentage = 0.8;
+        //        if (cancellationToken.IsCancellationRequested)
+        //            cancellationToken.ThrowIfCancellationRequested();
 
-                // Get the local timestamp
-                var localTs = await this.LocalOrchestrator.GetLocalTimestampAsync(scopeName, default, default, cancellationToken, progress).ConfigureAwait(false);
+        //        // .....
+        //        // Get the scope
+        //        var clientScopeInfo = await this.LocalOrchestrator.GetClientScopeInfoAsync(scopeName, default, default, cancellationToken, progress).ConfigureAwait(false);
 
-                if (markRows)
-                    await this.LocalOrchestrator.UpdateUntrackedRowsAsync(scopeName, default, default, cancellationToken, progress).ConfigureAwait(false);
+        //        context.ProgressPercentage = 0.2;
 
-                // generate the new scope item
-                clientScopeInfo.IsNewScope = isNewScope;
-                clientScopeInfo.LastSync = isNewScope ? null : DateTime.Now;
-                clientScopeInfo.LastServerSyncTimestamp = remoteClientTimestamp;
-                clientScopeInfo.LastSyncTimestamp = localTs;
-                clientScopeInfo.LastSyncDuration = 1;
-                clientScopeInfo.Setup = serverScopeInfo.Setup;
-                clientScopeInfo.Schema = serverScopeInfo.Schema;
+        //        // local database becomes a not new database
+        //        var isNewScope = false;
 
-                await this.LocalOrchestrator.SaveClientScopeInfoAsync(clientScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
-                completeTime = DateTime.UtcNow;
-                this.LocalOrchestrator.CompleteTime = completeTime;
-                this.RemoteOrchestrator.CompleteTime = completeTime;
+        //        // on remote orchestrator, get Server scope
+        //        ServerScopeInfo serverScopeInfo;
+        //        (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(context, setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
-                result.CompleteTime = completeTime;
+        //        context.ProgressPercentage = 0.4;
 
-                // End session
-                context.ProgressPercentage = 1;
-                await this.LocalOrchestrator.EndSessionAsync(result, scopeName, cancellationToken, progress).ConfigureAwait(false);
+        //        // If we just have create the server scope, we need to provision it
+        //        // the WebServerAgent will do this setp on the GetServrScopeInfoAsync task, just before
+        //        // So far, on Http mode, this if() will not be called
+        //        if (serverScopeInfo != null && serverScopeInfo.IsNewScope)
+        //        {
+        //            // 2) Provision
+        //            var serverProvision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+        //            (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalProvisionServerAsync(serverScopeInfo, context, serverProvision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+        //        }
 
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
+        //        context.ProgressPercentage = 0.6;
+
+        //        // get remote client timestamp 
+        //        if (!remoteClientTimestamp.HasValue)
+        //            remoteClientTimestamp = await this.RemoteOrchestrator.GetLocalTimestampAsync(scopeName, default, default, cancellationToken, progress).ConfigureAwait(false);
 
 
-            }
-            catch (SyncException se)
-            {
-                this.Options.Logger.LogError(SyncEventsId.Exception, se, se.TypeName);
-                throw;
-            }
-            catch (Exception ex)
-            {
-                this.Options.Logger.LogCritical(SyncEventsId.Exception, ex, ex.Message);
-                throw new SyncException(ex, SyncStage.None);
-            }
-            finally
-            {
-                // End the current session
-                this.SessionState = SyncSessionState.Ready;
-                this.SessionStateChanged?.Invoke(this, this.SessionState);
-                // unlock sync since it's over
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                UnlockSync();
-            }
-        }
+        //        // Provision local database
+        //        var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+        //        (context, clientScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(serverScopeInfo, clientScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+        //        if (setup == null)
+        //            setup = clientScopeInfo.Setup;
+
+        //        context.ProgressPercentage = 0.8;
+
+        //        // Get the local timestamp
+        //        var localTs = await this.LocalOrchestrator.GetLocalTimestampAsync(scopeName, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+        //        if (markRows)
+        //            await this.LocalOrchestrator.UpdateUntrackedRowsAsync(scopeName, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+        //        // generate the new scope item
+        //        clientScopeInfo.IsNewScope = isNewScope;
+        //        clientScopeInfo.LastSync = isNewScope ? null : DateTime.Now;
+        //        clientScopeInfo.LastServerSyncTimestamp = remoteClientTimestamp;
+        //        clientScopeInfo.LastSyncTimestamp = localTs;
+        //        clientScopeInfo.LastSyncDuration = 1;
+        //        clientScopeInfo.Setup = serverScopeInfo.Setup;
+        //        clientScopeInfo.Schema = serverScopeInfo.Schema;
+
+        //        await this.LocalOrchestrator.SaveClientScopeInfoAsync(clientScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+        //        completeTime = DateTime.UtcNow;
+        //        this.LocalOrchestrator.CompleteTime = completeTime;
+        //        this.RemoteOrchestrator.CompleteTime = completeTime;
+
+        //        result.CompleteTime = completeTime;
+
+        //        // End session
+        //        context.ProgressPercentage = 1;
+        //        await this.LocalOrchestrator.EndSessionAsync(result, scopeName, cancellationToken, progress).ConfigureAwait(false);
+
+        //        if (cancellationToken.IsCancellationRequested)
+        //            cancellationToken.ThrowIfCancellationRequested();
+
+
+        //    }
+        //    catch (SyncException se)
+        //    {
+        //        this.Options.Logger.LogError(SyncEventsId.Exception, se, se.TypeName);
+        //        throw;
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        this.Options.Logger.LogCritical(SyncEventsId.Exception, ex, ex.Message);
+        //        throw new SyncException(ex, SyncStage.None);
+        //    }
+        //    finally
+        //    {
+        //        // End the current session
+        //        this.SessionState = SyncSessionState.Ready;
+        //        this.SessionStateChanged?.Invoke(this, this.SessionState);
+        //        // unlock sync since it's over
+        //        GC.Collect();
+        //        GC.WaitForPendingFinalizers();
+        //        UnlockSync();
+        //    }
+        //}
 
         // --------------------------------------------------------------------
         // Dispose

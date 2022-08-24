@@ -24,8 +24,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply changes locally
         /// </summary>
-        internal async Task<(SyncContext context, DatabaseChangesApplied ChangesApplied, ClientScopeInfo ClientScopeInfo)>
-            InternalApplyChangesAsync(ClientScopeInfo clientScopeInfo, SyncContext context, BatchInfo serverBatchInfo,
+        internal async Task<(SyncContext context, DatabaseChangesApplied ChangesApplied, ScopeInfoClient ClientHistoryScopeInfo)>
+            InternalApplyChangesAsync(ScopeInfo clientScopeInfo, ScopeInfoClient clientHistoryScopeInfo, SyncContext context, BatchInfo serverBatchInfo,
                               long clientTimestamp, long remoteClientTimestamp, ConflictResolutionPolicy policy, bool snapshotApplied, DatabaseChangesSelected allChangesSelected,
                               DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
@@ -35,13 +35,13 @@ namespace Dotmim.Sync
             try
             {
                 // lastSyncTS : apply lines only if they are not modified since last client sync
-                var lastTimestamp = clientScopeInfo.LastSyncTimestamp;
+                var lastTimestamp = clientHistoryScopeInfo.LastSyncTimestamp;
                 // isNew : if IsNew, don't apply deleted rows from server
-                var isNew = clientScopeInfo.IsNewScope;
+                var isNew = clientHistoryScopeInfo.IsNewScope;
                 // We are in downloading mode
 
                 // Create the message containing everything needed to apply changes
-                var applyChanges = new MessageApplyChanges(clientScopeInfo.Id, Guid.Empty, isNew, lastTimestamp, clientScopeInfo.Schema, policy,
+                var applyChanges = new MessageApplyChanges(clientHistoryScopeInfo.Id, Guid.Empty, isNew, lastTimestamp, clientScopeInfo.Schema, policy,
                                 this.Options.DisableConstraintsOnApplyChanges, this.Options.CleanMetadatas, this.Options.CleanFolder, snapshotApplied,
                                 serverBatchInfo);
 
@@ -71,16 +71,19 @@ namespace Dotmim.Sync
                 {
                     using (var runnerMetadata = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                     {
-                        List<ClientScopeInfo> allScopes;
-                        (context, allScopes) = await this.InternalLoadAllClientScopesInfoAsync(context, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
+                        List<ScopeInfoClient> allScopeHistories;
+                        (context, allScopeHistories) = await this.InternalLoadAllScopeInfoClientsAsync(context, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
 
-                        if (allScopes.Count > 0)
+                        List<ScopeInfo> allClientScopes;
+                        (context, allClientScopes) = await this.InternalLoadAllScopeInfosAsync(context, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
+
+                        if (allScopeHistories.Count > 0 && allClientScopes.Count > 0)
                         {
                             // Get the min value from LastSyncTimestamp from all scopes
-                            var minLastTimeStamp = allScopes.Min(scope => scope.LastSyncTimestamp.HasValue ? scope.LastSyncTimestamp.Value : Int64.MaxValue);
+                            var minLastTimeStamp = allScopeHistories.Min(scope => scope.LastSyncTimestamp.HasValue ? scope.LastSyncTimestamp.Value : Int64.MaxValue);
                             minLastTimeStamp = minLastTimeStamp > lastTimestamp.Value ? lastTimestamp.Value : minLastTimeStamp;
 
-                            (context, _) = await this.InternalDeleteMetadatasAsync(allScopes, context, minLastTimeStamp, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
+                            (context, _) = await this.InternalDeleteMetadatasAsync(allClientScopes, context, minLastTimeStamp, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
                         }
                     };
                 }
@@ -89,17 +92,17 @@ namespace Dotmim.Sync
                 this.CompleteTime = DateTime.UtcNow;
 
                 // generate the new scope item
-                clientScopeInfo.IsNewScope = false;
-                clientScopeInfo.LastSync = this.CompleteTime;
-                clientScopeInfo.LastSyncTimestamp = clientTimestamp;
-                clientScopeInfo.LastServerSyncTimestamp = remoteClientTimestamp;
-                clientScopeInfo.LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks;
+                clientHistoryScopeInfo.IsNewScope = false;
+                clientHistoryScopeInfo.LastSync = this.CompleteTime;
+                clientHistoryScopeInfo.LastSyncTimestamp = clientTimestamp;
+                clientHistoryScopeInfo.LastServerSyncTimestamp = remoteClientTimestamp;
+                clientHistoryScopeInfo.LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks;
 
                 // Write scopes locally
 
                 using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                 {
-                    (context, clientScopeInfo) = await this.InternalSaveClientScopeInfoAsync(clientScopeInfo, context,
+                    (context, clientHistoryScopeInfo) = await this.InternalSaveScopeInfoClientAsync(clientHistoryScopeInfo, context,
                         runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
                 };
 
@@ -107,7 +110,7 @@ namespace Dotmim.Sync
                     await runner.CommitAsync().ConfigureAwait(false);
 
 
-                return (context, clientChangesApplied, clientScopeInfo);
+                return (context, clientChangesApplied, clientHistoryScopeInfo);
             }
             catch (Exception ex)
             {
@@ -128,14 +131,16 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a snapshot locally
         /// </summary>
-        internal async Task<(SyncContext context, DatabaseChangesApplied snapshotChangesApplied, ClientScopeInfo clientScopeInfo)>
-            InternalApplySnapshotAsync(ClientScopeInfo clientScopeInfo, SyncContext context, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, DatabaseChangesSelected databaseChangesSelected,
+        internal async Task<(SyncContext context, DatabaseChangesApplied snapshotChangesApplied, ScopeInfoClient clientHistoryScopeInfo)>
+            InternalApplySnapshotAsync(ScopeInfo clientScopeInfo,
+            ScopeInfoClient clientHistoryScopeInfo,
+            SyncContext context, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, DatabaseChangesSelected databaseChangesSelected,
             DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
                 if (serverBatchInfo == null)
-                    return (context, new DatabaseChangesApplied(), clientScopeInfo);
+                    return (context, new DatabaseChangesApplied(), clientHistoryScopeInfo);
 
                 // Get context or create a new one
                 context.SyncStage = SyncStage.SnapshotApplying;
@@ -145,7 +150,7 @@ namespace Dotmim.Sync
                     throw new ArgumentNullException(nameof(clientScopeInfo.Schema));
 
                 // Applying changes and getting the new client scope info
-                var (syncContext, changesApplied, newClientScopeInfo) = await this.InternalApplyChangesAsync(clientScopeInfo, context, serverBatchInfo,
+                var (syncContext, changesApplied, newClientScopeInfo) = await this.InternalApplyChangesAsync(clientScopeInfo, clientHistoryScopeInfo, context, serverBatchInfo,
                         clientTimestamp, remoteClientTimestamp, ConflictResolutionPolicy.ServerWins, false, databaseChangesSelected, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await this.InterceptAsync(new SnapshotAppliedArgs(context, changesApplied), progress, cancellationToken).ConfigureAwait(false);

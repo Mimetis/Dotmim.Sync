@@ -101,10 +101,10 @@ namespace Dotmim.Sync
 
     public class Migration
     {
-        private readonly ClientScopeInfo oldClientScopeInfo;
-        private readonly ServerScopeInfo newServerScopeInfo;
+        private readonly ScopeInfo oldClientScopeInfo;
+        private readonly ScopeInfo newServerScopeInfo;
 
-        public Migration(ClientScopeInfo oldClientScopeInfo, ServerScopeInfo newServerScopeInfo)
+        public Migration(ScopeInfo oldClientScopeInfo, ScopeInfo newServerScopeInfo)
         {
             this.oldClientScopeInfo = oldClientScopeInfo;
             this.newServerScopeInfo = newServerScopeInfo;

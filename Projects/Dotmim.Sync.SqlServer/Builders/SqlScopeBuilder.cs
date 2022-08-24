@@ -35,7 +35,7 @@ namespace Dotmim.Sync.SqlServer.Scope
 
         //Exists Scope Table
         // ------------------------------
-        public override DbCommand GetExistsClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetExistsScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
             var command = connection.CreateCommand();
@@ -43,98 +43,83 @@ namespace Dotmim.Sync.SqlServer.Scope
             command.CommandText = $@"IF EXISTS (SELECT t.name FROM sys.tables t WHERE t.name = N'{tableName}') SELECT 1 ELSE SELECT 0";
             return command;
         }
-        public override DbCommand GetExistsServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+
+        public override DbCommand GetExistsScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
             var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = $@"IF EXISTS (SELECT t.name FROM sys.tables t WHERE t.name = N'{tableName}') SELECT 1 ELSE SELECT 0";
             return command;
         }
-        public override DbCommand GetExistsServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
-        {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
-            var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = $@"IF EXISTS (SELECT t.name FROM sys.tables t WHERE t.name = N'{tableName}') SELECT 1 ELSE SELECT 0";
-            return command;
-        }
+
         // ------------------------------
 
 
         // Create Table
         // ------------------------------
-        public override DbCommand GetCreateClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        
+        public override DbCommand GetCreateScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandText =
-            $@"CREATE TABLE [dbo].{this.ScopeInfoTableName.Quoted().ToString()}(
-                                [sync_scope_id] [uniqueidentifier] NOT NULL,
-	                            [sync_scope_name] [nvarchar](100) NOT NULL,
-	                            [sync_scope_schema] [nvarchar](max) NULL,
-	                            [sync_scope_setup] [nvarchar](max) NULL,
-	                            [sync_scope_version] [nvarchar](10) NULL,
-                                [scope_last_server_sync_timestamp] [bigint] NULL,
-                                [scope_last_sync_timestamp] [bigint] NULL,
-                                [scope_last_sync_duration] [bigint] NULL,
-                                [scope_last_sync] [datetime] NULL
-                                CONSTRAINT [PK_{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}] 
-                                    PRIMARY KEY CLUSTERED ([sync_scope_id] ASC, [sync_scope_name] ASC)
-                                )";
-            var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = commandText;
-            return command;
-        }
-        public override DbCommand GetCreateServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
-        {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}";
 
             var commandText =
                 $@"CREATE TABLE [dbo].[{tableName}] (
-	                    [sync_scope_name] [nvarchar](100) NOT NULL,
-	                    [sync_scope_schema] [nvarchar](max) NULL,
-	                    [sync_scope_setup] [nvarchar](max) NULL,
-	                    [sync_scope_version] [nvarchar](10) NULL,
-                        [sync_scope_last_clean_timestamp] [bigint] NULL,
-                        CONSTRAINT [PK_{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server] PRIMARY KEY CLUSTERED ([sync_scope_name] ASC)
-                        )";
+                    [sync_scope_name] [nvarchar](100) NOT NULL,
+                    [sync_scope_schema] [nvarchar](max) NULL,
+                    [sync_scope_setup] [nvarchar](max) NULL,
+                    [sync_scope_version] [nvarchar](10) NULL,
+                    [sync_scope_last_clean_timestamp] [bigint] NULL,
+                    [sync_scope_properties] [nvarchar](MAX) NULL,
+                    CONSTRAINT [PK_{tableName}_server] 
+                    PRIMARY KEY CLUSTERED ([sync_scope_name] ASC)
+                    )";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = commandText;
             return command;
         }
-        public override DbCommand GetCreateServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetCreateScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
 
             var commandText =
                 $@"CREATE TABLE [dbo].[{tableName}](
-                        [sync_scope_id] [uniqueidentifier] NOT NULL,
-	                    [sync_scope_name] [nvarchar](100) NOT NULL,
-                        [scope_last_sync_timestamp] [bigint] NULL,
-                        [scope_last_sync_duration] [bigint] NULL,
-                        [scope_last_sync] [datetime] NULL, 
-                        [scope_properties] [nvarchar](MAX) NULL
-                        CONSTRAINT [PK_{tableName}] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC, [sync_scope_name] ASC)
-                        )";
+                    [sync_scope_id] [uniqueidentifier] NOT NULL,
+                    [sync_scope_name] [nvarchar](100) NOT NULL,
+                    [sync_scope_hash] [nvarchar](100) NOT NULL,
+                    [scope_last_sync_timestamp] [bigint] NULL,
+                    [scope_last_server_sync_timestamp] [bigint] NULL,
+                    [scope_last_sync_duration] [bigint] NULL,
+                    [scope_last_sync] [datetime] NULL, 
+                    [sync_scope_properties] [nvarchar](MAX) NULL
+                    CONSTRAINT [PK_{tableName}] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC, [sync_scope_name] ASC, [sync_scope_hash] ASC)
+                    )";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = commandText;
             return command;
         }
+    
         // ------------------------------
 
 
         // Get all scopes
         // ------------------------------
-        public override DbCommand GetAllClientScopesInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetAllScopeInfosCommand(DbConnection connection, DbTransaction transaction)
         {
+            var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
+
             var commandText =
-                $@"SELECT [sync_scope_id], [sync_scope_name], [sync_scope_schema], [sync_scope_setup], [sync_scope_version], 
-                          [scope_last_sync], [scope_last_server_sync_timestamp], [scope_last_sync_timestamp], [scope_last_sync_duration]
-                    FROM  {this.ScopeInfoTableName.Quoted().ToString()}";
+                $@"SELECT [sync_scope_name], 
+                          [sync_scope_schema], 
+                          [sync_scope_setup], 
+                          [sync_scope_version],
+                          [sync_scope_last_clean_timestamp],
+                          [sync_scope_properties]
+                    FROM  {tableName}";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -142,33 +127,19 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             return command;
         }
-        public override DbCommand GetAllServerScopesInfoCommand(DbConnection connection, DbTransaction transaction)
+        
+        public override DbCommand GetAllScopeInfoClientsCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
             var commandText =
-                $@"SELECT [sync_scope_name]
-                           , [sync_scope_schema]
-                           , [sync_scope_setup]
-                           , [sync_scope_version]
-                           , [sync_scope_last_clean_timestamp]
-                    FROM  [{tableName}]";
-
-            var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = commandText;
-
-            return command;
-        }
-        public override DbCommand GetAllServerHistoriesScopesInfoCommand(DbConnection connection, DbTransaction transaction)
-        {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
-            var commandText =
-                $@"SELECT [sync_scope_id]
-                           , [sync_scope_name]
-                           , [scope_last_sync_timestamp]
-                           , [scope_last_sync_duration]
-                           , [scope_last_sync]
-                           , [scope_properties]
+                $@"SELECT  [sync_scope_id]
+                         , [sync_scope_name]
+                         , [sync_scope_hash]
+                         , [scope_last_sync_timestamp]
+                         , [scope_last_server_sync_timestamp]
+                         , [scope_last_sync_duration]
+                         , [scope_last_sync]
+                         , [sync_scope_properties]
                     FROM  [{tableName}]";
 
 
@@ -178,29 +149,28 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             return command;
         }
+       
         // ------------------------------
 
 
         // Get scope
         // ------------------------------
-        public override DbCommand GetClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
+            var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
+
             var commandText =
-                    $@"SELECT [sync_scope_id]
-                           , [sync_scope_name]
-                           , [sync_scope_schema]
-                           , [sync_scope_setup]
-                           , [sync_scope_version]
-                           , [scope_last_sync]
-                           , [scope_last_server_sync_timestamp]
-                           , [scope_last_sync_timestamp]
-                           , [scope_last_sync_duration]
-                    FROM  {this.ScopeInfoTableName.Quoted().ToString()}
+                    $@"SELECT [sync_scope_name], 
+                          [sync_scope_schema], 
+                          [sync_scope_setup], 
+                          [sync_scope_version],
+                          [sync_scope_last_clean_timestamp],
+                          [sync_scope_properties]
+                    FROM  [{tableName}]
                     WHERE [sync_scope_name] = @sync_scope_name" ;
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-
             command.CommandText = commandText;
 
             var p = command.CreateParameter();
@@ -211,42 +181,21 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             return command;
         }
-        public override DbCommand GetServerScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+       
+        public override DbCommand GetScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
             var commandText =
-                $@"SELECT [sync_scope_name]
-                           , [sync_scope_schema]
-                           , [sync_scope_setup]
-                           , [sync_scope_version]
-                           , [sync_scope_last_clean_timestamp]
-                    FROM  [{tableName}]
-                    WHERE [sync_scope_name] = @sync_scope_name";
-
-            var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = commandText;
-
-            var p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_name";
-            p.DbType = DbType.String;
-            p.Size = 100;
-            command.Parameters.Add(p);
-
-            return command;
-        }
-        public override DbCommand GetServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
-        {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
-            var commandText =
-                $@"SELECT [sync_scope_id]
+                $@"SELECT    [sync_scope_id]
                            , [sync_scope_name]
+                           , [sync_scope_hash]
                            , [scope_last_sync_timestamp]
+                           , [scope_last_server_sync_timestamp]
                            , [scope_last_sync_duration]
                            , [scope_last_sync]
-                           , [scope_properties]
+                           , [sync_scope_properties]
                     FROM  [{tableName}]
-                    WHERE [sync_scope_name] = @sync_scope_name and [sync_scope_id] = @sync_scope_id";
+                    WHERE [sync_scope_name] = @sync_scope_name and [sync_scope_id] = @sync_scope_id and [sync_scope_hash] = @sync_scope_hash";
 
 
             var command = connection.CreateCommand();
@@ -266,146 +215,58 @@ namespace Dotmim.Sync.SqlServer.Scope
             p0.Size = -1;
             command.Parameters.Add(p0);
 
+            var p1 = command.CreateParameter();
+            p1.ParameterName = "@sync_scope_hash";
+            p1.DbType = DbType.String;
+            p1.Size = 100;
+            command.Parameters.Add(p1);
+
+
             return command;
         }
         // ------------------------------
 
         // Insert Scope
         // ------------------------------
-        public override DbCommand GetInsertClientScopeInfoCommand(DbConnection connection, DbTransaction transaction) 
-            => GetUpdateClientScopeInfoCommand(connection, transaction);
-        public override DbCommand GetInsertServerScopeInfoCommand(DbConnection connection, DbTransaction transaction)
-            => GetUpdateServerScopeInfoCommand(connection, transaction);
-        public override DbCommand GetInsertServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
-            => GetUpdateServerHistoryScopeInfoCommand(connection, transaction);
+        public override DbCommand GetInsertScopeInfoCommand(DbConnection connection, DbTransaction transaction) 
+            => GetUpdateScopeInfoCommand(connection, transaction);
+        public override DbCommand GetInsertScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
+            => GetUpdateScopeInfoClientCommand(connection, transaction);
         // ------------------------------
 
         // Update Scope
         // ------------------------------
-        public override DbCommand GetUpdateClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetUpdateScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandText = $@"
-                    MERGE {this.ScopeInfoTableName.Quoted().ToString()} AS [base] 
-                    USING (
-                               SELECT  @sync_scope_id AS sync_scope_id,  
-	                                   @sync_scope_name AS sync_scope_name,  
-	                                   @sync_scope_schema AS sync_scope_schema,  
-	                                   @sync_scope_setup AS sync_scope_setup,  
-	                                   @sync_scope_version AS sync_scope_version,  
-                                       @scope_last_sync AS scope_last_sync,
-                                       @scope_last_sync_timestamp AS scope_last_sync_timestamp,
-                                       @scope_last_server_sync_timestamp AS scope_last_server_sync_timestamp,
-                                       @scope_last_sync_duration AS scope_last_sync_duration
-                           ) AS [changes] 
-                    ON [base].[sync_scope_id] = [changes].[sync_scope_id] and [base].[sync_scope_name] = [changes].[sync_scope_name]
-                    WHEN NOT MATCHED THEN
-	                    INSERT ([sync_scope_name], [sync_scope_schema], [sync_scope_setup], [sync_scope_version], [sync_scope_id], [scope_last_sync], [scope_last_sync_timestamp],  [scope_last_server_sync_timestamp], [scope_last_sync_duration])
-	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_schema], [changes].[sync_scope_setup], [changes].[sync_scope_version], [changes].[sync_scope_id], [changes].[scope_last_sync],  [changes].[scope_last_sync_timestamp], [changes].[scope_last_server_sync_timestamp], [changes].[scope_last_sync_duration])
-                    WHEN MATCHED THEN
-	                    UPDATE SET [sync_scope_name] = [changes].[sync_scope_name], 
-                                   [sync_scope_schema] = [changes].[sync_scope_schema], 
-                                   [sync_scope_setup] = [changes].[sync_scope_setup], 
-                                   [sync_scope_version] = [changes].[sync_scope_version], 
-                                   [scope_last_sync] = [changes].[scope_last_sync],
-                                   [scope_last_sync_timestamp] = [changes].[scope_last_sync_timestamp],
-                                   [scope_last_server_sync_timestamp] = [changes].[scope_last_server_sync_timestamp],
-                                   [scope_last_sync_duration] = [changes].[scope_last_sync_duration]
-                    OUTPUT  INSERTED.[sync_scope_name], 
-                            INSERTED.[sync_scope_schema], 
-                            INSERTED.[sync_scope_setup], 
-                            INSERTED.[sync_scope_version], 
-                            INSERTED.[sync_scope_id], 
-                            INSERTED.[scope_last_sync],
-                            INSERTED.[scope_last_sync_timestamp],
-                            INSERTED.[scope_last_server_sync_timestamp],
-                            INSERTED.[scope_last_sync_duration];";
-
-
-            var command = connection.CreateCommand();
-            command.Transaction = transaction;
-
-            command.CommandText = commandText;
-
-            var p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_name";
-            p.DbType = DbType.String;
-            p.Size = 100;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_schema";
-            p.DbType = DbType.String;
-            p.Size = -1;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_setup";
-            p.DbType = DbType.String;
-            p.Size = -1;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_version";
-            p.DbType = DbType.String;
-            p.Size = 10;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_id";
-            p.DbType = DbType.Guid;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@scope_last_sync";
-            p.DbType = DbType.DateTime;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@scope_last_sync_timestamp";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@scope_last_server_sync_timestamp";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@scope_last_sync_duration";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-
-            return command;
-
-        }
-        public override DbCommand GetUpdateServerScopeInfoCommand(DbConnection connection, DbTransaction transaction)
-        {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
+            var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
 
             var commandText = $@"
-                    MERGE {tableName} AS [base] 
+                    MERGE [{tableName}] AS [base] 
                     USING (
                                SELECT  @sync_scope_name AS sync_scope_name,  
 	                                   @sync_scope_schema AS sync_scope_schema,  
 	                                   @sync_scope_setup AS sync_scope_setup,  
-	                                   @sync_scope_version AS sync_scope_version,  
-                                       @sync_scope_last_clean_timestamp AS sync_scope_last_clean_timestamp
+	                                   @sync_scope_version AS sync_scope_version,
+                                       @sync_scope_last_clean_timestamp AS sync_scope_last_clean_timestamp,
+                                       @sync_scope_properties as sync_scope_properties
                            ) AS [changes] 
                     ON [base].[sync_scope_name] = [changes].[sync_scope_name]
                     WHEN NOT MATCHED THEN
-	                    INSERT ([sync_scope_name], [sync_scope_schema], [sync_scope_setup], [sync_scope_version], [sync_scope_last_clean_timestamp])
-	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_schema], [changes].[sync_scope_setup], [changes].[sync_scope_version], [changes].[sync_scope_last_clean_timestamp])
+	                    INSERT ([sync_scope_name], [sync_scope_schema], [sync_scope_setup], [sync_scope_version], [sync_scope_last_clean_timestamp], [sync_scope_properties])
+	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_schema], [changes].[sync_scope_setup], [changes].[sync_scope_version], [changes].[sync_scope_last_clean_timestamp], [changes].[sync_scope_properties])
                     WHEN MATCHED THEN
 	                    UPDATE SET [sync_scope_name] = [changes].[sync_scope_name], 
                                    [sync_scope_schema] = [changes].[sync_scope_schema], 
                                    [sync_scope_setup] = [changes].[sync_scope_setup], 
-                                   [sync_scope_version] = [changes].[sync_scope_version], 
-                                   [sync_scope_last_clean_timestamp] = [changes].[sync_scope_last_clean_timestamp]
+                                   [sync_scope_version] = [changes].[sync_scope_version],
+                                   [sync_scope_last_clean_timestamp] = [changes].[sync_scope_last_clean_timestamp],
+                                   [sync_scope_properties] = [changes].[sync_scope_properties]
                     OUTPUT  INSERTED.[sync_scope_name], 
                             INSERTED.[sync_scope_schema], 
                             INSERTED.[sync_scope_setup], 
-                            INSERTED.[sync_scope_version], 
-                            INSERTED.[sync_scope_last_clean_timestamp];";
+                            INSERTED.[sync_scope_version],
+                            INSERTED.[sync_scope_last_clean_timestamp],
+                            INSERTED.[sync_scope_properties];";
 
 
             var command = connection.CreateCommand();
@@ -415,69 +276,77 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             var p = command.CreateParameter();
             p.ParameterName = "@sync_scope_name";
-            //p.Value = serverScopeInfo.Name;
             p.DbType = DbType.String;
             p.Size = 100;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_schema";
-            //p.Value = serverScopeInfo.Schema == null ? DBNull.Value : (object)JsonConvert.SerializeObject(serverScopeInfo.Schema);
             p.DbType = DbType.String;
-            p.Size = int.MaxValue;
+            p.Size = -1;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_setup";
-            //p.Value = serverScopeInfo.Setup == null ? DBNull.Value : (object)JsonConvert.SerializeObject(serverScopeInfo.Setup);
             p.DbType = DbType.String;
-            p.Size = int.MaxValue;
+            p.Size = -1;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_version";
-            //p.Value = string.IsNullOrEmpty(serverScopeInfo.Version) ? DBNull.Value : (object)serverScopeInfo.Version;
             p.DbType = DbType.String;
             p.Size = 10;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_last_clean_timestamp";
-            //p.Value = serverScopeInfo.LastCleanupTimestamp;
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_properties";
+            p.DbType = DbType.String;
+            p.Size = -1;
+            command.Parameters.Add(p);
+
             return command;
+
         }
-        public override DbCommand GetUpdateServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+      
+        public override DbCommand GetUpdateScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
 
             var commandText = $@"
                     MERGE [{tableName}] AS [base] 
                     USING (
                                SELECT  @sync_scope_id AS sync_scope_id,  
 	                                   @sync_scope_name AS sync_scope_name,  
+	                                   @sync_scope_hash AS sync_scope_hash,  
                                        @scope_last_sync_timestamp AS scope_last_sync_timestamp,
+                                       @scope_last_server_sync_timestamp AS scope_last_server_sync_timestamp,
                                        @scope_last_sync_duration AS scope_last_sync_duration,
                                        @scope_last_sync AS scope_last_sync,
-                                       @scope_properties AS scope_properties
+                                       @sync_scope_properties AS sync_scope_properties
                            ) AS [changes] 
-                    ON [base].[sync_scope_id] = [changes].[sync_scope_id] and [base].[sync_scope_name] = [changes].[sync_scope_name]
+                    ON [base].[sync_scope_id] = [changes].[sync_scope_id] and [base].[sync_scope_name] = [changes].[sync_scope_name] and [base].[sync_scope_hash] = [changes].[sync_scope_hash]
                     WHEN NOT MATCHED THEN
-	                    INSERT ([sync_scope_name], [sync_scope_id], [scope_last_sync_timestamp], [scope_last_sync], [scope_last_sync_duration], [scope_properties])
-	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_id], [changes].[scope_last_sync_timestamp],[changes].[scope_last_sync], [changes].[scope_last_sync_duration], [changes].[scope_properties])
+	                    INSERT ([sync_scope_name], [sync_scope_id], [sync_scope_hash], [scope_last_sync_timestamp],  [scope_last_server_sync_timestamp], [scope_last_sync], [scope_last_sync_duration], [sync_scope_properties])
+	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_id], [changes].[sync_scope_hash], [changes].[scope_last_sync_timestamp], [changes].[scope_last_server_sync_timestamp], [changes].[scope_last_sync], [changes].[scope_last_sync_duration], [changes].[sync_scope_properties])
                     WHEN MATCHED THEN
 	                    UPDATE SET [scope_last_sync_timestamp] = [changes].[scope_last_sync_timestamp],
+                                   [scope_last_server_sync_timestamp] = [changes].[scope_last_server_sync_timestamp],
                                    [scope_last_sync] = [changes].[scope_last_sync],
                                    [scope_last_sync_duration] = [changes].[scope_last_sync_duration],
-                                   [scope_properties] = [changes].[scope_properties]
+                                   [sync_scope_properties] = [changes].[sync_scope_properties]
                     OUTPUT  INSERTED.[sync_scope_name], 
                             INSERTED.[sync_scope_id], 
+                            INSERTED.[sync_scope_hash], 
                             INSERTED.[scope_last_sync_timestamp],
+                            INSERTED.[scope_last_server_sync_timestamp],
                             INSERTED.[scope_last_sync],
                             INSERTED.[scope_last_sync_duration],
-                            INSERTED.[scope_properties]; ";
+                            INSERTED.[sync_scope_properties]; ";
 
             var command = connection.CreateCommand();
             if (transaction != null)
@@ -497,7 +366,18 @@ namespace Dotmim.Sync.SqlServer.Scope
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_hash";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
             p.ParameterName = "@scope_last_sync_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@scope_last_server_sync_timestamp";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
@@ -512,7 +392,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.ParameterName = "@scope_properties";
+            p.ParameterName = "@sync_scope_properties";
             p.DbType = DbType.String;
             p.Size = -1;
             command.Parameters.Add(p);
@@ -521,14 +401,16 @@ namespace Dotmim.Sync.SqlServer.Scope
 
         }
 
-
+       
 
         // Delete scope
         // ------------------------------
-        public override DbCommand GetDeleteClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetDeleteScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
+            var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
+
             var commandText =
-                    $@"DELETE FROM  {this.ScopeInfoTableName.Quoted().ToString()} WHERE [sync_scope_name] = @sync_scope_name";
+                    $@"DELETE FROM [{tableName}] WHERE [sync_scope_name] = @sync_scope_name";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -543,30 +425,13 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             return command;
         }
-        public override DbCommand GetDeleteServerScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+      
+        public override DbCommand GetDeleteScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
-            var commandText =
-                $@"DELETE FROM  [{tableName}] WHERE [sync_scope_name] = @sync_scope_name";
-
-            var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = commandText;
-
-            var p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_name";
-            p.DbType = DbType.String;
-            p.Size = 100;
-            command.Parameters.Add(p);
-
-            return command;
-        }
-        public override DbCommand GetDeleteServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
-        {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
             var commandText =
                 $@"DELETE FROM  [{tableName}]
-                   WHERE [sync_scope_name] = @sync_scope_name and [sync_scope_id] = @sync_scope_id";
+                   WHERE [sync_scope_name] = @sync_scope_name and [sync_scope_id] = @sync_scope_id and [sync_scope_hash] = @sync_scope_hash";
 
 
             var command = connection.CreateCommand();
@@ -580,39 +445,39 @@ namespace Dotmim.Sync.SqlServer.Scope
             p.Size = 100;
             command.Parameters.Add(p);
 
-            var p0 = command.CreateParameter();
-            p0.ParameterName = "@sync_scope_id";
-            p0.DbType = DbType.String;
-            p0.Size = -1;
-            command.Parameters.Add(p0);
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.String;
+            p.Size = -1;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_hash";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
 
             return command;
         }
+       
         // ------------------------------
 
         // ------------------------------
 
         // Drop Scope table
         // ------------------------------
-        public override DbCommand GetDropClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetDropScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = this.ScopeInfoTableName.Unquoted().ToString();
+            var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
             var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = $"DROP Table [dbo].[{tableName}]";
             return command;
         }
-        public override DbCommand GetDropServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+
+        public override DbCommand GetDropScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
-            var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = $"DROP Table [dbo].[{tableName}]";
-            return command;
-        }
-        public override DbCommand GetDropServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
-        {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
             var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = $"DROP Table [dbo].[{tableName}]";
@@ -622,7 +487,7 @@ namespace Dotmim.Sync.SqlServer.Scope
 
         // Exist Client Scope
         // ------------------------------
-        public override DbCommand GetExistsClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetExistsScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
 
@@ -641,49 +506,41 @@ namespace Dotmim.Sync.SqlServer.Scope
             return command;
 
         }
-        public override DbCommand GetExistsServerScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+     
+        public override DbCommand GetExistsScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
 
             command.Transaction = transaction;
 
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_server";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
 
-            command.CommandText = $@"Select count(*) from [{tableName}] where sync_scope_name = @sync_scope_name;";
+            command.CommandText = $@"Select count(*) from [{tableName}] 
+                                     where sync_scope_id = @sync_scope_id 
+                                     and sync_scope_name = @sync_scope_name
+                                     and sync_scope_hash = @sync_scope_hash;";
 
-            var p1 = command.CreateParameter();
-            p1.ParameterName = "@sync_scope_name";
-            p1.DbType = DbType.String;
-            p1.Size = 100;
-            command.Parameters.Add(p1);
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.String;
+            p.Size = -1;
+            command.Parameters.Add(p);
 
-            return command;
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
 
-        }
-        public override DbCommand GetExistsServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction)
-        {
-            var command = connection.CreateCommand();
-
-            command.Transaction = transaction;
-
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_history";
-
-            command.CommandText = $@"Select count(*) from [{tableName}] where sync_scope_id = @sync_scope_id and sync_scope_name = @sync_scope_name;";
-
-            var p0 = command.CreateParameter();
-            p0.ParameterName = "@sync_scope_id";
-            p0.DbType = DbType.String;
-            p0.Size = -1;
-            command.Parameters.Add(p0);
-
-            var p1 = command.CreateParameter();
-            p1.ParameterName = "@sync_scope_name";
-            p1.DbType = DbType.String;
-            p1.Size = 100;
-            command.Parameters.Add(p1);
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_hash";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
 
             return command;
         }
+       
         // ------------------------------
 
     }

@@ -22,7 +22,7 @@ namespace Dotmim.Sync
         /// Create a table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
-        public async Task<bool> CreateTableAsync(IScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> CreateTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 
@@ -78,7 +78,7 @@ namespace Dotmim.Sync
         /// Create all tables
         /// </summary>
         /// <param name="schema">A complete schema you want to create, containing table, primary keys and relations</param>
-        public async Task<bool> CreateTablesAsync(IScopeInfo scopeInfo, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> CreateTablesAsync(ScopeInfo scopeInfo, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 
@@ -154,7 +154,7 @@ namespace Dotmim.Sync
         /// Check if a table exists
         /// </summary>
         /// <param name="table">A table from your Setup instance, you want to check if it exists</param>
-        public async Task<bool> ExistTableAsync(IScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> ExistTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -186,7 +186,7 @@ namespace Dotmim.Sync
         /// Drop a table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to drop</param>
-        public async Task<bool> DropTableAsync(IScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> DropTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -225,7 +225,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Drop all tables, declared in the Setup instance
         /// </summary>
-        public async Task<bool> DropTablesAsync(IScopeInfo scopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> DropTablesAsync(ScopeInfo scopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -265,7 +265,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal add column routine
         /// </summary>
-        internal async Task<(SyncContext contet, bool added)> InternalAddColumnAsync(IScopeInfo scopeInfo, SyncContext context, string addedColumnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext contet, bool added)> InternalAddColumnAsync(ScopeInfo scopeInfo, SyncContext context, string addedColumnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (Provider == null)
                 throw new MissingProviderException(nameof(InternalAddColumnAsync));
@@ -305,7 +305,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal add column routine
         /// </summary>
-        internal async Task<(SyncContext context, bool dropped)> InternalDropColumnAsync(IScopeInfo scopeInfo, SyncContext context, string droppedColumnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool dropped)> InternalDropColumnAsync(ScopeInfo scopeInfo, SyncContext context, string droppedColumnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (tableBuilder.TableDescription.Columns.Count <= 0)
                 throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
@@ -339,7 +339,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal create table routine
         /// </summary>
-        internal async Task<(SyncContext context, bool created)> InternalCreateTableAsync(IScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool created)> InternalCreateTableAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (tableBuilder.TableDescription.Columns.Count <= 0)
                 throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
@@ -376,7 +376,7 @@ namespace Dotmim.Sync
         /// Internal create table routine
         /// </summary>
         internal async Task<(SyncContext context, bool created)> InternalCreateSchemaAsync(
-            IScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             using var command = await tableBuilder.GetCreateSchemaCommandAsync(connection, transaction).ConfigureAwait(false);
 
@@ -402,7 +402,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal drop table routine
         /// </summary>
-        internal async Task<(SyncContext context, bool dropped)> InternalDropTableAsync(IScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool dropped)> InternalDropTableAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             using var command = await tableBuilder.GetDropTableCommandAsync(connection, transaction).ConfigureAwait(false);
 
@@ -431,7 +431,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal exists table procedure routine
         /// </summary>
-        internal async Task<(SyncContext context, bool exists)> InternalExistsTableAsync(IScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool exists)> InternalExistsTableAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Get exists command
             using var existsCommand = await tableBuilder.GetExistsTableCommandAsync(connection, transaction).ConfigureAwait(false);
@@ -450,7 +450,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal exists schema procedure routine
         /// </summary>
-        internal async Task<(SyncContext context, bool exists)> InternalExistsSchemaAsync(IScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool exists)> InternalExistsSchemaAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (string.IsNullOrEmpty(tableBuilder.TableDescription.SchemaName) || tableBuilder.TableDescription.SchemaName == "dbo")
                 return (context, true);
@@ -472,7 +472,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal exists column procedure routine
         /// </summary>
-        internal async Task<(SyncContext context, bool exists)> InternalExistsColumnAsync(IScopeInfo scopeInfo, SyncContext context, string columnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool exists)> InternalExistsColumnAsync(ScopeInfo scopeInfo, SyncContext context, string columnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Get exists command
             using var existsCommand = await tableBuilder.GetExistsColumnCommandAsync(columnName, connection, transaction).ConfigureAwait(false);

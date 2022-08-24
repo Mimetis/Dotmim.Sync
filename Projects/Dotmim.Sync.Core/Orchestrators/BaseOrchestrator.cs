@@ -252,7 +252,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the provider sync adapter
         /// </summary>
-        public DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, IScopeInfo scopeInfo)
+        public DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo)
         {
             //var p = this.Provider.GetParsers(tableDescription, setup);
 
@@ -282,7 +282,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the provider table builder
         /// </summary>
-        public DbTableBuilder GetTableBuilder(SyncTable tableDescription, IScopeInfo scopeInfo)
+        public DbTableBuilder GetTableBuilder(SyncTable tableDescription, ScopeInfo scopeInfo)
         {
             //var p = this.Provider.GetParsers(tableDescription, setup);
 
@@ -338,22 +338,22 @@ namespace Dotmim.Sync
         /// Check if the orchestrator database is outdated
         /// </summary>
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        public virtual async Task<(SyncContext, bool)> IsOutDatedAsync(SyncContext context, ClientScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<(SyncContext, bool)> IsOutDatedAsync(SyncContext context, ScopeInfoClient cScopeInfoClient, ScopeInfo sScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             bool isOutdated = false;
 
             // if we have a new client, obviously the last server sync is < to server stored last clean up (means OutDated !)
             // so far we return directly false
-            if (clientScopeInfo.IsNewScope)
+            if (cScopeInfoClient.IsNewScope)
                 return (context, false);
 
-            if (clientScopeInfo.LastServerSyncTimestamp != 0 || serverScopeInfo.LastCleanupTimestamp != 0)
-                isOutdated = clientScopeInfo.LastServerSyncTimestamp < serverScopeInfo.LastCleanupTimestamp;
+            if (cScopeInfoClient.LastServerSyncTimestamp != 0 || sScopeInfo.LastCleanupTimestamp != 0)
+                isOutdated = cScopeInfoClient.LastServerSyncTimestamp < sScopeInfo.LastCleanupTimestamp;
 
             // Get a chance to make the sync even if it's outdated
             if (isOutdated)
             {
-                var outdatedArgs = new OutdatedArgs(context, clientScopeInfo, serverScopeInfo);
+                var outdatedArgs = new OutdatedArgs(context, cScopeInfoClient, sScopeInfo);
 
                 // Interceptor
                 await this.InterceptAsync(outdatedArgs, progress, cancellationToken).ConfigureAwait(false);
@@ -364,7 +364,7 @@ namespace Dotmim.Sync
                 }
 
                 if (outdatedArgs.Action == OutdatedAction.Rollback)
-                    throw new OutOfDateException(clientScopeInfo.LastServerSyncTimestamp, serverScopeInfo.LastCleanupTimestamp);
+                    throw new OutOfDateException(cScopeInfoClient.LastServerSyncTimestamp, sScopeInfo.LastCleanupTimestamp);
             }
 
             return (context, isOutdated);

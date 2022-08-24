@@ -112,7 +112,7 @@ namespace Dotmim.Sync.Web.Client
 
         }
 
-        public HttpMessageSendChangesRequest(SyncContext context, ClientScopeInfo clientScopeInfo)
+        public HttpMessageSendChangesRequest(SyncContext context, ScopeInfo clientScopeInfo)
         {
             this.SyncContext = context;
             this.ClientScopeInfo = clientScopeInfo;
@@ -125,7 +125,7 @@ namespace Dotmim.Sync.Web.Client
         /// Gets or Sets the reference scope for local repository, stored on server
         /// </summary>
         [DataMember(Name = "scope", IsRequired = true, Order = 2)]
-        public ClientScopeInfo ClientScopeInfo { get; set; }
+        public ScopeInfo ClientScopeInfo { get; set; }
 
         /// <summary>
         /// Get the current batch index 
@@ -234,7 +234,7 @@ namespace Dotmim.Sync.Web.Client
     {
         public HttpMessageOperationRequest() { }
 
-        public HttpMessageOperationRequest(SyncContext context, ClientScopeInfo clientScopeInfo)
+        public HttpMessageOperationRequest(SyncContext context, ScopeInfo clientScopeInfo)
         {
             this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
             this.ClientScopeInfo = clientScopeInfo;
@@ -248,7 +248,7 @@ namespace Dotmim.Sync.Web.Client
         /// Gets or Sets the reference scope for local repository, stored on server
         /// </summary>
         [DataMember(Name = "scope", IsRequired = true, Order = 2)]
-        public ClientScopeInfo ClientScopeInfo { get; set; }
+        public ScopeInfo ClientScopeInfo { get; set; }
 
 
     }

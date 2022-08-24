@@ -29,7 +29,7 @@ namespace Dotmim.Sync
         /// Get the command from provider, check connection is opened, affect connection and transaction
         /// Prepare the command parameters and add scope parameters
         /// </summary>
-        public async Task<(DbCommand Command, bool IsBatch)> GetCommandAsync(IScopeInfo scopeInfo, SyncContext context, SyncTable tableDescription, DbCommandType commandType, 
+        public async Task<(DbCommand Command, bool IsBatch)> GetCommandAsync(ScopeInfo scopeInfo, SyncContext context, SyncTable tableDescription, DbCommandType commandType, 
             SyncFilter filter , DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Create the key

@@ -4,12 +4,21 @@ using System.Runtime.Serialization;
 
 namespace Dotmim.Sync
 {
+
+
     /// <summary>
     /// Mapping sur la table ScopeInfo
     /// </summary>
-    [DataContract(Name = "server_scope"), Serializable]
-    public class ServerScopeInfo : IScopeInfo
+    [DataContract(Name = "scope"), Serializable]
+    public class ScopeInfo
     {
+        /// <summary>
+        /// For serialization purpose
+        /// </summary>
+        public ScopeInfo()
+        {
+
+        }
         /// <summary>
         /// Scope name. Shared by all clients and the server
         /// </summary>
@@ -17,20 +26,20 @@ namespace Dotmim.Sync
         public string Name { get; set; }
 
         /// <summary>
-        /// Scope schema. stored locally
+        /// Scope schema. stored locally on the client
         /// </summary>
         [DataMember(Name = "sch", IsRequired = true, Order = 2)]
         public SyncSet Schema { get; set; }
 
         /// <summary>
-        /// Gets or Sets if this server scope has just been created now in server database.
+        /// Gets or Sets if this scope has just been created.
         /// We don't need it on the client side, so ignore it
         /// </summary>
         [DataMember(Name = "new", IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public bool IsNewScope { get; set; }
 
         /// <summary>
-        /// Setup. stored locally
+        /// Setup. stored locally on the client
         /// </summary>
         [DataMember(Name = "s", IsRequired = true, Order = 4)]
         public SyncSetup Setup { get; set; }
@@ -46,6 +55,12 @@ namespace Dotmim.Sync
         /// </summary>
         [DataMember(Name = "lst", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public long LastCleanupTimestamp { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the additional properties. 
+        /// </summary>
+        [IgnoreDataMember]
+        public string Properties { get; set; }
 
     }
 }

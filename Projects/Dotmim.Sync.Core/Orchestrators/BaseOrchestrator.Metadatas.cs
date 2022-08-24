@@ -23,7 +23,7 @@ namespace Dotmim.Sync
 
         internal virtual async Task<(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned)>
             InternalDeleteMetadatasAsync(
-                    IEnumerable<IScopeInfo> scopeInfos, SyncContext context, long timestampLimit,
+                    IEnumerable<ScopeInfo> scopeInfos, SyncContext context, long timestampLimit,
                     DbConnection connection, DbTransaction transaction,
                     CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -100,7 +100,7 @@ namespace Dotmim.Sync
         /// Update a metadata row
         /// </summary>
         internal async Task<(SyncContext context, bool metadataUpdated, Exception exception)>
-            InternalUpdateMetadatasAsync(IScopeInfo scopeInfo, SyncContext context, SyncRow row, SyncTable schemaTable, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
+            InternalUpdateMetadatasAsync(ScopeInfo scopeInfo, SyncContext context, SyncRow row, SyncTable schemaTable, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
             context.SyncStage = SyncStage.ChangesApplying;
 

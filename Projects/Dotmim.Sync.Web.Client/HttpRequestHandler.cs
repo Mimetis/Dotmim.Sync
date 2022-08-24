@@ -154,7 +154,7 @@ namespace Dotmim.Sync.Web.Client
 
             // Adding the serialization format used and session id and scope name
             requestMessage.Headers.Add("dotmim-sync-session-id", context.SessionId.ToString());
-            requestMessage.Headers.Add("dotmim-sync-scope-id", context.ClientScopeId.ToString());
+            requestMessage.Headers.Add("dotmim-sync-scope-id", context.ClientId.ToString());
             requestMessage.Headers.Add("dotmim-sync-scope-name", context.ScopeName);
             requestMessage.Headers.Add("dotmim-sync-step", ((int)step).ToString());
             requestMessage.Headers.Add("dotmim-sync-serialization-format", ser);

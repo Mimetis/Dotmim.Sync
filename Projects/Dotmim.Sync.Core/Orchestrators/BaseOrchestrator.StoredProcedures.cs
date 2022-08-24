@@ -24,7 +24,7 @@ namespace Dotmim.Sync
         /// <param name="table">A table from your Setup instance, where you want to create the Stored Procedure</param>
         /// <param name="storedProcedureType">StoredProcedure type</param>
         /// <param name="overwrite">If true, drop the existing stored procedure then create again</param>
-        public async Task<bool> CreateStoredProcedureAsync(IScopeInfo scopeInfo, string tableName, string schemaName = null,
+        public async Task<bool> CreateStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null,
             DbStoredProcedureType storedProcedureType = default, bool overwrite = false,
             DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
@@ -77,7 +77,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to create the Stored Procedures</param>
         /// <param name="overwrite">If true, drop the existing Stored Procedures then create them all, again</param>
-        public async Task<bool> CreateStoredProceduresAsync(IScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> CreateStoredProceduresAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 
@@ -114,7 +114,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to check if the Stored Procedure exists</param>
         /// <param name="storedProcedureType">StoredProcedure type</param>
-        public async Task<bool> ExistStoredProcedureAsync(IScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> ExistStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -148,7 +148,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to drop the Stored Procedure</param>
         /// <param name="storedProcedureType">Stored Procedure type</param>
-        public async Task<bool> DropStoredProcedureAsync(IScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> DropStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -189,7 +189,7 @@ namespace Dotmim.Sync
         /// Drop all Stored Procedures
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to drop all the Stored Procedures</param>
-        public async Task<bool> DropStoredProceduresAsync(IScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> DropStoredProceduresAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -229,7 +229,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal create Stored Procedure routine
         /// </summary>
-        internal async Task<(SyncContext context, bool created)> InternalCreateStoredProcedureAsync(IScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool created)> InternalCreateStoredProcedureAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (tableBuilder.TableDescription.Columns.Count <= 0)
                 throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
@@ -261,7 +261,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal drop storedProcedure routine
         /// </summary>
-        internal async Task<(SyncContext context, bool dropped)> InternalDropStoredProcedureAsync(IScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool dropped)> InternalDropStoredProcedureAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var filter = tableBuilder.TableDescription.GetFilter();
 
@@ -287,7 +287,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal exists storedProcedure procedure routine
         /// </summary>
-        internal async Task<(SyncContext context, bool exists)> InternalExistsStoredProcedureAsync(IScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool exists)> InternalExistsStoredProcedureAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var filter = tableBuilder.TableDescription.GetFilter();
 
@@ -307,7 +307,7 @@ namespace Dotmim.Sync
         /// Internal drop storedProcedures routine
         /// </summary>
         internal async Task<(SyncContext context, bool dropped)> InternalDropStoredProceduresAsync(
-            IScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // check bulk before
             var hasDroppedAtLeastOneStoredProcedure = false;
@@ -336,7 +336,7 @@ namespace Dotmim.Sync
         /// Internal create storedProcedures routine
         /// </summary>
         internal async Task<(SyncContext context, bool created)> InternalCreateStoredProceduresAsync(
-            IScopeInfo scopeInfo, SyncContext context, bool overwrite, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            ScopeInfo scopeInfo, SyncContext context, bool overwrite, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var hasCreatedAtLeastOneStoredProcedure = false;
 

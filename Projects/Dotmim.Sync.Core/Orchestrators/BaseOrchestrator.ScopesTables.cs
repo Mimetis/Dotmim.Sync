@@ -17,7 +17,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Check if a scope info table exists
         /// </summary>
-        public async Task<bool> ExistScopeInfoTableAsync(string scopeName = SyncOptions.DefaultScopeName, DbScopeType scopeType = DbScopeType.Client, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> ExistScopeInfoTableAsync(string scopeName = SyncOptions.DefaultScopeName,  DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -26,7 +26,26 @@ namespace Dotmim.Sync
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 bool exists;
-                (context, exists) = await InternalExistsScopeInfoTableAsync(context, scopeType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                await runner.CommitAsync().ConfigureAwait(false);
+                return exists;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
+
+        public async Task<bool> ExistScopeInfoClientTableAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                bool exists;
+                (context, exists) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
                 await runner.CommitAsync().ConfigureAwait(false);
                 return exists;
             }
@@ -46,12 +65,10 @@ namespace Dotmim.Sync
 
             var scopeCommandType = scopeType switch
             {
-                DbScopeType.Client => DbScopeCommandType.ExistsClientScopeInfoTable,
-                DbScopeType.Server => DbScopeCommandType.ExistsServerScopeInfoTable,
-                DbScopeType.ServerHistory => DbScopeCommandType.ExistsServerHistoryScopeInfoTable,
+                DbScopeType.ScopeInfo => DbScopeCommandType.ExistsScopeInfoTable,
+                DbScopeType.ScopeInfoClient => DbScopeCommandType.ExistsScopeInfoClientTable,
                 _ => throw new NotImplementedException()
             };
-
 
             // Get exists command
             using var existsCommand = scopeBuilder.GetCommandAsync(scopeCommandType, connection, transaction);
@@ -75,9 +92,8 @@ namespace Dotmim.Sync
 
             var scopeCommandType = scopeType switch
             {
-                DbScopeType.Client => DbScopeCommandType.DropClientScopeInfoTable,
-                DbScopeType.Server => DbScopeCommandType.DropServerScopeInfoTable,
-                DbScopeType.ServerHistory => DbScopeCommandType.DropServerHistoryScopeInfoTable,
+                DbScopeType.ScopeInfo => DbScopeCommandType.DropScopeInfoTable,
+                DbScopeType.ScopeInfoClient => DbScopeCommandType.DropScopeInfoClientTable,
                 _ => throw new NotImplementedException()
             };
 
@@ -85,7 +101,7 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, false);
 
-            var action = new ScopeTableDroppingArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, command, connection, transaction);
+            var action = new ScopeInfoTableDroppingArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, command, connection, transaction);
             await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)
@@ -95,7 +111,7 @@ namespace Dotmim.Sync
 
             await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-            await this.InterceptAsync(new ScopeTableDroppedArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ScopeInfoTableDroppedArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             action.Command.Dispose();
 
@@ -111,9 +127,8 @@ namespace Dotmim.Sync
 
             var scopeCommandType = scopeType switch
             {
-                DbScopeType.Client => DbScopeCommandType.CreateClientScopeInfoTable,
-                DbScopeType.Server => DbScopeCommandType.CreateServerScopeInfoTable,
-                DbScopeType.ServerHistory => DbScopeCommandType.CreateServerHistoryScopeInfoTable,
+                DbScopeType.ScopeInfo => DbScopeCommandType.CreateScopeInfoTable,
+                DbScopeType.ScopeInfoClient => DbScopeCommandType.CreateScopeInfoClientTable,
                 _ => throw new NotImplementedException()
             };
 
@@ -122,7 +137,7 @@ namespace Dotmim.Sync
             if (command == null)
                 return (context, false);
 
-            var action = new ScopeTableCreatingArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, command, connection, transaction);
+            var action = new ScopeInfoTableCreatingArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, command, connection, transaction);
             await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
             if (action.Cancel || action.Command == null)
@@ -132,7 +147,7 @@ namespace Dotmim.Sync
 
             await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-            await this.InterceptAsync(new ScopeTableCreatedArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ScopeInfoTableCreatedArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             action.Command.Dispose();
 

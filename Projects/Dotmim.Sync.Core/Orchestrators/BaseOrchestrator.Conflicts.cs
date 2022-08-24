@@ -25,7 +25,7 @@ namespace Dotmim.Sync
         /// The int returned is the conflict count I need 
         /// </summary>
         private async Task<(SyncContext context, TableConflictErrorApplied tableConflictApplied)>
-            HandleConflictAsync(IScopeInfo scopeInfo, SyncContext context,
+            HandleConflictAsync(ScopeInfo scopeInfo, SyncContext context,
                                 Guid localScopeId, Guid senderScopeId, SyncRow conflictRow, 
                                 SyncTable schemaChangesTable,
                                 ConflictResolutionPolicy policy, long? lastTimestamp,
@@ -162,7 +162,7 @@ namespace Dotmim.Sync
         /// </summary>
         private async Task<(SyncContext context, ApplyAction applyAction, ConflictType conflictType,
             SyncRow finalRow, Guid? finalSenderScopeId)>
-            GetConflictActionAsync(IScopeInfo scopeInfo, SyncContext context, Guid localScopeId, SyncRow conflictRow,
+            GetConflictActionAsync(ScopeInfo scopeInfo, SyncContext context, Guid localScopeId, SyncRow conflictRow,
             SyncTable schemaChangesTable, ConflictResolutionPolicy policy, Guid senderScopeId, DbConnection connection, DbTransaction transaction,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -266,7 +266,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Try to get a source row
         /// </summary>
-        internal async Task<(SyncContext context, SyncRow syncRow)> InternalGetConflictRowAsync(IScopeInfo scopeInfo, SyncContext context, 
+        internal async Task<(SyncContext context, SyncRow syncRow)> InternalGetConflictRowAsync(ScopeInfo scopeInfo, SyncContext context, 
             SyncTable schemaTable, SyncRow primaryKeyRow, DbConnection connection, DbTransaction transaction)
         {
             // Get the row in the local repository

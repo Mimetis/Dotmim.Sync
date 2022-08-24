@@ -14,7 +14,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class ApplyChangesConflictOccuredArgs : ProgressArgs
     {
-        private readonly IScopeInfo scopeInfo;
+        private readonly ScopeInfo scopeInfo;
         private BaseOrchestrator orchestrator;
         private DbSyncAdapter syncAdapter;
         private readonly SyncRow conflictRow;
@@ -52,7 +52,7 @@ namespace Dotmim.Sync
             return conflict;
         }
 
-        public ApplyChangesConflictOccuredArgs(IScopeInfo scopeInfo, SyncContext context, BaseOrchestrator orchestrator, 
+        public ApplyChangesConflictOccuredArgs(ScopeInfo scopeInfo, SyncContext context, BaseOrchestrator orchestrator, 
             SyncRow conflictRow, SyncTable schemaChangesTable, ConflictResolution action, Guid? senderScopeId, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {

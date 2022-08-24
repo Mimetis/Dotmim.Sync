@@ -34,19 +34,19 @@ namespace Dotmim.Sync
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ServerHistory, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                List<ServerHistoryScopeInfo> histories;
+                List<ScopeInfoClient> sScopeInfoClients;
 
-                (context, histories) = await this.InternalLoadAllServerHistoriesScopesAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, sScopeInfoClients) = await this.InternalLoadAllScopeInfoClientsAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                if (histories == null || histories.Count == 0)
+                if (sScopeInfoClients == null || sScopeInfoClients.Count == 0)
                     return new DatabaseMetadatasCleaned();
 
-                var minTimestamp = histories.Min(shsi => shsi.LastSyncTimestamp);
+                var minTimestamp = sScopeInfoClients.Min(shsi => shsi.LastSyncTimestamp);
 
                 if (minTimestamp == 0)
                     return new DatabaseMetadatasCleaned();
@@ -107,26 +107,26 @@ namespace Dotmim.Sync
                 return (context, new DatabaseMetadatasCleaned());
 
             bool exists;
-            (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.Server, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (!exists)
-                await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.Server, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            List<ServerScopeInfo> allScopes;
-            (context, allScopes) = await this.InternalLoadAllServerScopesInfosAsync(context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            List<ScopeInfo> sScopeInfos;
+            (context, sScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            if (allScopes == null || allScopes.Count == 0)
+            if (sScopeInfos == null || sScopeInfos.Count == 0)
                 return (context, new DatabaseMetadatasCleaned());
 
             DatabaseMetadatasCleaned databaseMetadatasCleaned;
-            (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(allScopes, context, timeStampStart.Value, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(sScopeInfos, context, timeStampStart.Value, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            foreach (var serverScopeInfo in allScopes)
+            foreach (var serverScopeInfo in sScopeInfos)
             {
                 serverScopeInfo.LastCleanupTimestamp = databaseMetadatasCleaned.TimestampLimit;
                 var tmpContext = new SyncContext(Guid.NewGuid(), serverScopeInfo.Name);
 
-                await this.InternalSaveServerScopeInfoAsync(serverScopeInfo, tmpContext, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await this.InternalSaveScopeInfoAsync(serverScopeInfo, tmpContext, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
             return (context, databaseMetadatasCleaned);
         }

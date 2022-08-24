@@ -28,7 +28,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(provider, options);
 
-            var scope = await localOrchestrator.GetClientScopeInfoAsync();
+            var scope = await localOrchestrator.GetScopeInfoAsync();
 
             Assert.NotNull(scope);
 
@@ -53,7 +53,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var localScopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
+            var localScopeInfo = await localOrchestrator.GetScopeInfoAsync(scopeName);
 
             Assert.NotNull(localScopeInfo);
             Assert.Equal(scopeName, localScopeInfo.Name);
@@ -85,7 +85,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var localScopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
+            var localScopeInfo = await localOrchestrator.GetScopeInfoAsync(scopeName);
 
             Assert.NotNull(localScopeInfo);
             Assert.Equal(scopeName, localScopeInfo.Name);
@@ -115,16 +115,16 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
-            var localScopeInfo1 = await localOrchestrator.GetClientScopeInfoAsync();
-            var localScopeInfo2 = await localOrchestrator.GetClientScopeInfoAsync("A");
-            var localScopeInfo3 = await localOrchestrator.GetClientScopeInfoAsync("B");
+            var localScopeInfo1 = await localOrchestrator.GetScopeInfoAsync();
+            var localScopeInfo2 = await localOrchestrator.GetScopeInfoAsync("A");
+            var localScopeInfo3 = await localOrchestrator.GetScopeInfoAsync("B");
 
             Assert.Equal(localScopeInfo1.Id, localScopeInfo2.Id);
             Assert.Equal(localScopeInfo2.Id, localScopeInfo3.Id);
 
 
             // Check we get the 3 scopes
-            var allScopes = await localOrchestrator.GetAllClientScopesInfoAsync();
+            var allScopes = await localOrchestrator.GetAllScopeInfosAsync();
 
             Assert.Equal(3, allScopes.Count);
 
@@ -162,8 +162,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             var schema = await localOrchestrator.GetSchemaAsync(setup);
             var schema2 = await localOrchestrator.GetSchemaAsync(setup2);
 
-            var localScopeInfo1 = await localOrchestrator.GetClientScopeInfoAsync();
-            var localScopeInfo2 = await localOrchestrator.GetClientScopeInfoAsync("A");
+            var localScopeInfo1 = await localOrchestrator.GetScopeInfoAsync();
+            var localScopeInfo2 = await localOrchestrator.GetScopeInfoAsync("A");
 
             var serverScope1 = new ServerScopeInfo
             {
@@ -271,8 +271,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var schema = await localOrchestrator.GetSchemaAsync(setup);
 
-            var localScopeInfo1 = await localOrchestrator.GetClientScopeInfoAsync();
-            var localScopeInfo2 = await localOrchestrator.GetClientScopeInfoAsync("A");
+            var localScopeInfo1 = await localOrchestrator.GetScopeInfoAsync();
+            var localScopeInfo2 = await localOrchestrator.GetScopeInfoAsync("A");
 
             var serverScope1 = new ServerScopeInfo
             {
@@ -403,7 +403,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnConnectionOpen(args => cts.Cancel());
 
             var se = await Assert.ThrowsAsync<SyncException>(
-                async () => await localOrchestrator.GetClientScopeInfoAsync(cancellationToken: cts.Token));
+                async () => await localOrchestrator.GetScopeInfoAsync(cancellationToken: cts.Token));
 
             Assert.Equal(SyncSide.ClientSide, se.Side);
             Assert.Equal("OperationCanceledException", se.TypeName);

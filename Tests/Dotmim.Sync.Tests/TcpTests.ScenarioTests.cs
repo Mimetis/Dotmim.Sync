@@ -145,7 +145,7 @@ namespace Dotmim.Sync.Tests
 
                 // IF we launch synchronize on this new scope, it will get all the rows from the server
                 // We are making a shadow copy of previous scope to get the last synchronization metadata
-                var oldClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync("v1");
+                var oldClientScopeInfo = await localOrchestrator.GetScopeInfoAsync("v1");
                 clientScopeV1.ShadowScope(oldClientScopeInfo);
                 await localOrchestrator.SaveClientScopeInfoAsync(clientScopeV1);
 
@@ -274,7 +274,7 @@ namespace Dotmim.Sync.Tests
 
             // IF we launch synchronize on this new scope, it will get all the rows from the server
             // We are making a shadow copy of previous scope to get the last synchronization metadata
-            var oldClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+            var oldClientScopeInfo = await localOrchestrator.GetScopeInfoAsync();
             clientScopeV1.ShadowScope(oldClientScopeInfo);
             await localOrchestrator.SaveClientScopeInfoAsync(clientScopeV1);
 

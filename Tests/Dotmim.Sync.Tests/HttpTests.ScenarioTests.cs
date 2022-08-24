@@ -168,9 +168,11 @@ namespace Dotmim.Sync.Tests
 
                 // IF we launch synchronize on this new scope, it will get all the rows from the server
                 // We are making a shadow copy of previous scope to get the last synchronization metadata
-                var oldClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
-                clientScopeV1.ShadowScope(oldClientScopeInfo);
-                await localOrchestrator.SaveClientScopeInfoAsync(clientScopeV1);
+                throw new Exception("Not implemented correctly here");
+
+                //var oldClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+                //clientScopeV1.ShadowScope(oldClientScopeInfo);
+                //await localOrchestrator.SaveClientScopeInfoAsync(clientScopeV1);
 
                 // We are ready to sync this new scope !
                 var agent = new SyncAgent(client.Provider, Server.Provider);
@@ -298,9 +300,10 @@ namespace Dotmim.Sync.Tests
 
             // IF we launch synchronize on this new scope, it will get all the rows from the server
             // We are making a shadow copy of previous scope to get the last synchronization metadata
-            var oldClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
-            clientScopeV1.ShadowScope(oldClientScopeInfo);
-            await localOrchestrator.SaveClientScopeInfoAsync(clientScopeV1);
+            throw new Exception("Not implemented correctly here");
+            //var oldClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
+            //clientScopeV1.ShadowScope(oldClientScopeInfo);
+            //await localOrchestrator.SaveClientScopeInfoAsync(clientScopeV1);
 
             // We are ready to sync this new scope !
             // we still can use the old agent, since it's already configured with correct providers

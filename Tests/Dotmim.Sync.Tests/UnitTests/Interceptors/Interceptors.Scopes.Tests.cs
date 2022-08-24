@@ -53,18 +53,18 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             localOrchestrator.OnScopeSaved(ssa => scopeSaved++);
 
-            localOrchestrator.OnScopeTableCreating(stca =>
+            localOrchestrator.OnScopeInfoTableCreating(stca =>
             {
                 Assert.NotNull(stca.Command);
                 scopeTableCreating++;
             });
 
-            localOrchestrator.OnScopeTableCreated(stca =>
+            localOrchestrator.OnScopeInfoTableCreated(stca =>
             {
                 scopeTableCreated++;
             });
 
-            localOrchestrator.OnClientScopeInfoLoading(args =>
+            localOrchestrator.OnScopeInfoLoading(args =>
             {
                 Assert.NotNull(args.Command);
                 Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
@@ -76,7 +76,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 scopeLoading++;
             });
 
-            localOrchestrator.OnClientScopeInfoLoaded(args =>
+            localOrchestrator.OnScopeInfoLoaded(args =>
             {
                 Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
                 Assert.Equal(scopeName, args.Context.ScopeName);
@@ -85,7 +85,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 scopeLoaded++;
             });
 
-            var localScopeInfo = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
+            var localScopeInfo = await localOrchestrator.GetScopeInfoAsync(scopeName);
 
 
             Assert.Equal(1, scopeTableCreating);
@@ -104,7 +104,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             localScopeInfo.Version = "2.0";
 
-            await localOrchestrator.SaveClientScopeInfoAsync(localScopeInfo);
+            await localOrchestrator.SaveScopeInfoAsync(localScopeInfo);
 
             Assert.Equal(0, scopeTableCreating);
             Assert.Equal(0, scopeTableCreated);
@@ -146,13 +146,13 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             remoteOrchestrator.OnScopeSaved(ssa => scopeSaved++);
 
-            remoteOrchestrator.OnScopeTableCreating(stca =>
+            remoteOrchestrator.OnScopeInfoTableCreating(stca =>
             {
                 Assert.NotNull(stca.Command);
                 scopeTableCreating++;
             });
 
-            remoteOrchestrator.OnScopeTableCreated(stca =>
+            remoteOrchestrator.OnScopeInfoTableCreated(stca =>
             {
                 scopeTableCreated++;
             });

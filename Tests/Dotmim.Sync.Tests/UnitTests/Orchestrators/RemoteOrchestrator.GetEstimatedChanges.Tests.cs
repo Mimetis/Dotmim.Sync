@@ -122,7 +122,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctxServer.SaveChangesAsync();
 
             // Get changes from server
-            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
+            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
             var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope, parameters);
 
             Assert.Null(changes.ServerBatchInfo);
@@ -186,7 +186,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             }
 
             // Get client scope
-            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
+            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
 
             // Get the estimated changes count to be applied to the client
             var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);
@@ -240,7 +240,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await remoteOrchestrator.ProvisionAsync(serverScope);
 
             // fake client scope
-            var clientScopeInfo = new ClientScopeInfo()
+            var clientScopeInfo = new ScopeInfo()
             {
                 Name = scopeName,
                 IsNewScope = true,
@@ -361,7 +361,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctxServer.SaveChangesAsync();
 
             // Get changes from server
-            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
+            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
             var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope, parameters);
 
             Assert.Null(changes.ServerBatchInfo);
@@ -487,7 +487,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Get changes from server
-            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
+            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
             var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope, parameters);
 
             Assert.Null(changes.ServerBatchInfo);

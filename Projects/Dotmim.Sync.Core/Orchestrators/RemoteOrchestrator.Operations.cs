@@ -23,7 +23,7 @@ namespace Dotmim.Sync
 
 
         internal virtual async Task<(SyncContext context, SyncOperation operation)>
-          InternalGetOperationAsync(ServerScopeInfo serverScopeInfo, ClientScopeInfo clientScopeInfo, SyncContext context, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+          InternalGetOperationAsync(ScopeInfo serverScopeInfo, ScopeInfo clientScopeInfo, ScopeInfoClient scopeInfoClient, SyncContext context, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
@@ -31,7 +31,7 @@ namespace Dotmim.Sync
 
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                var operationArgs = new OperationArgs(context, serverScopeInfo, clientScopeInfo, runner.Connection, runner.Transaction);
+                var operationArgs = new OperationArgs(context, serverScopeInfo, clientScopeInfo, scopeInfoClient, runner.Connection, runner.Transaction);
 
                 await this.InterceptAsync(operationArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 

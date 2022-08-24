@@ -14,7 +14,7 @@ namespace Dotmim.Sync
         /// Apply changes on remote provider
         /// </summary>
         internal virtual async Task<(SyncContext context, ServerSyncChanges serverSyncChanges, DatabaseChangesApplied serverChangesApplied, ConflictResolutionPolicy serverResolutionPolicy)>
-            InternalApplyThenGetChangesAsync(ClientScopeInfo clientScope, SyncContext context, BatchInfo clientBatchInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, SyncContext context, BatchInfo clientBatchInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
@@ -25,11 +25,10 @@ namespace Dotmim.Sync
                 DatabaseChangesSelected serverChangesSelected = null;
                 DatabaseChangesApplied clientChangesApplied = null;
                 BatchInfo serverBatchInfo = null;
-                IScopeInfo serverClientScopeInfo = null;
+                ScopeInfo sScopeInfo = null;
 
                 //Direction set to Upload
                 context.SyncWay = SyncWay.Upload;
-
 
                 // Connection & Transaction runner
                 DbConnectionRunner runner = null;
@@ -41,21 +40,21 @@ namespace Dotmim.Sync
                     // Since server can have multiples scopes
                     await using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                     {
-                        (context, serverClientScopeInfo) = await this.InternalLoadServerScopeInfoAsync(context,
+                        (context, sScopeInfo) = await this.InternalLoadScopeInfoAsync(context,
                             runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
                     };
 
                     // Should we ?
-                    if (serverClientScopeInfo == null || serverClientScopeInfo.Schema == null)
+                    if (sScopeInfo == null || sScopeInfo.Schema == null)
                         throw new MissingRemoteOrchestratorSchemaException();
 
                     // Deserialiaze schema
-                    var schema = serverClientScopeInfo.Schema;
+                    var schema = sScopeInfo.Schema;
 
                     if (clientBatchInfo.HasData())
                     {
                         // Create message containing everything we need to apply on server side
-                        var applyChanges = new MessageApplyChanges(Guid.Empty, clientScope.Id, false, clientScope.LastServerSyncTimestamp, schema, this.Options.ConflictResolutionPolicy,
+                        var applyChanges = new MessageApplyChanges(Guid.Empty, cScopeInfoClient.Id, false, cScopeInfoClient.LastServerSyncTimestamp, schema, this.Options.ConflictResolutionPolicy,
                                         this.Options.DisableConstraintsOnApplyChanges, this.Options.CleanMetadatas, this.Options.CleanFolder, false, clientBatchInfo);
 
                         // Transaction mode
@@ -63,7 +62,7 @@ namespace Dotmim.Sync
                             runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // Call provider to apply changes
-                        (context, clientChangesApplied) = await this.InternalApplyChangesAsync(serverClientScopeInfo, context, applyChanges,
+                        (context, clientChangesApplied) = await this.InternalApplyChangesAsync(sScopeInfo, context, applyChanges,
                             runner?.Connection, runner?.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (Options.TransactionMode == TransactionMode.AllOrNothing && runner != null)
@@ -81,7 +80,6 @@ namespace Dotmim.Sync
                 {
                     if (runner != null)
                         await runner.DisposeAsync().ConfigureAwait(false);
-
                 }
 
                 try
@@ -99,12 +97,12 @@ namespace Dotmim.Sync
                     (context, remoteClientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
 
                     // Get if we need to get all rows from the datasource
-                    var fromScratch = clientScope.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
+                    var fromScratch = cScopeInfoClient.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
 
                     // When we get the chnages from server, we create the batches if it's requested by the client
                     // the batch decision comes from batchsize from client
                     (context, serverBatchInfo, serverChangesSelected) =
-                        await this.InternalGetChangesAsync(serverClientScopeInfo, context, fromScratch, clientScope.LastServerSyncTimestamp, remoteClientTimestamp, clientScope.Id,
+                        await this.InternalGetChangesAsync(sScopeInfo, context, fromScratch, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp, cScopeInfoClient.Id,
                         this.Provider.SupportsMultipleActiveResultSets,
                         this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
@@ -114,17 +112,13 @@ namespace Dotmim.Sync
                     // generate the new scope item
                     this.CompleteTime = DateTime.UtcNow;
 
-                    var scopeHistory = new ServerHistoryScopeInfo
-                    {
-                        Id = clientScope.Id,
-                        Name = clientScope.Name,
-                        LastSyncTimestamp = remoteClientTimestamp,
-                        LastSync = this.CompleteTime,
-                        LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks,
-                    };
+                    cScopeInfoClient.LastSyncTimestamp = remoteClientTimestamp;
+                    cScopeInfoClient.LastSync = this.CompleteTime;
+                    cScopeInfoClient.LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks;
 
-                    // Write scopes locally
-                    await this.InternalSaveServerHistoryScopeAsync(scopeHistory, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    // Save scope info client coming from client
+                    // to scope info client table on server
+                    await this.InternalSaveScopeInfoClientAsync(cScopeInfoClient, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
                     return (context, serverSyncChanges, clientChangesApplied, this.Options.ConflictResolutionPolicy);

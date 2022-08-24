@@ -28,7 +28,7 @@ namespace Dotmim.Sync.Sqlite
         //Exists Scope Table
         // ------------------------------
 
-        public override DbCommand GetExistsClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetExistsScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText = $@"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='{ScopeInfoTableName.Unquoted().ToString()}'";
             var command = connection.CreateCommand();
@@ -37,13 +37,13 @@ namespace Dotmim.Sync.Sqlite
             command.Transaction = transaction;
             return command;
         }
-        public override DbCommand GetExistsServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction) => null;
+        public override DbCommand GetExistsScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction) => null;
         public override DbCommand GetExistsServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction) => null;
 
 
         //Exists Scope Info
         // ------------------------------
-        public override DbCommand GetExistsClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetExistsScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText = $@"Select count(*) from {ScopeInfoTableName.Unquoted().ToString()} where sync_scope_name = @sync_scope_name";
 
@@ -59,13 +59,13 @@ namespace Dotmim.Sync.Sqlite
             return command;
 
         }
-        public override DbCommand GetExistsServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction) => null;
+        public override DbCommand GetExistsScopeInfoClientCommand(DbConnection connection, DbTransaction transaction) => null;
         public override DbCommand GetExistsServerScopeInfoCommand(DbConnection connection, DbTransaction transaction) => null;
 
 
         // Create Table
         // ------------------------------
-        public override DbCommand GetCreateClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetCreateScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = $"{ScopeInfoTableName.Unquoted().Normalized().ToString()}";
 
@@ -89,14 +89,14 @@ namespace Dotmim.Sync.Sqlite
             return command;
 
         }
-        public override DbCommand GetCreateServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction) => null;
+        public override DbCommand GetCreateScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction) => null;
         public override DbCommand GetCreateServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction) => null;
 
 
         // Get all scopes
         // ------------------------------
 
-        public override DbCommand GetAllClientScopesInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetAllScopeInfosCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText = $@"SELECT sync_scope_id, sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version,
                                scope_last_sync, scope_last_server_sync_timestamp, scope_last_sync_timestamp, scope_last_sync_duration
@@ -110,12 +110,12 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
         public override DbCommand GetAllServerScopesInfoCommand(DbConnection connection, DbTransaction transaction) => null;
-        public override DbCommand GetAllServerHistoriesScopesInfoCommand(DbConnection connection, DbTransaction transaction) => null;
+        public override DbCommand GetAllScopeInfoClientsCommand(DbConnection connection, DbTransaction transaction) => null;
 
 
         // Delete scope
         // ------------------------------
-        public override DbCommand GetDeleteClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetDeleteScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText = $@"DELETE FROM  {ScopeInfoTableName.Unquoted().ToString()}
                                WHERE [sync_scope_name] = @sync_scope_name";
@@ -133,12 +133,12 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
         public override DbCommand GetDeleteServerScopeInfoCommand(DbConnection connection, DbTransaction transaction) => null;
-        public override DbCommand GetDeleteServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction) => null;
+        public override DbCommand GetDeleteScopeInfoClientCommand(DbConnection connection, DbTransaction transaction) => null;
 
 
         // Get scope
         // ------------------------------
-        public override DbCommand GetClientScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText = $@"SELECT sync_scope_id, sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version,
                                scope_last_sync, scope_last_server_sync_timestamp, scope_last_sync_timestamp, scope_last_sync_duration
@@ -158,21 +158,21 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
         public override DbCommand GetServerScopeInfoCommand(DbConnection connection, DbTransaction transaction) => null;
-        public override DbCommand GetServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction) => null;
+        public override DbCommand GetScopeInfoClientCommand(DbConnection connection, DbTransaction transaction) => null;
 
 
         // Insert Scope
         // -------------------------------
-        public override DbCommand GetInsertClientScopeInfoCommand(DbConnection connection, DbTransaction transaction) => GetSaveScopeInfoCommand(false, connection, transaction);
-        public override DbCommand GetInsertServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction) => null;
+        public override DbCommand GetInsertScopeInfoCommand(DbConnection connection, DbTransaction transaction) => GetSaveScopeInfoCommand(false, connection, transaction);
+        public override DbCommand GetInsertScopeInfoClientCommand(DbConnection connection, DbTransaction transaction) => null;
         public override DbCommand GetInsertServerScopeInfoCommand(DbConnection connection, DbTransaction transaction) => null;
 
 
         // Update Scope
         // -------------------------------
-        public override DbCommand GetUpdateClientScopeInfoCommand(DbConnection connection, DbTransaction transaction) => GetSaveScopeInfoCommand(true, connection, transaction);
+        public override DbCommand GetUpdateScopeInfoCommand(DbConnection connection, DbTransaction transaction) => GetSaveScopeInfoCommand(true, connection, transaction);
         public override DbCommand GetUpdateServerScopeInfoCommand(DbConnection connection, DbTransaction transaction) => null;
-        public override DbCommand GetUpdateServerHistoryScopeInfoCommand(DbConnection connection, DbTransaction transaction) => null;
+        public override DbCommand GetUpdateScopeInfoClientCommand(DbConnection connection, DbTransaction transaction) => null;
 
         public DbCommand GetSaveScopeInfoCommand(bool exist, DbConnection connection, DbTransaction transaction)
         {
@@ -255,7 +255,7 @@ namespace Dotmim.Sync.Sqlite
         // Drop Scope table
         // -------------------------------
 
-        public override DbCommand GetDropClientScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
+        public override DbCommand GetDropScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText = $"DROP Table {ScopeInfoTableName.Unquoted().ToString()}";
 
@@ -266,7 +266,7 @@ namespace Dotmim.Sync.Sqlite
 
             return command;
         }
-        public override DbCommand GetDropServerHistoryScopeInfoTableCommand(DbConnection connection, DbTransaction transaction) => null;
+        public override DbCommand GetDropScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction) => null;
         public override DbCommand GetDropServerScopeInfoTableCommand(DbConnection connection, DbTransaction transaction) => null;
 
 
