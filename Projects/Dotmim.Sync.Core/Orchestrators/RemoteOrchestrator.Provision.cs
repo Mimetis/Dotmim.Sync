@@ -52,10 +52,6 @@ namespace Dotmim.Sync
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
-                // Check incompatibility with the flags
-                if (provision.HasFlag(SyncProvision.ScopeInfo))
-                    throw new InvalidProvisionForRemoteOrchestratorException();
-
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 ScopeInfo serverScopeInfo;

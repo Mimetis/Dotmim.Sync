@@ -89,6 +89,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     [sync_scope_id] [uniqueidentifier] NOT NULL,
                     [sync_scope_name] [nvarchar](100) NOT NULL,
                     [sync_scope_hash] [nvarchar](100) NOT NULL,
+                    [sync_scope_parameters] [nvarchar](MAX) NULL,
                     [scope_last_sync_timestamp] [bigint] NULL,
                     [scope_last_server_sync_timestamp] [bigint] NULL,
                     [scope_last_sync_duration] [bigint] NULL,
@@ -135,6 +136,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 $@"SELECT  [sync_scope_id]
                          , [sync_scope_name]
                          , [sync_scope_hash]
+                         , [sync_scope_parameters]
                          , [scope_last_sync_timestamp]
                          , [scope_last_server_sync_timestamp]
                          , [scope_last_sync_duration]
@@ -189,6 +191,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                 $@"SELECT    [sync_scope_id]
                            , [sync_scope_name]
                            , [sync_scope_hash]
+                           , [sync_scope_parameters]
                            , [scope_last_sync_timestamp]
                            , [scope_last_server_sync_timestamp]
                            , [scope_last_sync_duration]
@@ -323,6 +326,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                                SELECT  @sync_scope_id AS sync_scope_id,  
 	                                   @sync_scope_name AS sync_scope_name,  
 	                                   @sync_scope_hash AS sync_scope_hash,  
+	                                   @sync_scope_parameters AS sync_scope_parameters,  
                                        @scope_last_sync_timestamp AS scope_last_sync_timestamp,
                                        @scope_last_server_sync_timestamp AS scope_last_server_sync_timestamp,
                                        @scope_last_sync_duration AS scope_last_sync_duration,
@@ -331,8 +335,8 @@ namespace Dotmim.Sync.SqlServer.Scope
                            ) AS [changes] 
                     ON [base].[sync_scope_id] = [changes].[sync_scope_id] and [base].[sync_scope_name] = [changes].[sync_scope_name] and [base].[sync_scope_hash] = [changes].[sync_scope_hash]
                     WHEN NOT MATCHED THEN
-	                    INSERT ([sync_scope_name], [sync_scope_id], [sync_scope_hash], [scope_last_sync_timestamp],  [scope_last_server_sync_timestamp], [scope_last_sync], [scope_last_sync_duration], [sync_scope_properties])
-	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_id], [changes].[sync_scope_hash], [changes].[scope_last_sync_timestamp], [changes].[scope_last_server_sync_timestamp], [changes].[scope_last_sync], [changes].[scope_last_sync_duration], [changes].[sync_scope_properties])
+	                    INSERT ([sync_scope_name], [sync_scope_id], [sync_scope_hash], [sync_scope_parameters], [scope_last_sync_timestamp],  [scope_last_server_sync_timestamp], [scope_last_sync], [scope_last_sync_duration], [sync_scope_properties])
+	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_id], [changes].[sync_scope_hash], [changes].[sync_scope_parameters], [changes].[scope_last_sync_timestamp], [changes].[scope_last_server_sync_timestamp], [changes].[scope_last_sync], [changes].[scope_last_sync_duration], [changes].[sync_scope_properties])
                     WHEN MATCHED THEN
 	                    UPDATE SET [scope_last_sync_timestamp] = [changes].[scope_last_sync_timestamp],
                                    [scope_last_server_sync_timestamp] = [changes].[scope_last_server_sync_timestamp],
@@ -342,6 +346,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     OUTPUT  INSERTED.[sync_scope_name], 
                             INSERTED.[sync_scope_id], 
                             INSERTED.[sync_scope_hash], 
+                            INSERTED.[sync_scope_parameters], 
                             INSERTED.[scope_last_sync_timestamp],
                             INSERTED.[scope_last_server_sync_timestamp],
                             INSERTED.[scope_last_sync],
@@ -369,6 +374,12 @@ namespace Dotmim.Sync.SqlServer.Scope
             p.ParameterName = "@sync_scope_hash";
             p.DbType = DbType.String;
             p.Size = 100;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_parameters";
+            p.DbType = DbType.String;
+            p.Size = -1;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
@@ -409,8 +420,7 @@ namespace Dotmim.Sync.SqlServer.Scope
         {
             var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
 
-            var commandText =
-                    $@"DELETE FROM [{tableName}] WHERE [sync_scope_name] = @sync_scope_name";
+            var commandText = $@"DELETE FROM [{tableName}] WHERE [sync_scope_name] = @sync_scope_name";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;

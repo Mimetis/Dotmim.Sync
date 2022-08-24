@@ -99,35 +99,49 @@ internal class Program
 
         //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
-         await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+         await MultiFiltersAsync();
+         //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
-        //await TestSyncParametersHashAsync();
     }
 
 
-    private static async Task TestSyncParametersHashAsync()
+    private static async Task MultiFiltersAsync()
     {
-        var parameters = new SyncParameters();
-        parameters.Add("CustomerID", 12);
-        parameters.Add("Region", "Midi Pyrénées");
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
+            Console.ResetColor();
 
-        Console.WriteLine(parameters.GetHash());
+        });
 
-        parameters = new SyncParameters();
-        parameters.Add("Region", "Midi Pyrénées");
-        parameters.Add("CustomerID", 12);
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
-        Console.WriteLine(parameters.GetHash());
+        // Now, we are creating a new setup with a filter on ProductCategory and Product
+        var setup = new SyncSetup("ProductCategory", "Product", "Address", "Customer", "CustomerAddress");
+        setup.Filters.Add("ProductCategory", "Name");
+
+        var productFilter = new SetupFilter("Product");
+        productFilter.AddParameter("Name", DbType.String);
+        productFilter.AddJoin(Join.Left, "ProductCategory")
+            .On("Product", "ProductCategoryID", "ProductCategory", "ProductCategoryID");
+        productFilter.AddWhere("Name", "ProductCategory", "Name");
+        setup.Filters.Add(productFilter);
+
+        var schema2 = await remoteOrchestrator.ProvisionAsync(setup);
+
+        // Testing a new client
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        var agent = new SyncAgent(clientProvider, serverProvider);
+
+        var parameters = new SyncParameters(("Name", "Bikes"));
+        var s = await agent.SynchronizeAsync(parameters, progress: progress);
+        Console.WriteLine(s);
+
     }
 
-    private static string GenerateHash(string str)
-    {
-        var b = Encoding.UTF8.GetBytes(str);
-        var hash1 = HashAlgorithm.SHA256.Create(b);
-        var hash1String = Convert.ToBase64String(hash1);
-
-        return hash1String;
-    }
 
     private static async Task TestsSetupInheritance()
     {

@@ -98,13 +98,13 @@ namespace Dotmim.Sync
             {
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                List<ScopeInfoClient> localScopes;
-                (context, localScopes) = await InternalLoadAllScopeInfoClientsAsync(context,
+                List<ScopeInfoClient> scopeInfoClients;
+                (context, scopeInfoClients) = await InternalLoadAllScopeInfoClientsAsync(context,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return localScopes;
+                return scopeInfoClients;
             }
             catch (Exception ex)
             {
@@ -258,7 +258,7 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, null);
 
-            InternalSetSaveScopeInfoClientParameters(scopeInfoClient, command);
+            InternalSetSaveScopeInfoClientParameters(scopeInfoClient, command, context.Parameters) ;
 
             //var action = new ScopeSavingArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeInfoClient, command, connection, transaction);
             //await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
@@ -282,7 +282,7 @@ namespace Dotmim.Sync
             return (context, newScopeInfoClient);
         }
 
-        private DbCommand InternalSetSaveScopeInfoClientParameters(ScopeInfoClient scopeInfoClient, DbCommand command)
+        private DbCommand InternalSetSaveScopeInfoClientParameters(ScopeInfoClient scopeInfoClient, DbCommand command, SyncParameters syncParameters = default)
         {
             SetParameterValue(command, "sync_scope_id", scopeInfoClient.Id.ToString());
             SetParameterValue(command, "sync_scope_name", scopeInfoClient.Name);
@@ -292,6 +292,7 @@ namespace Dotmim.Sync
             SetParameterValue(command, "scope_last_sync", scopeInfoClient.LastSync.HasValue ? (object)scopeInfoClient.LastSync.Value : DBNull.Value);
             SetParameterValue(command, "scope_last_sync_duration", scopeInfoClient.LastSyncDuration);
             SetParameterValue(command, "sync_scope_properties", scopeInfoClient.Properties);
+            SetParameterValue(command, "sync_scope_parameters", syncParameters != null ? JsonConvert.SerializeObject(syncParameters) : DBNull.Value);
 
             return command;
         }
