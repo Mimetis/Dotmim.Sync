@@ -453,7 +453,7 @@ namespace Dotmim.Sync.Web.Server
             // Get context from request message
             var context = httpMessage.SyncContext;
 
-            var changes = await this.RemoteOrchestrator.GetEstimatedChangesCountAsync(httpMessage.ScopeInfoClient, context.Parameters, null).ConfigureAwait(false);
+            var changes = await this.RemoteOrchestrator.GetEstimatedChangesCountAsync(httpMessage.ScopeInfoClient).ConfigureAwait(false);
 
             var changesResponse = new HttpMessageSendChangesResponse(httpMessage.SyncContext)
             {

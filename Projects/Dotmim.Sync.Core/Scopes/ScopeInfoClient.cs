@@ -48,6 +48,12 @@ namespace Dotmim.Sync
         public bool IsNewScope { get; set; }
 
         /// <summary>
+        /// Gets or Sets the parameters 
+        /// </summary>
+        [DataMember(Name = "p", IsRequired = false, Order = 7)]
+        public SyncParameters Parameters { get; set; }
+
+        /// <summary>
         /// Gets or Sets the last datetime when a sync has successfully ended.
         /// </summary>
         [IgnoreDataMember]

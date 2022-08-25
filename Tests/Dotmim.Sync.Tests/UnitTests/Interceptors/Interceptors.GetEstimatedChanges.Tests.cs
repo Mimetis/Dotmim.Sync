@@ -103,7 +103,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             // Get changes to be populated to the server
-            var changes = await localOrchestrator.GetEstimatedChangesCountAsync(scopeName);
+            var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
+            var changes = await localOrchestrator.GetEstimatedChangesCountAsync(scopeInfoClient);
 
             Assert.Equal(this.Tables.Length, onSelecting);
             Assert.Equal(this.Tables.Length, onSelected);

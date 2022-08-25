@@ -24,11 +24,11 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get changes from local database from a specific scope name
         /// </summary>
-        public virtual async Task<ClientSyncChanges> GetChangesAsync(string scopeName = SyncOptions.DefaultScopeName, SyncParameters parameters = default)
+        public virtual async Task<ClientSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient)
         {
-            var context = new SyncContext(Guid.NewGuid(), scopeName)
+            var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name, cScopeInfoClient.Parameters)
             {
-                Parameters = parameters
+                ClientId = cScopeInfoClient.Id
             };
 
             try
@@ -37,9 +37,6 @@ namespace Dotmim.Sync
 
                 ScopeInfo cScopeInfo;
                 (context, cScopeInfo) = await this.InternalGetScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                ScopeInfoClient cScopeInfoClient;
-                (context, cScopeInfoClient) = await this.InternalEnsureScopeInfoClientAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 ClientSyncChanges clientChanges = null;
                 (context, clientChanges) = await this.InternalGetChangesAsync(cScopeInfo, context, cScopeInfoClient,
@@ -60,10 +57,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get estimated changes from local database to be sent to the server
         /// </summary>
-        public async Task<ClientSyncChanges>
-            GetEstimatedChangesCountAsync(string scopeName = SyncOptions.DefaultScopeName, SyncParameters parameters = default)
+        public async Task<ClientSyncChanges> GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient)
         {
-            var context = new SyncContext(Guid.NewGuid(), scopeName, parameters);
+            var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name, cScopeInfoClient.Parameters)
+            {
+                ClientId = cScopeInfoClient.Id
+            };
 
             try
             {
@@ -75,11 +74,6 @@ namespace Dotmim.Sync
 
                 if (cScopeInfo.Schema == null)
                     return default;
-
-                // Get the client scope info client
-                ScopeInfoClient cScopeInfoClient;
-                (context, cScopeInfoClient) = await this.InternalEnsureScopeInfoClientAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
 
                 // On local, we don't want to chase rows from "others" 
                 // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL

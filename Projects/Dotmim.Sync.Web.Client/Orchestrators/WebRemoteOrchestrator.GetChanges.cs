@@ -16,14 +16,11 @@ namespace Dotmim.Sync.Web.Client
 {
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
-        public override async Task<ServerSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient, SyncParameters parameters = null, long? lastServerSyncTimestamp = null)
+        public override async Task<ServerSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient)
         {
-            if (cScopeInfoClient.Hash != parameters.GetHash())
-                throw new Exception("Parameters are not the same from the scopeinfo client instance and the parameters argument");
 
-            var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name)
+            var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name, cScopeInfoClient.Parameters)
             {
-                Parameters = parameters,
                 ClientId = cScopeInfoClient.Id,
             };
 
@@ -31,9 +28,6 @@ namespace Dotmim.Sync.Web.Client
 
             if (cScopeInfo == null || cScopeInfo.Schema == null)
                 throw new MissingRemoteOrchestratorSchemaException();
-
-            if (lastServerSyncTimestamp.HasValue)
-                cScopeInfoClient.LastServerSyncTimestamp = lastServerSyncTimestamp.Value;
 
             //Direction set to Download
             context.SyncWay = SyncWay.Download;
@@ -162,19 +156,12 @@ namespace Dotmim.Sync.Web.Client
         /// We can't get changes from server, from a web client orchestrator
         /// </summary>
         /// 
-        public override async Task<ServerSyncChanges> GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient, SyncParameters parameters = null, long? lastServerSyncTimestamp = null) 
+        public override async Task<ServerSyncChanges> GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient) 
         {
-            if (cScopeInfoClient.Hash != parameters.GetHash())
-                throw new Exception("Parameters are not the same from the scopeinfo client instance and the parameters argument");
-
-            var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name)
+            var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name, cScopeInfoClient.Parameters)
             {
-                Parameters = parameters,
                 ClientId = cScopeInfoClient.Id,
             };
-
-            if (lastServerSyncTimestamp.HasValue)
-                cScopeInfoClient.LastServerSyncTimestamp = lastServerSyncTimestamp.Value;
 
             ScopeInfo cScopeInfo;
 

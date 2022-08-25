@@ -220,25 +220,7 @@ namespace Dotmim.Sync
 
             return scopeInfoClient;
         }
-        private ScopeInfoClient InternalReadScopeInfoClient(DbDataReader reader)
-        {
-            var scopeInfoClient = new ScopeInfoClient
-            {
-                Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id")),
-                Name = reader["sync_scope_name"] as string,
-                Hash = reader["sync_scope_hash"] as string,
-                LastSync = reader["scope_last_sync"] != DBNull.Value ? reader.GetDateTime(reader.GetOrdinal("scope_last_sync")) : null,
-                LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_duration")) : 0L,
-                LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_timestamp")) : null,
-                LastServerSyncTimestamp = reader["scope_last_server_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_server_sync_timestamp")) : null,
-                Properties = reader["sync_scope_properties"] as string,
-
-            };
-            scopeInfoClient.IsNewScope = scopeInfoClient.LastSync == null;
-
-            return scopeInfoClient;
-        }
-
+       
         /// <summary>
         /// Internal upsert scope info client
         /// </summary>
@@ -295,6 +277,25 @@ namespace Dotmim.Sync
             SetParameterValue(command, "sync_scope_parameters", syncParameters != null ? JsonConvert.SerializeObject(syncParameters) : DBNull.Value);
 
             return command;
+        }
+        private ScopeInfoClient InternalReadScopeInfoClient(DbDataReader reader)
+        {
+            var scopeInfoClient = new ScopeInfoClient
+            {
+                Id = reader.GetGuid(reader.GetOrdinal("sync_scope_id")),
+                Name = reader["sync_scope_name"] as string,
+                Hash = reader["sync_scope_hash"] as string,
+                LastSync = reader["scope_last_sync"] != DBNull.Value ? reader.GetDateTime(reader.GetOrdinal("scope_last_sync")) : null,
+                LastSyncDuration = reader["scope_last_sync_duration"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_duration")) : 0L,
+                LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_timestamp")) : null,
+                LastServerSyncTimestamp = reader["scope_last_server_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_server_sync_timestamp")) : null,
+                Properties = reader["sync_scope_properties"] as string,
+                Parameters = reader["sync_scope_parameters"] != DBNull.Value ? JsonConvert.DeserializeObject<SyncParameters>((string)reader["sync_scope_parameters"]) : null
+
+            };
+            scopeInfoClient.IsNewScope = scopeInfoClient.LastSync == null;
+
+            return scopeInfoClient;
         }
 
     }

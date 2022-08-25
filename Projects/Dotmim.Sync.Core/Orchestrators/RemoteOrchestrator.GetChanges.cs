@@ -24,15 +24,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get changes from remote database
         /// </summary>
-        public virtual async Task<ServerSyncChanges>
-            GetChangesAsync(ScopeInfoClient cScopeInfoClient, SyncParameters parameters = default, long? lastServerSyncTimestamp = default)
+        public virtual async Task<ServerSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient)
         {
-            if (cScopeInfoClient.Hash != parameters.GetHash())
-                throw new Exception("Parameters are not the same from the scopeinfo client instance and the parameters argument");
 
             var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name)
             {
-                Parameters = parameters,
+                Parameters = cScopeInfoClient.Parameters,
                 ClientId = cScopeInfoClient.Id,
             };
 
@@ -53,9 +50,6 @@ namespace Dotmim.Sync
 
                 bool isNew = sScopeInfoClient == null || sScopeInfoClient.LastSyncTimestamp <= 0;
 
-                if (!lastServerSyncTimestamp.HasValue && sScopeInfoClient != null && sScopeInfoClient.LastSyncTimestamp > 0)
-                    lastServerSyncTimestamp = sScopeInfoClient.LastSyncTimestamp;
-
                 //Direction set to Download
                 context.SyncWay = SyncWay.Download;
 
@@ -71,7 +65,7 @@ namespace Dotmim.Sync
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
                 (context, serverBatchInfo, serverChangesSelected) =
-                    await this.InternalGetChangesAsync(sScopeInfo, context, isNew, lastServerSyncTimestamp, remoteClientTimestamp,
+                    await this.InternalGetChangesAsync(sScopeInfo, context, isNew, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
                     cScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets,
                     this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
@@ -89,14 +83,12 @@ namespace Dotmim.Sync
         /// Get estimated changes from remote database to be applied on client
         /// </summary>
         public virtual async Task<ServerSyncChanges>
-            GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient, SyncParameters parameters = default, long? lastServerSyncTimestamp = default)
+            GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient)
         {
-            if (cScopeInfoClient.Hash != parameters.GetHash())
-                throw new Exception("Parameters are not the same from the scopeinfo client instance and the parameters argument");
 
             var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name)
             {
-                Parameters = parameters,
+                Parameters = cScopeInfoClient.Parameters,
                 ClientId = cScopeInfoClient.Id,
             };
 
@@ -127,14 +119,11 @@ namespace Dotmim.Sync
 
                 bool isNew = sScopeInfoClient == null || sScopeInfoClient.LastSyncTimestamp <= 0;
 
-                if (!lastServerSyncTimestamp.HasValue && sScopeInfoClient != null && sScopeInfoClient.LastSyncTimestamp > 0)
-                    lastServerSyncTimestamp = sScopeInfoClient.LastSyncTimestamp;
-
                 DatabaseChangesSelected serverChangesSelected;
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
                 (context, serverChangesSelected) =
-                    await this.InternalGetEstimatedChangesCountAsync(sScopeInfo, context, isNew, lastServerSyncTimestamp,
+                    await this.InternalGetEstimatedChangesCountAsync(sScopeInfo, context, isNew, cScopeInfoClient.LastServerSyncTimestamp,
                     remoteClientTimestamp, cScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, null, serverChangesSelected);

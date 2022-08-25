@@ -80,7 +80,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             }
 
             // Get changes to be populated to the server
-            var changes = await localOrchestrator.GetEstimatedChangesCountAsync(scopeName);
+            var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
+
+            var changes = await localOrchestrator.GetEstimatedChangesCountAsync(scopeInfoClient);
 
             Assert.NotNull(changes.ClientChangesSelected);
             Assert.Equal(2, changes.ClientChangesSelected.TableChangesSelected.Count);
@@ -140,7 +142,9 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Get changes to be populated to the server
             // Since we are new and not yet initialized, no rows are marked to be sent
-            var estimated = await localOrchestrator.GetEstimatedChangesCountAsync(scopeName);
+            var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
+
+            var estimated = await localOrchestrator.GetEstimatedChangesCountAsync(scopeInfoClient);
 
             Assert.Null(estimated);
         }
@@ -217,7 +221,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctxClient.SaveChangesAsync();
 
             // Get changes to be populated to the server
-            var changes = await localOrchestrator.GetEstimatedChangesCountAsync(scopeName, parameters);
+            var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
+            var changes = await localOrchestrator.GetEstimatedChangesCountAsync(scopeInfoClient);
 
             Assert.Null(changes.ClientBatchInfo);
             Assert.NotNull(changes.ClientChangesSelected);

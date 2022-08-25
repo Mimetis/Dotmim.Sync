@@ -185,7 +185,6 @@ namespace Dotmim.Sync.Tests.UnitTests
                 TotalDue = 6530.35M + 70.4279M + 22.0087M
             };
 
-
             var productId = ctxServer.Product.First().ProductId;
 
             var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
@@ -200,10 +199,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             ctxServer.SalesOrderHeader.Add(soh2);
             await ctxServer.SaveChangesAsync();
 
-
             // Get changes from server
-            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
-            var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient, parameters);
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
+            var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
 
             Assert.NotNull(changes.ServerBatchInfo);
             Assert.NotNull(changes.ServerChangesSelected);
@@ -410,7 +408,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Get changes from server
             var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
-            var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient, parameters);
+            var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
 
             Assert.NotNull(changes.ServerBatchInfo);
             Assert.NotNull(changes.ServerChangesSelected);
@@ -542,7 +540,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Get changes from server
             var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
-            var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient, parameters);
+            var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
 
             Assert.NotNull(changes.ServerBatchInfo);
             Assert.NotNull(changes.ServerChangesSelected);
