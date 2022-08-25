@@ -23,31 +23,6 @@ namespace Dotmim.Sync
     public partial class BaseOrchestrator
     {
 
-        public virtual Task<ScopeInfo> GetScopeInfoAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => GetScopeInfoAsync(SyncOptions.DefaultScopeName, connection, transaction, cancellationToken, progress);
-
-        public virtual async Task<ScopeInfo>
-            GetScopeInfoAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            var context = new SyncContext(Guid.NewGuid(), scopeName);
-
-            try
-            {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                ScopeInfo localScope;
-                (context, localScope) = await InternalGetScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return localScope;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(context, ex);
-            }
-        }
-
 
         /// <summary>
         /// Internal load a ScopeInfo by scope name
@@ -356,7 +331,11 @@ namespace Dotmim.Sync
 
         internal ScopeInfo InternalCreateScopeInfo(string scopeName)
         {
-            return new ScopeInfo { Name = scopeName, Version = SyncVersion.Current.ToString() };
+            return new ScopeInfo
+            {
+                Name = scopeName,
+                Version = SyncVersion.Current.ToString()
+            };
         }
 
 

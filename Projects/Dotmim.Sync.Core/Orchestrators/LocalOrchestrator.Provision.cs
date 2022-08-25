@@ -29,7 +29,7 @@ namespace Dotmim.Sync
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 ScopeInfo clientScopeInfo;
-                (context, clientScopeInfo) = await InternalGetScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                (context, clientScopeInfo) = await InternalEnsureScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                 (context, clientScopeInfo) = await InternalProvisionClientAsync(serverScopeInfo, clientScopeInfo, context, provision, overwrite, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);

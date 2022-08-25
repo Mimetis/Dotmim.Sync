@@ -20,9 +20,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         {
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-
             command.CommandText = "SELECT CHANGE_TRACKING_CURRENT_VERSION()";
-
             return command;
         }
 

@@ -55,7 +55,7 @@ namespace Dotmim.Sync
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 ScopeInfo serverScopeInfo;
-                (context, serverScopeInfo) = await this.InternalEnsureScopeInfoAsync(context, setup, overwrite, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                (context, serverScopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, setup, overwrite, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // 2) Provision
                 if (provision == SyncProvision.None)

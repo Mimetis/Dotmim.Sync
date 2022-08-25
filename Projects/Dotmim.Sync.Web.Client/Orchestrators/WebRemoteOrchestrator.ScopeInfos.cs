@@ -18,7 +18,7 @@ namespace Dotmim.Sync.Web.Client
     {
 
 
-        internal override async Task<(SyncContext context, ScopeInfo serverScopeInfo)> InternalEnsureScopeInfoAsync(
+        internal override async Task<(SyncContext context, ScopeInfo serverScopeInfo, bool shouldProvision)> InternalEnsureScopeInfoAsync(
             SyncContext context, SyncSetup setup, bool overwrite, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress) 
         {
 
@@ -58,7 +58,7 @@ namespace Dotmim.Sync.Web.Client
             await this.InterceptAsync(new HttpGettingScopeResponseArgs(ensureScopesResponse.ServerScopeInfo, ensureScopesResponse.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
             // Return scopes and new shema
-            return (context, ensureScopesResponse.ServerScopeInfo);
+            return (context, ensureScopesResponse.ServerScopeInfo, false);
         }
 
         public override Task<ScopeInfo> SaveScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)

@@ -258,7 +258,8 @@ namespace Dotmim.Sync
 
                 // on remote orchestrator, get Server scope
                 ScopeInfo sScopeInfo;
-                (context, sScopeInfo) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+                bool shouldProvision;
+                (context, sScopeInfo, shouldProvision) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 bool isConflicting = false;
                 (context, isConflicting, sScopeInfo) = await this.RemoteOrchestrator.IsConflictingSetupAsync(context, setup, sScopeInfo).ConfigureAwait(false);
@@ -294,7 +295,7 @@ namespace Dotmim.Sync
                 // If we just have create the server scope, we need to provision it
                 // the WebServerAgent will do this setp on the GetServrScopeInfoAsync task, just before
                 // So far, on Http mode, this if() will not be called
-                if (sScopeInfo.IsNewScope)
+                if (shouldProvision)
                 {
                     // 2) Provision
                     var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;

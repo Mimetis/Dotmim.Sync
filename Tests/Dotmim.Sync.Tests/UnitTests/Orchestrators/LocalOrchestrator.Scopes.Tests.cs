@@ -57,7 +57,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.NotNull(localScopeInfo);
             Assert.Equal(scopeName, localScopeInfo.Name);
-            Assert.True(localScopeInfo.IsNewScope);
             Assert.Null(localScopeInfo.Schema);
             Assert.Null(localScopeInfo.Setup);
             Assert.Equal(SyncVersion.Current, new Version(localScopeInfo.Version));
@@ -84,7 +83,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.NotNull(localScopeInfo);
             Assert.Equal(scopeName, localScopeInfo.Name);
-            Assert.True(localScopeInfo.IsNewScope);
             Assert.Null(localScopeInfo.Schema);
             Assert.Null(localScopeInfo.Setup);
             Assert.Equal(SyncVersion.Current, new Version(localScopeInfo.Version));
@@ -120,24 +118,14 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localScopeInfo1 = await localOrchestrator.GetScopeInfoAsync();
             var localScopeInfo2 = await localOrchestrator.GetScopeInfoAsync("A");
 
-            var serverScope1 = new ScopeInfo
-            {
-                Name = localScopeInfo1.Name,
-                Schema = schema,
-                Setup = setup,
-                Version = localScopeInfo1.Version
-            };
+            localScopeInfo1.Setup = setup;
+            localScopeInfo1.Schema = schema;
 
-            var serverScope2 = new ScopeInfo
-            {
-                Name = localScopeInfo2.Name,
-                Schema = schema2,
-                Setup = setup2,
-                Version = localScopeInfo2.Version
-            };
+            localScopeInfo2.Setup = setup2;
+            localScopeInfo2.Schema = schema2;
 
-            localScopeInfo1 = await localOrchestrator.ProvisionAsync(serverScope1);
-            localScopeInfo2 = await localOrchestrator.ProvisionAsync(serverScope2);
+            localScopeInfo1 = await localOrchestrator.ProvisionAsync(localScopeInfo1);
+            localScopeInfo2 = await localOrchestrator.ProvisionAsync(localScopeInfo2);
 
             foreach (var table in localScopeInfo1.Setup.Tables)
             {
@@ -172,8 +160,6 @@ namespace Dotmim.Sync.Tests.UnitTests
                         Assert.True(exists2);
 
                     }
-
-
                 }
 
                 foreach (var objectSpType in Enum.GetValues(typeof(Builders.DbTriggerType)))
@@ -204,7 +190,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
         [Fact]
-        public async Task LocalOrchestrator_MultipleScopes_Check_Metadatas_Are_Deleted()
+        public async Task LocalOrchestrator_MultipleScopes_Check_Deprovision()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -229,25 +215,14 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localScopeInfo1 = await localOrchestrator.GetScopeInfoAsync();
             var localScopeInfo2 = await localOrchestrator.GetScopeInfoAsync("A");
 
-            var serverScope1 = new ScopeInfo
-            {
-                Name = localScopeInfo1.Name,
-                Schema = schema,
-                Setup = setup,
-                Version = localScopeInfo1.Version
-            };
-
-            var serverScope2 = new ScopeInfo
-            {
-                Name = localScopeInfo2.Name,
-                Schema = schema,
-                Setup = setup2,
-                Version = localScopeInfo2.Version
-            };
+            localScopeInfo1.Setup = setup;
+            localScopeInfo1.Schema = schema;
+            localScopeInfo2.Setup = setup2;
+            localScopeInfo2.Schema = schema;
 
             // Provision two scopes (already tested in previous test)
-            localScopeInfo1 = await localOrchestrator.ProvisionAsync(serverScope1);
-            localScopeInfo2 = await localOrchestrator.ProvisionAsync(serverScope2);
+            localScopeInfo1 = await localOrchestrator.ProvisionAsync(localScopeInfo1);
+            localScopeInfo2 = await localOrchestrator.ProvisionAsync(localScopeInfo2);
 
             Assert.NotNull(localScopeInfo1.Setup);
             Assert.NotNull(localScopeInfo1.Schema);

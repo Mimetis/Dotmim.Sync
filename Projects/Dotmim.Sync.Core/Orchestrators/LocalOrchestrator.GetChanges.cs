@@ -69,26 +69,16 @@ namespace Dotmim.Sync
             {
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting).ConfigureAwait(false);
 
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (!exists)
-                    return default;
-
                 // Get the local setup & schema
-                ScopeInfo localScopeInfo;
-                (context, localScopeInfo) = await this.InternalLoadScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                ScopeInfo cScopeInfo;
+                (context, cScopeInfo) = await this.InternalEnsureScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (localScopeInfo == null)
+                if (cScopeInfo.Schema == null)
                     return default;
-
-                // If no schema in the client scope. Maybe the client scope table does not exists, or we never get the schema from server
-                if (localScopeInfo.Schema == null)
-                    throw new MissingLocalOrchestratorSchemaException();
 
                 // Get the client scope info client
                 ScopeInfoClient cScopeInfoClient;
-                (context, cScopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                (context, cScopeInfoClient) = await this.InternalEnsureScopeInfoClientAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
 
                 // On local, we don't want to chase rows from "others" 
@@ -113,7 +103,7 @@ namespace Dotmim.Sync
                     clientChangesSelected = new DatabaseChangesSelected();
                 else
                     (context, clientChangesSelected) = await this.InternalGetEstimatedChangesCountAsync(
-                        localScopeInfo, context,
+                        cScopeInfo, context,
                         isNew, lastTimestamp, clientTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 

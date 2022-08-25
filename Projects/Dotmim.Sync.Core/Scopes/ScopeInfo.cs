@@ -32,28 +32,21 @@ namespace Dotmim.Sync
         public SyncSet Schema { get; set; }
 
         /// <summary>
-        /// Gets or Sets if this scope has just been created.
-        /// We don't need it on the client side, so ignore it
-        /// </summary>
-        [DataMember(Name = "new", IsRequired = false, EmitDefaultValue = false, Order = 3)]
-        public bool IsNewScope { get; set; }
-
-        /// <summary>
         /// Setup. stored locally on the client
         /// </summary>
-        [DataMember(Name = "s", IsRequired = true, Order = 4)]
+        [DataMember(Name = "s", IsRequired = true, Order = 3)]
         public SyncSetup Setup { get; set; }
 
         /// <summary>
         /// Gets or Sets the schema version
         /// </summary>
-        [DataMember(Name = "v", IsRequired = false, EmitDefaultValue = false, Order = 5)]
+        [DataMember(Name = "v", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public string Version { get; set; }
 
         /// <summary>
         /// Gets or Sets the last timestamp a sync has occured. This timestamp is set just 'before' sync start.
         /// </summary>
-        [DataMember(Name = "lst", IsRequired = false, EmitDefaultValue = false, Order = 6)]
+        [DataMember(Name = "lst", IsRequired = false, EmitDefaultValue = false, Order = 5)]
         public long LastCleanupTimestamp { get; set; }
 
         /// <summary>

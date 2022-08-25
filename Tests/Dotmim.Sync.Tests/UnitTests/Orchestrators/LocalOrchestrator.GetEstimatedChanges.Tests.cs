@@ -149,67 +149,6 @@ namespace Dotmim.Sync.Tests.UnitTests
         /// LocalOrchestrator.GetEstimatedChanges should return estimated rows to send back to the server
         /// </summary>
         [Fact]
-        public async Task LocalOrchestrator_GetEstimatedChanges_BeforeInitialized_ShouldThrowError_IfScopeExistsAndIsEmpty()
-        {
-            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
-
-            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
-
-            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
-            var serverProvider = new SqlSyncProvider(csServer);
-
-            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
-            var clientProvider = new SqlSyncProvider(csClient);
-
-            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, false).Database.EnsureCreatedAsync();
-            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
-
-            var scopeName = "scopesnap1";
-
-            // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider);
-
-            // Get the orchestrators
-            var localOrchestrator = agent.LocalOrchestrator;
-
-            // Client side : Create a product category and a product
-            // Create a productcategory item
-            // Create a new product on server
-            var productId = Guid.NewGuid();
-            var productName = HelperDatabase.GetRandomName();
-            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-            var productCategoryName = HelperDatabase.GetRandomName();
-            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-            using (var ctx = new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider)))
-            {
-                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                ctx.Add(pc);
-
-                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-                ctx.Add(product);
-
-                await ctx.SaveChangesAsync();
-            }
-
-            // create the local scope, empty
-            var scopeInfo = await localOrchestrator.GetScopeInfoAsync(scopeName);  
-
-            // Get changes to be populated to the server
-            // Since we are new and not yet initialized, no rows are marked to be sent
-            var ex = await Assert.ThrowsAsync<SyncException>(() => localOrchestrator.GetEstimatedChangesCountAsync(scopeName));
-
-            Assert.Equal("MissingLocalOrchestratorSchemaException", ex.TypeName);
-        }
-
-
-        /// <summary>
-        /// LocalOrchestrator.GetEstimatedChanges should return estimated rows to send back to the server
-        /// </summary>
-        [Fact]
         public async Task LocalOrchestrator_GetEstimatedChanges_WithFilters_ShouldReturnNewRowsInserted()
         {
             var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");

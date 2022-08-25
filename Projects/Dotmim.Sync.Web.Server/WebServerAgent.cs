@@ -426,21 +426,18 @@ namespace Dotmim.Sync.Web.Server
             var context = httpMessage.SyncContext;
 
             ScopeInfo serverScopeInfo;
-
-            (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+            bool shouldProvision;
+            (context, serverScopeInfo, shouldProvision) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // TODO : Is it used ?
             httpContext.Session.Set(httpMessage.SyncContext.ScopeName, serverScopeInfo.Schema);
 
             // Provision if needed
-            if (serverScopeInfo != null && serverScopeInfo.IsNewScope)
+            if (shouldProvision)
             {
                 // 2) Provision
                 var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
                 (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalProvisionServerAsync(serverScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
-
-                // Set isNewScope to false since we dont want the syncagent to launch a server provision
-                serverScopeInfo.IsNewScope = false;
             }
 
             // Create http response
@@ -488,7 +485,7 @@ namespace Dotmim.Sync.Web.Server
 
             ScopeInfo serverScopeInfo;
 
-            (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+            (context, serverScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             SyncOperation operation;
             (context, operation) = await this.RemoteOrchestrator.InternalGetOperationAsync(serverScopeInfo, httpMessage.ScopeInfoFromClient, httpMessage.ScopeInfoClient, context, default, default, cancellationToken, progress).ConfigureAwait(false);
@@ -503,7 +500,7 @@ namespace Dotmim.Sync.Web.Server
             var context = httpMessage.SyncContext;
 
             ScopeInfo sScopeInfo;
-            (context, sScopeInfo) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+            (context, sScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // TODO : Is it used ?
             httpContext.Session.Set(httpMessage.SyncContext.ScopeName, sScopeInfo.Schema);
@@ -542,7 +539,7 @@ namespace Dotmim.Sync.Web.Server
             ScopeInfo sScopeInfo;
             var context = httpMessage.SyncContext;
 
-            (context, sScopeInfo) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(httpMessage.SyncContext, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+            (context, sScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(httpMessage.SyncContext, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // TODO : Is it used ?
             httpContext.Session.Set(httpMessage.SyncContext.ScopeName, sScopeInfo.Schema);
@@ -588,8 +585,7 @@ namespace Dotmim.Sync.Web.Server
 
             var context = httpMessage.SyncContext;
             ScopeInfo sScopeInfo;
-
-            (context, sScopeInfo) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(
+            (context, sScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(
                 context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
 
@@ -768,7 +764,7 @@ namespace Dotmim.Sync.Web.Server
 
             ScopeInfo sScopeInfo;
 
-            (context, sScopeInfo) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(
+            (context, sScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(
                 context, this.Setup, false, default, default, default, default).ConfigureAwait(false);
 
             // TODO : Is it used ?

@@ -64,7 +64,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, remoteScopeInfo.LastCleanupTimestamp);
             Assert.NotNull(remoteScopeInfo.Schema);
             Assert.NotNull(remoteScopeInfo.Setup);
-            Assert.True(remoteScopeInfo.IsNewScope);
 
             Assert.Equal(SyncVersion.Current, new Version(remoteScopeInfo.Version));
 
@@ -89,12 +88,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteScopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
-            Assert.True(remoteScopeInfo.IsNewScope);
             Assert.Equal(SyncVersion.Current, new Version(remoteScopeInfo.Version));
-
-            remoteScopeInfo = await remoteOrchestrator.SaveScopeInfoAsync(remoteScopeInfo);
-            
-            Assert.False(remoteScopeInfo.IsNewScope);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
@@ -131,9 +125,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.NotNull(remoteScopeInfo1.Setup);
             Assert.NotNull(remoteScopeInfo2.Setup);
-
-            Assert.True(remoteScopeInfo1.IsNewScope);
-            Assert.True(remoteScopeInfo2.IsNewScope);
 
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);

@@ -81,9 +81,7 @@ namespace Dotmim.Sync
 
                 // Get Schema from remote provider if no schema passed from args
                 if (sScopeInfo.Schema == null)
-                {
-                    (context, sScopeInfo) = await this.InternalEnsureScopeInfoAsync(context, sScopeInfo.Setup, false, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-                }
+                    (context, sScopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, sScopeInfo.Setup, false, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // When we get the changes from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
@@ -189,10 +187,11 @@ namespace Dotmim.Sync
 
                 // 1) Get Schema from remote provider
                 ScopeInfo sScopeInfo;
-                (context, sScopeInfo) = await this.InternalEnsureScopeInfoAsync(context, setup, false, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                bool shouldProvision;
+                (context, sScopeInfo, shouldProvision) = await this.InternalEnsureScopeInfoAsync(context, setup, false, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // If we just have create the server scope, we need to provision it
-                if (sScopeInfo != null && sScopeInfo.IsNewScope)
+                if (shouldProvision)
                 {
                     // 2) Provision
                     var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
