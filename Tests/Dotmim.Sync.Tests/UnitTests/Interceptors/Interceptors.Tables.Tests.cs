@@ -222,7 +222,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var serverScope = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             // new empty db
             dbName = HelperDatabase.GetRandomName("tcp_lo_");
@@ -442,7 +442,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var onDropping = 0;
             var onDropped = 0;
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             remoteOrchestrator.OnTableDropping(ttca => onDropping++);
             remoteOrchestrator.OnTableDropped(ttca => onDropped++);

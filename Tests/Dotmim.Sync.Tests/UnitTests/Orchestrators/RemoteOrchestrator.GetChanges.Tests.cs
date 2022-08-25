@@ -202,8 +202,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Get changes from server
-            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
-            var changes = await remoteOrchestrator.GetChangesAsync(clientScope, parameters);
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
+            var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient, parameters);
 
             Assert.NotNull(changes.ServerBatchInfo);
             Assert.NotNull(changes.ServerChangesSelected);
@@ -279,10 +279,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             }
 
             // Get client scope
-            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
 
             // Get changes to be populated to the server
-            var serverSyncChanges = await remoteOrchestrator.GetChangesAsync(clientScope);
+            var serverSyncChanges = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
 
             Assert.NotNull(serverSyncChanges.ServerBatchInfo);
             Assert.NotNull(serverSyncChanges.ServerChangesSelected);
@@ -409,8 +409,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctxServer.SaveChangesAsync();
 
             // Get changes from server
-            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
-            var changes = await remoteOrchestrator.GetChangesAsync(clientScope, parameters);
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
+            var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient, parameters);
 
             Assert.NotNull(changes.ServerBatchInfo);
             Assert.NotNull(changes.ServerChangesSelected);
@@ -541,8 +541,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Get changes from server
-            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
-            var changes = await remoteOrchestrator.GetChangesAsync(clientScope, parameters);
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
+            var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient, parameters);
 
             Assert.NotNull(changes.ServerBatchInfo);
             Assert.NotNull(changes.ServerChangesSelected);

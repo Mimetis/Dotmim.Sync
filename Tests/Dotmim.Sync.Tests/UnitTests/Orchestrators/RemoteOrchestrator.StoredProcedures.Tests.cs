@@ -45,7 +45,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, false);
 
@@ -56,7 +56,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Create a new scope with this filter
             var scopeName2 = "scope2";
-            var scopeInfo2 = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName2, setup);
+            var scopeInfo2 = await remoteOrchestrator.GetScopeInfoAsync(scopeName2, setup);
 
             await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo2, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters, false);
 
@@ -90,7 +90,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             var storedProcedureSelectChanges = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_changes";
 
@@ -135,7 +135,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             var storedProcedureSelectChanges = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_changes";
 
@@ -179,7 +179,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, false);
 
@@ -215,7 +215,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             await remoteOrchestrator.CreateStoredProceduresAsync(scopeInfo, "Product", "SalesLT");
 

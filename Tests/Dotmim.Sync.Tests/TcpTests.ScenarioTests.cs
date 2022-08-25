@@ -135,19 +135,20 @@ namespace Dotmim.Sync.Tests
                 // Creating a new table is quite easier since DMS can do it for us
                 // Get scope from server (v1 because it contains the new table schema)
                 // we already have it, but you cand call GetServerScopInfoAsync("v1") if needed
-                // var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync("v1");
+                // var serverScope = await remoteOrchestrator.GetScopeInfoAsync("v1");
 
                 var localOrchestrator = new LocalOrchestrator(client.Provider);
                 await localOrchestrator.CreateTableAsync(serverScope, "Product", "SalesLT");
 
                 // Once created we can provision the new scope, thanks to the serverScope instance we already have
                 var clientScopeV1 = await localOrchestrator.ProvisionAsync(serverScope);
+                var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync("v2");
 
                 // IF we launch synchronize on this new scope, it will get all the rows from the server
                 // We are making a shadow copy of previous scope to get the last synchronization metadata
-                var oldClientScopeInfo = await localOrchestrator.GetScopeInfoAsync("v1");
-                clientScopeV1.ShadowScope(oldClientScopeInfo);
-                await localOrchestrator.SaveClientScopeInfoAsync(clientScopeV1);
+                var oldCScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync("v1");
+                cScopeInfoClient.ShadowScope(oldCScopeInfoClient);
+                await localOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
 
                 // We are ready to sync this new scope !
                 var agent = new SyncAgent(client.Provider, Server.Provider);
@@ -260,7 +261,7 @@ namespace Dotmim.Sync.Tests
             // Creating a new table is quite easier since DMS can do it for us
             // Get scope from server (v1 because it contains the new table schema)
             // we already have it, but you cand call GetServerScopInfoAsync("v1") if needed
-            // var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync("v1");
+            // var serverScope = await remoteOrchestrator.GetScopeInfoAsync("v1");
 
             var localOrchestrator = new LocalOrchestrator(client1provider);
 
@@ -271,12 +272,14 @@ namespace Dotmim.Sync.Tests
 
             // Once created we can provision the new scope, thanks to the serverScope instance we already have
             var clientScopeV1 = await localOrchestrator.ProvisionAsync(serverScope);
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync("v1");
 
             // IF we launch synchronize on this new scope, it will get all the rows from the server
             // We are making a shadow copy of previous scope to get the last synchronization metadata
-            var oldClientScopeInfo = await localOrchestrator.GetScopeInfoAsync();
-            clientScopeV1.ShadowScope(oldClientScopeInfo);
-            await localOrchestrator.SaveClientScopeInfoAsync(clientScopeV1);
+            var oldCScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync();
+
+            cScopeInfoClient.ShadowScope(oldCScopeInfoClient);
+            await localOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
 
             // We are ready to sync this new scope !
             // we still can use the old agent, since it's already configured with correct providers
@@ -301,7 +304,7 @@ namespace Dotmim.Sync.Tests
             }
 
             // Assuming we want to migrate the client 2 now
-            var serverScope2 = await agent2.RemoteOrchestrator.GetServerScopeInfoAsync();
+            var serverScope2 = await agent2.RemoteOrchestrator.GetScopeInfoAsync();
 
             // Create the new table locally
             if (this.Server.ProviderType == ProviderType.Sql)
@@ -447,7 +450,7 @@ namespace Dotmim.Sync.Tests
                 // Creating a new table is quite easier since DMS can do it for us
                 // Get scope from server (v1 because it contains the new table schema)
                 // we already have it, but you cand call GetServerScopInfoAsync("v1") if needed
-                // var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync("v1");
+                // var serverScope = await remoteOrchestrator.GetScopeInfoAsync("v1");
 
                 var localOrchestrator = new LocalOrchestrator(client.Provider);
                 await localOrchestrator.CreateTableAsync(serverScope, "Product", "SalesLT");
@@ -579,7 +582,7 @@ namespace Dotmim.Sync.Tests
                 // Creating a new table is quite easier since DMS can do it for us
                 // Get scope from server (v1 because it contains the new table schema)
                 // we already have it, but you cand call GetServerScopInfoAsync("v1") if needed
-                // var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync("v1");
+                // var serverScope = await remoteOrchestrator.GetScopeInfoAsync("v1");
 
                 var localOrchestrator = new LocalOrchestrator(client.Provider);
                 await localOrchestrator.CreateTableAsync(serverScope, "Product", "SalesLT");

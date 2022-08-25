@@ -117,7 +117,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal Sxists Scope Info Client
         /// </summary>
-        internal async Task<(SyncContext context, bool exists)>
+        internal virtual async Task<(SyncContext context, bool exists)>
             InternalExistsScopeInfoClientAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
@@ -145,7 +145,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal load a scope info client
         /// </summary>
-        internal async Task<(SyncContext context, ScopeInfoClient scopeInfoClient)>
+        internal virtual async Task<(SyncContext context, ScopeInfoClient scopeInfoClient)>
             InternalLoadScopeInfoClientAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);

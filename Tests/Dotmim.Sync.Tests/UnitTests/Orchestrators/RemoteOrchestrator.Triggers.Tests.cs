@@ -48,7 +48,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var triggerUpdate = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_update_trigger";
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             // Needs the tracking table to be able to create triggers
             var provision = SyncProvision.TrackingTable | SyncProvision.Triggers;
@@ -97,7 +97,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             };
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
@@ -164,7 +164,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             };
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
@@ -205,7 +205,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             };
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
@@ -248,7 +248,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             };
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
 
@@ -283,7 +283,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             setup.TriggersSuffix = "_trg";
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
             var triggerUpdate = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_update_trigger";

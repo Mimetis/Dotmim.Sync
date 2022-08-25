@@ -14,7 +14,7 @@ namespace Dotmim.Sync
         /// Apply changes on remote provider
         /// </summary>
         internal virtual async Task<(SyncContext context, ServerSyncChanges serverSyncChanges, DatabaseChangesApplied serverChangesApplied, ConflictResolutionPolicy serverResolutionPolicy)>
-            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, SyncContext context, BatchInfo clientBatchInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, BatchInfo clientBatchInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
@@ -25,7 +25,6 @@ namespace Dotmim.Sync
                 DatabaseChangesSelected serverChangesSelected = null;
                 DatabaseChangesApplied clientChangesApplied = null;
                 BatchInfo serverBatchInfo = null;
-                ScopeInfo sScopeInfo = null;
 
                 //Direction set to Upload
                 context.SyncWay = SyncWay.Upload;
@@ -35,21 +34,12 @@ namespace Dotmim.Sync
 
                 try
                 {
-                    // Getting server scope assumes we have already created the schema on server
-                    // Scope name is the scope name coming from client
-                    // Since server can have multiples scopes
-                    await using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
-                    {
-                        (context, sScopeInfo) = await this.InternalLoadScopeInfoAsync(context,
-                            runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
-                    };
-
                     // Should we ?
-                    if (sScopeInfo == null || sScopeInfo.Schema == null)
+                    if (cScopeInfo == null || cScopeInfo.Schema == null)
                         throw new MissingRemoteOrchestratorSchemaException();
 
                     // Deserialiaze schema
-                    var schema = sScopeInfo.Schema;
+                    var schema = cScopeInfo.Schema;
 
                     if (clientBatchInfo.HasData())
                     {
@@ -62,7 +52,7 @@ namespace Dotmim.Sync
                             runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // Call provider to apply changes
-                        (context, clientChangesApplied) = await this.InternalApplyChangesAsync(sScopeInfo, context, applyChanges,
+                        (context, clientChangesApplied) = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges,
                             runner?.Connection, runner?.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (Options.TransactionMode == TransactionMode.AllOrNothing && runner != null)
@@ -102,7 +92,7 @@ namespace Dotmim.Sync
                     // When we get the chnages from server, we create the batches if it's requested by the client
                     // the batch decision comes from batchsize from client
                     (context, serverBatchInfo, serverChangesSelected) =
-                        await this.InternalGetChangesAsync(sScopeInfo, context, fromScratch, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp, cScopeInfoClient.Id,
+                        await this.InternalGetChangesAsync(cScopeInfo, context, fromScratch, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp, cScopeInfoClient.Id,
                         this.Provider.SupportsMultipleActiveResultSets,
                         this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 

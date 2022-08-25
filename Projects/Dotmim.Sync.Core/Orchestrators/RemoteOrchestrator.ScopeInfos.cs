@@ -23,6 +23,28 @@ namespace Dotmim.Sync
     public partial class RemoteOrchestrator : BaseOrchestrator
     {
 
+        public virtual Task<ScopeInfo> GetScopeInfoAsync(SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+                => GetScopeInfoAsync(SyncOptions.DefaultScopeName, connection, transaction, cancellationToken, progress);
+
+        public virtual async Task<ScopeInfo>
+            GetScopeInfoAsync(string scopeName, SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
+
+            try
+            {
+                ScopeInfo localScope;
+                (context, localScope) = await InternalEnsureScopeInfoAsync(context, setup, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                return localScope;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
+
+
 
         /// <summary>
         /// Check 
@@ -60,7 +82,7 @@ namespace Dotmim.Sync
             return (context, false, sScopeInfo);
         }
 
-        
+
         internal virtual async Task<(SyncContext context, ScopeInfo serverScopeInfo)>
              InternalEnsureScopeInfoAsync(SyncContext context, SyncSetup setup, bool overwrite, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {

@@ -58,11 +58,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.NotNull(localScopeInfo);
             Assert.Equal(scopeName, localScopeInfo.Name);
             Assert.True(localScopeInfo.IsNewScope);
-            Assert.NotEqual(Guid.Empty, localScopeInfo.Id);
-            Assert.Null(localScopeInfo.LastServerSyncTimestamp);
-            Assert.Null(localScopeInfo.LastSync);
-            Assert.Equal(0, localScopeInfo.LastSyncDuration);
-            Assert.Null(localScopeInfo.LastSyncTimestamp);
             Assert.Null(localScopeInfo.Schema);
             Assert.Null(localScopeInfo.Setup);
             Assert.Equal(SyncVersion.Current, new Version(localScopeInfo.Version));
@@ -90,11 +85,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.NotNull(localScopeInfo);
             Assert.Equal(scopeName, localScopeInfo.Name);
             Assert.True(localScopeInfo.IsNewScope);
-            Assert.NotEqual(Guid.Empty, localScopeInfo.Id);
-            Assert.Null(localScopeInfo.LastServerSyncTimestamp);
-            Assert.Null(localScopeInfo.LastSync);
-            Assert.Equal(0, localScopeInfo.LastSyncDuration);
-            Assert.Null(localScopeInfo.LastSyncTimestamp);
             Assert.Null(localScopeInfo.Schema);
             Assert.Null(localScopeInfo.Setup);
             Assert.Equal(SyncVersion.Current, new Version(localScopeInfo.Version));
@@ -102,42 +92,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
-        [Fact]
-        public async Task LocalOrchestrator_MultipleScopes_ShouldHave_SameClientId()
-        {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var options = new SyncOptions();
-
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-
-            var localScopeInfo1 = await localOrchestrator.GetScopeInfoAsync();
-            var localScopeInfo2 = await localOrchestrator.GetScopeInfoAsync("A");
-            var localScopeInfo3 = await localOrchestrator.GetScopeInfoAsync("B");
-
-            Assert.Equal(localScopeInfo1.Id, localScopeInfo2.Id);
-            Assert.Equal(localScopeInfo2.Id, localScopeInfo3.Id);
-
-
-            // Check we get the 3 scopes
-            var allScopes = await localOrchestrator.GetAllScopeInfosAsync();
-
-            Assert.Equal(3, allScopes.Count);
-
-            // Check the scope id, read from database, is good
-            foreach (var scope in allScopes)
-            {
-                Assert.Equal(scope.Id, localScopeInfo1.Id);
-            }
-
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
-        }
-
+    
         [Fact]
         public async Task LocalOrchestrator_MultipleScopes_Check_Metadatas_Are_Created()
         {
@@ -165,7 +120,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localScopeInfo1 = await localOrchestrator.GetScopeInfoAsync();
             var localScopeInfo2 = await localOrchestrator.GetScopeInfoAsync("A");
 
-            var serverScope1 = new ServerScopeInfo
+            var serverScope1 = new ScopeInfo
             {
                 Name = localScopeInfo1.Name,
                 Schema = schema,
@@ -173,7 +128,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Version = localScopeInfo1.Version
             };
 
-            var serverScope2 = new ServerScopeInfo
+            var serverScope2 = new ScopeInfo
             {
                 Name = localScopeInfo2.Name,
                 Schema = schema2,
@@ -274,7 +229,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localScopeInfo1 = await localOrchestrator.GetScopeInfoAsync();
             var localScopeInfo2 = await localOrchestrator.GetScopeInfoAsync("A");
 
-            var serverScope1 = new ServerScopeInfo
+            var serverScope1 = new ScopeInfo
             {
                 Name = localScopeInfo1.Name,
                 Schema = schema,
@@ -282,7 +237,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Version = localScopeInfo1.Version
             };
 
-            var serverScope2 = new ServerScopeInfo
+            var serverScope2 = new ScopeInfo
             {
                 Name = localScopeInfo2.Name,
                 Schema = schema,

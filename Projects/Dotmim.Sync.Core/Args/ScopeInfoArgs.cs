@@ -204,23 +204,23 @@ namespace Dotmim.Sync
         /// <summary>
         /// Intercept the provider action when a client scope is about to be loaded from client database
         /// </summary>
-        public static Guid OnScopeInfoLoading(this LocalOrchestrator orchestrator, Action<ScopeInfoLoadingArgs> action)
+        public static Guid OnScopeInfoLoading(this BaseOrchestrator orchestrator, Action<ScopeInfoLoadingArgs> action)
             => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a client scope is about to be loaded from client database
         /// </summary>
-        public static Guid OnScopeInfoLoading(this LocalOrchestrator orchestrator, Func<ScopeInfoLoadingArgs, Task> action)
+        public static Guid OnScopeInfoLoading(this BaseOrchestrator orchestrator, Func<ScopeInfoLoadingArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
         /// Intercept the provider action when a scope is loaded from client or server database
         /// </summary>
-        public static Guid OnScopeInfoLoaded(this LocalOrchestrator orchestrator, Action<ScopeInfoLoadedArgs> action)
+        public static Guid OnScopeInfoLoaded(this BaseOrchestrator orchestrator, Action<ScopeInfoLoadedArgs> action)
             => orchestrator.AddInterceptor(action);
         /// <summary>
         /// Intercept the provider action when a scope is loaded from client or server database
         /// </summary>
-        public static Guid OnScopeInfoLoaded(this LocalOrchestrator orchestrator, Func<ScopeInfoLoadedArgs, Task> action)
+        public static Guid OnScopeInfoLoaded(this BaseOrchestrator orchestrator, Func<ScopeInfoLoadedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>

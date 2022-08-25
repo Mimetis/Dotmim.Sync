@@ -112,20 +112,17 @@ namespace Dotmim.Sync.Web.Client
 
         }
 
-        public HttpMessageSendChangesRequest(SyncContext context, ScopeInfo clientScopeInfo)
+        public HttpMessageSendChangesRequest(SyncContext context, ScopeInfoClient cScopeInfoClient)
         {
             this.SyncContext = context;
-            this.ClientScopeInfo = clientScopeInfo;
+            this.ScopeInfoClient = cScopeInfoClient;
         }
 
         [DataMember(Name = "sc", IsRequired = true, Order = 1)]
         public SyncContext SyncContext { get; set; }
 
-        /// <summary>
-        /// Gets or Sets the reference scope for local repository, stored on server
-        /// </summary>
-        [DataMember(Name = "scope", IsRequired = true, Order = 2)]
-        public ScopeInfo ClientScopeInfo { get; set; }
+        [DataMember(Name = "scopeclient", IsRequired = true, Order = 2)]
+        public ScopeInfoClient ScopeInfoClient { get; }
 
         /// <summary>
         /// Get the current batch index 
@@ -150,6 +147,8 @@ namespace Dotmim.Sync.Web.Client
         /// </summary>
         [DataMember(Name = "changes", IsRequired = true, Order = 6)]
         public ContainerSet Changes { get; set; }
+
+
     }
 
     [DataContract(Name = "ensureschemares"), Serializable]
@@ -159,11 +158,11 @@ namespace Dotmim.Sync.Web.Client
         {
 
         }
-        public HttpMessageEnsureSchemaResponse(SyncContext context, ServerScopeInfo serverScopeInfo)
+        public HttpMessageEnsureSchemaResponse(SyncContext context, ScopeInfo sScopeInfo)
         {
             this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
-            this.ServerScopeInfo = serverScopeInfo ?? throw new ArgumentNullException(nameof(serverScopeInfo));
-            this.Schema = serverScopeInfo.Schema;
+            this.ServerScopeInfo = sScopeInfo ?? throw new ArgumentNullException(nameof(sScopeInfo));
+            this.Schema = sScopeInfo.Schema;
         }
 
         [DataMember(Name = "sc", IsRequired = true, Order = 1)]
@@ -179,7 +178,7 @@ namespace Dotmim.Sync.Web.Client
         /// Gets or Sets the server scope info, from server
         /// </summary>
         [DataMember(Name = "ssi", IsRequired = true, Order = 3)]
-        public ServerScopeInfo ServerScopeInfo { get; set; }
+        public ScopeInfo ServerScopeInfo { get; set; }
 
     }
 
@@ -191,10 +190,10 @@ namespace Dotmim.Sync.Web.Client
         {
 
         }
-        public HttpMessageEnsureScopesResponse(SyncContext context, ServerScopeInfo serverScopeInfo)
+        public HttpMessageEnsureScopesResponse(SyncContext context, ScopeInfo sScopeInfo)
         {
             this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
-            this.ServerScopeInfo = serverScopeInfo ?? throw new ArgumentNullException(nameof(serverScopeInfo));
+            this.ServerScopeInfo = sScopeInfo ?? throw new ArgumentNullException(nameof(sScopeInfo));
         }
 
         [DataMember(Name = "sc", IsRequired = true, Order = 1)]
@@ -204,7 +203,7 @@ namespace Dotmim.Sync.Web.Client
         /// Gets or Sets the schema option (without schema itself, that is not serializable)
         /// </summary>
         [DataMember(Name = "serverscope", IsRequired = true, Order = 2)]
-        public ServerScopeInfo ServerScopeInfo { get; set; }
+        public ScopeInfo ServerScopeInfo { get; set; }
     }
 
 
@@ -234,21 +233,27 @@ namespace Dotmim.Sync.Web.Client
     {
         public HttpMessageOperationRequest() { }
 
-        public HttpMessageOperationRequest(SyncContext context, ScopeInfo clientScopeInfo)
+        public HttpMessageOperationRequest(SyncContext context, ScopeInfo cScopeInfo, ScopeInfoClient cScopeInfoClient)
         {
             this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
-            this.ClientScopeInfo = clientScopeInfo;
+            this.ScopeInfoFromClient = cScopeInfo;
+            this.ScopeInfoClient = cScopeInfoClient;
         }
 
         [DataMember(Name = "sc", IsRequired = true, Order = 1)]
         public SyncContext SyncContext { get; set; }
 
-   
         /// <summary>
         /// Gets or Sets the reference scope for local repository, stored on server
         /// </summary>
         [DataMember(Name = "scope", IsRequired = true, Order = 2)]
-        public ScopeInfo ClientScopeInfo { get; set; }
+        public ScopeInfo ScopeInfoFromClient { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the reference scope for local repository, stored on server
+        /// </summary>
+        [DataMember(Name = "scopeclient", IsRequired = true, Order = 3)]
+        public ScopeInfoClient ScopeInfoClient { get; set; }
 
 
     }

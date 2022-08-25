@@ -42,10 +42,10 @@ namespace Dotmim.Sync
             if (clientScopeInfos == null || clientScopeInfos.Count == 0)
                 return new DatabaseMetadatasCleaned();
 
-            bool existsHistory;
-            (context, existsHistory) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+            bool existsCScopeInfoClient;
+            (context, existsCScopeInfoClient) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            if (!existsHistory)
+            if (!existsCScopeInfoClient)
                 (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
             List<ScopeInfoClient> clientHistoriesScopeInfos;

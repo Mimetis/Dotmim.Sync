@@ -1182,10 +1182,10 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Ensure scope is created locally
-                var clientScope = await agent.LocalOrchestrator.GetScopeInfoAsync();
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
 
                 // get changes from server, without any changes sent from client side
-                var serverSyncChanges = await webRemoteOrchestrator.GetChangesAsync(clientScope);
+                var serverSyncChanges = await webRemoteOrchestrator.GetChangesAsync(cScopeInfoClient);
 
                 Assert.Equal(rowsCount, serverSyncChanges.ServerChangesSelected.TotalChangesSelected);
             }
@@ -1259,10 +1259,10 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Ensure scope is created locally
-                var clientScope = await agent.LocalOrchestrator.GetScopeInfoAsync();
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
 
                 // get changes from server, without any changes sent from client side
-                var serverSyncChanges = await webRemoteOrchestrator.GetChangesAsync(clientScope);
+                var serverSyncChanges = await webRemoteOrchestrator.GetChangesAsync(cScopeInfoClient);
 
                 Assert.Equal(2, serverSyncChanges.ServerChangesSelected.TotalChangesSelected);
 
@@ -1303,10 +1303,10 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Ensure scope is created locally
-                var clientScope = await agent.LocalOrchestrator.GetScopeInfoAsync();
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
 
                 // get changes from server, without any changes sent from client side
-                var changes = await webRemoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);
+                var changes = await webRemoteOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient);
 
                 Assert.Equal(rowsCount, changes.ServerChangesSelected.TotalChangesSelected);
             }
@@ -1379,10 +1379,10 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Ensure scope is created locally
-                var clientScope = await agent.LocalOrchestrator.GetScopeInfoAsync();
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
 
                 // get changes from server, without any changes sent from client side
-                var changes = await webRemoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);
+                var changes = await webRemoteOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient);
 
                 Assert.Equal(2, changes.ServerChangesSelected.TotalChangesSelected);
 
@@ -1645,8 +1645,8 @@ namespace Dotmim.Sync.Tests
             var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider, options);
 
             // Ensure schema is ready on server side. Will create everything we need (triggers, tracking, stored proc, scopes)
-            var serverScopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
-            await remoteOrchestrator.ProvisionAsync(serverScopeInfo);
+            var sScopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+            await remoteOrchestrator.ProvisionAsync(sScopeInfo);
 
             // configure server orchestrator
             this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,

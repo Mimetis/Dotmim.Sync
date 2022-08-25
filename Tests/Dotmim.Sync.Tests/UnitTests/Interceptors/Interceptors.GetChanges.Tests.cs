@@ -302,10 +302,10 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onDatabaseSelected++;
             });
 
-            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
 
             // Get changes to be populated to be sent to the client
-            var changes = await remoteOrchestrator.GetChangesAsync(clientScope);
+            var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
 
             Assert.Equal(this.Tables.Length, onSelecting);
             Assert.Equal(this.Tables.Length, onSelected);

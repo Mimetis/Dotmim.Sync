@@ -15,8 +15,7 @@ namespace Dotmim.Sync
     public class SyncOptions
     {
         /// <summary>
-        /// Default name if nothing is specified for the scope inf table, stored on the client db
-        /// On the server side, server scope table is prefixed with _server and history table with _history
+        /// Default name if nothing is specified for the scope info table and scope info client table, stored on both side
         /// </summary>
         public const string DefaultScopeInfoTableName = "scope_info";
 
@@ -74,7 +73,6 @@ namespace Dotmim.Sync
 
         /// <summary>
         /// Gets or Sets the scope_info table name. Default is scope_info
-        /// On the server side, server scope table is prefixed with _server and history table with _history
         /// </summary>
         public string ScopeInfoTableName { get; set; }
 

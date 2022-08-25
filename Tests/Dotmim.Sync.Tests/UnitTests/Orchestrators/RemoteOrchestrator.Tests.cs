@@ -108,7 +108,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var orchestrator = new RemoteOrchestrator(provider, options);
 
             var se = await Assert.ThrowsAsync<SyncException>(
-                async () => await orchestrator.GetServerScopeInfoAsync("scope1", setup));
+                async () => await orchestrator.GetScopeInfoAsync("scope1", setup));
 
             Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
             Assert.Equal(SyncSide.ServerSide, se.Side);
@@ -197,7 +197,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             AssertConnectionAndTransaction(remoteOrchestrator, scopeName);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             Assert.NotNull(scopeInfo.Schema);
             Assert.NotNull(scopeInfo.Setup);
@@ -242,7 +242,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(cancellationToken: cts.Token);
+                var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(cancellationToken: cts.Token);
             });
 
             Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
@@ -272,7 +272,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             Assert.Equal(3, scopeInfo.Schema.Tables.Count);
 
@@ -306,7 +306,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+                var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
             });
 
             Assert.Equal(SyncStage.Provisioning, se.SyncStage);
@@ -337,7 +337,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+                await remoteOrchestrator.GetScopeInfoAsync(setup);
             });
 
             Assert.Equal(SyncStage.Provisioning, se.SyncStage);
@@ -373,7 +373,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
             {
-                await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+                await remoteOrchestrator.GetScopeInfoAsync(setup);
             });
 
             Assert.Equal(SyncStage.Provisioning, se.SyncStage);
@@ -506,7 +506,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Needs the tracking table to be able to create stored procedures
             var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures;
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             await remoteOrchestrator.ProvisionAsync(scopeInfo, provision);
 
@@ -563,7 +563,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Needs the tracking table to be able to create stored procedures
             var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures;
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             await remoteOrchestrator.ProvisionAsync(scopeInfo, provision);
 
@@ -615,7 +615,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             // Overriding scope info to introduce a bad table with no primary key
             scopeInfo.Schema = schema;
@@ -651,7 +651,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var se = await Assert.ThrowsAsync<SyncException>(async () =>
-                await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup));
+                await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup));
 
             Assert.Equal(SyncStage.Provisioning, se.SyncStage);
             Assert.Equal(SyncSide.ServerSide, se.Side);

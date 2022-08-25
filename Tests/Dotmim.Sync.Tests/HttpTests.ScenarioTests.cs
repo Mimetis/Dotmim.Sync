@@ -153,7 +153,7 @@ namespace Dotmim.Sync.Tests
 
                 // Get scope from server (v1 because it contains the new table schema)
                 var webServerProxyOrchestrator = new WebRemoteOrchestrator(serviceUri);
-                serverScope = await webServerProxyOrchestrator.GetServerScopeInfoAsync("v1");
+                serverScope = await webServerProxyOrchestrator.GetScopeInfoAsync("v1");
 
                 // Creating a new table is quite easier since DMS can do it for us
                 var localOrchestrator = new LocalOrchestrator(client.Provider);
@@ -288,7 +288,7 @@ namespace Dotmim.Sync.Tests
             // Creating a new table is quite easier since DMS can do it for us
             // Get scope from server (v1 because it contains the new table schema)
             // we already have it, but you cand call GetServerScopInfoAsync("v1") if needed
-            // var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync("v1");
+            // var serverScope = await remoteOrchestrator.GetScopeInfoAsync("v1");
 
             var localOrchestrator = new LocalOrchestrator(client1provider);
             if (this.Server.ProviderType == ProviderType.Sql)
@@ -328,7 +328,7 @@ namespace Dotmim.Sync.Tests
             }
 
             // Assuming we want to migrate the client 2 now
-            var serverScope2 = await agent2.RemoteOrchestrator.GetServerScopeInfoAsync();
+            var serverScope2 = await agent2.RemoteOrchestrator.GetScopeInfoAsync();
 
             // Create the new table locally
             if (this.Server.ProviderType == ProviderType.Sql)

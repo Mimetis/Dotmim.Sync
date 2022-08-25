@@ -157,7 +157,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 scopeTableCreated++;
             });
 
-            remoteOrchestrator.OnServerScopeInfoLoading(args =>
+            remoteOrchestrator.OnScopeInfoLoading(args =>
             {
                 Assert.NotNull(args.Command);
                 Assert.Equal(scopeName, args.Context.ScopeName);
@@ -168,7 +168,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 scopeLoading++;
             });
 
-            remoteOrchestrator.OnServerScopeInfoLoaded(args =>
+            remoteOrchestrator.OnScopeInfoLoaded(args =>
             {
                 Assert.Equal(scopeName, args.Context.ScopeName);
                 Assert.NotNull(args.Connection);
@@ -176,11 +176,11 @@ namespace Dotmim.Sync.Tests.UnitTests
                 scopeLoaded++;
             });
 
-            var serverScopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var serverScopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
     
             serverScopeInfo.Version = "2.0";
 
-            await remoteOrchestrator.SaveServerScopeInfoAsync(serverScopeInfo);
+            await remoteOrchestrator.SaveScopeInfoAsync(serverScopeInfo);
 
             Assert.Equal(2, scopeTableCreating);
             Assert.Equal(2, scopeTableCreated);

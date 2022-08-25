@@ -24,7 +24,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get changes from local database from a specific scope name
         /// </summary>
-        public async Task<ClientSyncChanges> GetChangesAsync(string scopeName = SyncOptions.DefaultScopeName, SyncParameters parameters = default)
+        public virtual async Task<ClientSyncChanges> GetChangesAsync(string scopeName = SyncOptions.DefaultScopeName, SyncParameters parameters = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName)
             {
@@ -35,32 +35,14 @@ namespace Dotmim.Sync
             {
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting).ConfigureAwait(false);
 
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (!exists)
-                    return default;
-
-                ScopeInfo localScopeInfo;
-                (context, localScopeInfo) = await this.InternalLoadScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (localScopeInfo == null)
-                    return default;
-
-                bool existsScopeInfoClientTable;
-                (context, existsScopeInfoClientTable) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (!existsScopeInfoClientTable)
-                    return default;
+                ScopeInfo cScopeInfo;
+                (context, cScopeInfo) = await this.InternalGetScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 ScopeInfoClient cScopeInfoClient;
-                (context, cScopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (cScopeInfoClient == null)
-                    return default;
+                (context, cScopeInfoClient) = await this.InternalEnsureScopeInfoClientAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 ClientSyncChanges clientChanges = null;
-                (context, clientChanges) = await this.InternalGetChangesAsync(localScopeInfo, context, cScopeInfoClient,
+                (context, clientChanges) = await this.InternalGetChangesAsync(cScopeInfo, context, cScopeInfoClient,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -104,7 +86,7 @@ namespace Dotmim.Sync
                 if (localScopeInfo.Schema == null)
                     throw new MissingLocalOrchestratorSchemaException();
 
-                // Get the local history
+                // Get the client scope info client
                 ScopeInfoClient cScopeInfoClient;
                 (context, cScopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 

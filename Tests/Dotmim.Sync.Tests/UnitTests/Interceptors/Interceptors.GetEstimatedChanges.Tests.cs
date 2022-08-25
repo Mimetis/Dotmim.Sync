@@ -134,7 +134,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var scopeName = "scopesnap1";
             var syncOptions = new SyncOptions();
-            var setup = new SyncSetup();
 
             // Make a first sync to be sure everything is in place
             var agent = new SyncAgent(clientProvider, serverProvider);
@@ -196,10 +195,10 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onSelected++;
             });
 
-            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
 
             // Get changes to be populated to be sent to the client
-            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);
+            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient);
 
             Assert.Equal(this.Tables.Length, onSelecting);
             Assert.Equal(this.Tables.Length, onSelected);

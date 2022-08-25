@@ -17,11 +17,9 @@ namespace Dotmim.Sync.Web.Client
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
 
-        /// <summary>
-        /// Get server scope from server, by sending an http request to the server 
-        /// </summary>
-        internal override async Task<(SyncContext context, ServerScopeInfo serverScopeInfo)>
-                InternalGetServerScopeInfoAsync(SyncContext context, SyncSetup setup, bool ovewrite, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+
+        internal override async Task<(SyncContext context, ScopeInfo serverScopeInfo)> InternalEnsureScopeInfoAsync(
+            SyncContext context, SyncSetup setup, bool overwrite, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress) 
         {
 
             // Create the message to be sent
@@ -63,7 +61,10 @@ namespace Dotmim.Sync.Web.Client
             return (context, ensureScopesResponse.ServerScopeInfo);
         }
 
-        public override Task<ServerScopeInfo> SaveServerScopeInfoAsync(ServerScopeInfo serverScopeInfo, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<ScopeInfo> SaveScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => throw new NotImplementedException();
+
+        public override Task<bool> DeleteScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => throw new NotImplementedException();
 
     }

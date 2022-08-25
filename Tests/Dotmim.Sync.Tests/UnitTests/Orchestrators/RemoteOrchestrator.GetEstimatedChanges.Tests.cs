@@ -122,8 +122,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctxServer.SaveChangesAsync();
 
             // Get changes from server
-            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
-            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope, parameters);
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
+            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient, parameters: parameters);
 
             Assert.Null(changes.ServerBatchInfo);
             Assert.NotNull(changes.ServerChangesSelected);
@@ -186,10 +186,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             }
 
             // Get client scope
-            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
 
             // Get the estimated changes count to be applied to the client
-            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);
+            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient);
 
             Assert.NotNull(changes.ServerChangesSelected);
             Assert.Equal(2, changes.ServerChangesSelected.TableChangesSelected.Count);
@@ -235,17 +235,17 @@ namespace Dotmim.Sync.Tests.UnitTests
                 await ctx.SaveChangesAsync();
             }
 
-            var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var serverScope = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             await remoteOrchestrator.ProvisionAsync(serverScope);
 
             // fake client scope
-            var clientScopeInfo = new ScopeInfo()
+            var clientScopeInfo = new ScopeInfoClient()
             {
                 Name = scopeName,
                 IsNewScope = true,
-                Setup = serverScope.Setup,
-                Schema = serverScope.Schema
+                Id = Guid.NewGuid(),
+                Hash = SyncParameters.DefaultScopeHash,
             };
 
 
@@ -361,8 +361,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctxServer.SaveChangesAsync();
 
             // Get changes from server
-            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
-            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope, parameters);
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
+            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient, parameters);
 
             Assert.Null(changes.ServerBatchInfo);
             Assert.NotNull(changes.ServerChangesSelected);
@@ -487,8 +487,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Get changes from server
-            var clientScope = await localOrchestrator.GetScopeInfoAsync(scopeName);
-            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScope, parameters);
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
+            var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient, parameters);
 
             Assert.Null(changes.ServerBatchInfo);
             Assert.NotNull(changes.ServerChangesSelected);

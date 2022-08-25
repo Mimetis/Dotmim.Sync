@@ -29,7 +29,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(provider, options);
 
-            var exc = await Assert.ThrowsAsync<SyncException>(() => remoteOrchestrator.GetServerScopeInfoAsync(setup));
+            var exc = await Assert.ThrowsAsync<SyncException>(() => remoteOrchestrator.GetScopeInfoAsync(setup));
 
             Assert.IsType<SyncException>(exc);
             Assert.Equal("MissingServerScopeTablesException", exc.TypeName);
@@ -57,7 +57,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var remoteScopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var remoteScopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             Assert.NotNull(remoteScopeInfo);
             Assert.Equal(scopeName, remoteScopeInfo.Name);
@@ -87,12 +87,12 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var remoteScopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var remoteScopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             Assert.True(remoteScopeInfo.IsNewScope);
             Assert.Equal(SyncVersion.Current, new Version(remoteScopeInfo.Version));
 
-            remoteScopeInfo = await remoteOrchestrator.SaveServerScopeInfoAsync(remoteScopeInfo);
+            remoteScopeInfo = await remoteOrchestrator.SaveScopeInfoAsync(remoteScopeInfo);
             
             Assert.False(remoteScopeInfo.IsNewScope);
 
@@ -117,8 +117,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var setup = new SyncSetup(this.Tables);
 
-            var remoteScopeInfo1 = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
-            var remoteScopeInfo2 = await remoteOrchestrator.GetServerScopeInfoAsync("A", setup);
+            var remoteScopeInfo1 = await remoteOrchestrator.GetScopeInfoAsync(setup);
+            var remoteScopeInfo2 = await remoteOrchestrator.GetScopeInfoAsync("A", setup);
 
             Assert.Equal(SyncOptions.DefaultScopeName, remoteScopeInfo1.Name);
             Assert.Equal("A", remoteScopeInfo2.Name);
@@ -162,8 +162,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup2 = new SyncSetup(this.Tables);
             setup2.Filters.Add("Customer", "EmployeeID");
 
-            var remoteScopeInfo1 = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
-            var remoteScopeInfo2 = await remoteOrchestrator.GetServerScopeInfoAsync("A", setup2);
+            var remoteScopeInfo1 = await remoteOrchestrator.GetScopeInfoAsync(setup);
+            var remoteScopeInfo2 = await remoteOrchestrator.GetScopeInfoAsync("A", setup2);
 
             await remoteOrchestrator.ProvisionAsync(setup);
             await remoteOrchestrator.ProvisionAsync("A", setup2);
@@ -249,8 +249,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup2 = new SyncSetup(this.Tables);
             setup2.Filters.Add("Customer", "EmployeeID");
 
-            var remoteScopeInfo1 = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
-            var remoteScopeInfo2 = await remoteOrchestrator.GetServerScopeInfoAsync("A", setup2);
+            var remoteScopeInfo1 = await remoteOrchestrator.GetScopeInfoAsync(setup);
+            var remoteScopeInfo2 = await remoteOrchestrator.GetScopeInfoAsync("A", setup2);
 
             Assert.NotNull(remoteScopeInfo1.Setup);
             Assert.NotNull(remoteScopeInfo1.Schema);
@@ -363,7 +363,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             remoteOrchestrator.OnConnectionOpen(args => cts.Cancel());
 
             var se = await Assert.ThrowsAsync<SyncException>(
-                async () => await remoteOrchestrator.GetServerScopeInfoAsync(setup, default, default, cts.Token));
+                async () => await remoteOrchestrator.GetScopeInfoAsync(setup, default, default, cts.Token));
 
             Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("OperationCanceledException", se.TypeName);

@@ -425,9 +425,9 @@ namespace Dotmim.Sync.Web.Server
 
             var context = httpMessage.SyncContext;
 
-            ServerScopeInfo serverScopeInfo;
+            ScopeInfo serverScopeInfo;
 
-            (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+            (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // TODO : Is it used ?
             httpContext.Session.Set(httpMessage.SyncContext.ScopeName, serverScopeInfo.Schema);
@@ -456,8 +456,7 @@ namespace Dotmim.Sync.Web.Server
             // Get context from request message
             var context = httpMessage.SyncContext;
 
-            throw new Exception("Not implemented correctly here");
-            var changes = await this.RemoteOrchestrator.GetEstimatedChangesCountAsync(httpMessage.ClientScopeInfo.Name, Guid.Empty, 0, context.Parameters, default, default, cancellationToken, progress);
+            var changes = await this.RemoteOrchestrator.GetEstimatedChangesCountAsync(httpMessage.ScopeInfoClient, context.Parameters, null).ConfigureAwait(false);
 
             var changesResponse = new HttpMessageSendChangesResponse(httpMessage.SyncContext)
             {
@@ -487,12 +486,12 @@ namespace Dotmim.Sync.Web.Server
 
             var context = httpMessage.SyncContext;
 
-            ServerScopeInfo serverScopeInfo;
+            ScopeInfo serverScopeInfo;
 
-            (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+            (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             SyncOperation operation;
-            (context, operation) = await this.RemoteOrchestrator.InternalGetOperationAsync(serverScopeInfo, httpMessage.ClientScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
+            (context, operation) = await this.RemoteOrchestrator.InternalGetOperationAsync(serverScopeInfo, httpMessage.ScopeInfoFromClient, httpMessage.ScopeInfoClient, context, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             return new HttpMessageOperationResponse(context, operation);
         }
@@ -503,9 +502,11 @@ namespace Dotmim.Sync.Web.Server
             // Get context from request message
             var context = httpMessage.SyncContext;
 
-            var serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeInfoAsync(context.ScopeName, this.Setup);
+            ScopeInfo sScopeInfo;
+            (context, sScopeInfo) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+
             // TODO : Is it used ?
-            httpContext.Session.Set(httpMessage.SyncContext.ScopeName, serverScopeInfo.Schema);
+            httpContext.Session.Set(httpMessage.SyncContext.ScopeName, sScopeInfo.Schema);
 
             // get snapshot info
             long remoteClientTimestamp;
@@ -513,7 +514,7 @@ namespace Dotmim.Sync.Web.Server
             DatabaseChangesSelected databaseChangesSelected;
 
             (context, remoteClientTimestamp, serverBatchInfo, databaseChangesSelected) =
-                await this.RemoteOrchestrator.InternalGetSnapshotAsync(serverScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                await this.RemoteOrchestrator.InternalGetSnapshotAsync(sScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             var summaryResponse = new HttpMessageSummaryResponse(context)
             {
@@ -537,16 +538,17 @@ namespace Dotmim.Sync.Web.Server
         internal protected virtual async Task<HttpMessageSendChangesResponse> GetSnapshotAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            var serverScopeInfo = await this.RemoteOrchestrator.GetServerScopeInfoAsync(httpMessage.SyncContext.ScopeName, this.Setup, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+            ScopeInfo sScopeInfo;
+            var context = httpMessage.SyncContext;
+
+            (context, sScopeInfo) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(httpMessage.SyncContext, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // TODO : Is it used ?
-            httpContext.Session.Set(httpMessage.SyncContext.ScopeName, serverScopeInfo.Schema);
-            // Set setup & schema since it's not sent by client
-            httpMessage.ClientScopeInfo.Schema = serverScopeInfo.Schema;
-            httpMessage.ClientScopeInfo.Setup = serverScopeInfo.Setup;
+            httpContext.Session.Set(httpMessage.SyncContext.ScopeName, sScopeInfo.Schema);
 
             // get changes
-            var snap = await this.RemoteOrchestrator.GetSnapshotAsync(serverScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+            var snap = await this.RemoteOrchestrator.GetSnapshotAsync(sScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // Save the server batch info object to cache
             sessionCache.RemoteClientTimestamp = snap.RemoteClientTimestamp;
@@ -585,18 +587,14 @@ namespace Dotmim.Sync.Web.Server
             this.Options.BatchSize = clientBatchSize;
 
             var context = httpMessage.SyncContext;
-            ServerScopeInfo serverScopeInfo;
+            ScopeInfo sScopeInfo;
 
-            (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(
+            (context, sScopeInfo) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(
                 context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
 
             // TODO : Is it used ?
-            httpContext.Session.Set(context.ScopeName, serverScopeInfo.Schema);
-
-            // Set setup & schema since it's not sent by client
-            httpMessage.ClientScopeInfo.Schema = serverScopeInfo.Schema;
-            httpMessage.ClientScopeInfo.Setup = serverScopeInfo.Setup;
+            httpContext.Session.Set(context.ScopeName, sScopeInfo.Schema);
 
             // ------------------------------------------------------------
             // FIRST STEP : receive client changes
@@ -608,7 +606,7 @@ namespace Dotmim.Sync.Web.Server
             // Get batch info from session cache if exists, otherwise create it
             if (sessionCache.ClientBatchInfo == null)
             {
-                sessionCache.ClientBatchInfo = new BatchInfo(serverScopeInfo.Schema, this.Options.BatchDirectory);
+                sessionCache.ClientBatchInfo = new BatchInfo(sScopeInfo.Schema, this.Options.BatchDirectory);
                 sessionCache.ClientBatchInfo.TryRemoveDirectory();
             }
 
@@ -622,7 +620,7 @@ namespace Dotmim.Sync.Web.Server
                 // we have only one table here
                 var localSerializer = new LocalJsonSerializer();
                 var containerTable = httpMessage.Changes.Tables[0];
-                var schemaTable = BaseOrchestrator.CreateChangesTable(serverScopeInfo.Schema.Tables[containerTable.TableName, containerTable.SchemaName]);
+                var schemaTable = BaseOrchestrator.CreateChangesTable(sScopeInfo.Schema.Tables[containerTable.TableName, containerTable.SchemaName]);
                 var tableName = ParserName.Parse(new SyncTable(containerTable.TableName, containerTable.SchemaName)).Unquoted().Schema().Normalized().ToString();
                 var fileName = BatchInfo.GenerateNewFileName(httpMessage.BatchIndex.ToString(), tableName, localSerializer.Extension);
                 var fullPath = Path.Combine(sessionCache.ClientBatchInfo.GetDirectoryFullPath(), fileName);
@@ -685,10 +683,9 @@ namespace Dotmim.Sync.Web.Server
             ConflictResolutionPolicy serverResolutionPolicy;
 
             // get changes
-            throw new Exception("Not implemented correctly here");
             (context, serverSyncChanges, serverChangesApplied, serverResolutionPolicy) = await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(
-                       //httpMessage.ClientScopeInfo, 
-                       null,
+                       httpMessage.ScopeInfoClient,
+                       sScopeInfo,
                        httpMessage.SyncContext, sessionCache.ClientBatchInfo,
                        default, default, cancellationToken, progress).ConfigureAwait(false);
 
@@ -769,13 +766,13 @@ namespace Dotmim.Sync.Web.Server
                               DatabaseChangesApplied clientChangesApplied, DatabaseChangesSelected serverChangesSelected, int batchIndexRequested)
         {
 
-            ServerScopeInfo serverScopeInfo;
+            ScopeInfo sScopeInfo;
 
-            (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalGetServerScopeInfoAsync(
+            (context, sScopeInfo) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(
                 context, this.Setup, false, default, default, default, default).ConfigureAwait(false);
 
             // TODO : Is it used ?
-            httpContext.Session.Set(context.ScopeName, serverScopeInfo.Schema);
+            httpContext.Session.Set(context.ScopeName, sScopeInfo.Schema);
 
             // 1) Create the http message content response
             var changesResponse = new HttpMessageSendChangesResponse(context)
@@ -804,7 +801,7 @@ namespace Dotmim.Sync.Web.Server
             var batchPartInfo = serverBatchInfo.BatchPartsInfo.First(d => d.Index == batchIndexRequested);
 
             // Get the updatable schema for the only table contained in the batchpartinfo
-            var schemaTable = BaseOrchestrator.CreateChangesTable(serverScopeInfo.Schema.Tables[batchPartInfo.Tables[0].TableName, batchPartInfo.Tables[0].SchemaName]);
+            var schemaTable = BaseOrchestrator.CreateChangesTable(sScopeInfo.Schema.Tables[batchPartInfo.Tables[0].TableName, batchPartInfo.Tables[0].SchemaName]);
 
             // Generate the ContainerSet containing rows to send to the user
             var containerSet = new ContainerSet();

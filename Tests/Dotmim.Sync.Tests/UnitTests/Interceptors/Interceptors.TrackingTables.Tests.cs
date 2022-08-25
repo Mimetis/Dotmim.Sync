@@ -42,7 +42,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             var onCreating = false;
             var onCreated = false;
@@ -97,7 +97,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             await remoteOrchestrator.CreateTrackingTableAsync(scopeInfo, "Product", "SalesLT");
 
@@ -133,7 +133,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
@@ -198,7 +198,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             var onDropping = false;
             var onDropped = false;
@@ -254,7 +254,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             var onDropping = false;
             var onDropped = false;
@@ -310,7 +310,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             var onDropping = 0;
             var onDropped = 0;

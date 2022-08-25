@@ -45,7 +45,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
@@ -95,7 +95,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
 
@@ -126,7 +126,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
@@ -181,7 +181,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             var isCreated = await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
             Assert.True(isCreated);
@@ -242,7 +242,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             var isCreated = await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert);
             Assert.True(isCreated);
@@ -303,7 +303,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
@@ -366,7 +366,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;

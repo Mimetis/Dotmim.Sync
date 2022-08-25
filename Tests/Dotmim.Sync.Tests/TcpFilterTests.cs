@@ -765,6 +765,7 @@ namespace Dotmim.Sync.Tests
 
             // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
             setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
+            setup.Filters.Add("Customer", "EmployeeID");
 
             // create a server schema and seed
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
@@ -773,7 +774,6 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
-            setup.Filters.Add("Customer", "EmployeeID");
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
@@ -799,25 +799,27 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
+                var parameters = new SyncParameters(("EmployeeID", 1));
                 // Create the table on local database
                 var localOrchestrator = new LocalOrchestrator(client.Provider);
                 await localOrchestrator.CreateTableAsync(serverScope, "Employee");
 
                 // Once created we can provision the new scope, thanks to the serverScope instance we already have
-                var clientScopeV2 = await localOrchestrator.ProvisionAsync(serverScope);
+                await localOrchestrator.ProvisionAsync(serverScope);
+
+                var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync("v2", parameters);
 
                 // IF we launch synchronize on this new scope, it will get all the rows from the server
                 // We are making a shadow copy of previous scope to get the last synchronization metadata
-                var oldClientScopeInfo = await localOrchestrator.GetScopeInfoAsync();
-                clientScopeV2.ShadowScope(oldClientScopeInfo);
-                await localOrchestrator.SaveClientScopeInfoAsync(clientScopeV2);
+                var oldCScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(syncParameters: parameters);
+                cScopeInfoClient.ShadowScope(oldCScopeInfoClient);
+                await localOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
 
 
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                var p = new SyncParameters(("EmployeeID", 1));
 
-                var s = await agent.SynchronizeAsync("v2", SyncType.Reinitialize, p);
+                var s = await agent.SynchronizeAsync("v2", SyncType.Reinitialize, parameters);
 
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
             }
@@ -968,12 +970,13 @@ namespace Dotmim.Sync.Tests
 
                 // Once created we can provision the new scope, thanks to the serverScope instance we already have
                 var clientScopeV2 = await agent.LocalOrchestrator.ProvisionAsync(serverScope);
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync("v2");
 
                 // IF we launch synchronize on this new scope, it will get all the rows from the server
-                // We are making a shadow copy of previous scope to get the last synchronization metadata
-                var oldClientScopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync();
-                clientScopeV2.ShadowScope(oldClientScopeInfo);
-                await agent.LocalOrchestrator.SaveClientScopeInfoAsync(clientScopeV2);
+                // We are making a shadow copy of previous scope client to get the last synchronization metadata
+                var oldCScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
+                cScopeInfoClient.ShadowScope(oldCScopeInfoClient);
+                await agent.LocalOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
 
                 // Deprovision first scope
                 await agent.LocalOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures);
@@ -1308,13 +1311,13 @@ namespace Dotmim.Sync.Tests
             }
 
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
-            var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync();
+            var serverScope = await remoteOrchestrator.GetScopeInfoAsync();
 
             await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
                 | SyncProvision.Triggers
                 | SyncProvision.TrackingTable);
 
-            await remoteOrchestrator.DeleteServerScopeInfoAsync(serverScope);
+            await remoteOrchestrator.DeleteScopeInfoAsync(serverScope);
 
 
             // Adding a new table

@@ -432,7 +432,7 @@ namespace Dotmim.Sync
              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
 
         {
-            var newVersion = new Version(0, 9, 9);
+            var newVersion = new Version(0, 9, 6);
 
             await this.InterceptAsync(new UpgradeProgressArgs(context, $"Upgrade to {newVersion}:", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 

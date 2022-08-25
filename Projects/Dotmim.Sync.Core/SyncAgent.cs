@@ -294,7 +294,7 @@ namespace Dotmim.Sync
                 // If we just have create the server scope, we need to provision it
                 // the WebServerAgent will do this setp on the GetServrScopeInfoAsync task, just before
                 // So far, on Http mode, this if() will not be called
-                if (sScopeInfo != null && sScopeInfo.IsNewScope)
+                if (sScopeInfo.IsNewScope)
                 {
                     // 2) Provision
                     var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
@@ -422,7 +422,7 @@ namespace Dotmim.Sync
                 ConflictResolutionPolicy serverResolutionPolicy;
 
                 (context, serverSyncChanges, serverChangesApplied, serverResolutionPolicy) = 
-                    await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(cScopeInfoClient, context, clientChanges.ClientBatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(cScopeInfoClient, cScopeInfo, context, clientChanges.ClientBatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();

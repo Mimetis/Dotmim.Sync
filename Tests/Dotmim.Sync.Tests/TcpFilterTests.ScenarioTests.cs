@@ -72,7 +72,7 @@ namespace Dotmim.Sync.Tests
             }
 
             // Simulate a server scope
-            var serverScope = new ServerScopeInfo
+            var serverScope = new ScopeInfo
             {
                 Name = localScopeInfo.Name,
                 Schema = schema,
@@ -92,7 +92,7 @@ namespace Dotmim.Sync.Tests
             //--------------------------
 
             // check if scope table is correctly created
-            var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(clientScope.Name, DbScopeType.ScopeInfo);
+            var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(clientScope.Name);
             Assert.True(scopeInfoTableExists);
 
             // get the db manager
@@ -131,7 +131,7 @@ namespace Dotmim.Sync.Tests
             await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.ScopeInfo | SyncProvision.TrackingTable);
 
             // check if scope table is correctly created
-            scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(clientScope.Name, DbScopeType.ScopeInfo);
+            scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(clientScope.Name);
             Assert.False(scopeInfoTableExists);
 
             // get the db manager

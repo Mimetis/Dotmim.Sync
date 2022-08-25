@@ -22,7 +22,7 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Delete all metadatas from tracking tables, based on min timestamp from history client table
+        /// Delete all metadatas from tracking tables, based on min timestamp from scope info client table
         /// </summary>
         public virtual async Task<DatabaseMetadatasCleaned>
             DeleteMetadatasAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)

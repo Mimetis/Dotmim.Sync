@@ -25,9 +25,9 @@ namespace Dotmim.Sync
     }
     public class HttpGettingSchemaResponseArgs : ProgressArgs
     {
-        public HttpGettingSchemaResponseArgs(ServerScopeInfo serverScopeInfo, SyncSet schema, SyncContext context, string host) : base(context, null)
+        public HttpGettingSchemaResponseArgs(ScopeInfo sScopeInfo, SyncSet schema, SyncContext context, string host) : base(context, null)
         {
-            this.ServerScopeInfo = serverScopeInfo;
+            this.ScopeInfoFromServer = sScopeInfo;
             this.Schema = schema;
             this.Host = host;
         }
@@ -37,7 +37,7 @@ namespace Dotmim.Sync
 
         public SyncSet Schema { get; set; }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-        public ServerScopeInfo ServerScopeInfo { get; set; }
+        public ScopeInfo ScopeInfoFromServer { get; set; }
 
         public string Host { get; }
     }

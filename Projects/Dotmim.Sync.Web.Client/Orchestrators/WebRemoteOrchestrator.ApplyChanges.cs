@@ -16,30 +16,17 @@ namespace Dotmim.Sync.Web.Client
 {
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
+
+        
         /// <summary>
         /// Apply changes
         /// </summary>
         internal override async Task<(SyncContext context, ServerSyncChanges serverSyncChanges, DatabaseChangesApplied serverChangesApplied, ConflictResolutionPolicy serverResolutionPolicy)>
-            InternalApplyThenGetChangesAsync(ScopeInfo clientScopeInfo, SyncContext context, BatchInfo clientBatchInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, BatchInfo clientBatchInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            SyncSet schema;
-            ServerScopeInfo serverScopeInfo;
-            // is it something that could happens ?
-            if (clientScopeInfo.Schema == null)
-            {
-                // Make a remote call to get Schema from remote provider
-                (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(
-                    context, null, false, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                schema = serverScopeInfo.Schema;
-            }
-            else
-            {
-                schema = clientScopeInfo.Schema;
-            }
-
+            SyncSet schema = cScopeInfo.Schema;
             schema.EnsureSchema();
 
             // if we don't have any BatchPartsInfo, just generate a new one to get, at least, something to send to the server
@@ -57,7 +44,7 @@ namespace Dotmim.Sync.Web.Client
             // But we need to send something, so generate a little batch part
             if (clientBatchInfo.BatchPartsInfo.Count == 0)
             {
-                var changesToSend = new HttpMessageSendChangesRequest(context, clientScopeInfo);
+                var changesToSend = new HttpMessageSendChangesRequest(context, cScopeInfoClient);
 
                 var containerSet = new ContainerSet();
                 changesToSend.Changes = containerSet;
@@ -118,7 +105,7 @@ namespace Dotmim.Sync.Web.Client
                         BeforeSerializeRows(containerTable, schemaTable, this.Converter);
 
                     // Create the send changes request
-                    var changesToSend = new HttpMessageSendChangesRequest(context, clientScopeInfo)
+                    var changesToSend = new HttpMessageSendChangesRequest(context, cScopeInfoClient)
                     {
                         Changes = containerSet,
                         IsLastBatch = bpi.IsLastBatch,
