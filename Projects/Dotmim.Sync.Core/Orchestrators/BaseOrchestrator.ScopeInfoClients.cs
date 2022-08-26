@@ -132,7 +132,7 @@ namespace Dotmim.Sync
             if (existsCommand == null) return (context, false);
 
             SetParameterValue(existsCommand, "sync_scope_name", context.ScopeName);
-            SetParameterValue(existsCommand, "sync_scope_Id", context.ClientId);
+            SetParameterValue(existsCommand, "sync_scope_id", context.ClientId);
             SetParameterValue(existsCommand, "sync_scope_hash", context.Hash);
 
             await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);

@@ -87,11 +87,10 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var localScopeInfo = await localOrchestrator.GetScopeInfoAsync(scopeName);
 
-
-            Assert.Equal(1, scopeTableCreating);
-            Assert.Equal(1, scopeTableCreated);
-            Assert.Equal(1, scopeLoading);
-            Assert.Equal(1, scopeLoaded);
+            Assert.Equal(2, scopeTableCreating);
+            Assert.Equal(2, scopeTableCreated);
+            Assert.Equal(0, scopeLoading);
+            Assert.Equal(0, scopeLoaded);
             Assert.Equal(1, scopeSaving);
             Assert.Equal(1, scopeSaved);
 
@@ -112,6 +111,22 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, scopeLoaded);
             Assert.Equal(1, scopeSaving);
             Assert.Equal(1, scopeSaved);
+
+            scopeTableCreating = 0;
+            scopeTableCreated = 0;
+            scopeLoading = 0;
+            scopeLoaded = 0;
+            scopeSaving = 0;
+            scopeSaved = 0;
+
+            localScopeInfo = await localOrchestrator.GetScopeInfoAsync(scopeName);
+
+            Assert.Equal(0, scopeTableCreating);
+            Assert.Equal(0, scopeTableCreated);
+            Assert.Equal(1, scopeLoading);
+            Assert.Equal(1, scopeLoaded);
+            Assert.Equal(0, scopeSaving);
+            Assert.Equal(0, scopeSaved);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
@@ -144,7 +159,11 @@ namespace Dotmim.Sync.Tests.UnitTests
                 scopeSaving++;
             });
 
-            remoteOrchestrator.OnScopeSaved(ssa => scopeSaved++);
+            remoteOrchestrator.OnScopeSaved(
+            ssa =>
+            {
+                scopeSaved++;
+            });
 
             remoteOrchestrator.OnScopeInfoTableCreating(stca =>
             {
@@ -177,17 +196,49 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             var serverScopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
-    
+
+            Assert.Equal(2, scopeTableCreating);
+            Assert.Equal(2, scopeTableCreated);
+            Assert.Equal(0, scopeLoading);
+            Assert.Equal(0, scopeLoaded);
+            Assert.Equal(1, scopeSaving);
+            Assert.Equal(1, scopeSaved);
+
+            scopeTableCreating = 0;
+            scopeTableCreated = 0;
+            scopeLoading = 0;
+            scopeLoaded = 0;
+            scopeSaving = 0;
+            scopeSaved = 0;
+
             serverScopeInfo.Version = "2.0";
 
             await remoteOrchestrator.SaveScopeInfoAsync(serverScopeInfo);
 
-            Assert.Equal(2, scopeTableCreating);
-            Assert.Equal(2, scopeTableCreated);
+            Assert.Equal(0, scopeTableCreating);
+            Assert.Equal(0, scopeTableCreated);
+            Assert.Equal(0, scopeLoading);
+            Assert.Equal(0, scopeLoaded);
+            Assert.Equal(1, scopeSaving);
+            Assert.Equal(1, scopeSaved);
+
+            scopeTableCreating = 0;
+            scopeTableCreated = 0;
+            scopeLoading = 0;
+            scopeLoaded = 0;
+            scopeSaving = 0;
+            scopeSaved = 0;
+
+
+            serverScopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
+
+
+            Assert.Equal(0, scopeTableCreating);
+            Assert.Equal(0, scopeTableCreated);
             Assert.Equal(1, scopeLoading);
             Assert.Equal(1, scopeLoaded);
-            Assert.Equal(3, scopeSaving);
-            Assert.Equal(3, scopeSaved);
+            Assert.Equal(0, scopeSaving);
+            Assert.Equal(0, scopeSaved);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }

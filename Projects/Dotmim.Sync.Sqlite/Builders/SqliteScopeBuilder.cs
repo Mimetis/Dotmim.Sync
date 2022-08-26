@@ -86,8 +86,7 @@ namespace Dotmim.Sync.Sqlite
 
             var p = command.CreateParameter();
             p.ParameterName = "@sync_scope_id";
-            p.DbType = DbType.String;
-            p.Size = -1;
+            p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
@@ -242,8 +241,7 @@ namespace Dotmim.Sync.Sqlite
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_id";
-            p.DbType = DbType.String;
-            p.Size = -1;
+            p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
@@ -314,8 +312,7 @@ namespace Dotmim.Sync.Sqlite
 
             var p0 = command.CreateParameter();
             p0.ParameterName = "@sync_scope_id";
-            p0.DbType = DbType.String;
-            p0.Size = -1;
+            p0.DbType = DbType.Guid;
             command.Parameters.Add(p0);
 
             var p1 = command.CreateParameter();
@@ -332,7 +329,7 @@ namespace Dotmim.Sync.Sqlite
         // Insert Scope
         // -------------------------------
         public override DbCommand GetInsertScopeInfoCommand(DbConnection connection, DbTransaction transaction) => GetSaveScopeInfoCommand(false, connection, transaction);
-        public override DbCommand GetInsertScopeInfoClientCommand(DbConnection connection, DbTransaction transaction) => GetSaveScopeInfoClientCommand(true, connection, transaction);
+        public override DbCommand GetInsertScopeInfoClientCommand(DbConnection connection, DbTransaction transaction) => GetSaveScopeInfoClientCommand(false, connection, transaction);
 
 
         // Update Scope
@@ -352,7 +349,7 @@ namespace Dotmim.Sync.Sqlite
                       $"sync_scope_setup=@sync_scope_setup, " +
                       $"sync_scope_version=@sync_scope_version, " +
                       $"sync_scope_last_clean_timestamp=@sync_scope_last_clean_timestamp, " +
-                      $"sync_scope_properties=@sync_scope_properties, " +
+                      $"sync_scope_properties=@sync_scope_properties " +
                       $"WHERE sync_scope_name=@sync_scope_name;"
 
                     : $"INSERT INTO {tableName} " +
@@ -370,7 +367,7 @@ namespace Dotmim.Sync.Sqlite
                            , sync_scope_last_clean_timestamp
                            , sync_scope_properties
                     FROM  {tableName}
-                    WHERE sync_scope_name=@sync_scope_name");
+                    WHERE sync_scope_name=@sync_scope_name;");
 
             var command = new SqliteCommand(stmtText.ToString(), (SqliteConnection)connection, (SqliteTransaction)transaction);
 

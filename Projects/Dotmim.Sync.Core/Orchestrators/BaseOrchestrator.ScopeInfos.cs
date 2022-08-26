@@ -53,7 +53,6 @@ namespace Dotmim.Sync
             }
         }
 
-
         /// <summary>
         /// Internal load a scope by scope name
         /// </summary>
@@ -99,7 +98,6 @@ namespace Dotmim.Sync
 
             return (context, scopeInfo);
         }
-
 
         /// <summary>
         /// Get all scopes. scopeName arg is just here for logging purpose and is not used
@@ -188,9 +186,6 @@ namespace Dotmim.Sync
                 throw GetSyncError(context, ex);
             }
         }
-
-
-
 
         /// <summary>
         /// Internal exists scope

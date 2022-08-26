@@ -123,13 +123,19 @@ namespace Dotmim.Sync
                     await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 ScopeInfo sScopeInfo;
-                (context, sScopeInfo) = await this.InternalLoadScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                bool sScopeInfoExists;
+                (context, sScopeInfoExists) = await this.InternalExistsScopeInfoAsync(context.ScopeName, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (sScopeInfo == null)
+                bool shouldSave = false;
+
+                if (!sScopeInfoExists)
                 {
                     sScopeInfo = this.InternalCreateScopeInfo(context.ScopeName);
-
-                    (context, sScopeInfo) = await this.InternalSaveScopeInfoAsync(sScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    shouldSave = true;
+                }
+                else
+                {
+                    (context, sScopeInfo) = await this.InternalLoadScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                 }
 
                 // Raise error only on server side, since we can't do nothing if we don't have any tables provisionned and no setup provided
@@ -172,12 +178,14 @@ namespace Dotmim.Sync
                             }
                         }
 
-                        // Write scopes locally
-                        (context, sScopeInfo) = await this.InternalSaveScopeInfoAsync(sScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
+                        shouldSave = true;
                         shouldProvision = true;
                     }
                 }
+
+                if (shouldSave)
+                    (context, sScopeInfo) = await this.InternalSaveScopeInfoAsync(sScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
                 await runner.CommitAsync().ConfigureAwait(false);
 
                 return (context, sScopeInfo, shouldProvision);
