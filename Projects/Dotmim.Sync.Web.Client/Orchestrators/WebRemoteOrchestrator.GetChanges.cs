@@ -24,10 +24,6 @@ namespace Dotmim.Sync.Web.Client
                 ClientId = cScopeInfoClient.Id,
             };
 
-            ScopeInfo cScopeInfo = await this.GetScopeInfoAsync(cScopeInfoClient.Name).ConfigureAwait(false);
-
-            if (cScopeInfo == null || cScopeInfo.Schema == null)
-                throw new MissingRemoteOrchestratorSchemaException();
 
             //Direction set to Download
             context.SyncWay = SyncWay.Download;
@@ -163,17 +159,6 @@ namespace Dotmim.Sync.Web.Client
                 ClientId = cScopeInfoClient.Id,
             };
 
-            ScopeInfo cScopeInfo;
-
-            await using (var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting).ConfigureAwait(false))
-            {
-                // Before getting changes, be sure we have a schema available locally
-                (context, cScopeInfo) = await this.InternalGetScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                // Should we ?
-                if (cScopeInfo.Schema == null)
-                    throw new MissingLocalOrchestratorSchemaException();
-            }
 
             // generate a message to send
             var changesToSend = new HttpMessageSendChangesRequest(context, cScopeInfoClient)

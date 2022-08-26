@@ -11,6 +11,13 @@ namespace Dotmim.Sync
     public class ScopeInfoClient
     {
         /// <summary>
+        /// For serialization purpose
+        /// </summary>
+        public ScopeInfoClient()
+        {
+
+        }
+        /// <summary>
         /// Id of the scope owner
         /// </summary>
         [DataMember(Name = "id", IsRequired = true, Order = 1)]

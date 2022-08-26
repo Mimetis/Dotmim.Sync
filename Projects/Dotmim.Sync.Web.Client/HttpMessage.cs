@@ -122,7 +122,7 @@ namespace Dotmim.Sync.Web.Client
         public SyncContext SyncContext { get; set; }
 
         [DataMember(Name = "scopeclient", IsRequired = true, Order = 2)]
-        public ScopeInfoClient ScopeInfoClient { get; }
+        public ScopeInfoClient ScopeInfoClient { get; set; }
 
         /// <summary>
         /// Get the current batch index 

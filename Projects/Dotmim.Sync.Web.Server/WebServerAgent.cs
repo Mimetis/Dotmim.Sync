@@ -137,7 +137,8 @@ namespace Dotmim.Sync.Web.Server
                 // HttpStep.EnsureSchema is the first call from client when client is new
                 // HttpStep.EnsureScopes is the first call from client when client is not new
                 // This is the only moment where we are initializing the sessionCache and store it in session
-                if (sessionCache == null && (step == HttpStep.EnsureSchema || step == HttpStep.EnsureScopes || step == HttpStep.GetRemoteClientTimestamp))
+                if (sessionCache == null 
+                    && (step == HttpStep.EnsureSchema || step == HttpStep.GetEstimatedChangesCount || step == HttpStep.EnsureScopes || step == HttpStep.GetRemoteClientTimestamp))
                 {
                     sessionCache = new SessionCache();
                     httpContext.Session.Set(sessionId, sessionCache);
