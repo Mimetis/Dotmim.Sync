@@ -18,12 +18,14 @@ namespace Dotmim.Sync.Web.Client
     {
         public override async Task<ServerSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient)
         {
-
             var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name, cScopeInfoClient.Parameters)
             {
                 ClientId = cScopeInfoClient.Id,
             };
 
+            // Get the server scope to start a new session
+            ScopeInfo sScopeInfo;
+            (context, sScopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, null, false, default, default, default, default).ConfigureAwait(false);
 
             //Direction set to Download
             context.SyncWay = SyncWay.Download;
@@ -40,7 +42,6 @@ namespace Dotmim.Sync.Web.Client
 
             await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, 0, 0, this.GetServiceHost())).ConfigureAwait(false);
 
-
             // serialize message
             var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
             var binaryData = await serializer.SerializeAsync(changesToSend);
@@ -48,8 +49,6 @@ namespace Dotmim.Sync.Web.Client
             var response = await this.httpRequestHandler.ProcessRequestAsync
                 (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.SendChangesInProgress,
                  this.SerializerFactory, this.Converter, this.Options.BatchSize, this.SyncPolicy).ConfigureAwait(false);
-
-
 
             // --------------------------------------------------------------
             // STEP 2 : Receive everything from the server side
@@ -65,7 +64,7 @@ namespace Dotmim.Sync.Web.Client
             context.ProgressPercentage = initialPctProgress;
 
             // Create the BatchInfo
-            var serverBatchInfo = new BatchInfo(cScopeInfo.Schema);
+            var serverBatchInfo = new BatchInfo();
 
             HttpMessageSummaryResponse summaryResponseContent = null;
 
@@ -159,6 +158,9 @@ namespace Dotmim.Sync.Web.Client
                 ClientId = cScopeInfoClient.Id,
             };
 
+            // Get the server scope to start a new session
+            ScopeInfo sScopeInfo;
+            (context, sScopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, null, false, default, default, default, default).ConfigureAwait(false);
 
             // generate a message to send
             var changesToSend = new HttpMessageSendChangesRequest(context, cScopeInfoClient)

@@ -104,13 +104,9 @@ namespace Dotmim.Sync
                             serverBatchInfo = await jsonConverter.DeserializeAsync(fs).ConfigureAwait(false);
                         }
 
-                        // Create the schema changeset
-                        var changesSet = new SyncSet();
-
                         // Create a Schema set without readonly columns, attached to memory changes
                         foreach (var table in sScopeInfo.Schema.Tables)
                         {
-                            CreateChangesTable(sScopeInfo.Schema.Tables[table.TableName, table.SchemaName], changesSet);
 
                             // Get all stats about this table
                             var bptis = serverBatchInfo.BatchPartsInfo.SelectMany(bpi => bpi.Tables.Where(t =>
@@ -139,7 +135,6 @@ namespace Dotmim.Sync
 
 
                         }
-                        serverBatchInfo.SanitizedSchema = changesSet;
                     }
                 }
                 if (serverBatchInfo == null)

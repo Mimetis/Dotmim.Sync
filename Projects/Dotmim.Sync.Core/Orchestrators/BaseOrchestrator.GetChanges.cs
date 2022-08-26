@@ -41,7 +41,7 @@ namespace Dotmim.Sync
 
             if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
             {
-                (batchInfo, changesSelected) = await this.InternalGetEmptyChangesAsync(scopeInfo, batchRootDirectory).ConfigureAwait(false);
+                (batchInfo, changesSelected) = this.InternalGetEmptyChanges(batchRootDirectory);
                 return (context, batchInfo, changesSelected);
             }
 
@@ -53,7 +53,7 @@ namespace Dotmim.Sync
 
             // Create a batch 
             // batchinfo generate a schema clone with scope columns if needed
-            batchInfo = new BatchInfo(scopeInfo.Schema, batchRootDirectory, batchDirectoryName);
+            batchInfo = new BatchInfo(batchRootDirectory, batchDirectoryName);
             batchInfo.TryRemoveDirectory();
             batchInfo.CreateDirectory();
 
@@ -436,13 +436,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Generate an empty BatchInfo
         /// </summary>
-        internal Task<(BatchInfo, DatabaseChangesSelected)> InternalGetEmptyChangesAsync(ScopeInfo scopeInfo, string dir)
+        internal (BatchInfo, DatabaseChangesSelected) InternalGetEmptyChanges(string dir)
         {
             // Create the batch info, in memory
-            var batchInfo = new BatchInfo(scopeInfo.Schema, dir);
+            var batchInfo = new BatchInfo(dir);
 
             // Create a new empty in-memory batch info
-            return Task.FromResult((batchInfo, new DatabaseChangesSelected()));
+            return (batchInfo, new DatabaseChangesSelected());
 
         }
 

@@ -145,7 +145,7 @@ namespace Dotmim.Sync
 
                 // Locally, if we are new, no need to get changes
                 if (cScopeInfoClient.IsNewScope)
-                    (clientBatchInfo, clientChangesSelected) = await this.InternalGetEmptyChangesAsync(cScopeInfo, this.Options.BatchDirectory).ConfigureAwait(false);
+                    (clientBatchInfo, clientChangesSelected) = this.InternalGetEmptyChanges(this.Options.BatchDirectory);
                 else
                     (context, clientBatchInfo, clientChangesSelected) = await this.InternalGetChangesAsync(cScopeInfo,
                         context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp, clientTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,

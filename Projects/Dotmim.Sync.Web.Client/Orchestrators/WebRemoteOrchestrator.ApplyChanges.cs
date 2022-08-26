@@ -32,7 +32,7 @@ namespace Dotmim.Sync.Web.Client
             // if we don't have any BatchPartsInfo, just generate a new one to get, at least, something to send to the server
             // and get a response with new data from server
             if (clientBatchInfo == null)
-                clientBatchInfo = new BatchInfo(schema);
+                clientBatchInfo = new BatchInfo();
 
             // --------------------------------------------------------------
             // STEP 1 : Send everything to the server side
@@ -146,7 +146,7 @@ namespace Dotmim.Sync.Web.Client
             context.ProgressPercentage = initialPctProgress;
 
             // Create the BatchInfo
-            var serverBatchInfo = new BatchInfo(schema);
+            var serverBatchInfo = new BatchInfo();
 
             HttpMessageSummaryResponse summaryResponseContent = null;
 

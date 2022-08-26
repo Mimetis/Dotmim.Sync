@@ -299,7 +299,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
 
-  
+
         /// <summary>
         /// RemoteOrchestrator.GetChanges() should return rows inserted on server, depending on the client scope sent
         /// </summary>
@@ -407,7 +407,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctxServer.SaveChangesAsync();
 
             // Get changes from server
-            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
             var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
 
             Assert.NotNull(changes.ServerBatchInfo);
@@ -416,10 +416,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("SalesOrderDetail", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("SalesOrderHeader", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
-            var sodTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT");
+            var sodTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT");
             Assert.Equal(3, sodTable.Rows.Count);
 
-            var sohTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
+            var sohTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
             Assert.Single(sohTable.Rows);
         }
 
@@ -539,7 +539,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Get changes from server
-            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
             var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
 
             Assert.NotNull(changes.ServerBatchInfo);
@@ -552,27 +552,27 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // testing with DataRowState
-            var sodTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", DataRowState.Deleted);
+            var sodTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", DataRowState.Deleted);
             Assert.Equal(3, sodTable.Rows.Count);
             foreach (var row in sodTable.Rows)
                 Assert.Equal(DataRowState.Deleted, row.RowState);
 
             // testing with DataRowState
-            var sodTable2 = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", default);
+            var sodTable2 = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", default);
             Assert.Equal(3, sodTable2.Rows.Count);
             foreach (var row in sodTable2.Rows)
                 Assert.Equal(DataRowState.Deleted, row.RowState);
 
             // testing with DataRowState
-            var sodTable3 = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", DataRowState.Modified);
+            var sodTable3 = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", DataRowState.Modified);
             Assert.Empty(sodTable3.Rows);
 
             // testing with DataRowState that is not valid
-            var sodTable4 = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", DataRowState.Unchanged);
+            var sodTable4 = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", DataRowState.Unchanged);
             Assert.Empty(sodTable4.Rows);
 
             // testing without DataRowState
-            var sohTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
+            var sohTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
             Assert.Single(sohTable.Rows);
             foreach (var row in sohTable.Rows)
                 Assert.Equal(DataRowState.Deleted, row.RowState);

@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -130,6 +131,7 @@ namespace Dotmim.Sync.Web.Server
                 // load session
                 await httpContext.Session.LoadAsync(cancellationToken);
 
+                Debug.WriteLine($"sessionId:{sessionId} / {step}");
                 // Get schema and clients batch infos / summaries, from session
                 var schema = httpContext.Session.Get<SyncSet>(scopeName);
                 var sessionCache = httpContext.Session.Get<SessionCache>(sessionId);
@@ -138,7 +140,7 @@ namespace Dotmim.Sync.Web.Server
                 // HttpStep.EnsureScopes is the first call from client when client is not new
                 // This is the only moment where we are initializing the sessionCache and store it in session
                 if (sessionCache == null 
-                    && (step == HttpStep.EnsureSchema || step == HttpStep.GetEstimatedChangesCount || step == HttpStep.EnsureScopes || step == HttpStep.GetRemoteClientTimestamp))
+                    && (step == HttpStep.EnsureSchema || step == HttpStep.EnsureScopes || step == HttpStep.GetRemoteClientTimestamp))
                 {
                     sessionCache = new SessionCache();
                     httpContext.Session.Set(sessionId, sessionCache);
@@ -156,12 +158,6 @@ namespace Dotmim.Sync.Web.Server
                 if (string.IsNullOrEmpty(tempSessionId) || tempSessionId != sessionId)
                     throw new HttpSessionLostException();
 
-                // Check if sanitized schema is still there
-                if (sessionCache.ClientBatchInfo != null
-                    && sessionCache.ClientBatchInfo.SanitizedSchema != null && sessionCache.ClientBatchInfo.SanitizedSchema.Tables.Count == 0
-                    && schema != null && schema.Tables.Count > 0)
-                    foreach (var table in schema.Tables)
-                        BaseOrchestrator.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName], sessionCache.ClientBatchInfo.SanitizedSchema);
 
                 //// action from user if available
                 //action?.Invoke(this);
@@ -603,7 +599,7 @@ namespace Dotmim.Sync.Web.Server
             // Get batch info from session cache if exists, otherwise create it
             if (sessionCache.ClientBatchInfo == null)
             {
-                sessionCache.ClientBatchInfo = new BatchInfo(sScopeInfo.Schema, this.Options.BatchDirectory);
+                sessionCache.ClientBatchInfo = new BatchInfo(this.Options.BatchDirectory);
                 sessionCache.ClientBatchInfo.TryRemoveDirectory();
             }
 
@@ -680,7 +676,8 @@ namespace Dotmim.Sync.Web.Server
             ConflictResolutionPolicy serverResolutionPolicy;
 
             // get changes
-            (context, serverSyncChanges, serverChangesApplied, serverResolutionPolicy) = await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(
+            (context, serverSyncChanges, serverChangesApplied, serverResolutionPolicy) =
+                await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(
                        httpMessage.ScopeInfoClient,
                        sScopeInfo,
                        httpMessage.SyncContext, sessionCache.ClientBatchInfo,
@@ -720,31 +717,31 @@ namespace Dotmim.Sync.Web.Server
             };
 
 
-            // Compatibility with last versions where InMemory is set
-            if (clientBatchSize <= 0)
-            {
-                var containerSet = new ContainerSet();
-                foreach (var table in serverSyncChanges.ServerBatchInfo.SanitizedSchema.Tables)
-                {
-                    var containerTable = new ContainerTable(table);
-                    foreach (var part in serverSyncChanges.ServerBatchInfo.GetBatchPartsInfo(table))
-                    {
-                        var paths = serverSyncChanges.ServerBatchInfo.GetBatchPartInfoPath(part);
-                        var localSerializer = new LocalJsonSerializer();
-                        foreach (var syncRow in localSerializer.ReadRowsFromFile(paths.FullPath, table))
-                        {
-                            containerTable.Rows.Add(syncRow.ToArray());
-                        }
-                    }
-                    if (containerTable.Rows.Count > 0)
-                        containerSet.Tables.Add(containerTable);
-                }
+            //// Compatibility with last versions where InMemory is set
+            //if (clientBatchSize <= 0)
+            //{
+            //    var containerSet = new ContainerSet();
+            //    foreach (var table in serverSyncChanges.ServerBatchInfo.SanitizedSchema.Tables)
+            //    {
+            //        var containerTable = new ContainerTable(table);
+            //        foreach (var part in serverSyncChanges.ServerBatchInfo.GetBatchPartsInfo(table))
+            //        {
+            //            var paths = serverSyncChanges.ServerBatchInfo.GetBatchPartInfoPath(part);
+            //            var localSerializer = new LocalJsonSerializer();
+            //            foreach (var syncRow in localSerializer.ReadRowsFromFile(paths.FullPath, table))
+            //            {
+            //                containerTable.Rows.Add(syncRow.ToArray());
+            //            }
+            //        }
+            //        if (containerTable.Rows.Count > 0)
+            //            containerSet.Tables.Add(containerTable);
+            //    }
 
-                summaryResponse.Changes = containerSet;
-                summaryResponse.BatchInfo.BatchPartsInfo.Clear();
-                summaryResponse.BatchInfo.BatchPartsInfo = null;
+            //    summaryResponse.Changes = containerSet;
+            //    summaryResponse.BatchInfo.BatchPartsInfo.Clear();
+            //    summaryResponse.BatchInfo.BatchPartsInfo = null;
 
-            }
+            //}
 
 
             // Get the firt response to send back to client

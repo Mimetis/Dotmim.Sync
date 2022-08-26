@@ -25,20 +25,17 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public BatchInfo()
         {
-
+            this.BatchPartsInfo = new List<BatchPartInfo>();
+            this.DirectoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
         }
 
         /// <summary>
         /// Create a new BatchInfo, containing all BatchPartInfo
         /// </summary>
-        public BatchInfo(SyncSet inSchema, string rootDirectory = null, string directoryName = null)
+        public BatchInfo(string rootDirectory, string directoryName = null) : this()
         {
             // We need to create a change table set, containing table with columns not readonly
-            foreach (var table in inSchema.Tables)
-                BaseOrchestrator.CreateChangesTable(inSchema.Tables[table.TableName, table.SchemaName], this.SanitizedSchema);
-
             this.DirectoryRoot = rootDirectory;
-            this.BatchPartsInfo = new List<BatchPartInfo>();
             this.DirectoryName = string.IsNullOrEmpty(directoryName) ? string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", "")) : directoryName;
         }
 
@@ -78,14 +75,6 @@ namespace Dotmim.Sync.Batch
         [DataMember(Name = "ser", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public string SerializerFactoryKey { get; set; }
 
-
-        /// <summary>
-        /// Internally setting schema
-        /// </summary>
-        //[IgnoreDataMember]
-        [DataMember(Name = "schema", IsRequired = true, EmitDefaultValue = false, Order = 7)]
-        public SyncSet SanitizedSchema { get; set; } = new SyncSet();
-
         /// <summary>
         /// Get the full path of the Batch directory
         /// </summary>
@@ -107,9 +96,6 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public bool HasData()
         {
-            if (this.SanitizedSchema == null)
-                throw new NullReferenceException("Batch info schema should not be null");
-
             if (BatchPartsInfo != null && BatchPartsInfo.Count > 0)
             {
                 var rowsCount = BatchPartsInfo.Sum(bpi => bpi.RowsCount);
@@ -147,9 +133,6 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public bool HasData(string tableName, string schemaName)
         {
-            if (this.SanitizedSchema == null)
-                throw new NullReferenceException("Batch info schema should not be null");
-
             if (BatchPartsInfo != null && BatchPartsInfo.Count > 0)
             {
                 var tableInfo = new BatchPartTableInfo(tableName, schemaName);

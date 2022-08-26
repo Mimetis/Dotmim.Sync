@@ -33,7 +33,7 @@ namespace Dotmim.Sync.Web.Client
                 Directory.CreateDirectory(batchDirectoryFullPath);
 
             // Create the BatchInfo serialized (forced because in a snapshot call, so we are obviously serialized on disk)
-            var serverBatchInfo = new BatchInfo(sScopeInfo.Schema, batchDirectoryRoot, batchDirectoryName);
+            var serverBatchInfo = new BatchInfo(batchDirectoryRoot, batchDirectoryName);
 
             // Firstly, get the snapshot summary
             var changesToSend = new HttpMessageSendChangesRequest(context, null);
