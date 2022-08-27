@@ -41,11 +41,6 @@ namespace Dotmim.Sync
                 if (sScopeInfo.Schema == null)
                     throw new MissingRemoteOrchestratorSchemaException();
 
-                ScopeInfoClient sScopeInfoClient;
-                (context, sScopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                bool isNew = sScopeInfoClient == null || sScopeInfoClient.LastSyncTimestamp <= 0;
-
                 //Direction set to Download
                 context.SyncWay = SyncWay.Download;
 
@@ -61,8 +56,8 @@ namespace Dotmim.Sync
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
                 (context, serverBatchInfo, serverChangesSelected) =
-                    await this.InternalGetChangesAsync(sScopeInfo, context, isNew, sScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
-                    sScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets,
+                    await this.InternalGetChangesAsync(sScopeInfo, context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
+                    cScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets,
                     this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -105,17 +100,12 @@ namespace Dotmim.Sync
                 long remoteClientTimestamp;
                 (context, remoteClientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
 
-                ScopeInfoClient sScopeInfoClient;
-                (context, sScopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                bool isNew = sScopeInfoClient == null || sScopeInfoClient.LastSyncTimestamp <= 0;
-
                 DatabaseChangesSelected serverChangesSelected;
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
                 (context, serverChangesSelected) =
-                    await this.InternalGetEstimatedChangesCountAsync(sScopeInfo, context, isNew, sScopeInfoClient.LastServerSyncTimestamp,
-                    remoteClientTimestamp, sScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    await this.InternalGetEstimatedChangesCountAsync(sScopeInfo, context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastServerSyncTimestamp,
+                    remoteClientTimestamp, cScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, null, serverChangesSelected);
 

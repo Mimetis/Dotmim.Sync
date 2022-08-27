@@ -161,7 +161,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 for (int i = 0; i <= 10000; i++)
                 {
                     var productId = Guid.NewGuid();
-                    var productName = HelperDatabase.GetRandomName();
+                    var productName = HelperDatabase.GetRandomName() + "_" + HelperDatabase.GetRandomName();
                     var productNumber = productName.ToUpperInvariant().Substring(0, 10);
 
                     var productCategoryName = HelperDatabase.GetRandomName();
