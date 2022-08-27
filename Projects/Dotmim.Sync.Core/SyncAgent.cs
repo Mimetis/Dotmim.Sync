@@ -327,7 +327,7 @@ namespace Dotmim.Sync
                     {
                         await this.LocalOrchestrator.DropAllAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
                         // Recreated scope info
-                        (context, cScopeInfo) = await this.LocalOrchestrator.InternalGetScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                        (context, cScopeInfo) = await this.LocalOrchestrator.InternalEnsureScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
                     }
 
                     if (operation == SyncOperation.DropAllAndExit)

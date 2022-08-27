@@ -1692,7 +1692,8 @@ namespace Dotmim.Sync.Tests
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
-                // get clientScope for further check
+                // get scopeInfos for further check
+                var serverScope = await remoteOrchestrator.GetScopeInfoAsync();
                 var clientScope = await localOrchestrator.GetScopeInfoAsync();
 
                 // Drop client scope
@@ -1736,9 +1737,6 @@ namespace Dotmim.Sync.Tests
                     }
 
                 }
-
-                // get clientScope for further check
-                var serverScope = await remoteOrchestrator.GetScopeInfoAsync();
 
                 // Drop server scope
                 // Once server scope table is dropped, we will not be able to get Server scopes
@@ -3390,7 +3388,7 @@ namespace Dotmim.Sync.Tests
 
                 // Generate an outdated situation
                 await HelperDatabase.ExecuteScriptAsync(client.ProviderType, client.DatabaseName,
-                                    $"Update scope_info set scope_last_server_sync_timestamp={dmc.TimestampLimit - 1}");
+                                    $"Update scope_info_client set scope_last_server_sync_timestamp={dmc.TimestampLimit - 1}");
 
                 // Making a first sync, will initialize everything we need
                 var se = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(scopeName));

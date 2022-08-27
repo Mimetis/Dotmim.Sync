@@ -87,12 +87,9 @@ namespace Dotmim.Sync
             if (scopeInfo?.Schema != null)
                 scopeInfo.Schema.EnsureSchema();
 
-            if (scopeInfo != null)
-            {
-                var scopeLoadedArgs = new ScopeInfoLoadedArgs(context, scopeInfo, connection, transaction);
-                await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
-                scopeInfo = scopeLoadedArgs.ScopeInfo;
-            }
+            var scopeLoadedArgs = new ScopeInfoLoadedArgs(context, scopeInfo, connection, transaction);
+            await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
+            scopeInfo = scopeLoadedArgs.ScopeInfo;
 
             action.Command.Dispose();
 
@@ -142,7 +139,6 @@ namespace Dotmim.Sync
                 if (!exists)
                     await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // Write scopes locally
                 (context, scopeInfo) = await this.InternalSaveScopeInfoAsync(scopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -174,7 +170,6 @@ namespace Dotmim.Sync
                     await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 bool isDeleted;
-                // Write scopes locally
                 (context, isDeleted) = await this.InternalDeleteScopeInfoAsync(scopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -329,7 +324,7 @@ namespace Dotmim.Sync
             return new ScopeInfo
             {
                 Name = scopeName,
-                Version = SyncVersion.Current.ToString()
+                Version = SyncVersion.Current.ToString(),
             };
         }
 
@@ -368,6 +363,5 @@ namespace Dotmim.Sync
             };
             return clientScopeInfo;
         }
-
     }
 }

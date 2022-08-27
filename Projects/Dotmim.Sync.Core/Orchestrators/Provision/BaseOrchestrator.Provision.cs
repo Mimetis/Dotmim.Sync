@@ -116,28 +116,31 @@ namespace Dotmim.Sync
 
             context.SyncStage = SyncStage.Deprovisioning;
 
-            // If schema does not have any table, raise an exception
-            if (scopeInfo.Setup == null || scopeInfo.Setup.Tables == null || scopeInfo.Setup.Tables.Count <= 0)
-                throw new MissingTablesException(scopeInfo.Name);
-
             await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            await this.InterceptAsync(new DeprovisioningArgs(context, provision, scopeInfo.Setup, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new DeprovisioningArgs(context, provision, scopeInfo?.Setup, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
             // get Database builder
             var builder = this.Provider.GetDatabaseBuilder();
 
             // Sorting tables based on dependencies between them
             IEnumerable<SyncTable> schemaTables;
-            if (scopeInfo.Schema != null)
+            if (scopeInfo == null)
             {
-                schemaTables = scopeInfo.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable())).ToList();
+                schemaTables = new List<SyncTable>();
             }
             else
             {
-                schemaTables = new List<SyncTable>();
-                foreach(var setupTable in scopeInfo.Setup.Tables)
-                ((List<SyncTable>)schemaTables).Add(new SyncTable(setupTable.TableName, setupTable.SchemaName));
+                if (scopeInfo.Schema != null)
+                {
+                    schemaTables = scopeInfo.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable())).ToList();
+                }
+                else
+                {
+                    schemaTables = new List<SyncTable>();
+                    foreach (var setupTable in scopeInfo.Setup.Tables)
+                        ((List<SyncTable>)schemaTables).Add(new SyncTable(setupTable.TableName, setupTable.SchemaName));
+                }
             }
 
             // Disable check constraints
@@ -214,7 +217,7 @@ namespace Dotmim.Sync
                     (context, _) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
             }
 
-            var args = new DeprovisionedArgs(context, provision, scopeInfo.Setup, runner.Connection);
+            var args = new DeprovisionedArgs(context, provision, scopeInfo?.Setup, runner.Connection);
             await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
 
             await runner.CommitAsync().ConfigureAwait(false);

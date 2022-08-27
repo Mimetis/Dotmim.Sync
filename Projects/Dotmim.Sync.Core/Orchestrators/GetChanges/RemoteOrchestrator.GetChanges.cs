@@ -27,11 +27,7 @@ namespace Dotmim.Sync
         public virtual async Task<ServerSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient)
         {
 
-            var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name)
-            {
-                Parameters = cScopeInfoClient.Parameters,
-                ClientId = cScopeInfoClient.Id,
-            };
+            var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient);
 
             try
             {
@@ -65,8 +61,8 @@ namespace Dotmim.Sync
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
                 (context, serverBatchInfo, serverChangesSelected) =
-                    await this.InternalGetChangesAsync(sScopeInfo, context, isNew, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
-                    cScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets,
+                    await this.InternalGetChangesAsync(sScopeInfo, context, isNew, sScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
+                    sScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets,
                     this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -86,12 +82,7 @@ namespace Dotmim.Sync
             GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient)
         {
 
-            var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name)
-            {
-                Parameters = cScopeInfoClient.Parameters,
-                ClientId = cScopeInfoClient.Id,
-            };
-
+            var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient);
 
             try
             {
@@ -123,8 +114,8 @@ namespace Dotmim.Sync
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
                 (context, serverChangesSelected) =
-                    await this.InternalGetEstimatedChangesCountAsync(sScopeInfo, context, isNew, cScopeInfoClient.LastServerSyncTimestamp,
-                    remoteClientTimestamp, cScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    await this.InternalGetEstimatedChangesCountAsync(sScopeInfo, context, isNew, sScopeInfoClient.LastServerSyncTimestamp,
+                    remoteClientTimestamp, sScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, null, serverChangesSelected);
 

@@ -55,7 +55,6 @@ namespace Dotmim.Sync
             }
         }
 
-
         /// <summary>
         /// Internal exists scope table routine
         /// </summary>

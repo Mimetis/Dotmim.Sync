@@ -93,14 +93,7 @@ namespace Dotmim.Sync
                 }
 
                 if (shouldSave)
-                {
-                    // if not shouldSave, that means we already raised this event before
-                    //var scopeLoadedArgs = new ClientScopeInfoLoadedArgs(context, context.ScopeName, localScopeInfo, runner.Connection, runner.Transaction);
-                    //await this.InterceptAsync(scopeLoadedArgs, progress, cancellationToken).ConfigureAwait(false);
-                    //localScopeInfo = scopeLoadedArgs.ClientScopeInfo;
-
                     (context, cScopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(cScopeInfoClient, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-                }
 
                 await runner.CommitAsync().ConfigureAwait(false);
 

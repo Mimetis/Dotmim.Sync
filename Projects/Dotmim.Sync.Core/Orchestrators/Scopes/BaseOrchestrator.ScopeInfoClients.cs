@@ -56,24 +56,23 @@ namespace Dotmim.Sync
             }
         }
 
-
         /// <summary>
         /// Update or Insert a scope info client
         /// </summary>
         public virtual async Task<ScopeInfoClient>
             SaveScopeInfoClientAsync(ScopeInfoClient scopeInfoClient, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            var context = new SyncContext(Guid.NewGuid(), scopeInfoClient.Name);
+            var context = new SyncContext(Guid.NewGuid(), scopeInfoClient);
             try
             {
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 bool exists;
                 (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                
                 if (!exists)
                     await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                // Write scopes locally
                 (context, scopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(scopeInfoClient, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -111,8 +110,6 @@ namespace Dotmim.Sync
                 throw GetSyncError(context, ex);
             }
         }
-
-
 
         /// <summary>
         /// Internal Sxists Scope Info Client
@@ -155,8 +152,8 @@ namespace Dotmim.Sync
             if (command == null) return (context, null);
 
             SetParameterValue(command, "sync_scope_name", context.ScopeName);
-            SetParameterValue(command, "sync_scope_hash", context.Hash);
             SetParameterValue(command, "sync_scope_id", context.ClientId);
+            SetParameterValue(command, "sync_scope_hash", context.Hash);
 
             await this.InterceptAsync(new ExecuteCommandArgs(context, command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
@@ -205,21 +202,6 @@ namespace Dotmim.Sync
 
             return (context, scopeInfoClients);
         }
-
-
-        internal ScopeInfoClient InternalCreateScopeInfoClient(string scopeName, SyncParameters syncParameters = null)
-        {
-            var scopeInfoClient = new ScopeInfoClient
-            {
-                Id = Guid.NewGuid(),
-                Name = scopeName,
-                IsNewScope = true,
-                LastSync = null,
-                Hash = syncParameters == null || syncParameters.Count <= 0 ? SyncParameters.DefaultScopeHash : syncParameters.GetHash()
-            };
-
-            return scopeInfoClient;
-        }
        
         /// <summary>
         /// Internal upsert scope info client
@@ -262,6 +244,24 @@ namespace Dotmim.Sync
             //command.Dispose();
 
             return (context, newScopeInfoClient);
+        }
+
+        /// <summary>
+        /// Create an instance of scope info client
+        /// </summary>
+        internal ScopeInfoClient InternalCreateScopeInfoClient(string scopeName, SyncParameters syncParameters = null)
+        {
+            var scopeInfoClient = new ScopeInfoClient
+            {
+                Id = Guid.NewGuid(),
+                Name = scopeName,
+                IsNewScope = true,
+                LastSync = null,
+                Hash = syncParameters == null || syncParameters.Count <= 0 ? SyncParameters.DefaultScopeHash : syncParameters.GetHash(),
+                Parameters = syncParameters,
+            };
+
+            return scopeInfoClient;
         }
 
         private DbCommand InternalSetSaveScopeInfoClientParameters(ScopeInfoClient scopeInfoClient, DbCommand command, SyncParameters syncParameters = default)

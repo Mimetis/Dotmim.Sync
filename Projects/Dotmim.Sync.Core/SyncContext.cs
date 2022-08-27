@@ -99,6 +99,13 @@ namespace Dotmim.Sync
             this.StartTime = DateTime.UtcNow;
 
         }
+        public SyncContext(Guid sessionId, ScopeInfoClient scopeInfoClient)
+        {
+            this.SessionId = sessionId;
+            this.ScopeName = scopeInfoClient.Name;
+            this.Parameters = scopeInfoClient.Parameters;
+            this.ClientId = scopeInfoClient.Id;
+        }
 
         /// <summary>
         /// Used for serialization purpose

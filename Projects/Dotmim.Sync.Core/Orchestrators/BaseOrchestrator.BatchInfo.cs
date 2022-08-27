@@ -60,7 +60,6 @@ namespace Dotmim.Sync
             var changesSet = originalSchemaTable.Schema.Clone(false);
             var table = BaseOrchestrator.CreateChangesTable(originalSchemaTable, changesSet);
 
-
             var localSerializer = new LocalJsonSerializer();
 
             var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
@@ -89,8 +88,6 @@ namespace Dotmim.Sync
                     if (!dataRowState.HasValue || dataRowState == default || syncRow.RowState == dataRowState)
                         table.Rows.Add(syncRow);
             }
-
-
             return (context, table);
         }
 

@@ -63,7 +63,17 @@ namespace Dotmim.Sync
 
                         await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DeleteMetadata, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                        var rowsCleanedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        int rowsCleanedCount = 0;
+                        try
+                        {
+                            rowsCleanedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        }
+                        catch (Exception)
+                        {
+
+                            // we can try a stored proc that is not existing anymore
+                            // so just pass through it
+                        }
 
                         // Check if we have a return value instead
                         var syncRowCountParam = GetParameter(command, "sync_row_count");

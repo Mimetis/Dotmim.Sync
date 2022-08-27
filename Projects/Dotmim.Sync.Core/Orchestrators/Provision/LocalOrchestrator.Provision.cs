@@ -42,8 +42,6 @@ namespace Dotmim.Sync
             }
         }
 
-
-
         /// <summary>
         /// Provision the local database based on the scope info parameter.
         /// Scope info parameter should contains Schema and Setup properties
@@ -84,10 +82,6 @@ namespace Dotmim.Sync
             }
         }
 
-
-
-
-
         /// <summary>
         /// Deprovision the orchestrator database based the provision enumeration
         /// Default Deprovision objects are StoredProcedures & Triggers
@@ -109,8 +103,12 @@ namespace Dotmim.Sync
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // get client scope
-                ScopeInfo clientScopeInfo;
-                (context, clientScopeInfo) = await this.InternalLoadScopeInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                ScopeInfo clientScopeInfo = null;
+                bool exists;
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                if (exists)
+                    (context, clientScopeInfo) = await this.InternalLoadScopeInfoAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 bool isDeprovisioned;
                 (context, isDeprovisioned) = await InternalDeprovisionAsync(clientScopeInfo, context, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
