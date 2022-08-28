@@ -396,8 +396,6 @@ namespace Dotmim.Sync.Tests
                 });
 
                 Assert.Equal("MissingPrimaryKeyException", se.TypeName);
-                Assert.Equal(this.Server.DatabaseName, se.InitialCatalog);
-
             }
         }
 

@@ -35,6 +35,48 @@ namespace Dotmim.Sync.Tests
     //[TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
     public abstract partial class TcpTests : IClassFixture<HelperProvider>, IDisposable
     {
+
+        [Fact]
+        public virtual async Task Scenario_MultiFiltersAsync()
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            var productCategoryTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.ProductCategory" : "ProductCategory";
+            var productTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.Product" : "Product";
+
+            var setup = new SyncSetup(productCategoryTableName, productTableName, "Employee");
+
+            setup.Tables[productCategoryTableName].Columns.AddRange("ProductCategoryId", "Name", "rowguid", "ModifiedDate");
+
+            if (this.Server.ProviderType == ProviderType.Sql)
+            {
+                setup.Filters.Add("ProductCategory", "ProductCategoryId", "SalesLT");
+                setup.Filters.Add("Product", "ProductCategoryId", "SalesLT");
+            }
+            else
+            {
+                setup.Filters.Add("ProductCategory", "ProductCategoryId");
+                setup.Filters.Add("Product", "ProductCategoryId");
+            }
+
+            var pMount = new SyncParameters(("ProductCategoryId", "MOUNTB"));
+            var pRoad = new SyncParameters(("ProductCategoryId", "ROADFR"));
+
+            // First sync to initialiaze client database, create table and fill product categories
+            foreach (var client in this.Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider);
+                var r1 = await agent.SynchronizeAsync("v1", setup, pMount);
+                var r2 = await agent.SynchronizeAsync("v1", setup, pRoad);
+            }
+        }
+
+
         [Fact]
         public virtual async Task Scenario_Adding_OneColumn_OneTable_With_TwoScopes()
         {
