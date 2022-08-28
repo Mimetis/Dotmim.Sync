@@ -22,7 +22,7 @@ namespace Dotmim.Sync
         /// Create a table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to create</param>
-        public async Task<bool> CreateTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> CreateTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 
@@ -36,20 +36,23 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning).ConfigureAwait(false);
                 var hasBeenCreated = false;
 
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                 bool schemaExists;
-                (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (!schemaExists)
-                    (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder, 
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 bool exists;
-                (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // should create only if not exists OR if overwrite has been set
                 var shouldCreate = !exists || overwrite;
@@ -58,9 +61,11 @@ namespace Dotmim.Sync
                 {
                     // Drop if already exists and we need to overwrite
                     if (exists && overwrite)
-                        (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder, 
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                    (context, hasBeenCreated) = await InternalCreateTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, hasBeenCreated) = await InternalCreateTableAsync(scopeInfo, context, tableBuilder,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                 }
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -78,7 +83,7 @@ namespace Dotmim.Sync
         /// Create all tables
         /// </summary>
         /// <param name="schema">A complete schema you want to create, containing table, primary keys and relations</param>
-        public async Task<bool> CreateTablesAsync(ScopeInfo scopeInfo, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> CreateTablesAsync(ScopeInfo scopeInfo, bool overwrite = false)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 
@@ -87,7 +92,7 @@ namespace Dotmim.Sync
                 if (scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning).ConfigureAwait(false);
 
                 var atLeastOneHasBeenCreated = false;
 
@@ -101,10 +106,12 @@ namespace Dotmim.Sync
                     {
                         var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
                         bool exists;
-                        (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, 
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                         if (exists)
-                            (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                            (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder, 
+                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                     }
                 }
                 // Then create them
@@ -114,13 +121,16 @@ namespace Dotmim.Sync
                     var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                     bool schemaExists;
-                    (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder, 
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     if (!schemaExists)
-                        (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder, 
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     bool exists;
-                    (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, 
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     // should create only if not exists OR if overwrite has been set
                     var shouldCreate = !exists || overwrite;
@@ -129,10 +139,12 @@ namespace Dotmim.Sync
                     {
                         // Drop if already exists and we need to overwrite
                         if (exists && overwrite)
-                            (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                            (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder, 
+                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                         bool hasBeenCreated;
-                        (context, hasBeenCreated) = await InternalCreateTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, hasBeenCreated) = await InternalCreateTableAsync(scopeInfo, context, tableBuilder, 
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                         if (hasBeenCreated)
                             atLeastOneHasBeenCreated = true;
@@ -154,7 +166,7 @@ namespace Dotmim.Sync
         /// Check if a table exists
         /// </summary>
         /// <param name="table">A table from your Setup instance, you want to check if it exists</param>
-        public async Task<bool> ExistTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> ExistTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -167,11 +179,12 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None).ConfigureAwait(false);
 
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
                 bool exists;
-                (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
                 return exists;
@@ -186,7 +199,7 @@ namespace Dotmim.Sync
         /// Drop a table
         /// </summary>
         /// <param name="table">A table from your Setup instance you want to drop</param>
-        public async Task<bool> DropTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> DropTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -199,7 +212,7 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning).ConfigureAwait(false);
 
                 var hasBeenDropped = false;
 
@@ -207,10 +220,12 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                 bool exists;
-                (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (exists)
-                    (context, hasBeenDropped) = await InternalDropTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, hasBeenDropped) = await InternalDropTableAsync(scopeInfo, context, tableBuilder, 
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -225,7 +240,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Drop all tables, declared in the Setup instance
         /// </summary>
-        public async Task<bool> DropTablesAsync(ScopeInfo scopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> DropTablesAsync(ScopeInfo scopeInfo)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -233,7 +248,7 @@ namespace Dotmim.Sync
                 if (scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning).ConfigureAwait(false);
                 bool atLeastOneTableHasBeenDropped = false;
 
                 // Sorting tables based on dependencies between them
@@ -245,10 +260,12 @@ namespace Dotmim.Sync
                     var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                     bool exists;
-                    (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     if (exists)
-                        (context, atLeastOneTableHasBeenDropped) = await InternalDropTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, atLeastOneTableHasBeenDropped) = await InternalDropTableAsync(scopeInfo, context, tableBuilder, 
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                 }
 
                 await runner.CommitAsync().ConfigureAwait(false);

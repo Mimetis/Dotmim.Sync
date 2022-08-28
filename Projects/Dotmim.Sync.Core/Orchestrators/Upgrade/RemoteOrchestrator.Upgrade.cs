@@ -23,24 +23,26 @@ namespace Dotmim.Sync
         /// <summary>
         /// Upgrade the database structure to reach the last DMS version
         /// </summary>
-        public virtual async Task<bool> UpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<bool> UpgradeAsync()
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating).ConfigureAwait(false);
                 var dbBuilder = this.Provider.GetDatabaseBuilder();
 
                 // Initialize database if needed
                 await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
                 List<ScopeInfo> serverScopeInfos;
-                (context, serverScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, serverScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (serverScopeInfos == null || serverScopeInfos.Count <= 0)
                     throw new MissingServerScopeInfoException();
 
-                var r = await this.InternalUpgradeAsync(serverScopeInfos, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                var r = await this.InternalUpgradeAsync(serverScopeInfos, context, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -56,12 +58,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Check if we need to upgrade the Database Structure
         /// </summary>
-        public virtual async Task<bool> NeedsToUpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<bool> NeedsToUpgradeAsync()
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating).ConfigureAwait(false);
                 // get Database builder
                 var dbBuilder = this.Provider.GetDatabaseBuilder();
 
@@ -69,13 +71,15 @@ namespace Dotmim.Sync
                 await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
                 bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (!exists)
                     return false;
 
                 List<ScopeInfo> serverScopeInfos;
-                (context, serverScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, serverScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (serverScopeInfos == null || serverScopeInfos.Count <= 0)
                     return false;
@@ -331,8 +335,8 @@ namespace Dotmim.Sync
 
             var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-            await this.DeprovisionAsync(serverScopeInfo.Name, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            await this.ProvisionAsync(serverScopeInfo.Name, provision, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.DeprovisionAsync(serverScopeInfo.Name, provision).ConfigureAwait(false);
+            await this.ProvisionAsync(serverScopeInfo.Name, provision, false).ConfigureAwait(false);
 
             var message = $"Upgrade to {newVersion} for scope {serverScopeInfo.Name}.";
             await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
@@ -355,8 +359,8 @@ namespace Dotmim.Sync
 
             var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-            await this.DeprovisionAsync(serverScopeInfo.Name, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            await this.ProvisionAsync(serverScopeInfo.Name, provision, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.DeprovisionAsync(serverScopeInfo.Name, provision).ConfigureAwait(false);
+            await this.ProvisionAsync(serverScopeInfo.Name, provision, false).ConfigureAwait(false);
 
             var message = $"Upgrade to {newVersion} for scope {serverScopeInfo.Name}.";
             await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
@@ -416,12 +420,12 @@ namespace Dotmim.Sync
             }
 
             var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
-            await this.DeprovisionAsync(scopeInfo.Name, provision, connection, transaction, progress: progress);
+            await this.DeprovisionAsync(scopeInfo.Name, provision);
             // simulate 0.94 scope without scopename in sp
-            await this.DeprovisionAsync(SyncOptions.DefaultScopeName, scopeInfo.Setup, provision, connection, transaction, progress: progress);
+            await this.DeprovisionAsync(SyncOptions.DefaultScopeName, scopeInfo.Setup, provision);
             await this.InterceptAsync(new UpgradeProgressArgs(context, $"Deprovision scope {scopeInfo.Name}", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            await this.ProvisionAsync(scopeInfo.Name, provision, true, connection, transaction, progress: progress);
+            await this.ProvisionAsync(scopeInfo.Name, provision, true);
             await this.InterceptAsync(new UpgradeProgressArgs(context, $"Provision scope {scopeInfo.Name}", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             return newVersion;
@@ -472,12 +476,12 @@ namespace Dotmim.Sync
             }
 
             var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
-            await this.DeprovisionAsync(scopeInfo.Name, provision, connection, transaction, progress: progress);
+            await this.DeprovisionAsync(scopeInfo.Name, provision);
             // simulate 0.94 scope without scopename in sp
-            await this.DeprovisionAsync(SyncOptions.DefaultScopeName, scopeInfo.Setup, provision, connection, transaction, progress: progress);
+            await this.DeprovisionAsync(SyncOptions.DefaultScopeName, scopeInfo.Setup, provision);
             await this.InterceptAsync(new UpgradeProgressArgs(context, $"Deprovision scope {scopeInfo.Name}", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            await this.ProvisionAsync(scopeInfo.Name, provision, true, connection, transaction, progress: progress);
+            await this.ProvisionAsync(scopeInfo.Name, provision, true);
             await this.InterceptAsync(new UpgradeProgressArgs(context, $"Provision scope {scopeInfo.Name}", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             return newVersion;

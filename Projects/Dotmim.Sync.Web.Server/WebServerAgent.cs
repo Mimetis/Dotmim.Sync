@@ -468,7 +468,7 @@ namespace Dotmim.Sync.Web.Server
         internal protected virtual async Task<HttpMessageRemoteTimestampResponse> GetRemoteClientTimestampAsync(HttpContext httpContext, HttpMessageRemoteTimestampRequest httpMessage,
                 CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            var ts = await this.RemoteOrchestrator.GetLocalTimestampAsync(httpMessage.SyncContext.ScopeName, default, default, cancellationToken, progress);
+            var ts = await this.RemoteOrchestrator.GetLocalTimestampAsync(httpMessage.SyncContext.ScopeName);
 
             return new HttpMessageRemoteTimestampResponse(httpMessage.SyncContext, ts);
         }
@@ -542,7 +542,7 @@ namespace Dotmim.Sync.Web.Server
             httpContext.Session.Set(httpMessage.SyncContext.ScopeName, sScopeInfo.Schema);
 
             // get changes
-            var snap = await this.RemoteOrchestrator.GetSnapshotAsync(sScopeInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+            var snap = await this.RemoteOrchestrator.GetSnapshotAsync(sScopeInfo).ConfigureAwait(false);
 
             // Save the server batch info object to cache
             sessionCache.RemoteClientTimestamp = snap.RemoteClientTimestamp;
@@ -681,6 +681,7 @@ namespace Dotmim.Sync.Web.Server
                        httpMessage.ScopeInfoClient,
                        sScopeInfo,
                        httpMessage.SyncContext, sessionCache.ClientBatchInfo,
+                       httpMessage.ClientLastSyncTimestamp,
                        default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // Set session cache infos

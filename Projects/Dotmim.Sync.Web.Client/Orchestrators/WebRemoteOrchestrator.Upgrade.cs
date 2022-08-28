@@ -19,15 +19,13 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Not Allowed from WebRemoteOrchestrator
         /// </summary>
-        public override Task<bool> UpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-          => throw new NotImplementedException();
+        public override Task<bool> UpgradeAsync() => throw new NotImplementedException();
 
 
         /// <summary>
         /// Not Allowed from WebRemoteOrchestrator
         /// </summary>
-        public override Task<bool> NeedsToUpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-                        => throw new NotImplementedException();
+        public override Task<bool> NeedsToUpgradeAsync() => throw new NotImplementedException();
 
     }
 }

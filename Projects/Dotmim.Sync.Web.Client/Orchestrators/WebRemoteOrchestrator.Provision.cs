@@ -17,23 +17,23 @@ namespace Dotmim.Sync.Web.Client
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
 
-        public override Task<bool> DeprovisionAsync(string scopeName, SyncProvision provision = SyncProvision.None, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<bool> DeprovisionAsync(string scopeName, SyncProvision provision = SyncProvision.NotSet)
                 => throw new NotImplementedException();
-        public override Task<ScopeInfo> ProvisionAsync(ScopeInfo serverScopeInfo, SyncProvision provision = SyncProvision.None, bool overwrite = false, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<ScopeInfo> ProvisionAsync(ScopeInfo serverScopeInfo, SyncProvision provision = SyncProvision.NotSet, bool overwrite = false)
             => throw new NotImplementedException();
-        public override Task<ScopeInfo> ProvisionAsync(string scopeName, SyncProvision provision = SyncProvision.None, bool overwrite = false, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<ScopeInfo> ProvisionAsync(string scopeName, SyncProvision provision = SyncProvision.NotSet, bool overwrite = false)
             => throw new NotImplementedException();
-        public override Task<ScopeInfo> ProvisionAsync(string scopeName, SyncSetup setup = null, SyncProvision provision = SyncProvision.None, bool overwrite = false, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<ScopeInfo> ProvisionAsync(string scopeName, SyncSetup setup = null, SyncProvision provision = SyncProvision.NotSet, bool overwrite = false)
             => throw new NotImplementedException();
-        public override Task<ScopeInfo> ProvisionAsync(SyncProvision provision = SyncProvision.None, bool overwrite = false, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<ScopeInfo> ProvisionAsync(SyncProvision provision = SyncProvision.NotSet, bool overwrite = false)
             => throw new NotImplementedException();
-        public override Task<ScopeInfo> ProvisionAsync(SyncSetup setup, SyncProvision provision = SyncProvision.None, bool overwrite = false, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<ScopeInfo> ProvisionAsync(SyncSetup setup, SyncProvision provision = SyncProvision.NotSet, bool overwrite = false)
             => throw new NotImplementedException();
-        public override Task<bool> DeprovisionAsync(string scopeName, SyncSetup setup, SyncProvision provision = SyncProvision.None, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<bool> DeprovisionAsync(string scopeName, SyncSetup setup, SyncProvision provision = SyncProvision.NotSet)
             => throw new NotImplementedException();
-        public override Task<bool> DeprovisionAsync(SyncProvision provision = SyncProvision.None, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<bool> DeprovisionAsync(SyncProvision provision = SyncProvision.NotSet)
             => throw new NotImplementedException();
-        public override Task<bool> DeprovisionAsync(SyncSetup setup, SyncProvision provision = SyncProvision.None, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<bool> DeprovisionAsync(SyncSetup setup, SyncProvision provision = SyncProvision.NotSet)
             => throw new NotImplementedException();
 
 

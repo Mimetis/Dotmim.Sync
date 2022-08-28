@@ -56,7 +56,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal load a scope by scope name
         /// </summary>
-        internal async Task<(SyncContext context, ScopeInfo scopeInfo)>
+        internal virtual async Task<(SyncContext context, ScopeInfo scopeInfo)>
             InternalLoadScopeInfoAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);

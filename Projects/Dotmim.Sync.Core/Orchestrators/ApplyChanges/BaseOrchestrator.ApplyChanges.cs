@@ -134,7 +134,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply changes internal method for one type of query: Insert, Update or Delete for every batch from a table
         /// </summary>
-        private async Task<SyncContext> InternalApplyTableChangesAsync(ScopeInfo scopeInfo, SyncContext context, SyncTable schemaTable, MessageApplyChanges message,
+        internal virtual async Task<SyncContext> InternalApplyTableChangesAsync(ScopeInfo scopeInfo, SyncContext context, SyncTable schemaTable, MessageApplyChanges message,
             DbConnection connection, DbTransaction transaction, DataRowState applyType, DatabaseChangesApplied changesApplied,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -186,7 +186,7 @@ namespace Dotmim.Sync
 
             await using (var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
             {
-                (command, isBatch) = await this.GetCommandAsync(scopeInfo, context, schemaChangesTable, dbCommandType, null,
+                (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, schemaChangesTable, dbCommandType, null,
                 runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
 
                 if (command == null) return context;

@@ -14,7 +14,8 @@ namespace Dotmim.Sync
         /// Apply changes on remote provider
         /// </summary>
         internal virtual async Task<(SyncContext context, ServerSyncChanges serverSyncChanges, DatabaseChangesApplied serverChangesApplied, ConflictResolutionPolicy serverResolutionPolicy)>
-            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, BatchInfo clientBatchInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, 
+            SyncContext context, BatchInfo clientBatchInfo, long clientLastSyncTimestamp, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
@@ -102,13 +103,24 @@ namespace Dotmim.Sync
                     // generate the new scope item
                     this.CompleteTime = DateTime.UtcNow;
 
-                    cScopeInfoClient.LastSyncTimestamp = remoteClientTimestamp;
-                    cScopeInfoClient.LastSync = this.CompleteTime;
-                    cScopeInfoClient.LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks;
+                    // generate the new scope item
+                    var sScopeInfoClient = new ScopeInfoClient
+                    {
+                        Name = cScopeInfo.Name,
+                        Hash = cScopeInfoClient.Hash,
+                        Parameters = cScopeInfoClient.Parameters,
+                        Id = cScopeInfoClient.Id,
+                        IsNewScope = cScopeInfoClient.IsNewScope,
+                        LastSyncTimestamp = clientLastSyncTimestamp,
+                        LastSync = this.CompleteTime,
+                        LastServerSyncTimestamp = remoteClientTimestamp,
+                        LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks,
+                        Properties = cScopeInfoClient.Properties,
+                    };
 
                     // Save scope info client coming from client
                     // to scope info client table on server
-                    await this.InternalSaveScopeInfoClientAsync(cScopeInfoClient, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    await this.InternalSaveScopeInfoClientAsync(sScopeInfoClient, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
                     return (context, serverSyncChanges, clientChangesApplied, this.Options.ConflictResolutionPolicy);

@@ -73,8 +73,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get estimated changes from remote database to be applied on client
         /// </summary>
-        public virtual async Task<ServerSyncChanges>
-            GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient)
+        public virtual async Task<ServerSyncChanges> GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient)
         {
 
             var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient);

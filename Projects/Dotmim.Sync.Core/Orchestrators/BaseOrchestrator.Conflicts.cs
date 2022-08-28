@@ -270,7 +270,7 @@ namespace Dotmim.Sync
             SyncTable schemaTable, SyncRow primaryKeyRow, DbConnection connection, DbTransaction transaction)
         {
             // Get the row in the local repository
-            var (command, _) = await this.GetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.SelectRow, null, 
+            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.SelectRow, null, 
                 connection, transaction, default, default).ConfigureAwait(false);
 
             if (command == null) return (context, null);

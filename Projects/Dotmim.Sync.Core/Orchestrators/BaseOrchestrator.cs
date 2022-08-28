@@ -68,12 +68,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Add an interceptor of T
         /// </summary>
-        public Guid AddInterceptor<T>(Action<T> action) where T : ProgressArgs => this.interceptors.Add(action);
+        internal virtual Guid AddInterceptor<T>(Action<T> action) where T : ProgressArgs => this.interceptors.Add(action);
 
         /// <summary>
         /// Add an async interceptor of T
         /// </summary>
-        public Guid AddInterceptor<T>(Func<T, Task> action) where T : ProgressArgs => this.interceptors.Add(action);
+        internal virtual Guid AddInterceptor<T>(Func<T, Task> action) where T : ProgressArgs => this.interceptors.Add(action);
 
         /// <summary>
         /// Remove all interceptors based on type of ProgressArgs
@@ -252,7 +252,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the provider sync adapter
         /// </summary>
-        public DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo)
+        internal virtual DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo)
         {
             //var p = this.Provider.GetParsers(tableDescription, setup);
 
@@ -338,7 +338,7 @@ namespace Dotmim.Sync
         /// Check if the orchestrator database is outdated
         /// </summary>
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        public virtual async Task<(SyncContext, bool)> IsOutDatedAsync(SyncContext context, ScopeInfoClient cScopeInfoClient, ScopeInfo sScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal virtual async Task<(SyncContext, bool)> InternalIsOutDatedAsync(SyncContext context, ScopeInfoClient cScopeInfoClient, ScopeInfo sScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             bool isOutdated = false;
 
@@ -371,21 +371,20 @@ namespace Dotmim.Sync
         }
 
 
+        public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync() 
+            => GetHelloAsync(SyncOptions.DefaultScopeName);
 
-        public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
-            => GetHelloAsync(SyncOptions.DefaultScopeName, connection, transaction, cancellationToken, progress);
-
-        public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
+        public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync(string scopeName)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
-            return InternalGetHelloAsync(context, connection, transaction, cancellationToken, progress);
+            return InternalGetHelloAsync(context, default, default, default, default);
         }
 
 
         /// <summary>
         /// Get hello from database
         /// </summary>
-        public virtual async Task<(SyncContext context, string DatabaseName, string Version)> InternalGetHelloAsync(
+        internal virtual async Task<(SyncContext context, string DatabaseName, string Version)> InternalGetHelloAsync(
             SyncContext context, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
             if (this.Provider == null)

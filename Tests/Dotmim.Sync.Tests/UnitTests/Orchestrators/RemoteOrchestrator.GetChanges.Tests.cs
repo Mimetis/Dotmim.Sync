@@ -288,11 +288,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("Product", serverSyncChanges.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("ProductCategory", serverSyncChanges.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
-            var productTable = await remoteOrchestrator.LoadTableFromBatchInfoAsync(serverSyncChanges.ServerBatchInfo, "Product", "SalesLT");
+            var productTable = await remoteOrchestrator.LoadTableFromBatchInfoAsync(scopeName, serverSyncChanges.ServerBatchInfo, "Product", "SalesLT");
             var productRowName = productTable.Rows[0]["Name"];
             Assert.Equal(productName, productRowName);
 
-            var productCategoryTable = await remoteOrchestrator.LoadTableFromBatchInfoAsync(serverSyncChanges.ServerBatchInfo, "ProductCategory", "SalesLT");
+            var productCategoryTable = await remoteOrchestrator.LoadTableFromBatchInfoAsync(scopeName, serverSyncChanges.ServerBatchInfo, "ProductCategory", "SalesLT");
             var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
             Assert.Equal(productCategoryName, productCategoryRowName);
 

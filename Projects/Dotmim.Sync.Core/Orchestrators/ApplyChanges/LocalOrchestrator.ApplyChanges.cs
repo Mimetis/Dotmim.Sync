@@ -24,7 +24,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply changes locally
         /// </summary>
-        internal async Task<(SyncContext context, DatabaseChangesApplied ChangesApplied, ScopeInfoClient CScopeInfoClient)>
+        internal virtual async Task<(SyncContext context, DatabaseChangesApplied ChangesApplied, ScopeInfoClient CScopeInfoClient)>
             InternalApplyChangesAsync(ScopeInfo cScopeInfo, ScopeInfoClient cScopeInfoClient, SyncContext context, BatchInfo serverBatchInfo,
                               long clientTimestamp, long remoteClientTimestamp, ConflictResolutionPolicy policy, bool snapshotApplied, DatabaseChangesSelected allChangesSelected,
                               DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
@@ -34,22 +34,13 @@ namespace Dotmim.Sync
 
             try
             {
-                // lastSyncTS : apply lines only if they are not modified since last client sync
-                var lastTimestamp = cScopeInfoClient.LastSyncTimestamp;
-                // isNew : if IsNew, don't apply deleted rows from server
-                var isNew = cScopeInfoClient.IsNewScope;
-                // We are in downloading mode
-
                 // Create the message containing everything needed to apply changes
-                var applyChanges = new MessageApplyChanges(cScopeInfoClient.Id, Guid.Empty, isNew, lastTimestamp, cScopeInfo.Schema, policy,
+                var applyChanges = new MessageApplyChanges(cScopeInfoClient.Id, Guid.Empty, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp, cScopeInfo.Schema, policy,
                                 this.Options.DisableConstraintsOnApplyChanges, this.Options.CleanMetadatas, this.Options.CleanFolder, snapshotApplied,
                                 serverBatchInfo);
 
                 DatabaseChangesApplied clientChangesApplied;
-
-
                 context.SyncWay = SyncWay.Download;
-
 
                 // Transaction mode
                 if (Options.TransactionMode == TransactionMode.AllOrNothing)
@@ -67,7 +58,7 @@ namespace Dotmim.Sync
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // check if we need to delete metadatas
-                if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0 && lastTimestamp.HasValue)
+                if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0 && cScopeInfoClient.LastSyncTimestamp.HasValue)
                 {
                     using (var runnerMetadata = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                     {
@@ -81,7 +72,7 @@ namespace Dotmim.Sync
                         {
                             // Get the min value from LastSyncTimestamp from all scopes
                             var minLastTimeStamp = allScopeHistories.Min(scope => scope.LastSyncTimestamp.HasValue ? scope.LastSyncTimestamp.Value : Int64.MaxValue);
-                            minLastTimeStamp = minLastTimeStamp > lastTimestamp.Value ? lastTimestamp.Value : minLastTimeStamp;
+                            minLastTimeStamp = minLastTimeStamp > cScopeInfoClient.LastSyncTimestamp.Value ? cScopeInfoClient.LastSyncTimestamp.Value : minLastTimeStamp;
 
                             (context, _) = await this.InternalDeleteMetadatasAsync(allClientScopes, context, minLastTimeStamp, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
                         }
@@ -92,23 +83,29 @@ namespace Dotmim.Sync
                 this.CompleteTime = DateTime.UtcNow;
 
                 // generate the new scope item
-                cScopeInfoClient.IsNewScope = false;
-                cScopeInfoClient.LastSync = this.CompleteTime;
-                cScopeInfoClient.LastSyncTimestamp = clientTimestamp;
-                cScopeInfoClient.LastServerSyncTimestamp = remoteClientTimestamp;
-                cScopeInfoClient.LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks;
+                var newCScopeInfoClient = new ScopeInfoClient
+                {
+                    Hash = cScopeInfoClient.Hash,
+                    Name = cScopeInfoClient.Name,
+                    Parameters = cScopeInfoClient.Parameters,
+                    Id = cScopeInfoClient.Id,
+                    IsNewScope = cScopeInfoClient.IsNewScope,
+                    LastSyncTimestamp = clientTimestamp,
+                    LastSync = this.CompleteTime,
+                    LastServerSyncTimestamp = remoteClientTimestamp,
+                    LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks,
+                    Properties = cScopeInfoClient.Properties,
+                };
 
                 // Write scopes locally
-
                 using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                 {
-                    (context, cScopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(cScopeInfoClient, context,
+                    (context, cScopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(newCScopeInfoClient, context,
                         runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
                 };
 
                 if (Options.TransactionMode == TransactionMode.AllOrNothing && runner != null)
                     await runner.CommitAsync().ConfigureAwait(false);
-
 
                 return (context, clientChangesApplied, cScopeInfoClient);
             }
@@ -131,7 +128,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a snapshot locally
         /// </summary>
-        internal async Task<(SyncContext context, DatabaseChangesApplied snapshotChangesApplied, ScopeInfoClient cScopeInfoClient)>
+        internal virtual async Task<(SyncContext context, DatabaseChangesApplied snapshotChangesApplied, ScopeInfoClient cScopeInfoClient)>
             InternalApplySnapshotAsync(ScopeInfo clientScopeInfo,
             ScopeInfoClient cScopeInfoClient,
             SyncContext context, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, DatabaseChangesSelected databaseChangesSelected,

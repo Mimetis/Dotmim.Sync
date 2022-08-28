@@ -22,14 +22,16 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the last timestamp from the orchestrator database
         /// </summary>
-        public async virtual Task<long> GetLocalTimestampAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async virtual Task<long> GetLocalTimestampAsync(string scopeName = SyncOptions.DefaultScopeName)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None).ConfigureAwait(false);
+               
                 long timestamp;
-                (context, timestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress);
+                (context, timestamp) = await this.InternalGetLocalTimestampAsync(context, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
 
                 return timestamp;
             }

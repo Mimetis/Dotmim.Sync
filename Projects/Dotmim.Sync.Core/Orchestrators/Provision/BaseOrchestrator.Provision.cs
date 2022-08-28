@@ -16,7 +16,7 @@ namespace Dotmim.Sync
 {
     public abstract partial class BaseOrchestrator
     {
-        internal async Task<(SyncContext context, bool provisioned)> InternalProvisionAsync(ScopeInfo scopeInfo, SyncContext context, bool overwrite, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal virtual async Task<(SyncContext context, bool provisioned)> InternalProvisionAsync(ScopeInfo scopeInfo, SyncContext context, bool overwrite, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (Provider == null)
                 throw new MissingProviderException(nameof(InternalProvisionAsync));
@@ -109,7 +109,7 @@ namespace Dotmim.Sync
 
         }
 
-        internal async Task<(SyncContext context, bool deprovisioned)> InternalDeprovisionAsync(ScopeInfo scopeInfo, SyncContext context, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal virtual async Task<(SyncContext context, bool deprovisioned)> InternalDeprovisionAsync(ScopeInfo scopeInfo, SyncContext context, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (Provider == null)
                 throw new MissingProviderException(nameof(InternalDeprovisionAsync));

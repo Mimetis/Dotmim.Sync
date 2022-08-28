@@ -17,7 +17,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
         [Fact]
-        public async Task RemoteOrchestrator_Scope_Should_Fail_If_NoTables_In_Setup()
+        public async Task RemoteOrchestrator_Scope_Should_NotFail_If_NoTables_In_Setup()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_ro_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -29,10 +29,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(provider, options);
 
-            var exc = await Assert.ThrowsAsync<SyncException>(() => remoteOrchestrator.GetScopeInfoAsync(setup));
+            var sScopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
-            Assert.IsType<SyncException>(exc);
-            Assert.Equal("MissingServerScopeTablesException", exc.TypeName);
+            Assert.NotNull(sScopeInfo);
+            Assert.Null(sScopeInfo.Schema);
+            Assert.Null(sScopeInfo.Setup);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
 
@@ -330,34 +331,6 @@ namespace Dotmim.Sync.Tests.UnitTests
                 }
             }
 
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
-        }
-
-
-        [Fact]
-        public async Task RemoteOrchestrator_Scope_CancellationToken_ShouldInterrupt_EnsureScope_OnConnectionOpened()
-        {
-            var dbName = HelperDatabase.GetRandomName("tcp_ro_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
-            var setup = new SyncSetup(this.Tables);
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-            using var cts = new CancellationTokenSource();
-
-            remoteOrchestrator.OnConnectionOpen(args => cts.Cancel());
-
-            var se = await Assert.ThrowsAsync<SyncException>(
-                async () => await remoteOrchestrator.GetScopeInfoAsync(setup, default, default, cts.Token));
-
-            Assert.Equal(SyncSide.ServerSide, se.Side);
-            Assert.Equal("OperationCanceledException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }

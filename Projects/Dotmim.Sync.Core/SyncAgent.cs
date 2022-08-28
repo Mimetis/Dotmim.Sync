@@ -247,9 +247,9 @@ namespace Dotmim.Sync
                 // no need to check on every call to SynchronizeAsync
                 if (!checkUpgradeDone)
                 {
-                    var needToUpgrade = await this.LocalOrchestrator.NeedsToUpgradeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+                    var needToUpgrade = await this.LocalOrchestrator.NeedsToUpgradeAsync().ConfigureAwait(false);
                     if (needToUpgrade)
-                        await this.LocalOrchestrator.UpgradeAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+                        await this.LocalOrchestrator.UpgradeAsync().ConfigureAwait(false);
                     checkUpgradeDone = true;
                 }
 
@@ -262,7 +262,7 @@ namespace Dotmim.Sync
                 (context, sScopeInfo, shouldProvision) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 bool isConflicting = false;
-                (context, isConflicting, sScopeInfo) = await this.RemoteOrchestrator.IsConflictingSetupAsync(context, setup, sScopeInfo).ConfigureAwait(false);
+                (context, isConflicting, sScopeInfo) = await this.RemoteOrchestrator.InternalIsConflictingSetupAsync(context, setup, sScopeInfo).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -277,7 +277,7 @@ namespace Dotmim.Sync
                 // Check if we have a problem with the SyncSetup local and the one coming from server
                 // Let a chance to the user to update the local setup accordingly to the server one
                 isConflicting = false;
-                (context, isConflicting, cScopeInfo, sScopeInfo) = await this.LocalOrchestrator.IsConflictingSetupAsync(context, setup, cScopeInfo, sScopeInfo).ConfigureAwait(false);
+                (context, isConflicting, cScopeInfo, sScopeInfo) = await this.LocalOrchestrator.InternalIsConflictingSetupAsync(context, setup, cScopeInfo, sScopeInfo).ConfigureAwait(false);
 
                 if (isConflicting)
                 {
@@ -325,14 +325,14 @@ namespace Dotmim.Sync
 
                     if (operation == SyncOperation.DropAllAndSync)
                     {
-                        await this.LocalOrchestrator.DropAllAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+                        await this.LocalOrchestrator.DropAllAsync().ConfigureAwait(false);
                         // Recreated scope info
                         (context, cScopeInfo) = await this.LocalOrchestrator.InternalEnsureScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
                     }
 
                     if (operation == SyncOperation.DropAllAndExit)
                     {
-                        await this.LocalOrchestrator.DropAllAsync(default, default, cancellationToken, progress).ConfigureAwait(false);
+                        await this.LocalOrchestrator.DropAllAsync().ConfigureAwait(false);
                         context.ProgressPercentage = 1;
                         context = await this.LocalOrchestrator.InternalEndSessionAsync(context, result, cancellationToken, progress).ConfigureAwait(false);
                         return result;
@@ -367,7 +367,7 @@ namespace Dotmim.Sync
                 if (sScopeInfo != null && context.SyncType != SyncType.Reinitialize && context.SyncType != SyncType.ReinitializeWithUpload)
                 {
                     bool isOutDated = false;
-                    (context, isOutDated) = await this.LocalOrchestrator.IsOutDatedAsync(context, cScopeInfoClient, sScopeInfo).ConfigureAwait(false);
+                    (context, isOutDated) = await this.LocalOrchestrator.InternalIsOutDatedAsync(context, cScopeInfoClient, sScopeInfo).ConfigureAwait(false);
 
                     // if client does not change SyncType to Reinitialize / ReinitializeWithUpload on SyncInterceptor, we raise an error
                     // otherwise, we are outdated, but we can continue, because we have a new mode.
@@ -423,7 +423,8 @@ namespace Dotmim.Sync
                 ConflictResolutionPolicy serverResolutionPolicy;
 
                 (context, serverSyncChanges, serverChangesApplied, serverResolutionPolicy) = 
-                    await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(cScopeInfoClient, cScopeInfo, context, clientChanges.ClientBatchInfo, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(
+                        cScopeInfoClient, cScopeInfo, context, clientChanges.ClientBatchInfo, clientChanges.ClientTimestamp, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();

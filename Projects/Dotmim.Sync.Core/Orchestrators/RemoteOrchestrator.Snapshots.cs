@@ -29,20 +29,21 @@ namespace Dotmim.Sync
         /// Get a snapshot
         /// </summary>
         public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
-            GetSnapshotAsync(ScopeInfo sScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            GetSnapshotAsync(ScopeInfo sScopeInfo)
         {
             var context = new SyncContext(Guid.NewGuid(), sScopeInfo.Name);
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading).ConfigureAwait(false);
 
                 long remoteClientTimestamp;
                 BatchInfo serverBatchInfo;
                 DatabaseChangesSelected databaseChangesSelected;
 
                 (context, remoteClientTimestamp, serverBatchInfo, databaseChangesSelected) =
-                    await this.InternalGetSnapshotAsync(sScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    await this.InternalGetSnapshotAsync(sScopeInfo, context, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -82,6 +83,9 @@ namespace Dotmim.Sync
                 // Get Schema from remote provider if no schema passed from args
                 if (sScopeInfo.Schema == null)
                     (context, sScopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, sScopeInfo.Setup, false, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                if (sScopeInfo.Setup == null || sScopeInfo.Schema == null)
+                    throw new MissingServerScopeTablesException(context.ScopeName);
 
                 // When we get the changes from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
@@ -152,25 +156,21 @@ namespace Dotmim.Sync
         }
 
 
-        public virtual Task<BatchInfo> CreateSnapshotAsync(SyncSetup setup = null, SyncParameters syncParameters = null,
-            DbConnection connection = default, DbTransaction transaction = default,
-            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-            => CreateSnapshotAsync(SyncOptions.DefaultScopeName, setup, syncParameters, connection, transaction, cancellationToken, progress);
+        public virtual Task<BatchInfo> CreateSnapshotAsync(SyncSetup setup = null, SyncParameters syncParameters = null)
+            => CreateSnapshotAsync(SyncOptions.DefaultScopeName, setup, syncParameters);
 
         /// <summary>
         /// Create a snapshot, based on the Setup object. 
         /// </summary>
         /// <param name="syncParameters">if not parameters are found in the SyncContext instance, will use thes sync parameters instead</param>
         /// <returns>Instance containing all information regarding the snapshot</returns>
-        public virtual async Task<BatchInfo> CreateSnapshotAsync(string scopeName, SyncSetup setup = null, SyncParameters syncParameters = null,
-            DbConnection connection = default, DbTransaction transaction = default,
-            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<BatchInfo> CreateSnapshotAsync(string scopeName, SyncSetup setup = null, SyncParameters syncParameters = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.SnapshotCreating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.SnapshotCreating).ConfigureAwait(false);
 
                 if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory) || this.Options.BatchSize <= 0)
                     throw new SnapshotMissingMandatariesOptionsException();
@@ -183,7 +183,11 @@ namespace Dotmim.Sync
                 // 1) Get Schema from remote provider
                 ScopeInfo sScopeInfo;
                 bool shouldProvision;
-                (context, sScopeInfo, shouldProvision) = await this.InternalEnsureScopeInfoAsync(context, setup, false, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, sScopeInfo, shouldProvision) = await this.InternalEnsureScopeInfoAsync(context, setup, false, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                if (sScopeInfo.Setup == null || sScopeInfo.Schema == null)
+                    throw new MissingServerScopeTablesException(scopeName);
 
                 // If we just have create the server scope, we need to provision it
                 if (shouldProvision)
@@ -191,10 +195,12 @@ namespace Dotmim.Sync
                     // 2) Provision
                     var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-                    (context, _) = await this.InternalProvisionAsync(sScopeInfo, context, false, provision, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, _) = await this.InternalProvisionAsync(sScopeInfo, context, false, provision, 
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     // Write scopes locally
-                    (context, sScopeInfo) = await this.InternalSaveScopeInfoAsync(sScopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, sScopeInfo) = await this.InternalSaveScopeInfoAsync(sScopeInfo, context, 
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                 }
 
                 // 4) Getting the most accurate timestamp

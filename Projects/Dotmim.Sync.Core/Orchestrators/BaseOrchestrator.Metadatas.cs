@@ -53,7 +53,7 @@ namespace Dotmim.Sync
                     // Don't need anything else than table name to make a delete metadata clean up
                     var syncTable = new SyncTable(setupTable.TableName, setupTable.SchemaName);
 
-                    var (command, _) = await this.GetCommandAsync(scopeInfo, context, syncTable, DbCommandType.DeleteMetadata, null,
+                    var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncTable, DbCommandType.DeleteMetadata, null,
                         connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (command != null)
@@ -114,7 +114,7 @@ namespace Dotmim.Sync
         {
             context.SyncStage = SyncStage.ChangesApplying;
 
-            var (command, _) = await this.GetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.UpdateMetadata, null,
+            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.UpdateMetadata, null,
                         connection, transaction, default, default).ConfigureAwait(false);
 
             if (command == null) return (context, false, null);

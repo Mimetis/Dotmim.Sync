@@ -95,7 +95,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
         [Fact]
-        public async Task RemoteOrchestrator_GetServerScopeInfo_ShouldFail_If_SetupIsEmpty()
+        public async Task RemoteOrchestrator_GetServerScopeInfo_ShouldNotFail_If_SetupIsEmpty()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -107,12 +107,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var orchestrator = new RemoteOrchestrator(provider, options);
 
-            var se = await Assert.ThrowsAsync<SyncException>(
-                async () => await orchestrator.GetScopeInfoAsync("scope1", setup));
+            var sScopeInfo = await orchestrator.GetScopeInfoAsync("scope1", setup);
 
-            Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
-            Assert.Equal(SyncSide.ServerSide, se.Side);
-            Assert.Equal("MissingServerScopeTablesException", se.TypeName);
+            Assert.NotNull(sScopeInfo);
+            Assert.Null(sScopeInfo.Schema);
+            Assert.Null(sScopeInfo.Setup);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
 
@@ -209,45 +208,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.NotNull(schema);
             Assert.Equal(16, schema.Tables.Count);
-
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
-        }
-
-        [Fact]
-        public async Task RemoteOrchestrator_GetServerScopeInfo_CancellationToken_ShouldInterrupt()
-        {
-            var dbName = HelperDatabase.GetRandomName("tcp_ro_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
-            var setup = new SyncSetup(this.Tables);
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-            using var cts = new CancellationTokenSource();
-
-            remoteOrchestrator.OnConnectionOpen(args =>
-            {
-                Assert.Equal(SyncStage.ScopeLoading, args.Context.SyncStage);
-                Assert.IsType<ConnectionOpenedArgs>(args);
-                Assert.NotNull(args.Connection);
-                Assert.Null(args.Transaction);
-                Assert.Equal(ConnectionState.Open, args.Connection.State);
-                cts.Cancel();
-            });
-
-            var se = await Assert.ThrowsAsync<SyncException>(async () =>
-            {
-                var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(cancellationToken: cts.Token);
-            });
-
-            Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
-            Assert.Equal(SyncSide.ServerSide, se.Side);
-            Assert.Equal("OperationCanceledException", se.TypeName);
 
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
@@ -386,7 +346,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
         [Fact]
-        public async Task RemoteOrchestrator_Provision_ShouldFail_If_SetupIsEmpty()
+        public async Task RemoteOrchestrator_Provision_ShouldNotFail_If_SetupIsEmpty()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);

@@ -22,7 +22,8 @@ namespace Dotmim.Sync.Web.Client
         /// Apply changes
         /// </summary>
         internal override async Task<(SyncContext context, ServerSyncChanges serverSyncChanges, DatabaseChangesApplied serverChangesApplied, ConflictResolutionPolicy serverResolutionPolicy)>
-            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, BatchInfo clientBatchInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, 
+            BatchInfo clientBatchInfo, long clientLastSyncTimestamp, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -47,6 +48,8 @@ namespace Dotmim.Sync.Web.Client
                 var changesToSend = new HttpMessageSendChangesRequest(context, cScopeInfoClient);
 
                 var containerSet = new ContainerSet();
+
+                changesToSend.ClientLastSyncTimestamp = clientLastSyncTimestamp;
                 changesToSend.Changes = containerSet;
                 changesToSend.IsLastBatch = true;
                 changesToSend.BatchIndex = 0;
@@ -110,7 +113,8 @@ namespace Dotmim.Sync.Web.Client
                         Changes = containerSet,
                         IsLastBatch = bpi.IsLastBatch,
                         BatchIndex = bpi.Index,
-                        BatchCount = clientBatchInfo.BatchPartsInfo.Count
+                        BatchCount = clientBatchInfo.BatchPartsInfo.Count,
+                        ClientLastSyncTimestamp = clientLastSyncTimestamp,
                     };
 
                     tmpRowsSendedCount += containerTable.Rows.Count;

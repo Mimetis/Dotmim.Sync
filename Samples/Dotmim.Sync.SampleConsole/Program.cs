@@ -118,6 +118,7 @@ internal class Program
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
+        
         // Now, we are creating a new setup with a filter on ProductCategory and Product
         var setup = new SyncSetup("ProductCategory", "Product", "Address", "Customer", "CustomerAddress");
         setup.Filters.Add("ProductCategory", "Name");
@@ -1448,13 +1449,6 @@ internal class Program
 
     private static async Task ProvisionAsync(CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
         Console.WriteLine($"Provision");
 
         var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
@@ -1464,7 +1458,7 @@ internal class Program
             Stopwatch stopw = new Stopwatch();
             stopw.Start();
 
-            await remoteOrchestrator.ProvisionAsync(progress: progress);
+            await remoteOrchestrator.ProvisionAsync();
 
             stopw.Stop();
             Console.WriteLine($"Total duration :{stopw.Elapsed:hh\\.mm\\:ss\\.fff}");
@@ -1478,13 +1472,6 @@ internal class Program
     private static async Task DeprovisionAsync(CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
 
-        var progress = new SynchronousProgress<ProgressArgs>(pa =>
-        {
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"{pa.ProgressPercentage:p}\t {pa.Message}");
-            Console.ResetColor();
-        });
-
         Console.WriteLine($"Deprovision ");
 
         var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
@@ -1494,7 +1481,7 @@ internal class Program
             Stopwatch stopw = new Stopwatch();
             stopw.Start();
 
-            await remoteOrchestrator.DeprovisionAsync(progress: progress);
+            await remoteOrchestrator.DeprovisionAsync();
 
             stopw.Stop();
             Console.WriteLine($"Total duration :{stopw.Elapsed:hh\\.mm\\:ss\\.fff}");

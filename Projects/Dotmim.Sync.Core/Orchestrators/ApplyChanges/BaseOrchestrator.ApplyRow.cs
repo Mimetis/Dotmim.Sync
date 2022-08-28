@@ -22,10 +22,10 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a delete on a row. if forceWrite, force the delete
         /// </summary>
-        private async Task<(SyncContext context, bool applied, Exception exception)> InternalApplyDeleteAsync(
+        internal virtual async Task<(SyncContext context, bool applied, Exception exception)> InternalApplyDeleteAsync(
             ScopeInfo scopeInfo, SyncContext context, SyncRow row, SyncTable schemaTable, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
-            var (command, _) = await this.GetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.DeleteRow, null,
+            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.DeleteRow, null,
                 connection, transaction, default, default).ConfigureAwait(false);
 
             if (command == null) return (context, false, null);
@@ -64,10 +64,10 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a single update in the current datasource. if forceWrite, force the update
         /// </summary>
-        private async Task<(SyncContext context, bool applied, Exception exception)> InternalApplyUpdateAsync(
+        internal virtual async Task<(SyncContext context, bool applied, Exception exception)> InternalApplyUpdateAsync(
             ScopeInfo scopeInfo, SyncContext context, SyncRow row, SyncTable schemaTable, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
         {
-            var (command, _) = await this.GetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.UpdateRow, null,
+            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.UpdateRow, null,
                 connection, transaction, default, default).ConfigureAwait(false);
 
             if (command == null) return (context, false, null);

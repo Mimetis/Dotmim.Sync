@@ -10,7 +10,7 @@ namespace Dotmim.Sync.Enumerations
     [Flags]
     public enum SyncProvision
     {
-        None = 0,
+        NotSet = 0,
         Table = 1,
         TrackingTable = 2,
         StoredProcedures = 4,

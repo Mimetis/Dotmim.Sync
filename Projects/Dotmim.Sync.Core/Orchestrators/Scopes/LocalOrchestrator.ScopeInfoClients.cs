@@ -22,8 +22,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a Scope Info Client
         /// </summary>
-        public virtual async Task<ScopeInfoClient> GetScopeInfoClientAsync(string scopeName = SyncOptions.DefaultScopeName,
-            SyncParameters syncParameters = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<ScopeInfoClient> GetScopeInfoClientAsync(string scopeName = SyncOptions.DefaultScopeName, SyncParameters syncParameters = default)
         {
             // Create context
             var context = new SyncContext(Guid.NewGuid(), scopeName)
@@ -33,11 +32,12 @@ namespace Dotmim.Sync
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading).ConfigureAwait(false);
 
                 // Get scope if exists
                 ScopeInfoClient scopeInfoClient;
-                (context, scopeInfoClient) = await this.InternalEnsureScopeInfoClientAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                (context, scopeInfoClient) = await this.InternalEnsureScopeInfoClientAsync(context, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 

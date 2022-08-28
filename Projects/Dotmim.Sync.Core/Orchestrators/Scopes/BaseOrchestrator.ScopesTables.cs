@@ -17,16 +17,18 @@ namespace Dotmim.Sync
         /// <summary>
         /// Check if a scope info table exists
         /// </summary>
-        public async Task<bool> ExistScopeInfoTableAsync(string scopeName = SyncOptions.DefaultScopeName,  DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> ExistScopeInfoTableAsync(string scopeName = SyncOptions.DefaultScopeName)
         {
 
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None).ConfigureAwait(false);
 
                 bool exists;
-                (context, exists) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
                 await runner.CommitAsync().ConfigureAwait(false);
                 return exists;
             }
@@ -36,16 +38,18 @@ namespace Dotmim.Sync
             }
         }
 
-        public async Task<bool> ExistScopeInfoClientTableAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async Task<bool> ExistScopeInfoClientTableAsync(string scopeName = SyncOptions.DefaultScopeName)
         {
 
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None).ConfigureAwait(false);
 
                 bool exists;
-                (context, exists) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
                 await runner.CommitAsync().ConfigureAwait(false);
                 return exists;
             }
@@ -58,7 +62,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal exists scope table routine
         /// </summary>
-        internal async Task<(SyncContext context, bool exists)> InternalExistsScopeInfoTableAsync(SyncContext context, DbScopeType scopeType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal virtual async Task<(SyncContext context, bool exists)> InternalExistsScopeInfoTableAsync(SyncContext context, DbScopeType scopeType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
@@ -85,7 +89,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal drop scope info table routine
         /// </summary>
-        internal async Task<(SyncContext context, bool dropped)> InternalDropScopeInfoTableAsync(SyncContext context, DbScopeType scopeType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal virtual async Task<(SyncContext context, bool dropped)> InternalDropScopeInfoTableAsync(SyncContext context, DbScopeType scopeType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
@@ -120,7 +124,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal create scope info table routine
         /// </summary>
-        internal async Task<(SyncContext context, bool created)> InternalCreateScopeInfoTableAsync(SyncContext context, DbScopeType scopeType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal virtual async Task<(SyncContext context, bool created)> InternalCreateScopeInfoTableAsync(SyncContext context, DbScopeType scopeType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 

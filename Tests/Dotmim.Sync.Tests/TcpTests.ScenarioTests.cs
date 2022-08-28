@@ -334,7 +334,7 @@ namespace Dotmim.Sync.Tests
                 productsCount = readCtx.Product.AsNoTracking().Count();
             }
 
-            Assert.Equal((productCategoryRowsCount + productsCount), r2.TotalChangesDownloaded);
+            Assert.Equal(productCategoryRowsCount + productsCount, r2.TotalChangesDownloaded);
 
         }
 

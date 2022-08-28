@@ -24,9 +24,8 @@ namespace Dotmim.Sync
         /// <param name="table">A table from your Setup instance, where you want to create the Stored Procedure</param>
         /// <param name="storedProcedureType">StoredProcedure type</param>
         /// <param name="overwrite">If true, drop the existing stored procedure then create again</param>
-        public async Task<bool> CreateStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null,
-            DbStoredProcedureType storedProcedureType = default, bool overwrite = false,
-            DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<bool> CreateStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null,
+            DbStoredProcedureType storedProcedureType = default, bool overwrite = false)
         {
 
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -40,7 +39,7 @@ namespace Dotmim.Sync
                 if (syncTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning).ConfigureAwait(false);
 
                 bool hasBeenCreated = false;
 
@@ -48,7 +47,8 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
 
                 bool exists;
-                (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // should create only if not exists OR if overwrite has been set
                 var shouldCreate = !exists || overwrite;
@@ -57,9 +57,9 @@ namespace Dotmim.Sync
                 {
                     // Drop storedProcedure if already exists
                     if (exists && overwrite)
-                        (context, _) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, _) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                    (context, hasBeenCreated) = await InternalCreateStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, hasBeenCreated) = await InternalCreateStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                 }
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -77,7 +77,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to create the Stored Procedures</param>
         /// <param name="overwrite">If true, drop the existing Stored Procedures then create them all, again</param>
-        public async Task<bool> CreateStoredProceduresAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<bool> CreateStoredProceduresAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 
@@ -91,12 +91,13 @@ namespace Dotmim.Sync
                 if (syncTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning).ConfigureAwait(false);
 
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
                 bool isCreated;
-                (context, isCreated) = await InternalCreateStoredProceduresAsync(scopeInfo, context, overwrite, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, isCreated) = await InternalCreateStoredProceduresAsync(scopeInfo, context, overwrite, tableBuilder,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -114,7 +115,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to check if the Stored Procedure exists</param>
         /// <param name="storedProcedureType">StoredProcedure type</param>
-        public async Task<bool> ExistStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<bool> ExistStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -127,15 +128,15 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None).ConfigureAwait(false);
 
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                 bool exists;
-                (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 return exists;
-
             }
             catch (Exception ex)
             {
@@ -148,7 +149,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to drop the Stored Procedure</param>
         /// <param name="storedProcedureType">Stored Procedure type</param>
-        public async Task<bool> DropStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<bool> DropStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -161,16 +162,18 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning).ConfigureAwait(false);
                 bool hasBeenDropped = false;
 
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                 bool existsAndCanBeDeleted;
-                (context, existsAndCanBeDeleted) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, existsAndCanBeDeleted) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (existsAndCanBeDeleted)
-                    (context, hasBeenDropped) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, hasBeenDropped) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, 
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // Removing cached commands
                 this.RemoveCommands();
@@ -189,7 +192,7 @@ namespace Dotmim.Sync
         /// Drop all Stored Procedures
         /// </summary>
         /// <param name="table">A table from your Setup instance, where you want to drop all the Stored Procedures</param>
-        public async Task<bool> DropStoredProceduresAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<bool> DropStoredProceduresAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -202,7 +205,7 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning).ConfigureAwait(false);
 
                 var hasDroppedAtLeastOneStoredProcedure = false;
 
@@ -210,7 +213,8 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                 // check bulk before
-                (context, hasDroppedAtLeastOneStoredProcedure) = await InternalDropStoredProceduresAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, hasDroppedAtLeastOneStoredProcedure) = await InternalDropStoredProceduresAsync(scopeInfo, context, tableBuilder, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // Removing cached commands
                 this.RemoveCommands();

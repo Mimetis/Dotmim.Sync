@@ -21,25 +21,27 @@ namespace Dotmim.Sync
     public partial class LocalOrchestrator
     {
 
-        public virtual async Task<bool> UpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<bool> UpgradeAsync()
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating).ConfigureAwait(false);
                 var dbBuilder = this.Provider.GetDatabaseBuilder();
 
                 // Initialize database if needed
                 await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
                 List<ScopeInfo> clientScopeInfos;
-                (context, clientScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, clientScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (clientScopeInfos == null || clientScopeInfos.Count <= 0)
                     throw new MissingClientScopeInfoException();
 
-                (context, _) = await this.InternalUpgradeAsync(clientScopeInfos, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, _) = await this.InternalUpgradeAsync(clientScopeInfos, context, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -54,12 +56,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Check if we need to upgrade the Database Structure
         /// </summary>
-        public virtual async Task<bool> NeedsToUpgradeAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<bool> NeedsToUpgradeAsync()
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating).ConfigureAwait(false);
                 // get Database builder
                 var dbBuilder = this.Provider.GetDatabaseBuilder();
 
@@ -67,13 +69,15 @@ namespace Dotmim.Sync
                 await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
                 bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (!exists)
                     return false;
 
                 List<ScopeInfo> clientScopeInfos;
-                (context, clientScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, clientScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (clientScopeInfos == null || clientScopeInfos.Count <= 0)
                     return false;
@@ -366,9 +370,9 @@ namespace Dotmim.Sync
 
             var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-            await this.DeprovisionAsync(clientScopeInfo.Name, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.DeprovisionAsync(clientScopeInfo.Name, provision).ConfigureAwait(false);
 
-            var clientScope = await this.GetScopeInfoAsync(clientScopeInfo.Name, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var clientScope = await this.GetScopeInfoAsync(clientScopeInfo.Name).ConfigureAwait(false);
             var serverScope = new ScopeInfo
             {
                 Schema = clientScope.Schema,
@@ -376,7 +380,7 @@ namespace Dotmim.Sync
                 Version = clientScope.Version
             };
 
-            clientScope = await this.ProvisionAsync(serverScope, provision, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            clientScope = await this.ProvisionAsync(serverScope, provision, true).ConfigureAwait(false);
 
             return newVersion;
         }
@@ -395,9 +399,9 @@ namespace Dotmim.Sync
 
             var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-            await this.DeprovisionAsync(clientScopeInfo.Name, provision, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.DeprovisionAsync(clientScopeInfo.Name, provision).ConfigureAwait(false);
 
-            var clientScope = await this.GetScopeInfoAsync(clientScopeInfo.Name, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var clientScope = await this.GetScopeInfoAsync(clientScopeInfo.Name).ConfigureAwait(false);
             var serverScope = new ScopeInfo
             {
                 Schema = clientScope.Schema,
@@ -405,7 +409,7 @@ namespace Dotmim.Sync
                 Version = clientScope.Version
             };
 
-            clientScope = await this.ProvisionAsync(serverScope, provision, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            clientScope = await this.ProvisionAsync(serverScope, provision, true).ConfigureAwait(false);
 
             return newVersion;
         }
@@ -493,7 +497,7 @@ namespace Dotmim.Sync
 
             var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-            await this.DeprovisionAsync(scopeInfo.Name, provision, runner.Connection, runner.Transaction, progress: progress);
+            await this.DeprovisionAsync(scopeInfo.Name, provision);
 
             // simulate 0.94 scope without scopename in sp
             // Creating a fake scope info
@@ -517,7 +521,7 @@ namespace Dotmim.Sync
                 Name = scopeInfo.Name
             };
 
-            await this.ProvisionAsync(serverScope, provision, true, runner.Connection, runner.Transaction, progress: runner.Progress);
+            await this.ProvisionAsync(serverScope, provision, true);
             await this.InterceptAsync(new UpgradeProgressArgs(context, $"Provision scope {scopeInfo.Name}", newVersion, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
             await runner.CommitAsync().ConfigureAwait(false);

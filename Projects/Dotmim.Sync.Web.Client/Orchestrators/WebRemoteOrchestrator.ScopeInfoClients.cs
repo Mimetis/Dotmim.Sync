@@ -16,13 +16,13 @@ namespace Dotmim.Sync.Web.Client
 {
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
-        public override Task<List<ScopeInfoClient>> GetAllScopeInfoClientsAsync(string scopeName = "DefaultScope", DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<List<ScopeInfoClient>> GetAllScopeInfoClientsAsync(string scopeName = "DefaultScope")
               => throw new NotImplementedException();
 
-        public override Task<ScopeInfoClient> GetScopeInfoClientAsync(Guid clientId, string scopeName = "DefaultScope", SyncParameters syncParameters = null, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<ScopeInfoClient> GetScopeInfoClientAsync(Guid clientId, string scopeName = "DefaultScope", SyncParameters syncParameters = null)
               => throw new NotImplementedException();
 
-        public override Task<ScopeInfoClient> SaveScopeInfoClientAsync(ScopeInfoClient scopeInfoClient, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<ScopeInfoClient> SaveScopeInfoClientAsync(ScopeInfoClient scopeInfoClient)
               => throw new NotImplementedException();
 
     }

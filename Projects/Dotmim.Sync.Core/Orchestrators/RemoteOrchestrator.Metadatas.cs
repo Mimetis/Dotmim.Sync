@@ -24,24 +24,26 @@ namespace Dotmim.Sync
         /// <summary>
         /// Delete all metadatas from tracking tables, based on min timestamp from scope info client table
         /// </summary>
-        public virtual async Task<DatabaseMetadatasCleaned>
-            DeleteMetadatasAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync()
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning).ConfigureAwait(false);
 
                 bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, 
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 List<ScopeInfoClient> sScopeInfoClients;
 
-                (context, sScopeInfoClients) = await this.InternalLoadAllScopeInfoClientsAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, sScopeInfoClients) = await this.InternalLoadAllScopeInfoClientsAsync(context, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (sScopeInfoClients == null || sScopeInfoClients.Count == 0)
                     return new DatabaseMetadatasCleaned();
@@ -52,8 +54,8 @@ namespace Dotmim.Sync
                     return new DatabaseMetadatasCleaned();
 
                 DatabaseMetadatasCleaned databaseMetadatasCleaned;
-                (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(minTimestamp, context, runner.Connection, runner.Transaction,
-                    runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(minTimestamp, context,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -70,18 +72,18 @@ namespace Dotmim.Sync
         /// Delete metadatas items from tracking tables
         /// </summary>
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        public virtual async Task<DatabaseMetadatasCleaned>
-            DeleteMetadatasAsync(long? timeStampStart, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long? timeStampStart)
         {
 
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning).ConfigureAwait(false);
 
                 DatabaseMetadatasCleaned databaseMetadatasCleaned;
-                (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(timeStampStart, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(timeStampStart, context, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -99,7 +101,7 @@ namespace Dotmim.Sync
         /// Delete metadatas items from tracking tables
         /// </summary>
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        public virtual async Task<(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned)>
+        internal virtual async Task<(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned)>
             InternalDeleteMetadatasAsync(long? timeStampStart, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 

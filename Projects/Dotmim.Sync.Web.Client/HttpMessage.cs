@@ -148,7 +148,11 @@ namespace Dotmim.Sync.Web.Client
         [DataMember(Name = "changes", IsRequired = true, Order = 6)]
         public ContainerSet Changes { get; set; }
 
-
+        /// <summary>
+        /// Client last sync timestamp
+        /// </summary>
+        [DataMember(Name = "clst", IsRequired = true, Order = 7)]
+        public long ClientLastSyncTimestamp { get; set; }
     }
 
     [DataContract(Name = "ensureschemares"), Serializable]
