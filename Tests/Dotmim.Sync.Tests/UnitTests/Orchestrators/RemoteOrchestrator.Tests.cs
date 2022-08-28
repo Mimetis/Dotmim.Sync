@@ -270,7 +270,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             Assert.Equal(SyncStage.Provisioning, se.SyncStage);
-            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("MissingPrimaryKeyColumnException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
@@ -301,9 +300,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             Assert.Equal(SyncStage.Provisioning, se.SyncStage);
-            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("MissingColumnException", se.TypeName);
-
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
@@ -337,9 +334,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             Assert.Equal(SyncStage.Provisioning, se.SyncStage);
-            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("MissingTableException", se.TypeName);
-
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
@@ -367,7 +362,6 @@ namespace Dotmim.Sync.Tests.UnitTests
                 async () => await orchestrator.ProvisionAsync(scopeName, setup, provision));
 
             Assert.Equal(SyncStage.ScopeLoading, se.SyncStage);
-            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("MissingServerScopeTablesException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
@@ -422,7 +416,6 @@ namespace Dotmim.Sync.Tests.UnitTests
                 async () => await remoteOrchestrator.ProvisionAsync(scopeName, setup, provision));
 
             Assert.Equal(SyncStage.Provisioning, se.SyncStage);
-            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("MissingTableException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
@@ -587,7 +580,6 @@ namespace Dotmim.Sync.Tests.UnitTests
                 async () => await remoteOrchestrator.ProvisionAsync(scopeInfo, provision));
 
             Assert.Equal(SyncStage.Provisioning, se.SyncStage);
-            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("MissingPrimaryKeyException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
@@ -614,13 +606,9 @@ namespace Dotmim.Sync.Tests.UnitTests
                 await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup));
 
             Assert.Equal(SyncStage.Provisioning, se.SyncStage);
-            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("MissingTableException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
-
-
-
     }
 }

@@ -234,7 +234,6 @@ namespace Dotmim.Sync.Web.Client
                                 DataSource = webError.DataSource,
                                 InitialCatalog = webError.InitialCatalog,
                                 Number = webError.Number,
-                                Side = webError.Side,
                                 SyncStage = webError.SyncStage,
                                 TypeName = webError.TypeName
                             };

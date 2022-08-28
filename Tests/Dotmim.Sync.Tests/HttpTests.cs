@@ -170,7 +170,6 @@ namespace Dotmim.Sync.Tests
                     var s = await agent.SynchronizeAsync();
                 });
 
-                Assert.Equal(SyncSide.ServerSide, se.Side);
                 Assert.Equal("MissingPrimaryKeyException", se.TypeName);
                 Assert.Equal(this.Server.DatabaseName, se.InitialCatalog);
 
@@ -210,7 +209,6 @@ namespace Dotmim.Sync.Tests
                     var s = await agent.SynchronizeAsync();
                 });
 
-                Assert.Equal(SyncSide.ServerSide, se.Side);
                 Assert.Equal("MissingColumnException", se.TypeName);
             }
         }
@@ -246,7 +244,6 @@ namespace Dotmim.Sync.Tests
                     var s = await agent.SynchronizeAsync();
                 });
 
-                Assert.Equal(SyncSide.ServerSide, se.Side);
                 Assert.Equal("MissingTableException", se.TypeName);
             }
         }
@@ -1093,7 +1090,7 @@ namespace Dotmim.Sync.Tests
 
                 // Generate an outdated situation
                 await HelperDatabase.ExecuteScriptAsync(client.ProviderType, client.DatabaseName,
-                                    $"Update scope_info set scope_last_server_sync_timestamp={dmc.TimestampLimit - 1}");
+                                    $"Update scope_info_client set scope_last_server_sync_timestamp={dmc.TimestampLimit - 1}");
 
                 // create a new agent
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);

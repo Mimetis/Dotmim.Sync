@@ -330,7 +330,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             var se = await Assert.ThrowsAsync<SyncException>(() => orchestrator.CreateSnapshotAsync(scopeName, setup));
 
             Assert.Equal(SyncStage.SnapshotCreating, se.SyncStage);
-            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("SnapshotMissingMandatariesOptionsException", se.TypeName);
 
             options = new SyncOptions { BatchSize = 2000 };
@@ -338,7 +337,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             se = await Assert.ThrowsAsync<SyncException>(() => orchestrator.CreateSnapshotAsync(scopeName, setup));
 
             Assert.Equal(SyncStage.SnapshotCreating, se.SyncStage);
-            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("SnapshotMissingMandatariesOptionsException", se.TypeName);
 
             options = new SyncOptions { };
@@ -346,7 +344,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             se = await Assert.ThrowsAsync<SyncException>(() => orchestrator.CreateSnapshotAsync(scopeName, setup));
 
             Assert.Equal(SyncStage.SnapshotCreating, se.SyncStage);
-            Assert.Equal(SyncSide.ServerSide, se.Side);
             Assert.Equal("SnapshotMissingMandatariesOptionsException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);

@@ -241,8 +241,6 @@ namespace Dotmim.Sync
             if (this.Provider != null)
                 this.Provider.EnsureSyncException(syncException);
 
-            syncException.Side = this.Side;
-
             if (this.Logger != null)
                 this.Logger.LogError(SyncEventsId.Exception, syncException, syncException.Message);
 

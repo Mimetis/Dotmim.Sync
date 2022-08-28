@@ -916,7 +916,6 @@ namespace Dotmim.Sync.Web.Server
                 DataSource = syncException.DataSource,
                 InitialCatalog = syncException.InitialCatalog,
                 Number = syncException.Number,
-                Side = syncException.Side
             };
 
             var jobject = JObject.FromObject(webException);

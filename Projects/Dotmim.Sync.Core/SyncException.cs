@@ -60,11 +60,6 @@ namespace Dotmim.Sync
         /// </summary>
         public string InitialCatalog { get; set; }
 
-        /// <summary>
-        /// Gets or Sets if error is Local or Remote side
-        /// </summary>
-        public SyncSide Side { get; set; }
-
     }
 
     /// <summary>

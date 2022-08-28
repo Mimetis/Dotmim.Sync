@@ -395,7 +395,6 @@ namespace Dotmim.Sync.Tests
                     var s = await agent.SynchronizeAsync(new string[] { "TableTest" });
                 });
 
-                Assert.Equal(SyncSide.ServerSide, se.Side);
                 Assert.Equal("MissingPrimaryKeyException", se.TypeName);
                 Assert.Equal(this.Server.DatabaseName, se.InitialCatalog);
 
@@ -428,7 +427,6 @@ namespace Dotmim.Sync.Tests
                     var s = await agent.SynchronizeAsync(setup);
                 });
 
-                Assert.Equal(SyncSide.ServerSide, se.Side);
                 Assert.Equal("MissingColumnException", se.TypeName);
             }
         }
@@ -457,7 +455,6 @@ namespace Dotmim.Sync.Tests
                     var s = await agent.SynchronizeAsync(setup);
                 });
 
-                Assert.Equal(SyncSide.ServerSide, se.Side);
                 Assert.Equal("MissingTableException", se.TypeName);
             }
         }
@@ -3393,7 +3390,6 @@ namespace Dotmim.Sync.Tests
                 // Making a first sync, will initialize everything we need
                 var se = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(scopeName));
 
-                Assert.Equal(SyncSide.ClientSide, se.Side);
                 Assert.Equal("OutOfDateException", se.TypeName);
 
                 // Intercept outdated event, and make a reinitialize with upload action
