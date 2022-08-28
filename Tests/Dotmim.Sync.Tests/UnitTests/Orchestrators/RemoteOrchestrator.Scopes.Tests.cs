@@ -62,7 +62,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.NotNull(remoteScopeInfo);
             Assert.Equal(scopeName, remoteScopeInfo.Name);
-            Assert.Equal(0, remoteScopeInfo.LastCleanupTimestamp);
+            Assert.Null(remoteScopeInfo.LastCleanupTimestamp);
             Assert.NotNull(remoteScopeInfo.Schema);
             Assert.NotNull(remoteScopeInfo.Setup);
 

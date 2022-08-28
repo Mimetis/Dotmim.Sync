@@ -1751,7 +1751,7 @@ namespace Dotmim.Sync.Tests
 
                 // try to drop everything from local database
                 await remoteOrchestrator.DropAllAsync();
-           
+
                 // get the db manager
                 foreach (var setupTable in setup.Tables)
                 {
@@ -2381,7 +2381,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                agent.LocalOrchestrator.ClearInterceptors(); 
+                agent.LocalOrchestrator.ClearInterceptors();
             }
 
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -3386,12 +3386,18 @@ namespace Dotmim.Sync.Tests
                                     $"Update scope_info_client set scope_last_server_sync_timestamp={dmc.TimestampLimit - 1}");
 
                 // Making a first sync, will initialize everything we need
-                var se = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(scopeName));
+                var se = await Assert.ThrowsAsync<SyncException>(async () =>
+                {
+                    var tmpR = await agent.SynchronizeAsync(scopeName);
+                });
 
                 Assert.Equal("OutOfDateException", se.TypeName);
 
                 // Intercept outdated event, and make a reinitialize with upload action
-                agent.LocalOrchestrator.OnOutdated(oa => oa.Action = OutdatedAction.ReinitializeWithUpload);
+                agent.LocalOrchestrator.OnOutdated(oa =>
+                {
+                    oa.Action = OutdatedAction.ReinitializeWithUpload;
+                });
 
                 var r = await agent.SynchronizeAsync(scopeName);
                 var c = GetServerDatabaseRowsCount(this.Server);

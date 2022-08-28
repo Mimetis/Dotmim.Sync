@@ -453,7 +453,7 @@ namespace Dotmim.Sync
     {
         const string message = "Client database is out of date. Last client sync timestamp:{0}. Last server cleanup metadata:{1} Try to make a Reinitialize sync.";
 
-        public OutOfDateException(long? timestampLimit, long serverLastCleanTimestamp) : base(string.Format(message, timestampLimit, serverLastCleanTimestamp)) { }
+        public OutOfDateException(long? timestampLimit, long? serverLastCleanTimestamp) : base(string.Format(message, timestampLimit, serverLastCleanTimestamp)) { }
     }
 
     /// <summary>

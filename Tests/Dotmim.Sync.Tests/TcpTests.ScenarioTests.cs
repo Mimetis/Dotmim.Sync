@@ -73,6 +73,8 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, Server.Provider);
                 var r1 = await agent.SynchronizeAsync("v1", setup, pMount);
                 var r2 = await agent.SynchronizeAsync("v1", setup, pRoad);
+
+
             }
         }
 

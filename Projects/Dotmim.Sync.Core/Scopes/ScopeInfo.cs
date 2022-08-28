@@ -47,7 +47,7 @@ namespace Dotmim.Sync
         /// Gets or Sets the last timestamp a sync has occured. This timestamp is set just 'before' sync start.
         /// </summary>
         [DataMember(Name = "lst", IsRequired = false, EmitDefaultValue = false, Order = 5)]
-        public long LastCleanupTimestamp { get; set; }
+        public long? LastCleanupTimestamp { get; set; }
 
         /// <summary>
         /// Gets or Sets the additional properties. 

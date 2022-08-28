@@ -345,7 +345,7 @@ namespace Dotmim.Sync
             if (cScopeInfoClient.IsNewScope)
                 return (context, false);
 
-            if (cScopeInfoClient.LastServerSyncTimestamp != 0 || sScopeInfo.LastCleanupTimestamp != 0)
+            if (cScopeInfoClient.LastServerSyncTimestamp.HasValue && sScopeInfo.LastCleanupTimestamp.HasValue)
                 isOutdated = cScopeInfoClient.LastServerSyncTimestamp < sScopeInfo.LastCleanupTimestamp;
 
             // Get a chance to make the sync even if it's outdated

@@ -335,7 +335,7 @@ namespace Dotmim.Sync
             SetParameterValue(command, "sync_scope_schema", scopeInfo.Schema == null ? DBNull.Value : JsonConvert.SerializeObject(scopeInfo.Schema));
             SetParameterValue(command, "sync_scope_setup", scopeInfo.Setup == null ? DBNull.Value : JsonConvert.SerializeObject(scopeInfo.Setup));
             SetParameterValue(command, "sync_scope_version", scopeInfo.Version);
-            SetParameterValue(command, "sync_scope_last_clean_timestamp", scopeInfo.LastCleanupTimestamp);
+            SetParameterValue(command, "sync_scope_last_clean_timestamp", !scopeInfo.LastCleanupTimestamp.HasValue ? DBNull.Value : scopeInfo.LastCleanupTimestamp);
             SetParameterValue(command, "sync_scope_properties", scopeInfo.Properties == null ? DBNull.Value : scopeInfo.Properties);
 
 
@@ -357,7 +357,7 @@ namespace Dotmim.Sync
                 Schema = reader["sync_scope_schema"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSet>((string)reader["sync_scope_schema"]),
                 Setup = reader["sync_scope_setup"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSetup>((string)reader["sync_scope_setup"]),
                 Version = reader["sync_scope_version"] as string,
-                LastCleanupTimestamp = reader["sync_scope_last_clean_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("sync_scope_last_clean_timestamp")) : 0L,
+                LastCleanupTimestamp = reader["sync_scope_last_clean_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("sync_scope_last_clean_timestamp")) : null,
                 Properties = reader["sync_scope_properties"] as string,
 
             };
