@@ -18,26 +18,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
-    /// <summary>
-    /// <para>
-    /// The <c>LocalOrchestrator</c> object allows you to interact with the local datsource, (using a sync provider to access it).
-    /// </para>
-    /// <para>
-    /// Use a <c>LocalOrchestrator</c> object only when you want to interact with a client datasource.
-    /// If you want to interact with your server datasource, consider using a <c>RemoteOrchestrator</c> instead.
-    /// </para>
-    /// <example>
-    /// You can access your <c>LocalOrchestrator</c> instance from your <see cref="SyncAgent"/>:
-    /// <code>
-    /// var syncAgent = new SyncAgent(clientProvider, serverProvider, options);
-    /// var localOrchestrator = syncAgent.LocalOrchestrator;
-    /// </code>
-    /// You can also create an instance, without using a <see cref="SyncAgent"/>:
-    /// <code>
-    /// var localOrchestrator = new LocalOrchestrator(clientProvider, options);
-    /// </code>
-    /// </example>
-    /// </summary>
+    
     public partial class LocalOrchestrator : BaseOrchestrator
     {
 

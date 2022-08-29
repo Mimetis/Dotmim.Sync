@@ -24,11 +24,6 @@ namespace Dotmim.Sync
         internal Interceptors interceptors = new();
 
         /// <summary>
-        /// Gets or Sets orchestrator side
-        /// </summary>
-        public abstract SyncSide Side { get; }
-
-        /// <summary>
         /// Gets or Sets the provider used by this local orchestrator
         /// </summary>
         public virtual CoreProvider Provider { get; set; }

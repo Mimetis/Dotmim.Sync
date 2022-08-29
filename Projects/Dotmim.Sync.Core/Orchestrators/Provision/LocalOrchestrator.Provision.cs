@@ -20,9 +20,33 @@ namespace Dotmim.Sync
     public partial class LocalOrchestrator : BaseOrchestrator
     {
 
-        public virtual async Task<ScopeInfo> ProvisionAsync(ScopeInfo serverScopeInfo, SyncProvision provision = default, bool overwrite = true)
+        /// <summary>
+        /// Provision a local datasource (<strong>triggers</strong>, <strong>stored procedures</strong> (if supported), <strong>tracking tables</strong> and <strong>tables</strong> if needed. Create also <strong>scope_info</strong> and <strong>scope_info_client</strong> tables.
+        /// <para>
+        /// The <paramref name="provision" /> argument specify the objects to provision. See <see cref="SyncProvision" /> enumeration.
+        /// </para>
+        /// <para>
+        /// The <paramref name="sScopeInfo"/> argument contains the schema to apply and should be retrieved from a <c>scope_info</c> table (most of the time from your server datasource)
+        /// </para>
+        /// <para>
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+        /// var sScopeInfo = await remoteOrchestrator.GetScopeInfoAsync();
+        /// var cScopeInfo = await localOrchestrator.ProvisionAsync(sScopeInfo);
+        /// </code>
+        /// </example>
+        /// </para>
+        /// </summary>
+        /// <param name="sScopeInfo">A <see cref="ScopeInfo "/> instance coming from your server datasource or your client datasource (if exists).</param>
+        /// <param name="provision">If you do not specify <c>provision</c>, a default value <c>SyncProvision.Table | SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable</c> is used.</param>
+        /// <param name="overwrite">If specified, all metadatas are generated and overwritten even if they already exists</param>
+        /// <returns>
+        /// A <see cref="ScopeInfo"/> instance, saved locally in the client datasource.
+        /// </returns> 
+        public async Task<ScopeInfo> ProvisionAsync(ScopeInfo sScopeInfo, SyncProvision provision = default, bool overwrite = true)
         {
-            var context = new SyncContext(Guid.NewGuid(), serverScopeInfo.Name);
+            var context = new SyncContext(Guid.NewGuid(), sScopeInfo.Name);
             try
             {
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning).ConfigureAwait(false);
@@ -31,7 +55,7 @@ namespace Dotmim.Sync
                 (context, clientScopeInfo) = await InternalEnsureScopeInfoAsync(context, 
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                (context, clientScopeInfo) = await InternalProvisionClientAsync(serverScopeInfo, clientScopeInfo, context, provision, overwrite, 
+                (context, clientScopeInfo) = await InternalProvisionClientAsync(sScopeInfo, clientScopeInfo, context, provision, overwrite, 
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -44,16 +68,16 @@ namespace Dotmim.Sync
             }
         }
 
-        /// <summary>
-        /// Deprovision the orchestrator database based the provision enumeration
-        /// Default Deprovision objects are StoredProcedures & Triggers
-        /// </summary>
-        public virtual Task<bool> DeprovisionAsync(SyncProvision provision = default)
-            => DeprovisionAsync(SyncOptions.DefaultScopeName, provision);
 
         /// <summary>
-        /// Deprovision the orchestrator database based the provision enumeration
+        /// Deprovision your client datasource
         /// </summary>
+        /// <param name="provision"></param>
+        /// <returns></returns>
+        public Task<bool> DeprovisionAsync(SyncProvision provision = default) => DeprovisionAsync(SyncOptions.DefaultScopeName, provision);
+
+        
+        /// <inheritdoc cref="DeprovisionAsync(SyncProvision)" />
         public virtual async Task<bool> DeprovisionAsync(string scopeName, SyncProvision provision = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);

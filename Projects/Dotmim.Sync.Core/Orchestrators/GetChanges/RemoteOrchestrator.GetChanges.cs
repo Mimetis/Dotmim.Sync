@@ -22,8 +22,41 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Get changes from remote database
+        /// Get changes from <strong>server</strong> datasource to be send to a particular <strong>client</strong>.
+        /// <para>
+        /// You need an instance of <see cref="ScopeInfoClient"/> (containing all required info) from the client side
+        /// to be able to get changes from the server side.
+        /// </para>
+        /// <example>
+        /// Example:
+        /// <code>
+        ///  var localOrchestrator = new LocalOrchestrator(clientProvider);
+        ///  var remoteOrchestrator = new RemoteOrchestrator(remoteProvider);
+        ///  var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
+        ///  // You can load a client scope info from the server database also, if you know the clientId
+        ///  var cScopeInfoClient = await remoteOrchestrator.GetScopeInfoClientAsync(clientId, scopeName, parameters);
+        ///  var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
+        /// </code>
+        /// </example>
         /// </summary>
+        /// <returns>
+        /// Returns a <see cref="ServerSyncChanges"/> instance.
+        /// <para>
+        /// All changes are serialized on disk and can be load in memory from the <c>ServerBatchInfo</c> property (of type <see cref="BatchInfo"/>)
+        /// </para>
+        /// <example>
+        /// You can load in memory the changes using the <c>LoadTableFromBatchInfoAsync()</c> method:
+        /// <code>
+        /// var productCategoryTable = await remoteOrchestrator.LoadTableFromBatchInfoAsync(
+        ///     scopeName, changes.ClientBatchInfo, "ProductCategory");
+        ///     
+        /// foreach (var productCategoryRow in productCategoryTable.Rows)
+        /// {
+        ///    ....
+        /// }
+        /// </code>
+        /// </example>
+        /// </returns>        
         public virtual async Task<ServerSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient)
         {
 
@@ -71,8 +104,32 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Get estimated changes from remote database to be applied on client
+        /// Get <strong>an estimation count</strong> of the changes from <strong>server</strong> datasource to be send to a particular <strong>client</strong>.
+        /// <para>
+        /// You need an instance of <see cref="ScopeInfoClient"/> (containing all required info) from the client side
+        /// to be able to get changes from the server side.
+        /// </para>
+        /// <example>
+        /// Example:
+        /// <code>
+        ///  var localOrchestrator = new LocalOrchestrator(clientProvider);
+        ///  var remoteOrchestrator = new RemoteOrchestrator(remoteProvider);
+        ///  var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
+        ///  // You can load a client scope info from the server database also, if you know the clientId
+        ///  var cScopeInfoClient = await remoteOrchestrator.GetScopeInfoClientAsync(clientId, scopeName, parameters);
+        ///  var estimatedChanges = await remoteOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient);
+        /// </code>
+        /// </example>
         /// </summary>
+        /// <returns>
+        /// Returns a <see cref="ServerSyncChanges"/> instance.
+        /// <para>
+        /// No changes are downloaded, so far the <c>ServerBatchInfo</c> property is always <c>null</c>.
+        /// </para>
+        /// The propery <c>ServerChangesSelected</c> (of type <see cref="DatabaseChangesSelected"/>) 
+        /// contains an estimation count of the changes from your server datsource for
+        /// all the tables from your setup.
+        /// </returns>  
         public virtual async Task<ServerSyncChanges> GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient)
         {
 

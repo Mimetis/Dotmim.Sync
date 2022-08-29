@@ -1096,7 +1096,6 @@ namespace Dotmim.Sync.Tests
                 //// Making a first sync, will initialize everything we need
                 //var se = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync());
 
-                //Assert.Equal(SyncSide.ClientSide, se.Side);
                 //Assert.Equal("OutOfDateException", se.TypeName);
 
                 // Intercept outdated event, and make a reinitialize with upload action
@@ -1106,10 +1105,7 @@ namespace Dotmim.Sync.Tests
                 var c = GetServerDatabaseRowsCount(this.Server);
                 Assert.Equal(c, r.TotalChangesDownloaded);
                 Assert.Equal(2, r.TotalChangesUploaded);
-
             }
-
-
         }
 
         [Theory]

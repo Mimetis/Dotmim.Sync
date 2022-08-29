@@ -47,11 +47,5 @@ namespace Dotmim.Sync.Web
         [DataMember(Name = "ic", IsRequired = false, EmitDefaultValue = false, Order = 7)]
         public string InitialCatalog { get; set; }
 
-        /// <summary>
-        /// Gets or Sets if error is Local or Remote side
-        /// </summary>
-        [DataMember(Name = "s", IsRequired = false, EmitDefaultValue = false, Order = 8)]
-        public SyncSide Side { get; set; }
-
     }
 }

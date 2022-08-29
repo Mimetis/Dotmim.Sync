@@ -794,18 +794,19 @@ namespace Dotmim.Sync.Tests
             setupv2.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
             setupv2.Filters.Add("Customer", "EmployeeID");
 
-            var serverScope = await remoteOrchestrator.ProvisionAsync("v2", setupv2);
+            var sScopeInfo = await remoteOrchestrator.ProvisionAsync("v2", setupv2);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
+                
                 var parameters = new SyncParameters(("EmployeeID", 1));
                 // Create the table on local database
                 var localOrchestrator = new LocalOrchestrator(client.Provider);
-                await localOrchestrator.CreateTableAsync(serverScope, "Employee");
+                await localOrchestrator.CreateTableAsync(sScopeInfo, "Employee");
 
                 // Once created we can provision the new scope, thanks to the serverScope instance we already have
-                await localOrchestrator.ProvisionAsync(serverScope);
+                await localOrchestrator.ProvisionAsync(sScopeInfo);
 
                 var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync("v2", parameters);
 
