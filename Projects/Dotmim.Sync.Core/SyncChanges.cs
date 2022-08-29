@@ -11,7 +11,6 @@ namespace Dotmim.Sync
     /// </summary>
     public class ClientSyncChanges
     {
-
         public ClientSyncChanges(long clientTimestamp, BatchInfo clientBatchInfo, DatabaseChangesSelected clientChangesSelected)
         {
             this.ClientTimestamp = clientTimestamp;

@@ -18,12 +18,62 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// <para>
+    /// The <c>LocalOrchestrator</c> object allows you to interact with the local datsource, (using a sync provider to access it).
+    /// </para>
+    /// <para>
+    /// Use a <c>LocalOrchestrator</c> object only when you want to interact with a client datasource.
+    /// If you want to interact with your server datasource, consider using a <c>RemoteOrchestrator</c> instead.
+    /// </para>
+    /// <example>
+    /// You can access your <c>LocalOrchestrator</c> instance from your <see cref="SyncAgent"/>:
+    /// <code>
+    /// var syncAgent = new SyncAgent(clientProvider, serverProvider, options);
+    /// var localOrchestrator = syncAgent.LocalOrchestrator;
+    /// </code>
+    /// You can also create an instance, without using a <see cref="SyncAgent"/>:
+    /// <code>
+    /// var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+    /// </code>
+    /// </example>
+    /// </summary>
     public partial class LocalOrchestrator : BaseOrchestrator
     {
 
         /// <summary>
-        /// Get changes from local database from a specific scope name
+        /// Get changes from <strong>client</strong> datasource to be send to the <strong>server</strong>.
+        /// <para>
+        /// You need an instance of <see cref="ScopeInfoClient"/> (containing all required info) 
+        /// to be able to get changes from your local datasource.
+        /// </para>
+        /// <example>
+        /// Example:
+        /// <code>
+        ///  var localOrchestrator = new LocalOrchestrator(clientProvider);
+        ///  var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
+        ///  var changes = await localOrchestrator.GetChangesAsync(cScopeInfoClient);
+        /// </code>
+        /// </example>
         /// </summary>
+        /// <returns>
+        /// Returns a <see cref="ClientSyncChanges"/> instance.
+        /// <para>
+        /// All changes are serialized on disk and can be load in memory from the <c>ClientBatchInfo</c> property (of type <see cref="BatchInfo"/>)
+        /// </para>
+        /// <example>
+        /// You can load in memory the changes using the <c>LoadTableFromBatchInfoAsync()</c> method:
+        /// <code>
+        /// var productCategoryTable = await localOrchestrator.LoadTableFromBatchInfoAsync(
+        ///     scopeName, changes.ClientBatchInfo, "ProductCategory");
+        ///     
+        /// foreach (var productCategoryRow in productCategoryTable.Rows)
+        /// {
+        ///    ....
+        /// }
+        /// </code>
+        /// </example>
+        /// </returns>
         public virtual async Task<ClientSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient)
         {
             var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name, cScopeInfoClient.Parameters)
@@ -55,8 +105,29 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Get estimated changes from local database to be sent to the server
+        /// Get <strong>an estimation count</strong> of the changes from <strong>client</strong> datasource to be send to the <strong>server</strong>.
+        /// <para>
+        /// You need an instance of <see cref="ScopeInfoClient"/> (containing all required info) 
+        /// to be able to get the estimation count of the changes from your local datasource.
+        /// </para>
+        /// <example>
+        /// Example:
+        /// <code>
+        ///  var localOrchestrator = new LocalOrchestrator(clientProvider);
+        ///  var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
+        ///  var changes = await localOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient);
+        /// </code>
+        /// </example>
         /// </summary>
+        /// <returns>
+        /// Returns a <see cref="ClientSyncChanges"/> instance.
+        /// <para>
+        /// No changes are downloaded, so far the <c>ClientBatchInfo</c> property is always <c>null</c>.
+        /// </para>
+        /// The propery <c>ClientChangesSelected</c> (of type <see cref="DatabaseChangesSelected"/>) 
+        /// contains an estimation count of the changes from your local datsource for
+        /// all the tables from your setup.
+        /// </returns>        
         public async Task<ClientSyncChanges> GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient)
         {
             var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name, cScopeInfoClient.Parameters)

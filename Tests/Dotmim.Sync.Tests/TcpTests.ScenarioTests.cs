@@ -74,7 +74,8 @@ namespace Dotmim.Sync.Tests
                 var r1 = await agent.SynchronizeAsync("v1", setup, pMount);
                 var r2 = await agent.SynchronizeAsync("v1", setup, pRoad);
 
-
+                Assert.Equal(11, r1.TotalChangesDownloaded);
+                Assert.Equal(6, r2.TotalChangesDownloaded);
             }
         }
 
