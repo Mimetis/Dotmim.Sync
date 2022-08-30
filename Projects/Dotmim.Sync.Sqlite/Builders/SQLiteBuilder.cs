@@ -36,5 +36,11 @@ namespace Dotmim.Sync.Sqlite.Builders
 
         public override Task RenameTableAsync(string tableName, string schemaName, string newTableName, string newSchemaName, DbConnection connection, DbTransaction transaction = null)
              => SqliteManagementUtils.RenameTableAsync(tableName, newTableName, connection as SqliteConnection, transaction as SqliteTransaction);
+        
+        public override Task<SyncTable> GetTableDefinitionAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
+            => SqliteManagementUtils.GetTableDefinitionAsync(tableName, connection as SqliteConnection, transaction as SqliteTransaction);
+        
+        public override Task<SyncTable> GetTableColumnsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
+            => SqliteManagementUtils.GetColumnsForTableAsync(tableName, connection as SqliteConnection, transaction as SqliteTransaction);
     }
 }

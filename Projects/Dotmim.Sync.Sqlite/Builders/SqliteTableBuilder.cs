@@ -557,8 +557,8 @@ namespace Dotmim.Sync.Sqlite
         {
             var columns = new List<SyncColumn>();
             // Get the columns definition
-            var columnsList = await SqliteManagementUtils.GetColumnsForTableAsync(connection as SqliteConnection, transaction as SqliteTransaction,
-                                                                                  this.TableName.Unquoted().ToString());
+            var columnsList = await SqliteManagementUtils.GetColumnsForTableAsync(this.TableName.Unquoted().ToString(), 
+                connection as SqliteConnection, transaction as SqliteTransaction);
             var sqlDbMetadata = new SqliteDbMetadata();
 
             foreach (var c in columnsList.Rows.OrderBy(r => Convert.ToInt32(r["cid"])))

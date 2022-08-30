@@ -30,9 +30,19 @@ namespace Dotmim.Sync.Builders
         public abstract Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection, DbTransaction transaction = null);
 
         /// <summary>
-        /// Get a Datatable with all rows from a table
+        /// Get a table with all rows from a table
         /// </summary>
         public abstract Task<SyncTable> GetTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null);
+
+        /// <summary>
+        /// Get a table definition
+        /// </summary>
+        public abstract Task<SyncTable> GetTableDefinitionAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null);
+
+        /// <summary>
+        /// Get a table columns definition
+        /// </summary>
+        public abstract Task<SyncTable> GetTableColumnsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null);
 
         /// <summary>
         /// Check if a table exists

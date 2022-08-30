@@ -225,7 +225,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
-                var table = await SqlManagementUtils.GetTableAsync("t_Product_t", "SalesLT", c, null).ConfigureAwait(false);
+                var table = await SqlManagementUtils.GetTableDefinitionAsync("t_Product_t", "SalesLT", c, null).ConfigureAwait(false);
 
                 Assert.Empty(table.Rows);
 
@@ -281,7 +281,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
-                var table = await SqlManagementUtils.GetTableAsync("t_Product_t", "SalesLT", c, null).ConfigureAwait(false);
+                var table = await SqlManagementUtils.GetTableDefinitionAsync("t_Product_t", "SalesLT", c, null).ConfigureAwait(false);
 
                 Assert.NotEmpty(table.Rows);
 

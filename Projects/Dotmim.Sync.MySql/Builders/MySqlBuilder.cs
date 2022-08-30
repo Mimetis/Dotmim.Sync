@@ -64,5 +64,9 @@ namespace Dotmim.Sync.MySql.Builders
 
         public override Task RenameTableAsync(string tableName, string schemaName, string newTableName, string newSchemaName, DbConnection connection, DbTransaction transaction = null)
              => MySqlManagementUtils.RenameTableAsync(tableName, newTableName, connection as MySqlConnection, transaction as MySqlTransaction);
+        public override Task<SyncTable> GetTableDefinitionAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
+              => MySqlManagementUtils.GetTableDefinitionAsync(tableName, connection as MySqlConnection, transaction as MySqlTransaction);
+        public override Task<SyncTable> GetTableColumnsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
+              => MySqlManagementUtils.GetColumnsForTableAsync(tableName, connection as MySqlConnection, transaction as MySqlTransaction);
     }
 }

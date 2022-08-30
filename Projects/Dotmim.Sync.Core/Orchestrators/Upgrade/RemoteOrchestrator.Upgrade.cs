@@ -45,7 +45,7 @@ namespace Dotmim.Sync
                 // Initialize database if needed
                 await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-
+                // check old and new scopes tables
                 var exist1 = await dbBuilder.ExistsTableAsync(scopeInfoServerTableName, null, runner.Connection, runner.Transaction);
                 var exist2 = await dbBuilder.ExistsTableAsync(scopeInfoServerHistoryTableName, null, runner.Connection, runner.Transaction);
                 var exist3 = await dbBuilder.ExistsTableAsync(sScopeInfoTableName, null, runner.Connection, runner.Transaction);

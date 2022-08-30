@@ -48,22 +48,18 @@ namespace Dotmim.Sync
                     return false;
 
                 int cScopeInfoTableColumns = 10;
-                string cScopeInfoVersion = null;
 
                 if (cScopeInfoExists)
                 {
-                    var scopeInfoTable = await dbBuilder.GetTableAsync(this.Options.ScopeInfoTableName, default, runner.Connection, runner.Transaction).ConfigureAwait(false);
+                    var scopeInfoTable = await dbBuilder.GetTableColumnsAsync(this.Options.ScopeInfoTableName, default, runner.Connection, runner.Transaction).ConfigureAwait(false);
 
                     // 6 columns => version == 0.9.6
                     // > 6 columns => version <= 0.9.5
-                    cScopeInfoTableColumns = scopeInfoTable.Columns.Count;
-
-                    if (scopeInfoTable.Rows.Count > 0)
-                        cScopeInfoVersion = scopeInfoTable.Rows[0]["sync_scope_version"].ToString();
+                    cScopeInfoTableColumns = scopeInfoTable.Rows.Count;
                 }
 
                 // migrated
-                if (cScopeInfoTableColumns == 6 && cScopeInfoClientExists && cScopeInfoVersion == "0.9.6")
+                if (cScopeInfoTableColumns == 6 && cScopeInfoClientExists)
                     return false;
 
                 return true;

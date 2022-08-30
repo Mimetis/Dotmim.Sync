@@ -98,7 +98,7 @@ namespace Dotmim.Sync.MySql
 
                 foreach (var setupTable in syncSetup.Tables)
                 {
-                    var syncTableColumnsList = await GetColumnsForTableAsync(connection, transaction, setupTable.TableName).ConfigureAwait(false);
+                    var syncTableColumnsList = await GetColumnsForTableAsync(setupTable.TableName, connection, transaction).ConfigureAwait(false);
 
                     foreach (var column in syncTableColumnsList.Rows)
                         setupTable.Columns.Add(column["column_name"].ToString());
@@ -137,7 +137,7 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public static async Task RenameTableAsync(string tableName,  string newTableName, MySqlConnection connection, MySqlTransaction transaction)
+        public static async Task RenameTableAsync(string tableName, string newTableName, MySqlConnection connection, MySqlTransaction transaction)
         {
             var pTableName = ParserName.Parse(tableName, "`").Unquoted().ToString();
             var pNewTableName = ParserName.Parse(newTableName, "`").Unquoted().ToString();
@@ -160,38 +160,32 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public static async Task<SyncTable> GetTableDefinitionAsync(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetTableDefinitionAsync(string tableName, MySqlConnection connection, MySqlTransaction transaction)
         {
             string commandColumn = "select * from information_schema.TABLES where table_schema = schema() and table_name = @tableName limit 1;";
 
             var tableNameParser = ParserName.Parse(tableName, "`");
             var syncTable = new SyncTable(tableNameParser.Unquoted().ToString());
-            using (var sqlCommand = new MySqlCommand(commandColumn, connection))
-            {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
+            using var sqlCommand = new MySqlCommand(commandColumn, connection);
+            sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
 
-                bool alreadyOpened = connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
 
-                sqlCommand.Transaction = transaction;
+            sqlCommand.Transaction = transaction;
 
+            using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                syncTable.Load(reader);
 
-                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
-                {
-                    syncTable.Load(reader);
-                }
+            if (!alreadyOpened)
+                connection.Close();
 
-
-                if (!alreadyOpened)
-                    connection.Close();
-
-            }
             return syncTable;
         }
 
-        public static async Task<SyncTable> GetColumnsForTableAsync(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetColumnsForTableAsync(string tableName, MySqlConnection connection, MySqlTransaction transaction)
         {
             string commandColumn = "select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName";
 

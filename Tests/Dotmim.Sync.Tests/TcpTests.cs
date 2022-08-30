@@ -3383,7 +3383,7 @@ namespace Dotmim.Sync.Tests
 
                 // Generate an outdated situation
                 await HelperDatabase.ExecuteScriptAsync(client.ProviderType, client.DatabaseName,
-                                    $"Update scope_info_client set scope_last_server_sync_timestamp={dmc.TimestampLimit - 1}");
+                                    $"Update scope_info_client set scope_last_server_sync_timestamp=-1");
 
                 // Making a first sync, will initialize everything we need
                 var se = await Assert.ThrowsAsync<SyncException>(async () =>

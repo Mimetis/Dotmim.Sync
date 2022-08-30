@@ -44,7 +44,7 @@ namespace Dotmim.Sync.Sqlite
 
                 foreach (var setupTable in syncSetup.Tables)
                 {
-                    var syncTableColumnsList = await GetColumnsForTableAsync(connection, transaction, setupTable.TableName).ConfigureAwait(false);
+                    var syncTableColumnsList = await GetColumnsForTableAsync(setupTable.TableName, connection, transaction).ConfigureAwait(false);
 
                     foreach (var column in syncTableColumnsList.Rows)
                         setupTable.Columns.Add(column["name"].ToString());
@@ -137,11 +137,12 @@ namespace Dotmim.Sync.Sqlite
                 connection.Close();
         }
 
-        public static async Task<SyncTable> GetColumnsForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string unquotedTableName)
+        public static async Task<SyncTable> GetColumnsForTableAsync(string tableName, SqliteConnection connection, SqliteTransaction transaction)
         {
+            var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
 
-            string commandColumn = $"SELECT * FROM pragma_table_info('{unquotedTableName}');";
-            var syncTable = new SyncTable(unquotedTableName);
+            string commandColumn = $"SELECT * FROM pragma_table_info('{pTableName}');";
+            var syncTable = new SyncTable(tableName);
 
             using (var sqlCommand = new SqliteCommand(commandColumn, connection))
             {

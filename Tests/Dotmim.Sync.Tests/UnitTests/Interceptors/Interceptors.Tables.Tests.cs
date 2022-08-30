@@ -340,7 +340,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             using (var c = new SqlConnection(cs))
             {
                 await c.OpenAsync().ConfigureAwait(false);
-                var stable = await SqlManagementUtils.GetTableAsync("Product", "SalesLT", c, null).ConfigureAwait(false);
+                var stable = await SqlManagementUtils.GetTableDefinitionAsync("Product", "SalesLT", c, null).ConfigureAwait(false);
                 Assert.Empty(stable.Rows);
                 c.Close();
             }
@@ -414,7 +414,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             using (var c = new SqlConnection(cs))
             {
                 await c.OpenAsync().ConfigureAwait(false);
-                var stable = await SqlManagementUtils.GetTableAsync("Product", "SalesLT", c, null).ConfigureAwait(false);
+                var stable = await SqlManagementUtils.GetTableDefinitionAsync("Product", "SalesLT", c, null).ConfigureAwait(false);
                 Assert.Single(stable.Rows);
                 c.Close();
             }
