@@ -70,10 +70,10 @@ namespace Dotmim.Sync.Web.Client
             return (context, ensureScopesResponse.ServerScopeInfo, false);
         }
 
-        public override Task<ScopeInfo> SaveScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<ScopeInfo> SaveScopeInfoAsync(ScopeInfo scopeInfo)
             => throw new NotImplementedException();
 
-        public override Task<bool> DeleteScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public override Task<bool> DeleteScopeInfoAsync(ScopeInfo scopeInfo)
             => throw new NotImplementedException();
 
     }

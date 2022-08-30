@@ -19,13 +19,15 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Not Allowed from WebRemoteOrchestrator
         /// </summary>
-        public override Task<bool> UpgradeAsync() => throw new NotImplementedException();
+        public override Task<(List<ScopeInfo> scopeInfos, List<ScopeInfoClient> scopeInfoClients)> UpgradeAsync(IProgress<ProgressArgs> progress = null, bool evaluateOnly = false)
+            => throw new NotImplementedException();
 
 
         /// <summary>
         /// Not Allowed from WebRemoteOrchestrator
         /// </summary>
-        public override Task<bool> NeedsToUpgradeAsync() => throw new NotImplementedException();
+        public override Task<bool> NeedsToUpgradeAsync() 
+            => throw new NotImplementedException();
 
     }
 }
