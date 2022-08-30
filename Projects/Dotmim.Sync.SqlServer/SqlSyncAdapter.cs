@@ -34,11 +34,16 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         private bool useBulkOperations;
 
+        private readonly ParserName tableName;
+        private readonly ParserName trackingName;
+
         public SqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool useBulkOperations) : base(tableDescription, setup, scopeName)
         {
             this.SqlObjectNames = new SqlObjectNames(tableDescription, tableName, trackingName, setup, scopeName);
             this.SqlMetadata = new SqlDbMetadata();
             this.useBulkOperations = useBulkOperations;
+            this.tableName = tableName;
+            this.trackingName = trackingName;
         }
 
         private SqlMetaData GetSqlMetadaFromType(SyncColumn column)
@@ -321,7 +326,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-       
         public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
         {
             var command = new SqlCommand();
@@ -441,6 +445,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
                     isBatch = false;
                     break;
+
                 default:
                     throw new NotImplementedException($"This command type {nameType} is not implemented");
             }
@@ -645,5 +650,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             command.Parameters.Add(p);
 
         }
+
+       
     }
 }

@@ -99,8 +99,8 @@ internal class Program
 
         //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
-         await MultiFiltersAsync();
-         //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+         //await MultiFiltersAsync();
+         await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
     }
 

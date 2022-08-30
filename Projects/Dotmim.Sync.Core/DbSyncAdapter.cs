@@ -65,9 +65,5 @@ namespace Dotmim.Sync
             this.Setup = setup;
             this.ScopeName = scopeName;
         }
-
-     
-
-
     }
 }

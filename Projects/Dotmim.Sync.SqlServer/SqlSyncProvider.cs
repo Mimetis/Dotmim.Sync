@@ -98,8 +98,8 @@ namespace Dotmim.Sync.SqlServer
         {
             var originalTableName = ParserName.Parse(tableDescription);
 
-            var pref = setup.TrackingTablesPrefix;
-            var suf = setup.TrackingTablesSuffix;
+            var pref = setup?.TrackingTablesPrefix;
+            var suf = setup?.TrackingTablesSuffix;
 
             // be sure, at least, we have a suffix if we have empty values. 
             // othewise, we have the same name for both table and tracking table

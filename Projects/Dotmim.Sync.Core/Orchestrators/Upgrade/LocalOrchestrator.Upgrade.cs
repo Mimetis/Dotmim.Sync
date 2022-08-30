@@ -4,6 +4,7 @@ using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.Serialization;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -20,39 +21,6 @@ namespace Dotmim.Sync
 {
     public partial class LocalOrchestrator
     {
-
-        public virtual async Task<bool> UpgradeAsync()
-        {
-            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
-
-            try
-            {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating).ConfigureAwait(false);
-                var dbBuilder = this.Provider.GetDatabaseBuilder();
-
-                // Initialize database if needed
-                await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
-
-                List<ScopeInfo> clientScopeInfos;
-                (context, clientScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, 
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (clientScopeInfos == null || clientScopeInfos.Count <= 0)
-                    throw new MissingClientScopeInfoException();
-
-                (context, _) = await this.InternalUpgradeAsync(clientScopeInfos, context, 
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return true;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(context, ex);
-            }
-        }
-
         /// <summary>
         /// Check if we need to upgrade the Database Structure
         /// </summary>
@@ -68,43 +36,325 @@ namespace Dotmim.Sync
                 // Initialize database if needed
                 await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, 
+                bool cScopeInfoExists;
+                (context, cScopeInfoExists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (!exists)
-                    return false;
-
-                List<ScopeInfo> clientScopeInfos;
-                (context, clientScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, 
+                bool cScopeInfoClientExists;
+                (context, cScopeInfoClientExists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (clientScopeInfos == null || clientScopeInfos.Count <= 0)
+                int cScopeInfoTableColumns = 10;
+                string cScopeInfoVersion = null;
+
+                if (cScopeInfoExists)
+                {
+                    var scopeInfoTable = await dbBuilder.GetTableAsync(this.Options.ScopeInfoTableName, default, runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                    // 6 columns => version == 0.9.6
+                    // > 6 columns => version <= 0.9.5
+                    cScopeInfoTableColumns = scopeInfoTable.Columns.Count;
+
+                    if (scopeInfoTable.Rows.Count > 0)
+                        cScopeInfoVersion = scopeInfoTable.Rows[0]["sync_scope_version"].ToString();
+                }
+
+                // migrated
+                if (cScopeInfoTableColumns == 6 && cScopeInfoClientExists && cScopeInfoVersion == "0.9.6")
                     return false;
 
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return InternalNeedsToUpgrade(clientScopeInfos);
+                return true;
             }
             catch (Exception ex)
             {
                 throw GetSyncError(context, ex);
             }
         }
-        internal virtual bool InternalNeedsToUpgrade(List<ScopeInfo> clientScopeInfos)
+
+        /// <summary>
+        /// Upgrade your client database to the last version 0.9.6
+        /// <para>
+        /// This upgrade is manually since <strong>we need the parameters</strong> you are using, to <strong>save them</strong> in the client database.
+        /// Please provide all the entries (scope name + sync parameters) you are using <strong>locally</strong>, to sync to server
+        /// </para>
+        /// <example>
+        /// Here is an example where we are migrating a local datasource where 2 scopes have been already used (1 with filters and the other one without filters)
+        /// <code>
+        /// var entries = new List[ScopeInfoClientUpgrade]();
+        /// var entry = new ScopeInfoClientUpgrade
+        /// {
+        ///    Parameters = new SyncParameters(("ProductCategoryId", new Guid("Your_GUID_Filter_Value"))),
+        ///    ScopeName = "v1"
+        /// };
+        /// entries.Add(entry);
+        /// entry = new ScopeInfoClientUpgrade {ScopeName = "v2"};
+        /// entries.Add(entry);
+        /// 
+        /// var (scopeInfos, scopeInfoClients) = await localOrchestrator.UpgradeAsync(entries, progress, evaluationOnly);
+        /// </code>
+        /// </example>
+        /// </summary>
+        /// <param name="entries">List of all entries you are using locally (an entry is a scope name + syncparameters with value) you are using to sync to server</param>
+        /// <param name="progress">Progress of upgrade</param>
+        /// <param name="evaluateOnly">if set to True, the upgrade will not be applied at the end. Usefull to test your upgrade and see if anything is breaking at some point.</param>
+        /// <returns>
+        /// The new scopeInfos and scopeInfoClients rows from your new upgrade sync config tables
+        /// </returns>
+        public virtual async Task<(List<ScopeInfo> scopeInfos, List<ScopeInfoClient> scopeInfoClients)> UpgradeAsync(List<ScopeInfoClientUpgrade> entries, IProgress<ProgressArgs> progress = default, bool evaluateOnly = false)
         {
-            var version = SyncVersion.Current;
+            if (entries == null)
+                throw new Exception("Please provide at least one entry (even without parameters)");
 
-            // get the smallest version of all scope in the scope info server tables
-            foreach (var clientScopeInfo in clientScopeInfos)
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
+
+            try
             {
-                var tmpVersion = SyncVersion.EnsureVersion(clientScopeInfo.Version);
+                // scope info table name (and tmp table name)
+                var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
+                var cScopeInfoTableName = $"{parsedName.Unquoted().Normalized()}";
+                var cScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
+                var tmpCScopeInfoTableName = $"tmp{cScopeInfoTableName}";
 
-                if (tmpVersion < version)
-                    version = tmpVersion;
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, default, default, default, progress).ConfigureAwait(false);
+                var dbBuilder = this.Provider.GetDatabaseBuilder();
+
+                // Initialize database if needed
+                await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                // ----------------------------------------------------
+                // Step 1 : Renaming scope_info to tmpscope_info
+                // ----------------------------------------------------
+                var tmpScopeInfoClientExists = await dbBuilder.ExistsTableAsync(tmpCScopeInfoTableName, null,
+                    runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                if (!tmpScopeInfoClientExists)
+                    await dbBuilder.RenameTableAsync(cScopeInfoTableName, null, tmpCScopeInfoTableName, null,
+                        runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                var message = $"- Temporary renamed {cScopeInfoTableName} to {tmpCScopeInfoTableName}.";
+                await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+
+
+                // ----------------------------------------------------
+                // Step 2 : Create scope_info 
+                // ----------------------------------------------------
+                bool existsCScopeInfo;
+                (context, existsCScopeInfo) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                if (!existsCScopeInfo)
+                    (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                message = $"- Created new version of {cScopeInfoTableName} table.";
+                await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+
+                // ----------------------------------------------------
+                // Step 3 : Create scope_info_client 
+                // ----------------------------------------------------
+                bool existsCScopeInfoClient;
+                (context, existsCScopeInfoClient) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                if (!existsCScopeInfoClient)
+                    (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                message = $"- Created {cScopeInfoClientTableName} table.";
+                await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+
+                // ----------------------------------------------------
+                // Step 4 : Read rows from tmpscope_info & create scope_info & scope_info_client rows
+                // ----------------------------------------------------
+
+                // load all scope_info lines
+                var tmpScopeInfoClientTable = await dbBuilder.GetTableAsync(tmpCScopeInfoTableName, null,
+                        runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                // Create scope_info and scope_info_client for each pre version scope_info lines
+                foreach (var scopeInfoRow in tmpScopeInfoClientTable.Rows)
+                {
+                    var setup = JsonConvert.DeserializeObject<SyncSetup>(scopeInfoRow["sync_scope_setup"].ToString());
+                    var schema = JsonConvert.DeserializeObject<SyncSet>(scopeInfoRow["sync_scope_schema"].ToString());
+                    var scopeName = scopeInfoRow["sync_scope_name"].ToString();
+
+                    var setupParameters = setup.Filters.SelectMany(filter => filter.Parameters)?.GroupBy(sfp => sfp.Name).Select(g => g.Key).ToList();
+
+                    // Get the entry parameters, provided by user with the parameters and their values
+                    var entryParameters = entries.FirstOrDefault(e =>
+                    {
+                        var entryScopeName = string.IsNullOrEmpty(e.ScopeName) ? "DefaultScope" : e.ScopeName;
+                        return entryScopeName == scopeName;
+                    });
+
+                    var parameters = entryParameters?.Parameters;
+
+                    if (entryParameters != null && entryParameters.Parameters != null && entryParameters.Parameters.Count > 0)
+                    {
+                        if (setupParameters != null && setupParameters.Count > 0 && (parameters.Count != setupParameters.Count))
+                            throw new Exception("Your setup to migrate contains one or more filters. Please use a SyncParameters argument when calling UpgradeAsync() (or SynchronizeAsync()).");
+
+                        if (parameters.Count > 0 && (setupParameters == null || parameters.Count != setupParameters.Count))
+                            throw new Exception("You specified a SyncParameters argument, but it seems your setup to migrate does not contains any filters.");
+
+                        if (setupParameters != null)
+                        {
+                            if (setupParameters.Count != parameters.Count)
+                                throw new Exception("Your setup to migrate contains one or more filters. Please use a SyncParameters argument when calling UpgradeAsync() (or SynchronizeAsync()).");
+
+                            foreach (var setupParameter in setupParameters)
+                                if (!parameters.Any(p => p.Name.ToLowerInvariant() == setupParameter.ToLowerInvariant()))
+                                    throw new Exception("Your setup filters contains at least one parameter that is not available from SyncParameters argument.");
+
+                            foreach (var parameter in parameters)
+                                if (!setupParameters.Any(n => n.ToLowerInvariant() == parameter.Name.ToLowerInvariant()))
+                                    throw new Exception("Your SyncParameters argument contains a parameter that is not contained in your setup filters.");
+                        }
+                    }
+
+                    // Step 3 : create new scope_info and scope_info_client
+                    var cScopeInfo = new ScopeInfo
+                    {
+                        Name = scopeName,
+                        Setup = setup,
+                        Schema = schema,
+                        Version = SyncVersion.Current.ToString()
+                    };
+                    await this.InternalSaveScopeInfoAsync(cScopeInfo, context,
+                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    message = $"- Saved scope_info {scopeName} in {cScopeInfoTableName} table with a setup containing {setup.Tables.Count} tables.";
+                    await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+
+
+                    // create scope info client
+                    var cScopeInfoClient = new ScopeInfoClient
+                    {
+                        LastSyncDuration = (long)scopeInfoRow["scope_last_sync_duration"],
+                        LastSync = (DateTime)scopeInfoRow["scope_last_sync"],
+                        Id = (Guid)scopeInfoRow["sync_scope_id"],
+                        Hash = parameters != null ? parameters.GetHash() : SyncParameters.DefaultScopeHash,
+                        LastServerSyncTimestamp = (long)scopeInfoRow["scope_last_server_sync_timestamp"],
+                        LastSyncTimestamp = (long)scopeInfoRow["scope_last_sync_timestamp"],
+                        Name = scopeInfoRow["sync_scope_name"].ToString(),
+                        Parameters = parameters,
+                    };
+
+                    await this.InternalSaveScopeInfoClientAsync(cScopeInfoClient, context,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    message = $"- Saved scope_info_client {scopeName} in {cScopeInfoClientTableName} table with a LastServerSyncTimestamp fixed to {cScopeInfoClient.LastServerSyncTimestamp}";
+                    await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+                }
+
+                // ----------------------------------------------------
+                // Step 5 : Drop tmp table
+                // ----------------------------------------------------
+                await dbBuilder.DropsTableIfExistsAsync(tmpCScopeInfoTableName, null,
+                    runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                message = $"- Drop temporary {tmpCScopeInfoTableName} table.";
+                await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+
+                // ----------------------------------------------------
+                // Step 6: Deprovision all and re provision
+                // ----------------------------------------------------
+                List<ScopeInfo> cScopeInfos = null;
+
+                // get scope infos
+                (context, cScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                // fallback to "try to drop an hypothetical default scope"
+                if (cScopeInfos == null)
+                    cScopeInfos = new List<ScopeInfo>();
+
+                // Get all filters and fake them for the default scope
+                var existingFilters = cScopeInfos?.SelectMany(si => si.Setup.Filters).ToList();
+
+                var defaultCScopeInfo = new ScopeInfo
+                {
+                    Name = SyncOptions.DefaultScopeName,
+                    Version = SyncVersion.Current.ToString(),
+                };
+
+                var defaultSetup = await dbBuilder.GetAllTablesAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                // Considering removing tables with "_tracking" at the end
+                var tables = defaultSetup.Tables.Where(setupTable => !setupTable.TableName.EndsWith("_tracking")).ToList();
+                defaultSetup.Tables.Clear();
+                defaultSetup.Tables.AddRange(tables);
+                defaultCScopeInfo.Setup = defaultSetup;
+
+                if (existingFilters != null && existingFilters.Count > 0)
+                {
+                    var filters = new SetupFilters();
+                    foreach (var filter in existingFilters)
+                        filters.Add(filter);
+
+                    defaultCScopeInfo.Setup.Filters = filters;
+                }
+
+                cScopeInfos.Add(defaultCScopeInfo);
+
+                // Deprovision old triggers & stored procedures
+                var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
+
+                foreach (var cScopeInfo in cScopeInfos)
+                {
+                    if (cScopeInfo == null || cScopeInfo.Setup == null || cScopeInfo.Setup.Tables == null || cScopeInfo.Setup.Tables.Count <= 0)
+                        continue;
+
+                    await this.InternalDeprovisionAsync(cScopeInfo, context, provision,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, default).ConfigureAwait(false);
+
+                    message = $"- Deprovision old scope {cScopeInfo.Name}.";
+                    await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+                }
+
+                // ----------------------------------------------------
+                // Step 7 : Provision again
+                // ----------------------------------------------------
+                (context, cScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                foreach (var cScopeInfo in cScopeInfos)
+                {
+                    if (cScopeInfo == null || cScopeInfo.Setup == null || cScopeInfo.Setup.Tables == null || cScopeInfo.Setup.Tables.Count <= 0)
+                        continue;
+
+                    (context, _) = await InternalProvisionClientAsync(cScopeInfo, cScopeInfo, context, provision, false,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, default).ConfigureAwait(false);
+
+                    message = $"- Provision new scope {cScopeInfo.Name}.";
+                    await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+                }
+
+
+                // ----------------------------------------------------
+                // Step 8 : Get final scope_info and scope_info_client 
+                // ----------------------------------------------------
+                List<ScopeInfo> cFinalScopeInfos = null;
+                List<ScopeInfoClient> cFinalScopeInfoClients = null;
+
+                (context, cFinalScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                (context, cFinalScopeInfoClients) = await this.InternalLoadAllScopeInfoClientsAsync(context,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+
+                if (evaluateOnly)
+                    await runner.RollbackAsync().ConfigureAwait(false);
+                else
+                    await runner.CommitAsync().ConfigureAwait(false);
+
+                return (cFinalScopeInfos, cFinalScopeInfoClients);
             }
-
-            return version < SyncVersion.Current;
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
         }
 
 
@@ -384,6 +634,7 @@ namespace Dotmim.Sync
 
             return newVersion;
         }
+
         private async Task<Version> UpgdrateTo094Async(ScopeInfo clientScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -528,6 +779,7 @@ namespace Dotmim.Sync
 
             return newVersion;
         }
+
         private async Task<Version> AutoUpgdrateToNewVersionAsync(ScopeInfo scopeInfo, SyncContext context, Version newVersion, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var message = $"Upgrade to {newVersion}:";

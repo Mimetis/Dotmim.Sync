@@ -76,7 +76,7 @@ namespace ProvisionDeprovision
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
             // Deprovision everything
-            var p = SyncProvision.ServerScope | SyncProvision.ServerHistoryScope | 
+            var p = SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient | 
                     SyncProvision.StoredProcedures | SyncProvision.TrackingTable |
                     SyncProvision.Triggers;   
 
@@ -91,7 +91,7 @@ namespace ProvisionDeprovision
             // Create a local orchestrator used to Deprovision everything
             var localOrchestrator = new LocalOrchestrator(clientProvider);
 
-            var p = SyncProvision.ClientScope |
+            var p = SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient |
                     SyncProvision.StoredProcedures | SyncProvision.TrackingTable |
                     SyncProvision.Triggers;
 
@@ -125,11 +125,11 @@ namespace ProvisionDeprovision
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
             // Getting the server scope from server side
-            var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync();
+            var serverScope = await remoteOrchestrator.GetScopeInfoAsync();
 
             // You can create a WebRemoteOrchestrator and get the ServerScope as well
             // var proxyClientProvider = new WebRemoteOrchestrator("https://localhost:44369/api/Sync");
-            // var serverScope = proxyClientProvider.GetServerScopeInfoAsync();
+            // var serverScope = proxyClientProvider.GetScopeInfoAsync();
 
             // Provision everything needed (sp, triggers, tracking tables, AND TABLES)
             await localOrchestrator.ProvisionAsync(serverScope);

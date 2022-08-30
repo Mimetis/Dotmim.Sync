@@ -28,7 +28,7 @@ namespace CustomProvider
         public SqlSyncDownloadOnlyProvider(SqlConnectionStringBuilder builder) : base(builder) { }
 
         public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-            => new SqlDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
+            => new SqlDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName, false);
 
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
             => new SqlDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
@@ -254,8 +254,8 @@ namespace CustomProvider
     /// </summary>
     public class SqlDownloadOnlySyncAdapter : SqlSyncAdapter
     {
-        public SqlDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
-            : base(tableDescription, tableName, trackingName, setup, scopeName) { }
+        public SqlDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool useBulkOperations)
+            : base(tableDescription, tableName, trackingName, setup, scopeName, useBulkOperations) { }
 
         /// <summary>
         /// Returning null for all non used commands (from case default)

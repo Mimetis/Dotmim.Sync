@@ -64,7 +64,7 @@ namespace HelloSync
             var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
             var orchestrator = new RemoteOrchestrator(provider, options);
 
-            var serverScope = await orchestrator.GetServerScopeInfoAsync("v1", setup);
+            var serverScope = await orchestrator.GetScopeInfoAsync("v1", setup);
 
             var spExists = await orchestrator.ExistStoredProcedureAsync(serverScope, "Product", null, DbStoredProcedureType.SelectChanges);
             if (!spExists)
@@ -82,7 +82,7 @@ namespace HelloSync
             var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
             var orchestrator = new RemoteOrchestrator(provider, options);
 
-            var serverScope = await orchestrator.GetServerScopeInfoAsync(setup);
+            var serverScope = await orchestrator.GetScopeInfoAsync(setup);
 
             var spExists = await orchestrator.ExistTrackingTableAsync(serverScope, "Product"); ;
             if (!spExists)
@@ -100,7 +100,7 @@ namespace HelloSync
             var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
             var orchestrator = new RemoteOrchestrator(provider, options);
 
-            var serverScope = await orchestrator.GetServerScopeInfoAsync(setup);
+            var serverScope = await orchestrator.GetScopeInfoAsync(setup);
 
             var trExists = await orchestrator.ExistTrackingTableAsync(serverScope, "Product");
             if (trExists)
@@ -148,7 +148,8 @@ namespace HelloSync
             await Helper.InsertOneCustomerAsync(clientProvider.CreateConnection(), "Will", "Doe");
 
             // Get changes to be populated to the server
-            var changes = await localOrchestrator.GetChangesAsync(progress: Config.GetProgress());
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync();
+            var changes = await localOrchestrator.GetChangesAsync(cScopeInfoClient);
 
             foreach (var tableChanges in changes.ClientChangesSelected.TableChangesSelected)
             {
@@ -190,11 +191,10 @@ namespace HelloSync
             await Helper.InsertOneCustomerAsync(serverProvider.CreateConnection(), "Lisa", "Doe");
 
             // Get client scope
-            var clientScope = await localOrchestrator.GetClientScopeInfoAsync();
-
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync();
 
             // Get changes to be populated to the server
-            var changes = await remoteOrchestrator.GetChangesAsync(clientScope: clientScope, progress: Config.GetProgress());
+            var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
 
             // enumerate changes retrieved
             foreach (var tableChanges in changes.ServerChangesSelected.TableChangesSelected)

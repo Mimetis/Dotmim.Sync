@@ -245,7 +245,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the provider sync adapter
         /// </summary>
-        internal virtual DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo)
+        public virtual DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo = default)
         {
             //var p = this.Provider.GetParsers(tableDescription, setup);
 
@@ -268,8 +268,8 @@ namespace Dotmim.Sync
             if (this.Provider == null)
                 return null;
 
-            var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, scopeInfo.Setup);
-            return this.Provider.GetSyncAdapter(tableDescription, tableName, trackingTableName, scopeInfo.Setup, scopeInfo.Name);
+            var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, scopeInfo?.Setup);
+            return this.Provider.GetSyncAdapter(tableDescription, tableName, trackingTableName, scopeInfo?.Setup, scopeInfo?.Name);
         }
 
         /// <summary>

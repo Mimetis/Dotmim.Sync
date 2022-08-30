@@ -225,7 +225,7 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, null);
 
-            InternalSetSaveScopeInfoClientParameters(scopeInfoClient, command, context.Parameters) ;
+            InternalSetSaveScopeInfoClientParameters(scopeInfoClient, command) ;
 
             //var action = new ScopeSavingArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeInfoClient, command, connection, transaction);
             //await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
@@ -267,7 +267,7 @@ namespace Dotmim.Sync
             return scopeInfoClient;
         }
 
-        private DbCommand InternalSetSaveScopeInfoClientParameters(ScopeInfoClient scopeInfoClient, DbCommand command, SyncParameters syncParameters = default)
+        private DbCommand InternalSetSaveScopeInfoClientParameters(ScopeInfoClient scopeInfoClient, DbCommand command)
         {
             SetParameterValue(command, "sync_scope_id", scopeInfoClient.Id.ToString());
             SetParameterValue(command, "sync_scope_name", scopeInfoClient.Name);
@@ -277,7 +277,7 @@ namespace Dotmim.Sync
             SetParameterValue(command, "scope_last_sync", scopeInfoClient.LastSync.HasValue ? (object)scopeInfoClient.LastSync.Value : DBNull.Value);
             SetParameterValue(command, "scope_last_sync_duration", scopeInfoClient.LastSyncDuration);
             SetParameterValue(command, "sync_scope_properties", scopeInfoClient.Properties);
-            SetParameterValue(command, "sync_scope_parameters", syncParameters != null ? JsonConvert.SerializeObject(syncParameters) : DBNull.Value);
+            SetParameterValue(command, "sync_scope_parameters", scopeInfoClient.Parameters != null ? JsonConvert.SerializeObject(scopeInfoClient.Parameters) : DBNull.Value);
 
             return command;
         }

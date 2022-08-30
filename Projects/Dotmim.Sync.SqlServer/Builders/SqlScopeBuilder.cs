@@ -71,7 +71,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     [sync_scope_version] [nvarchar](10) NULL,
                     [sync_scope_last_clean_timestamp] [bigint] NULL,
                     [sync_scope_properties] [nvarchar](MAX) NULL,
-                    CONSTRAINT [PK_{tableName}_server] 
+                    CONSTRAINT [PKey_{tableName}_server] 
                     PRIMARY KEY CLUSTERED ([sync_scope_name] ASC)
                     )";
 
@@ -95,7 +95,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     [scope_last_sync_duration] [bigint] NULL,
                     [scope_last_sync] [datetime] NULL, 
                     [sync_scope_properties] [nvarchar](MAX) NULL
-                    CONSTRAINT [PK_{tableName}] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC, [sync_scope_name] ASC, [sync_scope_hash] ASC)
+                    CONSTRAINT [PKey_{tableName}] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC, [sync_scope_name] ASC, [sync_scope_hash] ASC)
                     )";
 
             var command = connection.CreateCommand();

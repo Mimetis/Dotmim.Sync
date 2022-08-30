@@ -13,6 +13,61 @@ namespace Dotmim.Sync
 {
     public abstract partial class BaseOrchestrator
     {
+        /// <summary>
+        /// Create ScopeInfoClient Table if not exists
+        /// </summary>
+        public async Task<bool> CreateScopeInfoClientTableAsync(string scopeName = SyncOptions.DefaultScopeName)
+        {
+
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.None).ConfigureAwait(false);
+
+                bool exists;
+                (context, exists) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                if (!exists)
+                    (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
+                return exists;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
+
+        /// <summary>
+        /// Create ScopeInfo Table if not exists
+        /// </summary>
+        public async Task<bool> CreateScopeInfoTableAsync(string scopeName = SyncOptions.DefaultScopeName)
+        {
+
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.None).ConfigureAwait(false);
+
+                bool exists;
+                (context, exists) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                if (!exists)
+                    (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
+                return exists;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
 
         /// <summary>
         /// Check if a scope info table exists

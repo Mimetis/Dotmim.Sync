@@ -24,7 +24,7 @@ namespace ServerConsole
             {
                 var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.ProgressPercentage:p}:\t{args.Message}"));
 
-                await remoteOrchestrator.UpgradeAsync(progress:progress);
+                await remoteOrchestrator.UpgradeAsync();
 
                 // Write results
                 Console.WriteLine("Upgrade to last version done");

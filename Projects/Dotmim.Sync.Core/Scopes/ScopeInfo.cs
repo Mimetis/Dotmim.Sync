@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Enumerations;
 using System;
 using System.Runtime.Serialization;
+using System.Text;
 
 namespace Dotmim.Sync
 {
@@ -54,6 +55,12 @@ namespace Dotmim.Sync
         /// </summary>
         [IgnoreDataMember]
         public string Properties { get; set; }
+
+
+        public override string ToString()
+        {
+            return $"Scope Name:{Name}({Version}). Last cleanup:{LastCleanupTimestamp}. Setup tables:{Setup?.Tables?.Count}. Schema tables:{Schema?.Tables?.Count}";
+        }
 
     }
 }

@@ -153,6 +153,7 @@ namespace Dotmim.Sync
                 // Creating a fake scope info
                 var serverScopeInfo = this.InternalCreateScopeInfo(scopeName);
                 serverScopeInfo.Setup = setup;
+                serverScopeInfo.Schema = new SyncSet(setup);
 
                 bool isDeprovisioned;
                 (context, isDeprovisioned) = await InternalDeprovisionAsync(serverScopeInfo, context, provision,
@@ -193,6 +194,8 @@ namespace Dotmim.Sync
                 if (serverScopeInfos == null)
                     serverScopeInfos = new List<ScopeInfo>();
 
+                var existingFilters = serverScopeInfos?.SelectMany(si => si.Setup.Filters).ToList();
+
                 var defaultServerScopeInfo = this.InternalCreateScopeInfo(SyncOptions.DefaultScopeName);
 
                 SyncSetup setup;
@@ -204,6 +207,16 @@ namespace Dotmim.Sync
                 setup.Tables.Clear();
                 setup.Tables.AddRange(tables);
                 defaultServerScopeInfo.Setup = setup;
+
+                // add any random filters, to try to delete them
+                if (existingFilters != null && existingFilters.Count > 0)
+                {
+                    var filters = new SetupFilters();
+                    foreach (var filter in existingFilters)
+                        filters.Add(filter);
+
+                    defaultServerScopeInfo.Setup.Filters = filters;
+                }
 
                 serverScopeInfos.Add(defaultServerScopeInfo);
 
@@ -227,7 +240,7 @@ namespace Dotmim.Sync
         }
 
 
-        internal virtual async Task<(SyncContext context, ScopeInfo serverScopeInfo)>
+        internal virtual async Task<(SyncContext context, ScopeInfo sScopeInfo)>
         InternalProvisionServerAsync(ScopeInfo sScopeInfo, SyncContext context, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try

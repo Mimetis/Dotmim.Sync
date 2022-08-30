@@ -40,18 +40,18 @@ public class SyncLogsController : ControllerBase
         var sqlProvider = new SqlSyncProvider(this.configuration.GetConnectionString("SqlConnection"));
         var remoteOrchestrator = new RemoteOrchestrator(sqlProvider);
 
-        var scopes = await remoteOrchestrator.GetAllServerScopesInfoAsync().ConfigureAwait(false);
+        var scopes = await remoteOrchestrator.GetAllScopeInfosAsync().ConfigureAwait(false);
 
         var jArray = new JArray();
 
         foreach (var scope in scopes)
         {
             jArray.Add(new JObject{
-        { "name", scope.Name },
-        { "setup", JObject.FromObject(scope.Setup) },
-        { "lastCleanup", scope.LastCleanupTimestamp },
-        { "version", scope.Version },
-      });
+                { "name", scope.Name },
+                { "setup", JObject.FromObject(scope.Setup) },
+                { "lastCleanup", scope.LastCleanupTimestamp },
+                { "version", scope.Version },
+            });
         }
 
         return jArray;
@@ -63,7 +63,7 @@ public class SyncLogsController : ControllerBase
         var sqlProvider = new SqlSyncProvider(this.configuration.GetConnectionString("SqlConnection"));
         var remoteOrchestrator = new RemoteOrchestrator(sqlProvider);
 
-        var scopes = await remoteOrchestrator.GetAllServerScopesHistoriesInfosAsync().ConfigureAwait(false);
+        var scopes = await remoteOrchestrator.GetAllScopeInfoClientsAsync().ConfigureAwait(false);
 
         var jArray = new JArray();
 

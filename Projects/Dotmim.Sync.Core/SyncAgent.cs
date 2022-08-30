@@ -249,7 +249,8 @@ namespace Dotmim.Sync
                 {
                     var needToUpgrade = await this.LocalOrchestrator.NeedsToUpgradeAsync().ConfigureAwait(false);
                     if (needToUpgrade)
-                        await this.LocalOrchestrator.UpgradeAsync().ConfigureAwait(false);
+                        throw new Exception("This version needs a client manual upgrade.");
+
                     checkUpgradeDone = true;
                 }
 

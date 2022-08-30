@@ -10,11 +10,13 @@ namespace Dotmim.Sync.Sqlite.Builders
 {
     public class SqliteBuilder : DbBuilder
     {
+        public override Task DropsTableIfExistsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null) => throw new NotImplementedException();
         public override Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
             => Task.CompletedTask;
 
         public override Task<SyncTable> EnsureTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
             => Task.FromResult(new SyncTable(tableName));
+        public override Task<bool> ExistsTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null) => throw new NotImplementedException();
 
         public override async Task<SyncSetup> GetAllTablesAsync(DbConnection connection, DbTransaction transaction = null)
         {
@@ -24,5 +26,7 @@ namespace Dotmim.Sync.Sqlite.Builders
 
         public override Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection, DbTransaction transaction = null)
             => throw new NotImplementedException();
+        public override Task<SyncTable> GetTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null) => throw new NotImplementedException();
+        public override Task RenameTableAsync(string tableName, string schemaName, string newTableName, string newSchemaName, DbConnection connection, DbTransaction transaction = null) => throw new NotImplementedException();
     }
 }

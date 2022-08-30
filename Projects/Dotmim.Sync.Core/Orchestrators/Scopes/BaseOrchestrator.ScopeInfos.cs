@@ -22,30 +22,24 @@ namespace Dotmim.Sync
 {
     public partial class BaseOrchestrator
     {
-
-
         /// <summary>
-        /// Internal load a ScopeInfo by scope name
+        /// Get all scopes. scopeName arg is just here for logging purpose and is not used
         /// </summary>
-        internal async Task<(SyncContext context, ScopeInfo scopeInfo)> InternalGetScopeInfoAsync(
-            SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        public virtual async Task<List<ScopeInfo>> GetAllScopeInfosAsync()
         {
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
+
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading).ConfigureAwait(false);
 
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (!exists)
-                    (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                ScopeInfo localScopeInfo;
-                (context, localScopeInfo) = await this.InternalLoadScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                List<ScopeInfo> localScopes;
+                (context, localScopes) = await InternalLoadAllScopeInfosAsync(context,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, localScopeInfo);
+                return localScopes;
             }
             catch (Exception ex)
             {
@@ -54,10 +48,98 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Write a Client Scope Info in a client database
+        /// </summary> 
+        public virtual async Task<ScopeInfo> SaveScopeInfoAsync(ScopeInfo scopeInfo)
+        {
+            var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeWriting).ConfigureAwait(false);
+
+                bool exists;
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                if (!exists)
+                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                (context, scopeInfo) = await this.InternalSaveScopeInfoAsync(scopeInfo, context,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return scopeInfo;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
+
+
+        /// <summary>
+        /// Delete a Client Scope Info from a client database
+        /// </summary> 
+        public virtual async Task<bool> DeleteScopeInfoAsync(ScopeInfo scopeInfo)
+        {
+            var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeWriting).ConfigureAwait(false);
+
+                bool exists;
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                if (!exists)
+                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                bool isDeleted;
+                (context, isDeleted) = await this.InternalDeleteScopeInfoAsync(scopeInfo, context,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return isDeleted;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
+
+
+        /// <summary>
+        /// Internal load a ScopeInfo by scope name
+        /// </summary>
+        internal async Task<(SyncContext context, ScopeInfo scopeInfo)> InternalGetScopeInfoAsync(SyncContext context, 
+            DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            bool exists;
+            (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+            if (!exists)
+                (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+            ScopeInfo localScopeInfo;
+            (context, localScopeInfo) = await this.InternalLoadScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+            await runner.CommitAsync().ConfigureAwait(false);
+
+            return (context, localScopeInfo);
+        }
+
+
+        /// <summary>
         /// Internal load a scope by scope name
         /// </summary>
-        internal virtual async Task<(SyncContext context, ScopeInfo scopeInfo)>
-            InternalLoadScopeInfoAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal virtual async Task<(SyncContext context, ScopeInfo scopeInfo)> InternalLoadScopeInfoAsync(SyncContext context, 
+            DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
@@ -96,96 +178,12 @@ namespace Dotmim.Sync
             return (context, scopeInfo);
         }
 
-        /// <summary>
-        /// Get all scopes. scopeName arg is just here for logging purpose and is not used
-        /// </summary>
-        public virtual async Task<List<ScopeInfo>>
-            GetAllScopeInfosAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            var context = new SyncContext(Guid.NewGuid(), scopeName);
-
-            try
-            {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                List<ScopeInfo> localScopes;
-                (context, localScopes) = await InternalLoadAllScopeInfosAsync(context,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return localScopes;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(context, ex);
-            }
-        }
-
-        /// <summary>
-        /// Write a Client Scope Info in a client database
-        /// </summary> 
-        public virtual async Task<ScopeInfo>
-            SaveScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
-            try
-            {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                (context, scopeInfo) = await this.InternalSaveScopeInfoAsync(scopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return scopeInfo;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(context, ex);
-            }
-        }
-
-
-        /// <summary>
-        /// Delete a Client Scope Info from a client database
-        /// </summary> 
-        public virtual async Task<bool>
-            DeleteScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
-            try
-            {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                bool isDeleted;
-                (context, isDeleted) = await this.InternalDeleteScopeInfoAsync(scopeInfo, context, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return isDeleted;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(context, ex);
-            }
-        }
 
         /// <summary>
         /// Internal exists scope
         /// </summary>
-        internal async Task<(SyncContext context, bool exists)> InternalExistsScopeInfoAsync(string scopeName, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool exists)> InternalExistsScopeInfoAsync(string scopeName, SyncContext context, 
+            DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Get exists command
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
@@ -209,8 +207,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal load all scopes. scopeName arg is just here for getting context
         /// </summary>
-        internal async Task<(SyncContext context, List<ScopeInfo> scopeInfos)>
-            InternalLoadAllScopeInfosAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, List<ScopeInfo> scopeInfos)> InternalLoadAllScopeInfosAsync(SyncContext context, 
+            DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
@@ -244,8 +242,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal upsert scope info in a scope table
         /// </summary>
-        internal async Task<(SyncContext context, ScopeInfo clientScopeInfo)>
-            InternalSaveScopeInfoAsync(ScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, ScopeInfo clientScopeInfo)> InternalSaveScopeInfoAsync(ScopeInfo scopeInfo, SyncContext context, 
+            DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
@@ -287,8 +285,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal delete scope info in a scope table
         /// </summary>
-        internal async Task<(SyncContext context, bool deleted)>
-            InternalDeleteScopeInfoAsync(ScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool deleted)> InternalDeleteScopeInfoAsync(ScopeInfo scopeInfo, SyncContext context, 
+            DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
@@ -319,14 +317,11 @@ namespace Dotmim.Sync
         }
 
 
-        internal ScopeInfo InternalCreateScopeInfo(string scopeName)
+        internal ScopeInfo InternalCreateScopeInfo(string scopeName) => new ScopeInfo
         {
-            return new ScopeInfo
-            {
-                Name = scopeName,
-                Version = SyncVersion.Current.ToString(),
-            };
-        }
+            Name = scopeName,
+            Version = SyncVersion.Current.ToString(),
+        };
 
 
         private DbCommand InternalSetSaveScopeInfoParameters(ScopeInfo scopeInfo, DbCommand command)

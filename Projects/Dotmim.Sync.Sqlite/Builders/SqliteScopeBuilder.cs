@@ -119,7 +119,7 @@ namespace Dotmim.Sync.Sqlite
                         sync_scope_version text NULL,
                         sync_scope_last_clean_timestamp integer NULL,
                         sync_scope_properties text NULL,
-                        CONSTRAINT PK_{tableName} PRIMARY KEY(sync_scope_name))";
+                        CONSTRAINT PKey_{tableName} PRIMARY KEY(sync_scope_name))";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -142,7 +142,7 @@ namespace Dotmim.Sync.Sqlite
                         scope_last_sync_duration integer NULL,
                         scope_last_sync datetime NULL,
                         sync_scope_properties text NULL,
-                        CONSTRAINT PK_{tableName} PRIMARY KEY(sync_scope_id, sync_scope_name, sync_scope_hash))";
+                        CONSTRAINT PKey_{tableName} PRIMARY KEY(sync_scope_id, sync_scope_name, sync_scope_hash))";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;

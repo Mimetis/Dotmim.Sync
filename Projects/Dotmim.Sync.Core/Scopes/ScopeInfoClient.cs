@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Enumerations;
+using Newtonsoft.Json;
 using System;
 using System.Runtime.Serialization;
 
@@ -108,5 +109,12 @@ namespace Dotmim.Sync
             this.LastSyncDuration = oldScopeInfoClient.LastSyncDuration;
         }
 
+
+        public override string ToString()
+        {
+            var p = Parameters != null ? JsonConvert.SerializeObject(Parameters) : null;
+
+            return $"Scope Name:{Name}. Id:{Id}. Hash:{Hash}. LastSyncTimestamp:{LastSyncTimestamp}. LastServerSyncTimestamp:{LastServerSyncTimestamp}. LastSync:{LastSync}. Parameters:{p} ";
+        }
     }
 }
