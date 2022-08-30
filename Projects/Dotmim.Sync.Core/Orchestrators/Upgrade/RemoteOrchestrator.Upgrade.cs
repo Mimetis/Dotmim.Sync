@@ -30,12 +30,29 @@ namespace Dotmim.Sync
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
             {
+                var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
+                var scopeInfoServerTableName = $"{parsedName.Unquoted().Normalized()}_server";
+                var scopeInfoServerHistoryTableName = $"{parsedName.Unquoted().Normalized()}_history";
+
+                var sScopeInfoTableName = $"{parsedName.Unquoted().Normalized()}";
+                var sScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
+
+
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating).ConfigureAwait(false);
                 // get Database builder
                 var dbBuilder = this.Provider.GetDatabaseBuilder();
 
                 // Initialize database if needed
                 await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+
+                var exist1 = await dbBuilder.ExistsTableAsync(scopeInfoServerTableName, null, runner.Connection, runner.Transaction);
+                var exist2 = await dbBuilder.ExistsTableAsync(scopeInfoServerHistoryTableName, null, runner.Connection, runner.Transaction);
+                var exist3 = await dbBuilder.ExistsTableAsync(sScopeInfoTableName, null, runner.Connection, runner.Transaction);
+                var exist4 = await dbBuilder.ExistsTableAsync(sScopeInfoClientTableName, null, runner.Connection, runner.Transaction);
+
+                if (!exist1 && !exist2 && !exist3 && !exist4)
+                    return false;
 
                 // Check if scope_info exists
                 // If exists then we have already upgraded to 0.9.6

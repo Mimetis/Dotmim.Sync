@@ -44,6 +44,9 @@ namespace Dotmim.Sync
                 (context, cScopeInfoClientExists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
+                if (!cScopeInfoExists && !cScopeInfoClientExists)
+                    return false;
+
                 int cScopeInfoTableColumns = 10;
                 string cScopeInfoVersion = null;
 
