@@ -250,13 +250,11 @@ namespace Dotmim.Sync
                 // open the file and write table header
                 await localSerializer.OpenFileAsync(batchPartInfoFullPath, schemaChangesTable).ConfigureAwait(false);
 
-                await this.InterceptAsync(new ExecuteCommandArgs(context, args.Command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
                 // Parametrized command timeout established if exist
                 if (Options.DbCommandTimeout.HasValue)
-                {
                     args.Command.CommandTimeout = Options.DbCommandTimeout.Value;
-                }
+
+                await this.InterceptAsync(new ExecuteCommandArgs(context, args.Command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 // Get the reader
                 using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
@@ -396,13 +394,9 @@ namespace Dotmim.Sync
                 // Statistics
                 var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
 
-                await this.InterceptAsync(new DbCommandArgs(context, args.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
                 // Parametrized command timeout established if exist
-                if (Options.DbCommandTimeout.HasValue)
-                {
-                    command.CommandTimeout = Options.DbCommandTimeout.Value;
-                }
+                if (this.Options.DbCommandTimeout.HasValue)
+                    command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, args.Command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                 // Get the reader

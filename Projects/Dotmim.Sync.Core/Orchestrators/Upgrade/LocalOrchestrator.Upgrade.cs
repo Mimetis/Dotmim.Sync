@@ -698,9 +698,7 @@ namespace Dotmim.Sync
 
                     // Parametrized command timeout established if exist
                     if (Options.DbCommandTimeout.HasValue)
-                    {
                         command.CommandTimeout = Options.DbCommandTimeout.Value;
-                    }
 
                     await command.ExecuteNonQueryAsync();
 
@@ -744,8 +742,6 @@ namespace Dotmim.Sync
                                                     CONSTRAINT PK_{scopeClientInfoTableName} PRIMARY KEY(sync_scope_id, sync_scope_name));
                                         DROP TABLE old_table_{scopeClientInfoTableName};
                                         COMMIT;";
-
-                                        PRAGMA foreign_keys=on;";
 
                     var command = runner.Connection.CreateCommand();
                     command.CommandText = commandText;

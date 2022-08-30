@@ -136,12 +136,8 @@ namespace Dotmim.Sync
             if (command == null) return context;
 
             // Parametrized command timeout established if exist
-            if (Options.DbCommandTimeout.HasValue)
-            {
-                command.CommandTimeout = Options.DbCommandTimeout.Value;
-            }
-
-            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
+            if (this.Options.DbCommandTimeout.HasValue)
+                command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
             await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DisableConstraints, runner.Connection, runner.Transaction)).ConfigureAwait(false);
             await command.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -164,12 +160,9 @@ namespace Dotmim.Sync
             if (command == null) return context;
 
             // Parametrized command timeout established if exist
-            if (Options.DbCommandTimeout.HasValue)
-            {
-                command.CommandTimeout = Options.DbCommandTimeout.Value;
-            }
+            if (this.Options.DbCommandTimeout.HasValue)
+                command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
-            await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
             await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.EnableConstraints, runner.Connection, runner.Transaction)).ConfigureAwait(false);
 
             await command.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -192,12 +185,9 @@ namespace Dotmim.Sync
             if (command != null)
             {
                 // Parametrized command timeout established if exist
-                if (Options.DbCommandTimeout.HasValue)
-                {
-                    command.CommandTimeout = Options.DbCommandTimeout.Value;
-                }
+                if (this.Options.DbCommandTimeout.HasValue)
+                    command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
-                await this.InterceptAsync(new DbCommandArgs(context, command, connection, transaction)).ConfigureAwait(false);
                 await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.Reset, runner.Connection, runner.Transaction)).ConfigureAwait(false);
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 command.Dispose();

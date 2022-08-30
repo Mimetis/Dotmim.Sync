@@ -248,13 +248,11 @@ namespace Dotmim.Sync
             if (action.Cancel || action.Command == null)
                 return (context, false);
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
             // Parametrized command timeout established if exist
             if (Options.DbCommandTimeout.HasValue)
-            {
                 action.Command.CommandTimeout = Options.DbCommandTimeout.Value;
-            }
+            
+            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             await action.Command.ExecuteNonQueryAsync();
             await this.InterceptAsync(new TriggerCreatedArgs(context, tableBuilder.TableDescription, triggerType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
@@ -313,13 +311,11 @@ namespace Dotmim.Sync
             if (action.Cancel || action.Command == null)
                 return (context, false);
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
             // Parametrized command timeout established if exist
             if (Options.DbCommandTimeout.HasValue)
-            {
                 action.Command.CommandTimeout = Options.DbCommandTimeout.Value;
-            }
+
+            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             await action.Command.ExecuteNonQueryAsync();
             await this.InterceptAsync(new TriggerDroppedArgs(context, tableBuilder.TableDescription, triggerType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
@@ -368,13 +364,11 @@ namespace Dotmim.Sync
             if (existsCommand == null)
                 return (context, false);
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
             // Parametrized command timeout established if exist
             if (Options.DbCommandTimeout.HasValue)
-            {
-                existsCommand.CommandTimeout = Options.DbCommandTimeout.Value;
-            }
+               existsCommand.CommandTimeout = Options.DbCommandTimeout.Value;
+            
+            await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
             var exists = Convert.ToInt32(existsResultObject) > 0;

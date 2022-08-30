@@ -89,13 +89,11 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, 0);
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.UpdateUntrackedRows, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-
             // Parametrized command timeout established if exist
             if (Options.DbCommandTimeout.HasValue)
-            {
                 command.CommandTimeout = Options.DbCommandTimeout.Value;
-            }
+
+            await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.UpdateUntrackedRows, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
             // Execute
             var rowAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
