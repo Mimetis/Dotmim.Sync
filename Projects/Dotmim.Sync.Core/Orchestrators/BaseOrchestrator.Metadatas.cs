@@ -63,6 +63,12 @@ namespace Dotmim.Sync
 
                         await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DeleteMetadata, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+                        // Parametrized command timeout established if exist
+                        if (Options.DbCommandTimeout.HasValue)
+                        {
+                            command.CommandTimeout = Options.DbCommandTimeout.Value;
+                        }
+
                         int rowsCleanedCount = 0;
                         try
                         {
@@ -126,6 +132,12 @@ namespace Dotmim.Sync
             this.AddScopeParametersValues(command, senderScopeId, 0, row.RowState == DataRowState.Deleted, forceWrite);
 
             await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.UpdateMetadata, connection, transaction)).ConfigureAwait(false);
+
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                command.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
 
             Exception exception = null;
             int metadataUpdatedRowsCount = 0;

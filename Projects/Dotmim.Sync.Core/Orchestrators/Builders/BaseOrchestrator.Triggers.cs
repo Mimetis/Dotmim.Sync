@@ -250,6 +250,12 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                action.Command.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
+
             await action.Command.ExecuteNonQueryAsync();
             await this.InterceptAsync(new TriggerCreatedArgs(context, tableBuilder.TableDescription, triggerType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
             action.Command.Dispose();
@@ -309,6 +315,12 @@ namespace Dotmim.Sync
 
             await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                action.Command.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
+
             await action.Command.ExecuteNonQueryAsync();
             await this.InterceptAsync(new TriggerDroppedArgs(context, tableBuilder.TableDescription, triggerType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
             action.Command.Dispose();
@@ -357,6 +369,12 @@ namespace Dotmim.Sync
                 return (context, false);
 
             await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+            // Parametrized command timeout established if exist
+            if (Options.DbCommandTimeout.HasValue)
+            {
+                existsCommand.CommandTimeout = Options.DbCommandTimeout.Value;
+            }
 
             var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
             var exists = Convert.ToInt32(existsResultObject) > 0;

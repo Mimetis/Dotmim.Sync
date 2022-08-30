@@ -88,7 +88,7 @@ For instance, these two instructions are equivalent:
 
     var agent = new SyncAgent(clientProvider, serverProvider);
 
-    var r = await agent.SynchronizeAsync(tables);
+    var r = await agent.SynchronizeAsync(setup);
 
 
 The main advantage of using ``SyncSetup`` is you can personalize what you want from your database:
