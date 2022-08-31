@@ -42,7 +42,7 @@ namespace Dotmim.Sync.SqlServer
                     while (reader.Read())
                     {
                         var tableName = reader.GetString(0);
-                        var schemaName = reader.GetString(1);
+                        var schemaName = reader.GetString(1) == "dbo" ? null : reader.GetString(1);
                         var setupTable = new SetupTable(tableName, schemaName);
                         syncSetup.Tables.Add(setupTable);
                     }
@@ -50,7 +50,7 @@ namespace Dotmim.Sync.SqlServer
 
                 foreach (var setupTable in syncSetup.Tables)
                 {
-                    var syncTableColumnsList = await GetColumnsForTableAsync(connection, transaction, setupTable.TableName, setupTable.SchemaName).ConfigureAwait(false);
+                    var syncTableColumnsList = await GetColumnsForTableAsync(setupTable.TableName, setupTable.SchemaName, connection, transaction).ConfigureAwait(false);
 
                     foreach (var column in syncTableColumnsList.Rows)
                         setupTable.Columns.Add(column["name"].ToString());
@@ -67,7 +67,7 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Get Table
         /// </summary>
-        public static async Task<SyncTable> GetTableAsync(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
+        public static async Task<SyncTable> GetTableDefinitionAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
             var command = $"Select top 1 tbl.name as TableName, " +
                           $"sch.name as SchemaName " +
@@ -109,10 +109,70 @@ namespace Dotmim.Sync.SqlServer
             return syncTable;
         }
 
+
+        public static async Task<SyncTable> GetTableAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
+        {
+            var pTableName = ParserName.Parse(tableName);
+            var pSchemaName = ParserName.Parse(schemaName);
+
+            var name = $"{pTableName.Quoted()}";
+            var sName = String.IsNullOrEmpty(schemaName) ? "[dbo]" : $"{pSchemaName.Quoted()}";
+
+            var command = $"Select * from {sName}.{name};";
+
+            var syncTable = new SyncTable(name, sName);
+
+            using var sqlCommand = new SqlCommand(command, connection);
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
+
+            sqlCommand.Transaction = transaction;
+
+            using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                syncTable.Load(reader);
+
+            if (!alreadyOpened)
+                connection.Close();
+
+            return syncTable;
+        }
+
+        public static async Task RenameTableAsync(string tableName, string schemaName, string newTableName, string newSchemaName, SqlConnection connection, SqlTransaction transaction)
+        {
+            var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
+            var pSchemaName = ParserName.Parse(schemaName).Unquoted().ToString();
+
+            var pNewTableName = ParserName.Parse(newTableName).Unquoted().ToString(); 
+            var pNewSchemaName = ParserName.Parse(newSchemaName).Unquoted().ToString();
+
+            var quotedTableName = string.IsNullOrEmpty(pSchemaName) ? pTableName : $"{pSchemaName}.{pTableName}";
+            var quotedNewTableName = string.IsNullOrEmpty(pNewSchemaName) ? pNewTableName : $"{pNewSchemaName}.{pNewTableName}";
+
+            var commandText = $"exec sp_rename '{quotedTableName}', '{quotedNewTableName}';";
+
+            using var sqlCommand = new SqlCommand(commandText, connection);
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
+
+            sqlCommand.Transaction = transaction;
+
+            await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            if (!alreadyOpened)
+                connection.Close();
+        }
+
+
         /// <summary>
         /// Get Table
         /// </summary>
-        public static async Task<SyncTable> GetTriggerAsync(SqlConnection connection, SqlTransaction transaction, string triggerName, string schemaName)
+        public static async Task<SyncTable> GetTriggerAsync(string triggerName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
             var command = $"SELECT tr.name FROM sys.triggers tr " +
                            "JOIN sys.tables t ON tr.parent_id = t.object_id " +
@@ -153,11 +213,10 @@ namespace Dotmim.Sync.SqlServer
             return syncTable;
         }
 
-
         /// <summary>
         /// Get columns for table
         /// </summary>
-        public static async Task<SyncTable> GetColumnsForTableAsync(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
+        public static async Task<SyncTable> GetColumnsForTableAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
 
             var commandColumn = $"Select col.name as name, " +
@@ -216,7 +275,7 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Get columns for table
         /// </summary>
-        public static async Task<SyncTable> GetPrimaryKeysForTableAsync(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
+        public static async Task<SyncTable> GetPrimaryKeysForTableAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
 
             var commandColumn = @"select ind.name, col.name as columnName, ind_col.column_id, ind_col.key_ordinal 
@@ -336,29 +395,34 @@ namespace Dotmim.Sync.SqlServer
             }
         }
 
-        public static async Task DropTableIfExistsAsync(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTableName)
+        public static async Task DropTableIfExistsAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
-            var tableName = ParserName.Parse(quotedTableName).ToString();
-            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) DROP TABLE {0}", quotedTableName), connection))
-            {
-                sqlCommand.CommandTimeout = commandTimeout;
-                sqlCommand.Parameters.AddWithValue("@tableName", tableName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTableName)));
+            var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
+            var pSchemaName = ParserName.Parse(schemaName).Unquoted().ToString();
+            pSchemaName = string.IsNullOrEmpty(schemaName) ? "dbo" : pSchemaName;
 
-                bool alreadyOpened = connection.State == ConnectionState.Open;
+            var quotedTableName = $"{pSchemaName}.{pTableName}";
 
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+            var commandText = $"IF EXISTS " +
+                $"(SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) " +
+                $"DROP TABLE {quotedTableName}";
 
-                sqlCommand.Transaction = transaction;
+            using var sqlCommand = new SqlCommand(commandText, connection);
 
-                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+            sqlCommand.Parameters.AddWithValue("@tableName", pTableName);
+            sqlCommand.Parameters.AddWithValue("@schemaName", pSchemaName);
 
-                if (!alreadyOpened)
-                    connection.Close();
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
 
-            }
+            sqlCommand.Transaction = transaction;
+
+            await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            if (!alreadyOpened)
+                connection.Close();
         }
 
         public static async Task DropTriggerIfExistsAsync(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTriggerName)
@@ -527,7 +591,6 @@ namespace Dotmim.Sync.SqlServer
             return tableExist;
         }
 
-
         public static async Task<bool> ProcedureExistsAsync(SqlConnection connection, SqlTransaction transaction, string quotedProcedureName)
         {
             bool flag;
@@ -557,82 +620,89 @@ namespace Dotmim.Sync.SqlServer
             return flag;
         }
 
-        public static async Task<bool> TableExistsAsync(SqlConnection connection, SqlTransaction transaction, string quotedTableName)
+        public static async Task<bool> TableExistsAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
-            bool tableExist;
-            var tableName = ParserName.Parse(quotedTableName).ToString();
+            var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
+            var pSchemaName = ParserName.Parse(schemaName).Unquoted().ToString();
+            pSchemaName = string.IsNullOrEmpty(schemaName) ? "dbo" : pSchemaName;
 
-            using (DbCommand dbCommand = connection.CreateCommand())
+            using DbCommand dbCommand = connection.CreateCommand();
+
+            dbCommand.CommandText = "IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0";
+
+            SqlParameter sqlParameter = new SqlParameter()
             {
-                dbCommand.CommandText = "IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0";
+                ParameterName = "@tableName",
+                Value = pTableName
+            };
+            dbCommand.Parameters.Add(sqlParameter);
 
-                SqlParameter sqlParameter = new SqlParameter()
-                {
-                    ParameterName = "@tableName",
-                    Value = tableName
-                };
-                dbCommand.Parameters.Add(sqlParameter);
+            sqlParameter = new SqlParameter()
+            {
+                ParameterName = "@schemaName",
+                Value = pSchemaName
+            };
+            dbCommand.Parameters.Add(sqlParameter);
 
-                sqlParameter = new SqlParameter()
-                {
-                    ParameterName = "@schemaName",
-                    Value = SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTableName))
-                };
-                dbCommand.Parameters.Add(sqlParameter);
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-                bool alreadyOpened = connection.State == ConnectionState.Open;
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
 
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+            dbCommand.Transaction = transaction;
 
-                dbCommand.Transaction = transaction;
+            var result = await dbCommand.ExecuteScalarAsync().ConfigureAwait(false);
 
-                var result = await dbCommand.ExecuteScalarAsync().ConfigureAwait(false);
+            var tableExist = (int)result != 0;
 
-                tableExist = (int)result != 0;
-
-                if (!alreadyOpened)
-                    connection.Close();
+            if (!alreadyOpened)
+                connection.Close();
 
 
 
-            }
             return tableExist;
         }
 
-        public static async Task<bool> SchemaExistsAsync(SqlConnection connection, SqlTransaction transaction, string schemaName)
+        public static async Task<bool> SchemaExistsAsync(string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
             bool schemaExist;
-            using (DbCommand dbCommand = connection.CreateCommand())
+
+            if (string.IsNullOrEmpty(schemaName))
+                return true;
+
+            var pSchemaName = ParserName.Parse(schemaName);
+            var sName = pSchemaName.Quoted();
+
+
+            using DbCommand dbCommand = connection.CreateCommand();
+            dbCommand.CommandText = "IF EXISTS (SELECT sch.name FROM sys.schemas sch WHERE sch.name = @schemaName) SELECT 1 ELSE SELECT 0";
+
+            var sqlParameter = new SqlParameter()
             {
-                dbCommand.CommandText = "IF EXISTS (SELECT sch.name FROM sys.schemas sch WHERE sch.name = @schemaName) SELECT 1 ELSE SELECT 0";
+                ParameterName = "@schemaName",
+                Value = sName
+            };
+            dbCommand.Parameters.Add(sqlParameter);
 
-                var sqlParameter = new SqlParameter()
-                {
-                    ParameterName = "@schemaName",
-                    Value = schemaName
-                };
-                dbCommand.Parameters.Add(sqlParameter);
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-                bool alreadyOpened = connection.State == ConnectionState.Open;
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
 
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+            dbCommand.Transaction = transaction;
 
-                dbCommand.Transaction = transaction;
+            var result = await dbCommand.ExecuteScalarAsync().ConfigureAwait(false);
 
-                var result = await dbCommand.ExecuteScalarAsync().ConfigureAwait(false);
+            schemaExist = (int)result != 0;
 
-                schemaExist = (int)result != 0;
+            if (!alreadyOpened)
+                connection.Close();
 
-                if (!alreadyOpened)
-                    connection.Close();
 
-            }
             return schemaExist;
         }
 
-        public static async Task<bool> TriggerExistsAsync(SqlConnection connection, SqlTransaction transaction, string quotedTriggerName)
+        public static async Task<bool> TriggerExistsAsync(string quotedTriggerName, SqlConnection connection, SqlTransaction transaction)
         {
             bool triggerExist;
             var triggerName = ParserName.Parse(quotedTriggerName).ToString();
@@ -661,7 +731,7 @@ namespace Dotmim.Sync.SqlServer
             return triggerExist;
         }
 
-        public static async Task<bool> TypeExistsAsync(SqlConnection connection, SqlTransaction transaction, string quotedTypeName)
+        public static async Task<bool> TypeExistsAsync(string quotedTypeName, SqlConnection connection, SqlTransaction transaction)
         {
             bool typeExist;
 

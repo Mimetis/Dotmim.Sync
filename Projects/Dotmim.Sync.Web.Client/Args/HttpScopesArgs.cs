@@ -14,17 +14,17 @@ namespace Dotmim.Sync
     /// </summary>
     public class HttpGettingScopeResponseArgs : ProgressArgs
     {
-        public HttpGettingScopeResponseArgs(ServerScopeInfo scopeInfo, SyncContext context, string host) : base(context, null)
+        public HttpGettingScopeResponseArgs(ScopeInfo sScopeInfo, SyncContext context, string host) : base(context, null)
         {
-            this.ServerScopeInfo = scopeInfo;
+            this.ScopeInfoFromServer = sScopeInfo;
             this.Host = host;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override int EventId => HttpClientSyncEventsId.HttpGettingScopeResponse.Id;
         public override string Source => this.Host;
-        public override string Message => $"Received Scope. Scope Name:{this.ServerScopeInfo.Name}.";
+        public override string Message => $"Received Scope. Scope Name:{this.ScopeInfoFromServer.Name}.";
 
-        public ServerScopeInfo ServerScopeInfo { get; }
+        public ScopeInfo ScopeInfoFromServer { get; }
         public string Host { get; }
     }
 

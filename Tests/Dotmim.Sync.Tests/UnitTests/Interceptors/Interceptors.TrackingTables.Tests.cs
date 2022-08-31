@@ -42,7 +42,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             var onCreating = false;
             var onCreated = false;
@@ -69,7 +69,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             using (var c = new SqlConnection(cs))
             {
                 await c.OpenAsync().ConfigureAwait(false);
-                var cols = await SqlManagementUtils.GetColumnsForTableAsync(c, null, "t_Product_t", "SalesLT").ConfigureAwait(false);
+                var cols = await SqlManagementUtils.GetColumnsForTableAsync("t_Product_t", "SalesLT", c, null).ConfigureAwait(false);
                 Assert.Equal(7, cols.Rows.Count);
                 Assert.NotNull(cols.Rows.FirstOrDefault(r => r["name"].ToString() == "internal_id"));
                 c.Close();
@@ -97,7 +97,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             await remoteOrchestrator.CreateTrackingTableAsync(scopeInfo, "Product", "SalesLT");
 
@@ -133,7 +133,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             var onCreating = 0;
             var onCreated = 0;
@@ -198,7 +198,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             var onDropping = false;
             var onDropped = false;
@@ -225,7 +225,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
-                var table = await SqlManagementUtils.GetTableAsync(c, null, "t_Product_t", "SalesLT").ConfigureAwait(false);
+                var table = await SqlManagementUtils.GetTableDefinitionAsync("t_Product_t", "SalesLT", c, null).ConfigureAwait(false);
 
                 Assert.Empty(table.Rows);
 
@@ -254,7 +254,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             var onDropping = false;
             var onDropped = false;
@@ -281,7 +281,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
-                var table = await SqlManagementUtils.GetTableAsync(c, null, "t_Product_t", "SalesLT").ConfigureAwait(false);
+                var table = await SqlManagementUtils.GetTableDefinitionAsync("t_Product_t", "SalesLT", c, null).ConfigureAwait(false);
 
                 Assert.NotEmpty(table.Rows);
 
@@ -310,7 +310,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             var onDropping = 0;
             var onDropped = 0;

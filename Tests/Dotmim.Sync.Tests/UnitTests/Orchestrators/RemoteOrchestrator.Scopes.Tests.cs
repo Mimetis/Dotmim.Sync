@@ -17,7 +17,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
         [Fact]
-        public async Task RemoteOrchestrator_Scope_Should_Fail_If_NoTables_In_Setup()
+        public async Task RemoteOrchestrator_Scope_Should_NotFail_If_NoTables_In_Setup()
         {
             var dbName = HelperDatabase.GetRandomName("tcp_ro_");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
@@ -29,10 +29,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(provider, options);
 
-            var exc = await Assert.ThrowsAsync<SyncException>(() => remoteOrchestrator.GetServerScopeInfoAsync(setup));
+            var sScopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
-            Assert.IsType<SyncException>(exc);
-            Assert.Equal("MissingServerScopeTablesException", exc.TypeName);
+            Assert.NotNull(sScopeInfo);
+            Assert.Null(sScopeInfo.Schema);
+            Assert.Null(sScopeInfo.Setup);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
 
@@ -57,14 +58,13 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var remoteScopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var remoteScopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             Assert.NotNull(remoteScopeInfo);
             Assert.Equal(scopeName, remoteScopeInfo.Name);
-            Assert.Equal(0, remoteScopeInfo.LastCleanupTimestamp);
+            Assert.Null(remoteScopeInfo.LastCleanupTimestamp);
             Assert.NotNull(remoteScopeInfo.Schema);
             Assert.NotNull(remoteScopeInfo.Setup);
-            Assert.True(remoteScopeInfo.IsNewScope);
 
             Assert.Equal(SyncVersion.Current, new Version(remoteScopeInfo.Version));
 
@@ -87,14 +87,9 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
-            var remoteScopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var remoteScopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
-            Assert.True(remoteScopeInfo.IsNewScope);
             Assert.Equal(SyncVersion.Current, new Version(remoteScopeInfo.Version));
-
-            remoteScopeInfo = await remoteOrchestrator.SaveServerScopeInfoAsync(remoteScopeInfo);
-            
-            Assert.False(remoteScopeInfo.IsNewScope);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
@@ -117,8 +112,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var setup = new SyncSetup(this.Tables);
 
-            var remoteScopeInfo1 = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
-            var remoteScopeInfo2 = await remoteOrchestrator.GetServerScopeInfoAsync("A", setup);
+            var remoteScopeInfo1 = await remoteOrchestrator.GetScopeInfoAsync(setup);
+            var remoteScopeInfo2 = await remoteOrchestrator.GetScopeInfoAsync("A", setup);
 
             Assert.Equal(SyncOptions.DefaultScopeName, remoteScopeInfo1.Name);
             Assert.Equal("A", remoteScopeInfo2.Name);
@@ -131,9 +126,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.NotNull(remoteScopeInfo1.Setup);
             Assert.NotNull(remoteScopeInfo2.Setup);
-
-            Assert.True(remoteScopeInfo1.IsNewScope);
-            Assert.True(remoteScopeInfo2.IsNewScope);
 
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
@@ -162,8 +154,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup2 = new SyncSetup(this.Tables);
             setup2.Filters.Add("Customer", "EmployeeID");
 
-            var remoteScopeInfo1 = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
-            var remoteScopeInfo2 = await remoteOrchestrator.GetServerScopeInfoAsync("A", setup2);
+            var remoteScopeInfo1 = await remoteOrchestrator.GetScopeInfoAsync(setup);
+            var remoteScopeInfo2 = await remoteOrchestrator.GetScopeInfoAsync("A", setup2);
 
             await remoteOrchestrator.ProvisionAsync(setup);
             await remoteOrchestrator.ProvisionAsync("A", setup2);
@@ -249,8 +241,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             var setup2 = new SyncSetup(this.Tables);
             setup2.Filters.Add("Customer", "EmployeeID");
 
-            var remoteScopeInfo1 = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
-            var remoteScopeInfo2 = await remoteOrchestrator.GetServerScopeInfoAsync("A", setup2);
+            var remoteScopeInfo1 = await remoteOrchestrator.GetScopeInfoAsync(setup);
+            var remoteScopeInfo2 = await remoteOrchestrator.GetScopeInfoAsync("A", setup2);
 
             Assert.NotNull(remoteScopeInfo1.Setup);
             Assert.NotNull(remoteScopeInfo1.Schema);
@@ -339,34 +331,6 @@ namespace Dotmim.Sync.Tests.UnitTests
                 }
             }
 
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
-        }
-
-
-        [Fact]
-        public async Task RemoteOrchestrator_Scope_CancellationToken_ShouldInterrupt_EnsureScope_OnConnectionOpened()
-        {
-            var dbName = HelperDatabase.GetRandomName("tcp_ro_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
-            var setup = new SyncSetup(this.Tables);
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-            using var cts = new CancellationTokenSource();
-
-            remoteOrchestrator.OnConnectionOpen(args => cts.Cancel());
-
-            var se = await Assert.ThrowsAsync<SyncException>(
-                async () => await remoteOrchestrator.GetServerScopeInfoAsync(setup, default, default, cts.Token));
-
-            Assert.Equal(SyncSide.ServerSide, se.Side);
-            Assert.Equal("OperationCanceledException", se.TypeName);
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }

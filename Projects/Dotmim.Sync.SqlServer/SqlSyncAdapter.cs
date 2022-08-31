@@ -32,10 +32,15 @@ namespace Dotmim.Sync.SqlServer.Builders
         public SqlObjectNames SqlObjectNames { get; set; }
         public SqlDbMetadata SqlMetadata { get; set; }
 
-        public SqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName) : base(tableDescription, setup, scopeName)
+        private readonly ParserName tableName;
+        private readonly ParserName trackingName;
+
+        public SqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool useBulkOperations) : base(tableDescription, setup, scopeName, useBulkOperations)
         {
             this.SqlObjectNames = new SqlObjectNames(tableDescription, tableName, trackingName, setup, scopeName);
             this.SqlMetadata = new SqlDbMetadata();
+            this.tableName = tableName;
+            this.trackingName = trackingName;
         }
 
         private SqlMetaData GetSqlMetadaFromType(SyncColumn column)
@@ -97,7 +102,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     if (p == 0)
                         p = 18;
                     if (s == 0)
-                        s = Math.Min((byte)(p-1), (byte)6);
+                        s = Math.Min((byte)(p - 1), (byte)6);
                     return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
                 }
 
@@ -270,7 +275,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
             try
-            {   
+            {
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
@@ -318,30 +323,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        /// <summary>
-        /// Check if an exception is a primary key exception
-        /// </summary>
-        public override bool IsPrimaryKeyViolation(Exception exception)
-        {
-            if (exception is SqlException error && error.Number == 2627)
-                return true;
-
-            return false;
-        }
-
-
-        public override bool IsUniqueKeyViolation(Exception exception)
-        {
-            if (exception is SqlException error && error.Number == 2627)
-                return true;
-
-            return false;
-        }
-
         public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
         {
             var command = new SqlCommand();
-            bool isBatch = false;
+            bool isBatch;
             switch (nameType)
             {
                 case DbCommandType.SelectChanges:
@@ -378,8 +363,16 @@ namespace Dotmim.Sync.SqlServer.Builders
                 case DbCommandType.UpdateRows:
                 case DbCommandType.InsertRows:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
-                    isBatch = true;
+                    if (this.UseBulkOperations)
+                    {
+                        command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
+                        isBatch = true;
+                    }
+                    else
+                    {
+                        command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow, filter);
+                        isBatch = false;
+                    }
                     break;
                 case DbCommandType.DeleteRow:
                     command.CommandType = CommandType.StoredProcedure;
@@ -388,8 +381,16 @@ namespace Dotmim.Sync.SqlServer.Builders
                     break;
                 case DbCommandType.DeleteRows:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows, filter);
-                    isBatch = true;
+                    if (this.UseBulkOperations)
+                    {
+                        command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows, filter);
+                        isBatch = true;
+                    }
+                    else
+                    {
+                        command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow, filter);
+                        isBatch = false;
+                    }
                     break;
                 case DbCommandType.DisableConstraints:
                     command.CommandType = CommandType.Text;
@@ -441,6 +442,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
                     isBatch = false;
                     break;
+
                 default:
                     throw new NotImplementedException($"This command type {nameType} is not implemented");
             }
@@ -645,5 +647,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             command.Parameters.Add(p);
 
         }
+
+       
     }
 }

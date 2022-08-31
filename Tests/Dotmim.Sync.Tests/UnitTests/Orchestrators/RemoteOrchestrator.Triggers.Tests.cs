@@ -48,7 +48,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var triggerUpdate = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_update_trigger";
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             // Needs the tracking table to be able to create triggers
             var provision = SyncProvision.TrackingTable | SyncProvision.Triggers;
@@ -59,13 +59,13 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
-                var trigDel = await SqlManagementUtils.GetTriggerAsync(c, null, triggerDelete, "SalesLT");
+                var trigDel = await SqlManagementUtils.GetTriggerAsync(triggerDelete, "SalesLT", c, null);
                 Assert.Equal(triggerDelete, trigDel.Rows[0]["Name"].ToString());
 
-                var trigIns = await SqlManagementUtils.GetTriggerAsync(c, null, triggerInsert, "SalesLT");
+                var trigIns = await SqlManagementUtils.GetTriggerAsync(triggerInsert, "SalesLT", c, null);
                 Assert.Equal(triggerInsert, trigIns.Rows[0]["Name"].ToString());
 
-                var trigUdate = await SqlManagementUtils.GetTriggerAsync(c, null, triggerUpdate, "SalesLT");
+                var trigUdate = await SqlManagementUtils.GetTriggerAsync(triggerUpdate, "SalesLT", c, null);
                 Assert.Equal(triggerUpdate, trigUdate.Rows[0]["Name"].ToString());
 
                 c.Close();
@@ -97,7 +97,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             };
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
@@ -106,7 +106,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
-                var trigIns = await SqlManagementUtils.GetTriggerAsync(c, null, triggerInsert, "SalesLT");
+                var trigIns = await SqlManagementUtils.GetTriggerAsync(triggerInsert, "SalesLT", c, null);
                 Assert.Equal(triggerInsert, trigIns.Rows[0]["Name"].ToString());
 
                 c.Close();
@@ -119,20 +119,20 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
-                var trig = await SqlManagementUtils.GetTriggerAsync(c, null, triggerUpdate, "SalesLT");
+                var trig = await SqlManagementUtils.GetTriggerAsync(triggerUpdate, "SalesLT", c, null);
                 Assert.Equal(triggerUpdate, trig.Rows[0]["Name"].ToString());
 
                 c.Close();
             }
 
             var triggerDelete = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_delete_trigger";
-            await remoteOrchestrator.CreateTriggerAsync(scopeInfo,"Product", "SalesLT", DbTriggerType.Delete, false);
+            await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Delete, false);
 
             using (var c = new SqlConnection(cs))
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
-                var trig = await SqlManagementUtils.GetTriggerAsync(c, null, triggerDelete, "SalesLT");
+                var trig = await SqlManagementUtils.GetTriggerAsync(triggerDelete, "SalesLT", c, null);
                 Assert.Equal(triggerDelete, trig.Rows[0]["Name"].ToString());
 
                 c.Close();
@@ -164,7 +164,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             };
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
@@ -172,7 +172,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var assertOverWritten = false;
             remoteOrchestrator.OnTriggerCreating(args =>
             {
-               assertOverWritten = true;
+                assertOverWritten = true;
             });
 
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, true);
@@ -205,11 +205,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             };
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
-            await remoteOrchestrator.CreateTriggerAsync(scopeInfo,"Product", "SalesLT", DbTriggerType.Insert, false);
+            await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
 
 
             var assertOverWritten = false;
@@ -248,7 +248,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             };
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
 
@@ -283,7 +283,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             setup.TriggersSuffix = "_trg";
 
             var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-            var scopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(scopeName, setup);
+            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
             var triggerUpdate = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_update_trigger";
@@ -295,7 +295,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
-                var trigIns = await SqlManagementUtils.GetTriggerAsync(c, null, triggerInsert, "SalesLT");
+                var trigIns = await SqlManagementUtils.GetTriggerAsync(triggerInsert, "SalesLT", c, null);
                 Assert.Equal(triggerInsert, trigIns.Rows[0]["Name"].ToString());
 
                 c.Close();
@@ -305,7 +305,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
-                var trig = await SqlManagementUtils.GetTriggerAsync(c, null, triggerUpdate, "SalesLT");
+                var trig = await SqlManagementUtils.GetTriggerAsync(triggerUpdate, "SalesLT", c, null);
                 Assert.Equal(triggerUpdate, trig.Rows[0]["Name"].ToString());
 
                 c.Close();
@@ -315,7 +315,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
-                var trig = await SqlManagementUtils.GetTriggerAsync(c, null, triggerDelete, "SalesLT");
+                var trig = await SqlManagementUtils.GetTriggerAsync(triggerDelete, "SalesLT", c, null);
                 Assert.Equal(triggerDelete, trig.Rows[0]["Name"].ToString());
 
                 c.Close();

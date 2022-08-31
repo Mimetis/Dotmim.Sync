@@ -104,7 +104,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             // Get changes to be populated to the server
-            var changes = await localOrchestrator.GetChangesAsync(scopeName);
+            var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
+
+            var changes = await localOrchestrator.GetChangesAsync(scopeInfoClient);
 
             Assert.Equal(this.Tables.Length, onSelecting);
             Assert.Equal(this.Tables.Length, onSelected);
@@ -159,7 +161,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 for (int i = 0; i <= 10000; i++)
                 {
                     var productId = Guid.NewGuid();
-                    var productName = HelperDatabase.GetRandomName();
+                    var productName = HelperDatabase.GetRandomName() + "_" + HelperDatabase.GetRandomName();
                     var productNumber = productName.ToUpperInvariant().Substring(0, 10);
 
                     var productCategoryName = HelperDatabase.GetRandomName();
@@ -208,7 +210,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             });
 
             // Get changes to be populated to the server
-            var changes = await localOrchestrator.GetChangesAsync(scopeName);
+            var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
+            var changes = await localOrchestrator.GetChangesAsync(scopeInfoClient);
 
             Assert.Equal(this.Tables.Length, onSelecting);
             Assert.Equal(16, onSelected);
@@ -302,10 +305,10 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onDatabaseSelected++;
             });
 
-            var clientScope = await localOrchestrator.GetClientScopeInfoAsync(scopeName);
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
 
             // Get changes to be populated to be sent to the client
-            var changes = await remoteOrchestrator.GetChangesAsync(clientScope);
+            var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
 
             Assert.Equal(this.Tables.Length, onSelecting);
             Assert.Equal(this.Tables.Length, onSelected);

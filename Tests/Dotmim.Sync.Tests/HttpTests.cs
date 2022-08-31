@@ -170,10 +170,7 @@ namespace Dotmim.Sync.Tests
                     var s = await agent.SynchronizeAsync();
                 });
 
-                Assert.Equal(SyncSide.ServerSide, se.Side);
                 Assert.Equal("MissingPrimaryKeyException", se.TypeName);
-                Assert.Equal(this.Server.DatabaseName, se.InitialCatalog);
-
             }
         }
 
@@ -210,7 +207,6 @@ namespace Dotmim.Sync.Tests
                     var s = await agent.SynchronizeAsync();
                 });
 
-                Assert.Equal(SyncSide.ServerSide, se.Side);
                 Assert.Equal("MissingColumnException", se.TypeName);
             }
         }
@@ -246,7 +242,6 @@ namespace Dotmim.Sync.Tests
                     var s = await agent.SynchronizeAsync();
                 });
 
-                Assert.Equal(SyncSide.ServerSide, se.Side);
                 Assert.Equal("MissingTableException", se.TypeName);
             }
         }
@@ -611,6 +606,10 @@ namespace Dotmim.Sync.Tests
             // inserted rows will be deleted 
             foreach (var client in Clients)
             {
+                // coz of ProductCategory Parent Id Foreign Key Constraints
+                // on Reset table in MySql
+                options.DisableConstraintsOnApplyChanges = true;
+
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
@@ -679,6 +678,10 @@ namespace Dotmim.Sync.Tests
             int download = 2;
             foreach (var client in Clients)
             {
+                // coz of ProductCategory Parent Id Foreign Key Constraints
+                // on Reset table in MySql
+                options.DisableConstraintsOnApplyChanges = true;
+
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload);
 
@@ -1085,7 +1088,7 @@ namespace Dotmim.Sync.Tests
 
                 // Generate an outdated situation
                 await HelperDatabase.ExecuteScriptAsync(client.ProviderType, client.DatabaseName,
-                                    $"Update scope_info set scope_last_server_sync_timestamp={dmc.TimestampLimit - 1}");
+                                    $"Update scope_info_client set scope_last_server_sync_timestamp={dmc.TimestampLimit - 1}");
 
                 // create a new agent
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
@@ -1093,7 +1096,6 @@ namespace Dotmim.Sync.Tests
                 //// Making a first sync, will initialize everything we need
                 //var se = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync());
 
-                //Assert.Equal(SyncSide.ClientSide, se.Side);
                 //Assert.Equal("OutOfDateException", se.TypeName);
 
                 // Intercept outdated event, and make a reinitialize with upload action
@@ -1103,10 +1105,7 @@ namespace Dotmim.Sync.Tests
                 var c = GetServerDatabaseRowsCount(this.Server);
                 Assert.Equal(c, r.TotalChangesDownloaded);
                 Assert.Equal(2, r.TotalChangesUploaded);
-
             }
-
-
         }
 
         [Theory]
@@ -1174,10 +1173,10 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Ensure scope is created locally
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
 
                 // get changes from server, without any changes sent from client side
-                var serverSyncChanges = await webRemoteOrchestrator.GetChangesAsync(clientScope);
+                var serverSyncChanges = await webRemoteOrchestrator.GetChangesAsync(cScopeInfoClient);
 
                 Assert.Equal(rowsCount, serverSyncChanges.ServerChangesSelected.TotalChangesSelected);
             }
@@ -1251,10 +1250,10 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Ensure scope is created locally
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
 
                 // get changes from server, without any changes sent from client side
-                var serverSyncChanges = await webRemoteOrchestrator.GetChangesAsync(clientScope);
+                var serverSyncChanges = await webRemoteOrchestrator.GetChangesAsync(cScopeInfoClient);
 
                 Assert.Equal(2, serverSyncChanges.ServerChangesSelected.TotalChangesSelected);
 
@@ -1295,10 +1294,10 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Ensure scope is created locally
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
 
                 // get changes from server, without any changes sent from client side
-                var changes = await webRemoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);
+                var changes = await webRemoteOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient);
 
                 Assert.Equal(rowsCount, changes.ServerChangesSelected.TotalChangesSelected);
             }
@@ -1371,10 +1370,10 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
                 // Ensure scope is created locally
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
 
                 // get changes from server, without any changes sent from client side
-                var changes = await webRemoteOrchestrator.GetEstimatedChangesCountAsync(clientScope);
+                var changes = await webRemoteOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient);
 
                 Assert.Equal(2, changes.ServerChangesSelected.TotalChangesSelected);
 
@@ -1637,8 +1636,8 @@ namespace Dotmim.Sync.Tests
             var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider, options);
 
             // Ensure schema is ready on server side. Will create everything we need (triggers, tracking, stored proc, scopes)
-            var serverScopeInfo = await remoteOrchestrator.GetServerScopeInfoAsync(setup);
-            await remoteOrchestrator.ProvisionAsync(serverScopeInfo);
+            var sScopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+            await remoteOrchestrator.ProvisionAsync(sScopeInfo);
 
             // configure server orchestrator
             this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,

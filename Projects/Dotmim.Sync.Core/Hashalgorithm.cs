@@ -32,7 +32,7 @@ namespace Dotmim.Sync
             public static bool CompareHash(byte[] hash1, byte[] hash2)
             {
                 var hash1String = Convert.ToBase64String(hash1);
-                var hash2String = Convert.ToBase64String(hash1);
+                var hash2String = Convert.ToBase64String(hash2);
 
                 if (!hash1String.Equals(hash2String, StringComparison.InvariantCultureIgnoreCase))
                     return false;

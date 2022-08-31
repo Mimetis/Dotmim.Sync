@@ -15,7 +15,7 @@ namespace Dotmim.Sync
     {
         public static async Task<DbConnectionRunner> GetConnectionAsync(this BaseOrchestrator orchestrator,
                                 SyncContext context,
-                                SyncMode syncMode = SyncMode.Writing,
+                                SyncMode syncMode = SyncMode.WithTransaction,
                                 SyncStage syncStage = SyncStage.None,
                                 DbConnection connection = default,
                                 DbTransaction transaction = default,
@@ -39,7 +39,7 @@ namespace Dotmim.Sync
                 await orchestrator.OpenConnectionAsync(context, connection, cancellationToken, progress).ConfigureAwait(false);
 
             // Create a transaction
-            if (!alreadyInTransaction && syncMode == SyncMode.Writing)
+            if (!alreadyInTransaction && syncMode == SyncMode.WithTransaction)
             {
                 transaction = connection.BeginTransaction(orchestrator.Provider.IsolationLevel);
                 await orchestrator.InterceptAsync(new TransactionOpenedArgs(context, connection, transaction), progress, cancellationToken).ConfigureAwait(false);

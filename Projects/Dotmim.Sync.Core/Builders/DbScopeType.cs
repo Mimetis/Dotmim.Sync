@@ -6,8 +6,7 @@ namespace Dotmim.Sync.Builders
 {
     public enum DbScopeType
     {
-        Client,
-        Server,
-        ServerHistory
+        ScopeInfo,
+        ScopeInfoClient
     }
 }

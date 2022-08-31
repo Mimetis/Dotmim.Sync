@@ -55,12 +55,14 @@ namespace Conflict
                     await Helper.InsertOneConflictCustomerAsync(
                         serverProvider.CreateConnection(), id, "John", "Serverdoe");
 
-                    agent.OnApplyChangesFailed(acfa =>
+                    agent.OnApplyChangesConflictOccured(async acfa =>
                     {
+                        var conflict = await acfa.GetSyncConflictAsync();
+
                         Console.WriteLine("______________________________");
                         Console.WriteLine("Handling conflict:");
-                        Console.WriteLine($"Server row : {acfa.Conflict.RemoteRow}");
-                        Console.WriteLine($"Client row : {acfa.Conflict.LocalRow}");
+                        Console.WriteLine($"Server row : {conflict.RemoteRow}");
+                        Console.WriteLine($"Client row : {conflict.LocalRow}");
                         Console.WriteLine("Please use which one is the winner of the conflict:");
                         Console.WriteLine("* 1: Server Wins");
                         Console.WriteLine("* 2: Client Wins");

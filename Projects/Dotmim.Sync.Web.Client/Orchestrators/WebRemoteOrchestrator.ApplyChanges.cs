@@ -16,36 +16,24 @@ namespace Dotmim.Sync.Web.Client
 {
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
+
+        
         /// <summary>
         /// Apply changes
         /// </summary>
         internal override async Task<(SyncContext context, ServerSyncChanges serverSyncChanges, DatabaseChangesApplied serverChangesApplied, ConflictResolutionPolicy serverResolutionPolicy)>
-            InternalApplyThenGetChangesAsync(ClientScopeInfo clientScopeInfo, SyncContext context, BatchInfo clientBatchInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, 
+            BatchInfo clientBatchInfo, long clientLastSyncTimestamp, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            SyncSet schema;
-            ServerScopeInfo serverScopeInfo;
-            // is it something that could happens ?
-            if (clientScopeInfo.Schema == null)
-            {
-                // Make a remote call to get Schema from remote provider
-                (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(
-                    context, null, false, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                schema = serverScopeInfo.Schema;
-            }
-            else
-            {
-                schema = clientScopeInfo.Schema;
-            }
-
+            SyncSet schema = cScopeInfo.Schema;
             schema.EnsureSchema();
 
             // if we don't have any BatchPartsInfo, just generate a new one to get, at least, something to send to the server
             // and get a response with new data from server
             if (clientBatchInfo == null)
-                clientBatchInfo = new BatchInfo(schema);
+                clientBatchInfo = new BatchInfo();
 
             // --------------------------------------------------------------
             // STEP 1 : Send everything to the server side
@@ -57,9 +45,11 @@ namespace Dotmim.Sync.Web.Client
             // But we need to send something, so generate a little batch part
             if (clientBatchInfo.BatchPartsInfo.Count == 0)
             {
-                var changesToSend = new HttpMessageSendChangesRequest(context, clientScopeInfo);
+                var changesToSend = new HttpMessageSendChangesRequest(context, cScopeInfoClient);
 
                 var containerSet = new ContainerSet();
+
+                changesToSend.ClientLastSyncTimestamp = clientLastSyncTimestamp;
                 changesToSend.Changes = containerSet;
                 changesToSend.IsLastBatch = true;
                 changesToSend.BatchIndex = 0;
@@ -101,7 +91,7 @@ namespace Dotmim.Sync.Web.Client
                 foreach (var bpi in clientBatchInfo.BatchPartsInfo.OrderBy(bpi => bpi.Index))
                 {
                     // Get the updatable schema for the only table contained in the batchpartinfo
-                    var schemaTable = DbSyncAdapter.CreateChangesTable(schema.Tables[bpi.Tables[0].TableName, bpi.Tables[0].SchemaName]);
+                    var schemaTable = CreateChangesTable(schema.Tables[bpi.Tables[0].TableName, bpi.Tables[0].SchemaName]);
 
                     // Generate the ContainerSet containing rows to send to the user
                     var containerSet = new ContainerSet();
@@ -118,12 +108,13 @@ namespace Dotmim.Sync.Web.Client
                         BeforeSerializeRows(containerTable, schemaTable, this.Converter);
 
                     // Create the send changes request
-                    var changesToSend = new HttpMessageSendChangesRequest(context, clientScopeInfo)
+                    var changesToSend = new HttpMessageSendChangesRequest(context, cScopeInfoClient)
                     {
                         Changes = containerSet,
                         IsLastBatch = bpi.IsLastBatch,
                         BatchIndex = bpi.Index,
-                        BatchCount = clientBatchInfo.BatchPartsInfo.Count
+                        BatchCount = clientBatchInfo.BatchPartsInfo.Count,
+                        ClientLastSyncTimestamp = clientLastSyncTimestamp,
                     };
 
                     tmpRowsSendedCount += containerTable.Rows.Count;
@@ -159,7 +150,7 @@ namespace Dotmim.Sync.Web.Client
             context.ProgressPercentage = initialPctProgress;
 
             // Create the BatchInfo
-            var serverBatchInfo = new BatchInfo(schema);
+            var serverBatchInfo = new BatchInfo();
 
             HttpMessageSummaryResponse summaryResponseContent = null;
 
@@ -241,7 +232,7 @@ namespace Dotmim.Sync.Web.Client
 
                         // Should have only one table
                         var table = getMoreChanges.Changes.Tables[0];
-                        var schemaTable = DbSyncAdapter.CreateChangesTable(schema.Tables[table.TableName, table.SchemaName]);
+                        var schemaTable = CreateChangesTable(schema.Tables[table.TableName, table.SchemaName]);
 
                         var fullPath = Path.Combine(serverBatchInfo.GetDirectoryFullPath(), bpi.FileName);
 

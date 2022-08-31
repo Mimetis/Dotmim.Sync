@@ -25,12 +25,12 @@ namespace Orchestrators
         /// <summary>
         /// Get sync provision 
         /// </summary>
-        public static SyncProvision GetClientProvision() => SyncProvision.ClientScope | SyncProvision.StoredProcedures | SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.Triggers;
+        public static SyncProvision GetClientProvision() => SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient | SyncProvision.StoredProcedures | SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.Triggers;
 
         /// <summary>
         /// Get sync provision 
         /// </summary>
-        public static SyncProvision GetServerProvision() => SyncProvision.ServerHistoryScope | SyncProvision.ServerScope | SyncProvision.StoredProcedures | SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.Triggers;
+        public static SyncProvision GetServerProvision() => SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient | SyncProvision.StoredProcedures | SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.Triggers;
 
         /// <summary>
         /// Get a synchronous progress object

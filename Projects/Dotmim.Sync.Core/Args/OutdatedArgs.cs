@@ -11,10 +11,10 @@ namespace Dotmim.Sync
     
     public class OutdatedArgs : ProgressArgs
     {
-        public OutdatedArgs(SyncContext context, ClientScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, DbConnection connection= null, DbTransaction transaction = null) : base(context, connection, transaction)
+        public OutdatedArgs(SyncContext context, ScopeInfoClient cScopeInfoClient, ScopeInfo sScopeInfo, DbConnection connection= null, DbTransaction transaction = null) : base(context, connection, transaction)
         {
-            this.ClientScopeInfo = clientScopeInfo;
-            this.ServerScopeInfo = serverScopeInfo;
+            this.ScopeInfoClientFromClient = cScopeInfoClient;
+            this.ScopeInfoFromServer = sScopeInfo;
         }
 
         /// <summary>
@@ -24,17 +24,17 @@ namespace Dotmim.Sync
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
 
         public override string Source => Connection.Database;
-        public override string Message => $"Database Out Dated. Last Client Sync Endpoint < Last Server Cleanup Metadatas {ServerScopeInfo.LastCleanupTimestamp}.";
+        public override string Message => $"Database Out Dated. Last Client Sync Endpoint < Last Server Cleanup Metadatas {ScopeInfoFromServer.LastCleanupTimestamp}.";
 
         /// <summary>
         /// Gets the client scope info used to check if the client is outdated
         /// </summary>
-        public ClientScopeInfo ClientScopeInfo { get; }
+        public ScopeInfoClient ScopeInfoClientFromClient { get; }
 
         /// <summary>
         /// Gets the server scope info to check if client is outdated
         /// </summary>
-        public ServerScopeInfo ServerScopeInfo { get; }
+        public ScopeInfo ScopeInfoFromServer { get; }
         public override int EventId => SyncEventsId.Outdated.Id;
     }
 

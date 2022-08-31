@@ -19,11 +19,6 @@ namespace Dotmim.Sync
     public partial class RemoteOrchestrator : BaseOrchestrator
     {
 
-        /// <summary>
-        /// Gets the sync side of this Orchestrator. RemoteOrchestrator is always used on server side
-        /// </summary>
-        public override SyncSide Side => SyncSide.ServerSide;
-
 
         /// <summary>
         /// Create a remote orchestrator, used to orchestrates the whole sync on the server side

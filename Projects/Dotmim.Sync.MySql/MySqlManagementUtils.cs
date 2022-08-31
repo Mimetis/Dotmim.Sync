@@ -96,9 +96,9 @@ namespace Dotmim.Sync.MySql
                     }
                 }
 
-                foreach(var setupTable in syncSetup.Tables)
+                foreach (var setupTable in syncSetup.Tables)
                 {
-                    var syncTableColumnsList = await GetColumnsForTableAsync(connection, transaction, setupTable.TableName).ConfigureAwait(false);
+                    var syncTableColumnsList = await GetColumnsForTableAsync(setupTable.TableName, connection, transaction).ConfigureAwait(false);
 
                     foreach (var column in syncTableColumnsList.Rows)
                         setupTable.Columns.Add(column["column_name"].ToString());
@@ -110,39 +110,82 @@ namespace Dotmim.Sync.MySql
             return syncSetup;
         }
 
+        public static async Task<SyncTable> GetTableAsync(string tableName, MySqlConnection connection, MySqlTransaction transaction)
+        {
 
-        public static async Task<SyncTable> GetTableAsync(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+            var tableNameParser = ParserName.Parse(tableName, "`");
+            var syncTable = new SyncTable(tableNameParser.Unquoted().ToString());
+
+            string commandText = $"select * from {tableNameParser.Quoted()}";
+
+            using var sqlCommand = new MySqlCommand(commandText, connection);
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
+
+            sqlCommand.Transaction = transaction;
+
+            using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                syncTable.Load(reader);
+
+            if (!alreadyOpened)
+                connection.Close();
+
+            return syncTable;
+        }
+
+
+        public static async Task RenameTableAsync(string tableName, string newTableName, MySqlConnection connection, MySqlTransaction transaction)
+        {
+            var pTableName = ParserName.Parse(tableName, "`").Unquoted().ToString();
+            var pNewTableName = ParserName.Parse(newTableName, "`").Unquoted().ToString();
+
+            var commandText = $"RENAME TABLE {pTableName} TO {pNewTableName};";
+
+            using var sqlCommand = new MySqlCommand(commandText, connection);
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
+
+            sqlCommand.Transaction = transaction;
+
+            await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            if (!alreadyOpened)
+                connection.Close();
+        }
+
+
+        public static async Task<SyncTable> GetTableDefinitionAsync(string tableName, MySqlConnection connection, MySqlTransaction transaction)
         {
             string commandColumn = "select * from information_schema.TABLES where table_schema = schema() and table_name = @tableName limit 1;";
 
             var tableNameParser = ParserName.Parse(tableName, "`");
             var syncTable = new SyncTable(tableNameParser.Unquoted().ToString());
-            using (var sqlCommand = new MySqlCommand(commandColumn, connection))
-            {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
+            using var sqlCommand = new MySqlCommand(commandColumn, connection);
+            sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
 
-                bool alreadyOpened = connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
 
-                sqlCommand.Transaction = transaction;
+            sqlCommand.Transaction = transaction;
 
+            using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                syncTable.Load(reader);
 
-                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
-                {
-                    syncTable.Load(reader);
-                }
+            if (!alreadyOpened)
+                connection.Close();
 
-
-                if (!alreadyOpened)
-                    connection.Close();
-
-            }
             return syncTable;
         }
 
-        public static async Task<SyncTable> GetColumnsForTableAsync(MySqlConnection connection, MySqlTransaction transaction, string tableName)
+        public static async Task<SyncTable> GetColumnsForTableAsync(string tableName, MySqlConnection connection, MySqlTransaction transaction)
         {
             string commandColumn = "select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName";
 
@@ -246,9 +289,9 @@ namespace Dotmim.Sync.MySql
             return syncTable;
         }
 
-        public static async Task DropTableIfExistsAsync(MySqlConnection connection, MySqlTransaction transaction, string quotedTableName)
+        public static async Task DropTableIfExistsAsync(string tableName, MySqlConnection connection, MySqlTransaction transaction)
         {
-            var tableNameParser = ParserName.Parse(quotedTableName, "`");
+            var tableNameParser = ParserName.Parse(tableName, "`");
 
             using var dbCommand = connection.CreateCommand();
             dbCommand.CommandText = $"select * from information_schema.TABLES where table_schema = schema() and table_name = @tableName";
@@ -287,38 +330,35 @@ namespace Dotmim.Sync.MySql
                 connection.Close();
         }
 
-        public static async Task<bool> TableExistsAsync(MySqlConnection connection, MySqlTransaction transaction, ParserName table)
+        public static async Task<bool> TableExistsAsync(string tableName, MySqlConnection connection, MySqlTransaction transaction)
         {
             bool tableExist;
+            var tableNameParser = ParserName.Parse(tableName, "`");
 
+            using DbCommand dbCommand = connection.CreateCommand();
 
-            using (DbCommand dbCommand = connection.CreateCommand())
+            dbCommand.CommandText = "select COUNT(*) from information_schema.TABLES where TABLE_NAME = @tableName and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
+
+            dbCommand.Transaction = transaction;
+
+            var sqlParameter = new MySqlParameter()
             {
-                dbCommand.CommandText = "select COUNT(*) from information_schema.TABLES where TABLE_NAME = @tableName and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
+                ParameterName = "@tableName",
+                Value = tableNameParser.Unquoted().ToString()
+            };
 
-                bool alreadyOpened = connection.State == ConnectionState.Open;
+            dbCommand.Parameters.Add(sqlParameter);
 
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                dbCommand.Transaction = transaction;
-
-                var sqlParameter = new MySqlParameter()
-                {
-                    ParameterName = "@tableName",
-                    Value = table.Unquoted().ToString()
-                };
-
-                dbCommand.Parameters.Add(sqlParameter);
-
-                tableExist = ((Int64)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
+            tableExist = ((Int64)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
 
 
-                if (!alreadyOpened)
-                    connection.Close();
-
-
-            }
+            if (!alreadyOpened)
+                connection.Close();
 
             return tableExist;
         }

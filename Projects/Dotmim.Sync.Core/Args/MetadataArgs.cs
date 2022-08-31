@@ -10,10 +10,10 @@ namespace Dotmim.Sync
 {
     public class MetadataCleaningArgs : ProgressArgs
     {
-        public IEnumerable<IScopeInfo> ScopeInfos { get; }
+        public IEnumerable<ScopeInfo> ScopeInfos { get; }
         public long TimeStampStart { get; }
 
-        public MetadataCleaningArgs(SyncContext context, IEnumerable<IScopeInfo> scopeInfos, long timeStampStart, DbConnection connection, DbTransaction transaction)
+        public MetadataCleaningArgs(SyncContext context, IEnumerable<ScopeInfo> scopeInfos, long timeStampStart, DbConnection connection, DbTransaction transaction)
         : base(context, connection, transaction)
 
         {

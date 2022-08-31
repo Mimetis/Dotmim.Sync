@@ -89,7 +89,7 @@ namespace Migration
             // This provision method will fetch the address schema from the database, 
             // since the new scope name is not existing yet
             // so it will contains all the columns, including the new Address column added
-            await remoteOrchestrator.ProvisionAsync("v1", setupAddress, progress:progress);
+            await remoteOrchestrator.ProvisionAsync("v1", setupAddress);
             Console.WriteLine("Server migration with new column CreatedDate done.");
 
 
@@ -132,8 +132,8 @@ namespace Migration
 
             // Provision client with the new the V1 scope
             // Getting the scope from server and apply it locally
-            var serverScope = await agent1.RemoteOrchestrator.GetServerScopeInfoAsync("v1", progress: progress);
-            var v1clientScope = await agent1.LocalOrchestrator.ProvisionAsync(serverScope, progress:progress);
+            var serverScope = await agent1.RemoteOrchestrator.GetScopeInfoAsync("v1");
+            var v1clientScope = await agent1.LocalOrchestrator.ProvisionAsync(serverScope);
             Console.WriteLine("Sql Server client1 Provision done.");
 
             // if you look the stored procs on your local sql database
@@ -146,9 +146,10 @@ namespace Migration
                 What we want is to sync from the last point we sync the old v0 scope
                 That's why we are shadowing the metadata info from v0 into v1  
             */
-            var v0clientScope = await agent1.LocalOrchestrator.GetClientScopeInfoAsync("v0");
-            v1clientScope.ShadowScope(v0clientScope);
-            v1clientScope = await agent1.LocalOrchestrator.SaveClientScopeInfoAsync(v1clientScope);
+            var v1cScopeInfoClient= await agent1.LocalOrchestrator.GetScopeInfoClientAsync("v1");
+            var v0cScopeInfoClient = await agent1.LocalOrchestrator.GetScopeInfoClientAsync("v0");
+            v1cScopeInfoClient.ShadowScope(v0cScopeInfoClient);
+            await agent1.LocalOrchestrator.SaveScopeInfoClientAsync(v1cScopeInfoClient);
 
             // Now test a new sync, on this new scope v1
             var s4 = await agent1.SynchronizeAsync("v1", progress: progress);
@@ -165,8 +166,7 @@ namespace Migration
 
             // On this new client, migrated, we no longer need the v0 scope
             // we can deprovision it
-            await agent1.LocalOrchestrator.DeprovisionAsync("v0", SyncProvision.StoredProcedures, progress:progress);
-            await agent1.LocalOrchestrator.DeleteClientScopeInfoAsync(v0clientScope, progress: progress);
+            await agent1.LocalOrchestrator.DeprovisionAsync("v0", SyncProvision.StoredProcedures);
             Console.WriteLine($"Deprovision of old scope v0 done on Sql Server client1");
 
             // -----------------------------------------------------------------
@@ -179,13 +179,15 @@ namespace Migration
             Console.WriteLine($"Column eventually added to Sqlite client2");
 
             // Provision SQLite client with the new the V1 scope
-            var v1client2Scope= await agent2.LocalOrchestrator.ProvisionAsync(serverScope, progress: progress);
+            var v1client2Scope= await agent2.LocalOrchestrator.ProvisionAsync(serverScope);
             Console.WriteLine($"Provision v1 done on SQLite client2");
 
             // ShadowScope old scope to new scope
-            var v0client2Scope = await agent2.LocalOrchestrator.GetClientScopeInfoAsync("v0");
-            v1client2Scope.ShadowScope(v0client2Scope);
-            v1client2Scope = await agent2.LocalOrchestrator.SaveClientScopeInfoAsync(v1client2Scope);
+
+            var v1cScopeInfoClient2 = await agent2.LocalOrchestrator.GetScopeInfoClientAsync("v1");
+            var v0cScopeInfoClient2 = await agent2.LocalOrchestrator.GetScopeInfoClientAsync("v0");
+            v1cScopeInfoClient2.ShadowScope(v0cScopeInfoClient2);
+            await agent2.LocalOrchestrator.SaveScopeInfoClientAsync(v1cScopeInfoClient2);
 
             // let's try to sync firstly
             // Now test a new sync, on this new scope v1

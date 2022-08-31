@@ -173,7 +173,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         internal async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction)
         {
             var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
-            var syncTableKeys = await SqlManagementUtils.GetPrimaryKeysForTableAsync((SqlConnection)connection, (SqlTransaction)transaction, this.tableName.ToString(), schema).ConfigureAwait(false);
+            var syncTableKeys = await SqlManagementUtils.GetPrimaryKeysForTableAsync(this.tableName.ToString(), schema, (SqlConnection)connection, (SqlTransaction)transaction).ConfigureAwait(false);
 
             var lstKeys = new List<SyncColumn>();
 
@@ -234,7 +234,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
             var columns = new List<SyncColumn>();
             // Get the columns definition
-            var syncTableColumnsList = await SqlManagementUtils.GetColumnsForTableAsync((SqlConnection)connection, (SqlTransaction)transaction, this.tableName.ToString(), schema).ConfigureAwait(false);
+            var syncTableColumnsList = await SqlManagementUtils.GetColumnsForTableAsync(this.tableName.ToString(), schema, (SqlConnection)connection, (SqlTransaction)transaction).ConfigureAwait(false);
 
             foreach (var c in syncTableColumnsList.Rows.OrderBy(r => (int)r["column_id"]))
             {

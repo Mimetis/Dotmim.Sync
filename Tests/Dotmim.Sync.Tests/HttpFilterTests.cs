@@ -848,16 +848,11 @@ namespace Dotmim.Sync.Tests
             {
                 // Create local orchestrator
                 var localOrchestrator = new LocalOrchestrator(client.Provider);
-
-                var needToUpgrade = await localOrchestrator.NeedsToUpgradeAsync();
-                if (needToUpgrade)
-                    await localOrchestrator.UpgradeAsync();
-
                 // Create a remote orchestrator
                 var remoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
 
                 // Get the scope from server
-                var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync();
+                var serverScope = await remoteOrchestrator.GetScopeInfoAsync();
 
                 // Apply scope locally to recreate everything we need
                 await localOrchestrator.ProvisionAsync(serverScope);

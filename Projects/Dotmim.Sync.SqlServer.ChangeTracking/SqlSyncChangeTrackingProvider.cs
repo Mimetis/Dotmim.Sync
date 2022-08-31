@@ -47,7 +47,7 @@ namespace Dotmim.Sync.SqlServer
             => new SqlChangeTrackingTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
 
         public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-            => new SqlChangeTrackingSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
+            => new SqlChangeTrackingSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName, this.UseBulkOperations);
 
         public override DbBuilder GetDatabaseBuilder() => new SqlChangeTrackingBuilder();
 

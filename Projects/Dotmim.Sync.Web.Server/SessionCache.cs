@@ -35,16 +35,14 @@ namespace Dotmim.Sync.Web.Server
             if (ServerBatchInfo != null)
             {
                 var serverBatchPartsCountStr = ServerBatchInfo.BatchPartsInfo == null ? "Null" : ServerBatchInfo.BatchPartsInfo.Count.ToString();
-                var serverBatchTablesCountStr = ServerBatchInfo.SanitizedSchema == null ? "Null" : ServerBatchInfo.SanitizedSchema.Tables.Count.ToString();
-                serverBatchInfoStr = $"Parts:{serverBatchPartsCountStr}. Rows Count:{ServerBatchInfo.RowsCount}. Tables:{serverBatchTablesCountStr}";
+                serverBatchInfoStr = $"Parts:{serverBatchPartsCountStr}. Rows Count:{ServerBatchInfo.RowsCount}.";
             }
 
             var clientBatchInfoStr = "Null";
             if (ClientBatchInfo != null)
             {
                 var clientBatchPartsCountStr = ClientBatchInfo.BatchPartsInfo == null ? "Null" : ClientBatchInfo.BatchPartsInfo.Count.ToString();
-                var clientBatchTablesCountStr = ClientBatchInfo.SanitizedSchema == null ? "Null" : ClientBatchInfo.SanitizedSchema.Tables.Count.ToString();
-                clientBatchInfoStr = $"Parts:{clientBatchPartsCountStr}. Rows Count:{ClientBatchInfo.RowsCount}. Tables:{clientBatchTablesCountStr}";
+                clientBatchInfoStr = $"Parts:{clientBatchPartsCountStr}. Rows Count:{ClientBatchInfo.RowsCount}.";
             }
 
             var debug = new StringBuilder();

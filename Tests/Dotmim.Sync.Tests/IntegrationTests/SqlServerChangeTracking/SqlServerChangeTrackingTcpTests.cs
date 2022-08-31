@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
     public class SqlServerChangeTrackingTcpTests : TcpTests
     {
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            {  ProviderType.Sql};
+           {  ProviderType.Sql, ProviderType.Sqlite, ProviderType.MySql,  ProviderType.MariaDB};
 
         public SqlServerChangeTrackingTcpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {

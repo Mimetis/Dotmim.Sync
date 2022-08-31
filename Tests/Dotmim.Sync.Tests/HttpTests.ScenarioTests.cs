@@ -153,7 +153,7 @@ namespace Dotmim.Sync.Tests
 
                 // Get scope from server (v1 because it contains the new table schema)
                 var webServerProxyOrchestrator = new WebRemoteOrchestrator(serviceUri);
-                serverScope = await webServerProxyOrchestrator.GetServerScopeInfoAsync("v1");
+                serverScope = await webServerProxyOrchestrator.GetScopeInfoAsync("v1");
 
                 // Creating a new table is quite easier since DMS can do it for us
                 var localOrchestrator = new LocalOrchestrator(client.Provider);
@@ -164,13 +164,14 @@ namespace Dotmim.Sync.Tests
                     await localOrchestrator.CreateTableAsync(serverScope, "Product");
 
                 // Once created we can provision the new scope, thanks to the serverScope instance we already have
-                var clientScopeV1 = await localOrchestrator.ProvisionAsync(serverScope);
+                await localOrchestrator.ProvisionAsync(serverScope);
 
                 // IF we launch synchronize on this new scope, it will get all the rows from the server
-                // We are making a shadow copy of previous scope to get the last synchronization metadata
-                var oldClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
-                clientScopeV1.ShadowScope(oldClientScopeInfo);
-                await localOrchestrator.SaveClientScopeInfoAsync(clientScopeV1);
+
+                var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync("v1");
+                var oldCScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync();
+                cScopeInfoClient.ShadowScope(oldCScopeInfoClient);
+                await localOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
 
                 // We are ready to sync this new scope !
                 var agent = new SyncAgent(client.Provider, Server.Provider);
@@ -181,11 +182,6 @@ namespace Dotmim.Sync.Tests
 
 
             }
-
-
-
-
-
         }
 
         [Fact]
@@ -217,7 +213,7 @@ namespace Dotmim.Sync.Tests
 
             var setup = new SyncSetup(new string[] { productCategoryTableName });
             setup.Tables[productCategoryTableName].Columns.AddRange(
-                new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
+                new string[] { "ProductCategoryId", "ParentProductCategoryId", "Name", "rowguid", "ModifiedDate" });
 
             // Counting product categories & products
             int productCategoryRowsCount = 0;
@@ -248,7 +244,7 @@ namespace Dotmim.Sync.Tests
             var setupV1 = new SyncSetup(new string[] { productCategoryTableName, productTableName });
 
             setupV1.Tables[productCategoryTableName].Columns.AddRange(
-            new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space" });
+            new string[] { "ProductCategoryId", "ParentProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space" });
 
             var serverScope = await remoteOrchestrator.ProvisionAsync("v1", setupV1);
 
@@ -291,7 +287,7 @@ namespace Dotmim.Sync.Tests
             // Creating a new table is quite easier since DMS can do it for us
             // Get scope from server (v1 because it contains the new table schema)
             // we already have it, but you cand call GetServerScopInfoAsync("v1") if needed
-            // var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync("v1");
+            // var serverScope = await remoteOrchestrator.GetScopeInfoAsync("v1");
 
             var localOrchestrator = new LocalOrchestrator(client1provider);
             if (this.Server.ProviderType == ProviderType.Sql)
@@ -299,13 +295,14 @@ namespace Dotmim.Sync.Tests
             else
                 await localOrchestrator.CreateTableAsync(serverScope, "Product");
             // Once created we can provision the new scope, thanks to the serverScope instance we already have
-            var clientScopeV1 = await localOrchestrator.ProvisionAsync(serverScope);
+            await localOrchestrator.ProvisionAsync(serverScope);
 
+            var cScopeClientInfo = await localOrchestrator.GetScopeInfoClientAsync("v1");
             // IF we launch synchronize on this new scope, it will get all the rows from the server
             // We are making a shadow copy of previous scope to get the last synchronization metadata
-            var oldClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync();
-            clientScopeV1.ShadowScope(oldClientScopeInfo);
-            await localOrchestrator.SaveClientScopeInfoAsync(clientScopeV1);
+            var oldScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync();
+            cScopeClientInfo.ShadowScope(oldScopeInfoClient);
+            await localOrchestrator.SaveScopeInfoClientAsync(cScopeClientInfo);
 
             // We are ready to sync this new scope !
             // we still can use the old agent, since it's already configured with correct providers
@@ -330,7 +327,7 @@ namespace Dotmim.Sync.Tests
             }
 
             // Assuming we want to migrate the client 2 now
-            var serverScope2 = await agent2.RemoteOrchestrator.GetServerScopeInfoAsync();
+            var serverScope2 = await agent2.RemoteOrchestrator.GetScopeInfoAsync();
 
             // Create the new table locally
             if (this.Server.ProviderType == ProviderType.Sql)
@@ -441,7 +438,7 @@ namespace Dotmim.Sync.Tests
             {
                 var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
 
-                webServerAgent.RemoteOrchestrator.OnApplyChangesFailed(async acf =>
+                webServerAgent.RemoteOrchestrator.OnApplyChangesConflictOccured(async acf =>
                 {
                     // Check conflict is correctly set
                     var conflict = await acf.GetSyncConflictAsync();
@@ -467,10 +464,10 @@ namespace Dotmim.Sync.Tests
             // From client : Remote is server, Local is client
             // From here, we are going to let the client decides 
             // who is the winner of the conflict :
-            agent.LocalOrchestrator.OnApplyChangesFailed(async acf =>
+            agent.LocalOrchestrator.OnApplyChangesConflictOccured(async acf =>
             {
                 // Check conflict is correctly set
-                var conflict = await acf.GetSyncConflictAsync(); 
+                var conflict = await acf.GetSyncConflictAsync();
                 var localRow = conflict.LocalRow;
                 var remoteRow = conflict.RemoteRow;
 

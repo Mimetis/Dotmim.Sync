@@ -15,8 +15,7 @@ namespace Dotmim.Sync
     public class SyncOptions
     {
         /// <summary>
-        /// Default name if nothing is specified for the scope inf table, stored on the client db
-        /// On the server side, server scope table is prefixed with _server and history table with _history
+        /// Default name if nothing is specified for the scope info table and scope info client table, stored on both side
         /// </summary>
         public const string DefaultScopeInfoTableName = "scope_info";
 
@@ -41,7 +40,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the size used (approximatively in kb, depending on the serializer) for each batch file, in batch mode. 
         /// Default is 5000 
-        /// Min value is 1000
+        /// Min value is 100
         /// </summary>
         public int BatchSize
         {
@@ -74,7 +73,6 @@ namespace Dotmim.Sync
 
         /// <summary>
         /// Gets or Sets the scope_info table name. Default is scope_info
-        /// On the server side, server scope table is prefixed with _server and history table with _history
         /// </summary>
         public string ScopeInfoTableName { get; set; }
 
@@ -88,11 +86,6 @@ namespace Dotmim.Sync
         /// </summary>
         public ILogger Logger { get; set; }
 
-        ///// <summary>
-        ///// Gets or Sets the local serializer used to buffer rows on disk
-        ///// </summary>
-        //public ILocalSerializer LocalSerializer { get; set; }
-
         /// <summary>
         /// Gets the Progress Level
         /// </summary>
@@ -102,6 +95,11 @@ namespace Dotmim.Sync
         /// Gets or Sets the sql commands timeout in the sync. 30 sec by default
         /// </summary>
         public int? DbCommandTimeout { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the transaction mode for applying changes
+        /// </summary>
+        public TransactionMode TransactionMode { get; set; }
 
         /// <summary>
         /// Create a new instance of options with default values
@@ -118,6 +116,7 @@ namespace Dotmim.Sync
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;
             this.Logger = new SyncLogger().AddDebug();
             this.ProgressLevel = SyncProgressLevel.Information;
+            this.TransactionMode = TransactionMode.AllOrNothing;
         }
 
 

@@ -44,7 +44,7 @@ namespace Dotmim.Sync.Sqlite
 
                 foreach (var setupTable in syncSetup.Tables)
                 {
-                    var syncTableColumnsList = await GetColumnsForTableAsync(connection, transaction, setupTable.TableName).ConfigureAwait(false);
+                    var syncTableColumnsList = await GetColumnsForTableAsync(setupTable.TableName, connection, transaction).ConfigureAwait(false);
 
                     foreach (var column in syncTableColumnsList.Rows)
                         setupTable.Columns.Add(column["name"].ToString());
@@ -57,14 +57,15 @@ namespace Dotmim.Sync.Sqlite
             return syncSetup;
         }
 
-        public static async Task<SyncTable> GetTableAsync(SqliteConnection connection, SqliteTransaction transaction, string unquotedTableName)
+        public static async Task<SyncTable> GetTableDefinitionAsync(string tableName, SqliteConnection connection, SqliteTransaction transaction)
         {
             string command = "select * from sqlite_master where name = @tableName limit 1";
+            var tableNameString = ParserName.Parse(tableName).ToString();
 
-            var syncTable = new SyncTable(unquotedTableName);
+            var syncTable = new SyncTable(tableNameString);
             using (var sqlCommand = new SqliteCommand(command, connection))
             {
-                sqlCommand.Parameters.AddWithValue("@tableName", unquotedTableName);
+                sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -86,11 +87,62 @@ namespace Dotmim.Sync.Sqlite
             return syncTable;
         }
 
-        public static async Task<SyncTable> GetColumnsForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string unquotedTableName)
+        public static async Task<SyncTable> GetTableAsync(string tableName, SqliteConnection connection, SqliteTransaction transaction)
         {
+            var pTableName = ParserName.Parse(tableName);
+            var name = $"{pTableName.Quoted()}";
+            var command = $"Select * from {name};";
 
-            string commandColumn = $"SELECT * FROM pragma_table_info('{unquotedTableName}');";
-            var syncTable = new SyncTable(unquotedTableName);
+            var syncTable = new SyncTable(name);
+
+            using var sqlCommand = new SqliteCommand(command, connection);
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
+
+            sqlCommand.Transaction = transaction;
+
+            using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                syncTable.Load(reader);
+
+            if (!alreadyOpened)
+                connection.Close();
+
+            return syncTable;
+        }
+
+
+        public static async Task RenameTableAsync(string tableName,string newTableName, SqliteConnection connection, SqliteTransaction transaction)
+        {
+            var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
+
+            var pNewTableName = ParserName.Parse(newTableName).Unquoted().ToString();
+
+            var commandText = $"ALTER TABLE [{pTableName}] RENAME TO {pNewTableName};";
+
+            using var sqlCommand = new SqliteCommand(commandText, connection);
+
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
+
+            sqlCommand.Transaction = transaction;
+
+            await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            if (!alreadyOpened)
+                connection.Close();
+        }
+
+        public static async Task<SyncTable> GetColumnsForTableAsync(string tableName, SqliteConnection connection, SqliteTransaction transaction)
+        {
+            var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
+
+            string commandColumn = $"SELECT * FROM pragma_table_info('{pTableName}');";
+            var syncTable = new SyncTable(tableName);
 
             using (var sqlCommand = new SqliteCommand(commandColumn, connection))
             {
@@ -169,13 +221,13 @@ namespace Dotmim.Sync.Sqlite
             return syncTable;
         }
 
-        public static async Task DropTableIfExistsAsync(SqliteConnection connection, SqliteTransaction transaction, string quotedTableName)
+        public static async Task DropTableIfExistsAsync(string tableName, SqliteConnection connection, SqliteTransaction transaction)
         {
-            var tableName = ParserName.Parse(quotedTableName).ToString();
+            var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
 
             using (DbCommand command = connection.CreateCommand())
             {
-                command.CommandText = $"drop table if exist {tableName}";
+                command.CommandText = $"drop table if exist {pTableName}";
                 command.Transaction = transaction;
 
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -195,10 +247,10 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        public static async Task<bool> TableExistsAsync(SqliteConnection connection, SqliteTransaction transaction, ParserName tableName)
+        public static async Task<bool> TableExistsAsync(string tableName, SqliteConnection connection, SqliteTransaction transaction)
         {
             bool tableExist;
-            var quotedTableName = tableName.Unquoted().ToString();
+            var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
 
             using (DbCommand dbCommand = connection.CreateCommand())
             {
@@ -207,7 +259,7 @@ namespace Dotmim.Sync.Sqlite
                 var SqliteParameter = new SqliteParameter()
                 {
                     ParameterName = "@tableName",
-                    Value = quotedTableName
+                    Value = pTableName
                 };
                 dbCommand.Parameters.Add(SqliteParameter);
 

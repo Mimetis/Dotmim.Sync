@@ -173,7 +173,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             await ctxClient.SaveChangesAsync();
 
             // Get changes to be populated to the server
-            var changes = await localOrchestrator.GetChangesAsync(scopeName, parameters);
+            var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
+            var changes = await localOrchestrator.GetChangesAsync(scopeInfoClient);
 
             Assert.NotNull(changes.ClientBatchInfo);
             Assert.NotNull(changes.ClientChangesSelected);
@@ -181,10 +182,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("SalesOrderDetail", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("SalesOrderHeader", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
-            var sodTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ClientBatchInfo, "SalesOrderDetail", "SalesLT");
+            var sodTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ClientBatchInfo, "SalesOrderDetail", "SalesLT");
             Assert.Equal(3, sodTable.Rows.Count);
 
-            var sohTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ClientBatchInfo, "SalesOrderHeader", "SalesLT");
+            var sohTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ClientBatchInfo, "SalesOrderHeader", "SalesLT");
             Assert.Single(sohTable.Rows);
 
         }
@@ -244,7 +245,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             }
 
             // Get changes to be populated to the server
-            var changes = await localOrchestrator.GetChangesAsync(scopeName);
+            var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
+            var changes = await localOrchestrator.GetChangesAsync(scopeInfoClient);
 
             Assert.NotNull(changes.ClientBatchInfo);
             Assert.NotNull(changes.ClientChangesSelected);
@@ -252,11 +254,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("Product", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("ProductCategory", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
-            var productTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ClientBatchInfo, "Product", "SalesLT");
+            var productTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ClientBatchInfo, "Product", "SalesLT");
             var productRowName = productTable.Rows[0]["Name"];
             Assert.Equal(productName, productRowName);
 
-            var productCategoryTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ClientBatchInfo, "ProductCategory", "SalesLT");
+            var productCategoryTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ClientBatchInfo, "ProductCategory", "SalesLT");
             var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
             Assert.Equal(productCategoryName, productCategoryRowName);
 
@@ -319,7 +321,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Get changes to be populated to the server
-            var changes = await localOrchestrator.GetChangesAsync(scopeName);
+            var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
+            var changes = await localOrchestrator.GetChangesAsync(scopeInfoClient);
 
             Assert.NotNull(changes.ClientBatchInfo);
             Assert.NotNull(changes.ClientChangesSelected);
@@ -327,11 +330,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("Product", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("ProductCategory", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
-            var productTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ClientBatchInfo, "Product", "SalesLT");
+            var productTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ClientBatchInfo, "Product", "SalesLT");
             var productRowName = productTable.Rows[0]["Name"];
             Assert.Equal(productName, productRowName);
 
-            var productCategoryTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ClientBatchInfo, "ProductCategory", "SalesLT");
+            var productCategoryTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ClientBatchInfo, "ProductCategory", "SalesLT");
             var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
             Assert.Equal(productCategoryName, productCategoryRowName);
 

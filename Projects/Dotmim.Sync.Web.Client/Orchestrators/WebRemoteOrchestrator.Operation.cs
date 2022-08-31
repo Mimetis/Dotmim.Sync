@@ -20,12 +20,13 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Get server scope from server, by sending an http request to the server 
         /// </summary>
-        internal override async Task<(SyncContext context, SyncOperation operation)>
-                InternalGetOperationAsync(ServerScopeInfo serverScopeInfo, ClientScopeInfo clientScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
-        {
+        internal override async Task<(SyncContext context, SyncOperation operation)> 
+            InternalGetOperationAsync(ScopeInfo serverScopeInfo, ScopeInfo cScopeInfo, ScopeInfoClient cScopeInfoClient, SyncContext context, 
+            DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null) 
 
+        {
             // Create the message to be sent
-            var httpMessage = new HttpMessageOperationRequest(context, clientScopeInfo);
+            var httpMessage = new HttpMessageOperationRequest(context, cScopeInfo, cScopeInfoClient);
 
             // serialize message
             var serializer = this.SerializerFactory.GetSerializer<HttpMessageOperationRequest>();

@@ -14,12 +14,6 @@ namespace Dotmim.Sync
     /// </summary>
     public class SyncConflict
     {
-  
-        /// <summary>
-        /// Gets or sets the error message that is returned when a conflict is set to ConflictType.ErrorsOccurred
-        /// </summary>
-        public string ErrorMessage { get; set; }
-
         /// <summary>
         /// Gets the row that contains the conflicting row from the local database.
         /// </summary>

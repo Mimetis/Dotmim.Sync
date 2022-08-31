@@ -131,7 +131,7 @@ const ScopesComponent: React.FunctionComponent = (props) => {
                                     <StyledTableCell>a</StyledTableCell>
                                     <StyledTableCell>Name</StyledTableCell>
                                     <StyledTableCell>Setup</StyledTableCell>
-                                    <StyledTableCell>Last Sync</StyledTableCell>
+                                    <StyledTableCell>Last Cleanup</StyledTableCell>
                                     <StyledTableCell>Version</StyledTableCell>
                                 </TableRow>
                             </TableHead>
@@ -164,7 +164,7 @@ const ScopesComponent: React.FunctionComponent = (props) => {
                                                 <Chip sx={{ cursor: "pointer" }} label={JSON.stringify(row.setup).substring(0, 60) + "..."} />
                                             </Button>
                                         </StyledTableCell>
-                                        <StyledTableCell>{row.lastsync}</StyledTableCell>
+                                        <StyledTableCell>{row.lastCleanup}</StyledTableCell>
                                         <StyledTableCell>{row.version}</StyledTableCell>
                                     </StyledTableRow>
                                 ))}

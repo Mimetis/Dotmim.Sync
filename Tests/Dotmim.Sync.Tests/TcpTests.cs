@@ -232,7 +232,7 @@ namespace Dotmim.Sync.Tests
                 // The schema get here is not serialized / deserialiazed, like the remote schema (loaded from database)
                 var clientSchema = await agent.LocalOrchestrator.GetSchemaAsync(setup);
 
-                var serverScope = await agent.RemoteOrchestrator.GetServerScopeInfoAsync();
+                var serverScope = await agent.RemoteOrchestrator.GetScopeInfoAsync();
                 var serverSchema = serverScope.Schema;
 
                 foreach (var setupTable in setup.Tables)
@@ -395,10 +395,7 @@ namespace Dotmim.Sync.Tests
                     var s = await agent.SynchronizeAsync(new string[] { "TableTest" });
                 });
 
-                Assert.Equal(SyncSide.ServerSide, se.Side);
                 Assert.Equal("MissingPrimaryKeyException", se.TypeName);
-                Assert.Equal(this.Server.DatabaseName, se.InitialCatalog);
-
             }
         }
 
@@ -428,7 +425,6 @@ namespace Dotmim.Sync.Tests
                     var s = await agent.SynchronizeAsync(setup);
                 });
 
-                Assert.Equal(SyncSide.ServerSide, se.Side);
                 Assert.Equal("MissingColumnException", se.TypeName);
             }
         }
@@ -457,7 +453,6 @@ namespace Dotmim.Sync.Tests
                     var s = await agent.SynchronizeAsync(setup);
                 });
 
-                Assert.Equal(SyncSide.ServerSide, se.Side);
                 Assert.Equal("MissingTableException", se.TypeName);
             }
         }
@@ -1450,7 +1445,7 @@ namespace Dotmim.Sync.Tests
                 await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
 
                 var localOrchestrator = new LocalOrchestrator(client.Provider, options);
-                var provision = SyncProvision.ClientScope | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                var provision = SyncProvision.ScopeInfo | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
                 // just check interceptor
                 var onTableCreatedCount = 0;
@@ -1460,9 +1455,9 @@ namespace Dotmim.Sync.Tests
                 var schema = await remoteOrchestrator.GetSchemaAsync(setup);
 
                 // Read client scope
-                var clientScope = await localOrchestrator.GetClientScopeInfoAsync();
+                var clientScope = await localOrchestrator.GetScopeInfoAsync();
 
-                var serverScope = new ServerScopeInfo
+                var serverScope = new ScopeInfo
                 {
                     Name = clientScope.Name,
                     Schema = schema,
@@ -1478,7 +1473,7 @@ namespace Dotmim.Sync.Tests
                 //--------------------------
 
                 // check if scope table is correctly created
-                var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(scopeType: DbScopeType.Client);
+                var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync();
                 Assert.True(scopeInfoTableExists);
 
                 // get the db manager
@@ -1584,12 +1579,12 @@ namespace Dotmim.Sync.Tests
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
                 // get clientScope for further check
-                var clientScope = await localOrchestrator.GetClientScopeInfoAsync();
+                var clientScope = await localOrchestrator.GetScopeInfoAsync();
 
                 // try to drop everything from local database
                 await localOrchestrator.DropAllAsync();
 
-                Assert.False(await localOrchestrator.ExistScopeInfoTableAsync(scopeType: DbScopeType.Client));
+                Assert.False(await localOrchestrator.ExistScopeInfoTableAsync());
 
                 // get the db manager
                 foreach (var setupTable in setup.Tables)
@@ -1621,13 +1616,13 @@ namespace Dotmim.Sync.Tests
                 }
 
                 // get clientScope for further check
-                var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync();
+                var serverScope = await remoteOrchestrator.GetScopeInfoAsync();
 
                 // try to drop everything from local database
                 await remoteOrchestrator.DropAllAsync();
 
-                Assert.False(await remoteOrchestrator.ExistScopeInfoTableAsync(scopeType: DbScopeType.ServerHistory));
-                Assert.False(await remoteOrchestrator.ExistScopeInfoTableAsync(scopeType: DbScopeType.Server));
+                Assert.False(await remoteOrchestrator.ExistScopeInfoTableAsync());
+                Assert.False(await remoteOrchestrator.ExistScopeInfoClientTableAsync());
 
                 // get the db manager
                 foreach (var setupTable in setup.Tables)
@@ -1692,17 +1687,18 @@ namespace Dotmim.Sync.Tests
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
 
-                // get clientScope for further check
-                var clientScope = await localOrchestrator.GetClientScopeInfoAsync();
+                // get scopeInfos for further check
+                var serverScope = await remoteOrchestrator.GetScopeInfoAsync();
+                var clientScope = await localOrchestrator.GetScopeInfoAsync();
 
                 // Drop client scope
                 // Once client scope table is dropped, we will not be able to get client scopes
                 // for the DropAll method.
                 // So far, the Drop All method should fallback on default scope to drop all
-                await localOrchestrator.DeprovisionAsync(SyncProvision.ClientScope);
+                await localOrchestrator.DeprovisionAsync(SyncProvision.ScopeInfo);
 
                 // check if scope table is correctly deleted
-                var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(scopeType: DbScopeType.Client);
+                var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync();
                 Assert.False(scopeInfoTableExists);
 
                 // try to drop everything from local database
@@ -1737,24 +1733,25 @@ namespace Dotmim.Sync.Tests
 
                 }
 
-                // get clientScope for further check
-                var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync();
-
                 // Drop server scope
                 // Once server scope table is dropped, we will not be able to get Server scopes
                 // for the DropAll method.
                 // So far, the Drop All method should fallback on default scope to drop all
-                await remoteOrchestrator.DeprovisionAsync(SyncProvision.ServerScope);
+                await remoteOrchestrator.DeprovisionAsync(SyncProvision.ScopeInfo);
 
                 // check if scope table is correctly deleted
-                scopeInfoTableExists = await remoteOrchestrator.ExistScopeInfoTableAsync(scopeType: DbScopeType.Server);
+                scopeInfoTableExists = await remoteOrchestrator.ExistScopeInfoTableAsync();
                 Assert.False(scopeInfoTableExists);
+
+                await remoteOrchestrator.DeprovisionAsync(SyncProvision.ScopeInfoClient);
+
+                // check if scope table is correctly deleted
+                var scopeInfoClientTableExists = await remoteOrchestrator.ExistScopeInfoClientTableAsync();
+                Assert.False(scopeInfoClientTableExists);
 
                 // try to drop everything from local database
                 await remoteOrchestrator.DropAllAsync();
 
-                Assert.False(await remoteOrchestrator.ExistScopeInfoTableAsync(scopeType: DbScopeType.ServerHistory));
-           
                 // get the db manager
                 foreach (var setupTable in setup.Tables)
                 {
@@ -1815,7 +1812,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
+                var clientScope = await agent.LocalOrchestrator.GetScopeInfoAsync();
 
                 using var connection = client.Provider.CreateConnection();
                 await connection.OpenAsync();
@@ -2283,7 +2280,7 @@ namespace Dotmim.Sync.Tests
             {
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var clientScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
+                var clientScope = await agent.LocalOrchestrator.GetScopeInfoAsync();
 
                 //await Assert.ThrowsAsync<SyncException>(async () =>
                 //{
@@ -2384,7 +2381,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesUploaded);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                agent.LocalOrchestrator.ClearInterceptors(); 
+                agent.LocalOrchestrator.ClearInterceptors();
             }
 
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
@@ -2446,6 +2443,10 @@ namespace Dotmim.Sync.Tests
             // inserted rows will be deleted 
             foreach (var client in Clients)
             {
+                // coz of ProductCategory Parent Id Foreign Key Constraints
+                // on Reset table in MySql
+                options.DisableConstraintsOnApplyChanges = true;
+
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
@@ -2511,6 +2512,10 @@ namespace Dotmim.Sync.Tests
             int download = 2;
             foreach (var client in Clients)
             {
+                // coz of ProductCategory Parent Id Foreign Key Constraints
+                // on Reset table in MySql
+                options.DisableConstraintsOnApplyChanges = true;
+
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload);
@@ -3378,16 +3383,21 @@ namespace Dotmim.Sync.Tests
 
                 // Generate an outdated situation
                 await HelperDatabase.ExecuteScriptAsync(client.ProviderType, client.DatabaseName,
-                                    $"Update scope_info set scope_last_server_sync_timestamp={dmc.TimestampLimit - 1}");
+                                    $"Update scope_info_client set scope_last_server_sync_timestamp=-1");
 
                 // Making a first sync, will initialize everything we need
-                var se = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(scopeName));
+                var se = await Assert.ThrowsAsync<SyncException>(async () =>
+                {
+                    var tmpR = await agent.SynchronizeAsync(scopeName);
+                });
 
-                Assert.Equal(SyncSide.ClientSide, se.Side);
                 Assert.Equal("OutOfDateException", se.TypeName);
 
                 // Intercept outdated event, and make a reinitialize with upload action
-                agent.LocalOrchestrator.OnOutdated(oa => oa.Action = OutdatedAction.ReinitializeWithUpload);
+                agent.LocalOrchestrator.OnOutdated(oa =>
+                {
+                    oa.Action = OutdatedAction.ReinitializeWithUpload;
+                });
 
                 var r = await agent.SynchronizeAsync(scopeName);
                 var c = GetServerDatabaseRowsCount(this.Server);
@@ -3603,18 +3613,18 @@ namespace Dotmim.Sync.Tests
             {
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
-                var localScope = await agent.LocalOrchestrator.GetClientScopeInfoAsync();
+                var localScope = await agent.LocalOrchestrator.GetScopeInfoAsync();
                 localScope.Setup.Tables["Employee"].SyncDirection = SyncDirection.UploadOnly;
                 localScope.Setup.Tables["Address"].SyncDirection = SyncDirection.UploadOnly;
                 localScope.Setup.Tables["EmployeeAddress"].SyncDirection = SyncDirection.UploadOnly;
-                await agent.LocalOrchestrator.SaveClientScopeInfoAsync(localScope);
+                await agent.LocalOrchestrator.SaveScopeInfoAsync(localScope);
 
 
-                var remoteScope = await agent.RemoteOrchestrator.GetServerScopeInfoAsync();
+                var remoteScope = await agent.RemoteOrchestrator.GetScopeInfoAsync();
                 remoteScope.Setup.Tables["Employee"].SyncDirection = SyncDirection.UploadOnly;
                 remoteScope.Setup.Tables["Address"].SyncDirection = SyncDirection.UploadOnly;
                 remoteScope.Setup.Tables["EmployeeAddress"].SyncDirection = SyncDirection.UploadOnly;
-                await agent.RemoteOrchestrator.SaveServerScopeInfoAsync(remoteScope);
+                await agent.RemoteOrchestrator.SaveScopeInfoAsync(remoteScope);
 
 
                 var s = await agent.SynchronizeAsync();
@@ -3801,6 +3811,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients and check results
             foreach (var client in Clients)
             {
+                options.DisableConstraintsOnApplyChanges = true;
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
@@ -3832,7 +3843,7 @@ namespace Dotmim.Sync.Tests
 
             // Ensure schema is ready on server side. Will create everything we need (triggers, tracking, stored proc, scopes)
             var setup = new SyncSetup(Tables);
-            var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync(SyncOptions.DefaultScopeName, setup);
+            var serverScope = await remoteOrchestrator.GetScopeInfoAsync(SyncOptions.DefaultScopeName, setup);
             await remoteOrchestrator.ProvisionAsync(serverScope);
 
             var providers = this.Clients.Select(c => c.ProviderType).Distinct();

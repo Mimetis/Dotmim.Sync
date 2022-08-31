@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
 using System.Text;
 using System.Threading.Tasks;
@@ -147,93 +148,6 @@ namespace Dotmim.Sync
         public override int EventId => SyncEventsId.SessionEnd.Id;
     }
 
-    /// <summary>
-    /// Raised as an argument when an apply is failing. Waiting from user for the conflict resolution
-    /// </summary>
-    public class ApplyChangesFailedArgs : ProgressArgs
-    {
-        ConflictResolution resolution;
-
-        /// <summary>
-        /// Gets or Sets the action to be taken when resolving the conflict. 
-        /// If you choose MergeRow, you have to fill the FinalRow property
-        /// </summary>
-        public ConflictResolution Resolution
-        {
-            get => this.resolution;
-            set
-            {
-                if (this.resolution != value)
-                {
-                    this.resolution = value;
-
-                    if (this.resolution == ConflictResolution.MergeRow)
-                    {
-                        var conflict = this.GetSyncConflictAsync().GetAwaiter().GetResult();
-                        var finalRowArray = conflict.RemoteRow.ToArray();
-                        var finalTable = conflict.RemoteRow.SchemaTable.Clone();
-                        var finalSet = conflict.RemoteRow.SchemaTable.Schema.Clone(false);
-                        finalSet.Tables.Add(finalTable);
-                        this.FinalRow = new SyncRow(conflict.RemoteRow.SchemaTable, finalRowArray);
-                        finalTable.Rows.Add(this.FinalRow);
-                    }
-                    else if (this.FinalRow != null)
-                    {
-                        var finalSet = this.FinalRow.SchemaTable.Schema;
-                        this.FinalRow.Clear();
-                        finalSet.Clear();
-                        finalSet.Dispose();
-                    }
-                }
-            }
-        }
-
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-        /// <summary>
-        /// Gets or Sets the scope id who will be marked as winner
-        /// </summary>
-        public Guid? SenderScopeId { get; set; }
-
-        /// <summary>
-        /// If we have a merge action, the final row represents the merged row
-        /// </summary>
-        public SyncRow FinalRow { get; set; }
-
-
-        private BaseOrchestrator orchestrator;
-        private DbSyncAdapter syncAdapter;
-        private readonly SyncRow conflictRow;
-        private SyncTable schemaChangesTable;
-
-        // used only internally
-        internal SyncConflict conflict;
-
-        public async Task<SyncConflict> GetSyncConflictAsync()
-        {
-            var (_, localRow) = await orchestrator.InternalGetConflictRowAsync(Context, syncAdapter, conflictRow, schemaChangesTable, this.Connection, this.Transaction).ConfigureAwait(false);
-
-            var conflict = orchestrator.InternalGetConflict(conflictRow, localRow);
-
-            this.conflict = conflict;
-            return conflict;
-        }
-
-        public ApplyChangesFailedArgs(SyncContext context, BaseOrchestrator orchestrator, DbSyncAdapter syncAdapter, SyncRow conflictRow, SyncTable schemaChangesTable, ConflictResolution action, Guid? senderScopeId, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction)
-        {
-            this.orchestrator = orchestrator;
-            this.syncAdapter = syncAdapter;
-            this.conflictRow = conflictRow;
-            this.schemaChangesTable = schemaChangesTable;
-            this.resolution = action;
-            this.SenderScopeId = senderScopeId;
-        }
-        public override string Source => Connection.Database;
-        public override string Message => $"Conflict {conflictRow}.";
-        public override int EventId => SyncEventsId.ApplyChangesFailed.Id;
-
-    }
-
 
     public static partial class InterceptorsExtensions
     {
@@ -313,18 +227,6 @@ namespace Dotmim.Sync
         /// </summary>
         public static Guid OnSessionEnd(this BaseOrchestrator orchestrator, Func<SessionEndArgs, Task> action)
             => orchestrator.AddInterceptor(action);
-
-        /// <summary>
-        /// Intercept the provider when an apply change is failing
-        /// </summary>
-        public static Guid OnApplyChangesFailed(this BaseOrchestrator orchestrator, Action<ApplyChangesFailedArgs> action)
-            => orchestrator.AddInterceptor(action);
-        /// <summary>
-        /// Intercept the provider when an apply change is failing
-        /// </summary>
-        public static Guid OnApplyChangesFailed(this BaseOrchestrator orchestrator, Func<ApplyChangesFailedArgs, Task> action)
-            => orchestrator.AddInterceptor(action);
-
     }
 
     public static partial class SyncEventsId
@@ -337,6 +239,5 @@ namespace Dotmim.Sync
 
         public static EventId SessionBegin => CreateEventId(100, nameof(SessionBegin));
         public static EventId SessionEnd => CreateEventId(200, nameof(SessionEnd));
-        public static EventId ApplyChangesFailed => CreateEventId(300, nameof(ApplyChangesFailed));
     }
 }

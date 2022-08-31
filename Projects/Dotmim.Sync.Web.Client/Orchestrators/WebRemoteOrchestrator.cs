@@ -17,11 +17,6 @@ namespace Dotmim.Sync.Web.Client
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
 
-        /// <summary>
-        /// Even if web client is acting as a proxy remote orchestrator, we are using it on the client side
-        /// </summary>
-        public override SyncSide Side => SyncSide.ClientSide;
-
         private readonly HttpRequestHandler httpRequestHandler;
 
         public Dictionary<string, string> CustomHeaders => this.httpRequestHandler.CustomHeaders;

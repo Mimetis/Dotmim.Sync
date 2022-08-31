@@ -471,6 +471,10 @@ namespace Dotmim.Sync.Tests.Models
                 entity.Property(e => e.AttributeWithSpace)
                     .HasColumnName("Attribute With Space");
 
+                // Foreign Key
+                entity.HasOne(e => e.ParentProductCategory)
+                .WithMany(e => e.ProductCategories)
+                .HasForeignKey(e => e.ParentProductCategoryId);
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.Rowguid).HasDefaultValueSql("(newid())");
@@ -852,17 +856,17 @@ namespace Dotmim.Sync.Tests.Models
             );
 
             modelBuilder.Entity<ProductCategory>().HasData(
-                new ProductCategory { ProductCategoryId = "_BIKES", Name = "Bikes" },
-                new ProductCategory { ProductCategoryId = "_COMPT", Name = "Components" },
-                new ProductCategory { ProductCategoryId = "_CLOTHE", Name = "Clothing" },
-                new ProductCategory { ProductCategoryId = "_ACCESS", Name = "Accessories" },
-                new ProductCategory { ProductCategoryId = "MOUNTB", Name = "Mountain Bikes" },
-                new ProductCategory { ProductCategoryId = "ROADB", Name = "Road Bikes" },
-                new ProductCategory { ProductCategoryId = "ROADFR", Name = "Road Frames" },
-                new ProductCategory { ProductCategoryId = "TOURB", Name = "Touring Bikes" },
-                new ProductCategory { ProductCategoryId = "HANDLB", Name = "Handlebars" },
-                new ProductCategory { ProductCategoryId = "BRACK", Name = "Bottom Brackets" },
-                new ProductCategory { ProductCategoryId = "BRAKES", Name = "Brakes" }
+                new ProductCategory { ProductCategoryId = "A_BIKES", Name = "Bikes" },
+                new ProductCategory { ProductCategoryId = "A_COMPT", Name = "Components" },
+                new ProductCategory { ProductCategoryId = "A_CLOTHE", Name = "Clothing" },
+                new ProductCategory { ProductCategoryId = "A_ACCESS",   Name = "Accessories" },
+                new ProductCategory { ProductCategoryId = "MOUNTB", ParentProductCategoryId = "A_BIKES",  Name = "Mountain Bikes" },
+                new ProductCategory { ProductCategoryId = "ROADB", ParentProductCategoryId = "A_BIKES", Name = "Road Bikes" },
+                new ProductCategory { ProductCategoryId = "ROADFR", ParentProductCategoryId = "A_COMPT", Name = "Road Frames" },
+                new ProductCategory { ProductCategoryId = "TOURB", ParentProductCategoryId = "A_BIKES", Name = "Touring Bikes" },
+                new ProductCategory { ProductCategoryId = "HANDLB", ParentProductCategoryId = "A_COMPT", Name = "Handlebars" },
+                new ProductCategory { ProductCategoryId = "BRACK", ParentProductCategoryId = "A_COMPT", Name = "Bottom Brackets" },
+                new ProductCategory { ProductCategoryId = "BRAKES", ParentProductCategoryId = "A_COMPT", Name = "Brakes" }
 
             );
 
@@ -902,24 +906,6 @@ namespace Dotmim.Sync.Tests.Models
             var p3 = Guid.NewGuid();
 
             var products = new List<Product>();
-            //for (var i = 0; i < 2000; i++)
-            //{
-            //    products.Add(
-            //        new Product
-            //        {
-            //            ProductId = Guid.NewGuid(),
-            //            Name = $"Generated N° {i.ToString()}",
-            //            ProductNumber = $"FR-{i.ToString()}",
-            //            Color = "Black",
-            //            StandardCost = 1059.3100M,
-            //            ListPrice = 1431.5000M,
-            //            Size = "58",
-            //            Weight = 1016.04M,
-            //            ProductCategoryId = "ROADFR",
-            //            ProductModelId = 6
-            //        }
-            //    );
-            //}
 
             products.AddRange(new[] {
                 new Product { ProductId = Guid.NewGuid(), Name = "HL Road Frame - Black, 58", ProductNumber = "FR-R92B-58", Color = "Black", StandardCost = 1059.3100M, ListPrice = 1431.5000M, Size = "58", Weight = 1016.04M, ProductCategoryId = "ROADFR", ProductModelId = 6 },
@@ -1006,15 +992,15 @@ namespace Dotmim.Sync.Tests.Models
             });
 
             modelBuilder.Entity<PriceListCategory>()
-                .HasData(new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "_BIKES" }
-                    , new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "_CLOTHE", }
-                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "_BIKES", }
-                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "_CLOTHE", }
-                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "_COMPT", }
+                .HasData(new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "A_BIKES" }
+                    , new PriceListCategory() { PriceListId = hollydayPriceListId, PriceCategoryId = "A_CLOTHE", }
+                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "A_BIKES", }
+                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "A_CLOTHE", }
+                    , new PriceListCategory() { PriceListId = dalyPriceListId, PriceCategoryId = "A_COMPT", }
                     );
 
 
-            var dettails = new System.Collections.Generic.List<PriceListDetail>();
+            var dettails = new List<PriceListDetail>();
             var generator = new Random((int)DateTime.Now.Ticks);
             //Add hollyday price list
             dettails.AddRange(products
@@ -1022,7 +1008,7 @@ namespace Dotmim.Sync.Tests.Models
                 .Select(item => new PriceListDetail()
                 {
                     PriceListId = hollydayPriceListId,
-                    PriceCategoryId = "_BIKES",
+                    PriceCategoryId = "A_BIKES",
                     PriceListDettailId = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     ProductDescription = $"{item.Name}(Easter {DateTime.Now.Year})",
@@ -1032,11 +1018,11 @@ namespace Dotmim.Sync.Tests.Models
                 }));
 
             dettails.AddRange(products
-                .Where(p => p.ProductCategoryId == "_CLOTHE")
+                .Where(p => p.ProductCategoryId == "A_CLOTHE")
                 .Select(item => new PriceListDetail()
                 {
                     PriceListId = hollydayPriceListId,
-                    PriceCategoryId = "_CLOTHE",
+                    PriceCategoryId = "A_CLOTHE",
                     PriceListDettailId = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     ProductDescription = $"{item.Name}(Easter {DateTime.Now.Year})",
@@ -1051,7 +1037,7 @@ namespace Dotmim.Sync.Tests.Models
                 .Select(item => new PriceListDetail()
                 {
                     PriceListId = dalyPriceListId,
-                    PriceCategoryId = "_BIKES",
+                    PriceCategoryId = "A_BIKES",
                     PriceListDettailId = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     ProductDescription = item.Name,
@@ -1060,11 +1046,11 @@ namespace Dotmim.Sync.Tests.Models
                 }));
 
             dettails.AddRange(products
-                .Where(p => p.ProductCategoryId == "_CLOTHE")
+                .Where(p => p.ProductCategoryId == "A_CLOTHE")
                 .Select(item => new PriceListDetail()
                 {
                     PriceListId = dalyPriceListId,
-                    PriceCategoryId = "_CLOTHE",
+                    PriceCategoryId = "A_CLOTHE",
                     PriceListDettailId = Guid.NewGuid(),
                     ProductId = item.ProductId,
                     ProductDescription = item.Name,

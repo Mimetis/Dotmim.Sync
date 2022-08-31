@@ -24,11 +24,6 @@ namespace Dotmim.Sync
         internal Interceptors interceptors = new();
 
         /// <summary>
-        /// Gets or Sets orchestrator side
-        /// </summary>
-        public abstract SyncSide Side { get; }
-
-        /// <summary>
         /// Gets or Sets the provider used by this local orchestrator
         /// </summary>
         public virtual CoreProvider Provider { get; set; }
@@ -68,12 +63,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Add an interceptor of T
         /// </summary>
-        public Guid AddInterceptor<T>(Action<T> action) where T : ProgressArgs => this.interceptors.Add(action);
+        internal virtual Guid AddInterceptor<T>(Action<T> action) where T : ProgressArgs => this.interceptors.Add(action);
 
         /// <summary>
         /// Add an async interceptor of T
         /// </summary>
-        public Guid AddInterceptor<T>(Func<T, Task> action) where T : ProgressArgs => this.interceptors.Add(action);
+        internal virtual Guid AddInterceptor<T>(Func<T, Task> action) where T : ProgressArgs => this.interceptors.Add(action);
 
         /// <summary>
         /// Remove all interceptors based on type of ProgressArgs
@@ -241,8 +236,6 @@ namespace Dotmim.Sync
             if (this.Provider != null)
                 this.Provider.EnsureSyncException(syncException);
 
-            syncException.Side = this.Side;
-
             if (this.Logger != null)
                 this.Logger.LogError(SyncEventsId.Exception, syncException, syncException.Message);
 
@@ -252,7 +245,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the provider sync adapter
         /// </summary>
-        public DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, IScopeInfo scopeInfo)
+        public virtual DbSyncAdapter GetSyncAdapter(string scopeName, SyncTable tableDescription, SyncSetup setup = default)
         {
             //var p = this.Provider.GetParsers(tableDescription, setup);
 
@@ -275,14 +268,14 @@ namespace Dotmim.Sync
             if (this.Provider == null)
                 return null;
 
-            var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, scopeInfo.Setup);
-            return this.Provider.GetSyncAdapter(tableDescription, tableName, trackingTableName, scopeInfo.Setup, scopeInfo.Name);
+            var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, setup);
+            return this.Provider.GetSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
         }
 
         /// <summary>
         /// Get the provider table builder
         /// </summary>
-        public DbTableBuilder GetTableBuilder(SyncTable tableDescription, IScopeInfo scopeInfo)
+        public DbTableBuilder GetTableBuilder(SyncTable tableDescription, ScopeInfo scopeInfo)
         {
             //var p = this.Provider.GetParsers(tableDescription, setup);
 
@@ -338,22 +331,22 @@ namespace Dotmim.Sync
         /// Check if the orchestrator database is outdated
         /// </summary>
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        public virtual async Task<(SyncContext, bool)> IsOutDatedAsync(SyncContext context, ClientScopeInfo clientScopeInfo, ServerScopeInfo serverScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal virtual async Task<(SyncContext, bool)> InternalIsOutDatedAsync(SyncContext context, ScopeInfoClient cScopeInfoClient, ScopeInfo sScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             bool isOutdated = false;
 
             // if we have a new client, obviously the last server sync is < to server stored last clean up (means OutDated !)
             // so far we return directly false
-            if (clientScopeInfo.IsNewScope)
+            if (cScopeInfoClient.IsNewScope)
                 return (context, false);
 
-            if (clientScopeInfo.LastServerSyncTimestamp != 0 || serverScopeInfo.LastCleanupTimestamp != 0)
-                isOutdated = clientScopeInfo.LastServerSyncTimestamp < serverScopeInfo.LastCleanupTimestamp;
+            if (cScopeInfoClient.LastServerSyncTimestamp.HasValue && sScopeInfo.LastCleanupTimestamp.HasValue)
+                isOutdated = cScopeInfoClient.LastServerSyncTimestamp < sScopeInfo.LastCleanupTimestamp;
 
             // Get a chance to make the sync even if it's outdated
             if (isOutdated)
             {
-                var outdatedArgs = new OutdatedArgs(context, clientScopeInfo, serverScopeInfo);
+                var outdatedArgs = new OutdatedArgs(context, cScopeInfoClient, sScopeInfo);
 
                 // Interceptor
                 await this.InterceptAsync(outdatedArgs, progress, cancellationToken).ConfigureAwait(false);
@@ -364,28 +357,27 @@ namespace Dotmim.Sync
                 }
 
                 if (outdatedArgs.Action == OutdatedAction.Rollback)
-                    throw new OutOfDateException(clientScopeInfo.LastServerSyncTimestamp, serverScopeInfo.LastCleanupTimestamp);
+                    throw new OutOfDateException(cScopeInfoClient.LastServerSyncTimestamp, sScopeInfo.LastCleanupTimestamp);
             }
 
             return (context, isOutdated);
         }
 
 
+        public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync() 
+            => GetHelloAsync(SyncOptions.DefaultScopeName);
 
-        public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync(DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
-            => GetHelloAsync(SyncOptions.DefaultScopeName, connection, transaction, cancellationToken, progress);
-
-        public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
+        public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync(string scopeName)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
-            return InternalGetHelloAsync(context, connection, transaction, cancellationToken, progress);
+            return InternalGetHelloAsync(context, default, default, default, default);
         }
 
 
         /// <summary>
         /// Get hello from database
         /// </summary>
-        public virtual async Task<(SyncContext context, string DatabaseName, string Version)> InternalGetHelloAsync(
+        internal virtual async Task<(SyncContext context, string DatabaseName, string Version)> InternalGetHelloAsync(
             SyncContext context, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
             if (this.Provider == null)
@@ -394,7 +386,7 @@ namespace Dotmim.Sync
             try
             {
                 // TODO : get all scopes for Hello all of them
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var databaseBuilder = this.Provider.GetDatabaseBuilder();
                 var hello = await databaseBuilder.GetHelloAsync(runner.Connection, runner.Transaction);
                 await runner.CommitAsync().ConfigureAwait(false);

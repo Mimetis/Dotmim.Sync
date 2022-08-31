@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Dotmim.Sync.Enumerations
+﻿namespace Dotmim.Sync.Enumerations
 {
     public enum ConflictResolution
     {
@@ -24,6 +20,12 @@ namespace Dotmim.Sync.Enumerations
         /// <summary>
         /// Indicates that you want to rollback the whole sync process
         /// </summary>
-        Rollback
+        Rollback,
+
+        /// <summary>
+        /// Ignore the row in conflict and try to continue sync
+        /// </summary>
+        Ignore
+
     }
 }

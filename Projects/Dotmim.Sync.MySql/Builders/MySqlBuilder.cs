@@ -52,5 +52,21 @@ namespace Dotmim.Sync.MySql.Builders
         {
             return await MySqlManagementUtils.GetHelloAsync(connection as MySqlConnection, transaction as MySqlTransaction).ConfigureAwait(false);
         }
+
+        public override Task<SyncTable> GetTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
+              => MySqlManagementUtils.GetTableAsync(tableName, connection as MySqlConnection, transaction as MySqlTransaction);
+
+        public override Task<bool> ExistsTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
+             => MySqlManagementUtils.TableExistsAsync(tableName, connection as MySqlConnection, transaction as MySqlTransaction);
+
+        public override Task DropsTableIfExistsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
+             => MySqlManagementUtils.DropTableIfExistsAsync(tableName, connection as MySqlConnection, transaction as MySqlTransaction);
+
+        public override Task RenameTableAsync(string tableName, string schemaName, string newTableName, string newSchemaName, DbConnection connection, DbTransaction transaction = null)
+             => MySqlManagementUtils.RenameTableAsync(tableName, newTableName, connection as MySqlConnection, transaction as MySqlTransaction);
+        public override Task<SyncTable> GetTableDefinitionAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
+              => MySqlManagementUtils.GetTableDefinitionAsync(tableName, connection as MySqlConnection, transaction as MySqlTransaction);
+        public override Task<SyncTable> GetTableColumnsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
+              => MySqlManagementUtils.GetColumnsForTableAsync(tableName, connection as MySqlConnection, transaction as MySqlTransaction);
     }
 }

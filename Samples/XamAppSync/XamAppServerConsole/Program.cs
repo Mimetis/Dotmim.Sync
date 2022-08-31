@@ -48,7 +48,7 @@ namespace XamAppServerConsole
 
             var orchestrator = new RemoteOrchestrator(provider, syncOptions);
 
-            var snap = await orchestrator.CreateSnapshotAsync(syncSetup, progress: progress);
+            var snap = await orchestrator.CreateSnapshotAsync(syncSetup);
 
         }
     }

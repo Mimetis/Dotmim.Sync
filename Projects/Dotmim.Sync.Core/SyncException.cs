@@ -60,11 +60,6 @@ namespace Dotmim.Sync
         /// </summary>
         public string InitialCatalog { get; set; }
 
-        /// <summary>
-        /// Gets or Sets if error is Local or Remote side
-        /// </summary>
-        public SyncSide Side { get; set; }
-
     }
 
     /// <summary>
@@ -458,7 +453,7 @@ namespace Dotmim.Sync
     {
         const string message = "Client database is out of date. Last client sync timestamp:{0}. Last server cleanup metadata:{1} Try to make a Reinitialize sync.";
 
-        public OutOfDateException(long? timestampLimit, long serverLastCleanTimestamp) : base(string.Format(message, timestampLimit, serverLastCleanTimestamp)) { }
+        public OutOfDateException(long? timestampLimit, long? serverLastCleanTimestamp) : base(string.Format(message, timestampLimit, serverLastCleanTimestamp)) { }
     }
 
     /// <summary>

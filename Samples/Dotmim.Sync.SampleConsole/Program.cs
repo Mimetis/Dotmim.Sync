@@ -28,6 +28,8 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Dotmim.Sync.Builders;
+using Dotmim.Sync.Args;
 #if NET5_0 || NET6_0
 using MySqlConnector;
 #elif NETSTANDARD
@@ -53,19 +55,23 @@ internal class Program
     {
 
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        serverProvider.UseBulkOperations = true;
+
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
         //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        clientProvider.UseBulkOperations = true;
+
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        var setup = new SyncSetup(allTables);
-        //var setup = new SyncSetup("Address");
+        //var setup = new SyncSetup(allTables);
+        var setup = new SyncSetup("ProductCategory", "Product");
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
-        var options = new SyncOptions() { DisableConstraintsOnApplyChanges = true };
+        var options = new SyncOptions() { BatchSize = 2 };
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
@@ -93,12 +99,330 @@ internal class Program
 
         //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
-        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+         //await MultiFiltersAsync();
+         await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
-        //await ScenarioMigrationAddingColumnsAndTableInSameScopeAsync();
-        await ScenarioConflictOnApplyChangesChangeResolutionAsync();
     }
 
+
+    private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
+    {
+
+        //var options = new SyncOptions();
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}");
+        });
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("ERROR ON LINE:");
+            Console.WriteLine(args.ErrorRow);
+            Console.ResetColor();
+            args.Resolution = ErrorResolution.RetryOneMoreTime;
+        });
+
+        do
+        {
+            try
+            {
+                Console.Clear();
+                Console.ForegroundColor = ConsoleColor.Green;
+                var s = await agent.SynchronizeAsync(setup, progress: progress);
+                Console.ResetColor();
+                Console.WriteLine(s);
+            }
+            catch (SyncException e)
+            {
+                Console.ResetColor();
+                Console.WriteLine(e.Message);
+            }
+            catch (Exception e)
+            {
+                Console.ResetColor();
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+    }
+
+
+    private static async Task MultiFiltersAsync()
+    {
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
+            Console.ResetColor();
+
+        });
+
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+
+        
+        // Now, we are creating a new setup with a filter on ProductCategory and Product
+        var setup = new SyncSetup("ProductCategory", "Product", "Address", "Customer", "CustomerAddress");
+        setup.Filters.Add("ProductCategory", "Name");
+
+        var productFilter = new SetupFilter("Product");
+        productFilter.AddParameter("Name", DbType.String);
+        productFilter.AddJoin(Join.Left, "ProductCategory")
+            .On("Product", "ProductCategoryID", "ProductCategory", "ProductCategoryID");
+        productFilter.AddWhere("Name", "ProductCategory", "Name");
+        setup.Filters.Add(productFilter);
+
+        var schema2 = await remoteOrchestrator.ProvisionAsync(setup);
+
+        // Testing a new client
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        var agent = new SyncAgent(clientProvider, serverProvider);
+
+        var parameters = new SyncParameters(("Name", "Bikes"));
+        var s = await agent.SynchronizeAsync(parameters, progress: progress);
+        Console.WriteLine(s);
+
+    }
+
+
+    private static async Task TestsSetupInheritance()
+    {
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
+            Console.ResetColor();
+
+        });
+        // Creating one Setup
+        // This Setup contains all tables without filters
+        // When provision, it will be called "default"
+        var setup = new SyncSetup("ProductCategory", "Product", "Address",
+            "Customer", "CustomerAddress");
+
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+
+        // Provision this "default" scope
+        var serverScopeInfo = await remoteOrchestrator.ProvisionAsync("default", setup);
+
+        // Now, we are creating a new setup with a filter on ProductCategory and Product
+        var setup2 = new SyncSetup("ProductCategory", "Product", "Address",
+            "Customer", "CustomerAddress");
+        setup2.Filters.Add("ProductCategory", "Name");
+
+        var productFilter = new SetupFilter("Product");
+        productFilter.AddParameter("Name", DbType.String);
+        productFilter.AddJoin(Join.Left, "ProductCategory")
+            .On("Product", "ProductCategoryID", "ProductCategory", "ProductCategoryID");
+        productFilter.AddWhere("Name", "ProductCategory", "Name");
+        setup2.Filters.Add(productFilter);
+
+        // Instead of Provisioning everything, we are 
+        // Provisionning the Stored procedures specific to filters and then save this new Scope
+        // Create a new ServerScopeInfo instance with schema and setup containing the filter
+        var schema2 = await remoteOrchestrator.GetSchemaAsync(setup2);
+        serverScopeInfo.Schema = schema2;
+        serverScopeInfo.Setup = setup2;
+        serverScopeInfo.Name = "filterproducts";
+
+        // Only generate the get changes with filters 
+        await remoteOrchestrator.CreateStoredProcedureAsync(serverScopeInfo,
+            "ProductCategory", default, DbStoredProcedureType.SelectChangesWithFilters, true);
+        await remoteOrchestrator.CreateStoredProcedureAsync(serverScopeInfo,
+            "ProductCategory", default, DbStoredProcedureType.SelectInitializedChangesWithFilters, true);
+
+        await remoteOrchestrator.CreateStoredProcedureAsync(serverScopeInfo,
+            "Product", default, DbStoredProcedureType.SelectChangesWithFilters, true);
+        await remoteOrchestrator.CreateStoredProcedureAsync(serverScopeInfo,
+            "Product", default, DbStoredProcedureType.SelectInitializedChangesWithFilters, true);
+
+        await remoteOrchestrator.SaveScopeInfoAsync(serverScopeInfo);
+
+        // Testing a new client
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        var agent = new SyncAgent(clientProvider, serverProvider);
+
+        // Eeach time a command is called on remote side, 
+        // We are making a redirection to "default" stored procedures, except for filters specific stored proc
+        agent.RemoteOrchestrator.OnGetCommand(args =>
+        {
+            if (args.Command.CommandType == CommandType.StoredProcedure)
+            {
+                switch (args.CommandType)
+                {
+                    case DbCommandType.SelectInitializedChangesWithFilters:
+                    case DbCommandType.SelectChangesWithFilters:
+                        break;
+                    default:
+                        args.Command.CommandText = args.Command.CommandText.Replace("_filterproducts_", "_default_");
+                        break;
+                }
+                Console.WriteLine(args.Command.CommandText);
+            }
+        });
+
+        var p = new SyncParameters(("Name", "Bikes"));
+        var s = await agent.SynchronizeAsync("filterproducts", p, progress: progress);
+        Console.WriteLine(s);
+
+    }
+
+    private static async Task ScenarioForeignKeyOnSameTableErrorsAsync()
+    {
+        var serverDbName = "PCServer";
+        var clientDbName1 = "PCClient";
+
+        await DBHelper.CreateDatabaseAsync(serverDbName, true);
+        await DBHelper.CreateDatabaseAsync(clientDbName1, true);
+
+        var script = @"CREATE TABLE [dbo].[ProductCategory](
+	                    [ProductCategoryID] [uniqueidentifier] NOT NULL,
+	                    [ParentProductCategoryID] [uniqueidentifier] NULL,
+	                    [Name] [nvarchar](50) NOT NULL,
+	                    [rowguid] [uniqueidentifier] ROWGUIDCOL  NULL,
+	                    [ModifiedDate] [datetime] NULL,
+                     CONSTRAINT [PK_ProductCategory_ProductCategoryID] PRIMARY KEY CLUSTERED ([ProductCategoryID] ASC));
+
+                    ALTER TABLE [dbo].[ProductCategory] WITH CHECK 
+                    ADD CONSTRAINT [FK_ProductCategory_ProductCategory_ParentProductCategoryID_ProductCategoryID] 
+                    FOREIGN KEY([ParentProductCategoryID])
+                    REFERENCES [dbo].[ProductCategory] ([ProductCategoryID])
+                    
+                    ALTER TABLE [dbo].[ProductCategory] CHECK CONSTRAINT [FK_ProductCategory_ProductCategory_ParentProductCategoryID_ProductCategoryID]
+
+                    INSERT [dbo].[ProductCategory] ([ProductCategoryID], [ParentProductCategoryID], [Name], [rowguid], [ModifiedDate]) VALUES ('cfbda25c-df71-47a7-b81b-64ee161aa37c', NULL, N'Bikes', newid(), CAST(N'2002-06-01T00:00:00.000' AS DateTime));
+                    INSERT [dbo].[ProductCategory] ([ProductCategoryID], [ParentProductCategoryID], [Name], [rowguid], [ModifiedDate]) VALUES ('ad364ade-264a-433c-b092-4fcbf3804e01', 'cfbda25c-df71-47a7-b81b-64ee161aa37c', N'Mountain Bikes', newid(), CAST(N'2002-06-01T00:00:00.000' AS DateTime));";
+
+        await DBHelper.ExecuteScriptAsync(serverDbName, script);
+
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
+            Console.ResetColor();
+
+        });
+
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName1))
+        {
+            UseBulkOperations = false
+        };
+
+        var setup = new SyncSetup("ProductCategory");
+
+        try
+        {
+            var agent = new SyncAgent(clientProvider, serverProvider);
+
+            agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(args.ErrorRow);
+                args.Resolution = ErrorResolution.ContinueOnError;
+                Console.ForegroundColor = ConsoleColor.Green;
+            });
+
+            var result = await agent.SynchronizeAsync(setup, progress);
+            Console.WriteLine(result);
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+        }
+    }
+
+
+    private static async Task ScenarioMultiplesFiltersErrorAsync()
+    {
+        var serverDbName = "FServer";
+        var clientDbName1 = "Employee1";
+        var clientDbName2 = "Employee2";
+
+        await DBHelper.CreateDatabaseAsync(serverDbName, true);
+        await DBHelper.CreateDatabaseAsync(clientDbName1, true);
+        await DBHelper.CreateDatabaseAsync(clientDbName2, true);
+
+        var script = @"
+        CREATE TABLE Customer (CustomerId int IDENTITY(1, 1) NOT NULL PRIMARY KEY, Name varchar(50) Not Null, EmployeeId int NOT NULL);
+
+        CREATE TABLE Sales (SalesId int IDENTITY(1, 1) NOT NULL PRIMARY KEY, EmployeeId int NOT NULL, BuyerCustomerId int NOT NULL, Product varchar(50) NOT NULL,
+        CONSTRAINT FK_Buyer_Customer FOREIGN KEY(BuyerCustomerId) REFERENCES Customer(CustomerId));
+
+        SET IDENTITY_INSERT Customer ON
+        INSERT Customer (CustomerId, [Name], EmployeeId) VALUES(5000, 'B. Gates', 1)
+        INSERT Customer (CustomerId, [Name], EmployeeId) VALUES(6000, 'S. Nadela', 1)
+        INSERT Customer (CustomerId, [Name], EmployeeId) VALUES(7000, 'S. Balmer', 1)
+        INSERT Customer (CustomerId, [Name], EmployeeId) VALUES(8000, 'S. Jobs', 2)
+        INSERT Customer (CustomerId, [Name], EmployeeId) VALUES(9000, 'T. Cook', 2)
+        SET IDENTITY_INSERT Customer OFF
+
+        INSERT Sales (EmployeeId, BuyerCustomerId, Product) VALUES (1, 5000, 'Stairs');
+        INSERT Sales (EmployeeId, BuyerCustomerId, Product) VALUES (1, 6000, 'Doors');
+        INSERT Sales (EmployeeId, BuyerCustomerId, Product) VALUES (2, 8000, 'Oranges');
+        -- We have a problem here. An employee 1 sold something to a customer that is not in its customers list 
+        -- Customer 9000 is affiliated to employee 2
+        INSERT Sales (EmployeeId, BuyerCustomerId, Product) VALUES (1, 9000, 'Strawberries');
+        ";
+
+        await DBHelper.ExecuteScriptAsync(serverDbName, script);
+
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
+            Console.ResetColor();
+
+        });
+
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+
+        //var employee1Provider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName1))
+        //{
+        //    UseBulkOperations = false
+        //};
+
+        var employee1Provider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+
+
+        var setup = new SyncSetup("Customer", "Sales");
+        setup.Filters.Add("Customer", "EmployeeId");
+        setup.Filters.Add("Sales", "EmployeeId");
+
+        try
+        {
+
+            var emp1Agent = new SyncAgent(employee1Provider, serverProvider);
+            var emp1Params = new SyncParameters(("EmployeeId", 1));
+
+            emp1Agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+            {
+                Console.WriteLine(args.ErrorRow);
+                // We can do something here the failed row
+                // ....
+                // Then pass the resolution to Ignore to prevent a fail 
+                args.Resolution = ErrorResolution.ContinueOnError;
+            });
+
+            var emp1result = await emp1Agent.SynchronizeAsync(setup, emp1Params, progress);
+            Console.WriteLine(emp1result);
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+        }
+    }
 
     private static async Task ScenarioConflictOnApplyChangesChangeResolutionAsync()
     {
@@ -140,7 +464,7 @@ internal class Program
         await UpdateAllProductCategoryAsync(clientProvider1, "client");
 
 
-        agent.RemoteOrchestrator.OnApplyChangesFailed(async args =>
+        agent.RemoteOrchestrator.OnApplyChangesConflictOccured(async args =>
         {
             args.Resolution = ConflictResolution.ClientWins;
             var conflict = await args.GetSyncConflictAsync();
@@ -214,7 +538,6 @@ internal class Program
 
 
     }
-
 
 
     static async Task ScenarioPluginLogsAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
@@ -306,7 +629,7 @@ internal class Program
         {
             Console.WriteLine("-----------------------------------------------------");
             Console.WriteLine("OnDatabaseChangesApplying");
-            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientScopeId}-{args.Context.StartTime}");
+            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientId}-{args.Context.StartTime}");
             Console.WriteLine($"SyncType: {args.Context.SyncType}");
             Console.WriteLine($"SyncWay: {args.Context.SyncWay}");
             Console.WriteLine($"SenderScopeId: {args.ApplyChanges.SenderScopeId}");
@@ -314,11 +637,11 @@ internal class Program
 
             using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
 
-            var log = syncLogContext.SyncLog.Find(args.Context.SessionId, args.Context.ClientScopeId);
+            var log = syncLogContext.SyncLog.Find(args.Context.SessionId, args.Context.ClientId);
 
             if (log == null)
             {
-                log = new SyncLog { SessionId = args.Context.SessionId, ClientScopeId = args.Context.ClientScopeId };
+                log = new SyncLog { SessionId = args.Context.SessionId, ClientScopeId = args.Context.ClientId.Value };
                 syncLogContext.SyncLog.Add(log);
             }
 
@@ -335,14 +658,14 @@ internal class Program
 
             Console.WriteLine("-----------------------------------------------------");
             Console.WriteLine("OnDatabaseChangesApplied");
-            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientScopeId}-{args.Context.StartTime}");
+            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientId}-{args.Context.StartTime}");
             Console.WriteLine($"TotalAppliedChanges: {args.ChangesApplied.TotalAppliedChanges}");
             Console.WriteLine($"TotalAppliedChangesFailed: {args.ChangesApplied.TotalAppliedChangesFailed}");
             Console.WriteLine($"TotalResolvedConflicts: {args.ChangesApplied.TotalResolvedConflicts}");
 
             using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
 
-            var log = syncLogContext.SyncLog.Find(args.Context.SessionId, args.Context.ClientScopeId);
+            var log = syncLogContext.SyncLog.Find(args.Context.SessionId, args.Context.ClientId);
 
             log.TotalChangesApplied = args.ChangesApplied.TotalAppliedChanges;
             log.TotalResolvedConflicts = args.ChangesApplied.TotalResolvedConflicts;
@@ -356,17 +679,17 @@ internal class Program
         {
             Console.WriteLine("-----------------------------------------------------");
             Console.WriteLine("OnDatabaseChangesSelecting");
-            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientScopeId}-{args.Context.StartTime}");
+            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientId}-{args.Context.StartTime}");
             Console.WriteLine($"From/ To : {args.FromTimestamp}/{args.ToTimestamp}");
             Console.WriteLine($"IsNew : {args.IsNew}");
 
             using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
 
-            var log = syncLogContext.SyncLog.Find(args.Context.SessionId, args.Context.ClientScopeId);
+            var log = syncLogContext.SyncLog.Find(args.Context.SessionId, args.Context.ClientId);
 
             if (log == null)
             {
-                log = new SyncLog { SessionId = args.Context.SessionId, ClientScopeId = args.Context.ClientScopeId };
+                log = new SyncLog { SessionId = args.Context.SessionId, ClientScopeId = args.Context.ClientId.Value };
                 syncLogContext.SyncLog.Add(log);
             }
 
@@ -385,12 +708,12 @@ internal class Program
         {
             Console.WriteLine("-----------------------------------------------------");
             Console.WriteLine("OnTableChangesSelecting");
-            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientScopeId}-{args.Context.StartTime}");
+            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientId}-{args.Context.StartTime}");
             Console.WriteLine($"Table: {args.SchemaTable.GetFullName()}");
 
             using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
 
-            var logTable = syncLogContext.SyncLogTable.Find(args.Context.SessionId, args.Context.ClientScopeId, args.SchemaTable.GetFullName());
+            var logTable = syncLogContext.SyncLogTable.Find(args.Context.SessionId, args.Context.ClientId, args.SchemaTable.GetFullName());
 
             if (logTable == null)
             {
@@ -398,7 +721,7 @@ internal class Program
                 {
                     SessionId = args.Context.SessionId,
                     ScopeName = args.Context.ScopeName,
-                    ClientScopeId = args.Context.ClientScopeId,
+                    ClientScopeId = args.Context.ClientId.Value,
                     TableName = args.SchemaTable.GetFullName()
                 };
                 syncLogContext.SyncLogTable.Add(logTable);
@@ -431,12 +754,12 @@ internal class Program
         {
             Console.WriteLine("-----------------------------------------------------");
             Console.WriteLine("OnTableChangesSelected");
-            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientScopeId}-{args.Context.StartTime}");
+            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientId}-{args.Context.StartTime}");
             Console.WriteLine($"Table: {args.SchemaTable.GetFullName()}");
             Console.WriteLine($"TableChangesSelected: {args.TableChangesSelected.TotalChanges} ({args.TableChangesSelected.Upserts}/{args.TableChangesSelected.Deletes})");
 
             using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
-            var logTable = syncLogContext.SyncLogTable.Find(args.Context.SessionId, args.Context.ClientScopeId, args.SchemaTable.GetFullName());
+            var logTable = syncLogContext.SyncLogTable.Find(args.Context.SessionId, args.Context.ClientId, args.SchemaTable.GetFullName());
 
             logTable.TotalChangesSelected = args.TableChangesSelected.TotalChanges;
             logTable.TotalChangesSelectedUpdates = args.TableChangesSelected.Upserts;
@@ -450,12 +773,12 @@ internal class Program
         {
             Console.WriteLine("-----------------------------------------------------");
             Console.WriteLine("OnTableChangesApplied");
-            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientScopeId}-{args.Context.StartTime}");
+            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientId}-{args.Context.StartTime}");
 
             using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
             var fullName = string.IsNullOrEmpty(args.TableChangesApplied.SchemaName) ? args.TableChangesApplied.TableName : $"{args.TableChangesApplied.SchemaName}.{args.TableChangesApplied.TableName}";
 
-            var logTable = syncLogContext.SyncLogTable.Find(args.Context.SessionId, args.Context.ClientScopeId, fullName);
+            var logTable = syncLogContext.SyncLogTable.Find(args.Context.SessionId, args.Context.ClientId, fullName);
 
             if (logTable == null)
             {
@@ -463,7 +786,7 @@ internal class Program
                 {
                     SessionId = args.Context.SessionId,
                     ScopeName = args.Context.ScopeName,
-                    ClientScopeId = args.Context.ClientScopeId,
+                    ClientScopeId = args.Context.ClientId.Value,
                     TableName = fullName
                 };
                 syncLogContext.SyncLogTable.Add(logTable);
@@ -491,14 +814,14 @@ internal class Program
 
             Console.WriteLine("-----------------------------------------------------");
             Console.WriteLine("OnDatabaseChangesSelected");
-            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientScopeId}-{args.Context.StartTime}");
+            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientId}-{args.Context.StartTime}");
             Console.WriteLine($"From/ To : {args.FromTimestamp}/{args.ToTimestamp}");
             Console.WriteLine($"TotalChangesSelected :{args.ChangesSelected.TotalChangesSelected}");
             Console.WriteLine($"TotalChangesSelectedUpdates :{args.ChangesSelected.TotalChangesSelectedUpdates}");
             Console.WriteLine($"TotalChangesSelectedDeletes :{args.ChangesSelected.TotalChangesSelectedDeletes}");
 
             using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
-            var log = syncLogContext.SyncLog.Find(args.Context.SessionId, args.Context.ClientScopeId);
+            var log = syncLogContext.SyncLog.Find(args.Context.SessionId, args.Context.ClientId);
             log.TotalChangesSelected = args.ChangesSelected.TotalChangesSelected;
             log.TotalChangesSelectedUpdates = args.ChangesSelected.TotalChangesSelectedUpdates;
             log.TotalChangesSelectedDeletes = args.ChangesSelected.TotalChangesSelectedDeletes;
@@ -570,15 +893,16 @@ internal class Program
         // Provision the "v1" scope on the client with the new setup
         await localOrchestrator.ProvisionAsync(serverScope);
 
-        var defaultClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync(); // scope name is SyncOptions.DefaultScopeName, which is default value
-        var v1ClientScopeInfo = await localOrchestrator.GetClientScopeInfoAsync("v1"); // scope name is SyncOptions.DefaultScopeName, which is default value
+        var defaultClientScopeInfo = await localOrchestrator.GetScopeInfoAsync(); // scope name is SyncOptions.DefaultScopeName, which is default value
+        var v1ClientScopeInfo = await localOrchestrator.GetScopeInfoAsync("v1"); // scope name is SyncOptions.DefaultScopeName, which is default value
 
-        v1ClientScopeInfo.LastServerSyncTimestamp = defaultClientScopeInfo.LastServerSyncTimestamp;
-        v1ClientScopeInfo.LastSyncTimestamp = defaultClientScopeInfo.LastSyncTimestamp;
-        v1ClientScopeInfo.LastSync = defaultClientScopeInfo.LastSync;
-        v1ClientScopeInfo.LastSyncDuration = defaultClientScopeInfo.LastSyncDuration;
+        throw new Exception("Do not work ");
+        //v1ClientScopeInfo.LastServerSyncTimestamp = defaultClientScopeInfo.LastServerSyncTimestamp;
+        //v1ClientScopeInfo.LastSyncTimestamp = defaultClientScopeInfo.LastSyncTimestamp;
+        //v1ClientScopeInfo.LastSync = defaultClientScopeInfo.LastSync;
+        //v1ClientScopeInfo.LastSyncDuration = defaultClientScopeInfo.LastSyncDuration;
 
-        await localOrchestrator.SaveClientScopeInfoAsync(v1ClientScopeInfo);
+        await localOrchestrator.SaveScopeInfoAsync(v1ClientScopeInfo);
 
         Console.WriteLine(await agent.SynchronizeAsync("v1", progress: progress));
 
@@ -634,7 +958,7 @@ internal class Program
         setup.Tables["ProductCategory"].Columns.Clear();
 
         // get existing scope
-        var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync();
+        var serverScope = await remoteOrchestrator.GetScopeInfoAsync();
 
         // You don't want to create a new scope, but instead editing the existing one
         // You need to get the new schema from the database containing this new table
@@ -998,44 +1322,6 @@ internal class Program
     }
 
 
-    private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
-    {
-        //var options = new SyncOptions();
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}");
-        });
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        do
-        {
-            try
-            {
-                Console.Clear();
-                Console.ForegroundColor = ConsoleColor.Green;
-                var s = await agent.SynchronizeAsync(setup, progress: progress);
-                Console.ResetColor();
-                Console.WriteLine(s);
-            }
-            catch (SyncException e)
-            {
-                Console.WriteLine(e.ToString());
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-            }
-
-
-            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-    }
-
-
     //private static async Task SynchronizeAsyncAndChangeTrackingKey(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     //{
     //    //var options = new SyncOptions();
@@ -1172,13 +1458,6 @@ internal class Program
 
     private static async Task ProvisionAsync(CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
         Console.WriteLine($"Provision");
 
         var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
@@ -1188,7 +1467,7 @@ internal class Program
             Stopwatch stopw = new Stopwatch();
             stopw.Start();
 
-            await remoteOrchestrator.ProvisionAsync(progress: progress);
+            await remoteOrchestrator.ProvisionAsync();
 
             stopw.Stop();
             Console.WriteLine($"Total duration :{stopw.Elapsed:hh\\.mm\\:ss\\.fff}");
@@ -1202,13 +1481,6 @@ internal class Program
     private static async Task DeprovisionAsync(CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
 
-        var progress = new SynchronousProgress<ProgressArgs>(pa =>
-        {
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine($"{pa.ProgressPercentage:p}\t {pa.Message}");
-            Console.ResetColor();
-        });
-
         Console.WriteLine($"Deprovision ");
 
         var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
@@ -1218,7 +1490,7 @@ internal class Program
             Stopwatch stopw = new Stopwatch();
             stopw.Start();
 
-            await remoteOrchestrator.DeprovisionAsync(progress: progress);
+            await remoteOrchestrator.DeprovisionAsync();
 
             stopw.Stop();
             Console.WriteLine($"Total duration :{stopw.Elapsed:hh\\.mm\\:ss\\.fff}");

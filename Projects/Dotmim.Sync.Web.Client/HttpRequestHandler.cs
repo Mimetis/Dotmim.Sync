@@ -154,17 +154,16 @@ namespace Dotmim.Sync.Web.Client
 
             // Adding the serialization format used and session id and scope name
             requestMessage.Headers.Add("dotmim-sync-session-id", context.SessionId.ToString());
-            requestMessage.Headers.Add("dotmim-sync-scope-id", context.ClientScopeId.ToString());
+            requestMessage.Headers.Add("dotmim-sync-scope-id", context.ClientId.ToString());
             requestMessage.Headers.Add("dotmim-sync-scope-name", context.ScopeName);
             requestMessage.Headers.Add("dotmim-sync-step", ((int)step).ToString());
             requestMessage.Headers.Add("dotmim-sync-serialization-format", ser);
+            requestMessage.Headers.Add("dotmim-sync-version", SyncVersion.Current.ToString());
+            requestMessage.Headers.Add("dotmim-sync-hash", hashString);
 
             // if client specifies a converter, add it as header
             if (converter != null)
                 requestMessage.Headers.Add("dotmim-sync-converter", converter.Key);
-
-
-            requestMessage.Headers.Add("dotmim-sync-hash", hashString);
 
             // Adding others headers
             if (this.CustomHeaders != null && this.CustomHeaders.Count > 0)
@@ -234,7 +233,6 @@ namespace Dotmim.Sync.Web.Client
                                 DataSource = webError.DataSource,
                                 InitialCatalog = webError.InitialCatalog,
                                 Number = webError.Number,
-                                Side = webError.Side,
                                 SyncStage = webError.SyncStage,
                                 TypeName = webError.TypeName
                             };

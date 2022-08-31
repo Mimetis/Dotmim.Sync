@@ -19,19 +19,10 @@ namespace Dotmim.Sync.Web.Client
 
 
         internal override async Task<(SyncContext context, long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
-          InternalGetSnapshotAsync(ServerScopeInfo serverScopeInfo, SyncContext context, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+          InternalGetSnapshotAsync(ScopeInfo sScopeInfo, SyncContext context, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            // Make a remote call to get Schema from remote provider
-            if (serverScopeInfo.Schema == null)
-            {
-                (context, serverScopeInfo) = await this.InternalGetServerScopeInfoAsync(
-                    context, null, false, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                serverScopeInfo.Schema.EnsureSchema();
-            }
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // Generate a batch directory
             var batchDirectoryRoot = this.Options.BatchDirectory;
@@ -42,7 +33,7 @@ namespace Dotmim.Sync.Web.Client
                 Directory.CreateDirectory(batchDirectoryFullPath);
 
             // Create the BatchInfo serialized (forced because in a snapshot call, so we are obviously serialized on disk)
-            var serverBatchInfo = new BatchInfo(serverScopeInfo.Schema, batchDirectoryRoot, batchDirectoryName);
+            var serverBatchInfo = new BatchInfo(batchDirectoryRoot, batchDirectoryName);
 
             // Firstly, get the snapshot summary
             var changesToSend = new HttpMessageSendChangesRequest(context, null);
@@ -118,7 +109,7 @@ namespace Dotmim.Sync.Web.Client
                         }
                         // Should have only one table
                         var table = getMoreChanges.Changes.Tables[0];
-                        var schemaTable = DbSyncAdapter.CreateChangesTable(serverScopeInfo.Schema.Tables[table.TableName, table.SchemaName]);
+                        var schemaTable = CreateChangesTable(sScopeInfo.Schema.Tables[table.TableName, table.SchemaName]);
 
                         var fullPath = Path.Combine(batchDirectoryFullPath, bpi.FileName);
 

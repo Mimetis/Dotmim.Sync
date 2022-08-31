@@ -97,5 +97,23 @@ namespace Dotmim.Sync.SampleConsole
 
         }
 
+
+        public static async Task ExecuteScriptAsync(string dbName, string script)
+        {
+            using var connection = new SqlConnection(GetDatabaseConnectionString(dbName));
+            connection.Open();
+
+            //split the script on "GO" commands
+            string[] splitter = new string[] { "\r\nGO\r\n" };
+            string[] commandTexts = script.Split(splitter, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string commandText in commandTexts)
+            {
+                using var cmdDb = new SqlCommand(commandText, connection);
+                await cmdDb.ExecuteNonQueryAsync();
+            }
+            connection.Close();
+        }
+
     }
 }

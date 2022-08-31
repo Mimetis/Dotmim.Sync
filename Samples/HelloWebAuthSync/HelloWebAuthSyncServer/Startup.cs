@@ -74,11 +74,12 @@ namespace HelloWebSyncServer
             var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
 
             // [Required] Tables involved in the sync process:
-            var tables = new string[] {"ProductCategory", "ProductModel", "Product",
-                "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+            var setup = new SyncSetup("ProductCategory", "Product");
+            setup.Filters.Add("ProductCategory", "ProductCategoryID");
+            setup.Filters.Add("Product", "ProductCategoryID");
 
             // [Required]: Add a SqlSyncProvider acting as the server hub.
-            services.AddSyncServer<SqlSyncProvider>(connectionString, tables);
+            services.AddSyncServer<SqlSyncProvider>(connectionString, setup);
         }
 
 

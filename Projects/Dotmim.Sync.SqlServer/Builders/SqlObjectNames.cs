@@ -131,10 +131,10 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// </summary>
         private void SetDefaultNames()
         {
-            var pref = this.Setup.StoredProceduresPrefix;
-            var suf = this.Setup.StoredProceduresSuffix;
-            var tpref = this.Setup.TriggersPrefix;
-            var tsuf = this.Setup.TriggersSuffix;
+            var pref = this.Setup?.StoredProceduresPrefix;
+            var suf = this.Setup?.StoredProceduresSuffix;
+            var tpref = this.Setup?.TriggersPrefix;
+            var tsuf = this.Setup?.TriggersSuffix;
 
             var tableName = ParserName.Parse(TableDescription);
 
@@ -170,8 +170,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             this.AddCommandName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand());
             this.AddCommandName(DbCommandType.UpdateMetadata, CreateUpdateMetadataCommand());
+            
         }
-
 
         private string CreateUpdateMetadataCommand()
         {

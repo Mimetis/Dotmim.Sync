@@ -22,14 +22,16 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the last timestamp from the orchestrator database
         /// </summary>
-        public async virtual Task<long> GetLocalTimestampAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public async virtual Task<long> GetLocalTimestampAsync(string scopeName = SyncOptions.DefaultScopeName)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.Reading, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None).ConfigureAwait(false);
+               
                 long timestamp;
-                (context, timestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, cancellationToken, progress);
+                (context, timestamp) = await this.InternalGetLocalTimestampAsync(context, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
 
                 return timestamp;
             }
@@ -59,14 +61,12 @@ namespace Dotmim.Sync
             if (action.Cancel || action.Command == null)
                 return (context, 0L);
 
-            await this.InterceptAsync(new DbCommandArgs(context, action.Command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
             // Parametrized command timeout established if exist
-            if (Options.DbCommandTimeout.HasValue)
-            {
-                action.Command.CommandTimeout = Options.DbCommandTimeout.Value;
-            }
+            if (this.Options.DbCommandTimeout.HasValue)
+                action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
+            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            
             long result = Convert.ToInt64(await action.Command.ExecuteScalarAsync().ConfigureAwait(false));
 
             var loadedArgs = await this.InterceptAsync(new LocalTimestampLoadedArgs(context, result, connection, transaction), progress, cancellationToken).ConfigureAwait(false);

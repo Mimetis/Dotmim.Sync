@@ -19,10 +19,10 @@ namespace Dotmim.Sync
         public Guid SessionId { get; set; }
 
         /// <summary>
-        /// Current Session, in progress
+        /// Current Scope Info Id, in progress
         /// </summary>
         [DataMember(Name = "csid", IsRequired = true, Order = 2)]
-        public Guid ClientScopeId { get; set; }
+        public Guid? ClientId { get; set; }
 
         /// <summary>
         /// Gets or Sets the ScopeName for this sync session
@@ -60,6 +60,21 @@ namespace Dotmim.Sync
         [DataMember(Name = "ps", IsRequired = false, EmitDefaultValue = false, Order = 7)]
         public SyncParameters Parameters { get; set; }
 
+        /// <summary>
+        /// Get or Sets the Sync parameter to pass to Remote provider for filtering rows
+        /// </summary>
+        [IgnoreDataMember]
+        public string Hash
+        {
+            get
+            {
+                if (Parameters == null || Parameters.Count <= 0)
+                    return SyncParameters.DefaultScopeHash;
+                else
+                    return Parameters.GetHash();
+            }
+        }
+
 
         /// <summary>
         /// Get or Sets additional properties you want to use
@@ -76,12 +91,20 @@ namespace Dotmim.Sync
         /// <summary>
         /// Ctor. New sync context with a new Guid
         /// </summary>
-        public SyncContext(Guid sessionId, string scopeName)
+        public SyncContext(Guid sessionId, string scopeName, SyncParameters parameters = default)
         {
             this.SessionId = sessionId;
             this.ScopeName = scopeName;
+            this.Parameters = parameters;
             this.StartTime = DateTime.UtcNow;
 
+        }
+        public SyncContext(Guid sessionId, ScopeInfoClient scopeInfoClient)
+        {
+            this.SessionId = sessionId;
+            this.ScopeName = scopeInfoClient.Name;
+            this.Parameters = scopeInfoClient.Parameters;
+            this.ClientId = scopeInfoClient.Id;
         }
 
         /// <summary>
@@ -100,7 +123,7 @@ namespace Dotmim.Sync
         {
             otherSyncContext.Parameters = this.Parameters;
             otherSyncContext.ScopeName = this.ScopeName;
-            otherSyncContext.ClientScopeId= this.ClientScopeId;
+            otherSyncContext.ClientId = this.ClientId;
             otherSyncContext.SessionId = this.SessionId;
             otherSyncContext.SyncStage = this.SyncStage;
             otherSyncContext.SyncType = this.SyncType;
