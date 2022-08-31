@@ -83,8 +83,10 @@ namespace Dotmim.Sync
             if (!trackingTableExists)
                 throw new MissingTrackingTableException(tableBuilder.TableDescription.GetFullName());
 
+            var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+
             // Get correct Select incremental changes command 
-            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.UpdateUntrackedRows, null,
+            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.UpdateUntrackedRows, null,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
             if (command == null) return (context, 0);

@@ -6,6 +6,7 @@ using System.Text;
 using Dotmim.Sync.Enumerations;
 using System.Runtime.Serialization;
 using System.Data.Common;
+using Dotmim.Sync.Web.Client.BackwardCompatibility;
 
 namespace Dotmim.Sync.Web.Client
 {
@@ -91,7 +92,7 @@ namespace Dotmim.Sync.Web.Client
     {
         public HttpMessageGetMoreChangesRequest() { }
 
-        public HttpMessageGetMoreChangesRequest(SyncContext context,  int batchIndexRequested)
+        public HttpMessageGetMoreChangesRequest(SyncContext context, int batchIndexRequested)
         {
             this.BatchIndexRequested = batchIndexRequested;
             this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
@@ -121,7 +122,9 @@ namespace Dotmim.Sync.Web.Client
         [DataMember(Name = "sc", IsRequired = true, Order = 1)]
         public SyncContext SyncContext { get; set; }
 
-        [DataMember(Name = "scopeclient", IsRequired = true, Order = 2)]
+
+        // IsRequired = false to preserve backward compat
+        [DataMember(Name = "scopeclient", IsRequired = false, Order = 2)]
         public ScopeInfoClient ScopeInfoClient { get; set; }
 
         /// <summary>
@@ -151,8 +154,15 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Client last sync timestamp
         /// </summary>
-        [DataMember(Name = "clst", IsRequired = true, Order = 7)]
+        [DataMember(Name = "clst", IsRequired = false, Order = 7)] // IsRequired = false to preserve backward compat
         public long ClientLastSyncTimestamp { get; set; }
+
+        /// <summary>
+        /// Pre 0.9.6 old ScopeInfo object
+        /// </summary>
+        [DataMember(Name = "scope", IsRequired = false, Order = 8)] // IsRequired = false to preserve backward compat
+        public OldScopeInfo OldScopeInfo { get; set; }
+
     }
 
     [DataContract(Name = "ensureschemares"), Serializable]
@@ -228,7 +238,7 @@ namespace Dotmim.Sync.Web.Client
         [DataMember(Name = "sc", IsRequired = true, Order = 1)]
         public SyncContext SyncContext { get; set; }
 
-       
+
     }
 
 
@@ -364,7 +374,7 @@ namespace Dotmim.Sync.Web.Client
         /// </summary>
         [DataMember(Name = "changes", IsRequired = false, EmitDefaultValue = false, Order = 5)]
         public ContainerSet Changes { get; set; }
-        
+
         [DataMember(Name = "scs", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public DatabaseChangesSelected ServerChangesSelected { get; set; }
 

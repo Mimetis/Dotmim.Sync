@@ -41,6 +41,11 @@ namespace Dotmim.Sync
         public string ScopeName { get; }
 
         /// <summary>
+        /// For provider supporting it, set if we are using bulk operations or not.
+        /// </summary>
+        public bool UseBulkOperations { get; set; }
+
+        /// <summary>
         /// Gets a command from the current adapter
         /// </summary>
         public abstract (DbCommand Command, bool IsBatchCommand) GetCommand(DbCommandType commandType, SyncFilter filter = null);
@@ -59,11 +64,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a Sync Adapter
         /// </summary>
-        public DbSyncAdapter(SyncTable tableDescription, SyncSetup setup, string scopeName)
+        public DbSyncAdapter(SyncTable tableDescription, SyncSetup setup, string scopeName, bool useBulkOperation = false)
         {
             this.TableDescription = tableDescription;
             this.Setup = setup;
             this.ScopeName = scopeName;
+            this.UseBulkOperations = useBulkOperation;
         }
     }
 }

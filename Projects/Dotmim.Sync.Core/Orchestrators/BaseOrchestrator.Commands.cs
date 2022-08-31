@@ -29,18 +29,15 @@ namespace Dotmim.Sync
         /// Get the command from provider, check connection is opened, affect connection and transaction
         /// Prepare the command parameters and add scope parameters
         /// </summary>
-        internal async Task<(DbCommand Command, bool IsBatch)> InternalGetCommandAsync(ScopeInfo scopeInfo, SyncContext context, SyncTable tableDescription, DbCommandType commandType, 
+        internal async Task<(DbCommand Command, bool IsBatch)> InternalGetCommandAsync(ScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, DbCommandType commandType, 
             SyncFilter filter , DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // Create the key
-            var commandKey = $"{connection.DataSource}-{connection.Database}-{tableDescription.GetFullName()}-{commandType}";
-
-            // get executioning adapter
-            var syncAdapter = this.GetSyncAdapter(tableDescription, scopeInfo);
+            var commandKey = $"{connection.DataSource}-{connection.Database}-{syncAdapter.TableDescription.GetFullName()}-{commandType}";
 
             var (command, isBatch) = syncAdapter.GetCommand(commandType, filter);
 
-            var args = new GetCommandArgs(scopeInfo, context, command, isBatch, tableDescription, commandType, filter, connection, transaction);
+            var args = new GetCommandArgs(scopeInfo, context, command, isBatch, syncAdapter.TableDescription, commandType, filter, connection, transaction);
             await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
 
             // Get the different command if changed by interceptor

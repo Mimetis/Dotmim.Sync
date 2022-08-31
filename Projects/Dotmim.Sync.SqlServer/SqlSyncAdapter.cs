@@ -32,16 +32,13 @@ namespace Dotmim.Sync.SqlServer.Builders
         public SqlObjectNames SqlObjectNames { get; set; }
         public SqlDbMetadata SqlMetadata { get; set; }
 
-        private bool useBulkOperations;
-
         private readonly ParserName tableName;
         private readonly ParserName trackingName;
 
-        public SqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool useBulkOperations) : base(tableDescription, setup, scopeName)
+        public SqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool useBulkOperations) : base(tableDescription, setup, scopeName, useBulkOperations)
         {
             this.SqlObjectNames = new SqlObjectNames(tableDescription, tableName, trackingName, setup, scopeName);
             this.SqlMetadata = new SqlDbMetadata();
-            this.useBulkOperations = useBulkOperations;
             this.tableName = tableName;
             this.trackingName = trackingName;
         }
@@ -366,7 +363,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 case DbCommandType.UpdateRows:
                 case DbCommandType.InsertRows:
                     command.CommandType = CommandType.StoredProcedure;
-                    if (useBulkOperations)
+                    if (this.UseBulkOperations)
                     {
                         command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows, filter);
                         isBatch = true;
@@ -384,7 +381,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     break;
                 case DbCommandType.DeleteRows:
                     command.CommandType = CommandType.StoredProcedure;
-                    if (useBulkOperations)
+                    if (this.UseBulkOperations)
                     {
                         command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows, filter);
                         isBatch = true;

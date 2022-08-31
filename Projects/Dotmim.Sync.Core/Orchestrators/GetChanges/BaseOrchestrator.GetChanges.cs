@@ -490,7 +490,9 @@ namespace Dotmim.Sync
                 dbCommandType = DbCommandType.SelectChanges;
 
             // Get correct Select incremental changes command 
-            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncTable, dbCommandType, tableFilter, 
+            var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
+
+            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType, tableFilter, 
                 connection, transaction, default, default).ConfigureAwait(false);
 
             return (command, dbCommandType);

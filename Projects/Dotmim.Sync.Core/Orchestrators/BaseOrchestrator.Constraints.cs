@@ -130,7 +130,9 @@ namespace Dotmim.Sync
         {
             await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction).ConfigureAwait(false);
 
-            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.DisableConstraints, null,
+            var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+
+            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DisableConstraints, null,
             runner.Connection, runner.Transaction, default, default).ConfigureAwait(false);
 
             if (command == null) return context;
@@ -154,7 +156,9 @@ namespace Dotmim.Sync
         {
             await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction).ConfigureAwait(false);
 
-            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.EnableConstraints, null,
+            var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+
+            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.EnableConstraints, null,
                 runner.Connection, runner.Transaction, default, default).ConfigureAwait(false);
 
             if (command == null) return context;
@@ -179,7 +183,9 @@ namespace Dotmim.Sync
         {
             await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction).ConfigureAwait(false);
 
-            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.Reset, null,
+            var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+
+            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.Reset, null,
                 runner.Connection, runner.Transaction, default, default).ConfigureAwait(false);
 
             if (command != null)

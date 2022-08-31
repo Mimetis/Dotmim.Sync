@@ -60,18 +60,18 @@ internal class Program
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
-        var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        //clientProvider.UseBulkOperations = true;
+        //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        clientProvider.UseBulkOperations = true;
 
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        var setup = new SyncSetup(allTables);
-        //var setup = new SyncSetup("ProductCategory", "Product");
+        //var setup = new SyncSetup(allTables);
+        var setup = new SyncSetup("ProductCategory", "Product");
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
-        var options = new SyncOptions() { TransactionMode = TransactionMode.PerBatch, BatchSize = 5 };
+        var options = new SyncOptions() { BatchSize = 2 };
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
@@ -101,6 +101,54 @@ internal class Program
 
          //await MultiFiltersAsync();
          await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+
+    }
+
+
+    private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
+    {
+
+        //var options = new SyncOptions();
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}");
+        });
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("ERROR ON LINE:");
+            Console.WriteLine(args.ErrorRow);
+            Console.ResetColor();
+            args.Resolution = ErrorResolution.RetryOneMoreTime;
+        });
+
+        do
+        {
+            try
+            {
+                Console.Clear();
+                Console.ForegroundColor = ConsoleColor.Green;
+                var s = await agent.SynchronizeAsync(setup, progress: progress);
+                Console.ResetColor();
+                Console.WriteLine(s);
+            }
+            catch (SyncException e)
+            {
+                Console.ResetColor();
+                Console.WriteLine(e.Message);
+            }
+            catch (Exception e)
+            {
+                Console.ResetColor();
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
     }
 
@@ -1270,45 +1318,6 @@ internal class Program
         await command.ExecuteNonQueryAsync();
 
         connection.Close();
-
-    }
-
-
-    private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
-    {
-
-        //var options = new SyncOptions();
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}");
-        });
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        do
-        {
-            try
-            {
-                Console.Clear();
-                Console.ForegroundColor = ConsoleColor.Green;
-                var s = await agent.SynchronizeAsync(setup, progress: progress);
-                Console.ResetColor();
-                Console.WriteLine(s);
-            }
-            catch (SyncException e)
-            {
-                Console.ResetColor();
-                Console.WriteLine(e.Message);
-            }
-            catch (Exception e)
-            {
-                Console.ResetColor();
-                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-            }
-            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
     }
 

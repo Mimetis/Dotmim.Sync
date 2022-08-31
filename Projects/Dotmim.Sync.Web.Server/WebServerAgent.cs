@@ -139,7 +139,7 @@ namespace Dotmim.Sync.Web.Server
                 // HttpStep.EnsureSchema is the first call from client when client is new
                 // HttpStep.EnsureScopes is the first call from client when client is not new
                 // This is the only moment where we are initializing the sessionCache and store it in session
-                if (sessionCache == null 
+                if (sessionCache == null
                     && (step == HttpStep.EnsureSchema || step == HttpStep.EnsureScopes || step == HttpStep.GetRemoteClientTimestamp))
                 {
                     sessionCache = new SessionCache();
@@ -192,14 +192,56 @@ namespace Dotmim.Sync.Web.Server
                         break;
 
                     case HttpStep.SendChangesInProgress:
-                        var m22 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m22.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingClientChangesArgs(m22, httpContext.Request.Host.Host, sessionCache), progress, cancellationToken).ConfigureAwait(false);
-                        var s22 = await this.ApplyThenGetChangesAsync2(httpContext, m22, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
-                        context = s22.SyncContext;
-                        //await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s22.HttpMessageSendChangesResponse, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
-                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSummaryResponse>().SerializeAsync(s22);
-                        break;
+                        try
+                        {
+                            var m22 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
+                            await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m22.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
+                            await this.RemoteOrchestrator.InterceptAsync(new HttpGettingClientChangesArgs(m22, httpContext.Request.Host.Host, sessionCache), progress, cancellationToken).ConfigureAwait(false);
+                            var oldVersion = m22.OldScopeInfo != null && m22.ScopeInfoClient == null;
+
+                            if (oldVersion)
+                            {
+                                var cScopeInfoClient = new ScopeInfoClient
+                                {
+                                    Id = m22.OldScopeInfo.Id,
+                                    IsNewScope = m22.OldScopeInfo.IsNewScope,
+                                    LastServerSyncTimestamp = m22.OldScopeInfo.LastServerSyncTimestamp,
+                                    LastSync = m22.OldScopeInfo.LastSync,
+                                    LastSyncTimestamp = m22.OldScopeInfo.LastSyncTimestamp,
+                                    Parameters = m22.SyncContext.Parameters,
+                                    Hash = m22.SyncContext.Hash,
+                                    Name = m22.SyncContext.ScopeName,
+                                };
+
+                                m22.ScopeInfoClient = cScopeInfoClient;
+                            }
+
+                            var s22 = await this.ApplyThenGetChangesAsync2(httpContext, m22, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
+                            context = s22.SyncContext;
+
+                            if (oldVersion)
+                            {
+                                ScopeInfo sScopeInfo;
+                                (context, sScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(
+                                    context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                                // tmp sync table with only writable columns
+                                var changesSet = sScopeInfo.Schema.Clone(false);
+                                foreach(var schemaTable in sScopeInfo.Schema.Tables)
+                                    BaseOrchestrator.CreateChangesTable(schemaTable, changesSet);
+
+                                s22.BatchInfo.SanitizedSchema = sScopeInfo.Schema;
+
+                            }
+
+                            //await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s22.HttpMessageSendChangesResponse, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
+                            binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSummaryResponse>().SerializeAsync(s22);
+                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            throw;
+                        }
 
                     case HttpStep.GetMoreChanges:
                         var m4 = await clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().DeserializeAsync(readableStream);

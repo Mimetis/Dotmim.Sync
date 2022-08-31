@@ -269,8 +269,11 @@ namespace Dotmim.Sync
         internal async Task<(SyncContext context, SyncRow syncRow)> InternalGetConflictRowAsync(ScopeInfo scopeInfo, SyncContext context, 
             SyncTable schemaTable, SyncRow primaryKeyRow, DbConnection connection, DbTransaction transaction)
         {
+
+            var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+
             // Get the row in the local repository
-            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, schemaTable, DbCommandType.SelectRow, null, 
+            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.SelectRow, null, 
                 connection, transaction, default, default).ConfigureAwait(false);
 
             if (command == null) return (context, null);
