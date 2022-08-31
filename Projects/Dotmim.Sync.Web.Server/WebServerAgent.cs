@@ -183,65 +183,49 @@ namespace Dotmim.Sync.Web.Server
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesResponse>().SerializeAsync(s1);
                         break;
 
-                    case HttpStep.EnsureSchema:
+                    case HttpStep.EnsureSchema: // pre v 0.9.6
                         var m11 = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().DeserializeAsync(readableStream);
                         await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m11.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
-                        //var s11 = await this.EnsureSchemaAsync(httpContext, m11, sessionCache, cancellationToken, progress).ConfigureAwait(false);
-                        // context = s11.SyncContext;
-                        //binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureSchemaResponse>().SerializeAsync(s11);
+                        var s11 = await this.EnsureScopesAsync(httpContext, m11, sessionCache, cancellationToken, progress).ConfigureAwait(false);
+                        var message = new HttpMessageEnsureSchemaResponse(s11.SyncContext, s11.ServerScopeInfo);
+                        message.Schema = s11.ServerScopeInfo.Schema;
+                        context = s11.SyncContext;
+                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureSchemaResponse>().SerializeAsync(message);
                         break;
 
                     case HttpStep.SendChangesInProgress:
-                        try
+                        var m22 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m22.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingClientChangesArgs(m22, httpContext.Request.Host.Host, sessionCache), progress, cancellationToken).ConfigureAwait(false);
+
+                        //----------------------------------------------------------------------------------
+                        // RETRO COMPATIBILITY PRE 0.9.6
+                        //----------------------------------------------------------------------------------
+                        var oldVersion = m22.OldScopeInfo != null && m22.ScopeInfoClient == null;
+
+                        if (oldVersion)
                         {
-                            var m22 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                            await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m22.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
-                            await this.RemoteOrchestrator.InterceptAsync(new HttpGettingClientChangesArgs(m22, httpContext.Request.Host.Host, sessionCache), progress, cancellationToken).ConfigureAwait(false);
-                            var oldVersion = m22.OldScopeInfo != null && m22.ScopeInfoClient == null;
-
-                            if (oldVersion)
+                            var cScopeInfoClient = new ScopeInfoClient
                             {
-                                var cScopeInfoClient = new ScopeInfoClient
-                                {
-                                    Id = m22.OldScopeInfo.Id,
-                                    IsNewScope = m22.OldScopeInfo.IsNewScope,
-                                    LastServerSyncTimestamp = m22.OldScopeInfo.LastServerSyncTimestamp,
-                                    LastSync = m22.OldScopeInfo.LastSync,
-                                    LastSyncTimestamp = m22.OldScopeInfo.LastSyncTimestamp,
-                                    Parameters = m22.SyncContext.Parameters,
-                                    Hash = m22.SyncContext.Hash,
-                                    Name = m22.SyncContext.ScopeName,
-                                };
+                                Id = m22.OldScopeInfo.Id,
+                                IsNewScope = m22.OldScopeInfo.IsNewScope,
+                                LastServerSyncTimestamp = m22.OldScopeInfo.LastServerSyncTimestamp,
+                                LastSync = m22.OldScopeInfo.LastSync,
+                                LastSyncTimestamp = m22.OldScopeInfo.LastSyncTimestamp,
+                                Parameters = m22.SyncContext.Parameters,
+                                Hash = m22.SyncContext.Hash,
+                                Name = m22.SyncContext.ScopeName,
+                            };
 
-                                m22.ScopeInfoClient = cScopeInfoClient;
-                            }
-
-                            var s22 = await this.ApplyThenGetChangesAsync2(httpContext, m22, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
-                            context = s22.SyncContext;
-
-                            if (oldVersion)
-                            {
-                                ScopeInfo sScopeInfo;
-                                (context, sScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(
-                                    context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
-
-                                // tmp sync table with only writable columns
-                                var changesSet = sScopeInfo.Schema.Clone(false);
-                                foreach(var schemaTable in sScopeInfo.Schema.Tables)
-                                    BaseOrchestrator.CreateChangesTable(schemaTable, changesSet);
-
-                                s22.BatchInfo.SanitizedSchema = sScopeInfo.Schema;
-
-                            }
-
-                            //await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s22.HttpMessageSendChangesResponse, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
-                            binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSummaryResponse>().SerializeAsync(s22);
-                            break;
+                            m22.ScopeInfoClient = cScopeInfoClient;
                         }
-                        catch (Exception ex)
-                        {
-                            throw;
-                        }
+
+                        var s22 = await this.ApplyThenGetChangesAsync2(httpContext, m22, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
+                        context = s22.SyncContext;
+
+                        //await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s22.HttpMessageSendChangesResponse, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
+                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSummaryResponse>().SerializeAsync(s22);
+                        break;
 
                     case HttpStep.GetMoreChanges:
                         var m4 = await clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().DeserializeAsync(readableStream);
@@ -760,31 +744,45 @@ namespace Dotmim.Sync.Web.Server
             };
 
 
-            //// Compatibility with last versions where InMemory is set
-            //if (clientBatchSize <= 0)
-            //{
-            //    var containerSet = new ContainerSet();
-            //    foreach (var table in serverSyncChanges.ServerBatchInfo.SanitizedSchema.Tables)
-            //    {
-            //        var containerTable = new ContainerTable(table);
-            //        foreach (var part in serverSyncChanges.ServerBatchInfo.GetBatchPartsInfo(table))
-            //        {
-            //            var paths = serverSyncChanges.ServerBatchInfo.GetBatchPartInfoPath(part);
-            //            var localSerializer = new LocalJsonSerializer();
-            //            foreach (var syncRow in localSerializer.ReadRowsFromFile(paths.FullPath, table))
-            //            {
-            //                containerTable.Rows.Add(syncRow.ToArray());
-            //            }
-            //        }
-            //        if (containerTable.Rows.Count > 0)
-            //            containerSet.Tables.Add(containerTable);
-            //    }
+            //----------------------------------------------------------------------------------
+            // RETRO COMPATIBILITY PRE 0.9.5
+            //----------------------------------------------------------------------------------
+            // Compatibility with last versions where InMemory is set
+            // Should be removed once all clients are upgraded to 0.9.6 (or at least 0.9.5)
+            if (clientBatchSize <= 0)
+            {
+                var containerSet = new ContainerSet();
 
-            //    summaryResponse.Changes = containerSet;
-            //    summaryResponse.BatchInfo.BatchPartsInfo.Clear();
-            //    summaryResponse.BatchInfo.BatchPartsInfo = null;
+                // tmp sync table with only writable columns
+                var changesSet = sScopeInfo.Schema.Clone(false);
+                foreach (var schemaTable in sScopeInfo.Schema.Tables)
+                    BaseOrchestrator.CreateChangesTable(schemaTable, changesSet);
 
-            //}
+                var sanitizedSchema = sScopeInfo.Schema;
+
+                serverSyncChanges.ServerBatchInfo.SanitizedSchema = sanitizedSchema;
+                foreach (var table in serverSyncChanges.ServerBatchInfo.SanitizedSchema.Tables)
+                {
+                    var containerTable = new ContainerTable(table);
+                    foreach (var part in serverSyncChanges.ServerBatchInfo.GetBatchPartsInfo(table))
+                    {
+                        var paths = serverSyncChanges.ServerBatchInfo.GetBatchPartInfoPath(part);
+                        var localSerializer = new LocalJsonSerializer();
+                        foreach (var syncRow in localSerializer.ReadRowsFromFile(paths.FullPath, table))
+                        {
+                            containerTable.Rows.Add(syncRow.ToArray());
+                        }
+                    }
+                    if (containerTable.Rows.Count > 0)
+                        containerSet.Tables.Add(containerTable);
+                }
+
+                summaryResponse.Changes = containerSet;
+                summaryResponse.BatchInfo.BatchPartsInfo.Clear();
+                summaryResponse.BatchInfo.BatchPartsInfo = null;
+
+            }
+            //----------------------------------------------------------------------------------
 
 
             // Get the firt response to send back to client
