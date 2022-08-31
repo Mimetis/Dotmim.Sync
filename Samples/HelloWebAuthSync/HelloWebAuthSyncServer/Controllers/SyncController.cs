@@ -43,7 +43,11 @@ namespace HelloWebSyncServer.Controllers
                     if (pUserId == null)
                     {
                         var userId = this.HttpContext.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier);
-                        args.Context.Parameters.Add("UserId", userId);
+                        
+                        if (args.Context.AdditionalProperties == null)
+                            args.Context.AdditionalProperties = new Dictionary<string, string>();
+
+                        args.Context.AdditionalProperties.Add("UserId", userId.Value);
                     }
 
                 });
@@ -51,8 +55,8 @@ namespace HelloWebSyncServer.Controllers
                 // Because we don't want to send back this value, remove it from the response 
                 webServerAgent.OnHttpSendingResponse(args =>
                 {
-                    if (args.Context.Parameters.Contains("UserId"))
-                        args.Context.Parameters.Remove("UserId");
+                    if (args.Context.AdditionalProperties.ContainsKey("UserId"))
+                        args.Context.AdditionalProperties.Remove("UserId");
                 });
 
                 await webServerAgent.HandleRequestAsync(this.HttpContext);
