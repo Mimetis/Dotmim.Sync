@@ -40,7 +40,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = $@"IF EXISTS (SELECT t.name FROM sys.tables t WHERE t.name = N'{tableName}') SELECT 1 ELSE SELECT 0";
+            command.CommandText = $@"IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = N'{tableName}' AND s.name = '{SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(tableName))}') SELECT 1 ELSE SELECT 0";
             return command;
         }
 
@@ -49,7 +49,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = $@"IF EXISTS (SELECT t.name FROM sys.tables t WHERE t.name = N'{tableName}') SELECT 1 ELSE SELECT 0";
+            command.CommandText = $@"IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = N'{tableName}' AND s.name = '{SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(tableName))}') SELECT 1 ELSE SELECT 0";
             return command;
         }
 
