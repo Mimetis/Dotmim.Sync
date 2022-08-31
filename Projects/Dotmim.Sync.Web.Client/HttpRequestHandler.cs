@@ -158,13 +158,12 @@ namespace Dotmim.Sync.Web.Client
             requestMessage.Headers.Add("dotmim-sync-scope-name", context.ScopeName);
             requestMessage.Headers.Add("dotmim-sync-step", ((int)step).ToString());
             requestMessage.Headers.Add("dotmim-sync-serialization-format", ser);
+            requestMessage.Headers.Add("dotmim-sync-version", SyncVersion.Current.ToString());
+            requestMessage.Headers.Add("dotmim-sync-hash", hashString);
 
             // if client specifies a converter, add it as header
             if (converter != null)
                 requestMessage.Headers.Add("dotmim-sync-converter", converter.Key);
-
-
-            requestMessage.Headers.Add("dotmim-sync-hash", hashString);
 
             // Adding others headers
             if (this.CustomHeaders != null && this.CustomHeaders.Count > 0)

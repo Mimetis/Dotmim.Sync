@@ -80,6 +80,11 @@ namespace Dotmim.Sync
         public static string GetScopeName(this HttpContext httpContext) => WebServerAgent.TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-scope-name", out var val) ? val : null;
 
         /// <summary>
+        /// Get the DMS version used by the Client
+        /// </summary>
+        public static string GetVersion(this HttpContext httpContext) => WebServerAgent.TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-version", out var val) ? val : null;
+
+        /// <summary>
         /// Get Scope Name sent by the client
         /// </summary>
         public static Guid? GetClientScopeId(this HttpContext httpContext) => WebServerAgent.TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-scope-id", out var val) ? new Guid(val) : null;

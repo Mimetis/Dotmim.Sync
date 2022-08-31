@@ -95,12 +95,16 @@ namespace Dotmim.Sync.Web.Server
             var httpResponse = httpContext.Response;
             var serAndsizeString = string.Empty;
             var cliConverterKey = string.Empty;
+            var version = string.Empty;
 
             if (TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-serialization-format", out var vs))
                 serAndsizeString = vs.ToLowerInvariant();
 
             if (TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-converter", out var cs))
                 cliConverterKey = cs.ToLowerInvariant();
+
+            if (TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-version", out string v))
+                version = v;
 
             if (!TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new HttpHeaderMissingException("dotmim-sync-session-id");
@@ -110,6 +114,7 @@ namespace Dotmim.Sync.Web.Server
 
             if (!TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-step", out string iStep))
                 throw new HttpHeaderMissingException("dotmim-sync-step");
+
 
             var step = (HttpStep)Convert.ToInt32(iStep);
             var readableStream = new MemoryStream();
@@ -406,6 +411,11 @@ namespace Dotmim.Sync.Web.Server
         /// Get Scope Name sent by the client
         /// </summary>
         public string GetScopeName(HttpContext httpContext) => TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-scope-name", out var val) ? val : null;
+
+        /// <summary>
+        /// Get the DMS Version used by the client
+        /// </summary>
+        public string GetVersion(HttpContext httpContext) => TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-version", out var v) ? v : null;
 
         /// <summary>
         /// Get Scope Name sent by the client
