@@ -25,6 +25,8 @@
 		<PackageIcon>packageIcon.png</PackageIcon>
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+
 	</PropertyGroup>
 
 	<!--generate NUGET package including symbols ans source on each release build -->

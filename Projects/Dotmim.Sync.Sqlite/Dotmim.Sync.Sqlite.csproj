@@ -25,9 +25,8 @@
 		<PackageIcon>packageIcon.png</PackageIcon>
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
-		<!--<AssemblyName Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">Dotmim.Sync.Sqlite.Std</AssemblyName>
-    <AssemblyName Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">Dotmim.Sync.Sqlite.Core</AssemblyName>
-    <AssemblyName Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)' ">Dotmim.Sync.Sqlite.Net</AssemblyName>-->
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+
 	</PropertyGroup>
 
 	<!--generate NUGET package including symbols ans source on each release build -->

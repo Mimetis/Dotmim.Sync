@@ -24,6 +24,8 @@
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
 		<LangVersion>9.0</LangVersion>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+
 	</PropertyGroup>
 
 	<!--generate NUGET package including symbols ans source on each release build -->
