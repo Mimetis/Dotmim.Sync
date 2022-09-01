@@ -14,6 +14,9 @@ namespace Dotmim.Sync
     /// </summary>
     public class SyncOptions
     {
+
+        private int batchSize;
+        
         /// <summary>
         /// Default name if nothing is specified for the scope info table and scope info client table, stored on both side
         /// </summary>
@@ -23,7 +26,6 @@ namespace Dotmim.Sync
         /// Default scope name if not specified
         /// </summary>
         public const string DefaultScopeName = "DefaultScope";
-        private int batchSize;
 
         /// <summary>
         /// Gets or Sets the directory used for batch mode.

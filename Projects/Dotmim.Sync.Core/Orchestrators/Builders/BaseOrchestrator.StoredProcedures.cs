@@ -19,13 +19,16 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Create a Stored Procedure
+        /// Create a <strong>Stored Procedure</strong> for a given existing scope.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Employee", null, DbStoredProcedureType.SelectChanges);
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="table">A table from your Setup instance, where you want to create the Stored Procedure</param>
-        /// <param name="storedProcedureType">StoredProcedure type</param>
-        /// <param name="overwrite">If true, drop the existing stored procedure then create again</param>
-        public virtual async Task<bool> CreateStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null,
-            DbStoredProcedureType storedProcedureType = default, bool overwrite = false)
+        public virtual async Task<bool> CreateStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default, bool overwrite = false)
         {
 
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -72,11 +75,17 @@ namespace Dotmim.Sync
             }
         }
 
+
         /// <summary>
-        /// Create a Stored Procedure
+        /// Create all <strong>Stored Procedures</strong> for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.CreateStoredProceduresAsync(scopeInfo, "Employee");
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="table">A table from your Setup instance, where you want to create the Stored Procedures</param>
-        /// <param name="overwrite">If true, drop the existing Stored Procedures then create them all, again</param>
         public virtual async Task<bool> CreateStoredProceduresAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -111,10 +120,15 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Check if a Stored Procedure exists
+        /// Check if a <strong>Stored Procedure</strong>, for a given table, exists.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// var exists = await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Employee", null, DbStoredProcedureType.SelectChanges);
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="table">A table from your Setup instance, where you want to check if the Stored Procedure exists</param>
-        /// <param name="storedProcedureType">StoredProcedure type</param>
         public virtual async Task<bool> ExistStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -145,10 +159,15 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Drop a Stored Procedure
+        /// Drop a <strong>Stored Procedure</strong> for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.DropStoredProcedureAsync(scopeInfo, "Employee", null, DbStoredProcedureType.SelectChanges);
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="table">A table from your Setup instance, where you want to drop the Stored Procedure</param>
-        /// <param name="storedProcedureType">Stored Procedure type</param>
         public virtual async Task<bool> DropStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -189,9 +208,15 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Drop all Stored Procedures
-        /// </summary>
-        /// <param name="table">A table from your Setup instance, where you want to drop all the Stored Procedures</param>
+        /// Drop all <strong>Stored Procedures</strong> for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.DropStoredProceduresAsync(scopeInfo, "Employee");
+        /// </code>
+        /// </example>
+        /// </summary>       
         public virtual async Task<bool> DropStoredProceduresAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
