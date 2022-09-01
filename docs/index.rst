@@ -106,6 +106,7 @@ Feel free to ping me: `@sebpertus <http://www.twitter.com/sebpertus>`_
    HowDoesItWorks
    Synchronize
    Scopes
+   ScopeClients
    Orchestrators
    Progression
    Interceptors

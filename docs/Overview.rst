@@ -155,7 +155,7 @@ It's a little bit long, because, under the hood, the ``Dotmim.Sync`` framework, 
 
 Now everything is configured and the first sync is successfull.  
 
-We can add **101** items in the `ProductCategory` table (on the server side, `Adventureworks`):
+We can add **101** items in the :guilabel:`ProductCategory`  table (on the server side, `Adventureworks`):
 
 .. code-block:: sql
 

@@ -92,7 +92,7 @@ namespace Dotmim.Sync.Tests
             //--------------------------
 
             // check if scope table is correctly created
-            var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(clientScope.Name);
+            var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync();
             Assert.True(scopeInfoTableExists);
 
             // get the db manager
@@ -131,7 +131,7 @@ namespace Dotmim.Sync.Tests
             await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.ScopeInfo | SyncProvision.TrackingTable);
 
             // check if scope table is correctly created
-            scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync(clientScope.Name);
+            scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync();
             Assert.False(scopeInfoTableExists);
 
             // get the db manager

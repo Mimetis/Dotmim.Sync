@@ -4,7 +4,8 @@ Scopes
 What is a scope ?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Scopes are stored in the **scope_info** table, on each side (Server / Client).
+| Scopes are objects containing the list of the tables to synchronize.
+| They are stored in the :guilabel:`scope_info`  table, on each side (**Server** data source / All **Client** data sources).
 
 .. note:: You can change the default table name **scope_info** using the ``ScopeInfoTableName`` property from ``SyncOptions``:
 
@@ -14,13 +15,17 @@ Scopes are stored in the **scope_info** table, on each side (Server / Client).
         options.ScopeInfoTableName = "table_information";
 
 
-Basically, a scope is defining a **setup** and its database **schema**, and is identified by a **unique name**.
+Basically, a **scope** is defining a **setup** and its database **schema**, and is identified by a **unique name**.
 
 For example, you can define multiples scopes representing:
 
-- A first scope called **"products"** : Contains the **Product**, **ProductCategory** and **ProductModel** tables.
-- A second scope called **"customers"**: Contains the **Customer** and related **SalesOrderHeader** tables.
-- A third scope with the default name (default **DefaultScope**), containing all the tables to sync.
+- A first scope called **"products"** : Contains the :guilabel:`Product` , :guilabel:`ProductCategory`  and :guilabel:`ProductModel`  tables.
+- A second scope called **"customers"**: Contains the :guilabel:`Customer`  and related :guilabel:`SalesOrderHeader`  tables.
+- A third scope with the default name (default **"DefaultScope"**), containing all the tables to sync.
+
+| The :guilabel:`scope_info` table (and the scope record) is automatically created by DMS when you start a synchronization. 
+| You can also create it manually if you want to, using the CreateScopeInfoTableAsync_ method.
+
 
 Example:
 
@@ -36,7 +41,7 @@ Example:
     var s1 = await agent.SynchronizeAsync(setup);
 
 
-Here is the **scope_info** table, once the sync is complete:
+Here is the :guilabel:`scope_info`  table, once the sync is complete:
 
 ===============   ============================================== =========================
 sync_scope_name   sync_scope_setup                               sync_scope_schema         
@@ -49,7 +54,7 @@ DefaultScope      { "t" : [{"ProductCategory", "Product",        { "t" : [{"Prod
     The **sync_scope_setup** column is a serialized json object, containing all the tables and options you defined from your ``SyncSetup`` instance.
 
 
-The corresponding object in ``DMS`` is the ``ScopeInfo`` class. It basically contains all fields from the **scope_info** table.
+The corresponding object in ``DMS`` is the ``ScopeInfo`` class. It basically contains all fields from the :guilabel:`scope_info`  table.
 
 
 Methods & Properties
@@ -60,7 +65,7 @@ You can access a ``SyncScope`` stored on the server or client, using a ``LocalOr
 Properties
 ---------------------
 
-Once a first scope sync has been done, you will have, on both sides, a **scope_info** table, containing:
+Once a first scope sync has been done, you will have, on both sides, a :guilabel:`scope_info`  table, containing:
 
 - A **scope name**: Defines a user friendly name (unique) for your scope. Default name is ``DefaultScope``.
 - A **setup**, serialized: Contains all the tables and options you defined from your ``SyncSetup`` instance.
@@ -83,7 +88,7 @@ The corresponding .NET objet is the ``ScopeInfo`` class:
     }
 
 
-GetScopeInfoAsync()
+GetScopeInfoAsync
 ---------------------
 
 Get the scope info from the database. This method will return a ``ScopeInfo`` object:
@@ -131,7 +136,7 @@ On ``RemoteOrchestrator``, you can use a ``SyncSetup`` argument to get a ``Scope
     }
 
 
-GetAllScopeInfosAsync()
+GetAllScopeInfosAsync
 ---------------------------
 
 Get all scope infos from a data source.
@@ -142,7 +147,7 @@ Get all scope infos from a data source.
     var scopeInfo = await localOrchestrator.GetAllScopeInfosAsync();
 
 
-SaveScopeInfoAsync()
+SaveScopeInfoAsync
 ------------------------
 
 Save a scope info to the local data source.
@@ -156,7 +161,7 @@ Save a scope info to the local data source.
     await localOrchestrator.SaveScopeInfoAsync(scopeInfo);
 
 
-DeleteScopeInfoAsync()
+DeleteScopeInfoAsync
 ------------------------
 
 Delete a scope info from the local data source.
@@ -166,7 +171,7 @@ Delete a scope info from the local data source.
     var scopeInfo = await localOrchestrator.GetScopeInfoAsync("v0");
     await localOrchestrator.DeleteScopeInfoAsync(scopeInfo);
 
-CreateScopeInfoTableAsync()
+CreateScopeInfoTableAsync
 ----------------------------------
 
 Create a scope info table in local data source.
@@ -176,7 +181,7 @@ Create a scope info table in local data source.
     await localOrchestrator.CreateScopeInfoTableAsync();
 
 
-ExistScopeInfoTableAsync()
+ExistScopeInfoTableAsync
 ----------------------------------
 
 Check if a scope_info table exists in the local data source
@@ -206,7 +211,7 @@ To be able to create a multi scopes scenario, you just have to:
 Example
 ----------------------------
 
-Here is a full example, where we sync separately the **Product** table, then the **Customer** table:
+Here is a full example, where we sync separately the :guilabel:`Product` table, then the :guilabel:`Customer` table:
 
 .. code-block:: csharp
 
@@ -243,7 +248,7 @@ Here is a full example, where we sync separately the **Product** table, then the
         Console.WriteLine(s1);
     }
 
-Once you have made the 2 syncs, your local syns_scope table should looks like that:
+Once you have made the 2 syncs, your local :guilabel:`syns_scope` table should looks like that:
 
 ===============   =========================   ======================= 
 sync_scope_name   sync_scope_schema           sync_scope_setup        
