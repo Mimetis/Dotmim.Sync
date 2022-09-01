@@ -14,12 +14,17 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
         /// <summary>
-        /// Create ScopeInfoClient Table if not exists
+        /// Create a scope_info_client table in the local data source, if not exists
+        /// <example>
+        /// <code>
+        ///  await localOrchestrator.CreateScopeInfoClientTableAsync();
+        /// </code>
+        /// </example>
         /// </summary>
-        public async Task<bool> CreateScopeInfoClientTableAsync(string scopeName = SyncOptions.DefaultScopeName)
+        public async Task<bool> CreateScopeInfoClientTableAsync()
         {
 
-            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
             {
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.None).ConfigureAwait(false);
@@ -41,13 +46,19 @@ namespace Dotmim.Sync
             }
         }
 
+
         /// <summary>
-        /// Create ScopeInfo Table if not exists
+        /// Create a scope_info table in the local data source, if not exists
+        /// <example>
+        /// <code>
+        ///  await localOrchestrator.CreateScopeInfoTableAsync();
+        /// </code>
+        /// </example>
         /// </summary>
-        public async Task<bool> CreateScopeInfoTableAsync(string scopeName = SyncOptions.DefaultScopeName)
+        public async Task<bool> CreateScopeInfoTableAsync()
         {
 
-            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
             {
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.None).ConfigureAwait(false);
@@ -70,12 +81,17 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Check if a scope info table exists
+        /// Check if a scope_info table exists in the local data source
+        /// <example>
+        /// <code>
+        ///  var exists = await localOrchestrator.ExistScopeInfoTableAsync();
+        /// </code>
+        /// </example>
         /// </summary>
-        public async Task<bool> ExistScopeInfoTableAsync(string scopeName = SyncOptions.DefaultScopeName)
+        public async Task<bool> ExistScopeInfoTableAsync()
         {
 
-            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
             {
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None).ConfigureAwait(false);
@@ -93,10 +109,18 @@ namespace Dotmim.Sync
             }
         }
 
-        public async Task<bool> ExistScopeInfoClientTableAsync(string scopeName = SyncOptions.DefaultScopeName)
+        /// <summary>
+        /// Check if a scope_info_client table exists in the local data source
+        /// <example>
+        /// <code>
+        ///  var exists = await localOrchestrator.ExistScopeInfoClientTableAsync();
+        /// </code>
+        /// </example>
+        /// </summary>
+        public async Task<bool> ExistScopeInfoClientTableAsync()
         {
 
-            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
             {
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None).ConfigureAwait(false);

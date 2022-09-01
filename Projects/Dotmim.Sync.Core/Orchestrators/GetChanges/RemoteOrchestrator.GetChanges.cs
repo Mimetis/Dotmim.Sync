@@ -34,7 +34,7 @@ namespace Dotmim.Sync
         ///  var remoteOrchestrator = new RemoteOrchestrator(remoteProvider);
         ///  var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
         ///  // You can load a client scope info from the server database also, if you know the clientId
-        ///  var cScopeInfoClient = await remoteOrchestrator.GetScopeInfoClientAsync(clientId, scopeName, parameters);
+        ///  // var cScopeInfoClient = await remoteOrchestrator.GetScopeInfoClientAsync(clientId, scopeName, parameters);
         ///  var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
         /// </code>
         /// </example>

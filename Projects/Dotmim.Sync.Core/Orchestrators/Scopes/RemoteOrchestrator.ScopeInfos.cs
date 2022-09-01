@@ -23,6 +23,27 @@ namespace Dotmim.Sync
     public partial class RemoteOrchestrator : BaseOrchestrator
     {
 
+        /// <summary>
+        /// Get a scope info from the remote data source. A scope contains the <see cref="SyncSetup"/> setup and the <see cref="SyncSet"/> schema.
+        /// <para>
+        /// If the <strong>scope_info</strong> table is not existing, it will be created. If no scope is found, an empty scope will be created with empty schema and setup properties.
+        /// </para>
+        /// <example>
+        /// <code>
+        ///  var remoteOrchestrator = new RemoteOrchestrator(clientProvider);
+        ///  var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync();
+        ///  foreach (var schemaTable in scopeInfo.Schema.Tables)
+        ///  {
+        ///    Console.WriteLine($"Table Name: {schemaTable.TableName}");
+        ///       
+        ///    foreach (var column in schemaTable.Columns)
+        ///          Console.WriteLine($"Column Name: {column.ColumnName}");
+        ///  }
+        /// </code>
+        /// </example>
+        /// </summary>
+        /// <param name="scopeName"></param>
+        /// <returns></returns>
         public virtual async Task<ScopeInfo> GetScopeInfoAsync(string scopeName = SyncOptions.DefaultScopeName)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -39,8 +60,33 @@ namespace Dotmim.Sync
             }
         }
 
+
+        /// <summary>
+        /// Get a scope info from the remote data source. A scope contains the <see cref="SyncSetup"/> setup and the <see cref="SyncSet"/> schema.
+        /// <para>
+        /// If the <strong>scope_info</strong> table is not existing, it will be created. The setup argument is used to get the tables schema and fill the <strong>Setup</strong> and <strong>Schema</strong> properties.
+        /// </para>
+        /// <example>
+        /// <code>
+        ///  var remoteOrchestrator = new RemoteOrchestrator(clientProvider);
+        ///  var setup = new SyncSetup("Product, ProductCategory");
+        ///  var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        ///  foreach (var schemaTable in scopeInfo.Schema.Tables)
+        ///  {
+        ///    Console.WriteLine($"Table Name: {schemaTable.TableName}");
+        ///       
+        ///    foreach (var column in schemaTable.Columns)
+        ///          Console.WriteLine($"Column Name: {column.ColumnName}");
+        ///  }
+        /// </code>
+        /// </example>
+        /// </summary>
+        /// <param name="setup"></param>
+        /// <returns></returns>
         public virtual Task<ScopeInfo> GetScopeInfoAsync(SyncSetup setup) => GetScopeInfoAsync(SyncOptions.DefaultScopeName, setup);
 
+
+        /// <inheritdoc cref="GetScopeInfoAsync(SyncSetup)"/>
         public virtual async Task<ScopeInfo> GetScopeInfoAsync(string scopeName, SyncSetup setup)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -59,41 +105,8 @@ namespace Dotmim.Sync
         }
 
 
-
-        /// <summary>
-        /// Check 
-        /// </summary>
-        internal virtual async Task<(SyncContext, bool, ScopeInfo)> InternalIsConflictingSetupAsync(SyncContext context, SyncSetup inputSetup, ScopeInfo sScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            if (sScopeInfo.Schema == null)
-                return (context, false, sScopeInfo);
-
-            if (inputSetup != null && sScopeInfo.Setup != null && !sScopeInfo.Setup.EqualsByProperties(inputSetup))
-            {
-                var conflictingSetupArgs = new ConflictingSetupArgs(context, inputSetup, null, sScopeInfo);
-                await this.InterceptAsync(conflictingSetupArgs, progress, cancellationToken).ConfigureAwait(false);
-
-                if (conflictingSetupArgs.Action == ConflictingSetupAction.Rollback)
-                    throw new Exception("Seems you are trying another Setup tables that what is stored in your server scope database. Please create a new scope or deprovision and provision again your server scope.");
-
-                if (conflictingSetupArgs.Action == ConflictingSetupAction.Abort)
-                    return (context, true, sScopeInfo);
-
-                // re affect scope infos
-                sScopeInfo = conflictingSetupArgs.ServerScopeInfo;
-            }
-
-            // We gave 2 chances to user to edit the setup and fill correct values.
-            // Final check, but if not valid, raise an error
-            if (inputSetup != null && sScopeInfo.Setup != null && !sScopeInfo.Setup.EqualsByProperties(inputSetup))
-                throw new Exception("Seems you are trying another Setup tables that what is stored in your server scope database. Please make a migration or create a new scope");
-
-            return (context, false, sScopeInfo);
-        }
-
-
-        internal virtual async Task<(SyncContext context, ScopeInfo serverScopeInfo, bool shouldProvision)>
-             InternalEnsureScopeInfoAsync(SyncContext context, SyncSetup setup, bool overwrite, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal virtual async Task<(SyncContext context, ScopeInfo serverScopeInfo, bool shouldProvision)> InternalEnsureScopeInfoAsync(SyncContext context, SyncSetup setup, bool overwrite,
+            DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             bool shouldProvision = false;
             await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -171,5 +184,40 @@ namespace Dotmim.Sync
 
             return (context, sScopeInfo, shouldProvision);
         }
+
+
+        /// <summary>
+        /// Check 
+        /// </summary>
+        internal virtual async Task<(SyncContext, bool, ScopeInfo)> InternalIsConflictingSetupAsync(SyncContext context, SyncSetup inputSetup, ScopeInfo sScopeInfo, 
+            DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            if (sScopeInfo.Schema == null)
+                return (context, false, sScopeInfo);
+
+            if (inputSetup != null && sScopeInfo.Setup != null && !sScopeInfo.Setup.EqualsByProperties(inputSetup))
+            {
+                var conflictingSetupArgs = new ConflictingSetupArgs(context, inputSetup, null, sScopeInfo);
+                await this.InterceptAsync(conflictingSetupArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                if (conflictingSetupArgs.Action == ConflictingSetupAction.Rollback)
+                    throw new Exception("Seems you are trying another Setup tables that what is stored in your server scope database. Please create a new scope or deprovision and provision again your server scope.");
+
+                if (conflictingSetupArgs.Action == ConflictingSetupAction.Abort)
+                    return (context, true, sScopeInfo);
+
+                // re affect scope infos
+                sScopeInfo = conflictingSetupArgs.ServerScopeInfo;
+            }
+
+            // We gave 2 chances to user to edit the setup and fill correct values.
+            // Final check, but if not valid, raise an error
+            if (inputSetup != null && sScopeInfo.Setup != null && !sScopeInfo.Setup.EqualsByProperties(inputSetup))
+                throw new Exception("Seems you are trying another Setup tables that what is stored in your server scope database. Please make a migration or create a new scope");
+
+            return (context, false, sScopeInfo);
+        }
+
+
     }
 }

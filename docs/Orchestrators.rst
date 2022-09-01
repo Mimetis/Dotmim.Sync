@@ -10,32 +10,38 @@ Overview
 We have two kind of orchestrators: 
 
 * Local Orchestrator (or let’s say client side orchestrator) : ``LocalOrchestrator``.
-* Remote Orchestrator or let’s say server side orchestrator) : ``RemoteOrchestrator``.
+* Remote Orchestrator (or let’s say server side orchestrator) : ``RemoteOrchestrator``.
 
-We have to more kind of orchestrators, that will handle under the hood the web sync process:
+We have more orchestrators, that will handle, under the hood, the web sync process:
 
 * The ``WebRemoteOrchestrator``: This orchestrator will run locally, and will act "*as*" an orchestrator from the sync agent, but under the hood will generate an http request with a payload containing all the required information
 * The ``WebServerAgent``: On the opposite side, this agent is hosted through an exposed web api, and will get the incoming request from the ``WebRemoteOrchestrator`` and will then call the underline ``RemoteOrchestrator`` correctly.
 
-
-Orchestrators public methods
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
 A set of methods are accessible from both ``LocalOrchestrator`` or ``RemoteOrchestrator`` (and for some of them from ``WebRemoteOrchestrator``).
 
-Generaly, you have access to three methods (``Create_XXX``, ``Drop_XXX``, ``Exists_XXX``) for all the core components :
-
-* Stored Procedures
-* Triggers
+* Database builder methods: Create tables, metadatas, tracking tables ...
+* Sync changes methods: (Get changes, get estimated changes count ...)
 * Tracking Tables
 * Tables
 * Schemas
 * Scopes
 
-Here is some examples using these methods:
 
-Get a table schema
-----------------------
+
+Schema Methods
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+
+
+
+Builder Methods
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You need a ``ScopeInfo`` instance to be able to create any metadatas (stored proc, tables, triggers or tracking tables) in your data source.
+
+
 
 This method runs on any ``Orchestrator``, but we are using here a ``RemoteOrchestrator`` because the client database is empty and getting a table schema from an empty database... well.. :)
 

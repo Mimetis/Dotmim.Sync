@@ -136,6 +136,17 @@ internal class Program
                 var s = await agent.SynchronizeAsync(setup, progress: progress);
                 Console.ResetColor();
                 Console.WriteLine(s);
+
+                var localOrchestrator = new LocalOrchestrator(clientProvider);
+                var scopeInfo = await localOrchestrator.GetScopeInfoAsync();
+
+                foreach (var schemaTable in scopeInfo.Schema.Tables)
+                {
+                    Console.WriteLine($"Table Name: {schemaTable.TableName}");
+
+                    foreach (var column in schemaTable.Columns)
+                        Console.WriteLine($"\t{column}. {(column.AllowDBNull ? "NULL": "")}");
+                }
             }
             catch (SyncException e)
             {

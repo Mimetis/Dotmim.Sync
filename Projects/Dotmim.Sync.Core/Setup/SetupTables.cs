@@ -29,7 +29,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a list of tables to be added to the sync process
         /// </summary>
-        /// <param name="caseSensitive">Specify if table names are case sensitive. Default is false</param>
         public SetupTables(IEnumerable<string> tables)
         {
             foreach (var table in tables)

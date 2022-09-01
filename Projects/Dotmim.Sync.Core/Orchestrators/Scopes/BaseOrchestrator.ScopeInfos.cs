@@ -23,15 +23,33 @@ namespace Dotmim.Sync
     public partial class BaseOrchestrator
     {
         /// <summary>
-        /// Get all scopes. scopeName arg is just here for logging purpose and is not used
+        /// Get all scope infos from a data source. A scope contains the <see cref="SyncSetup"/> setup and the <see cref="SyncSet"/> schema.
+        /// <para>
+        /// If the <strong>scope_info</strong> table is not existing, it will be created.
+        /// </para>
+        /// <example>
+        /// <code>
+        ///  var localOrchestrator = new LocalOrchestrator(clientProvider);
+        ///  var scopeInfo = await localOrchestrator.GetAllScopeInfosAsync();
+        /// </code>
+        /// </example>
         /// </summary>
+        /// <returns><see cref="ScopeInfo"/> instance.</returns>
         public virtual async Task<List<ScopeInfo>> GetAllScopeInfosAsync()
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeLoading).ConfigureAwait(false);
+
+                bool exists;
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                if (!exists)
+                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 List<ScopeInfo> localScopes;
                 (context, localScopes) = await InternalLoadAllScopeInfosAsync(context,
@@ -48,8 +66,19 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Write a Client Scope Info in a client database
-        /// </summary> 
+        /// Save a <see cref="ScopeInfo"/> instance to the local data source.
+        /// <example>
+        /// <code>
+        ///  var scopeInfo = await localOrchestrator.GetScopeInfoAsync();
+        ///  scopeInfo.Setup = setup;
+        ///  scopeInfo.Schema = schema;
+        ///  scopeInfo.ScopeName = "v1";
+        ///  await localOrchestrator.SaveScopeInfoAsync(scopeInfo);
+        /// </code>
+        /// </example>
+        /// </summary>
+        /// <returns><see cref="ScopeInfo"/> instance.</returns>
+
         public virtual async Task<ScopeInfo> SaveScopeInfoAsync(ScopeInfo scopeInfo)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -80,8 +109,15 @@ namespace Dotmim.Sync
 
 
         /// <summary>
-        /// Delete a Client Scope Info from a client database
-        /// </summary> 
+        /// Delete a <see cref="ScopeInfo"/> instance to the local data source.
+        /// <example>
+        /// <code>
+        ///  var scopeInfo = await localOrchestrator.GetScopeInfoAsync("v0");
+        ///  await localOrchestrator.DeleteScopeInfoAsync(scopeInfo);
+        /// </code>
+        /// </example>
+        /// </summary>
+        /// <returns><see cref="ScopeInfo"/> instance.</returns> 
         public virtual async Task<bool> DeleteScopeInfoAsync(ScopeInfo scopeInfo)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);

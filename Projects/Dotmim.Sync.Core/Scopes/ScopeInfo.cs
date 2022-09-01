@@ -57,10 +57,11 @@ namespace Dotmim.Sync
         public string Properties { get; set; }
 
 
-        public override string ToString()
-        {
-            return $"Scope Name:{Name}({Version}). Last cleanup:{LastCleanupTimestamp}. Setup tables:{Setup?.Tables?.Count}. Schema tables:{Schema?.Tables?.Count}";
-        }
+        /// <summary>
+        /// Get the scope name / last cleanup / setup tables count
+        /// </summary>
+        /// <returns></returns>
+        public override string ToString() => $"Scope Name:{Name}({Version}). Last cleanup:{LastCleanupTimestamp}. Setup tables:{Setup?.Tables?.Count}. Schema tables:{Schema?.Tables?.Count}";
 
     }
 }

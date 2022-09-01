@@ -15,13 +15,26 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Based Orchestrator class. Don't use it as is. Prefer use <see cref="LocalOrchestrator"/>, <see cref="RemoteOrchestrator"/> or <see cref="WebRemoteOrchestrator"/>
+    /// </summary>
     public abstract partial class BaseOrchestrator
     {
 
         /// <summary>
-        /// Create a table
+        /// Create a <strong>Table</strong> for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.CreateTableAsync(scopeInfo, "Employee");
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="table">A table from your Setup instance you want to create</param>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines table generation (name, columns....).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
+        /// <param name="overwrite">If specified the table is dropped, if exists, then created.</param>
         public async Task<bool> CreateTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -80,9 +93,17 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Create all tables
+        /// Create all <strong>Tables</strong> present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.CreateTablesAsync(scopeInfo);
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="schema">A complete schema you want to create, containing table, primary keys and relations</param>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines table generation (name, columns....).</param>
+        /// <param name="overwrite">If specified all tables are dropped, if exists, then created.</param>
         public async Task<bool> CreateTablesAsync(ScopeInfo scopeInfo, bool overwrite = false)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -161,11 +182,19 @@ namespace Dotmim.Sync
             }
         }
 
-
         /// <summary>
-        /// Check if a table exists
+        /// Check if <strong>Table</strong> exists, for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// var exists = await remoteOrchestrator.ExistTableAsync(scopeInfo, "Employee");
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="table">A table from your Setup instance, you want to check if it exists</param>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines table generation (name, columns....).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
         public async Task<bool> ExistTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -196,9 +225,18 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Drop a table
+        /// Drop a <strong>Table</strong> for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// var exists = await remoteOrchestrator.DropTableAsync(scopeInfo, "Employee");
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="table">A table from your Setup instance you want to drop</param>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines table generation (name, columns....).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
         public async Task<bool> DropTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -238,8 +276,16 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Drop all tables, declared in the Setup instance
+        /// Drop all <strong>Tables</strong> present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.DropTablesAsync(scopeInfo);
+        /// </code>
+        /// </example>
         /// </summary>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines table generation (name, columns....).</param>
         public async Task<bool> DropTablesAsync(ScopeInfo scopeInfo)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -277,7 +323,6 @@ namespace Dotmim.Sync
                 throw GetSyncError(context, ex);
             }
         }
-
 
         /// <summary>
         /// Internal add column routine
@@ -536,8 +581,6 @@ namespace Dotmim.Sync
 
             return (context, exists);
         }
-
-
 
     }
 }

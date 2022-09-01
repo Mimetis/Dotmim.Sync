@@ -19,7 +19,7 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Create a <strong>Stored Procedure</strong> for a given existing scope.
+        /// Create a <strong>Stored Procedure</strong> for a given table present in an existing scopeInfo.
         /// <example>
         /// <code>
         /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
@@ -28,6 +28,11 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </summary>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines stored procedure generation (name, prefix, suffix, filters ....).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
+        /// <param name="storedProcedureType">Stored Procedure type. See <see cref="DbStoredProcedureType"/> enumeration.</param>
+        /// <param name="overwrite">If specified the stored procedure is generated again, even if already exists.</param>
         public virtual async Task<bool> CreateStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default, bool overwrite = false)
         {
 
@@ -86,6 +91,10 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </summary>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines stored procedure generation (name, prefix, suffix, filters ....).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
+        /// <param name="overwrite">If specified all the stored procedures are generated again, even if they already exist.</param>
         public virtual async Task<bool> CreateStoredProceduresAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -129,6 +138,10 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </summary>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines stored procedure generation (name, prefix, suffix, filters ....).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
+        /// <param name="storedProcedureType">Stored Procedure type. See <see cref="DbStoredProcedureType"/> enumeration.</param>
         public virtual async Task<bool> ExistStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -168,6 +181,10 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </summary>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines stored procedure generation (name, prefix, suffix, filters ....).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
+        /// <param name="storedProcedureType">Stored Procedure type. See <see cref="DbStoredProcedureType"/> enumeration.</param>
         public virtual async Task<bool> DropStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -217,6 +234,9 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </summary>       
+        /// <param name="scopeInfo">ScopeInfo instance used to defines stored procedure generation (name, prefix, suffix, filters ....).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
         public virtual async Task<bool> DropStoredProceduresAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);

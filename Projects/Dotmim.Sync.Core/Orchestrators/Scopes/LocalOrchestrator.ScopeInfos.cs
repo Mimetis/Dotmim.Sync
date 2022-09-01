@@ -24,9 +24,25 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Gets (Or Creates and Gets) a sync scope, composed by scope name, setup and schema
-        /// May creates scope_info table and scope_info record if not already exists
+        /// Get a scope info from the remote data source. A scope contains the <see cref="SyncSetup"/> setup and the <see cref="SyncSet"/> schema.
+        /// <para>
+        /// If the <strong>scope_info</strong> table is not existing, it will be created. If no scope is found, an empty scope will be created with empty schema and setup properties.
+        /// </para>
+        /// <example>
+        /// <code>
+        ///  var localOrchestrator = new LocalOrchestrator(clientProvider);
+        ///  var scopeInfo = await localOrchestrator.GetScopeInfoAsync();
+        ///  foreach (var schemaTable in scopeInfo.Schema.Tables)
+        ///  {
+        ///    Console.WriteLine($"Table Name: {schemaTable.TableName}");
+        ///       
+        ///    foreach (var column in schemaTable.Columns)
+        ///          Console.WriteLine($"Column Name: {column.ColumnName}");
+        ///  }
+        /// </code>
+        /// </example>
         /// </summary>
+        /// <returns><see cref="ScopeInfo"/> instance.</returns>
         public virtual async Task<ScopeInfo> GetScopeInfoAsync(string scopeName = SyncOptions.DefaultScopeName)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -44,11 +60,45 @@ namespace Dotmim.Sync
         }
 
 
+        internal virtual async Task<(SyncContext context, ScopeInfo serverScopeInfo)> InternalEnsureScopeInfoAsync(SyncContext context,
+            DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            bool exists;
+            (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+            if (!exists)
+                await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+            (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+            if (!exists)
+                await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+            ScopeInfo cScopeInfo;
+            bool cScopeInfoExists;
+            (context, cScopeInfoExists) = await this.InternalExistsScopeInfoAsync(context.ScopeName, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+            if (!cScopeInfoExists)
+            {
+                cScopeInfo = this.InternalCreateScopeInfo(context.ScopeName);
+                (context, cScopeInfo) = await this.InternalSaveScopeInfoAsync(cScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+            }
+            else
+            {
+                (context, cScopeInfo) = await this.InternalLoadScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+            }
+
+            await runner.CommitAsync().ConfigureAwait(false);
+
+            return (context, cScopeInfo);
+
+        }
+
         /// <summary>
         /// Check 
         /// </summary>
-        internal virtual async Task<(SyncContext, bool, ScopeInfo, ScopeInfo)> InternalIsConflictingSetupAsync(
-            SyncContext context, SyncSetup inputSetup, ScopeInfo clientScopeInfo, ScopeInfo serverScopeInfo, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal virtual async Task<(SyncContext, bool, ScopeInfo, ScopeInfo)> InternalIsConflictingSetupAsync(SyncContext context, SyncSetup inputSetup, ScopeInfo clientScopeInfo, ScopeInfo serverScopeInfo,
+            DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (clientScopeInfo.Schema == null)
                 return (context, false, clientScopeInfo, serverScopeInfo);
@@ -95,38 +145,5 @@ namespace Dotmim.Sync
         }
 
 
-        internal virtual async Task<(SyncContext context, ScopeInfo serverScopeInfo)>
-             InternalEnsureScopeInfoAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
-        {
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            bool exists;
-            (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-            if (!exists)
-                await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-            (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-            if (!exists)
-                await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-            ScopeInfo cScopeInfo;
-            bool cScopeInfoExists;
-            (context, cScopeInfoExists) = await this.InternalExistsScopeInfoAsync(context.ScopeName, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-            if (!cScopeInfoExists)
-            {
-                cScopeInfo = this.InternalCreateScopeInfo(context.ScopeName);
-                (context, cScopeInfo) = await this.InternalSaveScopeInfoAsync(cScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-            }
-            else
-            {
-                (context, cScopeInfo) = await this.InternalLoadScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-            }
-
-            await runner.CommitAsync().ConfigureAwait(false);
-
-            return (context, cScopeInfo);
-
-        }
     }
 }

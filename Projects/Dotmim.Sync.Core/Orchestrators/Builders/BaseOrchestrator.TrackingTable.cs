@@ -19,9 +19,19 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Create a tracking table
+        /// Create a <strong>Tracking Table</strong> for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.CreateTrackingTableAsync(scopeInfo, "Employee");
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="table">A table from your Setup instance you want to create</param>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines tracking table generation (name, prefix, suffix...).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
+        /// <param name="overwrite">If specified the tracking table is dropped, if exists, then created.</param>
         public async Task<bool> CreateTrackingTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = default, bool overwrite = false)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -79,9 +89,18 @@ namespace Dotmim.Sync
 
 
         /// <summary>
-        /// Check if a tracking table exists
+        /// Check if a <strong>Tracking Table</strong> exists, for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// var exists = await remoteOrchestrator.ExistTrackingTableAsync(scopeInfo, "Employee");
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="table">A table from your Setup instance, you want to check if the corresponding tracking table exists</param>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines tracking table generation (name, prefix, suffix...).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
         public async Task<bool> ExistTrackingTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -113,9 +132,17 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Create a tracking table
+        /// Create all <strong>Tracking Tables</strong> for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.CreateTrackingTablesAsync(scopeInfo);
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="table">A table from your Setup instance you want to create</param>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines tracking table generation (name, prefix, suffix...).</param>
+        /// <param name="overwrite">If specified the tracking table is dropped, if exists, then created.</param>
         public async Task<bool> CreateTrackingTablesAsync(ScopeInfo scopeInfo, bool overwrite = false)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -215,9 +242,16 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Drop all tracking tables
+        /// Drop all <strong>Tracking Tables</strong> for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.DropTrackingTablesAsync(scopeInfo);
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="table">A table from your Setup instance you want to create</param>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines tracking table generation (name, prefix, suffix...).</param>
         public async Task<bool> DropTrackingTablesAsync(ScopeInfo scopeInfo)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
