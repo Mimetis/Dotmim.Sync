@@ -248,15 +248,15 @@ namespace Dotmim.Sync.MySql.Builders
             var stmtText = new StringBuilder(
                 $"INSERT INTO `{tableName}` " +
                       $"(sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, " +
-                      $"sync_scope_last_clean_timestamp, sync_scope_errors, sync_scope_properties) " +
+                      $"sync_scope_last_clean_timestamp, sync_scope_properties) " +
                       $"VALUES " +
                       $"(@sync_scope_name, @sync_scope_schema, @sync_scope_setup, @sync_scope_version, " +
-                      $"@sync_scope_last_clean_timestamp, @sync_scope_errors, @sync_scope_properties);");
+                      $"@sync_scope_last_clean_timestamp, @sync_scope_properties);");
 
             stmtText.AppendLine();
 
             stmtText.AppendLine($"SELECT sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, " +
-                $"sync_scope_last_clean_timestamp, sync_scope_errors, sync_scope_properties " +
+                $"sync_scope_last_clean_timestamp, sync_scope_properties " +
                 $"FROM `{tableName}` " +
                 $"WHERE sync_scope_name=@sync_scope_name;");
 
@@ -294,12 +294,6 @@ namespace Dotmim.Sync.MySql.Builders
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_last_clean_timestamp";
             p.DbType = DbType.DateTime;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_errors";
-            p.DbType = DbType.String;
-            p.Size = -1;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
@@ -408,14 +402,13 @@ namespace Dotmim.Sync.MySql.Builders
                 $"sync_scope_setup=@sync_scope_setup, " +
                 $"sync_scope_version=@sync_scope_version, " +
                 $"sync_scope_last_clean_timestamp=@sync_scope_last_clean_timestamp, " +
-                $"sync_scope_errors=@sync_scope_errors, " +
                 $"sync_scope_properties=@sync_scope_properties " +
                 $"WHERE sync_scope_name=@sync_scope_name;");
             stmtText.AppendLine();
             stmtText.AppendLine();
             stmtText.AppendLine(
                 $"SELECT sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, " +
-                $"sync_scope_last_clean_timestamp, sync_scope_errors, sync_scope_properties " +
+                $"sync_scope_last_clean_timestamp, sync_scope_properties " +
                 $"FROM `{tableName}` " +
                 $"WHERE sync_scope_name=@sync_scope_name;");
 
@@ -452,12 +445,6 @@ namespace Dotmim.Sync.MySql.Builders
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_last_clean_timestamp";
             p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_errors";
-            p.DbType = DbType.String;
-            p.Size = -1;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
