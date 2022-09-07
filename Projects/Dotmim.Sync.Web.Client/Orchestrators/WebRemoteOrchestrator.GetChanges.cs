@@ -142,7 +142,7 @@ namespace Dotmim.Sync.Web.Client
             // Reaffect context
             context = summaryResponseContent.SyncContext;
 
-            return new ServerSyncChanges(summaryResponseContent.RemoteClientTimestamp, serverBatchInfo, summaryResponseContent.ServerChangesSelected);
+            return new ServerSyncChanges(summaryResponseContent.RemoteClientTimestamp, serverBatchInfo, summaryResponseContent.ServerChangesSelected, null, null);
         }
 
 
@@ -199,7 +199,7 @@ namespace Dotmim.Sync.Web.Client
             // generate the new scope item
             this.CompleteTime = DateTime.UtcNow;
 
-            return new(summaryResponseContent.RemoteClientTimestamp, null, summaryResponseContent.ServerChangesSelected);
+            return new(summaryResponseContent.RemoteClientTimestamp, null, summaryResponseContent.ServerChangesSelected, null, null);
         }
 
 

@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Args;
+﻿
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -95,7 +95,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return new ServerSyncChanges(remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
+                return new ServerSyncChanges(remoteClientTimestamp, serverBatchInfo, serverChangesSelected, null, null);
             }
             catch (Exception ex)
             {
@@ -163,7 +163,7 @@ namespace Dotmim.Sync
                     await this.InternalGetEstimatedChangesCountAsync(sScopeInfo, context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastServerSyncTimestamp,
                     remoteClientTimestamp, cScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, null, serverChangesSelected);
+                var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, null, serverChangesSelected, null, null);
 
                 return serverSyncChanges;
             }

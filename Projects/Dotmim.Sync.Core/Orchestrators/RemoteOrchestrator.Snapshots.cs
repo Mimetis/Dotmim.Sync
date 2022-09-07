@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Args;
+﻿
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -28,8 +28,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a snapshot
         /// </summary>
-        public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
-            GetSnapshotAsync(ScopeInfo sScopeInfo)
+        public virtual async Task<ServerSyncChanges> GetSnapshotAsync(ScopeInfo sScopeInfo)
         {
             var context = new SyncContext(Guid.NewGuid(), sScopeInfo.Name);
 
@@ -37,17 +36,13 @@ namespace Dotmim.Sync
             {
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading).ConfigureAwait(false);
 
-                long remoteClientTimestamp;
-                BatchInfo serverBatchInfo;
-                DatabaseChangesSelected databaseChangesSelected;
-
-                (context, remoteClientTimestamp, serverBatchInfo, databaseChangesSelected) =
-                    await this.InternalGetSnapshotAsync(sScopeInfo, context, 
+                ServerSyncChanges serverSyncChanges;
+                (context, serverSyncChanges) = await this.InternalGetSnapshotAsync(sScopeInfo, context, 
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (remoteClientTimestamp, serverBatchInfo, databaseChangesSelected);
+                return serverSyncChanges;
 
             }
             catch (Exception ex)
@@ -60,7 +55,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a snapshot
         /// </summary>
-        internal virtual async Task<(SyncContext context, long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
+        internal virtual async Task<(SyncContext context, ServerSyncChanges ServerSyncChanges)>
             InternalGetSnapshotAsync(ScopeInfo sScopeInfo, SyncContext context, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
@@ -72,7 +67,7 @@ namespace Dotmim.Sync
 
                 BatchInfo serverBatchInfo = null;
                 if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
-                    return (context, 0, null, changesSelected);
+                    return (context, new ServerSyncChanges(0, null, changesSelected, null, null));
 
                 //Direction set to Download
                 context.SyncWay = SyncWay.Download;
@@ -142,12 +137,15 @@ namespace Dotmim.Sync
                     }
                 }
                 if (serverBatchInfo == null)
-                    return (context, 0, null, changesSelected);
+                    return (context, new ServerSyncChanges(0, null, changesSelected, null, null));
 
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, serverBatchInfo.Timestamp, serverBatchInfo, changesSelected);
+
+                var serverSyncChanges = new ServerSyncChanges(serverBatchInfo.Timestamp, serverBatchInfo, changesSelected, null, null);
+
+                return (context, serverSyncChanges);
             }
             catch (Exception ex)
             {

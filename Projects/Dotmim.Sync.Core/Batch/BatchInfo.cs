@@ -1,10 +1,12 @@
 ﻿
 
 using Dotmim.Sync.Builders;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -32,11 +34,12 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Create a new BatchInfo, containing all BatchPartInfo
         /// </summary>
-        public BatchInfo(string rootDirectory, string directoryName = null) : this()
+        public BatchInfo(string rootDirectory, string directoryName = null, string info = null) : this()
         {
             // We need to create a change table set, containing table with columns not readonly
             this.DirectoryRoot = rootDirectory;
             this.DirectoryName = string.IsNullOrEmpty(directoryName) ? string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", "")) : directoryName;
+            this.DirectoryName = string.IsNullOrEmpty(info) ? this.DirectoryName : $"{info}_{this.DirectoryName}";
         }
 
         /// <summary>
@@ -79,23 +82,16 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Only Used for Backward compatibility for version < 0.9.6
         /// </summary>
+        [Obsolete]
         [DataMember(Name = "schema", IsRequired = false, EmitDefaultValue = false, Order = 7)]
         public SyncSet SanitizedSchema { get; set; }
+
         /// <summary>
         /// Get the full path of the Batch directory
         /// </summary>
         /// <returns></returns>
         public string GetDirectoryFullPath() => Path.Combine(this.DirectoryRoot, this.DirectoryName);
 
-
-        /// <summary>
-        /// Create batch info directory
-        /// </summary>
-        public void CreateDirectory()
-        {
-            if (!Directory.Exists(this.GetDirectoryFullPath()))
-                Directory.CreateDirectory(this.GetDirectoryFullPath());
-        }
 
         /// <summary>
         /// Check if this batchinfo has some data
@@ -115,14 +111,17 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Generate a new full path to store a new batch part info file
         /// </summary>
-        public (string FullPath, string FileName) GetNewBatchPartInfoPath(SyncTable syncTable, int batchIndex, string extension)
+        public (string FullPath, string FileName) GetNewBatchPartInfoPath(SyncTable syncTable, int batchIndex, string extension, string info)
         {
             var tableName = ParserName.Parse(syncTable).Unquoted().Schema().Normalized().ToString();
-            var fileName = GenerateNewFileName(batchIndex.ToString(), tableName, extension);
+            var fileName = GenerateNewFileName(batchIndex.ToString(), tableName, extension, info);
             var fullPath = Path.Combine(this.GetDirectoryFullPath(), fileName);
             return (fullPath, fileName);
         }
 
+        /// <summary>
+        /// Gets the full path + file name for a given batch part info
+        /// </summary>
         public (string FullPath, string FileName) GetBatchPartInfoPath(BatchPartInfo batchPartInfo)
         {
             if (BatchPartsInfo == null)
@@ -141,9 +140,10 @@ namespace Dotmim.Sync.Batch
         {
             if (BatchPartsInfo != null && BatchPartsInfo.Count > 0)
             {
-                var tableInfo = new BatchPartTableInfo(tableName, schemaName);
+                // fake batchpartinfo just for comparison
+                var tmpBpi = new BatchPartInfo { TableName = tableName, SchemaName = schemaName };
 
-                var bptis = BatchPartsInfo.SelectMany(bpi => bpi.Tables.Where(t => t.EqualsByName(tableInfo)));
+                var bptis = BatchPartsInfo.Where(bpi => bpi.EqualsByName(tmpBpi));
 
                 if (bptis == null)
                     return false;
@@ -158,15 +158,23 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Get all batch part for 1 particular table
         /// </summary>
-        public IEnumerable<BatchPartInfo> GetBatchPartsInfo(SyncTable syncTable)
+        public IEnumerable<BatchPartInfo> GetBatchPartsInfo(SyncTable syncTable, SyncRowState? state = null)
         {
             if (syncTable == null) return Enumerable.Empty<BatchPartInfo>();
 
             if (BatchPartsInfo == null) return Enumerable.Empty<BatchPartInfo>();
 
-            // Get all batch part
-            var bpiTables = this.BatchPartsInfo.Where(bpi => bpi.RowsCount > 0
-                                            && bpi.Tables.Any(t => t.EqualsByName(new BatchPartTableInfo(syncTable.TableName, syncTable.SchemaName)))).OrderBy(t => t.Index);
+            // fake for comparison
+            var tmpBpi = new BatchPartInfo { TableName = syncTable.TableName, SchemaName = syncTable.SchemaName };
+
+            IEnumerable<BatchPartInfo> bpiTables = null;
+
+            if (state.HasValue)
+                // backward compatibility: Test if State exists
+                bpiTables = this.BatchPartsInfo.Where(bpi => bpi.RowsCount > 0 && bpi.EqualsByName(tmpBpi) && (bpi.State == null || bpi.State == state.Value)).OrderBy(bpi => bpi.Index);
+
+            else
+                bpiTables = this.BatchPartsInfo.Where(bpi => bpi.RowsCount > 0 && bpi.EqualsByName(tmpBpi)).OrderBy(bpi => bpi.Index);
 
             if (bpiTables == null) return Enumerable.Empty<BatchPartInfo>();
 
@@ -176,8 +184,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Get all batch part for 1 particular table
         /// </summary>
-        public IEnumerable<BatchPartInfo> GetBatchPartsInfo(string tableName, string schemaName = default) =>
-            GetBatchPartsInfo(new SyncTable(tableName, schemaName));
+        public IEnumerable<BatchPartInfo> GetBatchPartsInfo(string tableName, string schemaName = default, SyncRowState? state = null) => GetBatchPartsInfo(new SyncTable(tableName, schemaName), state);
 
         /// <summary>
         /// Ensure the last batch part has the correct IsLastBatch flag
@@ -198,7 +205,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// generate a batch file name
         /// </summary>
-        public static string GenerateNewFileName(string batchIndex, string tableName, string extension)
+        public static string GenerateNewFileName(string batchIndex, string tableName, string extension, string info)
         {
             if (batchIndex.Length == 1)
                 batchIndex = $"000{batchIndex}";
@@ -211,7 +218,10 @@ namespace Dotmim.Sync.Batch
             else
                 throw new OverflowException("too much batches !!!");
 
-            return $"{tableName}_{batchIndex}_{Path.GetRandomFileName().Replace(".", "_")}.{extension}";
+
+            info = string.IsNullOrEmpty(info) ? "" : $"_{info}";
+
+            return $"{tableName}_{batchIndex}{info}_{Path.GetRandomFileName().Replace(".", "_")}.{extension}";
         }
 
 
@@ -259,17 +269,6 @@ namespace Dotmim.Sync.Batch
                 // do nothing here 
                 catch { }
             }
-        }
-
-
-        /// <summary>
-        /// Clear all batch parts info and try to delete tmp folder if needed
-        /// </summary>
-        public void Clear(bool deleteFolder)
-        {
-            // Delete folders before deleting batch parts
-            if (deleteFolder)
-                this.TryRemoveDirectory();
         }
 
     }

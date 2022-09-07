@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dotmim.Sync.Enumerations;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
@@ -20,7 +21,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Add a new buffer row
         /// </summary>
-        public SyncRow(SyncTable schemaTable, DataRowState state = DataRowState.Unchanged)
+        public SyncRow(SyncTable schemaTable, SyncRowState state = SyncRowState.None)
         {
             // Buffer is +1 to store state
             this.buffer = new object[schemaTable.Columns.Count + 1];
@@ -62,9 +63,9 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the state of the row
         /// </summary>
-        public DataRowState RowState
+        public SyncRowState RowState
         {
-            get => (DataRowState)Convert.ToInt32(this.buffer[0]);
+            get => (SyncRowState)Convert.ToInt32(this.buffer[0]);
             set => this.buffer[0] = (int)value;
         }
 
@@ -144,7 +145,7 @@ namespace Dotmim.Sync
 
             sb.Append($"[Sync state]:{this.RowState}");
 
-            var columns = this.RowState == DataRowState.Deleted ? this.SchemaTable.GetPrimaryKeysColumns() : this.SchemaTable.Columns;
+            var columns = this.RowState == SyncRowState.Deleted ? this.SchemaTable.GetPrimaryKeysColumns() : this.SchemaTable.Columns;
 
             foreach (var c in columns)
             {

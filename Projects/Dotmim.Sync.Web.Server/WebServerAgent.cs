@@ -539,27 +539,24 @@ namespace Dotmim.Sync.Web.Server
             httpContext.Session.Set(httpMessage.SyncContext.ScopeName, sScopeInfo.Schema);
 
             // get snapshot info
-            long remoteClientTimestamp;
-            BatchInfo serverBatchInfo;
-            DatabaseChangesSelected databaseChangesSelected;
-
-            (context, remoteClientTimestamp, serverBatchInfo, databaseChangesSelected) =
-                await this.RemoteOrchestrator.InternalGetSnapshotAsync(sScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
+            ServerSyncChanges serverSyncChanges;
+            (context, serverSyncChanges) =
+                 await this.RemoteOrchestrator.InternalGetSnapshotAsync(sScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             var summaryResponse = new HttpMessageSummaryResponse(context)
             {
-                BatchInfo = serverBatchInfo,
-                RemoteClientTimestamp = remoteClientTimestamp,
+                BatchInfo = serverSyncChanges.ServerBatchInfo,
+                RemoteClientTimestamp = serverSyncChanges.RemoteClientTimestamp,
                 ClientChangesApplied = new DatabaseChangesApplied(),
-                ServerChangesSelected = databaseChangesSelected,
+                ServerChangesSelected = serverSyncChanges.ServerChangesSelected,
                 ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy,
                 Step = HttpStep.GetSummary,
             };
 
             // Save the server batch info object to cache
-            sessionCache.RemoteClientTimestamp = remoteClientTimestamp;
-            sessionCache.ServerBatchInfo = serverBatchInfo;
-            sessionCache.ServerChangesSelected = databaseChangesSelected;
+            sessionCache.RemoteClientTimestamp = serverSyncChanges.RemoteClientTimestamp;
+            sessionCache.ServerBatchInfo = serverSyncChanges.ServerBatchInfo;
+            sessionCache.ServerChangesSelected = serverSyncChanges.ServerChangesSelected;
 
             return summaryResponse;
         }
@@ -583,7 +580,7 @@ namespace Dotmim.Sync.Web.Server
             // Save the server batch info object to cache
             sessionCache.RemoteClientTimestamp = snap.RemoteClientTimestamp;
             sessionCache.ServerBatchInfo = snap.ServerBatchInfo;
-            sessionCache.ServerChangesSelected = snap.DatabaseChangesSelected;
+            sessionCache.ServerChangesSelected = snap.ServerChangesSelected;
             //httpContext.Session.Set(sessionId, sessionCache);
 
             // if no snapshot, return empty response
@@ -605,7 +602,7 @@ namespace Dotmim.Sync.Web.Server
             sessionCache.ServerBatchInfo = snap.ServerBatchInfo;
 
             // Get the firt response to send back to client
-            return await GetChangesResponseAsync(httpContext, httpMessage.SyncContext, snap.RemoteClientTimestamp, snap.ServerBatchInfo, null, snap.DatabaseChangesSelected, 0);
+            return await GetChangesResponseAsync(httpContext, httpMessage.SyncContext, snap.RemoteClientTimestamp, snap.ServerBatchInfo, null, snap.ServerChangesSelected, 0);
         }
 
         internal protected virtual async Task<HttpMessageSummaryResponse> ApplyThenGetChangesAsync2(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
@@ -634,15 +631,7 @@ namespace Dotmim.Sync.Web.Server
             // Retrieve batchinfo instance if exists
             // Get batch info from session cache if exists, otherwise create it
             if (sessionCache.ClientBatchInfo == null)
-            {
-                sessionCache.ClientBatchInfo = new BatchInfo(this.Options.BatchDirectory);
-                sessionCache.ClientBatchInfo.TryRemoveDirectory();
-            }
-
-            // we may have an error on first instance.
-            // so far we have a clientbatch in session, but the directory does not exists
-            // then we are checking the directory creation everytime
-            sessionCache.ClientBatchInfo.CreateDirectory();
+                sessionCache.ClientBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: "REMOTEGETCHANGES");
 
             if (httpMessage.Changes != null && httpMessage.Changes.HasRows)
             {
@@ -651,7 +640,7 @@ namespace Dotmim.Sync.Web.Server
                 var containerTable = httpMessage.Changes.Tables[0];
                 var schemaTable = BaseOrchestrator.CreateChangesTable(sScopeInfo.Schema.Tables[containerTable.TableName, containerTable.SchemaName]);
                 var tableName = ParserName.Parse(new SyncTable(containerTable.TableName, containerTable.SchemaName)).Unquoted().Schema().Normalized().ToString();
-                var fileName = BatchInfo.GenerateNewFileName(httpMessage.BatchIndex.ToString(), tableName, localSerializer.Extension);
+                var fileName = BatchInfo.GenerateNewFileName(httpMessage.BatchIndex.ToString(), tableName, localSerializer.Extension, "CLICHANGES");
                 var fullPath = Path.Combine(sessionCache.ClientBatchInfo.GetDirectoryFullPath(), fileName);
 
                 // If client has made a conversion on each line, apply the reverse side of it
@@ -675,21 +664,19 @@ namespace Dotmim.Sync.Web.Server
                     await localSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable).ConfigureAwait(false);
 
                 // Close file
-                await localSerializer.CloseFileAsync(fullPath, schemaTable).ConfigureAwait(false);
+                await localSerializer.CloseFileAsync().ConfigureAwait(false);
 
-                // Create the info on the batch part
-                BatchPartTableInfo tableInfo = new BatchPartTableInfo
+                var bpi = new BatchPartInfo
                 {
+                    FileName = fileName,
                     TableName = containerTable.TableName,
                     SchemaName = containerTable.SchemaName,
-                    RowsCount = containerTable.Rows.Count
-
+                    RowsCount = containerTable.Rows.Count,
+                    IsLastBatch = httpMessage.IsLastBatch,
+                    Index = httpMessage.BatchIndex,
+                    // For backward compatibility version < v0.9.6
+                    Tables = new[] { new BatchPartTableInfo { TableName = containerTable.TableName, SchemaName = containerTable.SchemaName, RowsCount = containerTable.Rows.Count } }
                 };
-                var bpi = new BatchPartInfo { FileName = fileName };
-                bpi.Tables = new BatchPartTableInfo[] { tableInfo };
-                bpi.RowsCount = tableInfo.RowsCount;
-                bpi.IsLastBatch = httpMessage.IsLastBatch;
-                bpi.Index = httpMessage.BatchIndex;
 
                 sessionCache.ClientBatchInfo.RowsCount += bpi.RowsCount;
                 sessionCache.ClientBatchInfo.BatchPartsInfo.Add(bpi);
@@ -708,23 +695,23 @@ namespace Dotmim.Sync.Web.Server
             // ------------------------------------------------------------
             ServerSyncChanges serverSyncChanges;
             context = httpMessage.SyncContext;
-            DatabaseChangesApplied serverChangesApplied;
             ConflictResolutionPolicy serverResolutionPolicy;
+            var clientSyncChanges = new ClientSyncChanges(httpMessage.ClientLastSyncTimestamp, sessionCache.ClientBatchInfo, null, null, null);
 
             // get changes
-            (context, serverSyncChanges, serverChangesApplied, serverResolutionPolicy) =
-                await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(
-                       httpMessage.ScopeInfoClient,
-                       sScopeInfo,
-                       httpMessage.SyncContext, sessionCache.ClientBatchInfo,
-                       httpMessage.ClientLastSyncTimestamp,
-                       default, default, cancellationToken, progress).ConfigureAwait(false);
+            (context, serverSyncChanges, serverResolutionPolicy) =
+                    await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(
+                           httpMessage.ScopeInfoClient,
+                           sScopeInfo,
+                           httpMessage.SyncContext,
+                           clientSyncChanges,
+                           default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // Set session cache infos
             sessionCache.RemoteClientTimestamp = serverSyncChanges.RemoteClientTimestamp;
             sessionCache.ServerBatchInfo = serverSyncChanges.ServerBatchInfo;
             sessionCache.ServerChangesSelected = serverSyncChanges.ServerChangesSelected;
-            sessionCache.ClientChangesApplied = serverChangesApplied;
+            sessionCache.ClientChangesApplied = serverSyncChanges.ServerChangesApplied;
 
             // delete the folder (not the BatchPartInfo, because we have a reference on it)
             var cleanFolder = this.Options.CleanFolder;
@@ -733,7 +720,8 @@ namespace Dotmim.Sync.Web.Server
                 cleanFolder = await this.RemoteOrchestrator.InternalCanCleanFolderAsync(ScopeName,
                     context.Parameters, sessionCache.ClientBatchInfo, default).ConfigureAwait(false);
 
-            sessionCache.ClientBatchInfo.Clear(cleanFolder);
+            if (cleanFolder)
+                sessionCache.ClientBatchInfo.TryRemoveDirectory();
 
             // we do not need client batch info now
             sessionCache.ClientBatchInfo = null;
@@ -748,7 +736,7 @@ namespace Dotmim.Sync.Web.Server
                 BatchInfo = serverSyncChanges.ServerBatchInfo,
                 Step = HttpStep.GetSummary,
                 RemoteClientTimestamp = serverSyncChanges.RemoteClientTimestamp,
-                ClientChangesApplied = serverChangesApplied,
+                ClientChangesApplied = serverSyncChanges.ServerChangesApplied,
                 ServerChangesSelected = serverSyncChanges.ServerChangesSelected,
                 ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy,
             };
@@ -800,6 +788,10 @@ namespace Dotmim.Sync.Web.Server
 
         }
 
+        /// <summary>
+        /// Get batch changes
+        /// </summary>
+        /// <returns></returns>
         internal protected virtual Task<HttpMessageSendChangesResponse> GetMoreChangesAsync(HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
             SessionCache sessionCache, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         => GetChangesResponseAsync(httpContext, httpMessage.SyncContext, sessionCache.RemoteClientTimestamp,
@@ -807,6 +799,9 @@ namespace Dotmim.Sync.Web.Server
                 sessionCache.ServerChangesSelected, httpMessage.BatchIndexRequested);
 
 
+        /// <summary>
+        /// Get changes from server
+        /// </summary>
         internal protected virtual async Task<HttpMessageSendChangesResponse> GetChangesResponseAsync(HttpContext httpContext, SyncContext context, long remoteClientTimestamp, BatchInfo serverBatchInfo,
                               DatabaseChangesApplied clientChangesApplied, DatabaseChangesSelected serverChangesSelected, int batchIndexRequested)
         {
@@ -994,9 +989,15 @@ namespace Dotmim.Sync.Web.Server
 
         }
 
+        /// <summary>
+        /// Write server debug information
+        /// </summary>
         public Task WriteHelloAsync(HttpContext context, CancellationToken cancellationToken = default)
             => WriteHelloAsync(context, new[] { this }, cancellationToken);
 
+        /// <summary>
+        /// Write server debug information
+        /// </summary>
         public static async Task WriteHelloAsync(HttpContext httpContext, IEnumerable<WebServerAgent> webServerAgents, CancellationToken cancellationToken = default)
         {
             var httpResponse = httpContext.Response;

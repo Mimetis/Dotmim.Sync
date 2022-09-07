@@ -16,7 +16,6 @@ namespace Dotmim.Sync
     {
         private readonly ScopeInfo scopeInfo;
         private BaseOrchestrator orchestrator;
-        private DbSyncAdapter syncAdapter;
         private readonly SyncRow conflictRow;
         private SyncTable schemaChangesTable;
 
@@ -29,6 +28,9 @@ namespace Dotmim.Sync
         /// </summary>
         public ConflictResolution Resolution { get; set; }
 
+        /// <summary>
+        /// Gets the Progress level used to determine if message is output
+        /// </summary>
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         /// <summary>
@@ -52,6 +54,9 @@ namespace Dotmim.Sync
             return conflict;
         }
 
+        /// <summary>
+        /// ctor
+        /// </summary>
         public ApplyChangesConflictOccuredArgs(ScopeInfo scopeInfo, SyncContext context, BaseOrchestrator orchestrator, 
             SyncRow conflictRow, SyncTable schemaChangesTable, ConflictResolution action, Guid? senderScopeId, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
@@ -74,32 +79,6 @@ namespace Dotmim.Sync
 
     }
 
-
-    public class ApplyChangesErrorOccuredArgs : ProgressArgs
-    {
-        public ApplyChangesErrorOccuredArgs(SyncContext context, SyncRow errorRow,
-            SyncTable schemaChangesTable,
-            DataRowState applyType, Exception exception, DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
-        {
-            this.ErrorRow = errorRow;
-            this.SchemaTable = schemaChangesTable;
-            this.ApplyType = applyType;
-            this.Exception = exception;
-        }
-
-        public SyncRow ErrorRow { get; }
-        public SyncTable SchemaTable { get; }
-        public DataRowState ApplyType { get; }
-        public Exception Exception { get; }
-        public ErrorResolution Resolution { get; set; } = ErrorResolution.Throw;
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Error: {Exception.Message}. Row:{ErrorRow}. ApplyType:{ApplyType}";
-
-        public override int EventId => SyncEventsId.ApplyChangesErrorOccured.Id;
-    }
-
     public static partial class InterceptorsExtensions
     {
 
@@ -114,22 +93,10 @@ namespace Dotmim.Sync
         public static Guid OnApplyChangesConflictOccured(this BaseOrchestrator orchestrator, Func<ApplyChangesConflictOccuredArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
-        /// <summary>
-        /// Intercept the provider when an apply change is failing
-        /// </summary>
-        public static Guid OnApplyChangesErrorOccured(this BaseOrchestrator orchestrator, Action<ApplyChangesErrorOccuredArgs> action)
-            => orchestrator.AddInterceptor(action);
-        /// <summary>
-        /// Intercept the provider when an apply change is failing
-        /// </summary>
-        public static Guid OnApplyChangesErrorOccured(this BaseOrchestrator orchestrator, Func<ApplyChangesErrorOccuredArgs, Task> action)
-            => orchestrator.AddInterceptor(action);
-
     }
 
     public static partial class SyncEventsId
     {
         public static EventId ApplyChangesFailed => CreateEventId(300, nameof(ApplyChangesFailed));
-        public static EventId ApplyChangesErrorOccured => CreateEventId(301, nameof(ApplyChangesErrorOccured));
     }
 }

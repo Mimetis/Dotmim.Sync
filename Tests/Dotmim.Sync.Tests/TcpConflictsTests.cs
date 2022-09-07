@@ -275,7 +275,7 @@ namespace Dotmim.Sync.Tests
                     Assert.NotNull(args.Exception);
                     Assert.NotNull(args.ErrorRow);
                     Assert.NotNull(args.SchemaTable);
-                    Assert.Equal(DataRowState.Modified, args.ApplyType);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
                 });
 
                 var s = await agent.SynchronizeAsync(Tables);
@@ -283,10 +283,10 @@ namespace Dotmim.Sync.Tests
                 // Download 2 rows
                 // But applied only 1
                 // The other one is a failed inserted row
-                Assert.Equal(2, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(1, s.TotalChangesApplied);
-                Assert.Equal(1, s.TotalChangesFailed);
+                Assert.Equal(2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnClient);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
         }
@@ -318,7 +318,7 @@ namespace Dotmim.Sync.Tests
                     Assert.NotNull(args.Exception);
                     Assert.NotNull(args.ErrorRow);
                     Assert.NotNull(args.SchemaTable);
-                    Assert.Equal(DataRowState.Modified, args.ApplyType);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
                 });
 
                 var s = await agent.SynchronizeAsync(Tables);
@@ -326,10 +326,10 @@ namespace Dotmim.Sync.Tests
                 // Download 2 rows
                 // But applied only 1
                 // The other one is a failed inserted row
-                Assert.Equal(2, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(2, s.TotalChangesApplied);
-                Assert.Equal(0, s.TotalChangesFailed);
+                Assert.Equal(2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(2, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
         }
@@ -404,8 +404,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "SRV");
@@ -448,8 +448,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("SRV", remoteRow["Name"].ToString());
                     Assert.StartsWith("CLI", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
@@ -468,8 +468,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
@@ -477,8 +477,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "SRV");
@@ -510,8 +510,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "CLI");
@@ -563,8 +563,8 @@ namespace Dotmim.Sync.Tests
                     var localRow = conflict.LocalRow;
                     var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
@@ -573,8 +573,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "CLI");
@@ -627,8 +627,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
@@ -639,8 +639,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "CLI");
@@ -719,8 +719,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "SRV");
@@ -764,8 +764,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("SRV", remoteRow["Name"].ToString());
                     Assert.StartsWith("CLI", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
@@ -784,8 +784,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
@@ -793,8 +793,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "SRV");
@@ -826,8 +826,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "CLI");
@@ -877,8 +877,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
@@ -886,8 +886,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "CLI");
@@ -932,8 +932,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "CLI");
@@ -973,8 +973,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("BOTH", remoteRow["Name"].ToString());
                     Assert.StartsWith("CLI", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
@@ -994,8 +994,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
@@ -1012,8 +1012,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "BOTH");
@@ -1092,8 +1092,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "CLI");
@@ -1146,8 +1146,8 @@ namespace Dotmim.Sync.Tests
                     var localRow = conflict.LocalRow;
                     var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalExists, conflict.Type);
@@ -1157,8 +1157,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "CLI");
@@ -1185,8 +1185,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "SRV");
@@ -1222,8 +1222,8 @@ namespace Dotmim.Sync.Tests
                     var localRow = conflict.LocalRow;
                     var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalIsDeleted, conflict.Type);
@@ -1237,8 +1237,8 @@ namespace Dotmim.Sync.Tests
                     var localRow = conflict.LocalRow;
                     var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalExists, conflict.Type);
@@ -1246,8 +1246,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "SRV");
@@ -1349,8 +1349,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(setup);
 
-                Assert.Equal(cpt, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(cpt, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1404,8 +1404,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(setup);
 
-                Assert.Equal(cpt, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(cpt, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1485,8 +1485,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1523,8 +1523,8 @@ namespace Dotmim.Sync.Tests
                     // remote is server; local is client
                     Assert.StartsWith("CLI_UPDATED", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
@@ -1542,8 +1542,8 @@ namespace Dotmim.Sync.Tests
                     // remote is client; local is server
                     Assert.StartsWith("CLI_UPDATED", remoteRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalIsDeleted, conflict.Type);
@@ -1551,8 +1551,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1580,8 +1580,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1628,8 +1628,8 @@ namespace Dotmim.Sync.Tests
                     // remote is client; local is server
                     Assert.StartsWith("CLI_UPDATED", remoteRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalIsDeleted, conflict.Type);
@@ -1637,8 +1637,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1709,8 +1709,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1744,8 +1744,8 @@ namespace Dotmim.Sync.Tests
                     var localRow = conflict.LocalRow;
                     var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
@@ -1760,8 +1760,8 @@ namespace Dotmim.Sync.Tests
                     var localRow = conflict.LocalRow;
                     var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalIsDeleted, conflict.Type);
@@ -1769,8 +1769,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1797,8 +1797,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1841,8 +1841,8 @@ namespace Dotmim.Sync.Tests
                     var localRow = conflict.LocalRow;
                     var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalIsDeleted, conflict.Type);
@@ -1850,8 +1850,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1916,8 +1916,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1958,15 +1958,15 @@ namespace Dotmim.Sync.Tests
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, conflict.Type);
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
                     Assert.Null(localRow);
 
                 });
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1993,8 +1993,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -2039,15 +2039,15 @@ namespace Dotmim.Sync.Tests
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, conflict.Type);
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
                     Assert.Null(localRow);
 
                 });
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -2104,9 +2104,9 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalChangesApplied);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -2140,7 +2140,7 @@ namespace Dotmim.Sync.Tests
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, conflict.Type);
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
                     Assert.Null(localRow);
                 });
 
@@ -2152,9 +2152,9 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalChangesApplied);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -2182,9 +2182,9 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalChangesApplied);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
 
@@ -2225,7 +2225,7 @@ namespace Dotmim.Sync.Tests
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, conflict.Type);
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
                     Assert.Null(localRow);
                 });
 
@@ -2237,9 +2237,9 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalChangesApplied);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
 
@@ -2288,8 +2288,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("SRV", remoteRow["Name"].ToString());
                     Assert.StartsWith("CLI", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
@@ -2324,8 +2324,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
@@ -2334,8 +2334,8 @@ namespace Dotmim.Sync.Tests
                 // First sync, we allow server to resolve the conflict and send back the result to client
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 // From this point the Server row Name is "SRV...."
@@ -2345,8 +2345,8 @@ namespace Dotmim.Sync.Tests
                 s = await agent.SynchronizeAsync(Tables);
 
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // Check that the product category name has been correctly sended back to the server

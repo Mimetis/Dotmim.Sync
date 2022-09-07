@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Args;
+﻿
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -277,6 +277,7 @@ namespace Dotmim.Sync
             SetParameterValue(command, "scope_last_sync", scopeInfoClient.LastSync.HasValue ? (object)scopeInfoClient.LastSync.Value : DBNull.Value);
             SetParameterValue(command, "scope_last_sync_duration", scopeInfoClient.LastSyncDuration);
             SetParameterValue(command, "sync_scope_properties", scopeInfoClient.Properties);
+            SetParameterValue(command, "sync_scope_errors", scopeInfoClient.Errors);
             SetParameterValue(command, "sync_scope_parameters", scopeInfoClient.Parameters != null ? JsonConvert.SerializeObject(scopeInfoClient.Parameters) : DBNull.Value);
 
             return command;
@@ -293,6 +294,7 @@ namespace Dotmim.Sync
                 LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_timestamp")) : null,
                 LastServerSyncTimestamp = reader["scope_last_server_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_server_sync_timestamp")) : null,
                 Properties = reader["sync_scope_properties"] as string,
+                Errors = reader["sync_scope_errors"] as string,
                 Parameters = reader["sync_scope_parameters"] != DBNull.Value ? JsonConvert.DeserializeObject<SyncParameters>((string)reader["sync_scope_parameters"]) : null
 
             };

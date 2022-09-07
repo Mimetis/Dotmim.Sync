@@ -99,47 +99,6 @@ namespace Dotmim.Sync
             return clone;
         }
 
-
-
-        ///// <summary>
-        ///// Import a container set in a SyncSet instance
-        ///// </summary>
-        //public void ImportContainerSet(ContainerSet containerSet, bool checkType)
-        //{
-        //    foreach (var table in containerSet.Tables)
-        //    {
-        //        var syncTable = this.Tables[table.TableName, table.SchemaName];
-
-        //        if (syncTable == null)
-        //            throw new ArgumentNullException($"Table {table.TableName} does not exist in the SyncSet");
-
-        //        syncTable.Rows.ImportContainerTable(table, checkType);
-        //    }
-
-        //}
-
-        ///// <summary>
-        ///// Get the rows inside a container.
-        ///// ContainerSet is a serialization container for rows
-        ///// </summary>
-        //public ContainerSet GetContainerSet()
-        //{
-        //    var containerSet = new ContainerSet();
-        //    foreach (var table in this.Tables)
-        //    {
-        //        var containerTable = new ContainerTable(table)
-        //        {
-        //            Rows = table.Rows.ExportToContainerTable().ToList()
-        //        };
-
-        //        if (containerTable.Rows.Count > 0)
-        //            containerSet.Tables.Add(containerTable);
-        //    }
-
-        //    return containerSet;
-        //}
-
-
         /// <summary>
         /// Clear the SyncSet
         /// </summary>

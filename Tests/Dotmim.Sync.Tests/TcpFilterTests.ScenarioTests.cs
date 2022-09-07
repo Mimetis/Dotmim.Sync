@@ -122,7 +122,6 @@ namespace Dotmim.Sync.Tests
                 // Filters here
                 Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChangesWithFilters));
                 Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChangesWithFilters));
-
             }
 
             //localOrchestrator.OnTableProvisioned(null);
@@ -219,10 +218,10 @@ namespace Dotmim.Sync.Tests
             var rTourb = await agent.SynchronizeAsync("Mountb", setup, paramMountb);
             var rRoadfr = await agent.SynchronizeAsync("Roadfr", setup, paramRoadfr);
 
-            Assert.Equal(8, rTourb.TotalChangesDownloaded);
-            Assert.Equal(8, rTourb.TotalChangesApplied);
-            Assert.Equal(3, rRoadfr.TotalChangesDownloaded);
-            Assert.Equal(3, rRoadfr.TotalChangesApplied);
+            Assert.Equal(8, rTourb.TotalChangesDownloadedFromServer);
+            Assert.Equal(8, rTourb.TotalChangesAppliedOnClient);
+            Assert.Equal(3, rRoadfr.TotalChangesDownloadedFromServer);
+            Assert.Equal(3, rRoadfr.TotalChangesAppliedOnClient);
         }
 
     }

@@ -81,6 +81,11 @@ namespace Dotmim.Sync
         [IgnoreDataMember]
         public string Properties { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the errors batch info occured on last sync 
+        /// </summary>
+        [IgnoreDataMember]
+        public string Errors { get; set; }
 
         /// <summary>
         /// Gets a readable version of LastSyncDuration

@@ -364,7 +364,7 @@ namespace Dotmim.Sync
         }
 
 
-        public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync() 
+        public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync()
             => GetHelloAsync(SyncOptions.DefaultScopeName);
 
         public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync(string scopeName)
@@ -419,7 +419,7 @@ namespace Dotmim.Sync
         /// Internal routine to clean tmp folders. MUST be compare also with Options.CleanFolder
         /// </summary>
         internal virtual async Task<bool> InternalCanCleanFolderAsync(string scopeName, SyncParameters parameters, BatchInfo batchInfo,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+                             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var batchInfoDirectoryFullPath = new DirectoryInfo(batchInfo.GetDirectoryFullPath());
 

@@ -174,7 +174,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a new row
         /// </summary>
-        public SyncRow NewRow(DataRowState state = DataRowState.Unchanged)
+        public SyncRow NewRow(SyncRowState state = SyncRowState.None)
         {
             return new SyncRow(this, state);
         }

@@ -18,7 +18,7 @@ namespace Dotmim.Sync.Web.Client
     {
 
 
-        internal override async Task<(SyncContext context, long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
+        internal override async Task<(SyncContext context, ServerSyncChanges ServerSyncChanges)>
           InternalGetSnapshotAsync(ScopeInfo sScopeInfo, SyncContext context, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
@@ -33,7 +33,8 @@ namespace Dotmim.Sync.Web.Client
                 Directory.CreateDirectory(batchDirectoryFullPath);
 
             // Create the BatchInfo serialized (forced because in a snapshot call, so we are obviously serialized on disk)
-            var serverBatchInfo = new BatchInfo(batchDirectoryRoot, batchDirectoryName);
+            string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_SNAPSHOTGETCHANGES" : "SNAPSHOTGETCHANGES";
+            var serverBatchInfo = new BatchInfo(batchDirectoryRoot, batchDirectoryName, info: info);
 
             // Firstly, get the snapshot summary
             var changesToSend = new HttpMessageSendChangesRequest(context, null);
@@ -70,7 +71,7 @@ namespace Dotmim.Sync.Web.Client
 
             // no snapshot
             if ((serverBatchInfo.BatchPartsInfo == null || serverBatchInfo.BatchPartsInfo.Count <= 0) && serverBatchInfo.RowsCount <= 0)
-                return (context, 0, null, new DatabaseChangesSelected());
+                return (context, new ServerSyncChanges(0, null, new DatabaseChangesSelected(), null, null));
 
             // If we have a snapshot we are raising the batches downloading process that will occurs
             await this.InterceptAsync(new HttpBatchesDownloadingArgs(context, serverBatchInfo, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
@@ -120,7 +121,7 @@ namespace Dotmim.Sync.Web.Client
                             await localSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable).ConfigureAwait(false);
 
                         // Close file
-                        await localSerializer.CloseFileAsync(fullPath, schemaTable).ConfigureAwait(false);
+                        await localSerializer.CloseFileAsync().ConfigureAwait(false);
                     }
 
                 }
@@ -137,7 +138,7 @@ namespace Dotmim.Sync.Web.Client
 
             await this.InterceptAsync(new HttpBatchesDownloadedArgs(summaryResponseContent, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
-            return (context, summaryResponseContent.RemoteClientTimestamp, serverBatchInfo, summaryResponseContent.ServerChangesSelected);
+            return (context, new ServerSyncChanges(summaryResponseContent.RemoteClientTimestamp, serverBatchInfo, summaryResponseContent.ServerChangesSelected, null, null));
         }
 
     }

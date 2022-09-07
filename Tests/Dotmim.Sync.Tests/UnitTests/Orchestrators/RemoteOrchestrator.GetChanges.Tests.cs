@@ -134,7 +134,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Making a first sync, will initialize everything we need
             var r = await agent.SynchronizeAsync(scopeName, setup, parameters);
-            Assert.Equal(rowsCount, r.TotalChangesDownloaded);
+            Assert.Equal(rowsCount, r.TotalChangesDownloadedFromServer);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -342,7 +342,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Making a first sync, will initialize everything we need
             var r = await agent.SynchronizeAsync(scopeName, parameters);
-            Assert.Equal(rowsCount, r.TotalChangesDownloaded);
+            Assert.Equal(rowsCount, r.TotalChangesDownloadedFromServer);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -462,7 +462,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Making a first sync, will initialize everything we need
             var r = await agent.SynchronizeAsync(scopeName, parameters);
-            Assert.Equal(rowsCount, r.TotalChangesDownloaded);
+            Assert.Equal(rowsCount, r.TotalChangesDownloadedFromServer);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -528,7 +528,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Making a second sync, with these new rows
             r = await agent.SynchronizeAsync(scopeName, parameters);
-            Assert.Equal(4, r.TotalChangesDownloaded);
+            Assert.Equal(4, r.TotalChangesDownloadedFromServer);
 
             // now delete these lines on server
             ctxServer.SalesOrderDetail.Remove(sod1);
@@ -551,31 +551,31 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("SalesOrderHeader", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
 
-            // testing with DataRowState
-            var sodTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", DataRowState.Deleted);
+            // testing with SyncRowState
+            var sodTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", SyncRowState.Deleted);
             Assert.Equal(3, sodTable.Rows.Count);
             foreach (var row in sodTable.Rows)
-                Assert.Equal(DataRowState.Deleted, row.RowState);
+                Assert.Equal(SyncRowState.Deleted, row.RowState);
 
-            // testing with DataRowState
+            // testing with SyncRowState
             var sodTable2 = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", default);
             Assert.Equal(3, sodTable2.Rows.Count);
             foreach (var row in sodTable2.Rows)
-                Assert.Equal(DataRowState.Deleted, row.RowState);
+                Assert.Equal(SyncRowState.Deleted, row.RowState);
 
-            // testing with DataRowState
-            var sodTable3 = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", DataRowState.Modified);
+            // testing with SyncRowState
+            var sodTable3 = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", SyncRowState.Modified);
             Assert.Empty(sodTable3.Rows);
 
-            // testing with DataRowState that is not valid
-            var sodTable4 = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", DataRowState.Unchanged);
+            // testing with SyncRowState that is not valid
+            var sodTable4 = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", SyncRowState.None);
             Assert.Empty(sodTable4.Rows);
 
-            // testing without DataRowState
+            // testing without SyncRowState
             var sohTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
             Assert.Single(sohTable.Rows);
             foreach (var row in sohTable.Rows)
-                Assert.Equal(DataRowState.Deleted, row.RowState);
+                Assert.Equal(SyncRowState.Deleted, row.RowState);
 
         }
 

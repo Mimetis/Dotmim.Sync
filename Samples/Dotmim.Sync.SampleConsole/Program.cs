@@ -29,7 +29,7 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Dotmim.Sync.Builders;
-using Dotmim.Sync.Args;
+
 #if NET5_0 || NET6_0
 using MySqlConnector;
 #elif NETSTANDARD
@@ -55,14 +55,14 @@ internal class Program
     {
 
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        serverProvider.UseBulkOperations = true;
+        serverProvider.UseBulkOperations = false;
 
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
         //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        clientProvider.UseBulkOperations = true;
+        clientProvider.UseBulkOperations = false;
 
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
@@ -71,7 +71,7 @@ internal class Program
         var setup = new SyncSetup("ProductCategory", "Product");
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
-        var options = new SyncOptions() { BatchSize = 2 };
+        var options = new SyncOptions();
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
@@ -99,8 +99,146 @@ internal class Program
 
         //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
-         //await MultiFiltersAsync();
-         await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        //await MultiFiltersAsync();
+        await TestAsync();
+
+    }
+
+
+    private static async Task TestAsync()
+    {
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        var setup = new SyncSetup("Customer");
+        setup.Filters.Add("Customer", "Country");
+
+        var agent = new SyncAgent(clientProvider, serverProvider);
+
+        var paramIndia = new SyncParameters(("Country", "India"));
+        var paramSweden = new SyncParameters(("Country", "Sweden"));
+
+        var resultIndia = await agent.SynchronizeAsync(setup, paramIndia);
+        Console.WriteLine(resultIndia);
+
+        await DBHelper.ExecuteScriptAsync(clientDbName,
+            "INSERT [dbo].[Customer] ([Id], [CustomerName], [Country]) VALUES (NEWID(), 'S1', 'Sweden')");
+        await DBHelper.ExecuteScriptAsync(clientDbName,
+            "INSERT [dbo].[Customer] ([Id], [CustomerName], [Country]) VALUES (NEWID(), 'S2', 'Sweden')");
+
+        // try to get sweden info client.
+        // if not exists, DMS will create a new one, with IsNewScope set to true
+        var swedenScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync(syncParameters: paramSweden);
+
+        if (swedenScopeInfoClient.IsNewScope)
+        {
+            swedenScopeInfoClient.IsNewScope = false;
+            swedenScopeInfoClient.LastSync = DateTime.Now;
+            swedenScopeInfoClient.LastSyncTimestamp = 0;
+            swedenScopeInfoClient.LastServerSyncTimestamp = 0;
+
+            await agent.LocalOrchestrator.SaveScopeInfoClientAsync(swedenScopeInfoClient);
+        }
+
+
+        var resultSweden = await agent.SynchronizeAsync(setup, paramSweden);
+        Console.WriteLine(resultSweden);
+    }
+
+
+    private static async Task GenerateRetryOnNextCallSync()
+    {
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("svProduct"));
+        serverProvider.UseBulkOperations = false;
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("CliProduct"));
+        clientProvider.UseBulkOperations = false;
+        var setup = new SyncSetup("ProductCategory");
+        var options = new SyncOptions();
+
+        //var options = new SyncOptions();
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}");
+        });
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+
+        agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("ERROR ON LINE:");
+            Console.WriteLine(args.ErrorRow);
+            Console.ResetColor();
+            args.Resolution = ErrorResolution.Throw;
+        });
+        agent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("ERROR ON LINE:");
+            Console.WriteLine(args.ErrorRow);
+            Console.ResetColor();
+            args.Resolution = ErrorResolution.Throw;
+        });
+
+        do
+        {
+            try
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                var s = await agent.SynchronizeAsync(setup);
+
+                Console.WriteLine(s);
+
+                var subcatrandom = Path.GetRandomFileName();
+                var subcat = string.Concat("A_", string.Concat(subcatrandom.Where(c => char.IsLetter(c))).ToUpperInvariant());
+                subcat = subcat.Substring(0, Math.Min(subcat.Length, 12));
+                var cat = string.Concat("Z_", string.Concat(Path.GetRandomFileName().Where(c => char.IsLetter(c))).ToUpperInvariant());
+                cat = cat.Substring(0, Math.Min(cat.Length, 12));
+
+                var insertErrorCommand = @$"Begin Tran
+                                            ALTER TABLE [ProductCategory] NOCHECK CONSTRAINT ALL
+                                            INSERT [ProductCategory] ([ProductCategoryID], [ParentProductCategoryId], [Name]) VALUES (N'{subcat}', '{cat}', N'{subcat} Sub category')
+                                            INSERT [ProductCategory] ([ProductCategoryID], [ParentProductCategoryId], [Name]) VALUES (N'{cat}', NULL, N'{cat} Category');
+                                            ALTER TABLE [ProductCategory] CHECK CONSTRAINT ALL
+                                            Commit Tran";
+
+                await DBHelper.ExecuteScriptAsync("cliProduct", insertErrorCommand);
+
+                var Id = string.Concat("GRT_", string.Concat(Path.GetRandomFileName().Where(c => char.IsLetter(c))).ToUpperInvariant());
+                Id = Id.Substring(0, Math.Min(Id.Length, 12));
+
+                // await DBHelper.ExecuteScriptAsync("svProduct", $"INSERT [ProductCategory] ([ProductCategoryID], [ParentProductCategoryId], [Name]) VALUES (N'{Id}', 'A_CLOTHE', N'Green Tee Shirt')");
+                // await DBHelper.AddProductCategoryRowAsync(clientProvider, productId, parentProductId, "CHILD");
+
+                s = await agent.SynchronizeAsync(setup);
+                Console.WriteLine(s);
+
+                //await DBHelper.ExecuteScriptAsync("cliProduct", $"INSERT [ProductCategory] ([ProductCategoryID], [Name]) VALUES (N'{Id}',  N'{Id}')");
+
+                s = await agent.SynchronizeAsync(setup);
+                Console.WriteLine(s);
+
+                Console.ResetColor();
+            }
+            catch (SyncException e)
+            {
+                Console.ResetColor();
+                Console.WriteLine(e.Message);
+            }
+            catch (Exception e)
+            {
+                Console.ResetColor();
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+
+            var localOrchestrator = new LocalOrchestrator(clientProvider);
+
+
+            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
     }
 
@@ -118,15 +256,6 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-        agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("ERROR ON LINE:");
-            Console.WriteLine(args.ErrorRow);
-            Console.ResetColor();
-            args.Resolution = ErrorResolution.RetryOneMoreTime;
-        });
-
         do
         {
             try
@@ -137,16 +266,6 @@ internal class Program
                 Console.ResetColor();
                 Console.WriteLine(s);
 
-                var localOrchestrator = new LocalOrchestrator(clientProvider);
-                var scopeInfo = await localOrchestrator.GetScopeInfoAsync();
-
-                foreach (var schemaTable in scopeInfo.Schema.Tables)
-                {
-                    Console.WriteLine($"Table Name: {schemaTable.TableName}");
-
-                    foreach (var column in schemaTable.Columns)
-                        Console.WriteLine($"\t{column}. {(column.AllowDBNull ? "NULL": "")}");
-                }
             }
             catch (SyncException e)
             {
@@ -177,7 +296,7 @@ internal class Program
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
-        
+
         // Now, we are creating a new setup with a filter on ProductCategory and Product
         var setup = new SyncSetup("ProductCategory", "Product", "Address", "Customer", "CustomerAddress");
         setup.Filters.Add("ProductCategory", "Name");
@@ -590,17 +709,17 @@ internal class Program
                         case ConsoleKey.C:
                             Console.WriteLine("Generating 1 conflict on Product Category");
                             var pId = Guid.NewGuid();
-                            await AddProductCategoryRowAsync(serverProvider, pId);
-                            await AddProductCategoryRowAsync(clientProvider, pId);
+                            await DBHelper.AddProductCategoryRowAsync(serverProvider, pId);
+                            await DBHelper.AddProductCategoryRowAsync(clientProvider, pId);
                             break;
                         case ConsoleKey.Add:
                             Console.WriteLine("Adding 1 product & 1 product category to server");
-                            await AddProductCategoryRowAsync(serverProvider);
+                            await DBHelper.AddProductCategoryRowAsync(serverProvider);
                             await AddProductRowAsync(serverProvider);
                             break;
                         case ConsoleKey.A:
                             Console.WriteLine("Adding 1 product & 1 product category to client");
-                            await AddProductCategoryRowAsync(clientProvider);
+                            await DBHelper.AddProductCategoryRowAsync(clientProvider);
                             await AddProductRowAsync(clientProvider);
                             break;
                         case ConsoleKey.R:
@@ -810,7 +929,7 @@ internal class Program
             if (args.TableChangesApplied.ResolvedConflicts > 0)
                 logTable.TotalResolvedConflicts = logTable.TotalResolvedConflicts.HasValue ? logTable.TotalResolvedConflicts += args.TableChangesApplied.ResolvedConflicts : args.TableChangesApplied.ResolvedConflicts;
 
-            if (args.TableChangesApplied.State == DataRowState.Modified)
+            if (args.TableChangesApplied.State == SyncRowState.Modified)
                 logTable.TotalChangesAppliedUpdates = args.TableChangesApplied.Applied;
             else
                 logTable.TotalChangesAppliedDeletes = args.TableChangesApplied.Applied;
@@ -891,7 +1010,7 @@ internal class Program
         await AddProductCategoryRowWithOneMoreColumnAsync(serverProvider);
 
         // Add a product category row on both client (just to check we are still able to get this row on server)
-        await AddProductCategoryRowAsync(clientProvider1);
+        await DBHelper.AddProductCategoryRowAsync(clientProvider1);
         //await AddProductCategoryRowAsync(clientProvider2);
 
         // --------------------------
@@ -1167,50 +1286,6 @@ internal class Program
         await command.ExecuteNonQueryAsync();
 
         connection.Close();
-    }
-
-    private static async Task<Guid> AddProductCategoryRowAsync(CoreProvider provider, Guid? productId = default)
-    {
-        string commandText = "Insert into ProductCategory (ProductCategoryId, Name, ModifiedDate, rowguid) Values (@ProductCategoryId, @Name, @ModifiedDate, @rowguid)";
-        var connection = provider.CreateConnection();
-
-        connection.Open();
-
-        var pId = productId.HasValue ? productId.Value : Guid.NewGuid();
-
-        var command = connection.CreateCommand();
-        command.CommandText = commandText;
-        command.Connection = connection;
-
-        var p = command.CreateParameter();
-        p.DbType = DbType.String;
-        p.ParameterName = "@Name";
-        p.Value = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ' ' + Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.DbType = DbType.Guid;
-        p.ParameterName = "@ProductCategoryId";
-        p.Value = pId;
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.DbType = DbType.Guid;
-        p.ParameterName = "@rowguid";
-        p.Value = Guid.NewGuid();
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.DbType = DbType.DateTime;
-        p.ParameterName = "@ModifiedDate";
-        p.Value = DateTime.UtcNow;
-        command.Parameters.Add(p);
-
-        await command.ExecuteNonQueryAsync();
-
-        connection.Close();
-
-        return pId;
     }
 
     private static async Task UpdateAllProductCategoryAsync(CoreProvider provider, string addedString)

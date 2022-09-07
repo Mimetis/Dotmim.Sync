@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dotmim.Sync.Enumerations;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Runtime.Serialization;
@@ -36,7 +37,7 @@ namespace Dotmim.Sync
         /// Gets the RowState of the applied rows
         /// </summary>
         [DataMember(Name = "st", IsRequired = true, Order = 3)]
-        public DataRowState State { get; set; }
+        public SyncRowState State { get; set; }
 
         /// <summary>
         /// Gets the resolved conflict rows applied count
@@ -67,6 +68,7 @@ namespace Dotmim.Sync
         /// </summary>
         [DataMember(Name = "tac", IsRequired = false, Order = 8)]
         public int TotalAppliedCount { get; set; }
+
     }
 
 }

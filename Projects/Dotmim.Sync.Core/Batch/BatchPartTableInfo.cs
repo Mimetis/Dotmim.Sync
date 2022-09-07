@@ -5,14 +5,23 @@ using System.Text;
 
 namespace Dotmim.Sync.Batch
 {
+    /// <summary>
+    /// Represents a serialized table within in a batch file. with the table rows's count contained in the file
+    /// </summary>
     [DataContract(Name = "t"), Serializable]
+    [Obsolete]
     public class BatchPartTableInfo : SyncNamedItem<BatchPartTableInfo>
     {
+
+        /// <summary>
+        /// Represents a serialized table within in a batch file. with the table rows's count contained in the file
+        /// </summary>
         public BatchPartTableInfo()
         {
 
         }
 
+        /// <inheritdoc />
         public BatchPartTableInfo(string tableName, string schemaName = null, int rowsCount = 0)
         {
             this.TableName = tableName;
@@ -40,6 +49,9 @@ namespace Dotmim.Sync.Batch
         public int RowsCount { get; set; }
 
 
+        /// <summary>
+        /// Get the name properties
+        /// </summary>
         public override IEnumerable<string> GetAllNamesProperties()
         {
             yield return this.TableName;

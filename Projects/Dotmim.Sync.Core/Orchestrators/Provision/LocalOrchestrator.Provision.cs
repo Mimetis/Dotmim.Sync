@@ -171,21 +171,21 @@ namespace Dotmim.Sync
 
                 // get client scope and create tables / row if needed
 
-                List<ScopeInfo> clientScopeInfos = null;
+                List<ScopeInfo> cScopeInfos = null;
                 bool exists;
                 (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (exists)
-                    (context, clientScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, 
+                    (context, cScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, 
                         runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // fallback to "try to drop an hypothetical default scope"
-                if (clientScopeInfos == null)
-                    clientScopeInfos = new List<ScopeInfo>();
+                if (cScopeInfos == null)
+                    cScopeInfos = new List<ScopeInfo>();
 
                 // try to get some filters
-                var existingFilters = clientScopeInfos?.SelectMany(si => si.Setup.Filters).ToList();
+                var existingFilters = cScopeInfos?.SelectMany(si => si.Setup.Filters).ToList();
 
                 var defaultClientScopeInfo = this.InternalCreateScopeInfo(SyncOptions.DefaultScopeName);
                 SyncSetup setup;
@@ -210,11 +210,11 @@ namespace Dotmim.Sync
                     defaultClientScopeInfo.Setup.Filters = filters;
                 }
 
-                clientScopeInfos.Add(defaultClientScopeInfo);
+                cScopeInfos.Add(defaultClientScopeInfo);
 
-                var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable | SyncProvision.ScopeInfo;
+                var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable | SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient;
 
-                foreach (var clientScopeInfo in clientScopeInfos)
+                foreach (var clientScopeInfo in cScopeInfos)
                 {
                     if (clientScopeInfo == null || clientScopeInfo.Setup == null || clientScopeInfo.Setup.Tables == null || clientScopeInfo.Setup.Tables.Count <= 0)
                         continue;

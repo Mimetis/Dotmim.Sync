@@ -1,10 +1,12 @@
-﻿using Dotmim.Sync.Args;
+﻿
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.Serialization;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -24,9 +26,9 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply changes locally
         /// </summary>
-        internal virtual async Task<(SyncContext context, DatabaseChangesApplied ChangesApplied, ScopeInfoClient CScopeInfoClient)>
-            InternalApplyChangesAsync(ScopeInfo cScopeInfo, ScopeInfoClient cScopeInfoClient, SyncContext context, BatchInfo serverBatchInfo,
-                              long clientTimestamp, long remoteClientTimestamp, ConflictResolutionPolicy policy, bool snapshotApplied, DatabaseChangesSelected allChangesSelected,
+        internal virtual async Task<(SyncContext context, ClientSyncChanges clientSyncChange, ScopeInfoClient CScopeInfoClient)>
+            InternalApplyChangesAsync(ScopeInfo cScopeInfo, ScopeInfoClient cScopeInfoClient, SyncContext context, ServerSyncChanges serverSyncChanges,
+                              ClientSyncChanges clientSyncChanges, ConflictResolutionPolicy policy, bool snapshotApplied,
                               DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Connection & Transaction runner
@@ -34,12 +36,19 @@ namespace Dotmim.Sync
 
             try
             {
-                // Create the message containing everything needed to apply changes
-                var applyChanges = new MessageApplyChanges(cScopeInfoClient.Id, Guid.Empty, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp, cScopeInfo.Schema, policy,
-                                this.Options.DisableConstraintsOnApplyChanges, this.Options.CleanMetadatas, this.Options.CleanFolder, snapshotApplied,
-                                serverBatchInfo);
+                var serverBatchInfo = serverSyncChanges.ServerBatchInfo;
+                var remoteClientTimestamp = serverSyncChanges.RemoteClientTimestamp;
 
-                DatabaseChangesApplied clientChangesApplied;
+                // Create a batch info for error rows on "retry apply errros" or "apply changes":
+                string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_ERRORS" : "ERRORS";
+                var errorsBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
+
+                DatabaseChangesApplied clientChangesApplied = new DatabaseChangesApplied();
+
+                // Create the message containing everything needed to apply changes
+                var applyChanges = new MessageApplyChanges(cScopeInfoClient.Id, Guid.Empty, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp,
+                    cScopeInfo.Schema, policy, snapshotApplied, this.Options.BatchDirectory, serverBatchInfo, errorsBatchInfo, clientChangesApplied, true);
+
                 context.SyncWay = SyncWay.Download;
 
                 // Transaction mode
@@ -51,8 +60,28 @@ namespace Dotmim.Sync
                     transaction = runner.Transaction;
                 }
 
+                if (!string.IsNullOrEmpty(cScopeInfoClient.Errors))
+                {
+                    // Create a message containing everything needed to apply errors rows
+                    BatchInfo retryErrorsBatchInfo = null;
+
+                    try
+                    {
+                        retryErrorsBatchInfo = !string.IsNullOrEmpty(cScopeInfoClient.Errors) ? JsonConvert.DeserializeObject<BatchInfo>(cScopeInfoClient.Errors) : null;
+                    }
+                    catch (Exception) { }
+                    
+                    if (retryErrorsBatchInfo != null)
+                    {
+                        var retryErrorsApplyChanges = new MessageApplyChanges(cScopeInfoClient.Id, Guid.Empty, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp,
+                            cScopeInfo.Schema, policy, snapshotApplied, this.Options.BatchDirectory, retryErrorsBatchInfo, errorsBatchInfo, clientChangesApplied, false);
+                        // Call apply errors on provider
+                        context = await this.InternalApplyChangesAsync(cScopeInfo, context, retryErrorsApplyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    }
+                }
+
                 // Call apply changes on provider
-                (context, clientChangesApplied) = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                context = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -90,15 +119,16 @@ namespace Dotmim.Sync
                     Parameters = cScopeInfoClient.Parameters,
                     Id = cScopeInfoClient.Id,
                     IsNewScope = cScopeInfoClient.IsNewScope,
-                    LastSyncTimestamp = clientTimestamp,
+                    LastSyncTimestamp = clientSyncChanges.ClientTimestamp,
                     LastSync = this.CompleteTime,
                     LastServerSyncTimestamp = remoteClientTimestamp,
                     LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks,
                     Properties = cScopeInfoClient.Properties,
+                    Errors = errorsBatchInfo != null && errorsBatchInfo.BatchPartsInfo != null && errorsBatchInfo.BatchPartsInfo.Count > 0 ? JsonConvert.SerializeObject(errorsBatchInfo) : null,
                 };
 
                 // Write scopes locally
-                using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
+                using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                 {
                     (context, cScopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(newCScopeInfoClient, context,
                         runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
@@ -107,7 +137,10 @@ namespace Dotmim.Sync
                 if (Options.TransactionMode == TransactionMode.AllOrNothing && runner != null)
                     await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, clientChangesApplied, cScopeInfoClient);
+                clientSyncChanges.ClientChangesApplied = clientChangesApplied;
+                clientSyncChanges.ErrorsBatchInfo = errorsBatchInfo;
+
+                return (context, clientSyncChanges, cScopeInfoClient);
             }
             catch (Exception ex)
             {
@@ -128,16 +161,16 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply a snapshot locally
         /// </summary>
-        internal virtual async Task<(SyncContext context, DatabaseChangesApplied snapshotChangesApplied, ScopeInfoClient cScopeInfoClient)>
+        internal virtual async Task<(SyncContext context, ClientSyncChanges clientSyncChanges, ScopeInfoClient cScopeInfoClient)>
             InternalApplySnapshotAsync(ScopeInfo clientScopeInfo,
             ScopeInfoClient cScopeInfoClient,
-            SyncContext context, BatchInfo serverBatchInfo, long clientTimestamp, long remoteClientTimestamp, DatabaseChangesSelected databaseChangesSelected,
+            SyncContext context, ServerSyncChanges serverSyncChanges, ClientSyncChanges clientSyncChanges,
             DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
-                if (serverBatchInfo == null)
-                    return (context, new DatabaseChangesApplied(), cScopeInfoClient);
+                if (serverSyncChanges?.ServerBatchInfo == null)
+                    return (context, clientSyncChanges, cScopeInfoClient);
 
                 // Get context or create a new one
                 context.SyncStage = SyncStage.SnapshotApplying;
@@ -147,17 +180,17 @@ namespace Dotmim.Sync
                     throw new ArgumentNullException(nameof(clientScopeInfo.Schema));
 
                 // Applying changes and getting the new client scope info
-                var (syncContext, changesApplied, newClientScopeInfo) = await this.InternalApplyChangesAsync(clientScopeInfo, cScopeInfoClient, context, serverBatchInfo,
-                        clientTimestamp, remoteClientTimestamp, ConflictResolutionPolicy.ServerWins, false, databaseChangesSelected, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, clientSyncChanges, cScopeInfoClient) = await this.InternalApplyChangesAsync(clientScopeInfo, cScopeInfoClient, context, serverSyncChanges,
+                        clientSyncChanges, ConflictResolutionPolicy.ServerWins, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                await this.InterceptAsync(new SnapshotAppliedArgs(context, changesApplied), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new SnapshotAppliedArgs(context, clientSyncChanges.ClientChangesApplied), progress, cancellationToken).ConfigureAwait(false);
 
                 // re-apply scope is new flag
                 // to be sure we are calling the Initialize method, even for the delta
                 // in that particular case, we want the delta rows coming from the current scope
-                newClientScopeInfo.IsNewScope = true;
+                cScopeInfoClient.IsNewScope = true;
 
-                return (context, changesApplied, newClientScopeInfo);
+                return (context, clientSyncChanges, cScopeInfoClient);
             }
             catch (Exception ex)
             {

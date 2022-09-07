@@ -132,7 +132,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Making a first sync, will initialize everything we need
             var r = await agent.SynchronizeAsync(scopeName, setup, parameters);
-            Assert.Equal(rowsCount, r.TotalChangesDownloaded);
+            Assert.Equal(rowsCount, r.TotalChangesDownloadedFromServer);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;

@@ -9,19 +9,33 @@ using System.Threading.Tasks;
 namespace Dotmim.Sync.Serialization
 {
 
-    //public class LocalJsonSerializerFactory : ILocalSerializerFactory
-    //{
-    //    public string Key => "json";
-    //    public ILocalSerializer GetLocalSerializer() => new LocalJsonSerializer();
-    //}
+    /// <summary>
+    /// Serialize json rows locally
+    /// </summary>
     public class LocalJsonSerializer
     {
+
+
         private StreamWriter sw;
         private JsonTextWriter writer;
+        private Func<SyncTable, object[], Task<string>> writingRowAsync;
+        private Func<SyncTable, string, Task<object[]>> readingRowAsync;
 
+        /// <summary>
+        /// Returns if the file is opened
+        /// </summary>
+        public bool IsOpen { get; set; }
+
+        /// <summary>
+        /// Gets the file extension
+        /// </summary>
         public string Extension => "json";
 
-        public async Task CloseFileAsync(string path, SyncTable shemaTable)
+        /// <summary>
+        /// Close the current file, close the writer
+        /// </summary>
+        /// <returns></returns>
+        public async Task CloseFileAsync()
         {
             // Close file
             this.writer.WriteEndArray();
@@ -31,7 +45,13 @@ namespace Dotmim.Sync.Serialization
             this.writer.Flush();
             await this.writer.CloseAsync();
             this.sw.Close();
+            this.IsOpen = false;
+
         }
+
+        /// <summary>
+        /// Open the file and write header
+        /// </summary>
         public async Task OpenFileAsync(string path, SyncTable shemaTable)
         {
             if (this.writer != null)
@@ -39,6 +59,12 @@ namespace Dotmim.Sync.Serialization
                 await this.writer.CloseAsync();
                 this.writer = null;
             }
+            this.IsOpen = true;
+
+            var fi = new FileInfo(path);
+
+            if (!fi.Directory.Exists)
+                fi.Directory.Create();
 
             this.sw = new StreamWriter(path);
             this.writer = new JsonTextWriter(sw) { CloseOutput = true };
@@ -61,6 +87,10 @@ namespace Dotmim.Sync.Serialization
             this.writer.WriteWhitespace(Environment.NewLine);
 
         }
+
+        /// <summary>
+        /// Append a syncrow to the writer
+        /// </summary>
         public async Task WriteRowToFileAsync(SyncRow row, SyncTable shemaTable)
         {
             writer.WriteStartArray();
@@ -84,18 +114,80 @@ namespace Dotmim.Sync.Serialization
             writer.Flush();
         }
 
-        private Func<SyncTable, object[], Task<string>> writingRowAsync;
-        private Func<SyncTable, string, Task<object[]>> readingRowAsync;
 
+        /// <summary>
+        /// Interceptor on writing row
+        /// </summary>
         public void OnWritingRow(Func<SyncTable, object[], Task<string>> func) => this.writingRowAsync = func;
 
+        /// <summary>
+        /// Interceptor on reading row
+        /// </summary>
         public void OnReadingRow(Func<SyncTable, string, Task<object[]>> func) => this.readingRowAsync = func;
 
+
+        /// <summary>
+        /// Gets the file size
+        /// </summary>
+        /// <returns></returns>
         public Task<long> GetCurrentFileSizeAsync()
             => this.sw != null && this.sw.BaseStream != null ?
                 Task.FromResult(this.sw.BaseStream.Position / 1024L) :
                 Task.FromResult(0L);
 
+
+
+        /// <summary>
+        /// Get the table contained in a serialized file
+        /// </summary>
+        public (string tableName, string schemaName, int rowsCount) GetTableNameFromFile(string path)
+        {
+            if (!File.Exists(path))
+                return default;
+
+            string tableName = null, schemaName = null;
+            int rowsCount = 0;
+
+            using var reader = new JsonTextReader(new StreamReader(path));
+
+
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "n")
+                {
+                    tableName = reader.ReadAsString();
+                    continue;
+                }
+
+                if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "s")
+                {
+                    schemaName = reader.ReadAsString();
+                    continue;
+                }
+
+                if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "r")
+                {
+                    // Go to children of the array
+                    reader.Read();
+                    // read all array
+                    try
+                    {
+                        var jArray = JArray.Load(reader);
+                        rowsCount = jArray.Count;
+                        
+                    }
+                    catch (Exception) { }
+
+                    break;
+                }
+            }
+
+            return (tableName, string.IsNullOrEmpty(schemaName) ? null : schemaName, rowsCount);
+        }
+
+        /// <summary>
+        /// Enumerate all rows from file
+        /// </summary>
         public IEnumerable<SyncRow> ReadRowsFromFile(string path, SyncTable schemaTable)
         {
             if (!File.Exists(path))
@@ -251,47 +343,6 @@ namespace Dotmim.Sync.Serialization
 
         }
 
-        //public IEnumerable<SyncRow> ReadRowsFromFile(string path, SyncTable shemaTable)
-        //{
-        //    if (!File.Exists(path))
-        //        yield break;
-
-        //    JsonSerializer serializer = new JsonSerializer();
-        //    using var reader = new JsonTextReader(new StreamReader(path));
-        //    while (reader.Read())
-        //    {
-        //        if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "t")
-        //        {
-        //            while (reader.Read() && reader.TokenType != JsonToken.EndArray)
-        //            {
-        //                if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "n")
-        //                {
-        //                    reader.Read();
-
-        //                    while (reader.Read() && reader.TokenType != JsonToken.EndObject)
-        //                    {
-        //                        if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "r")
-        //                        {
-        //                            // Go to children of the array
-        //                            reader.Read();
-        //                            // read all array
-        //                            while (reader.Read() && reader.TokenType != JsonToken.EndArray)
-        //                            {
-        //                                if (reader.TokenType == JsonToken.StartArray)
-        //                                {
-        //                                    var array = serializer.Deserialize<object[]>(reader);
-        //                                    yield return new SyncRow(shemaTable, array);
-        //                                }
-        //                            }
-        //                        }
-
-        //                    }
-        //                }
-        //            }
-        //        }
-        //    }
-
-        //}
 
     }
 }

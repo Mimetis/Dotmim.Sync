@@ -74,8 +74,8 @@ namespace Dotmim.Sync.Tests
                 var r1 = await agent.SynchronizeAsync("v1", setup, pMount);
                 var r2 = await agent.SynchronizeAsync("v1", setup, pRoad);
 
-                Assert.Equal(11, r1.TotalChangesDownloaded);
-                Assert.Equal(6, r2.TotalChangesDownloaded);
+                Assert.Equal(11, r1.TotalChangesDownloadedFromServer);
+                Assert.Equal(6, r2.TotalChangesDownloadedFromServer);
             }
         }
 
@@ -113,7 +113,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, Server.Provider);
                 var r = await agent.SynchronizeAsync("v1", setup);
 
-                Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloaded);
+                Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloadedFromServer);
             }
 
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
@@ -199,7 +199,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, Server.Provider);
                 var r = await agent.SynchronizeAsync("v2");
 
-                Assert.Equal(2, r.TotalChangesDownloaded);
+                Assert.Equal(2, r.TotalChangesDownloadedFromServer);
             }
         }
 
@@ -246,11 +246,11 @@ namespace Dotmim.Sync.Tests
 
             var agent1 = new SyncAgent(client1provider, Server.Provider);
             var r1 = await agent1.SynchronizeAsync(setup);
-            Assert.Equal(productCategoryRowsCount, r1.TotalChangesDownloaded);
+            Assert.Equal(productCategoryRowsCount, r1.TotalChangesDownloadedFromServer);
 
             var agent2 = new SyncAgent(client2provider, Server.Provider);
             var r2 = await agent2.SynchronizeAsync(setup);
-            Assert.Equal(productCategoryRowsCount, r2.TotalChangesDownloaded);
+            Assert.Equal(productCategoryRowsCount, r2.TotalChangesDownloadedFromServer);
 
             // From now, the client 1 will upgrade to new scope
             // the client 2 will remain on old scope
@@ -330,11 +330,11 @@ namespace Dotmim.Sync.Tests
             // we still can use the old agent, since it's already configured with correct providers
             // just be sure to set the correct scope
             r1 = await agent1.SynchronizeAsync("v1");
-            Assert.Equal(2, r1.TotalChangesDownloaded);
+            Assert.Equal(2, r1.TotalChangesDownloadedFromServer);
 
             // make a sync on old scope for client 2
             r2 = await agent2.SynchronizeAsync();
-            Assert.Equal(1, r2.TotalChangesDownloaded);
+            Assert.Equal(1, r2.TotalChangesDownloadedFromServer);
 
             // now check values on each client
             using (var ctx1 = new AdventureWorksContext((client1DatabaseName, ProviderType.Sqlite, client1provider), false))
@@ -379,7 +379,7 @@ namespace Dotmim.Sync.Tests
                 productsCount = readCtx.Product.AsNoTracking().Count();
             }
 
-            Assert.Equal(productCategoryRowsCount + productsCount, r2.TotalChangesDownloaded);
+            Assert.Equal(productCategoryRowsCount + productsCount, r2.TotalChangesDownloadedFromServer);
 
         }
 
@@ -417,7 +417,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, Server.Provider);
                 var r = await agent.SynchronizeAsync("v1", setup);
 
-                Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloaded);
+                Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloadedFromServer);
             }
 
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
@@ -509,7 +509,7 @@ namespace Dotmim.Sync.Tests
 
                 var r = await agent.SynchronizeAsync("v1");
 
-                Assert.Equal(2, r.TotalChangesDownloaded);
+                Assert.Equal(2, r.TotalChangesDownloadedFromServer);
 
             }
 
@@ -549,7 +549,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, Server.Provider);
                 var r = await agent.SynchronizeAsync("v1", setup);
 
-                Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloaded);
+                Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloadedFromServer);
             }
 
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
@@ -648,7 +648,7 @@ namespace Dotmim.Sync.Tests
 
                 var r = await agent.SynchronizeAsync("v1");
 
-                Assert.Equal(2, r.TotalChangesDownloaded);
+                Assert.Equal(2, r.TotalChangesDownloadedFromServer);
 
             }
 

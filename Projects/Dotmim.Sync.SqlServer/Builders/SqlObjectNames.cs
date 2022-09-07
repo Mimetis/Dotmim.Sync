@@ -26,8 +26,6 @@ namespace Dotmim.Sync.SqlServer.Builders
         internal const string updateProcName = "[{0}].[{1}{2}update]";
         internal const string deleteProcName = "[{0}].[{1}{2}delete]";
 
-        internal const string insertMetadataProcName = "[{0}].[{1}{2}insertmetadata]";
-        internal const string updateMetadataProcName = "[{0}].[{1}{2}updatemetadata]";
         internal const string deleteMetadataProcName = "[{0}].[{1}{2}deletemetadata]";
 
         internal const string resetMetadataProcName = "[{0}].[{1}{2}reset]";

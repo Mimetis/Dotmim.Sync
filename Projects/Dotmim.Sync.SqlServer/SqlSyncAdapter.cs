@@ -12,6 +12,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient.Server;
+using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
@@ -125,7 +126,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (applyRowsCount <= 0)
                 return;
 
-            var dataRowState = DataRowState.Unchanged;
+            var syncRowState = SyncRowState.None;
 
             var records = new List<SqlDataRecord>(applyRowsCount);
             SqlMetaData[] metadatas = new SqlMetaData[schemaChangesTable.Columns.Count];
@@ -137,7 +138,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 foreach (var row in applyRows)
                 {
-                    dataRowState = row.RowState;
+                    syncRowState = row.RowState;
 
                     var record = new SqlDataRecord(metadatas);
 
@@ -287,7 +288,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 {
                     //var itemArray = new object[dataReader.FieldCount];
                     //var itemArray = new object[failedRows.Columns.Count];
-                    var itemArray = new SyncRow(schemaChangesTable, dataRowState);
+                    var itemArray = new SyncRow(schemaChangesTable, syncRowState);
                     for (var i = 0; i < dataReader.FieldCount; i++)
                     {
                         var columnValueObject = dataReader.GetValue(i);

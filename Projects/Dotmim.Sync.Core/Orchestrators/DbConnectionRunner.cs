@@ -106,16 +106,21 @@ namespace Dotmim.Sync
                 await this.Orchestrator.CloseConnectionAsync(this.Context, this.Connection, this.CancellationToken, this.Progress).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Rollback a transaction
+        /// </summary>
         public Task RollbackAsync() => Task.Run(() =>
         {
-            if (this.Orchestrator == null || this.Transaction == null)
+            if (this.Orchestrator == null || this.Transaction == null || this.AlreadyInTransaction)
                 return;
 
             this.Transaction.Rollback();
         });
 
 
-        // This code added to correctly implement the disposable pattern.
+        /// <summary>
+        /// This code added to correctly implement the disposable pattern.
+        /// </summary>
         public void Dispose()
         {
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
@@ -125,6 +130,10 @@ namespace Dotmim.Sync
 
         private bool disposedValue = false;
 
+        /// <summary>
+        /// Dispose the current transaction and connection
+        /// </summary>
+        /// <param name="disposing"></param>
         public void Dispose(bool disposing)
         {
             if (!disposedValue)
@@ -153,6 +162,9 @@ namespace Dotmim.Sync
             }
         }
 
+        /// <summary>
+        /// Async dispose, when using "await using var runner = await this.GetConnectionAsync()"
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             if (this.Orchestrator != null)

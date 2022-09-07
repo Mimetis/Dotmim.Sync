@@ -6,7 +6,7 @@ using System.Data.Common;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Args
+namespace Dotmim.Sync
 {
 
 

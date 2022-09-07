@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Args;
+﻿
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -20,6 +20,7 @@ namespace Dotmim.Sync
 {
     public abstract partial class BaseOrchestrator
     {
+
 
         internal virtual async Task<(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned)>
             InternalDeleteMetadatasAsync(
@@ -131,7 +132,7 @@ namespace Dotmim.Sync
             this.SetColumnParametersValues(command, row);
 
             // Set the special parameters for update
-            this.AddScopeParametersValues(command, senderScopeId, 0, row.RowState == DataRowState.Deleted, forceWrite);
+            this.AddScopeParametersValues(command, senderScopeId, 0, row.RowState == SyncRowState.Deleted, forceWrite);
 
             await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.UpdateMetadata, connection, transaction)).ConfigureAwait(false);
 
