@@ -287,7 +287,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "OTH"
                 };
 
@@ -353,7 +353,7 @@ namespace Dotmim.Sync.Tests
                     OnlineOrderFlag = true,
                     PurchaseOrderNumber = "PO348186287",
                     AccountNumber = "10-4020-000609",
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     ShipToAddressId = 4,
                     BillToAddressId = 5,
                     ShipMethod = "CAR TRANSPORTATION",
@@ -452,7 +452,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "OTH"
                 };
 
@@ -545,7 +545,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "OTH"
                 };
 
@@ -631,7 +631,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "OTH"
                 };
 
@@ -722,7 +722,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "OTH"
                 };
 
@@ -827,7 +827,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "OTH"
                 };
 

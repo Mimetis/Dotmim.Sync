@@ -58,7 +58,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Get the server rows count
         /// </summary>
-        public abstract int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t);
+        public abstract int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, Guid? customerId = null);
 
         /// <summary>
         /// Create a provider
@@ -312,7 +312,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "OTH"
                 };
 
@@ -377,7 +377,7 @@ namespace Dotmim.Sync.Tests
                     OnlineOrderFlag = true,
                     PurchaseOrderNumber = "PO348186287",
                     AccountNumber = "10-4020-000609",
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     ShipToAddressId = 4,
                     BillToAddressId = 5,
                     ShipMethod = "CAR TRANSPORTATION",
@@ -473,7 +473,7 @@ namespace Dotmim.Sync.Tests
                     OnlineOrderFlag = true,
                     PurchaseOrderNumber = "PO348186287",
                     AccountNumber = "10-4020-000609",
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     ShipToAddressId = 4,
                     BillToAddressId = 5,
                     ShipMethod = "CAR TRANSPORTATION",
@@ -590,7 +590,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "OTH"
                 };
 
@@ -668,7 +668,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "Secondary Home 1"
                 };
 
@@ -677,7 +677,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress2 = new CustomerAddress
                 {
                     AddressId = newAddress2.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "Secondary Home 2"
                 };
 
@@ -686,7 +686,7 @@ namespace Dotmim.Sync.Tests
                 await serverDbCtx.SaveChangesAsync();
 
                 // Update customer
-                var customer = serverDbCtx.Customer.Find(AdventureWorksContext.CustomerIdForFilter);
+                var customer = serverDbCtx.Customer.Find(AdventureWorksContext.CustomerId1ForFilter);
                 customer.FirstName = "Orlanda";
 
                 await serverDbCtx.SaveChangesAsync();
@@ -1111,7 +1111,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "OTH"
                 };
 
@@ -1189,7 +1189,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "OTH"
                 };
 
@@ -1346,6 +1346,48 @@ namespace Dotmim.Sync.Tests
 
         }
 
+
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public virtual async Task MultiFiltersParameters(SyncOptions options)
+        {
+            // create a server db and seed it
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Get count of rows for parameter 2
+            var rowsCount2 = this.GetServerDatabaseRowsCount(this.Server, AdventureWorksContext.CustomerId2ForFilter);
+
+            // Execute a sync on all clients and check results
+            foreach (var client in this.Clients)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+
+                // create agent with filtered tables and second parameter
+                var parameters2 = new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId2ForFilter));
+                agent = new SyncAgent(client.Provider, Server.Provider, options);
+                s = await agent.SynchronizeAsync(this.FilterSetup, parameters2);
+
+                Assert.Equal(rowsCount2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(rowsCount2, this.GetServerDatabaseRowsCount(client, AdventureWorksContext.CustomerId2ForFilter));
+
+
+            }
+        }
 
     }
 }

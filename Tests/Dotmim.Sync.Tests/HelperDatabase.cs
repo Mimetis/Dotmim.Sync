@@ -26,6 +26,8 @@ namespace Dotmim.Sync.Tests
             return $"{pref}{str1}";
         }
 
+
+
         /// <summary>
         /// Get the Sqlite file path (ie: /Dir/mydatabase.db)
         /// </summary>

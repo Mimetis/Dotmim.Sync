@@ -20,9 +20,15 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
+        /// <summary>
+        /// Load a table from a batch info
+        /// </summary>
         public virtual Task<SyncTable> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default)
             => LoadTableFromBatchInfoAsync(SyncOptions.DefaultScopeName, batchInfo, tableName, schemaName, syncRowState);
 
+        /// <summary>
+        /// Load a table from a batch info
+        /// </summary>
         public virtual async Task<SyncTable> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -45,14 +51,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Load all batch infos from a directory
         /// </summary>
-        /// <param name="scopeName"></param>
-        /// <returns></returns>
-        public virtual async IAsyncEnumerable<(SyncTable syncTable, string directoryName)> LoadBatchInfosAsync(string scopeName = SyncOptions.DefaultScopeName)
+        public virtual async Task<List<BatchInfo>> LoadBatchInfosAsync(string scopeName = SyncOptions.DefaultScopeName)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
 
             ScopeInfo scopeInfo;
-            (context, scopeInfo) = await this.InternalGetScopeInfoAsync(context, default, default, default, default).ConfigureAwait(false);
+            (_, scopeInfo) = await this.InternalGetScopeInfoAsync(context, default, default, default, default).ConfigureAwait(false);
 
             if (scopeInfo == null)
                 throw new MissingSchemaInScopeException();
@@ -62,12 +66,13 @@ namespace Dotmim.Sync
             var directoryInfo = new DirectoryInfo(this.Options.BatchDirectory);
 
             if (directoryInfo == null || !directoryInfo.Exists)
-                yield break;
+                return null;
+
+            List<BatchInfo> batchInfos = new List<BatchInfo>();
 
             foreach (var directory in directoryInfo.EnumerateDirectories())
             {
                 var batchInfo = new BatchInfo(directoryInfo.FullName, directory.Name);
-                var dictionaryTables = new Dictionary<string, (string tableName, string schemaName)>();
 
                 foreach (var file in directory.GetFiles())
                 {
@@ -79,21 +84,42 @@ namespace Dotmim.Sync
                         continue;
 
                     var bpi = new BatchPartInfo(file.Name, tableName, schemaName, rowsCount);
-
                     batchInfo.BatchPartsInfo.Add(bpi);
-
-                    if (!dictionaryTables.ContainsKey(tableName + schemaName))
-                        dictionaryTables.Add(tableName + schemaName, (tableName, schemaName));
                 }
 
-                foreach (var table in dictionaryTables)
-                {
-                    var syncTable = await InternalLoadTableFromBatchInfoAsync(scopeInfo, context, batchInfo, table.Value.tableName, table.Value.schemaName).ConfigureAwait(false);
-                    yield return (syncTable, batchInfo.DirectoryName);
-                }
-
+                batchInfos.Add(batchInfo);
             }
 
+            return batchInfos.Count > 0 ? batchInfos : null;
+        }
+
+
+        /// <summary>
+        /// Load all tables from a batch info
+        /// </summary>
+        public virtual IAsyncEnumerable<SyncTable> LoadTablesFromBatchInfoAsync(BatchInfo batchInfo, SyncRowState? syncRowState = default)
+            => LoadTablesFromBatchInfoAsync(SyncOptions.DefaultScopeName, batchInfo, syncRowState);
+
+        /// <summary>
+        /// Load all tables from a batch info
+        /// </summary>
+        public virtual async IAsyncEnumerable<SyncTable> LoadTablesFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, SyncRowState? syncRowState = default)
+        {
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
+
+            ScopeInfo scopeInfo;
+            (context, scopeInfo) = await this.InternalGetScopeInfoAsync(context, default, default, default, default).ConfigureAwait(false);
+
+            if (scopeInfo == null)
+                throw new MissingSchemaInScopeException();
+
+            foreach (var schemaTable in scopeInfo.Schema.Tables)
+            {
+                var syncTable = await InternalLoadTableFromBatchInfoAsync(scopeInfo, context, batchInfo, schemaTable.TableName, schemaTable.SchemaName, syncRowState).ConfigureAwait(false);
+
+                if (syncTable != null && syncTable.HasRows)
+                    yield return syncTable;
+            }
         }
 
 
@@ -144,10 +170,16 @@ namespace Dotmim.Sync
         }
 
 
+        /// <summary>
+        /// Load a table from a batch part info
+        /// </summary>
         public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncRowState? syncRowState = default)
             => LoadTableFromBatchPartInfoAsync(SyncOptions.DefaultScopeName, batchInfo, batchPartInfo, syncRowState);
 
 
+        /// <summary>
+        /// Load a table from a batch part info
+        /// </summary>
         public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncRowState? syncRowState = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -217,6 +249,7 @@ namespace Dotmim.Sync
         public virtual Task<SyncContext> SaveTableToBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
             => SaveTableToBatchPartInfoAsync(SyncOptions.DefaultScopeName, batchInfo, batchPartInfo, syncTable);
 
+        /// <inheritdoc cref="SaveTableToBatchPartInfoAsync(BatchInfo, BatchPartInfo, SyncTable)"/>
         public virtual Task<SyncContext> SaveTableToBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);

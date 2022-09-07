@@ -26,7 +26,9 @@ namespace Dotmim.Sync.Tests.Models
 
         private DbConnection Connection { get; }
 
-        public static Guid CustomerIdForFilter = Guid.NewGuid();
+        public static Guid CustomerId1ForFilter = Guid.NewGuid();
+        
+        public static Guid CustomerId2ForFilter = Guid.NewGuid();
 
         public AdventureWorksContext((string DatabaseName, ProviderType ProviderType, CoreProvider provider) t, bool fallbackUseSchema = true, bool useSeeding = false) : this()
         {
@@ -829,8 +831,8 @@ namespace Dotmim.Sync.Tests.Models
                 new Employee { EmployeeId = 3, FirstName = "Jillian", LastName = "Jon" }
             );
 
-            Guid customerId1 = CustomerIdForFilter;
-            Guid customerId2 = Guid.NewGuid();
+            Guid customerId1 = CustomerId1ForFilter;
+            Guid customerId2 = CustomerId2ForFilter;
             Guid customerId3 = Guid.NewGuid();
             Guid customerId4 = Guid.NewGuid();
 

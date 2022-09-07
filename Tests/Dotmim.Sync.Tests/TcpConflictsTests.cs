@@ -199,21 +199,19 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         private async Task Generate_ForeignKeyError()
         {
-            using (var ctx = new AdventureWorksContext(this.Server))
+            using var ctx = new AdventureWorksContext(this.Server);
+            ctx.Add(new ProductCategory
             {
-                ctx.Add(new ProductCategory
-                {
-                    ProductCategoryId = "ZZZZ",
-                    Name = HelperDatabase.GetRandomName("SRV")
-                });
-                ctx.Add(new ProductCategory
-                {
-                    ProductCategoryId = "AAAA",
-                    ParentProductCategoryId = "ZZZZ",
-                    Name = HelperDatabase.GetRandomName("SRV")
-                });
-                await ctx.SaveChangesAsync();
-            }
+                ProductCategoryId = "ZZZZ",
+                Name = HelperDatabase.GetRandomName("SRV")
+            });
+            ctx.Add(new ProductCategory
+            {
+                ProductCategoryId = "AAAA",
+                ParentProductCategoryId = "ZZZZ",
+                Name = HelperDatabase.GetRandomName("SRV")
+            });
+            await ctx.SaveChangesAsync();
 
         }
 
@@ -233,6 +231,10 @@ namespace Dotmim.Sync.Tests
 
             foreach (var client in Clients)
             {
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectoryName(), directoryName);
+               
                 // create empty client databases
                 await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
 
@@ -244,10 +246,28 @@ namespace Dotmim.Sync.Tests
                 var exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(Tables));
 
                 Assert.NotNull(exc);
+
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                var batchInfo = batchInfos[0];
+
+                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+                
+                await foreach(var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+                    
+                    Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
+                }
             }
-
         }
-
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
@@ -260,6 +280,10 @@ namespace Dotmim.Sync.Tests
 
             foreach (var client in Clients)
             {
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectoryName(), directoryName);
+
                 // create empty client databases
                 await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
 
@@ -288,9 +312,28 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(1, s.TotalChangesAppliedOnClient);
                 Assert.Equal(1, s.TotalChangesFailedToApplyOnClient);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                var batchInfo = batchInfos[0];
+
+                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+                await foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
+                }
             }
         }
-
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
@@ -303,6 +346,10 @@ namespace Dotmim.Sync.Tests
 
             foreach (var client in Clients)
             {
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectoryName(), directoryName);
+
                 // create empty client databases
                 await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
 
@@ -331,10 +378,107 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(2, s.TotalChangesAppliedOnClient);
                 Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+                
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.Null(batchInfos);
             }
         }
 
 
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Error_ForeignKey_OnSameTable_RetryOnNextSync(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            await Generate_ForeignKeyError();
+
+            foreach (var client in Clients)
+            {
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectoryName(), directoryName);
+
+                // create empty client databases
+                await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
+
+                // Disable bulk operations to generate the fk constraint failure
+                client.Provider.UseBulkOperations = false;
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+
+                agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+                {
+                    // Continue On Error
+                    args.Resolution = ErrorResolution.RetryOnNextSync;
+                    Assert.NotNull(args.Exception);
+                    Assert.NotNull(args.ErrorRow);
+                    Assert.NotNull(args.SchemaTable);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
+                });
+
+                var s = await agent.SynchronizeAsync(Tables);
+
+                // Download 2 rows
+                // But applied only 1
+                // The other one is a failed inserted row
+                Assert.Equal(2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                var batchInfo = batchInfos[0];
+
+                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+                await foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
+                }
+                
+                s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                batchInfo = batchInfos[0];
+
+                syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+                await foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
+                }
+            }
+        }
 
         // ------------------------------------------------------------------------
         // InsertClient - InsertServer

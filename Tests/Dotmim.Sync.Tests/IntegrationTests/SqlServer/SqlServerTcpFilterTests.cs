@@ -20,7 +20,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
     public class SqlServerTcpFilterTests : TcpFilterTests
     {
         public override List<ProviderType> ClientsType => new List<ProviderType>
-           {  ProviderType.Sql, ProviderType.Sqlite, ProviderType.MySql,  ProviderType.MariaDB};
+           {  ProviderType.Sql, ProviderType.Sqlite};
 
 
         public SqlServerTcpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
@@ -84,10 +84,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-        public override SyncParameters FilterParameters => new SyncParameters
-        {
-                new SyncParameter("CustomerID", AdventureWorksContext.CustomerIdForFilter),
-        };
+        public override SyncParameters FilterParameters => new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId1ForFilter));
+
 
 
         public override ProviderType ServerType =>
@@ -139,17 +137,20 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         /// Get the server database rows count
         /// </summary>
         /// <returns></returns>
-        public override int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t)
+        public override int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, Guid? customerId = null)
         {
             int totalCountRows = 0;
 
+            if (!customerId.HasValue)
+                customerId = AdventureWorksContext.CustomerId1ForFilter;
+
             using (var serverDbCtx = new AdventureWorksContext(t))
             {
-                totalCountRows += serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == AdventureWorksContext.CustomerIdForFilter)).Count();
-                totalCountRows += serverDbCtx.Customer.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                totalCountRows += serverDbCtx.CustomerAddress.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                totalCountRows += serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                totalCountRows += serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
+                totalCountRows += serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == customerId)).Count();
+                totalCountRows += serverDbCtx.Customer.Where(c => c.CustomerId == customerId).Count();
+                totalCountRows += serverDbCtx.CustomerAddress.Where(c => c.CustomerId == customerId).Count();
+                totalCountRows += serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == customerId).Count();
+                totalCountRows += serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == customerId).Count();
                 totalCountRows += serverDbCtx.Product.Where(p => !String.IsNullOrEmpty(p.ProductCategoryId)).Count();
             }
 

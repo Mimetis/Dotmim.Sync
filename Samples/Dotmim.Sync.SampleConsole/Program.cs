@@ -100,10 +100,174 @@ internal class Program
         //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
         //await MultiFiltersAsync();
-        await TestAsync();
+        await ComplexFilter2Async();
 
     }
 
+    private static async Task ComplexFilter2Async()
+    {
+        // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
+
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("advfiltered.db");
+
+        var setup = new SyncSetup("ProductCategory",
+            "ProductModel", "Product",
+            "Address", "Customer", "CustomerAddress",
+            "SalesOrderHeader", "SalesOrderDetail");
+
+        var addressFilter = new SetupFilter("Address");
+        addressFilter.AddParameter("City", "Address", true);
+        addressFilter.AddParameter("postal", DbType.String, true, null, 20);
+        addressFilter.AddWhere("City", "Address", "City");
+        addressFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(addressFilter);
+
+        var addressCustomerFilter = new SetupFilter("CustomerAddress");
+        addressCustomerFilter.AddParameter("City", "Address", true);
+        addressCustomerFilter.AddParameter("postal", DbType.String, true, null, 20);
+
+        addressCustomerFilter.AddJoin(Join.Left, "Address")
+            .On("CustomerAddress", "AddressId", "Address", "AddressId");
+
+        // And then add your where clauses
+        addressCustomerFilter.AddWhere("City", "Address", "City");
+        addressCustomerFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(addressCustomerFilter);
+
+        var customerFilter = new SetupFilter("Customer");
+        customerFilter.AddParameter("City", "Address", true);
+        customerFilter.AddParameter("postal", DbType.String, true, null, 20);
+        customerFilter.AddJoin(Join.Left, "CustomerAddress")
+            .On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        customerFilter.AddJoin(Join.Left, "Address")
+            .On("CustomerAddress", "AddressId", "Address", "AddressId");
+        customerFilter.AddWhere("City", "Address", "City");
+        customerFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(customerFilter);
+
+        var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
+        orderHeaderFilter.AddParameter("City", "Address", true);
+        orderHeaderFilter.AddParameter("postal", DbType.String, true, null, 20);
+        orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress")
+            .On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+        orderHeaderFilter.AddJoin(Join.Left, "Address")
+            .On("CustomerAddress", "AddressId", "Address", "AddressId");
+        orderHeaderFilter.AddWhere("City", "Address", "City");
+        orderHeaderFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(orderHeaderFilter);
+
+        var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
+        orderDetailsFilter.AddParameter("City", "Address", true);
+        orderDetailsFilter.AddParameter("postal", DbType.String, true, null, 20);
+        orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader")
+            .On("SalesOrderHeader", "SalesOrderID", "SalesOrderDetail", "SalesOrderID");
+        orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress")
+            .On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+        orderDetailsFilter.AddJoin(Join.Left, "Address")
+            .On("CustomerAddress", "AddressId", "Address", "AddressId");
+        orderDetailsFilter.AddWhere("City", "Address", "City");
+        orderDetailsFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(orderDetailsFilter);
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider);
+
+        var parameters = new SyncParameters { { "City", "Toronto" }, { "postal", "M4B 1V5" } };
+        var s1 = await agent.SynchronizeAsync(setup, parameters);
+        Console.WriteLine(s1);
+
+        parameters = new SyncParameters { { "City", "Montreal" }, { "postal", "H1Y 2H5" } };
+        s1 = await agent.SynchronizeAsync(setup, parameters);
+        Console.WriteLine(s1);
+
+        Console.WriteLine("End");
+        Console.ReadKey();
+    }
+    private static async Task ComplexFilterAsync()
+    {
+
+        // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
+
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        var setup = new SyncSetup("ProductCategory",
+            "ProductModel", "Product",
+            "Address", "Customer", "CustomerAddress",
+            "SalesOrderHeader", "SalesOrderDetail");
+
+        var addressFilter = new SetupFilter("Address");
+        addressFilter.AddParameter("City", "Address", true);
+        addressFilter.AddParameter("postal", DbType.String, true, null, 20);
+
+        // Then you map each parameter on wich table / column the "where" clause should be applied
+        addressFilter.AddWhere("City", "Address", "City");
+        addressFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(addressFilter);
+
+        var addressCustomerFilter = new SetupFilter("CustomerAddress");
+        addressCustomerFilter.AddParameter("City", "Address", true);
+        addressCustomerFilter.AddParameter("postal", DbType.String, true, null, 20);
+
+        // You can join table to go from your table up (or down) to your filter table
+        addressCustomerFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+
+        // And then add your where clauses
+        addressCustomerFilter.AddWhere("City", "Address", "City");
+        addressCustomerFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(addressCustomerFilter);
+
+        var customerFilter = new SetupFilter("Customer");
+        customerFilter.AddParameter("City", "Address", true);
+        customerFilter.AddParameter("postal", DbType.String, true, null, 20);
+        customerFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
+        customerFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+        customerFilter.AddWhere("City", "Address", "City");
+        customerFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(customerFilter);
+
+        var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
+        orderHeaderFilter.AddParameter("City", "Address", true);
+        orderHeaderFilter.AddParameter("postal", DbType.String, true, null, 20);
+        orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+        orderHeaderFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+        orderHeaderFilter.AddWhere("City", "Address", "City");
+        orderHeaderFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(orderHeaderFilter);
+
+        var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
+        orderDetailsFilter.AddParameter("City", "Address", true);
+        orderDetailsFilter.AddParameter("postal", DbType.String, true, null, 20);
+        orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderHeader", "SalesOrderID", "SalesOrderDetail", "SalesOrderID");
+        orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
+        orderDetailsFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
+        orderDetailsFilter.AddWhere("City", "Address", "City");
+        orderDetailsFilter.AddWhere("PostalCode", "Address", "postal");
+        setup.Filters.Add(orderDetailsFilter);
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider);
+
+        do
+        {
+            // Launch the sync process
+            var parameters = new SyncParameters { { "City", "Toronto" }, { "postal", "M4B 1V5" } };
+            var s1 = await agent.SynchronizeAsync(setup, parameters);
+
+            Console.WriteLine(s1);
+       
+            parameters = new SyncParameters { { "City", "Montreal" }, { "postal", "H1Y 2H5" } };
+            s1 = await agent.SynchronizeAsync(setup, parameters);
+
+            // Write results
+            Console.WriteLine(s1);
+
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
 
     private static async Task TestAsync()
     {

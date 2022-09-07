@@ -176,7 +176,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Make a first sync to be sure everything is in place
             var agent = new SyncAgent(clientProvider, serverProvider);
-            var parameters = new SyncParameters(("CustomerID", AdventureWorksContext.CustomerIdForFilter));
+            var parameters = new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId1ForFilter));
 
             // Making a first sync, will initialize everything we need
             var r = await agent.SynchronizeAsync(scopeName, setup, parameters);
@@ -197,7 +197,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 OnlineOrderFlag = true,
                 PurchaseOrderNumber = "PO348186287",
                 AccountNumber = "10-4020-000609",
-                CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                 ShipToAddressId = 4,
                 BillToAddressId = 5,
                 ShipMethod = "CAR TRANSPORTATION",
