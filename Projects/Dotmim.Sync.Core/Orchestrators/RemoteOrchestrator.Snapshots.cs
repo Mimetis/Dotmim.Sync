@@ -67,7 +67,7 @@ namespace Dotmim.Sync
 
                 BatchInfo serverBatchInfo = null;
                 if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
-                    return (context, new ServerSyncChanges(0, null, changesSelected, null, null));
+                    return (context, new ServerSyncChanges(0, null, changesSelected, null));
 
                 //Direction set to Download
                 context.SyncWay = SyncWay.Download;
@@ -137,13 +137,13 @@ namespace Dotmim.Sync
                     }
                 }
                 if (serverBatchInfo == null)
-                    return (context, new ServerSyncChanges(0, null, changesSelected, null, null));
+                    return (context, new ServerSyncChanges(0, null, changesSelected, null));
 
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
 
-                var serverSyncChanges = new ServerSyncChanges(serverBatchInfo.Timestamp, serverBatchInfo, changesSelected, null, null);
+                var serverSyncChanges = new ServerSyncChanges(serverBatchInfo.Timestamp, serverBatchInfo, changesSelected, null);
 
                 return (context, serverSyncChanges);
             }

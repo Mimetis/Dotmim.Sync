@@ -483,9 +483,6 @@ namespace Dotmim.Sync.Web.Server
         internal protected virtual async Task<HttpMessageSendChangesResponse> GetEstimatedChangesCountAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            // Get context from request message
-            var context = httpMessage.SyncContext;
-
             var changes = await this.RemoteOrchestrator.GetEstimatedChangesCountAsync(httpMessage.ScopeInfoClient).ConfigureAwait(false);
 
             var changesResponse = new HttpMessageSendChangesResponse(httpMessage.SyncContext)
@@ -567,9 +564,8 @@ namespace Dotmim.Sync.Web.Server
         {
 
             ScopeInfo sScopeInfo;
-            var context = httpMessage.SyncContext;
 
-            (context, sScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(httpMessage.SyncContext, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+            (_, sScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(httpMessage.SyncContext, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // TODO : Is it used ?
             httpContext.Session.Set(httpMessage.SyncContext.ScopeName, sScopeInfo.Schema);
@@ -696,7 +692,7 @@ namespace Dotmim.Sync.Web.Server
             ServerSyncChanges serverSyncChanges;
             context = httpMessage.SyncContext;
             ConflictResolutionPolicy serverResolutionPolicy;
-            var clientSyncChanges = new ClientSyncChanges(httpMessage.ClientLastSyncTimestamp, sessionCache.ClientBatchInfo, null, null, null);
+            var clientSyncChanges = new ClientSyncChanges(httpMessage.ClientLastSyncTimestamp, sessionCache.ClientBatchInfo, null, null);
 
             // get changes
             (context, serverSyncChanges, serverResolutionPolicy) =
@@ -841,7 +837,12 @@ namespace Dotmim.Sync.Web.Server
             var batchPartInfo = serverBatchInfo.BatchPartsInfo.First(d => d.Index == batchIndexRequested);
 
             // Get the updatable schema for the only table contained in the batchpartinfo
-            var schemaTable = BaseOrchestrator.CreateChangesTable(sScopeInfo.Schema.Tables[batchPartInfo.Tables[0].TableName, batchPartInfo.Tables[0].SchemaName]);
+
+            // Backward compatibility
+            var batchPartInfoTableName = batchPartInfo.Tables != null && batchPartInfo.Tables.Length >= 1 ? batchPartInfo.Tables[0].TableName : batchPartInfo.TableName;
+            var batchPartInfoSchemaName = batchPartInfo.Tables != null && batchPartInfo.Tables.Length >= 1 ? batchPartInfo.Tables[0].SchemaName : batchPartInfo.SchemaName;
+
+            var schemaTable = BaseOrchestrator.CreateChangesTable(sScopeInfo.Schema.Tables[batchPartInfoTableName, batchPartInfoSchemaName]);
 
             // Generate the ContainerSet containing rows to send to the user
             var containerSet = new ContainerSet();

@@ -215,8 +215,12 @@ namespace Dotmim.Sync
             ScopeInfo scopeInfo = null;
             (context, scopeInfo) = await this.InternalGetScopeInfoAsync(context, default, default, default, default).ConfigureAwait(false);
 
+            // Backward compatibility
+            var batchPartInfoTableName = batchPartInfo.Tables != null && batchPartInfo.Tables.Length >= 1 ? batchPartInfo.Tables[0].TableName : batchPartInfo.TableName;
+            var batchPartInfoSchemaName = batchPartInfo.Tables != null && batchPartInfo.Tables.Length >= 1 ? batchPartInfo.Tables[0].SchemaName : batchPartInfo.SchemaName;
+
             // get the sanitazed table (without any readonly / non updatable columns) from batchinfo
-            var originalSchemaTable = scopeInfo.Schema.Tables[batchPartInfo.Tables[0].TableName, batchPartInfo.Tables[0].SchemaName];
+            var originalSchemaTable = scopeInfo.Schema.Tables[batchPartInfoTableName, batchPartInfoSchemaName];
             var changesSet = originalSchemaTable.Schema.Clone(false);
             var table = BaseOrchestrator.CreateChangesTable(originalSchemaTable, changesSet);
 

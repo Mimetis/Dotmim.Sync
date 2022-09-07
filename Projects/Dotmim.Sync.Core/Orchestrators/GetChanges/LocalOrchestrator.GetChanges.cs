@@ -156,7 +156,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                var changes = new ClientSyncChanges(clientTimestamp, null, clientChangesSelected, null, null);
+                var changes = new ClientSyncChanges(clientTimestamp, null, clientChangesSelected, null);
 
                 return changes;
 
@@ -216,7 +216,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                var changes = new ClientSyncChanges(clientTimestamp, clientBatchInfo, clientChangesSelected, null, null);
+                var changes = new ClientSyncChanges(clientTimestamp, clientBatchInfo, clientChangesSelected, null);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 

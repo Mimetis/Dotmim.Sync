@@ -14,13 +14,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Client changes selected and server changes applied on client + stats
         /// </summary>
-        public ClientSyncChanges(long clientTimestamp, BatchInfo clientBatchInfo, DatabaseChangesSelected clientChangesSelected, DatabaseChangesApplied clientChangesApplied, BatchInfo errorsBatchInfo)
+        public ClientSyncChanges(long clientTimestamp, BatchInfo clientBatchInfo, DatabaseChangesSelected clientChangesSelected, DatabaseChangesApplied clientChangesApplied)
         {
             this.ClientTimestamp = clientTimestamp;
             this.ClientBatchInfo = clientBatchInfo;
             this.ClientChangesSelected = clientChangesSelected;
             this.ClientChangesApplied = clientChangesApplied;
-            this.ErrorsBatchInfo = errorsBatchInfo;
+            //this.ErrorsBatchInfo = errorsBatchInfo;
         }
 
         /// <summary>
@@ -43,11 +43,10 @@ namespace Dotmim.Sync
         /// </summary>
         public DatabaseChangesApplied ClientChangesApplied { get; set; }
 
-        /// <summary>
-        /// 
-        /// Gets the batches serialized locally with all failed rows applied on server
-        /// </summary>
-        public BatchInfo ErrorsBatchInfo { get; set; }
+        ///// <summary>
+        ///// Gets the batches serialized locally with all failed rows applied on server
+        ///// </summary>
+        //public BatchInfo ErrorsBatchInfo { get; set; }
     }
 
     /// <summary>
@@ -58,13 +57,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Server changes selected and client changes applied on server + stats
         /// </summary>
-        public ServerSyncChanges(long remoteClientTimestamp, BatchInfo serverBatchInfo, DatabaseChangesSelected serverChangesSelected, DatabaseChangesApplied serverChangesApplied, BatchInfo errorsBatchInfo)
+        public ServerSyncChanges(long remoteClientTimestamp, BatchInfo serverBatchInfo, DatabaseChangesSelected serverChangesSelected, DatabaseChangesApplied serverChangesApplied)
         {
             this.RemoteClientTimestamp = remoteClientTimestamp;
             this.ServerBatchInfo = serverBatchInfo;
             this.ServerChangesSelected = serverChangesSelected;
             this.ServerChangesApplied = serverChangesApplied;
-            this.ErrorsBatchInfo = errorsBatchInfo;
+            //this.ErrorsBatchInfo = errorsBatchInfo;
         }
 
 
@@ -88,11 +87,11 @@ namespace Dotmim.Sync
         /// </summary>
         public DatabaseChangesApplied ServerChangesApplied { get; set; }
     
-        /// <summary>
-        /// 
-        /// Gets the batches serialized locally with all failed rows applied on server
-        /// </summary>
-        public BatchInfo ErrorsBatchInfo { get; set; }
+        ///// <summary>
+        ///// 
+        ///// Gets the batches serialized locally with all failed rows applied on server
+        ///// </summary>
+        //public BatchInfo ErrorsBatchInfo { get; set; }
 
     }
    

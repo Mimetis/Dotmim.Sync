@@ -95,7 +95,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return new ServerSyncChanges(remoteClientTimestamp, serverBatchInfo, serverChangesSelected, null, null);
+                return new ServerSyncChanges(remoteClientTimestamp, serverBatchInfo, serverChangesSelected, null);
             }
             catch (Exception ex)
             {
@@ -163,7 +163,7 @@ namespace Dotmim.Sync
                     await this.InternalGetEstimatedChangesCountAsync(sScopeInfo, context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastServerSyncTimestamp,
                     remoteClientTimestamp, cScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, null, serverChangesSelected, null, null);
+                var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, null, serverChangesSelected, null);
 
                 return serverSyncChanges;
             }

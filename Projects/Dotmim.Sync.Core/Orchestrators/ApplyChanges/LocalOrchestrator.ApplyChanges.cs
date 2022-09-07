@@ -138,7 +138,6 @@ namespace Dotmim.Sync
                     await runner.CommitAsync().ConfigureAwait(false);
 
                 clientSyncChanges.ClientChangesApplied = clientChangesApplied;
-                clientSyncChanges.ErrorsBatchInfo = errorsBatchInfo;
 
                 return (context, clientSyncChanges, cScopeInfoClient);
             }

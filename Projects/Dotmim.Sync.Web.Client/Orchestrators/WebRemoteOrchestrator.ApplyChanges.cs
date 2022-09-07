@@ -22,8 +22,8 @@ namespace Dotmim.Sync.Web.Client
         /// Apply changes
         /// </summary>
         internal override async Task<(SyncContext context, ServerSyncChanges serverSyncChanges, ConflictResolutionPolicy serverResolutionPolicy)>
-            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo,
-            SyncContext context, ClientSyncChanges clientChanges, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, ClientSyncChanges clientChanges, 
+            DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -90,8 +90,12 @@ namespace Dotmim.Sync.Web.Client
                 }
                 foreach (var bpi in clientChanges.ClientBatchInfo.BatchPartsInfo.OrderBy(bpi => bpi.Index))
                 {
+                    // Backward compatibility
+                    var batchPartInfoTableName = bpi.Tables != null && bpi.Tables.Length >= 1 ? bpi.Tables[0].TableName : bpi.TableName;
+                    var batchPartInfoSchemaName = bpi.Tables != null && bpi.Tables.Length >= 1 ? bpi.Tables[0].SchemaName : bpi.SchemaName;
+
                     // Get the updatable schema for the only table contained in the batchpartinfo
-                    var schemaTable = CreateChangesTable(schema.Tables[bpi.Tables[0].TableName, bpi.Tables[0].SchemaName]);
+                    var schemaTable = CreateChangesTable(schema.Tables[batchPartInfoTableName, batchPartInfoSchemaName]);
 
                     // Generate the ContainerSet containing rows to send to the user
                     var containerSet = new ContainerSet();
@@ -293,9 +297,7 @@ namespace Dotmim.Sync.Web.Client
                 summaryResponseContent.RemoteClientTimestamp,
                 serverBatchInfo,
                 summaryResponseContent.ServerChangesSelected,
-                summaryResponseContent.ClientChangesApplied, 
-                null
-                );
+                summaryResponseContent.ClientChangesApplied);
 
 
             return (context, serverSyncChanges, summaryResponseContent.ConflictResolutionPolicy);

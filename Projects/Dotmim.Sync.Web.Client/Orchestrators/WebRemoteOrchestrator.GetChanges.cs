@@ -142,7 +142,7 @@ namespace Dotmim.Sync.Web.Client
             // Reaffect context
             context = summaryResponseContent.SyncContext;
 
-            return new ServerSyncChanges(summaryResponseContent.RemoteClientTimestamp, serverBatchInfo, summaryResponseContent.ServerChangesSelected, null, null);
+            return new ServerSyncChanges(summaryResponseContent.RemoteClientTimestamp, serverBatchInfo, summaryResponseContent.ServerChangesSelected, null);
         }
 
 
@@ -196,10 +196,10 @@ namespace Dotmim.Sync.Web.Client
             if (summaryResponseContent == null)
                 throw new Exception("Summary can't be null");
 
-            // generate the new scope item
+            // generate the new scope ite
             this.CompleteTime = DateTime.UtcNow;
 
-            return new(summaryResponseContent.RemoteClientTimestamp, null, summaryResponseContent.ServerChangesSelected, null, null);
+            return new(summaryResponseContent.RemoteClientTimestamp, null, summaryResponseContent.ServerChangesSelected, null);
         }
 
 

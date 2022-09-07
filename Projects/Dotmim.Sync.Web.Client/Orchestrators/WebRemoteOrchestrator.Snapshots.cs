@@ -29,9 +29,6 @@ namespace Dotmim.Sync.Web.Client
             var batchDirectoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
             var batchDirectoryFullPath = Path.Combine(batchDirectoryRoot, batchDirectoryName);
 
-            if (!Directory.Exists(batchDirectoryFullPath))
-                Directory.CreateDirectory(batchDirectoryFullPath);
-
             // Create the BatchInfo serialized (forced because in a snapshot call, so we are obviously serialized on disk)
             string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_SNAPSHOTGETCHANGES" : "SNAPSHOTGETCHANGES";
             var serverBatchInfo = new BatchInfo(batchDirectoryRoot, batchDirectoryName, info: info);
@@ -40,9 +37,9 @@ namespace Dotmim.Sync.Web.Client
             var changesToSend = new HttpMessageSendChangesRequest(context, null);
             var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
             var binaryData = await serializer.SerializeAsync(changesToSend);
-            
+
             var response0 = await this.httpRequestHandler.ProcessRequestAsync(
-              this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.GetSummary, 
+              this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.GetSummary,
               this.SerializerFactory, this.Converter, 0, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
 
             HttpMessageSummaryResponse summaryResponseContent = null;
@@ -71,7 +68,7 @@ namespace Dotmim.Sync.Web.Client
 
             // no snapshot
             if ((serverBatchInfo.BatchPartsInfo == null || serverBatchInfo.BatchPartsInfo.Count <= 0) && serverBatchInfo.RowsCount <= 0)
-                return (context, new ServerSyncChanges(0, null, new DatabaseChangesSelected(), null, null));
+                return (context, new ServerSyncChanges(0, null, new DatabaseChangesSelected(), null));
 
             // If we have a snapshot we are raising the batches downloading process that will occurs
             await this.InterceptAsync(new HttpBatchesDownloadingArgs(context, serverBatchInfo, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
@@ -115,13 +112,15 @@ namespace Dotmim.Sync.Web.Client
                         var fullPath = Path.Combine(batchDirectoryFullPath, bpi.FileName);
 
                         // open the file and write table header
-                        await localSerializer.OpenFileAsync(fullPath, schemaTable).ConfigureAwait(false);
+                        if (!localSerializer.IsOpen)
+                            await localSerializer.OpenFileAsync(fullPath, schemaTable).ConfigureAwait(false);
 
                         foreach (var row in table.Rows)
                             await localSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable).ConfigureAwait(false);
 
                         // Close file
-                        await localSerializer.CloseFileAsync().ConfigureAwait(false);
+                        if (localSerializer.IsOpen)
+                            await localSerializer.CloseFileAsync().ConfigureAwait(false);
                     }
 
                 }
@@ -138,7 +137,7 @@ namespace Dotmim.Sync.Web.Client
 
             await this.InterceptAsync(new HttpBatchesDownloadedArgs(summaryResponseContent, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
-            return (context, new ServerSyncChanges(summaryResponseContent.RemoteClientTimestamp, serverBatchInfo, summaryResponseContent.ServerChangesSelected, null, null));
+            return (context, new ServerSyncChanges(summaryResponseContent.RemoteClientTimestamp, serverBatchInfo, summaryResponseContent.ServerChangesSelected, null));
         }
 
     }
