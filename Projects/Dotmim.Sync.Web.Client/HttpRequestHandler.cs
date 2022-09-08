@@ -243,6 +243,11 @@ namespace Dotmim.Sync.Web.Client
                         }
 
                     }
+                    else
+                    {
+                        syncException = new HttpSyncWebException(response.ReasonPhrase);
+
+                    }
 
                 }
 
