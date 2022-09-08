@@ -75,7 +75,7 @@ namespace Dotmim.Sync
         /// Deprovision a client database:
         /// <code>
         /// var localOrchestrator = new LocalOrchestrator(clientProvider);
-        /// await agent.LocalOrchestrator.DeprovisionAsync();
+        /// await localOrchestrator.DeprovisionAsync();
         /// </code>
         /// </example>
         /// </summary>
@@ -122,13 +122,28 @@ namespace Dotmim.Sync
             }
         }
 
-
-
+        /// <inheritdoc cref="DeprovisionAsync(string, SyncSetup, SyncProvision)" />
         public virtual Task<bool> DeprovisionAsync(SyncSetup setup, SyncProvision provision = default) => DeprovisionAsync(SyncOptions.DefaultScopeName, setup, provision);
 
         /// <summary>
-        /// Deprovision the remote database. Schema tables are retrieved through setup in parameter.
+        /// Deprovision your client datasource.
+        /// <example>
+        /// Deprovision a client database:
+        /// <code>
+        /// var localOrchestrator = new LocalOrchestrator(clientProvider);
+        /// var setup = new SyncSetup("ProductCategory", "Product");
+        /// await localOrchestrator.DeprovisionAsync(setup);
+        /// </code>
+        /// </example>
         /// </summary>
+        /// <remarks>
+        /// By default, <strong>DMS</strong> will never deprovision a table, if not explicitly set with the <c>provision</c> argument. <strong>scope_info</strong> and <strong>scope_info_client</strong> tables
+        /// are not deprovisioned by default to preserve existing configurations
+        /// </remarks>
+        /// <param name="scopeName">scopeName. If not defined, SyncOptions.DefaultScopeName is used</param>
+        /// <param name="setup">Setup containing tables to deprovision</param>
+        /// <param name="provision">If you do not specify <c>provision</c>, a default value <c>SyncProvision.StoredProcedures | SyncProvision.Triggers</c> is used.</param>
+        /// <returns></returns>
         public virtual async Task<bool> DeprovisionAsync(string scopeName, SyncSetup setup, SyncProvision provision = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -160,7 +175,14 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Drop everything related to DMS
+        /// Drop everything related to DMS. Tracking tables, triggers, tracking tables, sync_scope and sync_scope_client tables
+        /// <example>
+        /// Deprovision a client database:
+        /// <code>
+        /// var localOrchestrator = new LocalOrchestrator(clientProvider);
+        /// await localOrchestrator.DropAllAsync();
+        /// </code>
+        /// </example>
         /// </summary>
         public virtual async Task DropAllAsync()
         {

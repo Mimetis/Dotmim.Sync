@@ -21,7 +21,13 @@ namespace Dotmim.Sync
 
         /// <summary>
         /// Get the last timestamp from the orchestrator database
-        /// </summary>
+        /// <example>
+        /// Example:
+        /// <code>
+        ///  var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+        ///  var ts = await remoteOrchestrator.GetLocalTimestampAsync()
+        /// </code>
+        /// </example>        /// </summary>
         public async virtual Task<long> GetLocalTimestampAsync(string scopeName = SyncOptions.DefaultScopeName)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);

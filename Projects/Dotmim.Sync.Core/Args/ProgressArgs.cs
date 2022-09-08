@@ -45,6 +45,9 @@ namespace Dotmim.Sync
             this.ProgressLevel = SyncProgressLevel.Information;
         }
 
+        /// <summary>
+        /// Constructor
+        /// </summary>
         public ProgressArgs(SyncContext context, DbConnection connection)
         {
             this.Context = context;
@@ -79,6 +82,9 @@ namespace Dotmim.Sync
         /// </summary>
         public double ProgressPercentage => this.Context.ProgressPercentage;
 
+        /// <summary>
+        /// Gets the Message property if any
+        /// </summary>
         public override string ToString()
         {
             if (!string.IsNullOrEmpty(this.Message))

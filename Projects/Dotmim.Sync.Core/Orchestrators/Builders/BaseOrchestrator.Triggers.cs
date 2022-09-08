@@ -19,8 +19,20 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Create a trigger
+        /// Create a <strong>Trigger</strong> for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Employee", DbTriggerType.Insert);
+        /// </code>
+        /// </example>
         /// </summary>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines trigger generation (name, prefix, suffix...).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
+        /// <param name="triggerType">Trigger type to create</param>
+        /// <param name="overwrite">If specified the trigger is dropped, if exists, then created again.</param>
         public async Task<bool> CreateTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert, bool overwrite = false)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -70,8 +82,19 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Create a trigger
+        /// Create all <strong>Triggers</strong> for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.CreateTriggersAsync(scopeInfo, "Employee");
+        /// </code>
+        /// </example>
         /// </summary>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines trigger generation (name, prefix, suffix...).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
+        /// <param name="overwrite">If specified the triggers are dropped, if exists, then created again.</param>
         public async Task<bool> CreateTriggersAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -106,8 +129,19 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Check if a trigger exists
+        /// Check if a <strong>Trigger</strong>exists, for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.ExistTriggerAsync(scopeInfo, "Employee");
+        /// </code>
+        /// </example>
         /// </summary>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines trigger generation (name, prefix, suffix...).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
+        /// <param name="triggerType">Trigger type to check if exist</param>
         public async Task<bool> ExistTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -139,8 +173,19 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Dropping a trigger
+        /// Drop a <strong>Trigger</strong>, for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.DropTriggerAsync(scopeInfo, "Employee", null, DbTriggerType.Insert);
+        /// </code>
+        /// </example>
         /// </summary>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines trigger generation (name, prefix, suffix...).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
+        /// <param name="triggerType">Trigger type to drop</param>
         public async Task<bool> DropTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -181,8 +226,18 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Drop all triggers
+        /// Drop all <strong>Triggers</strong>, for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.DropTriggersAsync(scopeInfo, "Employee");
+        /// </code>
+        /// </example>
         /// </summary>
+        /// <param name="scopeInfo">ScopeInfo instance used to defines trigger generation (name, prefix, suffix...).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
         public async Task<bool> DropTriggersAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);

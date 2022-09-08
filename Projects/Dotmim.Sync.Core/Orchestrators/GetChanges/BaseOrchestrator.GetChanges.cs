@@ -518,8 +518,8 @@ namespace Dotmim.Sync
         internal void InternalSetSelectChangesCommonParameters(SyncContext context, SyncTable syncTable, Guid? excludingScopeId, bool isNew, long? lastTimestamp, DbCommand selectIncrementalChangesCommand)
         {
             // Set the parameters
-            SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
-            SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? excludingScopeId.Value : DBNull.Value);
+            InternalSetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
+            InternalSetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? excludingScopeId.Value : DBNull.Value);
 
             // Check filters
             SyncFilter tableFilter = null;
@@ -543,7 +543,7 @@ namespace Dotmim.Sync
 
                 object val = parameter?.Value;
 
-                SetParameterValue(selectIncrementalChangesCommand, filterParam.Name, val);
+                InternalSetParameterValue(selectIncrementalChangesCommand, filterParam.Name, val);
             }
 
         }
@@ -619,8 +619,6 @@ namespace Dotmim.Sync
             batchInfo.EnsureLastBatch();
 
         }
-
-
 
     }
 }

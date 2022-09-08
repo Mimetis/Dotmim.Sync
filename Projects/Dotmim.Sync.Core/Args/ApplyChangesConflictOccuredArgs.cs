@@ -73,8 +73,14 @@ namespace Dotmim.Sync
 
             this.FinalRow = new SyncRow(schemaChangesTable.Clone(), finalRowArray);
         }
+
+        /// <inheritdoc />
         public override string Source => Connection.Database;
+
+        /// <inheritdoc />
         public override string Message => $"Conflict {conflictRow}.";
+
+        /// <inheritdoc />
         public override int EventId => SyncEventsId.ApplyChangesFailed.Id;
 
     }
@@ -87,6 +93,7 @@ namespace Dotmim.Sync
         /// </summary>
         public static Guid OnApplyChangesConflictOccured(this BaseOrchestrator orchestrator, Action<ApplyChangesConflictOccuredArgs> action)
             => orchestrator.AddInterceptor(action);
+        
         /// <summary>
         /// Intercept the provider when a conflict is happening
         /// </summary>

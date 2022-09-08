@@ -11,7 +11,7 @@ namespace Dotmim.Sync
 {
 
     /// <summary>
-    /// Argument used during ApplyChangesErrorOccured() interceptor. You need to provide a Resolution (<see cref="ErrorResolution" /> enumeration)
+    /// Argument used during OnApplyChangesErrorOccured() interceptor. You need to provide a Resolution (<see cref="ErrorResolution" /> enumeration)
     /// </summary>
     public class ApplyChangesErrorOccuredArgs : ProgressArgs
     {
@@ -80,6 +80,7 @@ namespace Dotmim.Sync
         /// </summary>
         public static Guid OnApplyChangesErrorOccured(this BaseOrchestrator orchestrator, Action<ApplyChangesErrorOccuredArgs> action)
             => orchestrator.AddInterceptor(action);
+        
         /// <summary>
         /// Intercept the provider when an apply change is failing
         /// </summary>

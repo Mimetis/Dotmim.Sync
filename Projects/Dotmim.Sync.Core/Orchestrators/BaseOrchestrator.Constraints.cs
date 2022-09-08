@@ -17,14 +17,13 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Reset a table, deleting rows from table and tracking_table
+        /// Reset a table, deleting all rows from table and tracking_table. This method is used when you want to Reinitialize your database
         /// </summary>
         public virtual Task<SyncContext> ResetTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             return ResetTableAsync(scopeInfo, context, tableName, schemaName);
         }
-
 
         /// <summary>
         /// Reset a table, deleting rows from table and tracking_table

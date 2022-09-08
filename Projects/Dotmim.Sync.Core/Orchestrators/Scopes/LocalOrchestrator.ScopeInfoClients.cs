@@ -18,7 +18,6 @@ namespace Dotmim.Sync
 {
     public partial class LocalOrchestrator : BaseOrchestrator
     {
-
         /// <summary>
         /// Get a Scope Info Client
         /// </summary>
@@ -36,7 +35,7 @@ namespace Dotmim.Sync
 
                 // Get scope if exists
                 ScopeInfoClient scopeInfoClient;
-                (context, scopeInfoClient) = await this.InternalEnsureScopeInfoClientAsync(context, 
+                (context, scopeInfoClient) = await this.InternalEnsureScopeInfoClientAsync(context,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -48,15 +47,12 @@ namespace Dotmim.Sync
                 throw GetSyncError(context, ex);
             }
         }
-
-
-
+        
         /// <summary>
         /// Get the client scope histories
         /// </summary>
-        internal virtual async Task<(SyncContext context, ScopeInfoClient cScopeInfoClient)>
-            InternalEnsureScopeInfoClientAsync(
-            SyncContext context, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal virtual async Task<(SyncContext context, ScopeInfoClient cScopeInfoClient)> InternalEnsureScopeInfoClientAsync(SyncContext context,
+            DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {

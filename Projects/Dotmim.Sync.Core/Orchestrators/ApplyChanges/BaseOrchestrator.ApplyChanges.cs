@@ -574,7 +574,7 @@ namespace Dotmim.Sync
                 rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead
-                var syncRowCountParam = GetParameter(command, "sync_row_count");
+                var syncRowCountParam = InternalGetParameter(command, "sync_row_count");
 
                 if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
                     rowAppliedCount = (int)syncRowCountParam.Value;

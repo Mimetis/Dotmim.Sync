@@ -20,45 +20,6 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Get a Scope Info Client
-        /// </summary>
-        public virtual async Task<ScopeInfoClient> GetScopeInfoClientAsync(Guid clientId, string scopeName = SyncOptions.DefaultScopeName, SyncParameters syncParameters = default)
-        {
-            // Create context
-            var context = new SyncContext(Guid.NewGuid(), scopeName)
-            {
-                ClientId = clientId,
-                Parameters = syncParameters
-            };
-
-            try
-            {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading).ConfigureAwait(false);
-
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, 
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, 
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                // Get scope if exists
-                ScopeInfoClient scopeInfoClient;
-                (context, scopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context, 
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return scopeInfoClient;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(context, ex);
-            }
-        }
-
-        /// <summary>
         /// Update or Insert a scope info client
         /// </summary>
         public virtual async Task<ScopeInfoClient> SaveScopeInfoClientAsync(ScopeInfoClient scopeInfoClient)
@@ -69,14 +30,14 @@ namespace Dotmim.Sync
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeWriting).ConfigureAwait(false);
 
                 bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, 
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-                
+
                 if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, 
+                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                (context, scopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(scopeInfoClient, context, 
+                (context, scopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(scopeInfoClient, context,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -131,9 +92,9 @@ namespace Dotmim.Sync
 
             if (existsCommand == null) return (context, false);
 
-            SetParameterValue(existsCommand, "sync_scope_name", context.ScopeName);
-            SetParameterValue(existsCommand, "sync_scope_id", context.ClientId);
-            SetParameterValue(existsCommand, "sync_scope_hash", context.Hash);
+            InternalSetParameterValue(existsCommand, "sync_scope_name", context.ScopeName);
+            InternalSetParameterValue(existsCommand, "sync_scope_id", context.ClientId);
+            InternalSetParameterValue(existsCommand, "sync_scope_hash", context.Hash);
 
             await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
@@ -154,9 +115,9 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, null);
 
-            SetParameterValue(command, "sync_scope_name", context.ScopeName);
-            SetParameterValue(command, "sync_scope_id", context.ClientId);
-            SetParameterValue(command, "sync_scope_hash", context.Hash);
+            InternalSetParameterValue(command, "sync_scope_name", context.ScopeName);
+            InternalSetParameterValue(command, "sync_scope_id", context.ClientId);
+            InternalSetParameterValue(command, "sync_scope_hash", context.Hash);
 
             await this.InterceptAsync(new ExecuteCommandArgs(context, command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
@@ -205,7 +166,7 @@ namespace Dotmim.Sync
 
             return (context, scopeInfoClients);
         }
-       
+
         /// <summary>
         /// Internal upsert scope info client
         /// </summary>
@@ -225,7 +186,7 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, null);
 
-            InternalSetSaveScopeInfoClientParameters(scopeInfoClient, command) ;
+            InternalSetSaveScopeInfoClientParameters(scopeInfoClient, command);
 
             //var action = new ScopeSavingArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeInfoClient, command, connection, transaction);
             //await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
@@ -269,16 +230,16 @@ namespace Dotmim.Sync
 
         private DbCommand InternalSetSaveScopeInfoClientParameters(ScopeInfoClient scopeInfoClient, DbCommand command)
         {
-            SetParameterValue(command, "sync_scope_id", scopeInfoClient.Id.ToString());
-            SetParameterValue(command, "sync_scope_name", scopeInfoClient.Name);
-            SetParameterValue(command, "sync_scope_hash", scopeInfoClient.Hash);
-            SetParameterValue(command, "scope_last_sync_timestamp", scopeInfoClient.LastSyncTimestamp);
-            SetParameterValue(command, "scope_last_server_sync_timestamp", scopeInfoClient.LastServerSyncTimestamp);
-            SetParameterValue(command, "scope_last_sync", scopeInfoClient.LastSync.HasValue ? (object)scopeInfoClient.LastSync.Value : DBNull.Value);
-            SetParameterValue(command, "scope_last_sync_duration", scopeInfoClient.LastSyncDuration);
-            SetParameterValue(command, "sync_scope_properties", scopeInfoClient.Properties);
-            SetParameterValue(command, "sync_scope_errors", scopeInfoClient.Errors);
-            SetParameterValue(command, "sync_scope_parameters", scopeInfoClient.Parameters != null ? JsonConvert.SerializeObject(scopeInfoClient.Parameters) : DBNull.Value);
+            InternalSetParameterValue(command, "sync_scope_id", scopeInfoClient.Id.ToString());
+            InternalSetParameterValue(command, "sync_scope_name", scopeInfoClient.Name);
+            InternalSetParameterValue(command, "sync_scope_hash", scopeInfoClient.Hash);
+            InternalSetParameterValue(command, "scope_last_sync_timestamp", scopeInfoClient.LastSyncTimestamp);
+            InternalSetParameterValue(command, "scope_last_server_sync_timestamp", scopeInfoClient.LastServerSyncTimestamp);
+            InternalSetParameterValue(command, "scope_last_sync", scopeInfoClient.LastSync.HasValue ? (object)scopeInfoClient.LastSync.Value : DBNull.Value);
+            InternalSetParameterValue(command, "scope_last_sync_duration", scopeInfoClient.LastSyncDuration);
+            InternalSetParameterValue(command, "sync_scope_properties", scopeInfoClient.Properties);
+            InternalSetParameterValue(command, "sync_scope_errors", scopeInfoClient.Errors);
+            InternalSetParameterValue(command, "sync_scope_parameters", scopeInfoClient.Parameters != null ? JsonConvert.SerializeObject(scopeInfoClient.Parameters) : DBNull.Value);
 
             return command;
         }

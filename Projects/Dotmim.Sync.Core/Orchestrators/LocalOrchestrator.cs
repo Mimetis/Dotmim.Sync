@@ -38,7 +38,7 @@ namespace Dotmim.Sync
     public partial class LocalOrchestrator : BaseOrchestrator
     {
         /// <summary>
-        /// Create a local orchestrator, used to orchestrates the whole sync on the client side
+        /// Create a local orchestrator, used to orchestrate the whole sync on the client side
         /// </summary>
         public LocalOrchestrator(CoreProvider provider, SyncOptions options) : base(provider, options)
         {
@@ -46,8 +46,9 @@ namespace Dotmim.Sync
                 throw GetSyncError(null, new MissingProviderException(nameof(LocalOrchestrator)));
 
         }
+        
         /// <summary>
-        /// Create a local orchestrator, used to orchestrates the whole sync on the client side
+        /// Create a local orchestrator, used to orchestrate the whole sync on the client side
         /// </summary>
         public LocalOrchestrator(CoreProvider provider) : base(provider, new SyncOptions())
         {
@@ -67,6 +68,20 @@ namespace Dotmim.Sync
             return InternalBeginSessionAsync(context, cancellationToken, progress);
         }
 
+        /// <summary>
+        /// Called when the sync is over
+        /// </summary>
+        public Task EndSessionAsync(SyncResult syncResult, string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            // Create a new context
+            var ctx = new SyncContext(Guid.NewGuid(), scopeName);
+
+            return InternalEndSessionAsync(ctx, syncResult, null, null, cancellationToken, progress);
+        }
+
+        /// <summary>
+        /// Called when a session is starting
+        /// </summary>
         internal async Task<SyncContext> InternalBeginSessionAsync(SyncContext context, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
             context.SyncStage = SyncStage.BeginSession;
@@ -83,18 +98,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Called when the sync is over
         /// </summary>
-        public Task EndSessionAsync(SyncResult syncResult, string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            // Create a new context
-            var ctx = new SyncContext(Guid.NewGuid(), scopeName);
-
-            return InternalEndSessionAsync(ctx, syncResult, null, null, cancellationToken, progress);
-        }
-
-        /// <summary>
-        /// Called when the sync is over
-        /// </summary>
-        public async Task<SyncContext> InternalEndSessionAsync(SyncContext context, SyncResult result, ClientSyncChanges clientSyncChanges, ServerSyncChanges serverSyncChanges, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal async Task<SyncContext> InternalEndSessionAsync(SyncContext context, SyncResult result, ClientSyncChanges clientSyncChanges, ServerSyncChanges serverSyncChanges, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             context.SyncStage = SyncStage.EndSession;
 

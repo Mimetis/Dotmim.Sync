@@ -4060,7 +4060,6 @@ namespace Dotmim.Sync.Tests
                 // be sure we are deleting ALL rows from tracking table
                 var dc = await agent.LocalOrchestrator.DeleteMetadatasAsync(ts + 1);
 
-
                 // checking if there is no rows in tracking table for address
                 var connection = client.Provider.CreateConnection();
                 var command = connection.CreateCommand();

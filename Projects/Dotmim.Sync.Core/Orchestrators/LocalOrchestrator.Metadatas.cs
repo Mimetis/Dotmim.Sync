@@ -21,7 +21,13 @@ namespace Dotmim.Sync
     public partial class LocalOrchestrator : BaseOrchestrator
     {
         /// <summary>
-        /// Delete all metadatas from tracking tables, based on min timestamp from scope info table
+        /// Delete all metadatas from tracking tables, based on min timestamp from scope info client table
+        /// <example>
+        /// <code>
+        /// var localOrchestrator = new LocalOrchestrator(clientProvider);
+        /// await localOrchestrator.DeleteMetadatasAsync();
+        /// </code>
+        /// </example>
         /// </summary>
         public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync()
         {
@@ -75,6 +81,15 @@ namespace Dotmim.Sync
         }
 
 
+        /// <summary>
+        /// Delete all metadatas from tracking tables, based on min timestamp
+        /// <example>
+        /// <code>
+        /// var localOrchestrator = new LocalOrchestrator(clientProvider);
+        /// await localOrchestrator.DeleteMetadatasAsync();
+        /// </code>
+        /// </example>
+        /// </summary>
         public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long? timeStampStart = default)
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);

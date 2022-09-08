@@ -61,7 +61,7 @@ namespace Dotmim.Sync
                     if (command != null)
                     {
                         // Set the special parameters for delete metadata
-                        SetParameterValue(command, "sync_row_timestamp", timestampLimit);
+                        InternalSetParameterValue(command, "sync_row_timestamp", timestampLimit);
 
                         await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DeleteMetadata, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
@@ -84,7 +84,7 @@ namespace Dotmim.Sync
                         }
 
                         // Check if we have a return value instead
-                        var syncRowCountParam = GetParameter(command, "sync_row_count");
+                        var syncRowCountParam = InternalGetParameter(command, "sync_row_count");
 
                         if (syncRowCountParam != null)
                             rowsCleanedCount = (int)syncRowCountParam.Value;
@@ -149,7 +149,7 @@ namespace Dotmim.Sync
                 metadataUpdatedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead
-                var syncRowCountParam = GetParameter(command, "sync_row_count");
+                var syncRowCountParam = InternalGetParameter(command, "sync_row_count");
 
                 if (syncRowCountParam != null)
                     metadataUpdatedRowsCount = (int)syncRowCountParam.Value;

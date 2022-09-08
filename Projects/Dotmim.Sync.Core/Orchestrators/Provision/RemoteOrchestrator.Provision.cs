@@ -21,12 +21,11 @@ namespace Dotmim.Sync
     {
 
 
+        /// <inheritdoc cref="ProvisionAsync(string, SyncSetup, SyncProvision, bool)"/>
         public virtual Task<ScopeInfo> ProvisionAsync(SyncProvision provision = default, bool overwrite = false)
             => ProvisionAsync(SyncOptions.DefaultScopeName, provision, overwrite);
 
-        /// <summary>
-        /// Provision the remote database 
-        /// </summary>
+        /// <inheritdoc cref="ProvisionAsync(string, SyncSetup, SyncProvision, bool)"/>
         public virtual Task<ScopeInfo> ProvisionAsync(string scopeName, SyncProvision provision = default, bool overwrite = false)
         {
             if (provision == SyncProvision.NotSet)
@@ -35,14 +34,35 @@ namespace Dotmim.Sync
             return this.ProvisionAsync(scopeName, null, provision, overwrite);
         }
 
-
+        /// <inheritdoc cref="ProvisionAsync(string, SyncSetup, SyncProvision, bool)"/>
         public virtual Task<ScopeInfo> ProvisionAsync(SyncSetup setup, SyncProvision provision = default, bool overwrite = false)
             => ProvisionAsync(SyncOptions.DefaultScopeName, setup, provision, overwrite);
 
-
         /// <summary>
-        /// Provision the remote database based on the Setup parameter, and the provision enumeration
+        /// Provision a server datasource (<strong>triggers</strong>, <strong>stored procedures</strong> (if supported) and <strong>tracking tables</strong> if needed. Create also <strong>scope_info</strong> and <strong>scope_info_client</strong> tables.
+        /// <para>
+        /// The <paramref name="provision" /> argument specify the objects to provision. See <see cref="SyncProvision" /> enumeration.
+        /// </para>
+        /// <para>
+        /// If The <paramref name="setup" /> argument is not specified, setup is retrieved from the scope_info table. Means that you have done a provision before.
+        /// </para>
+        /// <para>
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+        /// var setup = new SyncSetup("ProductCategory", "Product");
+        /// var sScopeInfo = await localOrchestrator.ProvisionAsync(setup);
+        /// </code>
+        /// </example>
+        /// </para>
         /// </summary>
+        /// <param name="scopeName">Scope name</param>
+        /// <param name="setup">Setup containing all tables to provision on the server side</param>
+        /// <param name="provision">If you do not specify <c>provision</c>, a default value <c>SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable</c> is used.</param>
+        /// <param name="overwrite">If specified, all metadatas are generated and overwritten even if they already exists</param>
+        /// <returns>
+        /// A <see cref="ScopeInfo"/> instance, saved locally in the server datasource.
+        /// </returns> 
         public virtual async Task<ScopeInfo> ProvisionAsync(string scopeName, SyncSetup setup = null, SyncProvision provision = default, bool overwrite = false)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -74,6 +94,30 @@ namespace Dotmim.Sync
             }
         }
 
+        /// <summary>
+        /// Provision a server datasource (<strong>triggers</strong>, <strong>stored procedures</strong> (if supported) and <strong>tracking tables</strong> if needed. Create also <strong>scope_info</strong> and <strong>scope_info_client</strong> tables.
+        /// <para>
+        /// The <paramref name="provision" /> argument specify the objects to provision. See <see cref="SyncProvision" /> enumeration.
+        /// </para>
+        /// <para>
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+        /// var serverScope = await remoteOrchestrator.GetScopeInfoAsync();
+        /// var schema = await remoteOrchestrator.GetSchemaAsync(setup);
+        /// serverScope.Schema = schema;
+        /// serverScope.Setup = setup;
+        /// var sScopeInfo = await localOrchestrator.ProvisionAsync(serverScope);
+        /// </code>
+        /// </example>
+        /// </para>
+        /// </summary>
+        /// <param name="serverScopeInfo"><see cref="ScopeInfo"/> instance to provision on server side</param>
+        /// <param name="provision">If you do not specify <c>provision</c>, a default value <c>SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable</c> is used.</param>
+        /// <param name="overwrite">If specified, all metadatas are generated and overwritten even if they already exists</param>
+        /// <returns>
+        /// A <see cref="ScopeInfo"/> instance, saved locally in the server datasource.
+        /// </returns> 
         public virtual async Task<ScopeInfo> ProvisionAsync(ScopeInfo serverScopeInfo, SyncProvision provision = default, bool overwrite = false)
         {
             var context = new SyncContext(Guid.NewGuid(), serverScopeInfo.Name);
@@ -90,13 +134,24 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Deprovision the remote database. Schema tables are retrieved through the default scope.
+        /// Deprovision your server datasource.
+        /// <example>
+        /// Deprovision a server database:
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+        /// await remoteOrchestrator.DeprovisionAsync();
+        /// </code>
+        /// </example>
         /// </summary>
+        /// <remarks>
+        /// By default, <strong>DMS</strong> will never deprovision a table, if not explicitly set with the <c>provision</c> argument. <strong>scope_info</strong> and <strong>scope_info_client</strong> tables
+        /// are not deprovisioned by default to preserve existing configurations
+        /// </remarks>
+        /// <param name="provision">If you do not specify <c>provision</c>, a default value <c>SyncProvision.StoredProcedures | SyncProvision.Triggers</c> is used.</param>
+        /// <returns></returns>
         public virtual Task<bool> DeprovisionAsync(SyncProvision provision = default) => DeprovisionAsync(SyncOptions.DefaultScopeName, provision);
 
-        /// <summary>
-        /// Deprovision the remote database. Schema tables are retrieved through scope name.
-        /// </summary>
+        /// <inheritdoc cref="DeprovisionAsync(SyncProvision)"/>
         public virtual async Task<bool> DeprovisionAsync(string scopeName, SyncProvision provision = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -130,12 +185,28 @@ namespace Dotmim.Sync
 
         }
 
-        public virtual Task<bool> DeprovisionAsync(SyncSetup setup, SyncProvision provision = default) 
-            => DeprovisionAsync(SyncOptions.DefaultScopeName, setup, provision);
+        /// <inheritdoc cref="DeprovisionAsync(string, SyncSetup, SyncProvision)"/>
+        public virtual Task<bool> DeprovisionAsync(SyncSetup setup, SyncProvision provision = default)  => DeprovisionAsync(SyncOptions.DefaultScopeName, setup, provision);
 
         /// <summary>
-        /// Deprovision the remote database. Schema tables are retrieved through setup in parameter.
+        /// Deprovision your client datasource.
+        /// <example>
+        /// Deprovision a client database:
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+        /// var setup = new SyncSetup("ProductCategory", "Product");
+        /// await remoteOrchestrator.DeprovisionAsync(setup);
+        /// </code>
+        /// </example>
         /// </summary>
+        /// <remarks>
+        /// By default, <strong>DMS</strong> will never deprovision a table, if not explicitly set with the <c>provision</c> argument. <strong>scope_info</strong> and <strong>scope_info_client</strong> tables
+        /// are not deprovisioned by default to preserve existing configurations
+        /// </remarks>
+        /// <param name="scopeName">scopeName. If not defined, SyncOptions.DefaultScopeName is used</param>
+        /// <param name="setup">Setup containing tables to deprovision</param>
+        /// <param name="provision">If you do not specify <c>provision</c>, a default value <c>SyncProvision.StoredProcedures | SyncProvision.Triggers</c> is used.</param>
+        /// <returns></returns>
         public virtual async Task<bool> DeprovisionAsync(string scopeName, SyncSetup setup, SyncProvision provision = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -168,7 +239,14 @@ namespace Dotmim.Sync
 
 
         /// <summary>
-        /// Drop everything related to DMS
+        /// Drop everything related to DMS. Tracking tables, triggers, tracking tables, sync_scope and sync_scope_client tables
+        /// <example>
+        /// Deprovision a server database:
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+        /// await remoteOrchestrator.DropAllAsync();
+        /// </code>
+        /// </example>
         /// </summary>
         public virtual async Task DropAllAsync()
         {

@@ -106,14 +106,14 @@ namespace Dotmim.Sync
                     if (column != null)
                     {
                         object value = row[column] ?? DBNull.Value;
-                        SetParameterValue(command, parameter.ParameterName, value);
+                        InternalSetParameterValue(command, parameter.ParameterName, value);
                     }
                 }
 
             }
 
             // return value
-            var syncRowCountParam = GetParameter(command, "sync_row_count");
+            var syncRowCountParam = InternalGetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
             {
@@ -129,19 +129,16 @@ namespace Dotmim.Sync
         internal void AddScopeParametersValues(DbCommand command, Guid? id, long? lastTimestamp, bool isDeleted, bool forceWrite)
         {
             // Dotmim.Sync parameters
-            SetParameterValue(command, "sync_force_write", forceWrite ? 1 : 0);
-            SetParameterValue(command, "sync_min_timestamp", lastTimestamp.HasValue ? (object)lastTimestamp.Value : DBNull.Value);
-            SetParameterValue(command, "sync_scope_id", id.HasValue ? (object)id.Value : DBNull.Value);
-            SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
+            InternalSetParameterValue(command, "sync_force_write", forceWrite ? 1 : 0);
+            InternalSetParameterValue(command, "sync_min_timestamp", lastTimestamp.HasValue ? (object)lastTimestamp.Value : DBNull.Value);
+            InternalSetParameterValue(command, "sync_scope_id", id.HasValue ? (object)id.Value : DBNull.Value);
+            InternalSetParameterValue(command, "sync_row_is_tombstone", isDeleted);
         }
-
 
         /// <summary>
         /// Remove a Command from internal shared dictionary
         /// </summary>
         internal void RemoveCommands() => PreparedCommands.Clear();
-
-
 
         /// <summary>
         /// Create a change table with scope columns and tombstone column
@@ -176,11 +173,10 @@ namespace Dotmim.Sync
             return changesTable;
         }
 
-
         /// <summary>
         /// Get a parameter even if it's a @param or :param or param
         /// </summary>
-        public static DbParameter GetParameter(DbCommand command, string parameterName)
+        internal static DbParameter InternalGetParameter(DbCommand command, string parameterName)
         {
             if (command == null)
                 return null;
@@ -203,9 +199,9 @@ namespace Dotmim.Sync
         /// <summary>
         /// Set a parameter value
         /// </summary>
-        public static void SetParameterValue(DbCommand command, string parameterName, object value)
+        internal static void InternalSetParameterValue(DbCommand command, string parameterName, object value)
         {
-            var parameter = GetParameter(command, parameterName);
+            var parameter = InternalGetParameter(command, parameterName);
             if (parameter == null)
                 return;
 
@@ -213,8 +209,6 @@ namespace Dotmim.Sync
                 parameter.Value = DBNull.Value;
             else
                 parameter.Value = SyncTypeConverter.TryConvertFromDbType(value, parameter.DbType);
-
-
         }
 
         /// <summary>
@@ -247,7 +241,5 @@ namespace Dotmim.Sync
             long.TryParse(stringBuilder.ToString(), NumberStyles.HexNumber, CultureInfo.InvariantCulture.NumberFormat, out timestamp);
             return timestamp;
         }
-
-
     }
 }
