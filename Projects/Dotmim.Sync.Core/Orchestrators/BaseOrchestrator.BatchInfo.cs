@@ -90,7 +90,7 @@ namespace Dotmim.Sync
                 batchInfos.Add(batchInfo);
             }
 
-            return batchInfos.Count > 0 ? batchInfos : null;
+            return batchInfos;
         }
 
 
@@ -165,7 +165,7 @@ namespace Dotmim.Sync
                     continue;
 
                 foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, table))
-                    if (!syncRowState.HasValue || syncRowState == default || syncRow.RowState == syncRowState)
+                    if (!syncRowState.HasValue || syncRowState == default || (syncRowState.HasValue && syncRowState.Value.HasFlag(syncRow.RowState)))
                         table.Rows.Add(syncRow);
             }
             return table;

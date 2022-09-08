@@ -106,7 +106,7 @@ namespace Dotmim.Sync
                     if (column != null)
                     {
                         object value = row[column] ?? DBNull.Value;
-                        InternalSetParameterValue(command, parameter.ParameterName, value);
+                        SetParameterValue(command, parameter.ParameterName, value);
                     }
                 }
 
@@ -129,10 +129,10 @@ namespace Dotmim.Sync
         internal void AddScopeParametersValues(DbCommand command, Guid? id, long? lastTimestamp, bool isDeleted, bool forceWrite)
         {
             // Dotmim.Sync parameters
-            InternalSetParameterValue(command, "sync_force_write", forceWrite ? 1 : 0);
-            InternalSetParameterValue(command, "sync_min_timestamp", lastTimestamp.HasValue ? (object)lastTimestamp.Value : DBNull.Value);
-            InternalSetParameterValue(command, "sync_scope_id", id.HasValue ? (object)id.Value : DBNull.Value);
-            InternalSetParameterValue(command, "sync_row_is_tombstone", isDeleted);
+            SetParameterValue(command, "sync_force_write", forceWrite ? 1 : 0);
+            SetParameterValue(command, "sync_min_timestamp", lastTimestamp.HasValue ? (object)lastTimestamp.Value : DBNull.Value);
+            SetParameterValue(command, "sync_scope_id", id.HasValue ? (object)id.Value : DBNull.Value);
+            SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
         }
 
         /// <summary>
@@ -197,9 +197,20 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Set a parameter value
+        /// Gets a parameter from a DbCommand, and set the parameter value. If neededn, can convert the value to the parameter type.
+        /// <example>
+        /// <para>
+        /// The parameterName argument is searching for specific character, depending on the provider ("@", ":" or "in_")
+        /// </para>
+        /// <code>
+        /// var command = connection.CreateCommand();
+        /// command.CommandText = "SELECT * FROM MyTable WHERE Id = @id";
+        /// command.Parameters.Add("id", DbType.Int32);
+        /// SetParameterValue(command, "id", 12);
+        /// </code>
+        /// </example>
         /// </summary>
-        internal static void InternalSetParameterValue(DbCommand command, string parameterName, object value)
+        public static void SetParameterValue(DbCommand command, string parameterName, object value)
         {
             var parameter = InternalGetParameter(command, parameterName);
             if (parameter == null)

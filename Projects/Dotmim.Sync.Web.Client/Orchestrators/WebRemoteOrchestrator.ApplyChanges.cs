@@ -302,9 +302,5 @@ namespace Dotmim.Sync.Web.Client
 
             return (context, serverSyncChanges, summaryResponseContent.ConflictResolutionPolicy);
         }
-
-
-
-
     }
 }

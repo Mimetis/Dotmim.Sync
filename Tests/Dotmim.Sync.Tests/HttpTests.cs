@@ -1440,12 +1440,24 @@ namespace Dotmim.Sync.Tests
                 {
                     var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
 
+                    webServerAgent.OnHttpGettingRequest(args =>
+                    {
+                        var cScopeInfoClientId = args.HttpContext.GetClientScopeId();
+                        var cScopeInfoClientSessionId = args.HttpContext.GetClientSessionId();
+                        var cStep = args.HttpContext.GetCurrentStep();
+
+                        Debug.WriteLine($"RECEIVE Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
+
+
+                    });
+
                     webServerAgent.OnHttpSendingResponse(async args =>
                     {
                         // SendChangesInProgress is occuring when server is receiving data from client
                         // We are droping session on the second batch
                         if (args.HttpStep == HttpStep.SendChangesInProgress && batchIndex == 1)
                         {
+                            Debug.WriteLine($"DROPING Session Id {args.HttpContext.Session.Id} on batch {batchIndex}.");
                             args.HttpContext.Session.Clear();
                             await args.HttpContext.Session.CommitAsync();
                         }
@@ -1460,8 +1472,26 @@ namespace Dotmim.Sync.Tests
 
                 var serviceUri = this.Kestrell.Run(serverHandler);
 
-
                 var orch = new WebRemoteOrchestrator(serviceUri);
+
+                orch.OnHttpPolicyRetrying(args => Debug.WriteLine(args.Message));
+                orch.OnHttpSendingRequest(args =>
+                {
+                    var cScopeInfoClientId = "";
+                    var cScopeInfoClientSessionId = "";
+                    var cStep = "";
+                    if (args.Request.Headers.TryGetValues("dotmim-sync-scope-id", out var scopeIds))
+                        cScopeInfoClientId = scopeIds.ToList()[0];
+
+                    if (args.Request.Headers.TryGetValues("dotmim-sync-session-id", out var sessionIds))
+                        cScopeInfoClientSessionId = sessionIds.ToList()[0];
+
+                    if (args.Request.Headers.TryGetValues("dotmim-sync-step", out var steps))
+                        cStep = steps.ToList()[0];
+                    
+                    Debug.WriteLine($"SEND    Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
+                });
+
                 var agent = new SyncAgent(client.Provider, orch, options);
 
                 var ex = await Assert.ThrowsAsync<HttpSyncWebException>(() => agent.SynchronizeAsync());
@@ -1485,6 +1515,7 @@ namespace Dotmim.Sync.Tests
                 // Act 2: Ensure client can recover
                 var agent2 = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
+               
                 var s2 = await agent2.SynchronizeAsync();
 
                 Assert.Equal(rowsToSend, s2.TotalChangesUploadedToServer);

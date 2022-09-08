@@ -136,7 +136,6 @@ namespace Dotmim.Sync.Web.Server
                 // load session
                 await httpContext.Session.LoadAsync(cancellationToken);
 
-                Debug.WriteLine($"sessionId:{sessionId} / {step}");
                 // Get schema and clients batch infos / summaries, from session
                 var schema = httpContext.Session.Get<SyncSet>(scopeName);
                 var sessionCache = httpContext.Session.Get<SessionCache>(sessionId);
@@ -155,13 +154,13 @@ namespace Dotmim.Sync.Web.Server
                 // if sessionCache is still null, then we are in a step where it should not be null.
                 // Probably because of a weird server restart or something...
                 if (sessionCache == null)
-                    throw new HttpSessionLostException();
+                    throw new HttpSessionLostException(sessionId);
 
                 // check session id
                 var tempSessionId = httpContext.Session.GetString("session_id");
 
                 if (string.IsNullOrEmpty(tempSessionId) || tempSessionId != sessionId)
-                    throw new HttpSessionLostException();
+                    throw new HttpSessionLostException(sessionId);
 
 
                 //// action from user if available

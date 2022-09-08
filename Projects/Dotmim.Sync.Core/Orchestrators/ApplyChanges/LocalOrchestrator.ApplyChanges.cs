@@ -47,7 +47,7 @@ namespace Dotmim.Sync
 
                 // Create the message containing everything needed to apply changes
                 var applyChanges = new MessageApplyChanges(cScopeInfoClient.Id, Guid.Empty, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp,
-                    cScopeInfo.Schema, policy, snapshotApplied, this.Options.BatchDirectory, serverBatchInfo, errorsBatchInfo, clientChangesApplied, true);
+                    cScopeInfo.Schema, policy, snapshotApplied, this.Options.BatchDirectory, serverBatchInfo, errorsBatchInfo, clientChangesApplied);
 
                 context.SyncWay = SyncWay.Download;
 
@@ -74,7 +74,7 @@ namespace Dotmim.Sync
                     if (retryErrorsBatchInfo != null)
                     {
                         var retryErrorsApplyChanges = new MessageApplyChanges(cScopeInfoClient.Id, Guid.Empty, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp,
-                            cScopeInfo.Schema, policy, snapshotApplied, this.Options.BatchDirectory, retryErrorsBatchInfo, errorsBatchInfo, clientChangesApplied, false);
+                            cScopeInfo.Schema, policy, snapshotApplied, this.Options.BatchDirectory, retryErrorsBatchInfo, errorsBatchInfo, clientChangesApplied);
                         // Call apply errors on provider
                         context = await this.InternalApplyChangesAsync(cScopeInfo, context, retryErrorsApplyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     }

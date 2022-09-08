@@ -109,7 +109,7 @@ namespace Dotmim.Sync
                 }
 
                 // if we set option to clean folder && message allows to clean (it won't allow to clean if batch is an error batch)
-                if (this.Options.CleanFolder && message.CanCleanFolder)
+                if (this.Options.CleanFolder)
                 {
                     // Before cleaning, check if we are not applying changes from a snapshotdirectory
                     var cleanFolder = await this.InternalCanCleanFolderAsync(scopeInfo.Name, context.Parameters, message.Changes, cancellationToken, progress).ConfigureAwait(false);
@@ -288,6 +288,8 @@ namespace Dotmim.Sync
                                 batchRows.Add(syncRow);
                             else if (applyType == SyncRowState.Deleted && (syncRow.RowState == SyncRowState.RetryDeletedOnNextSync || syncRow.RowState == SyncRowState.Deleted))
                                 batchRows.Add(syncRow);
+                            else if (syncRow.RowState == SyncRowState.ApplyModifiedFailed || syncRow.RowState == SyncRowState.ApplyDeletedFailed)
+                                errorsRows.Add((syncRow, new Exception("Row failed to be applied on last sync")));
 
                             if (rowsFetched < batchPartInfo.RowsCount && batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
                                 continue;
@@ -328,6 +330,12 @@ namespace Dotmim.Sync
 
                             foreach (var batchRow in batchRows)
                             {
+                                if (batchRow.RowState == SyncRowState.ApplyModifiedFailed || batchRow.RowState == SyncRowState.ApplyDeletedFailed)
+                                {
+                                    errorsRows.Add((batchRow, new Exception("Row failed to be applied on last sync")));
+                                    continue;
+                                }
+
                                 if (applyType == SyncRowState.Modified && batchRow.RowState != SyncRowState.RetryModifiedOnNextSync && batchRow.RowState != SyncRowState.Modified)
                                     continue;
 
@@ -359,6 +367,13 @@ namespace Dotmim.Sync
                 {
                     foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
                     {
+                        if (syncRow.RowState == SyncRowState.ApplyModifiedFailed || syncRow.RowState == SyncRowState.ApplyDeletedFailed)
+                        {
+                            errorsRows.Add((syncRow, new Exception("Row failed to be applied on last sync")));
+                            continue;
+                        }
+
+
                         if (applyType == SyncRowState.Modified && syncRow.RowState != SyncRowState.RetryModifiedOnNextSync && syncRow.RowState != SyncRowState.Modified)
                             continue;
 

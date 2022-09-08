@@ -100,7 +100,7 @@ internal class Program
         //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
         //await MultiFiltersAsync();
-        await ComplexFilter2Async();
+        await GenerateRetryOnNextCallSync();
 
     }
 
@@ -257,7 +257,7 @@ internal class Program
             var s1 = await agent.SynchronizeAsync(setup, parameters);
 
             Console.WriteLine(s1);
-       
+
             parameters = new SyncParameters { { "City", "Montreal" }, { "postal", "H1Y 2H5" } };
             s1 = await agent.SynchronizeAsync(setup, parameters);
 
@@ -326,66 +326,81 @@ internal class Program
             Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}");
         });
 
+
+
+        var getForeignKeyErrorCommand = new Func<string>(() =>
+        {
+            var subcatrandom = Path.GetRandomFileName();
+            var subcat = string.Concat("A_", string.Concat(subcatrandom.Where(c => char.IsLetter(c))).ToUpperInvariant());
+            subcat = subcat.Substring(0, Math.Min(subcat.Length, 12));
+            var cat = string.Concat("Z_", string.Concat(Path.GetRandomFileName().Where(c => char.IsLetter(c))).ToUpperInvariant());
+            cat = cat.Substring(0, Math.Min(cat.Length, 12));
+
+            var command = @$"Begin Tran
+                            ALTER TABLE [ProductCategory] NOCHECK CONSTRAINT ALL
+                            INSERT [ProductCategory] ([ProductCategoryID], [ParentProductCategoryId], [Name]) VALUES (N'{subcat}', '{cat}', N'{subcat} Sub category')
+                            INSERT [ProductCategory] ([ProductCategoryID], [ParentProductCategoryId], [Name]) VALUES (N'{cat}', NULL, N'{cat} Category');
+                            ALTER TABLE [ProductCategory] CHECK CONSTRAINT ALL
+                            Commit Tran";
+
+            return command;
+        });
+
+        var getUniqueKeyErrorCommand = new Func<string>(() =>
+        {
+            var cat = string.Concat("Z_", string.Concat(Path.GetRandomFileName().Where(c => char.IsLetter(c))).ToUpperInvariant());
+            cat = cat.Substring(0, Math.Min(cat.Length, 12));
+
+            var command = @$"Begin Tran
+                            ALTER TABLE [ProductCategory] NOCHECK CONSTRAINT ALL
+                            INSERT [ProductCategory] ([ProductCategoryID], [ParentProductCategoryId], [Name]) VALUES (N'{cat}_1', NULL, N'{cat} Category');
+                            INSERT [ProductCategory] ([ProductCategoryID], [ParentProductCategoryId], [Name]) VALUES (N'{cat}_2', NULL, N'{cat} Category');
+                            ALTER TABLE [ProductCategory] CHECK CONSTRAINT ALL
+                            Commit Tran";
+
+            return command;
+        });
+
+
+
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
+        var result = await agent.SynchronizeAsync(setup);
 
         agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
         {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("ERROR ON LINE:");
-            Console.WriteLine(args.ErrorRow);
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"ERROR: {args.ErrorRow}");
             Console.ResetColor();
-            args.Resolution = ErrorResolution.Throw;
+            args.Resolution = ErrorResolution.ContinueOnError;
         });
+
         agent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("ERROR ON LINE:");
-            Console.WriteLine(args.ErrorRow);
+            var index = args.Exception.Message.IndexOf(".");
+            if (index <= 0)
+                index = args.Exception.Message.Length;
+
+            Console.WriteLine($"ERROR: {args.Exception.Message.Substring(0, index)}");
+            Console.WriteLine($"{args.ErrorRow}");
             Console.ResetColor();
-            args.Resolution = ErrorResolution.Throw;
+            args.Resolution = ErrorResolution.ContinueOnError;
         });
+
+
+        await DBHelper.ExecuteScriptAsync("CliProduct", getUniqueKeyErrorCommand());
 
         do
         {
             try
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                var s = await agent.SynchronizeAsync(setup);
-
-                Console.WriteLine(s);
-
-                var subcatrandom = Path.GetRandomFileName();
-                var subcat = string.Concat("A_", string.Concat(subcatrandom.Where(c => char.IsLetter(c))).ToUpperInvariant());
-                subcat = subcat.Substring(0, Math.Min(subcat.Length, 12));
-                var cat = string.Concat("Z_", string.Concat(Path.GetRandomFileName().Where(c => char.IsLetter(c))).ToUpperInvariant());
-                cat = cat.Substring(0, Math.Min(cat.Length, 12));
-
-                var insertErrorCommand = @$"Begin Tran
-                                            ALTER TABLE [ProductCategory] NOCHECK CONSTRAINT ALL
-                                            INSERT [ProductCategory] ([ProductCategoryID], [ParentProductCategoryId], [Name]) VALUES (N'{subcat}', '{cat}', N'{subcat} Sub category')
-                                            INSERT [ProductCategory] ([ProductCategoryID], [ParentProductCategoryId], [Name]) VALUES (N'{cat}', NULL, N'{cat} Category');
-                                            ALTER TABLE [ProductCategory] CHECK CONSTRAINT ALL
-                                            Commit Tran";
-
-                await DBHelper.ExecuteScriptAsync("cliProduct", insertErrorCommand);
-
-                var Id = string.Concat("GRT_", string.Concat(Path.GetRandomFileName().Where(c => char.IsLetter(c))).ToUpperInvariant());
-                Id = Id.Substring(0, Math.Min(Id.Length, 12));
-
-                // await DBHelper.ExecuteScriptAsync("svProduct", $"INSERT [ProductCategory] ([ProductCategoryID], [ParentProductCategoryId], [Name]) VALUES (N'{Id}', 'A_CLOTHE', N'Green Tee Shirt')");
-                // await DBHelper.AddProductCategoryRowAsync(clientProvider, productId, parentProductId, "CHILD");
-
-                s = await agent.SynchronizeAsync(setup);
-                Console.WriteLine(s);
-
-                //await DBHelper.ExecuteScriptAsync("cliProduct", $"INSERT [ProductCategory] ([ProductCategoryID], [Name]) VALUES (N'{Id}',  N'{Id}')");
-
-                s = await agent.SynchronizeAsync(setup);
-                Console.WriteLine(s);
-
                 Console.ResetColor();
+                result = await agent.SynchronizeAsync(setup);
+                Console.WriteLine(result);
+                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+
             }
             catch (SyncException e)
             {
@@ -397,12 +412,27 @@ internal class Program
                 Console.ResetColor();
                 Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
             }
-
-            var localOrchestrator = new LocalOrchestrator(clientProvider);
-
-
-            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+
+        Console.ResetColor();
+        Console.WriteLine();
+        // Loading all batch infos from tmp dir
+        var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+        foreach (var batchInfo in batchInfos)
+        {
+            // Load all rows from error tables specifying the specific SyncRowState states
+            var allTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo,
+                SyncRowState.ApplyDeletedFailed | SyncRowState.ApplyModifiedFailed);
+
+            // Enumerate all rows in error
+            await foreach (var table in allTables)
+                foreach (var row in table.Rows)
+                    Console.WriteLine(row);
+        }
+
+
+
 
     }
 

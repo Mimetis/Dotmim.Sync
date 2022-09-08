@@ -61,7 +61,7 @@ namespace Dotmim.Sync
                     if (command != null)
                     {
                         // Set the special parameters for delete metadata
-                        InternalSetParameterValue(command, "sync_row_timestamp", timestampLimit);
+                        SetParameterValue(command, "sync_row_timestamp", timestampLimit);
 
                         await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DeleteMetadata, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 

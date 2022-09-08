@@ -16,8 +16,8 @@ namespace Dotmim.Sync
         /// Be careful policy could be differente from the schema (especially on client side, it's the reverse one, by default)
         /// </summary>
         public MessageApplyChanges(Guid localScopeId, Guid senderScopeId, bool isNew, long? lastTimestamp, SyncSet schema,
-                                    ConflictResolutionPolicy policy, bool snapshotApplied, string batchDirectory, 
-                                    BatchInfo changes, BatchInfo errors, DatabaseChangesApplied changesApplied, bool canCleanFolder)
+                                    ConflictResolutionPolicy policy, bool snapshotApplied, string batchDirectory,
+                                    BatchInfo changes, BatchInfo errors, DatabaseChangesApplied changesApplied)
         {
             this.LocalScopeId = localScopeId;
             this.SenderScopeId = senderScopeId;
@@ -28,7 +28,6 @@ namespace Dotmim.Sync
             this.Changes = changes ?? throw new ArgumentNullException(nameof(changes));
             this.Errors = errors;
             this.ChangesApplied = changesApplied;
-            this.CanCleanFolder = canCleanFolder;
             this.SnapshoteApplied = snapshotApplied;
             this.BatchDirectory = batchDirectory;
         }
@@ -57,7 +56,7 @@ namespace Dotmim.Sync
         /// Gets or Sets the schema used for this sync
         /// </summary>
         public SyncSet Schema { get; set; }
-       
+
         /// <summary>
         /// Gets or Sets the current Conflict resolution policy
         /// </summary>
@@ -67,7 +66,7 @@ namespace Dotmim.Sync
         /// Gets or Sets the batch info containing the changes to apply
         /// </summary>
         public BatchInfo Changes { get; set; }
-        
+
         /// <summary>
         /// Gets or Sets the batch info that will contains all errors raised on apply changes (or apply rety errors changes)
         /// </summary>
@@ -77,11 +76,6 @@ namespace Dotmim.Sync
         /// Gets or Sets the changes applied
         /// </summary>
         public DatabaseChangesApplied ChangesApplied { get; set; }
-        
-        /// <summary>
-        /// Gets a boolean indicating if we can remove folder once everything has been applied. Usually, errors rows are staying in the batch folder
-        /// </summary>
-        public bool CanCleanFolder { get; }
 
         /// <summary>
         /// Gets or Sets if we have already applied a snapshot. So far, we don't reset the tables, even if we are in reinit mode.

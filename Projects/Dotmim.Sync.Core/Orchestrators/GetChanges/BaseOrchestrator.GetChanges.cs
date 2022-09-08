@@ -186,7 +186,8 @@ namespace Dotmim.Sync
             if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
                 return (context, default, default);
 
-            var (selectIncrementalChangesCommand, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew, connection, transaction);
+            var (selectIncrementalChangesCommand, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew, 
+                connection, transaction);
 
             if (selectIncrementalChangesCommand == null)
                 return (context, default, default);
@@ -518,8 +519,8 @@ namespace Dotmim.Sync
         internal void InternalSetSelectChangesCommonParameters(SyncContext context, SyncTable syncTable, Guid? excludingScopeId, bool isNew, long? lastTimestamp, DbCommand selectIncrementalChangesCommand)
         {
             // Set the parameters
-            InternalSetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
-            InternalSetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? excludingScopeId.Value : DBNull.Value);
+            SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
+            SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? excludingScopeId.Value : DBNull.Value);
 
             // Check filters
             SyncFilter tableFilter = null;
@@ -543,7 +544,7 @@ namespace Dotmim.Sync
 
                 object val = parameter?.Value;
 
-                InternalSetParameterValue(selectIncrementalChangesCommand, filterParam.Name, val);
+                SetParameterValue(selectIncrementalChangesCommand, filterParam.Name, val);
             }
 
         }

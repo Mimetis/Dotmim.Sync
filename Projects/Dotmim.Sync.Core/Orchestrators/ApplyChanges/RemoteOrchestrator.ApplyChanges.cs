@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,7 +19,7 @@ namespace Dotmim.Sync
         /// Apply changes on remote provider
         /// </summary>
         internal virtual async Task<(SyncContext context, ServerSyncChanges serverSyncChanges, ConflictResolutionPolicy serverResolutionPolicy)>
-            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, ClientSyncChanges clientChanges, 
+            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, ClientSyncChanges clientChanges,
             DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
@@ -60,12 +61,16 @@ namespace Dotmim.Sync
                     // STEP 1: Try to reapply previous errors from last sync, if any
                     //------------------------------------------------------------
 
-                    // Get scope info client from server, to get errors if any
                     ScopeInfoClient sScopeInfoClient = null;
-                    (context, sScopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    // Get scope info client from server, to get errors if any
+                    await using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, 
+                        runner?.Connection, runner?.Transaction, runner != null ? runner.CancellationToken : default, runner?.Progress).ConfigureAwait(false))
+                    {
+                        (context, sScopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context,
+                            runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
+                    }
 
-
+                    
                     if (sScopeInfoClient != null && !string.IsNullOrEmpty(sScopeInfoClient.Errors))
                     {
                         // Create a message containing everything needed to apply errors rows
@@ -80,11 +85,16 @@ namespace Dotmim.Sync
 
                         if (retryErrorsBatchInfo != null && retryErrorsBatchInfo.HasData())
                         {
+                            // Create a batch info for error rows on "retry apply errros" or "apply changes":
+                            string info = runner?.Connection != null && !string.IsNullOrEmpty(runner?.Connection.Database) ? $"{runner?.Connection.Database}_ERRORS" : "ERRORS";
+                            errorsBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
+
                             var retryErrorsApplyChanges = new MessageApplyChanges(Guid.Empty, sScopeInfoClient.Id, false, sScopeInfoClient.LastServerSyncTimestamp, schema,
-                                    this.Options.ConflictResolutionPolicy, false, this.Options.BatchDirectory, retryErrorsBatchInfo, errorsBatchInfo, serverChangesApplied, false);
+                                    this.Options.ConflictResolutionPolicy, false, this.Options.BatchDirectory, retryErrorsBatchInfo, errorsBatchInfo, serverChangesApplied);
 
                             // Call apply errors on provider
-                            context = await this.InternalApplyChangesAsync(cScopeInfo, context, retryErrorsApplyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                            context = await this.InternalApplyChangesAsync(cScopeInfo, context, retryErrorsApplyChanges, 
+                                runner?.Connection, runner?.Transaction, runner!= null ? runner.CancellationToken : default, runner?.Progress).ConfigureAwait(false);
                         }
                     }
 
@@ -95,13 +105,12 @@ namespace Dotmim.Sync
                     if (clientChanges.ClientBatchInfo != null && clientChanges.ClientBatchInfo.HasData())
                     {
                         // Create a batch info for error rows on "retry apply errros" or "apply changes":
-                        string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_ERRORS" : "ERRORS";
+                        string info = runner?.Connection != null && !string.IsNullOrEmpty(runner?.Connection.Database) ? $"{runner?.Connection.Database}_ERRORS" : "ERRORS";
                         errorsBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
 
                         // Create message containing everything we need to apply on server side
                         var applyChanges = new MessageApplyChanges(Guid.Empty, cScopeInfoClient.Id, false, cScopeInfoClient.LastServerSyncTimestamp, schema,
-                            this.Options.ConflictResolutionPolicy, false, this.Options.BatchDirectory, clientChanges.ClientBatchInfo, errorsBatchInfo, serverChangesApplied, true);
-
+                            this.Options.ConflictResolutionPolicy, false, this.Options.BatchDirectory, clientChanges.ClientBatchInfo, errorsBatchInfo, serverChangesApplied);
 
                         // Call provider to apply changes
                         context = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges,
@@ -133,6 +142,11 @@ namespace Dotmim.Sync
 
                     // Get a no transaction runner for getting changes
                     runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    Debug.WriteLine($"--- Runner Connection {runner.Connection.Database}. {this.Provider.GetProviderTypeName()}");
+                    Stopwatch stopw = new Stopwatch();
+                    stopw.Start();
+
 
                     context.ProgressPercentage = 0.55;
 
@@ -180,6 +194,10 @@ namespace Dotmim.Sync
                     await this.InternalSaveScopeInfoClientAsync(sScopeInfoClient, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, serverBatchInfo, serverChangesSelected, serverChangesApplied);
+
+                    stopw.Stop();
+                    Debug.WriteLine($"--- Total duration :{stopw.Elapsed:hh\\.mm\\:ss\\.fff} serverSyncChanges : {serverSyncChanges.ServerChangesSelected.TotalChangesSelected}");
+
                     return (context, serverSyncChanges, this.Options.ConflictResolutionPolicy);
                 }
                 catch (Exception)
