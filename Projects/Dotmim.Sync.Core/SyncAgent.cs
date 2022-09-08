@@ -486,18 +486,18 @@ namespace Dotmim.Sync
 
 
 
-        /// <summary>
-        /// Set local existing database as synced.
-        /// Initial rows from server will not be downloaded when this method is called.
-        /// You can mark local rows to be downloaded on next call to SynchronizeAsync()
-        /// </summary>
-        /// <param name="remoteClientTimestamp">
-        /// Specify the server timestamp bound for retrieving rows from server
-        /// If set to null, the highest value from server is retrieved. So far, no rows from server will be downloaded on next call to SynchronizeAsync()
-        /// </param>
-        /// <param name="markRows">
-        /// Mark local rows to be uploaded on next call to SynchronizeAsync()
-        /// </param>
+        // <summary>
+        // Set local existing database as synced.
+        // Initial rows from server will not be downloaded when this method is called.
+        // You can mark local rows to be downloaded on next call to SynchronizeAsync()
+        // </summary>
+        // <param name="remoteClientTimestamp">
+        // Specify the server timestamp bound for retrieving rows from server
+        // If set to null, the highest value from server is retrieved. So far, no rows from server will be downloaded on next call to SynchronizeAsync()
+        // </param>
+        // <param name="markRows">
+        // Mark local rows to be uploaded on next call to SynchronizeAsync()
+        // </param>
         //public async Task SetSynchronizedAsync(string scopeName = SyncOptions.DefaultScopeName, SyncSetup setup = default, long? remoteClientTimestamp = default, bool markRows = false, SyncParameters parameters = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         //{
         //    // checkpoints dates

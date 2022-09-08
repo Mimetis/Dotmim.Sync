@@ -66,7 +66,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Get the server rows count
         /// </summary>
-        public abstract int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t);
+        public abstract int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, Guid? customerId = null);
 
         /// <summary>
         /// Create a provider

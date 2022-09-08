@@ -18,6 +18,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 {
     public class MariaDBTcpFilterTests : TcpFilterTests
     {
+        public override List<ProviderType> ClientsType => new List<ProviderType>
+            { ProviderType.MariaDB,  ProviderType.MySql, ProviderType.Sql, ProviderType.Sqlite};
+
         public MariaDBTcpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
@@ -73,14 +76,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
         public override SyncParameters FilterParameters => new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId1ForFilter));
 
-
-        public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MariaDB, ProviderType.Sql, ProviderType.Sqlite};
-
-        public override ProviderType ServerType =>
-            ProviderType.MariaDB;
-
-
+        public override ProviderType ServerType => ProviderType.MariaDB;
 
         public override CoreProvider CreateProvider(ProviderType providerType, string dbName)
         {

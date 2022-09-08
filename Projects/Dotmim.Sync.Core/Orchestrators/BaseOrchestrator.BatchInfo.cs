@@ -127,7 +127,9 @@ namespace Dotmim.Sync
         /// Load the Batch part info in memory, in a SyncTable
         /// TODO: Now we should be able to load only batch part info with correct SyncRowState
         /// </summary>
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
         internal virtual async Task<SyncTable> InternalLoadTableFromBatchInfoAsync(ScopeInfo scopeInfo,
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
             SyncContext context, BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default)
         {
             if (batchInfo == null)

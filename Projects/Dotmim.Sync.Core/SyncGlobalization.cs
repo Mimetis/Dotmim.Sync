@@ -15,7 +15,7 @@ namespace Dotmim.Sync
             = StringComparison.InvariantCultureIgnoreCase;
 
         /// <summary>
-        /// Gets or Sets the number decimal separator used to parse decimal float & double from data source.
+        /// Gets or Sets the number decimal separator used to parse decimal float and double from data source.
         /// Default is Invariant Number Decimal Separator (".")
         /// </summary>
 

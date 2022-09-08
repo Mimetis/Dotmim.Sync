@@ -33,7 +33,7 @@ namespace Dotmim.Sync.Enumerations
         DropAllAndExit = 8,
 
         /// <summary>
-        /// Deprovision stored procedures & triggers and sync again
+        /// Deprovision stored procedures and triggers and sync again
         /// </summary>
         DeprovisionAndSync = 16,
 

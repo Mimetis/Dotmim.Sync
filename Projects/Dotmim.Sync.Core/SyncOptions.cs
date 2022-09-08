@@ -10,7 +10,7 @@ using System.Runtime.Serialization;
 namespace Dotmim.Sync
 {
     /// <summary>
-    /// This class determines all the options you can set on Client & Server, that could potentially be different
+    /// This class determines all the options you can set on Client and Server, that could potentially be different
     /// </summary>
     public class SyncOptions
     {

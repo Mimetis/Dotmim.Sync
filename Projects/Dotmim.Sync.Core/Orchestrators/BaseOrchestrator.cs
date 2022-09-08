@@ -330,7 +330,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Check if the orchestrator database is outdated
         /// </summary>
-        /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
         internal virtual async Task<(SyncContext, bool)> InternalIsOutDatedAsync(SyncContext context, ScopeInfoClient cScopeInfoClient, ScopeInfo sScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             bool isOutdated = false;

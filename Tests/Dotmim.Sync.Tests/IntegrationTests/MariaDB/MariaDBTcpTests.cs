@@ -17,6 +17,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 {
     public class MariaDBTcpTests : TcpTests
     {
+        public override List<ProviderType> ClientsType => new List<ProviderType>
+            { ProviderType.MariaDB,  ProviderType.MySql, ProviderType.Sql, ProviderType.Sqlite};
+
         public MariaDBTcpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
@@ -28,13 +31,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             "PricesList", "PricesListCategory", "PricesListDetail", "Log"
         };
 
-        public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MariaDB, ProviderType.Sql, ProviderType.Sqlite};
-
-        public override ProviderType ServerType =>
-            ProviderType.MariaDB;
-
-
+        public override ProviderType ServerType => ProviderType.MariaDB;
 
         public override CoreProvider CreateProvider(ProviderType providerType, string dbName)
         {

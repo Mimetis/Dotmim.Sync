@@ -203,7 +203,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Drop a tracking table
         /// </summary>
-        /// <param name="table">A table from your Setup instance you want to drop</param>
         public async Task<bool> DropTrackingTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -286,26 +285,6 @@ namespace Dotmim.Sync
                 throw GetSyncError(context, ex);
             }
         }
-
-        /// <summary>
-        /// Rename a tracking table
-        /// </summary>
-        /// <param name="table">A table from your Setup instance you want to rename the tracking table</param>
-        //public async Task<bool> RenameTrackingTableAsync(SyncTable syncTable, ParserName oldTrackingTableName, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        //{
-        //    try
-        //    {
-        //        await using var runner = await this.GetConnectionAsync(scopeName, SyncMode.Writing, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-        //        var tableBuilder = this.GetTableBuilder(syncTable, this.Setup);
-        //        await InternalRenameTrackingTableAsync(this.GetContext(), this.Setup, oldTrackingTableName, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-        //        await runner.CommitAsync().ConfigureAwait(false);
-        //        return true;
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        throw GetSyncError(ex);
-        //    }
-        //}
 
         /// <summary>
         /// Internal create tracking table routine

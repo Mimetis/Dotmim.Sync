@@ -61,10 +61,13 @@ namespace Dotmim.Sync
         public static Guid OnMetadataCleaning(this BaseOrchestrator orchestrator, Func<MetadataCleaningArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
+        /// <summary>
         /// Intercept the provider action when a provider has cleaned metadata
         /// </summary>
         public static Guid OnMetadataCleaned(this BaseOrchestrator orchestrator, Action<MetadataCleanedArgs> action)
             => orchestrator.AddInterceptor(action);
+        
+        /// <summary>
         /// Intercept the provider action when a provider has cleaned metadata
         /// </summary>
         public static Guid OnMetadataCleaned(this BaseOrchestrator orchestrator, Func<MetadataCleanedArgs, Task> action)

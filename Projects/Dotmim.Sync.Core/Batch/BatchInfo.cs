@@ -38,8 +38,10 @@ namespace Dotmim.Sync.Batch
         {
             // We need to create a change table set, containing table with columns not readonly
             this.DirectoryRoot = rootDirectory;
-            this.DirectoryName = string.IsNullOrEmpty(directoryName) ? string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", "")) : directoryName;
-            this.DirectoryName = string.IsNullOrEmpty(info) ? this.DirectoryName : $"{info}_{this.DirectoryName}";
+
+            var randomName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
+            randomName = string.IsNullOrEmpty(info) ? randomName : $"{info}_{randomName}";
+            this.DirectoryName = string.IsNullOrEmpty(directoryName) ? randomName : directoryName;
         }
 
         /// <summary>
@@ -80,7 +82,7 @@ namespace Dotmim.Sync.Batch
 
 
         /// <summary>
-        /// Only Used for Backward compatibility for version < 0.9.6
+        /// Only Used for Backward compatibility for version before 0.9.6
         /// </summary>
         [Obsolete]
         [DataMember(Name = "schema", IsRequired = false, EmitDefaultValue = false, Order = 7)]

@@ -105,7 +105,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Make a shadow copy of an old scope to get the last sync information copied on this scope
         /// </summary>
-        /// <param name="oldClientScopeInfo">old client scope that we we copy infos</param>
         public void ShadowScope(ScopeInfoClient oldScopeInfoClient)
         {
             this.LastServerSyncTimestamp = oldScopeInfoClient.LastServerSyncTimestamp;

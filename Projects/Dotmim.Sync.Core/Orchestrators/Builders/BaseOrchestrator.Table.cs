@@ -16,7 +16,7 @@ using System.Threading.Tasks;
 namespace Dotmim.Sync
 {
     /// <summary>
-    /// Based Orchestrator class. Don't use it as is. Prefer use <see cref="LocalOrchestrator"/>, <see cref="RemoteOrchestrator"/> or <see cref="WebRemoteOrchestrator"/>
+    /// Based Orchestrator class. Don't use it as is. Prefer use <see cref="LocalOrchestrator"/>, <see cref="RemoteOrchestrator"/> or <c>WebRemoteOrchestrator</c> 
     /// </summary>
     public abstract partial class BaseOrchestrator
     {

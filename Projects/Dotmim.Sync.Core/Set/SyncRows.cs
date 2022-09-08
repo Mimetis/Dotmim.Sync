@@ -16,6 +16,7 @@ namespace Dotmim.Sync
 
         public SyncRows(SyncTable table) => this.Table = table;
 
+        /// <summary>
         /// Since we don't serializer the reference to the schema, this method will reaffect the correct schema
         /// </summary>
         public void EnsureRows(SyncTable table)

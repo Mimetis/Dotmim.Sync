@@ -22,7 +22,7 @@ namespace Dotmim.Sync
 
 
         /// <summary>
-        /// Get a sync logger provider. Options can come from both LoggerFilterOptions (from Action<ILoggingBuilder>) or from typed SyncLoggerOptions
+        /// Get a sync logger provider. Options can come from both LoggerFilterOptions or from typed SyncLoggerOptions
         /// </summary>
         /// <param name="options"></param>
         /// <param name="syncOptions"></param>

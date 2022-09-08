@@ -27,7 +27,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Provision the remote database 
         /// </summary>
-        /// <param name="overwrite">Overwrite existing objects</param>
         public virtual Task<ScopeInfo> ProvisionAsync(string scopeName, SyncProvision provision = default, bool overwrite = false)
         {
             if (provision == SyncProvision.NotSet)
@@ -44,9 +43,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Provision the remote database based on the Setup parameter, and the provision enumeration
         /// </summary>
-        /// <param name="provision">Provision enumeration to determine which components to apply</param>
-        /// <param name="serverScopeInfo">server scope. Will be saved once provision is done</param>
-        /// <returns>Full schema with table and columns properties</returns>
         public virtual async Task<ScopeInfo> ProvisionAsync(string scopeName, SyncSetup setup = null, SyncProvision provision = default, bool overwrite = false)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);

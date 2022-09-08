@@ -51,10 +51,13 @@ namespace Dotmim.Sync
         public static Guid OnLocalTimestampLoading(this BaseOrchestrator orchestrator, Func<LocalTimestampLoadingArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
+        /// <summary>
         /// Intercept the provider action when a database has read a timestamp
         /// </summary>
         public static Guid OnLocalTimestampLoaded(this BaseOrchestrator orchestrator, Action<LocalTimestampLoadedArgs> action)
             => orchestrator.AddInterceptor(action);
+        
+        /// <summary>
         /// Intercept the provider action when a database has read a timestamp
         /// </summary>
         public static Guid OnLocalTimestampLoaded(this BaseOrchestrator orchestrator, Func<LocalTimestampLoadedArgs, Task> action)

@@ -21,9 +21,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a trigger
         /// </summary>
-        /// <param name="table">A table from your Setup instance, where you want to create the trigger</param>
-        /// <param name="triggerType">Trigger type (Insert, Delete, Update)</param>
-        /// <param name="overwrite">If true, drop the existing trriger then create again</param>
         public async Task<bool> CreateTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert, bool overwrite = false)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -75,8 +72,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a trigger
         /// </summary>
-        /// <param name="table">A table from your Setup instance, where you want to create the triggers</param>
-        /// <param name="overwrite">If true, drop the existing triggers then create them all, again</param>
         public async Task<bool> CreateTriggersAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -113,8 +108,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Check if a trigger exists
         /// </summary>
-        /// <param name="table">A table from your Setup instance, where you want to check if the trigger exists</param>
-        /// <param name="triggerType">Trigger type (Insert, Delete, Update)</param>
         public async Task<bool> ExistTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -148,8 +141,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Dropping a trigger
         /// </summary>
-        /// <param name="table">A table from your Setup instance, where you want to drop the trigger</param>
-        /// <param name="triggerType">Trigger type (Insert, Delete, Update)</param>
         public async Task<bool> DropTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
@@ -192,7 +183,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Drop all triggers
         /// </summary>
-        /// <param name="table">A table from your Setup instance, where you want to drop all the triggers</param>
         public async Task<bool> DropTriggersAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
