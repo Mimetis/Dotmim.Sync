@@ -19,25 +19,25 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Http Client is not authorized to ask for a table reset on the server
         /// </summary>
-        public override Task<SyncContext> ResetTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
+        public override Task<SyncContext> ResetTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
             => throw new NotImplementedException();
 
         /// <summary>
         /// Http Client is not authorized to ask metadatas deletion on the server
         /// </summary>
-        public override Task<SyncContext> ResetTableAsync(ScopeInfo scopeInfo, SyncContext context, string tableName, string schemaName = null)
+        public override Task<SyncContext> ResetTableAsync(ScopeInfo scopeInfo, SyncContext context, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
             => throw new NotImplementedException();
 
         /// <summary>
         /// Http Client is not authorized to command a disable constraints on the server
         /// </summary>
-        public override Task<SyncContext> DisableConstraintsAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
+        public override Task<SyncContext> DisableConstraintsAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
             => throw new NotImplementedException();
 
         /// <summary>
         /// Http Client is not authorized to command an enable constraints on the server
         /// </summary>
-        public override Task<SyncContext> EnableConstraintsAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
+        public override Task<SyncContext> EnableConstraintsAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
             => throw new NotImplementedException();
 
     }

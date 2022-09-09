@@ -19,13 +19,13 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Http Client is not authorized to ask metadatas deletion on the server
         /// </summary>
-        public override Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync()
+        public override Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(DbConnection connection = null, DbTransaction transaction = null)
             => throw new NotImplementedException();
 
         /// <summary>
         /// Http Client is not authorized to ask metadatas deletion on the server
         /// </summary>
-        public override Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long? timeStampStart)
+        public override Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, DbConnection connection = null, DbTransaction transaction = null)
             => throw new NotImplementedException();
 
 

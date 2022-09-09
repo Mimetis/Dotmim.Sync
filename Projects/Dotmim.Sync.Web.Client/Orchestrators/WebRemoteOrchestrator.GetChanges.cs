@@ -16,7 +16,7 @@ namespace Dotmim.Sync.Web.Client
 {
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
-        public override async Task<ServerSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient)
+        public override async Task<ServerSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name, cScopeInfoClient.Parameters)
             {
@@ -25,7 +25,7 @@ namespace Dotmim.Sync.Web.Client
 
             // Get the server scope to start a new session
             ScopeInfo sScopeInfo;
-            (context, sScopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, null, false, default, default, default, default).ConfigureAwait(false);
+            (context, sScopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, null, false, connection, transaction, default, default).ConfigureAwait(false);
 
             //Direction set to Download
             context.SyncWay = SyncWay.Download;
@@ -151,7 +151,7 @@ namespace Dotmim.Sync.Web.Client
         /// We can't get changes from server, from a web client orchestrator
         /// </summary>
         /// 
-        public override async Task<ServerSyncChanges> GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient) 
+        public override async Task<ServerSyncChanges> GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name, cScopeInfoClient.Parameters)
             {
@@ -159,8 +159,7 @@ namespace Dotmim.Sync.Web.Client
             };
 
             // Get the server scope to start a new session
-            ScopeInfo sScopeInfo;
-            (context, sScopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, null, false, default, default, default, default).ConfigureAwait(false);
+            await this.InternalEnsureScopeInfoAsync(context, null, false, connection, transaction, default, default).ConfigureAwait(false);
 
             // generate a message to send
             var changesToSend = new HttpMessageSendChangesRequest(context, cScopeInfoClient)

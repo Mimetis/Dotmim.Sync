@@ -29,11 +29,11 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </summary>
-        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync()
+        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
 
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning).ConfigureAwait(false);
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning, connection, transaction).ConfigureAwait(false);
 
             bool exists;
             (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, 
@@ -71,8 +71,8 @@ namespace Dotmim.Sync
                 return new DatabaseMetadatasCleaned();
 
             DatabaseMetadatasCleaned databaseMetadatasCleaned;
-            (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(context, minTimestamp, runner.Connection, runner.Transaction,
-                runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+            (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(context, minTimestamp, 
+                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
             await runner.CommitAsync().ConfigureAwait(false);
 
@@ -90,11 +90,11 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </summary>
-        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long? timeStampStart = default)
+        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             DatabaseMetadatasCleaned databaseMetadatasCleaned;
-            (_, databaseMetadatasCleaned) = await InternalDeleteMetadatasAsync(context, timeStampStart).ConfigureAwait(false);
+            (_, databaseMetadatasCleaned) = await InternalDeleteMetadatasAsync(context, timeStampStart, connection, transaction).ConfigureAwait(false);
             return databaseMetadatasCleaned;
         }
 

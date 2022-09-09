@@ -23,13 +23,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Update all untracked rows from the client database
         /// </summary>
-        public virtual async Task<long> UpdateUntrackedRowsAsync(string scopeName)
+        public virtual async Task<long> UpdateUntrackedRowsAsync(string scopeName, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ChangesApplying).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction).ConfigureAwait(false);
 
                 ScopeInfo clientScopeInfo;
                 (context, clientScopeInfo) = await this.InternalLoadScopeInfoAsync(context, 
@@ -61,7 +61,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Update all untracked rows from the client database
         /// </summary>
-        public virtual Task<long> UpdateUntrackedRowsAsync() => this.UpdateUntrackedRowsAsync(SyncOptions.DefaultScopeName);
+        public virtual Task<long> UpdateUntrackedRowsAsync(DbConnection connection = null, DbTransaction transaction = null) 
+            => this.UpdateUntrackedRowsAsync(SyncOptions.DefaultScopeName, connection, transaction);
 
 
         /// <summary>

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
@@ -43,14 +44,14 @@ namespace Dotmim.Sync
         /// </example>
         /// </summary>
         /// <returns><see cref="ScopeInfo"/> instance.</returns>
-        public virtual async Task<ScopeInfo> GetScopeInfoAsync(string scopeName = SyncOptions.DefaultScopeName)
+        public virtual async Task<ScopeInfo> GetScopeInfoAsync(string scopeName, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
 
             try
             {
                 ScopeInfo cScopeInfo;
-                (context, cScopeInfo) = await InternalEnsureScopeInfoAsync(context, default, default, default, default).ConfigureAwait(false);
+                (context, cScopeInfo) = await InternalEnsureScopeInfoAsync(context, connection, transaction, default, default).ConfigureAwait(false);
                 return cScopeInfo;
             }
             catch (Exception ex)
@@ -58,6 +59,11 @@ namespace Dotmim.Sync
                 throw GetSyncError(context, ex);
             }
         }
+
+        /// <inheritdoc cref="GetScopeInfoAsync(string, DbConnection, DbTransaction)"/>
+        public virtual Task<ScopeInfo> GetScopeInfoAsync(DbConnection connection = null, DbTransaction transaction = null)
+            => GetScopeInfoAsync(SyncOptions.DefaultScopeName, connection, transaction);
+
 
 
         internal virtual async Task<(SyncContext context, ScopeInfo serverScopeInfo)> InternalEnsureScopeInfoAsync(SyncContext context,

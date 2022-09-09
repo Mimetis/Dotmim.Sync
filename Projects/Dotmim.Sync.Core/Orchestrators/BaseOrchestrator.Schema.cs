@@ -16,9 +16,6 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
-        /// <inheritdoc cref="GetSchemaAsync(string, SyncSetup)"/>
-        public virtual Task<SyncSet> GetSchemaAsync(SyncSetup setup) => GetSchemaAsync(SyncOptions.DefaultScopeName, setup);
-
         /// <summary>
         /// Read the schema stored from the orchestrator database, through the provider.
         /// <example>
@@ -31,7 +28,7 @@ namespace Dotmim.Sync
         /// </example>
         /// </summary>
         /// <returns>Schema containing tables, columns, relations, primary keys</returns>
-        public virtual async Task<SyncSet> GetSchemaAsync(string scopeName, SyncSetup setup)
+        public virtual async Task<SyncSet> GetSchemaAsync(string scopeName, SyncSetup setup, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
@@ -39,10 +36,10 @@ namespace Dotmim.Sync
                 if (setup == null || setup.Tables.Count <= 0)
                     return null;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
 
                 SyncSet schema;
-                (context, schema) = await this.InternalGetSchemaAsync(context, setup, 
+                (context, schema) = await this.InternalGetSchemaAsync(context, setup,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 return schema;
@@ -53,6 +50,12 @@ namespace Dotmim.Sync
             }
 
         }
+
+
+        /// <inheritdoc cref="GetSchemaAsync(string, SyncSetup, DbConnection, DbTransaction)"/>
+        public virtual Task<SyncSet> GetSchemaAsync(SyncSetup setup, DbConnection connection = null, DbTransaction transaction = null) 
+            => GetSchemaAsync(SyncOptions.DefaultScopeName, setup, connection, transaction);
+
 
         /// <summary>
         /// Read all tables from database. Don't need a setup to get tables. This method returns all tables whatever they are tracked or not.
@@ -65,15 +68,15 @@ namespace Dotmim.Sync
         /// </example>
         /// </summary>
         /// <returns>SyncSetup containing tables names and column names</returns>
-        public virtual async Task<SyncSetup> GetAllTablesAsync()
+        public virtual async Task<SyncSetup> GetAllTablesAsync(DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
 
                 SyncSetup setup;
-                (context, setup) = await this.InternalGetAllTablesAsync(context, 
+                (context, setup) = await this.InternalGetAllTablesAsync(context,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 return setup;

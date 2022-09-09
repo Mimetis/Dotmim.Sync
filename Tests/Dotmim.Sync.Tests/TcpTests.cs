@@ -2196,9 +2196,8 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         /// <param name="options"></param>
         /// <returns></returns>
-        [Theory]
-        [ClassData(typeof(SyncOptionsData))]
-        public async Task Force_Failing_Constraints_ButWorks_WithInterceptors(SyncOptions options)
+        [Fact]
+        public async Task Force_Failing_Constraints_ButWorks_WithInterceptors()
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2208,7 +2207,10 @@ namespace Dotmim.Sync.Tests
                 await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
             // Enable check constraints
-            options.DisableConstraintsOnApplyChanges = false;
+            var options = new SyncOptions
+            {
+                DisableConstraintsOnApplyChanges = false
+            };
 
             // product category and product items
             var productCategoryName = HelperDatabase.GetRandomName();
@@ -2466,6 +2468,7 @@ namespace Dotmim.Sync.Tests
         [ClassData(typeof(SyncOptionsData))]
         public async Task ReinitializeWithUpload_Client(SyncOptions options)
         {
+
             // create a server schema with seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
@@ -2517,6 +2520,19 @@ namespace Dotmim.Sync.Tests
                 options.DisableConstraintsOnApplyChanges = true;
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
+
+
+                if (options.TransactionMode != TransactionMode.AllOrNothing)
+                {
+                    agent.LocalOrchestrator.OnGetCommand(async args =>
+                    {
+                        if (args.CommandType == DbCommandType.Reset)
+                        {
+                            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
+                            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction) ;
+                        }
+                    });
+                }
 
                 var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload);
 
@@ -4323,6 +4339,6 @@ namespace Dotmim.Sync.Tests
         }
 
 
-   
+
     }
 }

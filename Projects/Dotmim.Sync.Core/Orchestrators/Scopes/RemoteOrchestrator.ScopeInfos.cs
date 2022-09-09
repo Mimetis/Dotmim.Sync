@@ -43,15 +43,17 @@ namespace Dotmim.Sync
         /// </example>
         /// </summary>
         /// <param name="scopeName"></param>
+        /// <param name="connection">Optional Connection</param>
+        /// <param name="transaction">Optional Transaction</param>
         /// <returns></returns>
-        public virtual async Task<ScopeInfo> GetScopeInfoAsync(string scopeName = SyncOptions.DefaultScopeName)
+        public virtual async Task<ScopeInfo> GetScopeInfoAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
 
             try
             {
                 ScopeInfo sScopeInfo;
-                (context, sScopeInfo, _) = await InternalEnsureScopeInfoAsync(context, default, false, default, default, default, default).ConfigureAwait(false);
+                (context, sScopeInfo, _) = await InternalEnsureScopeInfoAsync(context, default, false, connection, transaction, default, default).ConfigureAwait(false);
                 return sScopeInfo;
             }
             catch (Exception ex)
@@ -59,6 +61,10 @@ namespace Dotmim.Sync
                 throw GetSyncError(context, ex);
             }
         }
+
+        /// <inheritdoc cref="GetScopeInfoAsync(string, DbConnection, DbTransaction)"/>
+        public virtual Task<ScopeInfo> GetScopeInfoAsync(DbConnection connection = default, DbTransaction transaction = default) 
+            => GetScopeInfoAsync(SyncOptions.DefaultScopeName, connection, transaction);
 
 
         /// <summary>
@@ -82,19 +88,22 @@ namespace Dotmim.Sync
         /// </example>
         /// </summary>
         /// <param name="setup"></param>
+        /// <param name="connection">Optional Connection</param>
+        /// <param name="transaction">Optional Transaction</param>
         /// <returns></returns>
-        public virtual Task<ScopeInfo> GetScopeInfoAsync(SyncSetup setup) => GetScopeInfoAsync(SyncOptions.DefaultScopeName, setup);
+        public virtual Task<ScopeInfo> GetScopeInfoAsync(SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default) 
+            => GetScopeInfoAsync(SyncOptions.DefaultScopeName, setup, connection, transaction);
 
 
-        /// <inheritdoc cref="GetScopeInfoAsync(SyncSetup)"/>
-        public virtual async Task<ScopeInfo> GetScopeInfoAsync(string scopeName, SyncSetup setup)
+        /// <inheritdoc cref="GetScopeInfoAsync(SyncSetup, DbConnection, DbTransaction)"/>
+        public virtual async Task<ScopeInfo> GetScopeInfoAsync(string scopeName, SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
 
             try
             {
                 ScopeInfo sScopeInfo;
-                (context, sScopeInfo, _) = await InternalEnsureScopeInfoAsync(context, setup, false, default, default, default, default).ConfigureAwait(false);
+                (context, sScopeInfo, _) = await InternalEnsureScopeInfoAsync(context, setup, false, connection, transaction, default, default).ConfigureAwait(false);
 
                 return sScopeInfo;
             }
@@ -197,7 +206,7 @@ namespace Dotmim.Sync
 
             if (inputSetup != null && sScopeInfo.Setup != null && !sScopeInfo.Setup.EqualsByProperties(inputSetup))
             {
-                var conflictingSetupArgs = new ConflictingSetupArgs(context, inputSetup, null, sScopeInfo);
+                var conflictingSetupArgs = new ConflictingSetupArgs(context, inputSetup, null, sScopeInfo, connection, transaction);
                 await this.InterceptAsync(conflictingSetupArgs, progress, cancellationToken).ConfigureAwait(false);
 
                 if (conflictingSetupArgs.Action == ConflictingSetupAction.Rollback)

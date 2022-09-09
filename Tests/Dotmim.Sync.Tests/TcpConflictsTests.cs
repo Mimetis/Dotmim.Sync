@@ -282,7 +282,7 @@ namespace Dotmim.Sync.Tests
             {
                 // Get a random directory to be sure we are not conflicting with another test
                 var directoryName = HelperDatabase.GetRandomName();
-                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectoryName(), directoryName);
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), directoryName);
 
                 // create empty client databases
                 await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
@@ -332,6 +332,35 @@ namespace Dotmim.Sync.Tests
 
                     Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
                 }
+
+                s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                batchInfo = batchInfos[0];
+
+                syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+                await foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
+                }
+
             }
         }
 
@@ -346,9 +375,10 @@ namespace Dotmim.Sync.Tests
 
             foreach (var client in Clients)
             {
+                
                 // Get a random directory to be sure we are not conflicting with another test
                 var directoryName = HelperDatabase.GetRandomName();
-                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectoryName(), directoryName);
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), directoryName);
 
                 // create empty client databases
                 await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
@@ -381,7 +411,7 @@ namespace Dotmim.Sync.Tests
                 
                 var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
 
-                Assert.Null(batchInfos);
+                Assert.Empty(batchInfos);
             }
         }
 
@@ -460,23 +490,7 @@ namespace Dotmim.Sync.Tests
 
                 batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
 
-                Assert.NotNull(batchInfos);
-                Assert.Single(batchInfos);
-                Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
-                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
-
-                batchInfo = batchInfos[0];
-
-                syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
-
-                await foreach (var syncTable in syncTables)
-                {
-                    Assert.Equal("ProductCategory", syncTable.TableName);
-                    Assert.True(syncTable.HasRows);
-
-                    Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
-                }
+                Assert.Empty(batchInfos);
             }
         }
 

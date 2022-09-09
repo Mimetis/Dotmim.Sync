@@ -57,14 +57,14 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </returns>        
-        public virtual async Task<ServerSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient)
+        public virtual async Task<ServerSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient, DbConnection connection = null, DbTransaction transaction = null)
         {
 
             var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient);
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction).ConfigureAwait(false);
 
                 // Before getting changes, be sure we have a remote schema available
                 ScopeInfo sScopeInfo;
@@ -130,7 +130,7 @@ namespace Dotmim.Sync
         /// contains an estimation count of the changes from your server datsource for
         /// all the tables from your setup.
         /// </returns>  
-        public virtual async Task<ServerSyncChanges> GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient)
+        public virtual async Task<ServerSyncChanges> GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient, DbConnection connection = null, DbTransaction transaction = null)
         {
 
             var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient);
@@ -139,7 +139,7 @@ namespace Dotmim.Sync
             {
 
                 ScopeInfo sScopeInfo;
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction).ConfigureAwait(false);
                
                 (context, sScopeInfo) = await this.InternalGetScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                

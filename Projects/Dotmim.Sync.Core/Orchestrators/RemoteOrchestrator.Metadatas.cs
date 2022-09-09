@@ -24,13 +24,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Delete all metadatas from tracking tables, based on min timestamp from scope info client table
         /// </summary>
-        public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync()
+        public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning, connection, transaction).ConfigureAwait(false);
 
                 bool exists;
                 (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, 
@@ -72,14 +72,16 @@ namespace Dotmim.Sync
         /// Delete metadatas items from tracking tables
         /// </summary>
         /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long? timeStampStart)
+        /// <param name="connection">Optional Connection</param>
+        /// <param name="transaction">Optional Transaction</param>
+        public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, DbConnection connection = null, DbTransaction transaction = null)
         {
 
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning, connection, transaction).ConfigureAwait(false);
 
                 DatabaseMetadatasCleaned databaseMetadatasCleaned;
                 (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(timeStampStart, context, 
@@ -107,6 +109,8 @@ namespace Dotmim.Sync
             if (!timeStampStart.HasValue)
                 return (context, new DatabaseMetadatasCleaned());
 
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning, connection, transaction).ConfigureAwait(false);
+
             bool exists;
             (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -129,6 +133,9 @@ namespace Dotmim.Sync
 
                 await this.InternalSaveScopeInfoAsync(serverScopeInfo, tmpContext, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             }
+
+            await runner.CommitAsync().ConfigureAwait(false);
+
             return (context, databaseMetadatasCleaned);
         }
 

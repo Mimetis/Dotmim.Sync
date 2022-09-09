@@ -19,16 +19,16 @@ namespace Dotmim.Sync
         /// <summary>
         /// Reset a table, deleting all rows from table and tracking_table. This method is used when you want to Reinitialize your database
         /// </summary>
-        public virtual Task<SyncContext> ResetTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
+        public virtual Task<SyncContext> ResetTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
-            return ResetTableAsync(scopeInfo, context, tableName, schemaName);
+            return ResetTableAsync(scopeInfo, context, tableName, schemaName, connection, transaction);
         }
 
         /// <summary>
         /// Reset a table, deleting rows from table and tracking_table
         /// </summary>
-        public virtual async Task<SyncContext> ResetTableAsync(ScopeInfo scopeInfo, SyncContext context, string tableName, string schemaName = null)
+        public virtual async Task<SyncContext> ResetTableAsync(ScopeInfo scopeInfo, SyncContext context, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
         {
             try
             {
@@ -40,7 +40,7 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return context;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.None).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
 
                 context = await this.InternalResetTableAsync(scopeInfo, context, schemaTable, 
                     runner.Connection, runner.Transaction).ConfigureAwait(false);
@@ -59,7 +59,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Disabling constraints on one table
         /// </summary>
-        public virtual async Task<SyncContext> DisableConstraintsAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
+        public virtual async Task<SyncContext> DisableConstraintsAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -73,13 +73,11 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return context;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.None).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
                 
                 context = await this.InternalDisableConstraintsAsync(scopeInfo, context, schemaTable, 
                     runner.Connection, runner.Transaction).ConfigureAwait(false);
                 
-                await runner.CommitAsync().ConfigureAwait(false);
-
                 return context;
             }
             catch (Exception ex)
@@ -92,7 +90,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Enabling constraints on one table
         /// </summary>
-        public virtual async Task<SyncContext> EnableConstraintsAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
+        public virtual async Task<SyncContext> EnableConstraintsAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -106,12 +104,10 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return context;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.None).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
                 
                 context = await this.InternalEnableConstraintsAsync(scopeInfo, context, schemaTable,
                     runner.Connection, runner.Transaction).ConfigureAwait(false);
-                
-                await runner.CommitAsync().ConfigureAwait(false);
 
                 return context;
             }
