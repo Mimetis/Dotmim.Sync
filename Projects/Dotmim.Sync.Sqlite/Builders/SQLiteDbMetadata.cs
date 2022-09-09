@@ -21,7 +21,7 @@ namespace Dotmim.Sync.Sqlite
             return typeName.ToLowerInvariant() switch
             {
                 "bit" => DbType.Boolean,
-                "integer" or "bigint" => DbType.Int64,
+                "integer" or "bigint" or "smallint" => DbType.Int64,
                 "numeric" or "real" or "float" => DbType.Double,
                 "decimal" => DbType.Decimal,
                 "blob" or "image" => DbType.Binary,
@@ -41,7 +41,7 @@ namespace Dotmim.Sync.Sqlite
 
             return typeName.ToLowerInvariant() switch
             {
-                "bit" or "integer" or "bigint" => SqliteType.Integer,
+                "bit" or "integer" or "bigint" or "smallint" => SqliteType.Integer,
                 "numeric" or "decimal" or "real" or "float" => SqliteType.Real,
                 "blob" or "image" => SqliteType.Blob,
                 "datetime" or "time" or "varchar" or "text" => SqliteType.Text,
@@ -114,7 +114,7 @@ namespace Dotmim.Sync.Sqlite
             return typeName switch
             {
                 "integer" or "float" or "decimal" or "bit" or "bigint" or "numeric" or "blob" or "image" or 
-                "datetime" or "time" or "text" or "varchar" or "real" => true,
+                "datetime" or "time" or "text" or "varchar" or "real" or "smallint" => true,
                 _ => false,
             };
         }
