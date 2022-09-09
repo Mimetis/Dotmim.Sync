@@ -677,7 +677,6 @@ namespace Dotmim.Sync.Tests
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
             await remoteOrchestrator.ProvisionAsync("ALL", setupAll);
 
-
             // First sync to initialiaze client database, create table and fill product categories
             foreach (var client in this.Clients)
             {
@@ -692,11 +691,55 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(3, rEmployees.TotalChangesDownloadedFromServer);
                 Assert.Equal(11, rProductCategories.TotalChangesDownloadedFromServer);
                 Assert.Equal(14, rProducts.TotalChangesDownloadedFromServer);
+            }
 
+            // ----------------------------------------------
+            // SERVER SIDE: Add a product cat and product
 
+            // Add a product and its product category
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                // product category and product items
+                var productCategoryName = HelperDatabase.GetRandomName();
+                var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+                var productId = Guid.NewGuid();
+                var productName = HelperDatabase.GetRandomName();
+                var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.ProductCategory.Add(pc);
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategory = pc };
+                ctx.Product.Add(product);
+
+                await ctx.SaveChangesAsync();
+            }
+
+            foreach (var client in this.Clients)
+            {
+
+                var agent = new SyncAgent(client.Provider, Server.Provider);
                 // CLIENT SIDE: Create a local scope for all tables
                 // --------------------------------------
                 SyncSet syncSetAll = await agent.LocalOrchestrator.GetSchemaAsync(setupAll);
+
+                if (this.Server.ProviderType == ProviderType.Sql)
+                {
+                    if (client.ProviderType != ProviderType.Sql)
+                    {
+                        syncSetAll.Tables["Product"].SchemaName = "SalesLT";
+                        syncSetAll.Tables["ProductCategory"].SchemaName = "SalesLT";
+
+                        foreach (var relation in syncSetAll.Relations)
+                        {
+                            foreach (var k in relation.Keys)
+                                k.SchemaName = "SalesLT";
+
+                            foreach (var k in relation.ParentKeys)
+                                k.SchemaName = "SalesLT";
+                        }
+                    }
+                }
 
                 ScopeInfo cScopeInfo = new ScopeInfo
                 {
@@ -723,48 +766,14 @@ namespace Dotmim.Sync.Tests
                 {
                     cScopeInfoClient.IsNewScope = false;
                     cScopeInfoClient.LastSync = minLastSync;
-                    cScopeInfoClient.LastSyncTimestamp = minServerTimeStamp;
-                    cScopeInfoClient.LastServerSyncTimestamp = minClientTimeStamp;
+                    cScopeInfoClient.LastSyncTimestamp = minClientTimeStamp;
+                    cScopeInfoClient.LastServerSyncTimestamp = minServerTimeStamp;
                     await agent.LocalOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
                 }
 
-                // ----------------------------------------------
-                // SERVER SIDE: Add a product cat and product
-
-                // Add a product and its product category
-                using (var ctx = new AdventureWorksContext(this.Server))
-                {
-                    // product category and product items
-                    var productCategoryName = HelperDatabase.GetRandomName();
-                    var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-                    var productId = Guid.NewGuid();
-                    var productName = HelperDatabase.GetRandomName();
-                    var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-
-                    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                    ctx.ProductCategory.Add(pc);
-
-                    // Create a product and affect ProductCategory
-                    var product = new Product
-                    {
-                        ProductId = productId,
-                        Name = productName,
-                        ProductNumber = productNumber,
-                        ProductCategory = pc
-                    };
-
-                    ctx.Product.Add(product);
-
-                    await ctx.SaveChangesAsync();
-                }
-
-
                 var rAll = await agent.SynchronizeAsync("All");
-                Console.WriteLine(rAll);
 
                 Assert.Equal(2, rAll.TotalChangesDownloadedFromServer);
-
             }
         }
 
@@ -789,8 +798,7 @@ namespace Dotmim.Sync.Tests
 
             // Provision ALL scope on server
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
-            var sScopeInfoAll = await remoteOrchestrator.ProvisionAsync("ALL", setupAll);
-
+            var sScopeInfo = await remoteOrchestrator.ProvisionAsync("ALL", setupAll);
 
             // First sync to initialiaze client database, create table and fill product categories
             foreach (var client in this.Clients)
@@ -806,10 +814,37 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(3, rEmployees.TotalChangesDownloadedFromServer);
                 Assert.Equal(11, rProductCategories.TotalChangesDownloadedFromServer);
                 Assert.Equal(14, rProducts.TotalChangesDownloadedFromServer);
+            }
 
+            // ----------------------------------------------
+            // SERVER SIDE: Add a product cat and product
+
+            // Add a product and its product category
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                // product category and product items
+                var productCategoryName = HelperDatabase.GetRandomName();
+                var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+                var productId = Guid.NewGuid();
+                var productName = HelperDatabase.GetRandomName();
+                var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.ProductCategory.Add(pc);
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategory = pc };
+                ctx.Product.Add(product);
+
+                await ctx.SaveChangesAsync();
+            }
+
+            foreach (var client in this.Clients)
+            {
+
+                var agent = new SyncAgent(client.Provider, Server.Provider);
                 // CLIENT SIDE: Create a local scope for all tables
                 // --------------------------------------
-                await agent.LocalOrchestrator.ProvisionAsync(sScopeInfoAll);
+                await agent.LocalOrchestrator.ProvisionAsync(sScopeInfo);
 
                 // Get all scope info clients to get minimum Timestamp
                 // --------------------------------------
@@ -827,51 +862,16 @@ namespace Dotmim.Sync.Tests
                 {
                     cScopeInfoClient.IsNewScope = false;
                     cScopeInfoClient.LastSync = minLastSync;
-                    cScopeInfoClient.LastSyncTimestamp = minServerTimeStamp;
-                    cScopeInfoClient.LastServerSyncTimestamp = minClientTimeStamp;
+                    cScopeInfoClient.LastSyncTimestamp = minClientTimeStamp;
+                    cScopeInfoClient.LastServerSyncTimestamp = minServerTimeStamp;
                     await agent.LocalOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
                 }
 
-                // ----------------------------------------------
-                // SERVER SIDE: Add a product cat and product
-
-                // Add a product and its product category
-                using (var ctx = new AdventureWorksContext(this.Server))
-                {
-                    // product category and product items
-                    var productCategoryName = HelperDatabase.GetRandomName();
-                    var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-                    var productId = Guid.NewGuid();
-                    var productName = HelperDatabase.GetRandomName();
-                    var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-
-                    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                    ctx.ProductCategory.Add(pc);
-
-                    // Create a product and affect ProductCategory
-                    var product = new Product
-                    {
-                        ProductId = productId,
-                        Name = productName,
-                        ProductNumber = productNumber,
-                        ProductCategory = pc
-                    };
-
-                    ctx.Product.Add(product);
-
-                    await ctx.SaveChangesAsync();
-                }
-
-
                 var rAll = await agent.SynchronizeAsync("All");
-                Console.WriteLine(rAll);
 
                 Assert.Equal(2, rAll.TotalChangesDownloadedFromServer);
-
             }
+
         }
-
-
     }
 }

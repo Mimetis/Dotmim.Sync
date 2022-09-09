@@ -1,11 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
-		<TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
 		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
 
-		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet5);$(TargetFrameworkNet6);$(TargetFrameworkNetCore)</TargetFrameworks>
+		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet6);$(TargetFrameworkNetCore)</TargetFrameworks>
 
 		<Authors>Sébastien Pertus</Authors>
 		<Company>Microsoft</Company>
@@ -43,18 +42,6 @@
 			<PackagePath></PackagePath>
 		</None>
 	</ItemGroup>
-
-	<!--<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)' Or '$(TargetFramework)' == '$(TargetFrameworkNetStandard)'">
-		<PackageReference Include="Microsoft.Data.Sqlite" Version="5.0.3" />
-	</ItemGroup>
-
-	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet6)'">
-		<PackageReference Include="Microsoft.Data.Sqlite" Version="6.0.0" />
-	</ItemGroup>
-
-	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)'">
-		<PackageReference Include="Microsoft.Data.Sqlite" Version="5.0.12" />
-	</ItemGroup>-->
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Data.Sqlite" Version="6.0.1" />

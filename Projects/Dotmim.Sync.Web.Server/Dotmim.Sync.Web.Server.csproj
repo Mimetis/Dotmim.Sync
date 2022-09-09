@@ -1,11 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
-		<TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
 		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
 
-		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNetCore);$(TargetFrameworkNet5);$(TargetFrameworkNet6)</TargetFrameworks>
+		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNetCore);$(TargetFrameworkNet6)</TargetFrameworks>
 
 		<Authors>Sébastien Pertus</Authors>
 		<Company>Microsoft</Company>
@@ -57,10 +56,6 @@
 	</ItemGroup>
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)'">
-		<FrameworkReference Include="Microsoft.AspNetCore.App" />
-	</ItemGroup>
-
-	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)'">
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 	</ItemGroup>
 

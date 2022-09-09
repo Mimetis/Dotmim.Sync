@@ -1,11 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
-		<TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
 		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
 
-		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet5);$(TargetFrameworkNetCore);$(TargetFrameworkNet6)</TargetFrameworks>
+		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNetCore);$(TargetFrameworkNet6)</TargetFrameworks>
 		<Authors>Sébastien Pertus</Authors>
 		<Company>Microsoft</Company>
 		<RootNamespace>Dotmim.Sync</RootNamespace>
@@ -17,7 +16,7 @@
 		<RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 		<VersionSuffix>$(VersionSuffix)</VersionSuffix>
-		<Version>0.9.6</Version>
+		<Version>0.9.7</Version>
 		<Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
 		<LangVersion>9.0</LangVersion>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
@@ -82,10 +81,6 @@
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)'">
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.0" />
-	</ItemGroup>
-
-	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet5)'">
-		<PackageReference Include="Microsoft.Extensions.Logging" Version="5.0.0" />
 	</ItemGroup>
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet6)'">
