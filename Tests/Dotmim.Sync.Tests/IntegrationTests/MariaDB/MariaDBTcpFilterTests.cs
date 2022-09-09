@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
     public class MariaDBTcpFilterTests : TcpFilterTests
     {
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MariaDB,  ProviderType.MySql, ProviderType.Sql, ProviderType.Sqlite};
+            { ProviderType.MariaDB,  ProviderType.Sqlite};
 
         public MariaDBTcpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {

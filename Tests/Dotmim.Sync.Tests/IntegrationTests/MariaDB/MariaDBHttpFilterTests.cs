@@ -17,7 +17,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
     public class MariaDBHttpFilterTests : HttpFilterTests
     {
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MariaDB,  ProviderType.MySql, ProviderType.Sql, ProviderType.Sqlite};
+            { ProviderType.MariaDB, ProviderType.Sqlite};
 
         public MariaDBHttpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
