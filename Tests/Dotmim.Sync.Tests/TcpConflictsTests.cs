@@ -208,11 +208,13 @@ namespace Dotmim.Sync.Tests
             var cat2 = string.Concat("Z_", string.Concat(Path.GetRandomFileName().Where(c => char.IsLetter(c))).ToUpperInvariant());
             cat2 = cat2.Substring(0, Math.Min(cat2.Length, 12));
 
+            var pcName = Server.ProviderType == ProviderType.Sql ? "[SalesLT].[ProductCategory]" : "[ProductCategory]";
+
             var commandText = @$"Begin Tran
-                            ALTER TABLE [SalesLT].[ProductCategory] NOCHECK CONSTRAINT ALL
-                            INSERT [SalesLT].[ProductCategory] ([ProductCategoryID], [Name]) VALUES (N'{cat1}', N'{categoryName} Category');
-                            INSERT [SalesLT].[ProductCategory] ([ProductCategoryID], [Name]) VALUES (N'{cat2}', N'{categoryName} Category');
-                            ALTER TABLE [SalesLT].[ProductCategory] CHECK CONSTRAINT ALL
+                            ALTER TABLE {pcName} NOCHECK CONSTRAINT ALL
+                            INSERT {pcName} ([ProductCategoryID], [Name]) VALUES (N'{cat1}', N'{categoryName} Category');
+                            INSERT {pcName} ([ProductCategoryID], [Name]) VALUES (N'{cat2}', N'{categoryName} Category');
+                            ALTER TABLE {pcName} CHECK CONSTRAINT ALL
                             Commit Tran";
 
             var command = sqlConnection.CreateCommand();
