@@ -2451,6 +2451,18 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
+                if (options.TransactionMode != TransactionMode.AllOrNothing && (client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB))
+                {
+                    agent.LocalOrchestrator.OnGetCommand(async args =>
+                    {
+                        if (args.CommandType == DbCommandType.Reset)
+                        {
+                            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
+                            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
+                        }
+                    });
+                }
+
                 var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
@@ -2520,7 +2532,6 @@ namespace Dotmim.Sync.Tests
                 options.DisableConstraintsOnApplyChanges = true;
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
 
                 if (options.TransactionMode != TransactionMode.AllOrNothing)
                 {
@@ -3829,6 +3840,18 @@ namespace Dotmim.Sync.Tests
             {
                 options.DisableConstraintsOnApplyChanges = true;
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
+
+                if (options.TransactionMode != TransactionMode.AllOrNothing && (client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB))
+                {
+                    agent.LocalOrchestrator.OnGetCommand(async args =>
+                    {
+                        if (args.CommandType == DbCommandType.Reset)
+                        {
+                            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
+                            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
+                        }
+                    });
+                }
 
                 var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
 

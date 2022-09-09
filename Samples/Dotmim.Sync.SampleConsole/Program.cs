@@ -101,213 +101,75 @@ internal class Program
 
         //await GenerateRetryOnNextCallSync();
 
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        await TestAsync();
 
-    }
-
-    private static async Task ComplexFilter2Async()
-    {
-        // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
-
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        //var clientProvider = new SqliteSyncProvider("advfiltered.db");
-
-        var setup = new SyncSetup("ProductCategory",
-            "ProductModel", "Product",
-            "Address", "Customer", "CustomerAddress",
-            "SalesOrderHeader", "SalesOrderDetail");
-
-        var addressFilter = new SetupFilter("Address");
-        addressFilter.AddParameter("City", "Address", true);
-        addressFilter.AddParameter("postal", DbType.String, true, null, 20);
-        addressFilter.AddWhere("City", "Address", "City");
-        addressFilter.AddWhere("PostalCode", "Address", "postal");
-        setup.Filters.Add(addressFilter);
-
-        var addressCustomerFilter = new SetupFilter("CustomerAddress");
-        addressCustomerFilter.AddParameter("City", "Address", true);
-        addressCustomerFilter.AddParameter("postal", DbType.String, true, null, 20);
-
-        addressCustomerFilter.AddJoin(Join.Left, "Address")
-            .On("CustomerAddress", "AddressId", "Address", "AddressId");
-
-        // And then add your where clauses
-        addressCustomerFilter.AddWhere("City", "Address", "City");
-        addressCustomerFilter.AddWhere("PostalCode", "Address", "postal");
-        setup.Filters.Add(addressCustomerFilter);
-
-        var customerFilter = new SetupFilter("Customer");
-        customerFilter.AddParameter("City", "Address", true);
-        customerFilter.AddParameter("postal", DbType.String, true, null, 20);
-        customerFilter.AddJoin(Join.Left, "CustomerAddress")
-            .On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        customerFilter.AddJoin(Join.Left, "Address")
-            .On("CustomerAddress", "AddressId", "Address", "AddressId");
-        customerFilter.AddWhere("City", "Address", "City");
-        customerFilter.AddWhere("PostalCode", "Address", "postal");
-        setup.Filters.Add(customerFilter);
-
-        var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
-        orderHeaderFilter.AddParameter("City", "Address", true);
-        orderHeaderFilter.AddParameter("postal", DbType.String, true, null, 20);
-        orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress")
-            .On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
-        orderHeaderFilter.AddJoin(Join.Left, "Address")
-            .On("CustomerAddress", "AddressId", "Address", "AddressId");
-        orderHeaderFilter.AddWhere("City", "Address", "City");
-        orderHeaderFilter.AddWhere("PostalCode", "Address", "postal");
-        setup.Filters.Add(orderHeaderFilter);
-
-        var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
-        orderDetailsFilter.AddParameter("City", "Address", true);
-        orderDetailsFilter.AddParameter("postal", DbType.String, true, null, 20);
-        orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader")
-            .On("SalesOrderHeader", "SalesOrderID", "SalesOrderDetail", "SalesOrderID");
-        orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress")
-            .On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
-        orderDetailsFilter.AddJoin(Join.Left, "Address")
-            .On("CustomerAddress", "AddressId", "Address", "AddressId");
-        orderDetailsFilter.AddWhere("City", "Address", "City");
-        orderDetailsFilter.AddWhere("PostalCode", "Address", "postal");
-        setup.Filters.Add(orderDetailsFilter);
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider);
-
-        var parameters = new SyncParameters { { "City", "Toronto" }, { "postal", "M4B 1V5" } };
-        var s1 = await agent.SynchronizeAsync(setup, parameters);
-        Console.WriteLine(s1);
-
-        parameters = new SyncParameters { { "City", "Montreal" }, { "postal", "H1Y 2H5" } };
-        s1 = await agent.SynchronizeAsync(setup, parameters);
-        Console.WriteLine(s1);
-
-        Console.WriteLine("End");
-        Console.ReadKey();
-    }
-    private static async Task ComplexFilterAsync()
-    {
-
-        // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
-
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        var setup = new SyncSetup("ProductCategory",
-            "ProductModel", "Product",
-            "Address", "Customer", "CustomerAddress",
-            "SalesOrderHeader", "SalesOrderDetail");
-
-        var addressFilter = new SetupFilter("Address");
-        addressFilter.AddParameter("City", "Address", true);
-        addressFilter.AddParameter("postal", DbType.String, true, null, 20);
-
-        // Then you map each parameter on wich table / column the "where" clause should be applied
-        addressFilter.AddWhere("City", "Address", "City");
-        addressFilter.AddWhere("PostalCode", "Address", "postal");
-        setup.Filters.Add(addressFilter);
-
-        var addressCustomerFilter = new SetupFilter("CustomerAddress");
-        addressCustomerFilter.AddParameter("City", "Address", true);
-        addressCustomerFilter.AddParameter("postal", DbType.String, true, null, 20);
-
-        // You can join table to go from your table up (or down) to your filter table
-        addressCustomerFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
-
-        // And then add your where clauses
-        addressCustomerFilter.AddWhere("City", "Address", "City");
-        addressCustomerFilter.AddWhere("PostalCode", "Address", "postal");
-        setup.Filters.Add(addressCustomerFilter);
-
-        var customerFilter = new SetupFilter("Customer");
-        customerFilter.AddParameter("City", "Address", true);
-        customerFilter.AddParameter("postal", DbType.String, true, null, 20);
-        customerFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "Customer", "CustomerId");
-        customerFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
-        customerFilter.AddWhere("City", "Address", "City");
-        customerFilter.AddWhere("PostalCode", "Address", "postal");
-        setup.Filters.Add(customerFilter);
-
-        var orderHeaderFilter = new SetupFilter("SalesOrderHeader");
-        orderHeaderFilter.AddParameter("City", "Address", true);
-        orderHeaderFilter.AddParameter("postal", DbType.String, true, null, 20);
-        orderHeaderFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
-        orderHeaderFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
-        orderHeaderFilter.AddWhere("City", "Address", "City");
-        orderHeaderFilter.AddWhere("PostalCode", "Address", "postal");
-        setup.Filters.Add(orderHeaderFilter);
-
-        var orderDetailsFilter = new SetupFilter("SalesOrderDetail");
-        orderDetailsFilter.AddParameter("City", "Address", true);
-        orderDetailsFilter.AddParameter("postal", DbType.String, true, null, 20);
-        orderDetailsFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderHeader", "SalesOrderID", "SalesOrderDetail", "SalesOrderID");
-        orderDetailsFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerId", "SalesOrderHeader", "CustomerId");
-        orderDetailsFilter.AddJoin(Join.Left, "Address").On("CustomerAddress", "AddressId", "Address", "AddressId");
-        orderDetailsFilter.AddWhere("City", "Address", "City");
-        orderDetailsFilter.AddWhere("PostalCode", "Address", "postal");
-        setup.Filters.Add(orderDetailsFilter);
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider);
-
-        do
-        {
-            // Launch the sync process
-            var parameters = new SyncParameters { { "City", "Toronto" }, { "postal", "M4B 1V5" } };
-            var s1 = await agent.SynchronizeAsync(setup, parameters);
-
-            Console.WriteLine(s1);
-
-            parameters = new SyncParameters { { "City", "Montreal" }, { "postal", "H1Y 2H5" } };
-            s1 = await agent.SynchronizeAsync(setup, parameters);
-
-            // Write results
-            Console.WriteLine(s1);
-
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-        Console.WriteLine("End");
     }
 
     private static async Task TestAsync()
     {
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
-        var setup = new SyncSetup("Customer");
-        setup.Filters.Add("Customer", "Country");
+        var setupProductCategory = new SyncSetup("ProductCategory");
+        var setupProduct = new SyncSetup("Product");
+        var setupAll = new SyncSetup("ProductCategory", "Product");
 
         var agent = new SyncAgent(clientProvider, serverProvider);
 
-        var paramIndia = new SyncParameters(("Country", "India"));
-        var paramSweden = new SyncParameters(("Country", "Sweden"));
+        var rProductCategory = await agent.SynchronizeAsync("sProductCategory", setupProductCategory);
+        Console.WriteLine(rProductCategory);
 
-        var resultIndia = await agent.SynchronizeAsync(setup, paramIndia);
-        Console.WriteLine(resultIndia);
+        var rProduct = await agent.SynchronizeAsync("sProduct", setupProduct);
+        Console.WriteLine(rProduct);
 
-        await DBHelper.ExecuteScriptAsync(clientDbName,
-            "INSERT [dbo].[Customer] ([Id], [CustomerName], [Country]) VALUES (NEWID(), 'S1', 'Sweden')");
-        await DBHelper.ExecuteScriptAsync(clientDbName,
-            "INSERT [dbo].[Customer] ([Id], [CustomerName], [Country]) VALUES (NEWID(), 'S2', 'Sweden')");
+        // SERVER SIDE: Provision All scope
+        // --------------------------------------
+        await agent.RemoteOrchestrator.ProvisionAsync("ALL", setupAll);
 
-        // try to get sweden info client.
-        // if not exists, DMS will create a new one, with IsNewScope set to true
-        var swedenScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync(syncParameters: paramSweden);
+        // CLIENT SIDE: Create a local scope for all tables
+        // --------------------------------------
+        SyncSet syncSetAll = await agent.LocalOrchestrator.GetSchemaAsync(setupAll);
 
-        if (swedenScopeInfoClient.IsNewScope)
+        ScopeInfo cScopeInfo = new ScopeInfo
         {
-            swedenScopeInfoClient.IsNewScope = false;
-            swedenScopeInfoClient.LastSync = DateTime.Now;
-            swedenScopeInfoClient.LastSyncTimestamp = 0;
-            swedenScopeInfoClient.LastServerSyncTimestamp = 0;
+            Name = "All",
+            Schema = syncSetAll,
+            Setup = setupAll,
+            Version = SyncVersion.Current.ToString()
+        };
+        await agent.LocalOrchestrator.ProvisionAsync(cScopeInfo);
 
-            await agent.LocalOrchestrator.SaveScopeInfoClientAsync(swedenScopeInfoClient);
+        // Get all scope info clients to get minimum Timestamp
+        // --------------------------------------
+        var cAllScopeInfoClients = await agent.LocalOrchestrator.GetAllScopeInfoClientsAsync();
+
+        var minServerTimeStamp = cAllScopeInfoClients.Min(sic => sic.LastServerSyncTimestamp);
+        var minClientTimeStamp = cAllScopeInfoClients.Min(sic => sic.LastSyncTimestamp);
+        var minLastSync = cAllScopeInfoClients.Min(sic => sic.LastSync);
+
+        // Get (and create) the scope info client for scope ALL
+        // --------------------------------------
+        var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync("All");
+
+        if (cScopeInfoClient.IsNewScope)
+        {
+            cScopeInfoClient.IsNewScope = false;
+            cScopeInfoClient.LastSync = minLastSync;
+            cScopeInfoClient.LastSyncTimestamp = minServerTimeStamp;
+            cScopeInfoClient.LastServerSyncTimestamp = minClientTimeStamp;
+            await agent.LocalOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
         }
 
+        // SERVER SIDE: Add a product category to see if the line is correctly downloaded
+        // --------------------------------------
+        await DBHelper.AddProductCategoryRowAsync(serverProvider);
 
-        var resultSweden = await agent.SynchronizeAsync(setup, paramSweden);
-        Console.WriteLine(resultSweden);
+
+        // --------------------------------------
+        var rAll = await agent.SynchronizeAsync("All");
+        Console.WriteLine(rAll);
+
     }
 
 

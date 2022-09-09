@@ -820,6 +820,19 @@ namespace Dotmim.Sync.Tests
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
+
+                if (options.TransactionMode != TransactionMode.AllOrNothing && (client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB))
+                {
+                    agent.LocalOrchestrator.OnGetCommand(async args =>
+                    {
+                        if (args.CommandType == DbCommandType.Reset)
+                        {
+                            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
+                            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
+                        }
+                    });
+                }
+
                 var s = await agent.SynchronizeAsync("v2", SyncType.Reinitialize, parameters);
 
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);

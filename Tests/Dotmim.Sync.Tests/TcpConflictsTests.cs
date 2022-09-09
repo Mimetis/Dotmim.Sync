@@ -1437,6 +1437,18 @@ namespace Dotmim.Sync.Tests
             // Execute a sync to initialize client and server schema 
             var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
+            if (options.TransactionMode != TransactionMode.AllOrNothing && (client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB))
+            {
+                agent.LocalOrchestrator.OnGetCommand(async args =>
+                {
+                    if (args.CommandType == DbCommandType.Reset)
+                    {
+                        var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
+                        await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
+                    }
+                });
+            }
+
             // Since we may have an Outdated situation due to previous client, go for a Reinitialize sync type
             await agent.SynchronizeAsync(setup, SyncType.Reinitialize);
 

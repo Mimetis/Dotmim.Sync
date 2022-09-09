@@ -53,9 +53,9 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get all scopes info clients. scopeName arg is just here for logging purpose and is not used
         /// </summary>
-        public virtual async Task<List<ScopeInfoClient>> GetAllScopeInfoClientsAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = null, DbTransaction transaction = null)
+        public virtual async Task<List<ScopeInfoClient>> GetAllScopeInfoClientsAsync(DbConnection connection = null, DbTransaction transaction = null)
         {
-            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
 
             try
             {
