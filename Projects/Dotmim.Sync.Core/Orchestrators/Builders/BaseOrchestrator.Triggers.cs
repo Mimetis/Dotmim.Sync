@@ -33,7 +33,10 @@ namespace Dotmim.Sync
         /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
         /// <param name="triggerType">Trigger type to create</param>
         /// <param name="overwrite">If specified the trigger is dropped, if exists, then created again.</param>
-        public async Task<bool> CreateTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert, bool overwrite = false)
+        /// <param name="connection">Optional Connection</param>
+        /// <param name="transaction">Optional Transaction</param>
+        public async Task<bool> CreateTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert, bool overwrite = false,
+            DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 
@@ -47,7 +50,7 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction).ConfigureAwait(false);
                 bool hasBeenCreated = false;
 
                 // Get table builder
@@ -95,7 +98,10 @@ namespace Dotmim.Sync
         /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
         /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
         /// <param name="overwrite">If specified the triggers are dropped, if exists, then created again.</param>
-        public async Task<bool> CreateTriggersAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false)
+        /// <param name="connection">Optional Connection</param>
+        /// <param name="transaction">Optional Transaction</param>
+        public async Task<bool> CreateTriggersAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false,
+            DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 
@@ -109,7 +115,7 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction).ConfigureAwait(false);
 
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
@@ -142,7 +148,10 @@ namespace Dotmim.Sync
         /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
         /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
         /// <param name="triggerType">Trigger type to check if exist</param>
-        public async Task<bool> ExistTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert)
+        /// <param name="connection">Optional Connection</param>
+        /// <param name="transaction">Optional Transaction</param>
+        public async Task<bool> ExistTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert,
+            DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -155,7 +164,7 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
 
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
@@ -186,7 +195,9 @@ namespace Dotmim.Sync
         /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
         /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
         /// <param name="triggerType">Trigger type to drop</param>
-        public async Task<bool> DropTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert)
+        /// <param name="connection">Optional Connection</param>
+        /// <param name="transaction">Optional Transaction</param>
+        public async Task<bool> DropTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 
@@ -200,7 +211,7 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
                 bool hasBeenDropped = false;
 
                 // Get table builder
@@ -213,8 +224,6 @@ namespace Dotmim.Sync
                 if (existsAndCanBeDeleted)
                     (context, hasBeenDropped) = await InternalDropTriggerAsync(scopeInfo, context, tableBuilder, triggerType, 
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                await runner.CommitAsync().ConfigureAwait(false);
 
                 return hasBeenDropped;
             }
@@ -238,7 +247,10 @@ namespace Dotmim.Sync
         /// <param name="scopeInfo">ScopeInfo instance used to defines trigger generation (name, prefix, suffix...).</param>
         /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
         /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
-        public async Task<bool> DropTriggersAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
+        /// <param name="connection">Optional Connection</param>
+        /// <param name="transaction">Optional Transaction</param>
+        public async Task<bool> DropTriggersAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null,
+            DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 
@@ -252,7 +264,7 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
 
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);

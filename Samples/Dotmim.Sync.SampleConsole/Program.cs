@@ -60,15 +60,15 @@ internal class Program
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
-        //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        clientProvider.UseBulkOperations = false;
+        var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //clientProvider.UseBulkOperations = false;
 
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        //var setup = new SyncSetup(allTables);
-        var setup = new SyncSetup("ProductCategory", "Product");
+        var setup = new SyncSetup(allTables);
+        //var setup = new SyncSetup("ProductCategory", "Product");
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
         var options = new SyncOptions();
@@ -99,8 +99,9 @@ internal class Program
 
         //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
-        //await MultiFiltersAsync();
-        await GenerateRetryOnNextCallSync();
+        //await GenerateRetryOnNextCallSync();
+
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
     }
 

@@ -110,10 +110,8 @@ namespace Dotmim.Sync
             var context = new SyncContext(Guid.NewGuid(), serverScopeInfo.Name);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction).ConfigureAwait(false);
-
                 (_, serverScopeInfo) = await InternalProvisionServerAsync(serverScopeInfo, context, provision, overwrite, 
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    connection, transaction).ConfigureAwait(false);
                 return serverScopeInfo;
             }
             catch (Exception ex)
