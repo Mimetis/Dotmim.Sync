@@ -27,7 +27,7 @@ namespace Dotmim.Sync.Tests.Models
         private DbConnection Connection { get; }
 
         public static Guid CustomerId1ForFilter = Guid.NewGuid();
-        
+
         public static Guid CustomerId2ForFilter = Guid.NewGuid();
 
         public AdventureWorksContext((string DatabaseName, ProviderType ProviderType, CoreProvider provider) t, bool fallbackUseSchema = true, bool useSeeding = false) : this()
@@ -446,7 +446,9 @@ namespace Dotmim.Sync.Tests.Models
 #elif NETCOREAPP2_1
                     .HasName("AK_ProductCategory_Name")
 #endif
-                    .IsUnique();
+                .IsClustered(false)
+                .IsUnique();
+
 
                 entity.Property(e => e.ProductCategoryId)
                     .HasColumnName("ProductCategoryID")
@@ -861,8 +863,8 @@ namespace Dotmim.Sync.Tests.Models
                 new ProductCategory { ProductCategoryId = "A_BIKES", Name = "Bikes" },
                 new ProductCategory { ProductCategoryId = "A_COMPT", Name = "Components" },
                 new ProductCategory { ProductCategoryId = "A_CLOTHE", Name = "Clothing" },
-                new ProductCategory { ProductCategoryId = "A_ACCESS",   Name = "Accessories" },
-                new ProductCategory { ProductCategoryId = "MOUNTB", ParentProductCategoryId = "A_BIKES",  Name = "Mountain Bikes" },
+                new ProductCategory { ProductCategoryId = "A_ACCESS", Name = "Accessories" },
+                new ProductCategory { ProductCategoryId = "MOUNTB", ParentProductCategoryId = "A_BIKES", Name = "Mountain Bikes" },
                 new ProductCategory { ProductCategoryId = "ROADB", ParentProductCategoryId = "A_BIKES", Name = "Road Bikes" },
                 new ProductCategory { ProductCategoryId = "ROADFR", ParentProductCategoryId = "A_COMPT", Name = "Road Frames" },
                 new ProductCategory { ProductCategoryId = "TOURB", ParentProductCategoryId = "A_BIKES", Name = "Touring Bikes" },

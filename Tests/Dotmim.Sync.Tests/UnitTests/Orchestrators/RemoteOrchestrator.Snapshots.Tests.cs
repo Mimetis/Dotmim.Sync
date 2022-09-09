@@ -40,7 +40,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // snapshot directory
             var snapshotDirctoryName = HelperDatabase.GetRandomName();
-            var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), snapshotDirctoryName);
+            var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), snapshotDirctoryName);
 
             var options = new SyncOptions
             {
@@ -150,7 +150,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // snapshot directory
             var snapshotDirctoryName = HelperDatabase.GetRandomName();
-            var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), snapshotDirctoryName);
+            var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), snapshotDirctoryName);
 
             var options = new SyncOptions
             {
@@ -216,7 +216,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // snapshot directory
             var snapshotDirctoryName = HelperDatabase.GetRandomName();
-            var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), snapshotDirctoryName);
+            var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), snapshotDirctoryName);
 
             var options = new SyncOptions
             {

@@ -99,76 +99,9 @@ internal class Program
 
         //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
-        //await GenerateRetryOnNextCallSync();
+        await GenerateRetryOnNextCallSync();
 
         //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
-        await TestAsync();
-
-    }
-
-    private static async Task TestAsync()
-    {
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        var setupProductCategory = new SyncSetup("ProductCategory");
-        var setupProduct = new SyncSetup("Product");
-        var setupAll = new SyncSetup("ProductCategory", "Product");
-
-        var agent = new SyncAgent(clientProvider, serverProvider);
-
-        var rProductCategory = await agent.SynchronizeAsync("sProductCategory", setupProductCategory);
-        Console.WriteLine(rProductCategory);
-
-        var rProduct = await agent.SynchronizeAsync("sProduct", setupProduct);
-        Console.WriteLine(rProduct);
-
-        // SERVER SIDE: Provision All scope
-        // --------------------------------------
-        await agent.RemoteOrchestrator.ProvisionAsync("ALL", setupAll);
-
-        // CLIENT SIDE: Create a local scope for all tables
-        // --------------------------------------
-        SyncSet syncSetAll = await agent.LocalOrchestrator.GetSchemaAsync(setupAll);
-
-        ScopeInfo cScopeInfo = new ScopeInfo
-        {
-            Name = "All",
-            Schema = syncSetAll,
-            Setup = setupAll,
-            Version = SyncVersion.Current.ToString()
-        };
-        await agent.LocalOrchestrator.ProvisionAsync(cScopeInfo);
-
-        // Get all scope info clients to get minimum Timestamp
-        // --------------------------------------
-        var cAllScopeInfoClients = await agent.LocalOrchestrator.GetAllScopeInfoClientsAsync();
-
-        var minServerTimeStamp = cAllScopeInfoClients.Min(sic => sic.LastServerSyncTimestamp);
-        var minClientTimeStamp = cAllScopeInfoClients.Min(sic => sic.LastSyncTimestamp);
-        var minLastSync = cAllScopeInfoClients.Min(sic => sic.LastSync);
-
-        // Get (and create) the scope info client for scope ALL
-        // --------------------------------------
-        var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync("All");
-
-        if (cScopeInfoClient.IsNewScope)
-        {
-            cScopeInfoClient.IsNewScope = false;
-            cScopeInfoClient.LastSync = minLastSync;
-            cScopeInfoClient.LastSyncTimestamp = minServerTimeStamp;
-            cScopeInfoClient.LastServerSyncTimestamp = minClientTimeStamp;
-            await agent.LocalOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
-        }
-
-        // SERVER SIDE: Add a product category to see if the line is correctly downloaded
-        // --------------------------------------
-        await DBHelper.AddProductCategoryRowAsync(serverProvider);
-
-
-        // --------------------------------------
-        var rAll = await agent.SynchronizeAsync("All");
-        Console.WriteLine(rAll);
 
     }
 

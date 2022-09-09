@@ -108,7 +108,7 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncOptions()
         {
-            this.BatchDirectory = GetDefaultUserBatchDiretory();
+            this.BatchDirectory = GetDefaultUserBatchDirectory();
             this.BatchSize = 2000;
             this.CleanMetadatas = true;
             this.CleanFolder = true;
@@ -125,7 +125,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the default Batch directory full path ([User Temp Path]/[DotmimSync])
         /// </summary>
-        public static string GetDefaultUserBatchDiretory() => Path.Combine(GetDefaultUserTempPath(), GetDefaultUserBatchDirectoryName());
+        public static string GetDefaultUserBatchDirectory() => Path.Combine(GetDefaultUserTempPath(), GetDefaultUserBatchDirectoryName());
 
         /// <summary>
         /// Get the default user tmp folder

@@ -588,13 +588,13 @@ namespace Dotmim.Sync.Tests
             var serverOptions = new SyncOptions
             {
                 SnapshotsDirectory = directory,
-                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "srv"),
+                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), "srv"),
                 BatchSize = 200
             };
 
             var clientOptions = new SyncOptions
             {
-                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "cli"),
+                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), "cli"),
                 BatchSize = 200
             };
 
