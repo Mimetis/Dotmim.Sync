@@ -20,6 +20,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 {
     public class SqlServerChangeTrackingTcpFiltersTests : TcpFilterTests
     {
+        public override List<ProviderType> ClientsType => new List<ProviderType>
+            {  ProviderType.Sql, ProviderType.MySql, ProviderType.Sqlite, ProviderType.MariaDB};
+
         public SqlServerChangeTrackingTcpFiltersTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
@@ -83,10 +86,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
         public override SyncParameters FilterParameters => new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId1ForFilter));
 
-
-
-        public override List<ProviderType> ClientsType => new List<ProviderType>
-            {  ProviderType.Sql};
 
         public override ProviderType ServerType =>
             ProviderType.Sql;
