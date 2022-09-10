@@ -63,14 +63,14 @@ namespace Dotmim.Sync
 
                     ScopeInfoClient sScopeInfoClient = null;
                     // Get scope info client from server, to get errors if any
-                    await using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, 
+                    await using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading,
                         runner?.Connection, runner?.Transaction, runner != null ? runner.CancellationToken : default, runner?.Progress).ConfigureAwait(false))
                     {
                         (context, sScopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context,
                             runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
                     }
 
-                    
+                    // Getting errors batch info path, saved in scope_info_client table
                     if (sScopeInfoClient != null && !string.IsNullOrEmpty(sScopeInfoClient.Errors))
                     {
                         // Create a message containing everything needed to apply errors rows
@@ -86,15 +86,18 @@ namespace Dotmim.Sync
                         if (retryErrorsBatchInfo != null && retryErrorsBatchInfo.HasData())
                         {
                             // Create a batch info for error rows on "retry apply errros" or "apply changes":
-                            string info = runner?.Connection != null && !string.IsNullOrEmpty(runner?.Connection.Database) ? $"{runner?.Connection.Database}_ERRORS" : "ERRORS";
-                            errorsBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
+                            if (errorsBatchInfo == null)
+                            {
+                                string info = runner?.Connection != null && !string.IsNullOrEmpty(runner?.Connection.Database) ? $"{runner?.Connection.Database}_ERRORS" : "ERRORS";
+                                errorsBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
+                            }
 
                             var retryErrorsApplyChanges = new MessageApplyChanges(Guid.Empty, sScopeInfoClient.Id, false, sScopeInfoClient.LastServerSyncTimestamp, schema,
                                     this.Options.ConflictResolutionPolicy, false, this.Options.BatchDirectory, retryErrorsBatchInfo, errorsBatchInfo, serverChangesApplied);
 
                             // Call apply errors on provider
-                            context = await this.InternalApplyChangesAsync(cScopeInfo, context, retryErrorsApplyChanges, 
-                                runner?.Connection, runner?.Transaction, runner!= null ? runner.CancellationToken : default, runner?.Progress).ConfigureAwait(false);
+                            context = await this.InternalApplyChangesAsync(cScopeInfo, context, retryErrorsApplyChanges,
+                                runner?.Connection, runner?.Transaction, runner != null ? runner.CancellationToken : default, runner?.Progress).ConfigureAwait(false);
                         }
                     }
 
@@ -105,8 +108,11 @@ namespace Dotmim.Sync
                     if (clientChanges.ClientBatchInfo != null && clientChanges.ClientBatchInfo.HasData())
                     {
                         // Create a batch info for error rows on "retry apply errros" or "apply changes":
-                        string info = runner?.Connection != null && !string.IsNullOrEmpty(runner?.Connection.Database) ? $"{runner?.Connection.Database}_ERRORS" : "ERRORS";
-                        errorsBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
+                        if (errorsBatchInfo == null)
+                        {
+                            string info = runner?.Connection != null && !string.IsNullOrEmpty(runner?.Connection.Database) ? $"{runner?.Connection.Database}_ERRORS" : "ERRORS";
+                            errorsBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
+                        }
 
                         // Create message containing everything we need to apply on server side
                         var applyChanges = new MessageApplyChanges(Guid.Empty, cScopeInfoClient.Id, false, cScopeInfoClient.LastServerSyncTimestamp, schema,
@@ -116,6 +122,13 @@ namespace Dotmim.Sync
                         context = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges,
                             runner?.Connection, runner?.Transaction, cancellationToken, progress).ConfigureAwait(false);
                     }
+
+                    // Create message containing everything we need to apply on server side
+                    var applyChangesLastErrors = new MessageApplyChanges(Guid.Empty, cScopeInfoClient.Id, false, cScopeInfoClient.LastServerSyncTimestamp, schema,
+                        this.Options.ConflictResolutionPolicy, false, this.Options.BatchDirectory, clientChanges.ClientBatchInfo, errorsBatchInfo, serverChangesApplied);
+
+                    // Try to clean errors
+                    context = await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, applyChangesLastErrors, runner?.Connection, runner?.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (Options.TransactionMode == TransactionMode.AllOrNothing && runner != null)
                         await runner.CommitAsync().ConfigureAwait(false);

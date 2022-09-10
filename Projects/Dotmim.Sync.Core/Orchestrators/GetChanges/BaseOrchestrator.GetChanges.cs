@@ -549,6 +549,9 @@ namespace Dotmim.Sync
 
         }
 
+
+
+
         /// <summary>
         /// Create a new SyncRow from a dataReader.
         /// </summary>

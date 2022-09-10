@@ -91,6 +91,10 @@ namespace Dotmim.Sync.MySql
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
                     break;
+                case DbCommandType.SelectMetadata:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.SelectMetadata, filter);
+                    break;
                 case DbCommandType.InsertTrigger:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.MySqlObjectNames.GetTriggerCommandName(DbTriggerType.Insert, filter);
@@ -142,6 +146,9 @@ namespace Dotmim.Sync.MySql
                 case DbCommandType.DeleteMetadata:
                     this.SetDeleteMetadataParameters(command);
                     break;
+                case DbCommandType.SelectMetadata:
+                    this.SetSelectMetadataParameters(command);
+                    break;
                 case DbCommandType.DeleteRow:
                 case DbCommandType.DeleteRows:
                     this.SetDeleteRowParameters(command);
@@ -187,6 +194,22 @@ namespace Dotmim.Sync.MySql
             p.DbType = DbType.Boolean;
             command.Parameters.Add(p);
 
+        }
+
+        private void SetSelectMetadataParameters(DbCommand command)
+        {
+            DbParameter p;
+
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
+
+                p = command.CreateParameter();
+                p.ParameterName = $"@{columnName}";
+                p.DbType = column.GetDbType();
+                p.SourceColumn = column.ColumnName;
+                command.Parameters.Add(p);
+            }
         }
 
         private void SetUpdateRowParameters(DbCommand command)

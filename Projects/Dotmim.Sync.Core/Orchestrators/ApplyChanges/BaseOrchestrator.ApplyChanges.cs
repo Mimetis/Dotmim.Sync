@@ -14,11 +14,168 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace Dotmim.Sync
 {
     public abstract partial class BaseOrchestrator
     {
+
+        internal virtual async Task<SyncContext> InternalApplyCleanErrorsAsync(ScopeInfo scopeInfo, SyncContext context, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
+                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+
+            if (message.Errors == null || !message.Errors.HasData())
+                return context;
+
+            context.SyncStage = SyncStage.ChangesApplying;
+
+            var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
+
+            foreach (var schemaTable in schemaTables)
+            {
+                var tableChangesApplied = message.ChangesApplied?.TableChangesApplied?.FirstOrDefault(tca =>
+                {
+                    var sc = SyncGlobalization.DataSourceStringComparison;
+
+                    var sn = tca.SchemaName == null ? string.Empty : tca.SchemaName;
+                    var otherSn = schemaTable.SchemaName == null ? string.Empty : schemaTable.SchemaName;
+
+                    return tca.TableName.Equals(schemaTable.TableName, sc) &&
+                            sn.Equals(otherSn, sc);
+                });
+
+                // foreach tables batch part in errors
+                var bpiTables = message.Errors.GetBatchPartsInfo(schemaTable);
+
+                if (bpiTables == null || !bpiTables.Any())
+                    continue;
+
+                var localSerializer = new LocalJsonSerializer();
+
+                var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
+                var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
+
+                if (interceptorsReading.Count > 0)
+                    localSerializer.OnReadingRow(async (schemaTable, rowString) =>
+                    {
+                        var args = new DeserializingRowArgs(context, schemaTable, rowString);
+                        await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+                        return args.Result;
+                    });
+
+                if (interceptorsWriting.Count > 0)
+                    localSerializer.OnWritingRow(async (syncTable, rowArray) =>
+                    {
+                        var copyArray = new object[rowArray.Length];
+                        Array.Copy(rowArray, copyArray, rowArray.Length);
+
+                        var args = new SerializingRowArgs(context, syncTable, copyArray);
+                        await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+                        return args.Result;
+                    });
+
+
+                // tmp sync table with only writable columns
+                var changesSet = schemaTable.Schema.Clone(false);
+                var schemaChangesTable = CreateChangesTable(schemaTable, changesSet);
+
+                DbCommand command;
+                bool isBatch;
+
+                // get executioning adapter
+                var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaChangesTable, scopeInfo.Setup);
+
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.SelectMetadata, null,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+
+                if (command == null) return context;
+
+                foreach (var batchPartInfo in bpiTables)
+                {
+                    // Get full path of my batchpartinfo
+                    var fullPath = message.Errors.GetBatchPartInfoPath(batchPartInfo).FullPath;
+
+                    // Errors occured when trying to apply rows
+                    var errorsRows = new List<(SyncRow SyncRow, Exception Exception)>();
+
+                    foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
+                    {
+                        // Set the parameters value from row 
+                        this.SetColumnParametersValues(command, syncRow);
+
+                        // Set the special parameters for update
+                        this.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, false, false);
+
+                        // Get the reader
+                        var metadataErrorTable = new SyncTable();
+
+                        using (var reader = command.ExecuteReader())
+                            metadataErrorTable.Load(reader);
+
+                        if (metadataErrorTable != null && metadataErrorTable.Rows != null && metadataErrorTable.Rows.Count > 0)
+                        {
+                            var metadataErrorRow = metadataErrorTable.Rows.First();
+
+                            var metadataErrorRowTimestamp = metadataErrorRow["timestamp"] != DBNull.Value ? SyncTypeConverter.TryConvertTo<long>(metadataErrorRow["timestamp"]) : 0L;
+                            if (metadataErrorRowTimestamp < message.LastTimestamp)
+                            {
+                                errorsRows.Add((syncRow, new Exception("Row Should stay here")));
+                            }
+                            else
+                            {
+                                if (tableChangesApplied != null && tableChangesApplied.Failed > 0)
+                                    tableChangesApplied.Failed--;
+                            }
+                        }
+                        else
+                        {
+                            errorsRows.Add((syncRow, new Exception("Row Should stay here")));
+                        }
+                    }
+
+                    if (File.Exists(fullPath))
+                        File.Delete(fullPath);
+
+                    if (errorsRows != null && errorsRows.Count > 0)
+                    {
+                        await using var runnerError = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.None ? SyncMode.NoTransaction : SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        // If errors occured
+                        foreach (var errorRow in errorsRows)
+                        {
+                            if (!localSerializer.IsOpen)
+                                await localSerializer.OpenFileAsync(fullPath, schemaChangesTable).ConfigureAwait(false);
+
+                            await localSerializer.WriteRowToFileAsync(errorRow.SyncRow, schemaChangesTable).ConfigureAwait(false);
+
+                        }
+
+                        // Close file
+                        if (localSerializer.IsOpen)
+                            await localSerializer.CloseFileAsync().ConfigureAwait(false);
+                    }
+                }
+            }
+
+            var path = message.Errors.GetDirectoryFullPath();
+
+            if (Directory.Exists(path) && Directory.GetFiles(path).Length <= 0)
+            {
+                // Before cleaning, check if we are not trying to delete a snapshot folder
+                var cleanFolder = await this.InternalCanCleanFolderAsync(scopeInfo.Name, context.Parameters, message.Errors, cancellationToken, progress).ConfigureAwait(false);
+
+                if (cleanFolder)
+                    Directory.Delete(path, true);
+
+                message.Errors = null;
+            }
+
+            return context;
+        }
+
         /// <summary>
         /// Apply changes : Delete / Insert / Update
         /// the fromScope is local client scope when this method is called from server
@@ -39,7 +196,6 @@ namespace Dotmim.Sync
 
             // Check if we have some data available
             var hasChanges = message.Changes.HasData();
-
 
             try
             {
@@ -283,7 +439,6 @@ namespace Dotmim.Sync
                         // Adding rows to the batch rows
                         if (batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
                         {
-
                             if (applyType == SyncRowState.Modified && (syncRow.RowState == SyncRowState.RetryModifiedOnNextSync || syncRow.RowState == SyncRowState.Modified))
                                 batchRows.Add(syncRow);
                             else if (applyType == SyncRowState.Deleted && (syncRow.RowState == SyncRowState.RetryDeletedOnNextSync || syncRow.RowState == SyncRowState.Deleted))
@@ -401,7 +556,6 @@ namespace Dotmim.Sync
 
             if ((conflictRows != null && conflictRows.Count > 0) || (errorsRows != null && errorsRows.Count > 0))
             {
-
                 var batchIndex = 0;
                 if (errorsBatchInfo != null && errorsBatchInfo.BatchPartsInfo != null && errorsBatchInfo.BatchPartsInfo.Count > 0)
                     batchIndex = errorsBatchInfo.BatchPartsInfo.Count;

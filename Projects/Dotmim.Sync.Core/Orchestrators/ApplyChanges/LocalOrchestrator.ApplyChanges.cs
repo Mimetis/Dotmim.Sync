@@ -60,6 +60,7 @@ namespace Dotmim.Sync
                     transaction = runner.Transaction;
                 }
 
+                // Getting errors batch info path, saved in scope_info_client table
                 if (!string.IsNullOrEmpty(cScopeInfoClient.Errors))
                 {
                     // Create a message containing everything needed to apply errors rows
@@ -82,6 +83,11 @@ namespace Dotmim.Sync
 
                 // Call apply changes on provider
                 context = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+
+                // Try to clean errors
+                context = await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();

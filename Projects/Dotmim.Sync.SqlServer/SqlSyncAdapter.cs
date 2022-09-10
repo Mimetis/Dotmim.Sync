@@ -413,6 +413,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                     command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
                     isBatch = false;
                     break;
+                case DbCommandType.SelectMetadata:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.SelectMetadata, filter);
+                    isBatch = false;
+                    break;
                 case DbCommandType.InsertTrigger:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.SqlObjectNames.GetTriggerCommandName(DbTriggerType.Insert, filter);
@@ -471,6 +476,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (commandType == DbCommandType.UpdateMetadata)
             {
                 this.SetUpdateRowParameters(command);
+                return;
+            }
+            if (commandType == DbCommandType.SelectMetadata)
+            {
+                this.SetSelectRowParameters(command);
                 return;
             }
             if (commandType == DbCommandType.SelectChanges || commandType == DbCommandType.SelectChangesWithFilters ||
@@ -649,6 +659,22 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         }
 
-       
+
+        private void SetSelectRowParameters(DbCommand command)
+        {
+            DbParameter p;
+
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
+                p = command.CreateParameter();
+                p.ParameterName = $"@{unquotedColumn}";
+                p.DbType = column.GetDbType();
+                p.SourceColumn = column.ColumnName;
+                p.Size = column.MaxLength;
+                command.Parameters.Add(p);
+            }
+
+        }
     }
 }

@@ -167,8 +167,37 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.AddCommandName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()));
 
             this.AddCommandName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand());
+            this.AddCommandName(DbCommandType.SelectMetadata, CreateSelectMetadataCommand());
             this.AddCommandName(DbCommandType.UpdateMetadata, CreateUpdateMetadataCommand());
-            
+
+        }
+
+        private string CreateSelectMetadataCommand()
+        {
+            var stringBuilder = new StringBuilder();
+            var pkeysSelect = new StringBuilder();
+            var pkeysWhere = new StringBuilder();
+
+
+            string and = string.Empty;
+            string comma = string.Empty;
+            foreach (var pkColumn in TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
+                pkeysSelect.Append($"{comma}[side].{columnName}");
+
+                pkeysWhere.Append($"{and}[side].{columnName} = @{parameterName}");
+
+                and = " AND ";
+                comma = ", ";
+            }
+
+            stringBuilder.AppendLine($"SELECT {pkeysSelect}, [side].[update_scope_id], [side].[timestamp_bigint] as [timestamp], [side].[sync_row_is_tombstone]");
+            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"WHERE {pkeysWhere}");
+
+            return stringBuilder.ToString();
         }
 
         private string CreateUpdateMetadataCommand()

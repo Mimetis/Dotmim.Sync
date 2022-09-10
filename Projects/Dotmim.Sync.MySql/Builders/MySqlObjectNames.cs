@@ -161,9 +161,36 @@ namespace Dotmim.Sync.MySql.Builders
 
             this.AddCommandName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand());
             this.AddCommandName(DbCommandType.UpdateMetadata, CreateUpdateMetadataCommand());
+            this.AddCommandName(DbCommandType.SelectMetadata, CreateSelectMetadataCommand());
         }
 
+        private string CreateSelectMetadataCommand()
+        {
+            var pkeySelect = new StringBuilder();
+            var pkeyValues = new StringBuilder();
 
+            string argComma = string.Empty;
+            string argAnd = string.Empty;
+            foreach (var mutableColumn in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+                var unquotedColumnName = ParserName.Parse(mutableColumn, "`").Unquoted().ToString();
+                pkeySelect.Append($"{argComma}{columnName}");
+                pkeyValues.Append($"{argAnd} {columnName} = @{unquotedColumnName}");
+
+                argComma = ",";
+                argAnd = " AND ";
+            }
+
+            StringBuilder stringBuilder = new StringBuilder();
+
+            stringBuilder.AppendLine($"\tSELECT {pkeySelect}, `update_scope_id`, `timestamp`, `sync_row_is_tombstone`");
+            stringBuilder.AppendLine($"\tFROM {trackingName.Quoted().ToString()} ");
+            stringBuilder.AppendLine($"\tWHERE {pkeyValues};");
+
+            var commandText = stringBuilder.ToString();
+            return commandText;
+        }
         private string CreateUpdateMetadataCommand()
         {
             StringBuilder stringBuilder = new StringBuilder();

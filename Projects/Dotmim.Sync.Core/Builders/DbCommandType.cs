@@ -20,6 +20,7 @@ namespace Dotmim.Sync.Builders
         EnableConstraints,
         DeleteMetadata,
         UpdateMetadata,
+        SelectMetadata,
         InsertTrigger,
         UpdateTrigger,
         DeleteTrigger,

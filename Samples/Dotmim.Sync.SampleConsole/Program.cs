@@ -124,6 +124,12 @@ internal class Program
 
 
 
+        var updateAndResolveForeignKeyErrorCommand = new Func<string>(() =>
+        {
+            var command = "UPDATE [ProductCategory] SET [ParentProductCategoryId] = NULL;";
+            return command;
+        });
+
         var getForeignKeyErrorCommand = new Func<string>(() =>
         {
             var subcatrandom = Path.GetRandomFileName();
@@ -185,8 +191,15 @@ internal class Program
             args.Resolution = ErrorResolution.ContinueOnError;
         });
 
+        // Generate foreign key error
+        await DBHelper.ExecuteScriptAsync("CliProduct", getForeignKeyErrorCommand());
 
-        await DBHelper.ExecuteScriptAsync("CliProduct", getUniqueKeyErrorCommand());
+        Console.ResetColor();
+        result = await agent.SynchronizeAsync(setup);
+        Console.WriteLine(result);
+        Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+
+        await DBHelper.ExecuteScriptAsync("CliProduct", updateAndResolveForeignKeyErrorCommand());
 
         do
         {
