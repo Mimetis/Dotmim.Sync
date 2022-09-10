@@ -766,10 +766,6 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
                 Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
-
-                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
-
-                Assert.Empty(batchInfos);
             }
         }
 

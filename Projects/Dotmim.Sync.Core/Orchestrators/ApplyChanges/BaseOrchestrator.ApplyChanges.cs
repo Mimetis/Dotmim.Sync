@@ -528,7 +528,6 @@ namespace Dotmim.Sync
                             continue;
                         }
 
-
                         if (applyType == SyncRowState.Modified && syncRow.RowState != SyncRowState.RetryModifiedOnNextSync && syncRow.RowState != SyncRowState.Modified)
                             continue;
 
