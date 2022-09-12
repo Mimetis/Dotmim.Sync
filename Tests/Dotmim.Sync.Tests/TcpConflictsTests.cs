@@ -931,7 +931,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(12, s.TotalChangesAppliedOnServer);
                 Assert.Equal(0, s.TotalChangesAppliedOnClient);
                 Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
-                Assert.Equal(2, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
@@ -981,7 +981,7 @@ namespace Dotmim.Sync.Tests
         // ------------------------------------------------------------------------
 
         /// <summary>
-        /// Generate an insert on both side; will be resolved as RemoteExistsLocalExists on both side
+        /// Generate a foreign key failure
         /// </summary>
         private async Task Generate_ForeignKeyError()
         {
@@ -1000,7 +1000,6 @@ namespace Dotmim.Sync.Tests
             await ctx.SaveChangesAsync();
 
         }
-
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]

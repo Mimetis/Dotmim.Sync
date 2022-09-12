@@ -71,10 +71,6 @@ namespace Dotmim.Sync
                         this.Options.ConflictResolutionPolicy, false, this.Options.BatchDirectory, clientChanges.ClientBatchInfo, failedRows, serverChangesApplied);
 
 
-                    //------------------------------------------------------------
-                    // STEP 1: Try to reapply previous errors from last sync, if any
-                    //------------------------------------------------------------
-
                     ScopeInfoClient sScopeInfoClient = null;
                     // Get scope info client from server, to get errors if any
                     await using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading,
@@ -95,12 +91,20 @@ namespace Dotmim.Sync
                         catch (Exception) { }
                     }
 
+                    //------------------------------------------------------------
+                    // STEP 1: Remove errors that are part of batch info, then Try to reapply previous errors from last sync, if any
+                    //------------------------------------------------------------
+
+
                     // If we have existing errors happened last sync, we should try to apply them now
                     if (lastSyncErrorsBatchInfo != null && lastSyncErrorsBatchInfo.HasData())
                     {
-                        applyChanges.Changes = lastSyncErrorsBatchInfo;
+                        // Try to clean errors
+                        applyChanges.Changes = clientChanges.ClientBatchInfo;
+                        await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, lastSyncErrorsBatchInfo, applyChanges, runner?.Connection, runner?.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // Call apply errors on provider
+                        applyChanges.Changes = lastSyncErrorsBatchInfo;
                         failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     }
 
@@ -110,20 +114,17 @@ namespace Dotmim.Sync
                     //------------------------------------------------------------
                     // STEP 2: Try to apply changes coming from client, if any
                     //------------------------------------------------------------
+                    applyChanges.Changes = clientChanges.ClientBatchInfo;
 
                     if (clientChanges.ClientBatchInfo != null && clientChanges.ClientBatchInfo.HasData())
                     {
                         // Call provider to apply changes
-                        applyChanges.Changes = clientChanges.ClientBatchInfo;
                         failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges,
                             runner?.Connection, runner?.Transaction, cancellationToken, progress).ConfigureAwait(false);
                     }
 
                     if (failureException != null)
                         throw failureException;
-
-                    // Try to clean errors
-                    context = await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, applyChanges, runner?.Connection, runner?.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Write failed rows to disk
                     if (failedRows.Tables.Any(st => st.HasRows))
@@ -136,7 +137,7 @@ namespace Dotmim.Sync
                         {
                             if (!table.HasRows)
                                 continue;
-                            
+
                             var localSerializer = new LocalJsonSerializer();
 
                             var (filePath, fileName) = errorsBatchInfo.GetNewBatchPartInfoPath(table, batchIndex, "json", info);
@@ -144,7 +145,7 @@ namespace Dotmim.Sync
                             errorsBatchInfo.BatchPartsInfo.Add(batchPartInfo);
 
                             await localSerializer.OpenFileAsync(filePath, table).ConfigureAwait(false);
-                            
+
                             foreach (var row in table.Rows)
                                 await localSerializer.WriteRowToFileAsync(row, table).ConfigureAwait(false);
 

@@ -22,12 +22,12 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
-        internal virtual async Task<SyncContext> InternalApplyCleanErrorsAsync(ScopeInfo scopeInfo, SyncContext context, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
+        internal virtual async Task InternalApplyCleanErrorsAsync(ScopeInfo scopeInfo, SyncContext context,
+                             BatchInfo lastSyncErrorsBatchInfo, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-
-            if (message.FailedRows == null || !message.FailedRows.Tables.Any(t => t.HasRows))
-                return context;
+            if (lastSyncErrorsBatchInfo == null)
+                return;
 
             context.SyncStage = SyncStage.ChangesApplying;
 
@@ -51,60 +51,66 @@ namespace Dotmim.Sync
                 var changesSet = schemaTable.Schema.Clone(false);
                 var schemaChangesTable = CreateChangesTable(schemaTable, changesSet);
 
-                DbCommand command;
-                bool isBatch;
+                // get bpi from changes to be applied
+                var bpiTables = message.Changes.GetBatchPartsInfo(schemaTable);
 
-                // get executioning adapter
-                var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaChangesTable, scopeInfo.Setup);
-
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.SelectMetadata, null,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
-
-                if (command == null) return context;
-
-                var failedRowsTable = message.FailedRows.Tables[schemaTable.TableName, schemaTable.SchemaName];
-
-                if (failedRowsTable == null || failedRowsTable.Rows.Count <= 0)
+                if (bpiTables == null || !bpiTables.Any())
                     continue;
 
-                SyncRow[] failedRows = new SyncRow[failedRowsTable.Rows.Count];
-                failedRowsTable.Rows.CopyTo(failedRows, 0);
+                var tableBpis = lastSyncErrorsBatchInfo.GetBatchPartsInfo(schemaTable);
 
-                foreach (var syncRow in failedRows)
+                if (tableBpis == null || !tableBpis.Any())
+                    continue;
+
+                var localSerializerReader = new LocalJsonSerializer();
+                var localSerializerWriter = new LocalJsonSerializer();
+
+                // Load in memory failed rows for this table
+                var failedRows = new List<SyncRow>();
+
+                var lastSyncErrorsBpiFullPath = lastSyncErrorsBatchInfo.GetBatchPartInfoPath(tableBpis.ToList()[0]).FullPath;
+                foreach (var syncRow in localSerializerReader.ReadRowsFromFile(lastSyncErrorsBpiFullPath, schemaChangesTable))
+                    failedRows.Add(syncRow);
+
+                // Open again the same file
+                await localSerializerWriter.OpenFileAsync(lastSyncErrorsBpiFullPath, schemaChangesTable).ConfigureAwait(false);
+
+
+                foreach (var batchPartInfo in bpiTables)
                 {
-                    // Set the parameters value from row 
-                    this.SetColumnParametersValues(command, syncRow);
+                    // Get full path of my batchpartinfo
+                    var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo).FullPath;
 
-                    // Set the special parameters for update
-                    this.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, false, false);
-
-                    // Get the reader
-                    var metadataErrorTable = new SyncTable();
-
-                    using (var reader = command.ExecuteReader())
-                        metadataErrorTable.Load(reader);
-
-                    if (metadataErrorTable != null && metadataErrorTable.Rows != null && metadataErrorTable.Rows.Count > 0)
+                    foreach (var syncRow in localSerializerReader.ReadRowsFromFile(fullPath, schemaChangesTable))
                     {
-                        var metadataErrorRow = metadataErrorTable.Rows.First();
+                        var rowIsInBatch = SyncRows.GetRowByPrimaryKeys(syncRow, failedRows, schemaTable);
 
-                        var metadataErrorRowTimestamp = metadataErrorRow["timestamp"] != DBNull.Value ? SyncTypeConverter.TryConvertTo<long>(metadataErrorRow["timestamp"]) : 0L;
-
-                        // we can remove
-                        if (metadataErrorRowTimestamp > message.LastTimestamp)
+                        // we found the row in the batch, that means the failed row is currently in a progress of being updated
+                        // we can remove it from failedRowsTable
+                        if (rowIsInBatch != null)
                         {
-                            failedRowsTable.Rows.Remove(syncRow);
+                            failedRows.Remove(rowIsInBatch);
 
                             if (tableChangesApplied != null && tableChangesApplied.Failed > 0)
                                 tableChangesApplied.Failed--;
                         }
+
+                        if (failedRows.Count <= 0)
+                            break;
                     }
+
+                    if (failedRows.Count <= 0)
+                        break;
                 }
 
+                foreach (var row in failedRows)
+                    await localSerializerWriter.WriteRowToFileAsync(row, schemaChangesTable).ConfigureAwait(false);
+
+                await localSerializerWriter.CloseFileAsync();
+
+                if (failedRows.Count <= 0 && File.Exists(lastSyncErrorsBpiFullPath))
+                    File.Delete(lastSyncErrorsBpiFullPath);
             }
-            return context;
         }
 
         /// <summary>
@@ -294,7 +300,6 @@ namespace Dotmim.Sync
                 if (command == null)
                     return default;
 
-                // TODO : We should be able to get only BPI for the good SyncRowState
                 bpiTables = message.Changes.GetBatchPartsInfo(schemaTable);
 
                 // launch interceptor if any

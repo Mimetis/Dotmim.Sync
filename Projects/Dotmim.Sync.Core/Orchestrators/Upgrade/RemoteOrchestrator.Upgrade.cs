@@ -55,7 +55,7 @@ namespace Dotmim.Sync
                     return false;
 
                 // Check if scope_info exists
-                // If exists then we have already upgraded to 0.9.6
+                // If exists then we have already upgraded to last version
                 bool exists;
                 (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);

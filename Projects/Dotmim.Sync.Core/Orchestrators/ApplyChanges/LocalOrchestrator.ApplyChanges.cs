@@ -84,14 +84,19 @@ namespace Dotmim.Sync
                 // If we have existing errors happened last sync, we should try to apply them now
                 if (lastSyncErrorsBatchInfo != null && lastSyncErrorsBatchInfo.HasData())
                 {
-                    applyChanges.Changes = lastSyncErrorsBatchInfo;
+                    // Try to clean errors before trying
+                    applyChanges.Changes = serverBatchInfo;
+                    await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, lastSyncErrorsBatchInfo,  applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
 
                     // Call apply errors on provider
+                    applyChanges.Changes = lastSyncErrorsBatchInfo;
                     failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 if (failureException != null)
                     throw failureException;
+
 
                 if (serverBatchInfo != null && serverBatchInfo.HasData())
                 {
@@ -100,8 +105,6 @@ namespace Dotmim.Sync
                     failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
-                // Try to clean errors
-                context = await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (failureException != null)
                     throw failureException;

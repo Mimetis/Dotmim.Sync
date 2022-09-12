@@ -104,44 +104,70 @@ internal class Program
         //clientProvider.UseBulkOperations = false;
         // await FileTestAsync();
 
-        await GenerateRetryOnNextCallSync();
+        await GenerateRetryOnNextOnClientCallSync();
 
         //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
     }
 
-    private static async Task FileTestAsync()
+
+    private static async Task GenerateRetryOnNextOnClientCallSync()
     {
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("Client"));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("svProduct"));
+        serverProvider.UseBulkOperations = false;
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("CliProduct"));
         clientProvider.UseBulkOperations = false;
-        var localOrchestrator = new LocalOrchestrator(clientProvider);
-        var localSerializer = new LocalJsonSerializer();
-        var dir = SyncOptions.GetDefaultUserBatchDirectory();
-        var fileName = String.Concat(Path.GetRandomFileName().Replace(".", ""), ".json");
-        var filePath = Path.Combine(dir, fileName);
+        var setup = new SyncSetup("ProductCategory");
+        var options = new SyncOptions();
 
-        var scope = await localOrchestrator.GetScopeInfoAsync("All");
-
-        var table = scope.Schema.Tables[0];
-        var row = table.NewRow();
-        row["ProductCategoryID"] = Guid.NewGuid();
-        row["Name"] = "Test";
-
-        do
+        //var options = new SyncOptions();
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
         {
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}");
+        });
 
-            if (!localSerializer.IsOpen)
-                await localSerializer.OpenFileAsync(filePath, table);
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-            await localSerializer.WriteRowToFileAsync(row, table);
+        var result = await agent.SynchronizeAsync(setup);
 
-            await localSerializer.CloseFileAsync();
+        agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            var index = args.Exception.Message.IndexOf(".");
+            if (index <= 0)
+                index = args.Exception.Message.Length;
 
-        } while (true);
+            Console.WriteLine($"ERROR: {args.Exception.Message.Substring(0, index)}");
+            Console.WriteLine($"{args.ErrorRow}");
+            Console.ResetColor();
+            args.Resolution = ErrorResolution.RetryOnNextSync;
+        });
+
+        // Generate a null exception
+        // On client ModifiedDate is not null allowed (but null allowed on server)
+        await DBHelper.ExecuteScriptAsync("svProduct", "UPDATE [ProductCategory] Set [ModifiedDate]=NULL WHERE [ProductCategoryID]='A_ACCESS'");
+
+        Console.ResetColor();
+        result = await agent.SynchronizeAsync(setup);
+        Console.WriteLine(result);
+        Console.WriteLine("Sync Ended.");
+
+        await DBHelper.ExecuteScriptAsync("svProduct", "UPDATE [ProductCategory] Set [ModifiedDate]='2022-09-05' WHERE [ProductCategoryID]='A_ACCESS'");
+        Console.ResetColor();
+        result = await agent.SynchronizeAsync(setup);
+        Console.WriteLine(result);
+        Console.WriteLine("Sync Ended.");
+
+        Console.ResetColor();
+        result = await agent.SynchronizeAsync(setup);
+        Console.WriteLine(result);
+        Console.WriteLine("Sync Ended.");
 
     }
 
-    private static async Task GenerateRetryOnNextCallSync()
+    private static async Task GenerateRetryOnNextOnServerCallSync()
     {
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("svProduct"));
         serverProvider.UseBulkOperations = false;

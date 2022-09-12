@@ -71,7 +71,7 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Upgrade your client database to the last version 0.9.6
+        /// Upgrade your client database to the last version
         /// <para>
         /// This upgrade is manually since <strong>we need the parameters</strong> you are using, to <strong>save them</strong> in the client database.
         /// Please provide all the entries (scope name + sync parameters) you are using <strong>locally</strong>, to sync to server
