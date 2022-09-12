@@ -17,7 +17,7 @@ namespace Dotmim.Sync
         /// </summary>
         public MessageApplyChanges(Guid localScopeId, Guid senderScopeId, bool isNew, long? lastTimestamp, SyncSet schema,
                                     ConflictResolutionPolicy policy, bool snapshotApplied, string batchDirectory,
-                                    BatchInfo changes, BatchInfo errors, DatabaseChangesApplied changesApplied)
+                                    BatchInfo changes, SyncSet failedRows, DatabaseChangesApplied changesApplied)
         {
             this.LocalScopeId = localScopeId;
             this.SenderScopeId = senderScopeId;
@@ -26,7 +26,7 @@ namespace Dotmim.Sync
             this.Schema = schema ?? throw new ArgumentNullException(nameof(schema));
             this.Policy = policy;
             this.Changes = changes ?? throw new ArgumentNullException(nameof(changes));
-            this.Errors = errors;
+            this.FailedRows = failedRows;
             this.ChangesApplied = changesApplied;
             this.SnapshoteApplied = snapshotApplied;
             this.BatchDirectory = batchDirectory;
@@ -68,9 +68,9 @@ namespace Dotmim.Sync
         public BatchInfo Changes { get; set; }
 
         /// <summary>
-        /// Gets or Sets the batch info that will contains all errors raised on apply changes (or apply rety errors changes)
+        /// Gets or Sets the failed rows set
         /// </summary>
-        public BatchInfo Errors { get; set; }
+        public SyncSet FailedRows { get; set; }
 
         /// <summary>
         /// Gets or Sets the changes applied

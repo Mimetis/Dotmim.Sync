@@ -52,7 +52,7 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Open the file and write header
         /// </summary>
-        public async Task OpenFileAsync(string path, SyncTable shemaTable)
+        public async Task OpenFileAsync(string path, SyncTable shemaTable, bool append = false)
         {
             if (this.writer != null)
             {
@@ -66,7 +66,7 @@ namespace Dotmim.Sync.Serialization
             if (!fi.Directory.Exists)
                 fi.Directory.Create();
 
-            this.sw = new StreamWriter(path);
+            this.sw = new StreamWriter(path, append);
             this.writer = new JsonTextWriter(sw) { CloseOutput = true };
 
             this.writer.WriteStartObject();

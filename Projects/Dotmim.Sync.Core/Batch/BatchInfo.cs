@@ -160,7 +160,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Get all batch part for 1 particular table
         /// </summary>
-        public IEnumerable<BatchPartInfo> GetBatchPartsInfo(SyncTable syncTable, SyncRowState? state = null)
+        public IEnumerable<BatchPartInfo> GetBatchPartsInfo(SyncTable syncTable)
         {
             if (syncTable == null) return Enumerable.Empty<BatchPartInfo>();
 
@@ -171,12 +171,7 @@ namespace Dotmim.Sync.Batch
 
             IEnumerable<BatchPartInfo> bpiTables = null;
 
-            if (state.HasValue)
-                // backward compatibility: Test if State exists
-                bpiTables = this.BatchPartsInfo.Where(bpi => bpi.RowsCount > 0 && bpi.EqualsByName(tmpBpi) && (bpi.State == null || bpi.State == state.Value)).OrderBy(bpi => bpi.Index);
-
-            else
-                bpiTables = this.BatchPartsInfo.Where(bpi => bpi.RowsCount > 0 && bpi.EqualsByName(tmpBpi)).OrderBy(bpi => bpi.Index);
+            bpiTables = this.BatchPartsInfo.Where(bpi => bpi.RowsCount > 0 && bpi.EqualsByName(tmpBpi)).OrderBy(bpi => bpi.Index);
 
             if (bpiTables == null) return Enumerable.Empty<BatchPartInfo>();
 
@@ -186,7 +181,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Get all batch part for 1 particular table
         /// </summary>
-        public IEnumerable<BatchPartInfo> GetBatchPartsInfo(string tableName, string schemaName = default, SyncRowState? state = null) => GetBatchPartsInfo(new SyncTable(tableName, schemaName), state);
+        public IEnumerable<BatchPartInfo> GetBatchPartsInfo(string tableName, string schemaName = default) => GetBatchPartsInfo(new SyncTable(tableName, schemaName));
 
         /// <summary>
         /// Ensure the last batch part has the correct IsLastBatch flag

@@ -12,6 +12,7 @@ using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices.ComTypes;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -25,7 +26,7 @@ namespace Dotmim.Sync
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
-            if (message.Errors == null || !message.Errors.HasData())
+            if (message.FailedRows == null || !message.FailedRows.Tables.Any(t => t.HasRows))
                 return context;
 
             context.SyncStage = SyncStage.ChangesApplying;
@@ -45,36 +46,6 @@ namespace Dotmim.Sync
                             sn.Equals(otherSn, sc);
                 });
 
-                // foreach tables batch part in errors
-                var bpiTables = message.Errors.GetBatchPartsInfo(schemaTable);
-
-                if (bpiTables == null || !bpiTables.Any())
-                    continue;
-
-                var localSerializer = new LocalJsonSerializer();
-
-                var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
-                var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
-
-                if (interceptorsReading.Count > 0)
-                    localSerializer.OnReadingRow(async (schemaTable, rowString) =>
-                    {
-                        var args = new DeserializingRowArgs(context, schemaTable, rowString);
-                        await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-                        return args.Result;
-                    });
-
-                if (interceptorsWriting.Count > 0)
-                    localSerializer.OnWritingRow(async (syncTable, rowArray) =>
-                    {
-                        var copyArray = new object[rowArray.Length];
-                        Array.Copy(rowArray, copyArray, rowArray.Length);
-
-                        var args = new SerializingRowArgs(context, syncTable, copyArray);
-                        await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-                        return args.Result;
-                    });
-
 
                 // tmp sync table with only writable columns
                 var changesSet = schemaTable.Schema.Clone(false);
@@ -93,15 +64,16 @@ namespace Dotmim.Sync
 
                 if (command == null) return context;
 
-                foreach (var batchPartInfo in bpiTables)
+                // Copy List ref to be able to foreach and remove if needed
+                SyncTable[] failedTable = new SyncTable[message.FailedRows.Tables.Count];
+                message.FailedRows.Tables.CopyTo(failedTable, 0);
+
+                foreach (var table in failedTable)
                 {
-                    // Get full path of my batchpartinfo
-                    var fullPath = message.Errors.GetBatchPartInfoPath(batchPartInfo).FullPath;
+                    SyncRow[] failedRows = new SyncRow[table.Rows.Count];
+                    table.Rows.CopyTo(failedRows, 0);
 
-                    // Errors occured when trying to apply rows
-                    var errorsRows = new List<(SyncRow SyncRow, Exception Exception)>();
-
-                    foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
+                    foreach (var syncRow in failedRows)
                     {
                         // Set the parameters value from row 
                         this.SetColumnParametersValues(command, syncRow);
@@ -120,59 +92,19 @@ namespace Dotmim.Sync
                             var metadataErrorRow = metadataErrorTable.Rows.First();
 
                             var metadataErrorRowTimestamp = metadataErrorRow["timestamp"] != DBNull.Value ? SyncTypeConverter.TryConvertTo<long>(metadataErrorRow["timestamp"]) : 0L;
-                            if (metadataErrorRowTimestamp < message.LastTimestamp)
+                            
+                            // we can remove
+                            if (metadataErrorRowTimestamp > message.LastTimestamp)
                             {
-                                errorsRows.Add((syncRow, new Exception("Row Should stay here")));
-                            }
-                            else
-                            {
+                                message.FailedRows.Tables[table.TableName, table.SchemaName].Rows.Remove(syncRow);
+
                                 if (tableChangesApplied != null && tableChangesApplied.Failed > 0)
                                     tableChangesApplied.Failed--;
                             }
                         }
-                        else
-                        {
-                            errorsRows.Add((syncRow, new Exception("Row Should stay here")));
-                        }
-                    }
-
-                    if (File.Exists(fullPath))
-                        File.Delete(fullPath);
-
-                    if (errorsRows != null && errorsRows.Count > 0)
-                    {
-                        await using var runnerError = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.None ? SyncMode.NoTransaction : SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        // If errors occured
-                        foreach (var errorRow in errorsRows)
-                        {
-                            if (!localSerializer.IsOpen)
-                                await localSerializer.OpenFileAsync(fullPath, schemaChangesTable).ConfigureAwait(false);
-
-                            await localSerializer.WriteRowToFileAsync(errorRow.SyncRow, schemaChangesTable).ConfigureAwait(false);
-
-                        }
-
-                        // Close file
-                        if (localSerializer.IsOpen)
-                            await localSerializer.CloseFileAsync().ConfigureAwait(false);
                     }
                 }
             }
-
-            var path = message.Errors.GetDirectoryFullPath();
-
-            if (Directory.Exists(path) && Directory.GetFiles(path).Length <= 0)
-            {
-                // Before cleaning, check if we are not trying to delete a snapshot folder
-                var cleanFolder = await this.InternalCanCleanFolderAsync(scopeInfo.Name, context.Parameters, message.Errors, cancellationToken, progress).ConfigureAwait(false);
-
-                if (cleanFolder)
-                    Directory.Delete(path, true);
-
-                message.Errors = null;
-            }
-
             return context;
         }
 
@@ -181,7 +113,7 @@ namespace Dotmim.Sync
         /// the fromScope is local client scope when this method is called from server
         /// the fromScope is server scope when this method is called from client
         /// </summary>
-        internal virtual async Task<SyncContext>
+        internal virtual async Task<Exception>
             InternalApplyChangesAsync(ScopeInfo scopeInfo, SyncContext context, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -191,11 +123,14 @@ namespace Dotmim.Sync
             var databaseChangesApplyingArgs = new DatabaseChangesApplyingArgs(context, message, connection, transaction);
             await this.InterceptAsync(databaseChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
 
-            if (message.ChangesApplied == null)
-                message.ChangesApplied = new DatabaseChangesApplied();
+            message.ChangesApplied ??= new DatabaseChangesApplied();
+            message.FailedRows ??= message.Schema.Clone();
 
             // Check if we have some data available
             var hasChanges = message.Changes.HasData();
+
+            // critical exception that causes rollback
+            Exception failureException = null;
 
             try
             {
@@ -237,23 +172,28 @@ namespace Dotmim.Sync
                     {
                         foreach (var table in schemaTables)
                         {
-                            context = await this.InternalApplyTableChangesAsync(scopeInfo, context, table, message, message.Errors,
+                            failureException = await this.InternalApplyTableChangesAsync(scopeInfo, context, table, message, message.FailedRows.Tables[table.TableName, table.SchemaName],
                                         connection, transaction, SyncRowState.Modified, message.ChangesApplied,
                                         cancellationToken, progress).ConfigureAwait(false);
 
+                            if (failureException != null)
+                                break;
                         }
                     }
 
                     // -----------------------------------------------------
                     // 2) Applying Deletes. Do not apply deletes if we are in a new database
                     // -----------------------------------------------------
-                    if (!message.IsNew && hasChanges)
+                    if (!message.IsNew && hasChanges && failureException == null)
                     {
                         foreach (var table in schemaTables.Reverse())
                         {
-                            context = await this.InternalApplyTableChangesAsync(scopeInfo, context, table, message, message.Errors,
+                            failureException = await this.InternalApplyTableChangesAsync(scopeInfo, context, table, message, message.FailedRows.Tables[table.TableName, table.SchemaName],
                                 connection, transaction, SyncRowState.Deleted, message.ChangesApplied,
                                 cancellationToken, progress).ConfigureAwait(false);
+
+                            if (failureException != null)
+                                break;
                         }
                     }
 
@@ -283,7 +223,7 @@ namespace Dotmim.Sync
                 var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, message.ChangesApplied, connection, transaction);
                 await this.InterceptAsync(databaseChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
 
-                return context;
+                return failureException;
             }
             catch (Exception)
             {
@@ -297,37 +237,38 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply changes internal method for one type of query: Insert, Update or Delete for every batch from a table
         /// </summary>
-        internal virtual async Task<SyncContext> InternalApplyTableChangesAsync(ScopeInfo scopeInfo, SyncContext context, SyncTable schemaTable, MessageApplyChanges message, BatchInfo errorsBatchInfo,
+        internal virtual async Task<Exception> InternalApplyTableChangesAsync(ScopeInfo scopeInfo, SyncContext context, SyncTable schemaTable,
+            MessageApplyChanges message, SyncTable errorsTable,
             DbConnection connection, DbTransaction transaction, SyncRowState applyType, DatabaseChangesApplied changesApplied,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (this.Provider == null)
-                return context;
+                return default;
 
             context.SyncStage = SyncStage.ChangesApplying;
 
             var setupTable = scopeInfo.Setup.Tables[schemaTable.TableName, schemaTable.SchemaName];
 
             if (setupTable == null)
-                return context;
+                return default;
 
             // Only table schema is replicated, no datas are applied
             if (setupTable.SyncDirection == SyncDirection.None)
-                return context;
+                return default;
 
             // if we are in upload stage, so check if table is not download only
             if (context.SyncWay == SyncWay.Upload && setupTable.SyncDirection == SyncDirection.DownloadOnly)
-                return context;
+                return default;
 
             // if we are in download stage, so check if table is not download only
             if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
-                return context;
+                return default;
 
             var hasChanges = message.Changes.HasData(schemaTable.TableName, schemaTable.SchemaName);
 
             // Each table in the messages contains scope columns. Don't forget it
             if (!hasChanges)
-                return context;
+                return default;
 
             // what kind of command to execute
             var init = message.IsNew || context.SyncType != SyncType.Normal;
@@ -351,17 +292,18 @@ namespace Dotmim.Sync
                 (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType, null,
                 runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
 
-                if (command == null) return context;
+                if (command == null)
+                    return default;
 
                 // TODO : We should be able to get only BPI for the good SyncRowState
-                bpiTables = message.Changes.GetBatchPartsInfo(schemaTable, applyType);
+                bpiTables = message.Changes.GetBatchPartsInfo(schemaTable);
 
                 // launch interceptor if any
                 var args = new TableChangesApplyingArgs(context, message.Changes, bpiTables, schemaTable, applyType, command, connection, transaction);
                 await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
 
                 if (args.Cancel || args.Command == null)
-                    return context;
+                    return default;
 
                 command = args.Command;
                 cmdText = command.CommandText;
@@ -383,23 +325,8 @@ namespace Dotmim.Sync
                 });
             }
 
-            // when serializing failed rows
-            var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
-            if (interceptorsWriting.Count > 0)
-            {
-                localSerializer.OnWritingRow(async (syncTable, rowArray) =>
-                {
-                    var copyArray = new object[rowArray.Length];
-                    Array.Copy(rowArray, copyArray, rowArray.Length);
-
-                    var args = new SerializingRowArgs(context, syncTable, copyArray);
-                    await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-                    return args.Result;
-                });
-            }
-
-            // I've got all files for my table
-            // applied rows for this bpi
+            // Failure exception if any
+            Exception failureException = null;
 
             // Conflicts occured when trying to apply rows
             var conflictRows = new List<SyncRow>();
@@ -555,14 +482,6 @@ namespace Dotmim.Sync
 
             if ((conflictRows != null && conflictRows.Count > 0) || (errorsRows != null && errorsRows.Count > 0))
             {
-                var batchIndex = 0;
-                if (errorsBatchInfo != null && errorsBatchInfo.BatchPartsInfo != null && errorsBatchInfo.BatchPartsInfo.Count > 0)
-                    batchIndex = errorsBatchInfo.BatchPartsInfo.Count;
-
-                var info = applyType == SyncRowState.Modified ? "ERRORS_UPSERTS" : "ERRORS_DELETES";
-                // if we have errors on this table, create a new batch part info
-                var (batchPartInfoFullPath, batchPartFileName) = errorsBatchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializer.Extension, info);
-
                 await using var runnerError = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.None ? SyncMode.NoTransaction : SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // If conflicts occured
@@ -585,42 +504,49 @@ namespace Dotmim.Sync
                 }
 
                 // If errors occured
+                bool shouldRollbackTransaction = false;
                 foreach (var errorRow in errorsRows)
                 {
-                    var (applied, failed, exception) =
-                        await this.HandleErrorAsync(scopeInfo, context, errorRow.SyncRow, applyType, schemaChangesTable, errorRow.Exception,
-                                                    localSerializer, batchPartInfoFullPath, message.SenderScopeId, message.LastTimestamp,
-                                                    runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
+                    if ((errorRow.SyncRow.RowState == SyncRowState.ApplyModifiedFailed || errorRow.SyncRow.RowState == SyncRowState.Modified || errorRow.SyncRow.RowState == SyncRowState.RetryModifiedOnNextSync)
+                        && applyType == SyncRowState.Deleted)
+                        continue;
+
+                    if ((errorRow.SyncRow.RowState == SyncRowState.ApplyDeletedFailed || errorRow.SyncRow.RowState == SyncRowState.Deleted || errorRow.SyncRow.RowState == SyncRowState.RetryDeletedOnNextSync)
+                        && applyType == SyncRowState.Modified)
+                        continue;
+
+                    ErrorAction errorAction;
+                    (errorAction, failureException) = await this.HandleErrorAsync(
+                                        scopeInfo, context, errorRow.SyncRow, applyType, schemaChangesTable,
+                                        errorRow.Exception, message.SenderScopeId, message.LastTimestamp,
+                                        runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
+
+                    // If failed, add the row to the final output failure rows
+                    var existingRow = SyncRows.GetRowByPrimaryKeys(errorRow.SyncRow, errorsTable.Rows, errorsTable);
+
+                    if (existingRow != null)
+                        errorsTable.Rows.Remove(existingRow);
+
+                    // User decides error should be logged
+                    if (errorAction != ErrorAction.Resolved)
+                        errorsTable.Rows.Add(errorRow.SyncRow);
 
                     // final throw if any error coming back from HandleErrorAsync
-                    if (exception != null)
+                    if (errorAction != ErrorAction.Ignore)
                     {
-                        // Close file
-                        if (localSerializer.IsOpen)
+                        if (errorAction == ErrorAction.Throw)
                         {
-                            await localSerializer.CloseFileAsync().ConfigureAwait(false);
-
-                            var bpi = new BatchPartInfo(batchPartFileName, schemaChangesTable.TableName, schemaChangesTable.SchemaName, failedRows, batchIndex, applyType);
-                            errorsBatchInfo.BatchPartsInfo.Add(bpi);
-                            errorsBatchInfo.RowsCount += failedRows;
+                            failedRows++;
+                            shouldRollbackTransaction = true;
+                            // Break because a critical error has been raised and we don't want to continue
+                            break;
+                        }
+                        else
+                        {
+                            failedRows += errorAction == ErrorAction.Log ? 1 : 0;
+                            appliedRows += errorAction == ErrorAction.Resolved ? 1 : 0;
                         }
 
-                        await runnerError.RollbackAsync().ConfigureAwait(false);
-
-                        schemaChangesTable.Dispose();
-                        schemaChangesTable = null;
-                        changesSet.Dispose();
-                        changesSet = null;
-
-                        if (command != null)
-                            command.Dispose();
-
-                        throw exception;
-                    }
-                    else
-                    {
-                        failedRows += failed ? 1 : 0;
-                        appliedRows += applied ? 1 : 0;
                     }
                 }
 
@@ -628,18 +554,10 @@ namespace Dotmim.Sync
                 if (localSerializer.IsOpen)
                     await localSerializer.CloseFileAsync().ConfigureAwait(false);
 
-                await runnerError.CommitAsync().ConfigureAwait(false);
-
-                if (failedRows == 0 && File.Exists(batchPartInfoFullPath))
-                {
-                    File.Delete(batchPartInfoFullPath);
-                }
+                if (shouldRollbackTransaction)
+                    await runnerError.RollbackAsync().ConfigureAwait(false);
                 else
-                {
-                    var bpi = new BatchPartInfo(batchPartFileName, schemaChangesTable.TableName, schemaChangesTable.SchemaName, failedRows, batchIndex, applyType);
-                    errorsBatchInfo.BatchPartsInfo.Add(bpi);
-                    errorsBatchInfo.RowsCount += failedRows;
-                }
+                    await runnerError.CommitAsync().ConfigureAwait(false);
             }
 
             // Only Upsert DatabaseChangesApplied if we make an upsert/ delete from the batch or resolved any conflict
@@ -688,7 +606,6 @@ namespace Dotmim.Sync
                 context.ProgressPercentage += progresspct;
             }
 
-
             schemaChangesTable.Dispose();
             schemaChangesTable = null;
             changesSet.Dispose();
@@ -708,7 +625,7 @@ namespace Dotmim.Sync
             if (command != null)
                 command.Dispose();
 
-            return context;
+            return failureException;
         }
 
 

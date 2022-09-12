@@ -39,15 +39,31 @@ namespace Dotmim.Sync
                 var serverBatchInfo = serverSyncChanges.ServerBatchInfo;
                 var remoteClientTimestamp = serverSyncChanges.RemoteClientTimestamp;
 
-                // Create a batch info for error rows on "retry apply errros" or "apply changes":
-                string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_ERRORS" : "ERRORS";
-                var errorsBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
-
+                // applied changes to clients
                 DatabaseChangesApplied clientChangesApplied = new DatabaseChangesApplied();
 
-                // Create the message containing everything needed to apply changes
-                var applyChanges = new MessageApplyChanges(cScopeInfoClient.Id, Guid.Empty, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp,
-                    cScopeInfo.Schema, policy, snapshotApplied, this.Options.BatchDirectory, serverBatchInfo, errorsBatchInfo, clientChangesApplied);
+                // Create a message containing everything needed to apply errors rows
+                BatchInfo lastSyncErrorsBatchInfo = null;
+
+
+                // Storeing all failed rows in a Set
+                SyncSet failedRows = cScopeInfo.Schema.Clone();
+
+                // if not null, rollback
+                Exception failureException = null;
+
+                // BatchInfo containing errors
+                BatchInfo errorsBatchInfo = null;
+
+                // Gets the existing errors from past sync
+                if (cScopeInfoClient != null && !string.IsNullOrEmpty(cScopeInfoClient.Errors))
+                {
+                    try
+                    {
+                        lastSyncErrorsBatchInfo = !string.IsNullOrEmpty(cScopeInfoClient.Errors) ? JsonConvert.DeserializeObject<BatchInfo>(cScopeInfoClient.Errors) : null;
+                    }
+                    catch (Exception) { }
+                }
 
                 context.SyncWay = SyncWay.Download;
 
@@ -60,34 +76,35 @@ namespace Dotmim.Sync
                     transaction = runner.Transaction;
                 }
 
-                // Getting errors batch info path, saved in scope_info_client table
-                if (!string.IsNullOrEmpty(cScopeInfoClient.Errors))
-                {
-                    // Create a message containing everything needed to apply errors rows
-                    BatchInfo retryErrorsBatchInfo = null;
+                // Create the message containing everything needed to apply changes
+                var applyChanges = new MessageApplyChanges(cScopeInfoClient.Id, Guid.Empty, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp,
+                    cScopeInfo.Schema, policy, snapshotApplied, this.Options.BatchDirectory, serverBatchInfo, failedRows, clientChangesApplied);
 
-                    try
-                    {
-                        retryErrorsBatchInfo = !string.IsNullOrEmpty(cScopeInfoClient.Errors) ? JsonConvert.DeserializeObject<BatchInfo>(cScopeInfoClient.Errors) : null;
-                    }
-                    catch (Exception) { }
-                    
-                    if (retryErrorsBatchInfo != null)
-                    {
-                        var retryErrorsApplyChanges = new MessageApplyChanges(cScopeInfoClient.Id, Guid.Empty, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp,
-                            cScopeInfo.Schema, policy, snapshotApplied, this.Options.BatchDirectory, retryErrorsBatchInfo, errorsBatchInfo, clientChangesApplied);
-                        // Call apply errors on provider
-                        context = await this.InternalApplyChangesAsync(cScopeInfo, context, retryErrorsApplyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
+
+                // If we have existing errors happened last sync, we should try to apply them now
+                if (lastSyncErrorsBatchInfo != null && lastSyncErrorsBatchInfo.HasData())
+                {
+                    applyChanges.Changes = lastSyncErrorsBatchInfo;
+
+                    // Call apply errors on provider
+                    failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
 
-                // Call apply changes on provider
-                context = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (failureException != null)
+                    throw failureException;
 
+                if (serverBatchInfo != null && serverBatchInfo.HasData())
+                {
+                    // Call apply changes on provider
+                    applyChanges.Changes = serverBatchInfo;
+                    failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                }
 
                 // Try to clean errors
                 context = await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                if (failureException != null)
+                    throw failureException;
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -116,6 +133,36 @@ namespace Dotmim.Sync
 
                 // now the sync is complete, remember the time
                 this.CompleteTime = DateTime.UtcNow;
+
+                if (failedRows.Tables.Any(st => st.HasRows))
+                {
+                    // Create a batch info for error rows
+                    string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_ERRORS" : "ERRORS";
+                    errorsBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
+
+                    int batchIndex = 0;
+                    foreach (var table in failedRows.Tables)
+                    {
+                        if (!table.HasRows)
+                            continue;
+
+                        var localSerializer = new LocalJsonSerializer();
+
+                        var (filePath, fileName) = errorsBatchInfo.GetNewBatchPartInfoPath(table, batchIndex, "json", info);
+                        var batchPartInfo = new BatchPartInfo(fileName, table.TableName, table.SchemaName, table.Rows.Count, batchIndex);
+                        errorsBatchInfo.BatchPartsInfo.Add(batchPartInfo);
+
+                        await localSerializer.OpenFileAsync(filePath, table).ConfigureAwait(false);
+
+                        foreach (var row in table.Rows)
+                            await localSerializer.WriteRowToFileAsync(row, table).ConfigureAwait(false);
+
+                        await localSerializer.CloseFileAsync();
+                        batchIndex++;
+                    }
+                    failedRows.Dispose();
+                }
+
 
                 // generate the new scope item
                 var newCScopeInfoClient = new ScopeInfoClient

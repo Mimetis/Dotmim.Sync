@@ -24,10 +24,8 @@ namespace Dotmim.Sync
         /// Handle a conflict
         /// The int returned is the conflict count I need 
         /// </summary>
-        private async Task<(bool applied, bool failed, Exception ex)>
-            HandleErrorAsync(ScopeInfo scopeInfo, SyncContext context, SyncRow errorRow, SyncRowState applyType,
-                                SyncTable schemaChangesTable, Exception exception, LocalJsonSerializer localSerializer, string filePath,
-                                Guid senderScopeId, long? lastTimestamp,
+        private async Task<(ErrorAction errorAction, Exception ex)> HandleErrorAsync(ScopeInfo scopeInfo, SyncContext context, SyncRow errorRow, SyncRowState applyType,
+                                SyncTable schemaChangesTable, Exception exception, Guid senderScopeId, long? lastTimestamp,
                                 DbConnection connection, DbTransaction transaction,
                                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -36,94 +34,73 @@ namespace Dotmim.Sync
                 connection, transaction);
 
             var errorOccuredArgs = await this.InterceptAsync(errorRowArgs, progress, cancellationToken).ConfigureAwait(false);
-            bool hasFailed = false, applied = false;
             Exception operationException = null;
 
+            // We are handling a previous error already in the batch info
+            if (errorRow.RowState == SyncRowState.ApplyModifiedFailed || applyType == SyncRowState.ApplyDeletedFailed)
+                return (ErrorAction.Ignore, null);
+            
+            var errorAction = ErrorAction.Throw;
             switch (errorOccuredArgs.Resolution)
             {
                 // We have an error, but we continue
                 // Row in error is saved to the batch error file
                 case ErrorResolution.ContinueOnError:
-                    if (!localSerializer.IsOpen)
-                        await localSerializer.OpenFileAsync(filePath, schemaChangesTable).ConfigureAwait(false);
-
                     errorRow.RowState = applyType == SyncRowState.Modified ? SyncRowState.ApplyModifiedFailed : SyncRowState.ApplyDeletedFailed;
-                    await localSerializer.WriteRowToFileAsync(errorRow, schemaChangesTable).ConfigureAwait(false);
-                    hasFailed = true;
-                    applied = false;
-
+                    errorAction = ErrorAction.Log;
                     break;
+
                 // We have an error but at least we try one more time
-                case ErrorResolution.RetryOneMoreTime:
+                case ErrorResolution.RetryOneMoreTimeAndThrowOnError:
+                case ErrorResolution.RetryOneMoreTimeAndContinueOnError:
 
                     bool operationComplete;
 
                     if (applyType == SyncRowState.Deleted)
-                    {
-                        (context, operationComplete, operationException) = await this.InternalApplyDeleteAsync(
-                            scopeInfo, context, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
+                        (context, operationComplete, operationException) = await this.InternalApplyDeleteAsync(scopeInfo, context, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
                             connection, transaction).ConfigureAwait(false);
+                    else
+                        (context, operationComplete, operationException) = await this.InternalApplyUpdateAsync(scopeInfo, context, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
+                            connection, transaction).ConfigureAwait(false);
+
+
+                    if (operationComplete)
+                    {
+                        errorAction = ErrorAction.Resolved;
+                        operationException = null;
                     }
                     else
                     {
-                        (context, operationComplete, operationException) = await this.InternalApplyUpdateAsync(
-                            scopeInfo, context, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
-                            connection, transaction).ConfigureAwait(false);
-                    }
-
-                    // we have another error raised even if we tried again
-                    // row is saved to batch error file
-                    if (operationException != null)
-                    {
-                        if (!localSerializer.IsOpen)
-                            await localSerializer.OpenFileAsync(filePath, schemaChangesTable).ConfigureAwait(false);
-
+                        // we have another error raised even if we tried again
+                        // row is saved to batch error file
                         errorRow.RowState = applyType == SyncRowState.Modified ? SyncRowState.ApplyModifiedFailed : SyncRowState.ApplyDeletedFailed;
-                        await localSerializer.WriteRowToFileAsync(errorRow, schemaChangesTable).ConfigureAwait(false);
-                        hasFailed = true;
-                        applied = false;
-                    }
-                    else
-                    {
-                        applied = operationComplete;
-                        hasFailed = !operationComplete;
-                    }
 
+                        // Should we silentely log or throw ?
+                        errorAction = errorOccuredArgs.Resolution == ErrorResolution.RetryOnNextSync ? ErrorAction.Log : ErrorAction.Throw;
+                    }
 
                     break;
+
                 // we mark the row to be tried again on next sync
                 case ErrorResolution.RetryOnNextSync:
-
-                    if (!localSerializer.IsOpen)
-                        await localSerializer.OpenFileAsync(filePath, schemaChangesTable).ConfigureAwait(false);
-
                     errorRow.RowState = applyType == SyncRowState.Modified ? SyncRowState.RetryModifiedOnNextSync : SyncRowState.RetryDeletedOnNextSync;
-                    await localSerializer.WriteRowToFileAsync(errorRow, schemaChangesTable).ConfigureAwait(false);
-                    hasFailed = true;
-                    applied = false;
-
+                    errorAction = ErrorAction.Log;
                     break;
+
                 // row is marked as resolved
                 case ErrorResolution.Resolved:
-                    hasFailed = false;
-                    applied = true;
+                    errorAction = ErrorAction.Resolved;
                     break;
+
                 // default case : we throw the error
                 case ErrorResolution.Throw:
-                    hasFailed = true;
-                    applied = false;
-
-                    if (!localSerializer.IsOpen)
-                        await localSerializer.OpenFileAsync(filePath, schemaChangesTable).ConfigureAwait(false);
-
                     errorRow.RowState = applyType == SyncRowState.Modified ? SyncRowState.ApplyModifiedFailed : SyncRowState.ApplyDeletedFailed;
-                    await localSerializer.WriteRowToFileAsync(errorRow, schemaChangesTable).ConfigureAwait(false);
-
+                    errorAction = ErrorAction.Throw;
                     operationException = exception;
                     break;
             }
 
-            return (applied, hasFailed, operationException);
+            return (errorAction, operationException);
         }
 
 

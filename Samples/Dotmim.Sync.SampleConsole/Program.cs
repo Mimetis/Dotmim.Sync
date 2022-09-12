@@ -29,6 +29,7 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Dotmim.Sync.Builders;
+using Dotmim.Sync.Serialization;
 
 #if NET5_0 || NET6_0
 using MySqlConnector;
@@ -99,12 +100,46 @@ internal class Program
 
         //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("CliProduct"));
+        //clientProvider.UseBulkOperations = false;
+        // await FileTestAsync();
+
         await GenerateRetryOnNextCallSync();
 
         //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
     }
 
+    private static async Task FileTestAsync()
+    {
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("Client"));
+        clientProvider.UseBulkOperations = false;
+        var localOrchestrator = new LocalOrchestrator(clientProvider);
+        var localSerializer = new LocalJsonSerializer();
+        var dir = SyncOptions.GetDefaultUserBatchDirectory();
+        var fileName = String.Concat(Path.GetRandomFileName().Replace(".", ""), ".json");
+        var filePath = Path.Combine(dir, fileName);
+
+        var scope = await localOrchestrator.GetScopeInfoAsync("All");
+
+        var table = scope.Schema.Tables[0];
+        var row = table.NewRow();
+        row["ProductCategoryID"] = Guid.NewGuid();
+        row["Name"] = "Test";
+
+        do
+        {
+
+            if (!localSerializer.IsOpen)
+                await localSerializer.OpenFileAsync(filePath, table);
+
+            await localSerializer.WriteRowToFileAsync(row, table);
+
+            await localSerializer.CloseFileAsync();
+
+        } while (true);
+
+    }
 
     private static async Task GenerateRetryOnNextCallSync()
     {
@@ -124,9 +159,15 @@ internal class Program
 
 
 
-        var updateAndResolveForeignKeyErrorCommand = new Func<string>(() =>
+        var getUpdateAndResolveForeignKeyErrorCommand = new Func<string>(() =>
         {
             var command = "UPDATE [ProductCategory] SET [ParentProductCategoryId] = NULL;";
+            return command;
+        });
+
+        var getUpdateAndResolveUniqueNameErrorCommand = new Func<string>(() =>
+        {
+            var command = "UPDATE [ProductCategory] SET [Name] = Convert(varchar(50), [ProductCategoryID])";
             return command;
         });
 
@@ -175,7 +216,7 @@ internal class Program
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"ERROR: {args.ErrorRow}");
             Console.ResetColor();
-            args.Resolution = ErrorResolution.ContinueOnError;
+            args.Resolution = ErrorResolution.RetryOnNextSync;
         });
 
         agent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
@@ -188,23 +229,23 @@ internal class Program
             Console.WriteLine($"ERROR: {args.Exception.Message.Substring(0, index)}");
             Console.WriteLine($"{args.ErrorRow}");
             Console.ResetColor();
-            args.Resolution = ErrorResolution.ContinueOnError;
+            args.Resolution = ErrorResolution.RetryOnNextSync;
         });
 
         // Generate foreign key error
-        await DBHelper.ExecuteScriptAsync("CliProduct", getForeignKeyErrorCommand());
+        await DBHelper.ExecuteScriptAsync("CliProduct", getUniqueKeyErrorCommand());
 
         Console.ResetColor();
         result = await agent.SynchronizeAsync(setup);
         Console.WriteLine(result);
         Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
 
-        await DBHelper.ExecuteScriptAsync("CliProduct", updateAndResolveForeignKeyErrorCommand());
 
         do
         {
             try
             {
+                await DBHelper.ExecuteScriptAsync("CliProduct", getUpdateAndResolveUniqueNameErrorCommand());
                 Console.ResetColor();
                 result = await agent.SynchronizeAsync(setup);
                 Console.WriteLine(result);

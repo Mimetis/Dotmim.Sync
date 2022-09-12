@@ -272,7 +272,7 @@ namespace Dotmim.Sync
                         {
                             //Add a new batch part info with deleted rows
                             batchIndex++;
-                            var bpiDeleted = new BatchPartInfo(batchPartFileNameDeleted, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchDeleted, batchIndex, SyncRowState.Deleted);
+                            var bpiDeleted = new BatchPartInfo(batchPartFileNameDeleted, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchDeleted, batchIndex);
                             syncTableBatchPartInfos.Add(bpiDeleted);
 
                             // Close file
@@ -304,7 +304,7 @@ namespace Dotmim.Sync
                         {
                             //Add a new batch part info with modified rows
                             batchIndex++;
-                            var bpiModified = new BatchPartInfo(batchPartFileNameModified, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchModified, batchIndex, SyncRowState.Modified);
+                            var bpiModified = new BatchPartInfo(batchPartFileNameModified, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchModified, batchIndex);
                             syncTableBatchPartInfos.Add(bpiModified);
 
                             // Close file
@@ -338,7 +338,7 @@ namespace Dotmim.Sync
             }
             else
             {
-                var bpi2 = new BatchPartInfo(batchPartFileNameModified, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchModified, batchIndex, SyncRowState.Modified);
+                var bpi2 = new BatchPartInfo(batchPartFileNameModified, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchModified, batchIndex);
                 bpi2.IsLastBatch = true;
                 syncTableBatchPartInfos.Add(bpi2);
             }
@@ -350,7 +350,7 @@ namespace Dotmim.Sync
             }
             else
             {
-                var bpi2 = new BatchPartInfo(batchPartFileNameDeleted, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchDeleted, batchIndex, SyncRowState.Deleted);
+                var bpi2 = new BatchPartInfo(batchPartFileNameDeleted, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchDeleted, batchIndex);
                 bpi2.IsLastBatch = true;
                 syncTableBatchPartInfos.Add(bpi2);
             }

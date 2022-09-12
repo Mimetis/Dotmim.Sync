@@ -67,13 +67,6 @@ namespace Dotmim.Sync.Batch
         [DataMember(Name = "ts", IsRequired = false, EmitDefaultValue = false, Order = 7)]
         public string SchemaName { get; set; }
 
-
-        /// <summary>
-        /// Gets the state type of the file (Modifier or Deleted or Failed)
-        /// </summary>
-        [DataMember(Name = "state", IsRequired = false, EmitDefaultValue = false, Order = 8)]
-        public SyncRowState? State { get; set; }
-
         /// <summary>
         /// ctor for serialization purpose
         /// </summary>
@@ -84,15 +77,13 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// ctor for serialization purpose
         /// </summary>
-        public BatchPartInfo(string fileName, string tableName, string schemaName, int rowsCount = 0, int index = 0, SyncRowState? state = null)
+        public BatchPartInfo(string fileName, string tableName, string schemaName, int rowsCount = 0, int index = 0)
         {
             this.FileName = fileName;
             this.TableName = tableName;
             this.SchemaName = schemaName;
             this.RowsCount = rowsCount;
             this.Index = index;
-            this.State = state;
-
         }
 
         /// <summary>
