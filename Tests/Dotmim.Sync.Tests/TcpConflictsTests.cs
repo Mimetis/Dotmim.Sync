@@ -296,48 +296,11 @@ namespace Dotmim.Sync.Tests
 
                 var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
 
-                Assert.NotNull(batchInfos);
-                Assert.Single(batchInfos);
-                Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
-                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
-
-                var batchInfo = batchInfos[0];
-
-                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
-
-                await foreach (var syncTable in syncTables)
-                {
-                    Assert.Equal("ProductCategory", syncTable.TableName);
-                    Assert.True(syncTable.HasRows);
-
-                    Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
-                }
+                Assert.Empty(batchInfos);
 
                 exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(Tables));
 
-                Assert.NotNull(exc);
-
-                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
-
-                Assert.NotNull(batchInfos);
-                Assert.Equal(2, batchInfos.Count);
-                Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
-                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
-
-                batchInfo = batchInfos[0];
-
-                syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
-
-                await foreach (var syncTable in syncTables)
-                {
-                    Assert.Equal("ProductCategory", syncTable.TableName);
-                    Assert.True(syncTable.HasRows);
-
-                    Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
-                }
-
+                Assert.Empty(batchInfos);
             }
         }
 
@@ -392,7 +355,7 @@ namespace Dotmim.Sync.Tests
                 Assert.NotNull(batchInfos);
                 Assert.Single(batchInfos);
                 Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Contains("ERRORS", batchInfos[0].BatchPartsInfo[0].FileName);
                 Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
 
                 var batchInfo = batchInfos[0];
@@ -417,7 +380,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesAppliedOnClient);
                 Assert.Equal(0, s.TotalChangesAppliedOnServer);
                 Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
-                Assert.Equal(1, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
@@ -425,7 +388,7 @@ namespace Dotmim.Sync.Tests
                 Assert.NotNull(batchInfos);
                 Assert.Single(batchInfos);
                 Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Contains("ERRORS", batchInfos[0].BatchPartsInfo[0].FileName);
                 Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
 
                 batchInfo = batchInfos[0];
@@ -444,7 +407,7 @@ namespace Dotmim.Sync.Tests
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Error_UniqueKey_OnSameTable_RetryOneMoreTime(SyncOptions options)
+        public async Task Error_UniqueKey_OnSameTable_RetryOneMoreTimeAndThrowOnError(SyncOptions options)
         {
             // Only works for SQL
 
@@ -479,15 +442,69 @@ namespace Dotmim.Sync.Tests
                 });
 
                 var exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(Tables));
-
                 Assert.NotNull(exc);
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+                Assert.Empty(batchInfos);
+
+                exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(Tables));
+                Assert.NotNull(exc);
+                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+                Assert.Empty(batchInfos);
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Error_UniqueKey_OnSameTable_RetryOneMoreTimeAndContinueOnError(SyncOptions options)
+        {
+            // Only works for SQL
+
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                if (client.ProviderType != ProviderType.Sql)
+                    continue;
+
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
+                // create empty client databases
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                await agent.SynchronizeAsync(Tables);
+
+                await Generate_Client_UniqueKeyError(client.Provider as SqlSyncProvider);
+
+                agent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
+                {
+                    // Continue On Error
+                    args.Resolution = ErrorResolution.RetryOneMoreTimeAndContinueOnError;
+                    Assert.NotNull(args.Exception);
+                    Assert.NotNull(args.ErrorRow);
+                    Assert.NotNull(args.SchemaTable);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
+                });
+
+                var s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(2, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
 
                 var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
 
                 Assert.NotNull(batchInfos);
                 Assert.Single(batchInfos);
                 Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Contains("ERRORS", batchInfos[0].BatchPartsInfo[0].FileName);
                 Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
 
                 var batchInfo = batchInfos[0];
@@ -501,33 +518,8 @@ namespace Dotmim.Sync.Tests
 
                     Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
                 }
-
-                exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(Tables));
-
-                Assert.NotNull(exc);
-
-                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
-
-                Assert.NotNull(batchInfos);
-                Assert.Equal(2, batchInfos.Count);
-                Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
-                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
-
-                batchInfo = batchInfos[0];
-
-                syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
-
-                await foreach (var syncTable in syncTables)
-                {
-                    Assert.Equal("ProductCategory", syncTable.TableName);
-                    Assert.True(syncTable.HasRows);
-
-                    Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
-                }
             }
         }
-
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
@@ -580,7 +572,7 @@ namespace Dotmim.Sync.Tests
                 Assert.NotNull(batchInfos);
                 Assert.Single(batchInfos);
                 Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Contains("ERROR", batchInfos[0].BatchPartsInfo[0].FileName);
                 Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
 
                 var batchInfo = batchInfos[0];
@@ -610,7 +602,7 @@ namespace Dotmim.Sync.Tests
                 Assert.NotNull(batchInfos);
                 Assert.Single(batchInfos);
                 Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Contains("ERROR", batchInfos[0].BatchPartsInfo[0].FileName);
                 Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
 
                 batchInfo = batchInfos[0];
@@ -680,7 +672,7 @@ namespace Dotmim.Sync.Tests
                 Assert.NotNull(batchInfos);
                 Assert.Single(batchInfos);
                 Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Contains("ERROR", batchInfos[0].BatchPartsInfo[0].FileName);
                 Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
 
                 var batchInfo = batchInfos[0];
@@ -757,27 +749,15 @@ namespace Dotmim.Sync.Tests
 
                 var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
 
-                Assert.NotNull(batchInfos);
-                Assert.Single(batchInfos);
-                Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
-                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
-
-                var batchInfo = batchInfos[0];
-
-                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
-
-                await foreach (var syncTable in syncTables)
-                {
-                    Assert.Equal("ProductCategory", syncTable.TableName);
-                    Assert.True(syncTable.HasRows);
-
-                    Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
-                }
+                Assert.Empty(batchInfos);
 
                 await Resolve_Client_UniqueKeyError(client.Provider as SqlSyncProvider);
 
                 var s = await agent.SynchronizeAsync(Tables);
+                
+                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.Empty(batchInfos);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(13, s.TotalChangesUploadedToServer);
@@ -841,7 +821,7 @@ namespace Dotmim.Sync.Tests
                 Assert.NotNull(batchInfos);
                 Assert.Single(batchInfos);
                 Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Contains("ERROR", batchInfos[0].BatchPartsInfo[0].FileName);
                 Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
 
                 var batchInfo = batchInfos[0];
@@ -927,7 +907,7 @@ namespace Dotmim.Sync.Tests
                 Assert.NotNull(batchInfos);
                 Assert.Single(batchInfos);
                 Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Contains("ERROR", batchInfos[0].BatchPartsInfo[0].FileName);
                 Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
 
                 var batchInfo = batchInfos[0];
@@ -948,10 +928,10 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(13, s.TotalChangesUploadedToServer);
-                Assert.Equal(13, s.TotalChangesAppliedOnServer);
+                Assert.Equal(12, s.TotalChangesAppliedOnServer);
                 Assert.Equal(0, s.TotalChangesAppliedOnClient);
                 Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
-                Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(2, s.TotalChangesFailedToApplyOnServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
@@ -959,7 +939,7 @@ namespace Dotmim.Sync.Tests
                 Assert.NotNull(batchInfos);
                 Assert.Single(batchInfos);
                 Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Contains("ERRORS", batchInfos[0].BatchPartsInfo[0].FileName);
                 Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
 
                 batchInfo = batchInfos[0];
@@ -1051,23 +1031,7 @@ namespace Dotmim.Sync.Tests
 
                 var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
 
-                Assert.NotNull(batchInfos);
-                Assert.Single(batchInfos);
-                Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
-                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
-
-                var batchInfo = batchInfos[0];
-
-                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
-
-                await foreach (var syncTable in syncTables)
-                {
-                    Assert.Equal("ProductCategory", syncTable.TableName);
-                    Assert.True(syncTable.HasRows);
-
-                    Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
-                }
+                Assert.Empty(batchInfos);
             }
         }
 
@@ -1120,7 +1084,7 @@ namespace Dotmim.Sync.Tests
                 Assert.NotNull(batchInfos);
                 Assert.Single(batchInfos);
                 Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Contains("ERRORS", batchInfos[0].BatchPartsInfo[0].FileName);
                 Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
 
                 var batchInfo = batchInfos[0];
@@ -1140,7 +1104,7 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalChangesAppliedOnClient);
-                Assert.Equal(1, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
@@ -1148,7 +1112,7 @@ namespace Dotmim.Sync.Tests
                 Assert.NotNull(batchInfos);
                 Assert.Single(batchInfos);
                 Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Contains("ERRORS", batchInfos[0].BatchPartsInfo[0].FileName);
                 Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
 
                 batchInfo = batchInfos[0];
@@ -1266,7 +1230,7 @@ namespace Dotmim.Sync.Tests
                 Assert.NotNull(batchInfos);
                 Assert.Single(batchInfos);
                 Assert.Single(batchInfos[0].BatchPartsInfo);
-                Assert.Contains("ERRORS_UPSERTS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Contains("ERRORS", batchInfos[0].BatchPartsInfo[0].FileName);
                 Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
 
                 var batchInfo = batchInfos[0];

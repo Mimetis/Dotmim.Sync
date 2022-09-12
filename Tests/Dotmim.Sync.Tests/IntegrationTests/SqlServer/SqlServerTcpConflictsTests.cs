@@ -13,13 +13,14 @@ using Xunit;
 using Xunit.Abstractions;
 using Microsoft.Data.SqlClient;
 using Dotmim.Sync.MariaDB;
+using System.Diagnostics;
 
 namespace Dotmim.Sync.Tests.IntegrationTests
 {
     public class SqlServerTcpConflictsTests : TcpConflictsTests
     {
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            {  ProviderType.Sql, ProviderType.MySql, ProviderType.Sqlite, ProviderType.MariaDB};
+            {  ProviderType.Sql,ProviderType.Sqlite};
 
         public SqlServerTcpConflictsTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
@@ -67,8 +68,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 await ctx.Database.EnsureCreatedAsync();
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Debug.WriteLine(ex.Message);
             }
             finally
             {

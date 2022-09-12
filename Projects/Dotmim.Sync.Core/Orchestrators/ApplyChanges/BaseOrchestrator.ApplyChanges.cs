@@ -64,46 +64,45 @@ namespace Dotmim.Sync
 
                 if (command == null) return context;
 
-                // Copy List ref to be able to foreach and remove if needed
-                SyncTable[] failedTable = new SyncTable[message.FailedRows.Tables.Count];
-                message.FailedRows.Tables.CopyTo(failedTable, 0);
+                var failedRowsTable = message.FailedRows.Tables[schemaTable.TableName, schemaTable.SchemaName];
 
-                foreach (var table in failedTable)
+                if (failedRowsTable == null || failedRowsTable.Rows.Count <= 0)
+                    continue;
+
+                SyncRow[] failedRows = new SyncRow[failedRowsTable.Rows.Count];
+                failedRowsTable.Rows.CopyTo(failedRows, 0);
+
+                foreach (var syncRow in failedRows)
                 {
-                    SyncRow[] failedRows = new SyncRow[table.Rows.Count];
-                    table.Rows.CopyTo(failedRows, 0);
+                    // Set the parameters value from row 
+                    this.SetColumnParametersValues(command, syncRow);
 
-                    foreach (var syncRow in failedRows)
+                    // Set the special parameters for update
+                    this.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, false, false);
+
+                    // Get the reader
+                    var metadataErrorTable = new SyncTable();
+
+                    using (var reader = command.ExecuteReader())
+                        metadataErrorTable.Load(reader);
+
+                    if (metadataErrorTable != null && metadataErrorTable.Rows != null && metadataErrorTable.Rows.Count > 0)
                     {
-                        // Set the parameters value from row 
-                        this.SetColumnParametersValues(command, syncRow);
+                        var metadataErrorRow = metadataErrorTable.Rows.First();
 
-                        // Set the special parameters for update
-                        this.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, false, false);
+                        var metadataErrorRowTimestamp = metadataErrorRow["timestamp"] != DBNull.Value ? SyncTypeConverter.TryConvertTo<long>(metadataErrorRow["timestamp"]) : 0L;
 
-                        // Get the reader
-                        var metadataErrorTable = new SyncTable();
-
-                        using (var reader = command.ExecuteReader())
-                            metadataErrorTable.Load(reader);
-
-                        if (metadataErrorTable != null && metadataErrorTable.Rows != null && metadataErrorTable.Rows.Count > 0)
+                        // we can remove
+                        if (metadataErrorRowTimestamp > message.LastTimestamp)
                         {
-                            var metadataErrorRow = metadataErrorTable.Rows.First();
+                            failedRowsTable.Rows.Remove(syncRow);
 
-                            var metadataErrorRowTimestamp = metadataErrorRow["timestamp"] != DBNull.Value ? SyncTypeConverter.TryConvertTo<long>(metadataErrorRow["timestamp"]) : 0L;
-                            
-                            // we can remove
-                            if (metadataErrorRowTimestamp > message.LastTimestamp)
-                            {
-                                message.FailedRows.Tables[table.TableName, table.SchemaName].Rows.Remove(syncRow);
-
-                                if (tableChangesApplied != null && tableChangesApplied.Failed > 0)
-                                    tableChangesApplied.Failed--;
-                            }
+                            if (tableChangesApplied != null && tableChangesApplied.Failed > 0)
+                                tableChangesApplied.Failed--;
                         }
                     }
                 }
+
             }
             return context;
         }

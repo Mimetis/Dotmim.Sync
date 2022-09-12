@@ -75,8 +75,15 @@ namespace Dotmim.Sync
                         // row is saved to batch error file
                         errorRow.RowState = applyType == SyncRowState.Modified ? SyncRowState.ApplyModifiedFailed : SyncRowState.ApplyDeletedFailed;
 
-                        // Should we silentely log or throw ?
-                        errorAction = errorOccuredArgs.Resolution == ErrorResolution.RetryOnNextSync ? ErrorAction.Log : ErrorAction.Throw;
+                        if (errorOccuredArgs.Resolution == ErrorResolution.RetryOneMoreTimeAndContinueOnError)
+                        {
+                            errorAction = ErrorAction.Log;
+                            operationException = null;
+                        }
+                        else
+                        {
+                            errorAction = ErrorAction.Throw;
+                        }
                     }
 
                     break;
