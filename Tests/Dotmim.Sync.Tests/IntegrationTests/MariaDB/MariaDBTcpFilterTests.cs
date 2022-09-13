@@ -18,6 +18,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 {
     public class MariaDBTcpFilterTests : TcpFilterTests
     {
+        public override List<ProviderType> ClientsType => new List<ProviderType>
+            { ProviderType.MariaDB,  ProviderType.Sqlite};
+
         public MariaDBTcpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
@@ -26,7 +29,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         {
             get
             {
-                var setup = new SyncSetup(new string[] {"Product", "Customer", "Address", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+                var setup = new SyncSetup(new string[] { "Product", "Customer", "Address", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
 
                 // Filter columns
                 setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
@@ -71,19 +74,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-        public override SyncParameters FilterParameters => new SyncParameters
-        {
-                new SyncParameter("CustomerID", AdventureWorksContext.CustomerIdForFilter),
-        };
+        public override SyncParameters FilterParameters => new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId1ForFilter));
 
-
-        public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MariaDB, ProviderType.Sql, ProviderType.Sqlite};
-
-        public override ProviderType ServerType =>
-            ProviderType.MariaDB;
-
-
+        public override ProviderType ServerType => ProviderType.MariaDB;
 
         public override CoreProvider CreateProvider(ProviderType providerType, string dbName)
         {
@@ -108,17 +101,21 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         /// Get the server database rows count
         /// </summary>
         /// <returns></returns>
-        public override int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t)
+        public override int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, Guid? customerId = null)
         {
             int totalCountRows = 0;
 
+            if (!customerId.HasValue)
+                customerId = AdventureWorksContext.CustomerId1ForFilter;
+
+
             using (var serverDbCtx = new AdventureWorksContext(t, false))
             {
-                totalCountRows += serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == AdventureWorksContext.CustomerIdForFilter)).Count();
-                totalCountRows += serverDbCtx.Customer.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                totalCountRows += serverDbCtx.CustomerAddress.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                totalCountRows += serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                totalCountRows += serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
+                totalCountRows += serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == customerId)).Count();
+                totalCountRows += serverDbCtx.Customer.Where(c => c.CustomerId == customerId).Count();
+                totalCountRows += serverDbCtx.CustomerAddress.Where(c => c.CustomerId == customerId).Count();
+                totalCountRows += serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == customerId).Count();
+                totalCountRows += serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == customerId).Count();
                 totalCountRows += serverDbCtx.Product.Where(p => !String.IsNullOrEmpty(p.ProductCategoryId)).Count();
             }
 

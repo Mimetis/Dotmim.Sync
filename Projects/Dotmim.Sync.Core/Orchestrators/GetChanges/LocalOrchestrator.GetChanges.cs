@@ -1,10 +1,11 @@
-﻿using Dotmim.Sync.Args;
+﻿
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.Serialization;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -18,7 +19,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
-    
+
     public partial class LocalOrchestrator : BaseOrchestrator
     {
 
@@ -55,7 +56,7 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </returns>
-        public virtual async Task<ClientSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient)
+        public virtual async Task<ClientSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name, cScopeInfoClient.Parameters)
             {
@@ -64,7 +65,7 @@ namespace Dotmim.Sync
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction).ConfigureAwait(false);
 
                 ScopeInfo cScopeInfo;
                 (context, cScopeInfo) = await this.InternalEnsureScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
@@ -109,7 +110,7 @@ namespace Dotmim.Sync
         /// contains an estimation count of the changes from your local datsource for
         /// all the tables from your setup.
         /// </returns>        
-        public async Task<ClientSyncChanges> GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient)
+        public async Task<ClientSyncChanges> GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name, cScopeInfoClient.Parameters)
             {
@@ -118,7 +119,7 @@ namespace Dotmim.Sync
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction).ConfigureAwait(false);
 
                 // Get the local setup & schema
                 ScopeInfo cScopeInfo;
@@ -155,7 +156,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                var changes = new ClientSyncChanges(clientTimestamp, null, clientChangesSelected);
+                var changes = new ClientSyncChanges(clientTimestamp, null, clientChangesSelected, null);
 
                 return changes;
 
@@ -197,15 +198,25 @@ namespace Dotmim.Sync
 
                 // Locally, if we are new, no need to get changes
                 if (cScopeInfoClient.IsNewScope)
-                    (clientBatchInfo, clientChangesSelected) = this.InternalGetEmptyChanges(this.Options.BatchDirectory);
+                {
+                    // Create the batch info, in memory
+                    string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_EMPTYGETCHANGES" : "EMPTYGETCHANGES";
+                    clientBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
+
+                    // Create a new empty in-memory batch info
+                    clientChangesSelected = new DatabaseChangesSelected();
+
+                }
                 else
+                {
                     (context, clientBatchInfo, clientChangesSelected) = await this.InternalGetChangesAsync(cScopeInfo,
                         context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp, clientTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
                         this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                }
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                var changes = new ClientSyncChanges(clientTimestamp, clientBatchInfo, clientChangesSelected);
+                var changes = new ClientSyncChanges(clientTimestamp, clientBatchInfo, clientChangesSelected, null);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 

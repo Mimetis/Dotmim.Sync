@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Args;
+﻿
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -28,8 +28,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a snapshot
         /// </summary>
-        public virtual async Task<(long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
-            GetSnapshotAsync(ScopeInfo sScopeInfo)
+        public virtual async Task<ServerSyncChanges> GetSnapshotAsync(ScopeInfo sScopeInfo)
         {
             var context = new SyncContext(Guid.NewGuid(), sScopeInfo.Name);
 
@@ -37,17 +36,13 @@ namespace Dotmim.Sync
             {
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading).ConfigureAwait(false);
 
-                long remoteClientTimestamp;
-                BatchInfo serverBatchInfo;
-                DatabaseChangesSelected databaseChangesSelected;
-
-                (context, remoteClientTimestamp, serverBatchInfo, databaseChangesSelected) =
-                    await this.InternalGetSnapshotAsync(sScopeInfo, context, 
+                ServerSyncChanges serverSyncChanges;
+                (context, serverSyncChanges) = await this.InternalGetSnapshotAsync(sScopeInfo, context,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (remoteClientTimestamp, serverBatchInfo, databaseChangesSelected);
+                return serverSyncChanges;
 
             }
             catch (Exception ex)
@@ -60,7 +55,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a snapshot
         /// </summary>
-        internal virtual async Task<(SyncContext context, long RemoteClientTimestamp, BatchInfo ServerBatchInfo, DatabaseChangesSelected DatabaseChangesSelected)>
+        internal virtual async Task<(SyncContext context, ServerSyncChanges ServerSyncChanges)>
             InternalGetSnapshotAsync(ScopeInfo sScopeInfo, SyncContext context, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
@@ -72,7 +67,7 @@ namespace Dotmim.Sync
 
                 BatchInfo serverBatchInfo = null;
                 if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
-                    return (context, 0, null, changesSelected);
+                    return (context, new ServerSyncChanges(0, null, changesSelected, null));
 
                 //Direction set to Download
                 context.SyncWay = SyncWay.Download;
@@ -111,43 +106,64 @@ namespace Dotmim.Sync
                         // Create a Schema set without readonly columns, attached to memory changes
                         foreach (var table in sScopeInfo.Schema.Tables)
                         {
+                            int upserts = 0;
 
-                            // Get all stats about this table
-                            var bptis = serverBatchInfo.BatchPartsInfo.SelectMany(bpi => bpi.Tables.Where(t =>
+                            foreach (var bpi in serverBatchInfo.BatchPartsInfo)
                             {
-                                var sc = SyncGlobalization.DataSourceStringComparison;
+                                // Backward compatibility
+                                if (bpi.Tables != null)
+                                {
+                                    var tmpBptis = bpi.Tables.Where(t =>
+                                    {
+                                        var sc = SyncGlobalization.DataSourceStringComparison;
 
-                                var sn = t.SchemaName == null ? string.Empty : t.SchemaName;
-                                var otherSn = table.SchemaName == null ? string.Empty : table.SchemaName;
+                                        var sn = t.SchemaName == null ? string.Empty : t.SchemaName;
+                                        var otherSn = table.SchemaName == null ? string.Empty : table.SchemaName;
 
-                                return table.TableName.Equals(t.TableName, sc) && sn.Equals(otherSn, sc);
+                                        return table.TableName.Equals(t.TableName, sc) && sn.Equals(otherSn, sc);
 
-                            }));
+                                    });
 
-                            if (bptis != null)
+                                    if (tmpBptis != null)
+                                        upserts += tmpBptis.Sum(bpti => bpti.RowsCount);
+                                }
+                                else
+                                {
+                                    var sc = SyncGlobalization.DataSourceStringComparison;
+
+                                    var sn = bpi.SchemaName == null ? string.Empty : bpi.SchemaName;
+                                    var otherSn = table.SchemaName == null ? string.Empty : table.SchemaName;
+
+                                    if(table.TableName.Equals(bpi.TableName, sc) && sn.Equals(otherSn, sc))
+                                        upserts += bpi.RowsCount;
+                                }
+                            }
+                            
+                            if (upserts > 0)
                             {
                                 // Statistics
                                 var tableChangesSelected = new TableChangesSelected(table.TableName, table.SchemaName)
                                 {
                                     // we are applying a snapshot where it can't have any deletes, obviously
-                                    Upserts = bptis.Sum(bpti => bpti.RowsCount)
+                                    Upserts = upserts
                                 };
 
                                 if (tableChangesSelected.Upserts > 0)
                                     changesSelected.TableChangesSelected.Add(tableChangesSelected);
                             }
-
-
                         }
                     }
                 }
                 if (serverBatchInfo == null)
-                    return (context, 0, null, changesSelected);
+                    return (context, new ServerSyncChanges(0, null, changesSelected, null));
 
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (context, serverBatchInfo.Timestamp, serverBatchInfo, changesSelected);
+
+                var serverSyncChanges = new ServerSyncChanges(serverBatchInfo.Timestamp, serverBatchInfo, changesSelected, null);
+
+                return (context, serverSyncChanges);
             }
             catch (Exception ex)
             {
@@ -156,14 +172,16 @@ namespace Dotmim.Sync
         }
 
 
+
+        /// <summary>
+        /// Create a snapshot, based on the Setup object. 
+        /// </summary>
         public virtual Task<BatchInfo> CreateSnapshotAsync(SyncSetup setup = null, SyncParameters syncParameters = null)
             => CreateSnapshotAsync(SyncOptions.DefaultScopeName, setup, syncParameters);
 
         /// <summary>
         /// Create a snapshot, based on the Setup object. 
         /// </summary>
-        /// <param name="syncParameters">if not parameters are found in the SyncContext instance, will use thes sync parameters instead</param>
-        /// <returns>Instance containing all information regarding the snapshot</returns>
         public virtual async Task<BatchInfo> CreateSnapshotAsync(string scopeName, SyncSetup setup = null, SyncParameters syncParameters = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -183,7 +201,7 @@ namespace Dotmim.Sync
                 // 1) Get Schema from remote provider
                 ScopeInfo sScopeInfo;
                 bool shouldProvision;
-                (context, sScopeInfo, shouldProvision) = await this.InternalEnsureScopeInfoAsync(context, setup, false, 
+                (context, sScopeInfo, shouldProvision) = await this.InternalEnsureScopeInfoAsync(context, setup, false,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (sScopeInfo.Setup == null || sScopeInfo.Schema == null)
@@ -195,11 +213,11 @@ namespace Dotmim.Sync
                     // 2) Provision
                     var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-                    (context, _) = await this.InternalProvisionAsync(sScopeInfo, context, false, provision, 
+                    (context, _) = await this.InternalProvisionAsync(sScopeInfo, context, false, provision,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     // Write scopes locally
-                    (context, sScopeInfo) = await this.InternalSaveScopeInfoAsync(sScopeInfo, context, 
+                    (context, sScopeInfo) = await this.InternalSaveScopeInfoAsync(sScopeInfo, context,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                 }
 
@@ -267,6 +285,9 @@ namespace Dotmim.Sync
             var jsonConverter = new Serialization.JsonConverter<BatchInfo>();
 
             var summaryFileName = Path.Combine(directoryFullPath, "summary.json");
+
+            if (!Directory.Exists(directoryFullPath))
+                Directory.CreateDirectory(directoryFullPath);
 
             using (var f = new FileStream(summaryFileName, FileMode.CreateNew, FileAccess.ReadWrite))
             {

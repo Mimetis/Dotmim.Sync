@@ -2,10 +2,9 @@
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
 		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
-		<TargetFrameworkNet5>net5.0</TargetFrameworkNet5>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
-		<TargetFrameworks>$(TargetFrameworkNetCore);$(TargetFrameworkNet5);$(TargetFrameworkNet6)</TargetFrameworks>
-		<LangVersion>8.0</LangVersion>
+		<TargetFrameworks>$(TargetFrameworkNetCore);$(TargetFrameworkNet6)</TargetFrameworks>
+		<LangVersion>9.0</LangVersion>
 	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="MessagePack" Version="2.1.90" />

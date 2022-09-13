@@ -5,6 +5,7 @@ using Dotmim.Sync.Serialization;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
@@ -13,6 +14,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Transactions;
 
 
 namespace Dotmim.Sync
@@ -41,15 +43,17 @@ namespace Dotmim.Sync
         /// <param name="sScopeInfo">A <see cref="ScopeInfo "/> instance coming from your server datasource or your client datasource (if exists).</param>
         /// <param name="provision">If you do not specify <c>provision</c>, a default value <c>SyncProvision.Table | SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable</c> is used.</param>
         /// <param name="overwrite">If specified, all metadatas are generated and overwritten even if they already exists</param>
+        /// <param name="connection">optional connection</param>
+        /// <param name="transaction">optional transaction</param>
         /// <returns>
         /// A <see cref="ScopeInfo"/> instance, saved locally in the client datasource.
         /// </returns> 
-        public async Task<ScopeInfo> ProvisionAsync(ScopeInfo sScopeInfo, SyncProvision provision = default, bool overwrite = true)
+        public async Task<ScopeInfo> ProvisionAsync(ScopeInfo sScopeInfo, SyncProvision provision = default, bool overwrite = true, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), sScopeInfo.Name);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction).ConfigureAwait(false);
 
                 ScopeInfo clientScopeInfo;
                 (context, clientScopeInfo) = await InternalEnsureScopeInfoAsync(context, 
@@ -75,7 +79,7 @@ namespace Dotmim.Sync
         /// Deprovision a client database:
         /// <code>
         /// var localOrchestrator = new LocalOrchestrator(clientProvider);
-        /// await agent.LocalOrchestrator.DeprovisionAsync();
+        /// await localOrchestrator.DeprovisionAsync();
         /// </code>
         /// </example>
         /// </summary>
@@ -84,12 +88,15 @@ namespace Dotmim.Sync
         /// are not deprovisioned by default to preserve existing configurations
         /// </remarks>
         /// <param name="provision">If you do not specify <c>provision</c>, a default value <c>SyncProvision.StoredProcedures | SyncProvision.Triggers</c> is used.</param>
+        /// <param name="connection">optional connection</param>
+        /// <param name="transaction">optional transaction</param>
         /// <returns></returns>
-        public Task<bool> DeprovisionAsync(SyncProvision provision = default) => DeprovisionAsync(SyncOptions.DefaultScopeName, provision);
+        public Task<bool> DeprovisionAsync(SyncProvision provision = default, DbConnection connection = null, DbTransaction transaction = null) 
+            => DeprovisionAsync(SyncOptions.DefaultScopeName, provision, connection, transaction);
 
-        
-        /// <inheritdoc cref="DeprovisionAsync(SyncProvision)" />
-        public virtual async Task<bool> DeprovisionAsync(string scopeName, SyncProvision provision = default)
+
+        /// <inheritdoc cref="DeprovisionAsync(SyncProvision, DbConnection, DbTransaction)" />
+        public virtual async Task<bool> DeprovisionAsync(string scopeName, SyncProvision provision = default, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
@@ -97,7 +104,7 @@ namespace Dotmim.Sync
                 if (provision == default)
                     provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
 
                 // get client scope
                 ScopeInfo cScopeInfo = null;
@@ -122,14 +129,32 @@ namespace Dotmim.Sync
             }
         }
 
-
-
-        public virtual Task<bool> DeprovisionAsync(SyncSetup setup, SyncProvision provision = default) => DeprovisionAsync(SyncOptions.DefaultScopeName, setup, provision);
+        /// <inheritdoc cref="DeprovisionAsync(string, SyncSetup, SyncProvision, DbConnection, DbTransaction)" />
+        public virtual Task<bool> DeprovisionAsync(SyncSetup setup, SyncProvision provision = default, DbConnection connection = null, DbTransaction transaction = null) 
+            => DeprovisionAsync(SyncOptions.DefaultScopeName, setup, provision, connection, transaction);
 
         /// <summary>
-        /// Deprovision the remote database. Schema tables are retrieved through setup in parameter.
+        /// Deprovision your client datasource.
+        /// <example>
+        /// Deprovision a client database:
+        /// <code>
+        /// var localOrchestrator = new LocalOrchestrator(clientProvider);
+        /// var setup = new SyncSetup("ProductCategory", "Product");
+        /// await localOrchestrator.DeprovisionAsync(setup);
+        /// </code>
+        /// </example>
         /// </summary>
-        public virtual async Task<bool> DeprovisionAsync(string scopeName, SyncSetup setup, SyncProvision provision = default)
+        /// <remarks>
+        /// By default, <strong>DMS</strong> will never deprovision a table, if not explicitly set with the <c>provision</c> argument. <strong>scope_info</strong> and <strong>scope_info_client</strong> tables
+        /// are not deprovisioned by default to preserve existing configurations
+        /// </remarks>
+        /// <param name="scopeName">scopeName. If not defined, SyncOptions.DefaultScopeName is used</param>
+        /// <param name="setup">Setup containing tables to deprovision</param>
+        /// <param name="provision">If you do not specify <c>provision</c>, a default value <c>SyncProvision.StoredProcedures | SyncProvision.Triggers</c> is used.</param>
+        /// <param name="connection">Optional Connection</param>
+        /// <param name="transaction">Optional Transaction</param>
+        /// <returns></returns>
+        public virtual async Task<bool> DeprovisionAsync(string scopeName, SyncSetup setup, SyncProvision provision = default, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
@@ -137,7 +162,7 @@ namespace Dotmim.Sync
                 if (provision == default)
                     provision = SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient | SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
 
                 // Creating a fake scope info
                 var cScopeInfo = this.InternalCreateScopeInfo(scopeName);
@@ -160,32 +185,39 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Drop everything related to DMS
+        /// Drop everything related to DMS. Tracking tables, triggers, tracking tables, sync_scope and sync_scope_client tables
+        /// <example>
+        /// Deprovision a client database:
+        /// <code>
+        /// var localOrchestrator = new LocalOrchestrator(clientProvider);
+        /// await localOrchestrator.DropAllAsync();
+        /// </code>
+        /// </example>
         /// </summary>
-        public virtual async Task DropAllAsync()
+        public virtual async Task DropAllAsync(DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
 
                 // get client scope and create tables / row if needed
 
-                List<ScopeInfo> clientScopeInfos = null;
+                List<ScopeInfo> cScopeInfos = null;
                 bool exists;
                 (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (exists)
-                    (context, clientScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, 
+                    (context, cScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, 
                         runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // fallback to "try to drop an hypothetical default scope"
-                if (clientScopeInfos == null)
-                    clientScopeInfos = new List<ScopeInfo>();
+                if (cScopeInfos == null)
+                    cScopeInfos = new List<ScopeInfo>();
 
                 // try to get some filters
-                var existingFilters = clientScopeInfos?.SelectMany(si => si.Setup.Filters).ToList();
+                var existingFilters = cScopeInfos?.SelectMany(si => si.Setup.Filters).ToList();
 
                 var defaultClientScopeInfo = this.InternalCreateScopeInfo(SyncOptions.DefaultScopeName);
                 SyncSetup setup;
@@ -210,11 +242,11 @@ namespace Dotmim.Sync
                     defaultClientScopeInfo.Setup.Filters = filters;
                 }
 
-                clientScopeInfos.Add(defaultClientScopeInfo);
+                cScopeInfos.Add(defaultClientScopeInfo);
 
-                var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable | SyncProvision.ScopeInfo;
+                var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable | SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient;
 
-                foreach (var clientScopeInfo in clientScopeInfos)
+                foreach (var clientScopeInfo in cScopeInfos)
                 {
                     if (clientScopeInfo == null || clientScopeInfo.Setup == null || clientScopeInfo.Setup.Tables == null || clientScopeInfo.Setup.Tables.Count <= 0)
                         continue;

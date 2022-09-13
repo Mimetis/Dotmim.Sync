@@ -43,13 +43,6 @@ namespace Dotmim.Sync
         public string OriginalProvider { get; set; }
 
         /// <summary>
-        /// Gets or Sets the Sync direction (may be Bidirectional, DownloadOnly, UploadOnly) 
-        /// Default is Bidirectional
-        /// </summary>
-        //[DataMember(Name = "sd", IsRequired = false, EmitDefaultValue = false, Order = 4)]
-        //public SyncDirection SyncDirection { get; set; }
-
-        /// <summary>
         /// Gets or Sets the table columns
         /// </summary>
         [DataMember(Name = "c", IsRequired = false, EmitDefaultValue = false, Order = 5)]
@@ -174,7 +167,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a new row
         /// </summary>
-        public SyncRow NewRow(DataRowState state = DataRowState.Unchanged)
+        public SyncRow NewRow(SyncRowState state = SyncRowState.None)
         {
             return new SyncRow(this, state);
         }
@@ -215,9 +208,6 @@ namespace Dotmim.Sync
             }
         }
 
-        /// <summary>
-        /// Get all columns that can be queried
-        /// </summary>
         //public IEnumerable<SyncColumn> GetMutableColumnsWithPrimaryKeys()
         //{
         //    foreach (var column in this.Columns.OrderBy(c => c.Ordinal))
@@ -230,7 +220,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get all columns that are Primary keys, based on the names we have in PrimariKeys property
         /// </summary>
-        /// <returns></returns>
         public IEnumerable<SyncColumn> GetPrimaryKeysColumns()
         {
             foreach (var column in this.Columns.OrderBy(c => c.Ordinal))

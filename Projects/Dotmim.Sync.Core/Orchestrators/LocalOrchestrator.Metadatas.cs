@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Args;
+﻿
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -21,13 +21,19 @@ namespace Dotmim.Sync
     public partial class LocalOrchestrator : BaseOrchestrator
     {
         /// <summary>
-        /// Delete all metadatas from tracking tables, based on min timestamp from scope info table
+        /// Delete all metadatas from tracking tables, based on min timestamp from scope info client table
+        /// <example>
+        /// <code>
+        /// var localOrchestrator = new LocalOrchestrator(clientProvider);
+        /// await localOrchestrator.DeleteMetadatasAsync();
+        /// </code>
+        /// </example>
         /// </summary>
-        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync()
+        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
 
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning).ConfigureAwait(false);
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning, connection, transaction).ConfigureAwait(false);
 
             bool exists;
             (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, 
@@ -65,8 +71,8 @@ namespace Dotmim.Sync
                 return new DatabaseMetadatasCleaned();
 
             DatabaseMetadatasCleaned databaseMetadatasCleaned;
-            (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(context, minTimestamp, runner.Connection, runner.Transaction,
-                runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+            (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(context, minTimestamp, 
+                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
             await runner.CommitAsync().ConfigureAwait(false);
 
@@ -75,11 +81,20 @@ namespace Dotmim.Sync
         }
 
 
-        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long? timeStampStart = default)
+        /// <summary>
+        /// Delete all metadatas from tracking tables, based on min timestamp
+        /// <example>
+        /// <code>
+        /// var localOrchestrator = new LocalOrchestrator(clientProvider);
+        /// await localOrchestrator.DeleteMetadatasAsync();
+        /// </code>
+        /// </example>
+        /// </summary>
+        public async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             DatabaseMetadatasCleaned databaseMetadatasCleaned;
-            (_, databaseMetadatasCleaned) = await InternalDeleteMetadatasAsync(context, timeStampStart).ConfigureAwait(false);
+            (_, databaseMetadatasCleaned) = await InternalDeleteMetadatasAsync(context, timeStampStart, connection, transaction).ConfigureAwait(false);
             return databaseMetadatasCleaned;
         }
 
@@ -87,9 +102,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Delete metadatas items from tracking tables
         /// </summary>
-        /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        /// <param name="cancellationToken">Cancellation token</param>
-        /// <param name="progress">Progress args</param>
         internal virtual async Task<(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned)>
             InternalDeleteMetadatasAsync(SyncContext context, long? timeStampStart = default, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {

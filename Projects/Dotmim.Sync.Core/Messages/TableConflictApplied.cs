@@ -12,6 +12,11 @@ namespace Dotmim.Sync
         public bool HasBeenResolved { get; set; } = false;
 
         /// <summary>
+        /// Gets or Sets a row to be mark for next sync again
+        /// </summary>
+        public bool HasBeenMarkForNextSync { get; set; } = false;
+
+        /// <summary>
         /// Gets or Sets a boolean indicating if the conflict resolution has been applied locally
         /// </summary>
         public bool HasBeenApplied { get; set; } = false;

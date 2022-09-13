@@ -543,9 +543,9 @@ namespace Dotmim.Sync
     /// </summary>
     public class HttpSessionLostException : Exception
     {
-        const string message = "Session loss: No batchPartInfo could found for the current sessionId. It seems the session was lost. Please try again.";
+        const string message = "Session loss: No batchPartInfo could found for the current sessionId {0}. It seems the session was lost. Please try again.";
 
-        public HttpSessionLostException() : base(message) { }
+        public HttpSessionLostException(string sessionId) : base(string.Format(message, sessionId)) { }
     }
 
 

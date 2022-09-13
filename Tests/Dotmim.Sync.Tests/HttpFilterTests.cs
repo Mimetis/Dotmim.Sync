@@ -66,7 +66,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Get the server rows count
         /// </summary>
-        public abstract int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t);
+        public abstract int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, Guid? customerId = null);
 
         /// <summary>
         /// Create a provider
@@ -206,8 +206,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
             }
         }
 
@@ -235,8 +235,8 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
             }
         }
 
@@ -269,8 +269,8 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
@@ -287,7 +287,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "OTH"
                 };
 
@@ -302,8 +302,8 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
-                Assert.Equal(2, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
         }
@@ -337,8 +337,8 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
@@ -353,7 +353,7 @@ namespace Dotmim.Sync.Tests
                     OnlineOrderFlag = true,
                     PurchaseOrderNumber = "PO348186287",
                     AccountNumber = "10-4020-000609",
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     ShipToAddressId = 4,
                     BillToAddressId = 5,
                     ShipMethod = "CAR TRANSPORTATION",
@@ -390,7 +390,7 @@ namespace Dotmim.Sync.Tests
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
                 //Assert.Equal(download, s.TotalChangesDownloaded);
-                Assert.Equal(4, s.TotalChangesUploaded);
+                Assert.Equal(4, s.TotalChangesUploadedToServer);
                 //Assert.Equal(0, s.TotalSyncConflicts);
                 download += 4;
             }
@@ -452,7 +452,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "OTH"
                 };
 
@@ -483,8 +483,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 Assert.Equal(1, snapshotApplying);
@@ -527,8 +527,8 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
@@ -545,7 +545,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "OTH"
                 };
 
@@ -561,8 +561,8 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
-                Assert.Equal(2, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
         }
@@ -588,13 +588,13 @@ namespace Dotmim.Sync.Tests
             var serverOptions = new SyncOptions
             {
                 SnapshotsDirectory = directory,
-                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "srv"),
+                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), "srv"),
                 BatchSize = 200
             };
 
             var clientOptions = new SyncOptions
             {
-                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "cli"),
+                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), "cli"),
                 BatchSize = 200
             };
 
@@ -631,7 +631,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "OTH"
                 };
 
@@ -722,7 +722,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "OTH"
                 };
 
@@ -769,8 +769,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 Assert.Equal(1, snapshotApplying);
@@ -809,8 +809,8 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
@@ -827,7 +827,7 @@ namespace Dotmim.Sync.Tests
                 var newCustomerAddress = new CustomerAddress
                 {
                     AddressId = newAddress.AddressId,
-                    CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                     AddressType = "OTH"
                 };
 
@@ -860,8 +860,8 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, remoteOrchestrator, options);
                 var s = await agent.SynchronizeAsync(this.FilterParameters);
 
-                Assert.Equal(2, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 

@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Args;
+﻿
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -49,7 +49,7 @@ namespace Dotmim.Sync
                 rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead
-                var syncRowCountParam = GetParameter(command, "sync_row_count");
+                var syncRowCountParam = InternalGetParameter(command, "sync_row_count");
 
                 if (syncRowCountParam != null)
                     rowDeletedCount = (int)syncRowCountParam.Value;
@@ -93,7 +93,7 @@ namespace Dotmim.Sync
                 rowUpdatedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead
-                var syncRowCountParam = GetParameter(command, "sync_row_count");
+                var syncRowCountParam = InternalGetParameter(command, "sync_row_count");
 
                 if (syncRowCountParam != null)
                     rowUpdatedCount = (int)syncRowCountParam.Value;

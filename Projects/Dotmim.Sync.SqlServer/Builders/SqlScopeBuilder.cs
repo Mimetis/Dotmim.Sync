@@ -94,6 +94,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                     [scope_last_server_sync_timestamp] [bigint] NULL,
                     [scope_last_sync_duration] [bigint] NULL,
                     [scope_last_sync] [datetime] NULL, 
+                    [sync_scope_errors] [nvarchar](MAX) NULL, 
                     [sync_scope_properties] [nvarchar](MAX) NULL
                     CONSTRAINT [PKey_{tableName}] PRIMARY KEY CLUSTERED ([sync_scope_id] ASC, [sync_scope_name] ASC, [sync_scope_hash] ASC)
                     )";
@@ -141,6 +142,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                          , [scope_last_server_sync_timestamp]
                          , [scope_last_sync_duration]
                          , [scope_last_sync]
+                         , [sync_scope_errors]
                          , [sync_scope_properties]
                     FROM  [{tableName}]";
 
@@ -196,6 +198,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                            , [scope_last_server_sync_timestamp]
                            , [scope_last_sync_duration]
                            , [scope_last_sync]
+                           , [sync_scope_errors]
                            , [sync_scope_properties]
                     FROM  [{tableName}]
                     WHERE [sync_scope_name] = @sync_scope_name and [sync_scope_id] = @sync_scope_id and [sync_scope_hash] = @sync_scope_hash";
@@ -331,17 +334,19 @@ namespace Dotmim.Sync.SqlServer.Scope
                                        @scope_last_server_sync_timestamp AS scope_last_server_sync_timestamp,
                                        @scope_last_sync_duration AS scope_last_sync_duration,
                                        @scope_last_sync AS scope_last_sync,
+                                       @sync_scope_errors AS sync_scope_errors,
                                        @sync_scope_properties AS sync_scope_properties
                            ) AS [changes] 
                     ON [base].[sync_scope_id] = [changes].[sync_scope_id] and [base].[sync_scope_name] = [changes].[sync_scope_name] and [base].[sync_scope_hash] = [changes].[sync_scope_hash]
                     WHEN NOT MATCHED THEN
-	                    INSERT ([sync_scope_name], [sync_scope_id], [sync_scope_hash], [sync_scope_parameters], [scope_last_sync_timestamp],  [scope_last_server_sync_timestamp], [scope_last_sync], [scope_last_sync_duration], [sync_scope_properties])
-	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_id], [changes].[sync_scope_hash], [changes].[sync_scope_parameters], [changes].[scope_last_sync_timestamp], [changes].[scope_last_server_sync_timestamp], [changes].[scope_last_sync], [changes].[scope_last_sync_duration], [changes].[sync_scope_properties])
+	                    INSERT ([sync_scope_name], [sync_scope_id], [sync_scope_hash], [sync_scope_parameters], [scope_last_sync_timestamp],  [scope_last_server_sync_timestamp], [scope_last_sync], [scope_last_sync_duration], [sync_scope_errors], [sync_scope_properties])
+	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_id], [changes].[sync_scope_hash], [changes].[sync_scope_parameters], [changes].[scope_last_sync_timestamp], [changes].[scope_last_server_sync_timestamp], [changes].[scope_last_sync], [changes].[scope_last_sync_duration], [changes].[sync_scope_errors], [changes].[sync_scope_properties])
                     WHEN MATCHED THEN
 	                    UPDATE SET [scope_last_sync_timestamp] = [changes].[scope_last_sync_timestamp],
                                    [scope_last_server_sync_timestamp] = [changes].[scope_last_server_sync_timestamp],
                                    [scope_last_sync] = [changes].[scope_last_sync],
                                    [scope_last_sync_duration] = [changes].[scope_last_sync_duration],
+                                   [sync_scope_errors] = [changes].[sync_scope_errors],
                                    [sync_scope_properties] = [changes].[sync_scope_properties]
                     OUTPUT  INSERTED.[sync_scope_name], 
                             INSERTED.[sync_scope_id], 
@@ -351,6 +356,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                             INSERTED.[scope_last_server_sync_timestamp],
                             INSERTED.[scope_last_sync],
                             INSERTED.[scope_last_sync_duration],
+                            INSERTED.[sync_scope_errors],
                             INSERTED.[sync_scope_properties]; ";
 
             var command = connection.CreateCommand();
@@ -400,6 +406,12 @@ namespace Dotmim.Sync.SqlServer.Scope
             p = command.CreateParameter();
             p.ParameterName = "@scope_last_sync_duration";
             p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_errors";
+            p.DbType = DbType.String;
+            p.Size = -1;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();

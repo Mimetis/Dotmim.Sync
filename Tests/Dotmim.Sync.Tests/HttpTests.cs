@@ -33,6 +33,7 @@ using System.Net.Http.Headers;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using Dotmim.Sync.Builders;
 
 namespace Dotmim.Sync.Tests
 {
@@ -64,8 +65,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
             }
         }
 
@@ -94,8 +95,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
             }
         }
 
@@ -273,8 +274,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
@@ -297,8 +298,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
         }
@@ -330,8 +331,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
@@ -358,8 +359,8 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(download++, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(download++, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
@@ -439,8 +440,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // check rows are create on client
@@ -475,8 +476,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(2, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // check row deleted on client values
@@ -541,8 +542,8 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(download * 2000, s.TotalChangesDownloaded);
-                Assert.Equal(2000, s.TotalChangesUploaded);
+                Assert.Equal(download * 2000, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(2000, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 download++;
@@ -579,8 +580,8 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
@@ -612,10 +613,21 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
+                if (options.TransactionMode != TransactionMode.AllOrNothing && (client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB))
+                {
+                    agent.LocalOrchestrator.OnGetCommand(async args =>
+                    {
+                        if (args.CommandType == DbCommandType.Reset)
+                        {
+                            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
+                            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
+                        }
+                    });
+                }
                 var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
             }
@@ -650,8 +662,8 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
@@ -683,10 +695,23 @@ namespace Dotmim.Sync.Tests
                 options.DisableConstraintsOnApplyChanges = true;
 
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
+
+                if (options.TransactionMode != TransactionMode.AllOrNothing && (client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB))
+                {
+                    agent.LocalOrchestrator.OnGetCommand(async args =>
+                    {
+                        if (args.CommandType == DbCommandType.Reset)
+                        {
+                            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
+                            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
+                        }
+                    });
+                }
+
                 var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload);
 
-                Assert.Equal(rowsCount + download, s.TotalChangesDownloaded);
-                Assert.Equal(2, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount + download, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(2, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
                 download += 2;
             }
@@ -787,8 +812,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
             }
         }
 
@@ -826,8 +851,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 wenClientOrchestrator.ClearInterceptors();
@@ -866,8 +891,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(download++, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(download++, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 webRemoteOrchestrator.ClearInterceptors();
@@ -946,8 +971,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
             }
         }
 
@@ -1022,8 +1047,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
         }
@@ -1056,8 +1081,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
@@ -1103,8 +1128,8 @@ namespace Dotmim.Sync.Tests
 
                 var r = await agent.SynchronizeAsync();
                 var c = GetServerDatabaseRowsCount(this.Server);
-                Assert.Equal(c, r.TotalChangesDownloaded);
-                Assert.Equal(2, r.TotalChangesUploaded);
+                Assert.Equal(c, r.TotalChangesDownloadedFromServer);
+                Assert.Equal(2, r.TotalChangesUploadedToServer);
             }
         }
 
@@ -1135,8 +1160,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync("customScope1");
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
             }
         }
 
@@ -1213,8 +1238,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
@@ -1333,8 +1358,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
@@ -1403,8 +1428,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(this.Tables);
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
@@ -1440,12 +1465,24 @@ namespace Dotmim.Sync.Tests
                 {
                     var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
 
+                    webServerAgent.OnHttpGettingRequest(args =>
+                    {
+                        var cScopeInfoClientId = args.HttpContext.GetClientScopeId();
+                        var cScopeInfoClientSessionId = args.HttpContext.GetClientSessionId();
+                        var cStep = args.HttpContext.GetCurrentStep();
+
+                        Debug.WriteLine($"RECEIVE Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
+
+
+                    });
+
                     webServerAgent.OnHttpSendingResponse(async args =>
                     {
                         // SendChangesInProgress is occuring when server is receiving data from client
                         // We are droping session on the second batch
                         if (args.HttpStep == HttpStep.SendChangesInProgress && batchIndex == 1)
                         {
+                            Debug.WriteLine($"DROPING Session Id {args.HttpContext.Session.Id} on batch {batchIndex}.");
                             args.HttpContext.Session.Clear();
                             await args.HttpContext.Session.CommitAsync();
                         }
@@ -1460,8 +1497,26 @@ namespace Dotmim.Sync.Tests
 
                 var serviceUri = this.Kestrell.Run(serverHandler);
 
-
                 var orch = new WebRemoteOrchestrator(serviceUri);
+
+                orch.OnHttpPolicyRetrying(args => Debug.WriteLine(args.Message));
+                orch.OnHttpSendingRequest(args =>
+                {
+                    var cScopeInfoClientId = "";
+                    var cScopeInfoClientSessionId = "";
+                    var cStep = "";
+                    if (args.Request.Headers.TryGetValues("dotmim-sync-scope-id", out var scopeIds))
+                        cScopeInfoClientId = scopeIds.ToList()[0];
+
+                    if (args.Request.Headers.TryGetValues("dotmim-sync-session-id", out var sessionIds))
+                        cScopeInfoClientSessionId = sessionIds.ToList()[0];
+
+                    if (args.Request.Headers.TryGetValues("dotmim-sync-step", out var steps))
+                        cStep = steps.ToList()[0];
+                    
+                    Debug.WriteLine($"SEND    Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
+                });
+
                 var agent = new SyncAgent(client.Provider, orch, options);
 
                 var ex = await Assert.ThrowsAsync<HttpSyncWebException>(() => agent.SynchronizeAsync());
@@ -1485,10 +1540,11 @@ namespace Dotmim.Sync.Tests
                 // Act 2: Ensure client can recover
                 var agent2 = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
+               
                 var s2 = await agent2.SynchronizeAsync();
 
-                Assert.Equal(rowsToSend, s2.TotalChangesUploaded);
-                Assert.Equal(rowsToSend * clientCount, s2.TotalChangesDownloaded);
+                Assert.Equal(rowsToSend, s2.TotalChangesUploadedToServer);
+                Assert.Equal(rowsToSend * clientCount, s2.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s2.TotalResolvedConflicts);
 
                 clientCount++;
@@ -1531,8 +1587,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
@@ -1607,8 +1663,8 @@ namespace Dotmim.Sync.Tests
 
                 var s2 = await agent2.SynchronizeAsync();
 
-                Assert.Equal(0, s2.TotalChangesUploaded);
-                Assert.Equal(rowsToReceive, s2.TotalChangesDownloaded);
+                Assert.Equal(0, s2.TotalChangesUploadedToServer);
+                Assert.Equal(rowsToReceive, s2.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s2.TotalResolvedConflicts);
 
                 using var clientDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
@@ -1679,8 +1735,8 @@ namespace Dotmim.Sync.Tests
 
             foreach (var s in allTasks)
             {
-                Assert.Equal(rowsCount, s.Result.TotalChangesDownloaded);
-                Assert.Equal(0, s.Result.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.Result.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.Result.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.Result.TotalResolvedConflicts);
             }
 
@@ -1711,8 +1767,8 @@ namespace Dotmim.Sync.Tests
 
             foreach (var s in allTasks)
             {
-                Assert.Equal(1, s.Result.TotalChangesDownloaded);
-                Assert.Equal(0, s.Result.TotalChangesUploaded);
+                Assert.Equal(1, s.Result.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.Result.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.Result.TotalResolvedConflicts);
             }
 
@@ -1794,8 +1850,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
                 Assert.InRange(policyRetries, 5, 7);
                 interrupted.Clear();
@@ -1877,8 +1933,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
                 Assert.InRange(policyRetries, 5, 7);
                 interrupted.Clear();
@@ -1942,8 +1998,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(rowsCount, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
@@ -1977,8 +2033,8 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
                 var s = await agent.SynchronizeAsync();
 
-                Assert.Equal(download, s.TotalChangesDownloaded);
-                Assert.Equal(1000, s.TotalChangesUploaded);
+                Assert.Equal(download, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1000, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // We have one batch that has been sent 2 times; it will be merged correctly on server

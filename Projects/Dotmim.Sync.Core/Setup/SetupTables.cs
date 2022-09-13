@@ -22,6 +22,9 @@ namespace Dotmim.Sync
         [DataMember(Name = "c", IsRequired = true, Order = 1)]
         public Collection<SetupTable> InnerCollection { get; set; } = new Collection<SetupTable>();
 
+        /// <summary>
+        /// ctor for serialization purpose
+        /// </summary>
         public SetupTables()
         {
 

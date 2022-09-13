@@ -9,10 +9,11 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
-    //Make an extension method to allow calling the static method as in BaseOrchestrator
-
     public static class DbConnectionRunnerExtensions
     {
+        /// <summary>
+        /// Create a connection and transaction, encapsulated in a <see cref="DbConnectionRunner"/> instance that is disposable
+        /// </summary>
         public static async Task<DbConnectionRunner> GetConnectionAsync(this BaseOrchestrator orchestrator,
                                 SyncContext context,
                                 SyncMode syncMode = SyncMode.WithTransaction,
@@ -49,6 +50,9 @@ namespace Dotmim.Sync
         }
     }
 
+    /// <summary>
+    /// Disposable runner to encapsulate a connection and a transaction
+    /// </summary>
     public sealed class DbConnectionRunner : IDisposable, IAsyncDisposable
     {
         public DbConnectionRunner(BaseOrchestrator orchestrator, SyncContext context, DbConnection connection, DbTransaction transaction,
@@ -64,6 +68,8 @@ namespace Dotmim.Sync
             this.CancellationToken = cancellationToken;
             this.Progress = progress;
         }
+
+        private bool disposedValue = false;
 
         public BaseOrchestrator Orchestrator { get; set; }
         public SyncContext Context { get; }
@@ -106,16 +112,20 @@ namespace Dotmim.Sync
                 await this.Orchestrator.CloseConnectionAsync(this.Context, this.Connection, this.CancellationToken, this.Progress).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Rollback a transaction
+        /// </summary>
         public Task RollbackAsync() => Task.Run(() =>
         {
-            if (this.Orchestrator == null || this.Transaction == null)
+            if (this.Orchestrator == null || this.Transaction == null || this.AlreadyInTransaction)
                 return;
 
             this.Transaction.Rollback();
         });
 
-
-        // This code added to correctly implement the disposable pattern.
+        /// <summary>
+        /// This code added to correctly implement the disposable pattern.
+        /// </summary>
         public void Dispose()
         {
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
@@ -123,8 +133,10 @@ namespace Dotmim.Sync
             GC.SuppressFinalize(this);
         }
 
-        private bool disposedValue = false;
-
+        /// <summary>
+        /// Dispose the current transaction and connection
+        /// </summary>
+        /// <param name="disposing"></param>
         public void Dispose(bool disposing)
         {
             if (!disposedValue)
@@ -153,6 +165,9 @@ namespace Dotmim.Sync
             }
         }
 
+        /// <summary>
+        /// Async dispose, when using "await using var runner = await this.GetConnectionAsync()"
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
             if (this.Orchestrator != null)

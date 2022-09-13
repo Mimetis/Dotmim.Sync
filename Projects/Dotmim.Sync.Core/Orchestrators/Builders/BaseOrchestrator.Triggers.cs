@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Args;
+﻿
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -19,12 +19,24 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Create a trigger
+        /// Create a <strong>Trigger</strong> for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Employee", DbTriggerType.Insert);
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="table">A table from your Setup instance, where you want to create the trigger</param>
-        /// <param name="triggerType">Trigger type (Insert, Delete, Update)</param>
-        /// <param name="overwrite">If true, drop the existing trriger then create again</param>
-        public async Task<bool> CreateTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert, bool overwrite = false)
+        /// <param name="scopeInfo">ScopeInfo instance used to defines trigger generation (name, prefix, suffix...).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
+        /// <param name="triggerType">Trigger type to create</param>
+        /// <param name="overwrite">If specified the trigger is dropped, if exists, then created again.</param>
+        /// <param name="connection">Optional Connection</param>
+        /// <param name="transaction">Optional Transaction</param>
+        public async Task<bool> CreateTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert, bool overwrite = false,
+            DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 
@@ -38,7 +50,7 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction).ConfigureAwait(false);
                 bool hasBeenCreated = false;
 
                 // Get table builder
@@ -73,11 +85,23 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Create a trigger
+        /// Create all <strong>Triggers</strong> for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.CreateTriggersAsync(scopeInfo, "Employee");
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="table">A table from your Setup instance, where you want to create the triggers</param>
-        /// <param name="overwrite">If true, drop the existing triggers then create them all, again</param>
-        public async Task<bool> CreateTriggersAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false)
+        /// <param name="scopeInfo">ScopeInfo instance used to defines trigger generation (name, prefix, suffix...).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
+        /// <param name="overwrite">If specified the triggers are dropped, if exists, then created again.</param>
+        /// <param name="connection">Optional Connection</param>
+        /// <param name="transaction">Optional Transaction</param>
+        public async Task<bool> CreateTriggersAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false,
+            DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 
@@ -91,7 +115,7 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction).ConfigureAwait(false);
 
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
@@ -111,11 +135,23 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Check if a trigger exists
+        /// Check if a <strong>Trigger</strong>exists, for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.ExistTriggerAsync(scopeInfo, "Employee");
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="table">A table from your Setup instance, where you want to check if the trigger exists</param>
-        /// <param name="triggerType">Trigger type (Insert, Delete, Update)</param>
-        public async Task<bool> ExistTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert)
+        /// <param name="scopeInfo">ScopeInfo instance used to defines trigger generation (name, prefix, suffix...).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
+        /// <param name="triggerType">Trigger type to check if exist</param>
+        /// <param name="connection">Optional Connection</param>
+        /// <param name="transaction">Optional Transaction</param>
+        public async Task<bool> ExistTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert,
+            DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -128,7 +164,7 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
 
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
@@ -146,11 +182,22 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Dropping a trigger
+        /// Drop a <strong>Trigger</strong>, for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.DropTriggerAsync(scopeInfo, "Employee", null, DbTriggerType.Insert);
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="table">A table from your Setup instance, where you want to drop the trigger</param>
-        /// <param name="triggerType">Trigger type (Insert, Delete, Update)</param>
-        public async Task<bool> DropTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert)
+        /// <param name="scopeInfo">ScopeInfo instance used to defines trigger generation (name, prefix, suffix...).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
+        /// <param name="triggerType">Trigger type to drop</param>
+        /// <param name="connection">Optional Connection</param>
+        /// <param name="transaction">Optional Transaction</param>
+        public async Task<bool> DropTriggerAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbTriggerType triggerType = DbTriggerType.Insert, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 
@@ -164,7 +211,7 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
                 bool hasBeenDropped = false;
 
                 // Get table builder
@@ -178,8 +225,6 @@ namespace Dotmim.Sync
                     (context, hasBeenDropped) = await InternalDropTriggerAsync(scopeInfo, context, tableBuilder, triggerType, 
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                await runner.CommitAsync().ConfigureAwait(false);
-
                 return hasBeenDropped;
             }
             catch (Exception ex)
@@ -190,10 +235,22 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Drop all triggers
+        /// Drop all <strong>Triggers</strong>, for a given table present in an existing scopeInfo.
+        /// <example>
+        /// <code>
+        /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+        /// var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
+        /// await remoteOrchestrator.DropTriggersAsync(scopeInfo, "Employee");
+        /// </code>
+        /// </example>
         /// </summary>
-        /// <param name="table">A table from your Setup instance, where you want to drop all the triggers</param>
-        public async Task<bool> DropTriggersAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
+        /// <param name="scopeInfo">ScopeInfo instance used to defines trigger generation (name, prefix, suffix...).</param>
+        /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
+        /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
+        /// <param name="connection">Optional Connection</param>
+        /// <param name="transaction">Optional Transaction</param>
+        public async Task<bool> DropTriggersAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null,
+            DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 
@@ -207,7 +264,7 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
 
                 // Get table builder
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);

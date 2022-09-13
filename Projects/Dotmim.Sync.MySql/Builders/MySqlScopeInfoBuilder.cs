@@ -104,6 +104,7 @@ namespace Dotmim.Sync.MySql.Builders
                         scope_last_server_sync_timestamp bigint NULL,
                         scope_last_sync_duration bigint NULL,
                         scope_last_sync datetime NULL,
+                        sync_scope_errors longtext NULL,
                         sync_scope_properties longtext NULL,
                         PRIMARY KEY (sync_scope_id, sync_scope_name, sync_scope_hash)
                         )";
@@ -149,6 +150,7 @@ namespace Dotmim.Sync.MySql.Builders
                          , scope_last_server_sync_timestamp
                          , scope_last_sync_duration
                          , scope_last_sync
+                         , sync_scope_errors
                          , sync_scope_properties
                     FROM `{tableName}`";
 
@@ -204,6 +206,7 @@ namespace Dotmim.Sync.MySql.Builders
                          , scope_last_server_sync_timestamp
                          , scope_last_sync_duration
                          , scope_last_sync
+                         , sync_scope_errors
                          , sync_scope_properties
                     FROM  `{tableName}`
                     WHERE sync_scope_name = @sync_scope_name and sync_scope_id = @sync_scope_id and sync_scope_hash = @sync_scope_hash";
@@ -308,16 +311,16 @@ namespace Dotmim.Sync.MySql.Builders
             var stmtText = new StringBuilder(
                 $"INSERT INTO `{tableName}` " +
                       $"(sync_scope_name, sync_scope_id, sync_scope_hash, sync_scope_parameters, scope_last_sync_timestamp, scope_last_server_sync_timestamp, " +
-                      $"scope_last_sync, scope_last_sync_duration, sync_scope_properties) " +
+                      $"scope_last_sync, scope_last_sync_duration, sync_scope_errors, sync_scope_properties) " +
                       $"VALUES " +
                       $"(@sync_scope_name, @sync_scope_id, @sync_scope_hash, @sync_scope_parameters, @scope_last_sync_timestamp, @scope_last_server_sync_timestamp, " +
-                      $"@scope_last_sync, @scope_last_sync_duration, @sync_scope_properties);");
+                      $"@scope_last_sync, @scope_last_sync_duration, @sync_scope_errors, @sync_scope_properties);");
 
             stmtText.AppendLine();
 
             stmtText.AppendLine($"SELECT sync_scope_id, sync_scope_name, sync_scope_hash, " +
                 $"sync_scope_parameters, scope_last_sync_timestamp, scope_last_server_sync_timestamp, " +
-                $"scope_last_sync, scope_last_sync_duration, sync_scope_properties " +
+                $"scope_last_sync, scope_last_sync_duration, sync_scope_errors, sync_scope_properties " +
                 $"FROM `{tableName}` " +
                 $"WHERE sync_scope_id=@sync_scope_id AND sync_scope_name=@sync_scope_name AND sync_scope_hash=@sync_scope_hash;");
 
@@ -369,6 +372,12 @@ namespace Dotmim.Sync.MySql.Builders
             p = command.CreateParameter();
             p.ParameterName = "@scope_last_sync_duration";
             p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_errors";
+            p.DbType = DbType.String;
+            p.Size = -1;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
@@ -458,6 +467,7 @@ namespace Dotmim.Sync.MySql.Builders
                 $"scope_last_sync=@scope_last_sync, " +
                 $"scope_last_sync_duration=@scope_last_sync_duration, " +
                 $"sync_scope_properties=@sync_scope_properties,  " +
+                $"sync_scope_errors=@sync_scope_errors,  " +
                 $"sync_scope_parameters=@sync_scope_parameters  " +
                 $"WHERE sync_scope_id=@sync_scope_id and sync_scope_name=@sync_scope_name and sync_scope_hash=@sync_scope_hash;");
 
@@ -466,7 +476,7 @@ namespace Dotmim.Sync.MySql.Builders
             stmtText.AppendLine(
                 $"SELECT sync_scope_id, sync_scope_name, sync_scope_hash, sync_scope_parameters, " +
                 $"scope_last_sync_timestamp, scope_last_server_sync_timestamp, scope_last_sync, " +
-                $"scope_last_sync_duration, sync_scope_properties " +
+                $"scope_last_sync_duration, sync_scope_errors, sync_scope_properties " +
                 $"FROM  `{tableName}` " +
                 $"WHERE sync_scope_name=@sync_scope_name and sync_scope_id=@sync_scope_id and sync_scope_hash=@sync_scope_hash; ");
 
@@ -517,6 +527,12 @@ namespace Dotmim.Sync.MySql.Builders
             p = command.CreateParameter();
             p.ParameterName = "@scope_last_sync_duration";
             p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_errors";
+            p.DbType = DbType.String;
+            p.Size = -1;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();

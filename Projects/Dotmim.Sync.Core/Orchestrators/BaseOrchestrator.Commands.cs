@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Args;
+﻿
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -113,7 +113,7 @@ namespace Dotmim.Sync
             }
 
             // return value
-            var syncRowCountParam = GetParameter(command, "sync_row_count");
+            var syncRowCountParam = InternalGetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
             {
@@ -135,13 +135,10 @@ namespace Dotmim.Sync
             SetParameterValue(command, "sync_row_is_tombstone", isDeleted);
         }
 
-
         /// <summary>
         /// Remove a Command from internal shared dictionary
         /// </summary>
         internal void RemoveCommands() => PreparedCommands.Clear();
-
-
 
         /// <summary>
         /// Create a change table with scope columns and tombstone column
@@ -176,11 +173,10 @@ namespace Dotmim.Sync
             return changesTable;
         }
 
-
         /// <summary>
         /// Get a parameter even if it's a @param or :param or param
         /// </summary>
-        public static DbParameter GetParameter(DbCommand command, string parameterName)
+        internal static DbParameter InternalGetParameter(DbCommand command, string parameterName)
         {
             if (command == null)
                 return null;
@@ -201,11 +197,22 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Set a parameter value
+        /// Gets a parameter from a DbCommand, and set the parameter value. If neededn, can convert the value to the parameter type.
+        /// <example>
+        /// <para>
+        /// The parameterName argument is searching for specific character, depending on the provider ("@", ":" or "in_")
+        /// </para>
+        /// <code>
+        /// var command = connection.CreateCommand();
+        /// command.CommandText = "SELECT * FROM MyTable WHERE Id = @id";
+        /// command.Parameters.Add("id", DbType.Int32);
+        /// SetParameterValue(command, "id", 12);
+        /// </code>
+        /// </example>
         /// </summary>
         public static void SetParameterValue(DbCommand command, string parameterName, object value)
         {
-            var parameter = GetParameter(command, parameterName);
+            var parameter = InternalGetParameter(command, parameterName);
             if (parameter == null)
                 return;
 
@@ -213,8 +220,6 @@ namespace Dotmim.Sync
                 parameter.Value = DBNull.Value;
             else
                 parameter.Value = SyncTypeConverter.TryConvertFromDbType(value, parameter.DbType);
-
-
         }
 
         /// <summary>
@@ -247,7 +252,5 @@ namespace Dotmim.Sync
             long.TryParse(stringBuilder.ToString(), NumberStyles.HexNumber, CultureInfo.InvariantCulture.NumberFormat, out timestamp);
             return timestamp;
         }
-
-
     }
 }

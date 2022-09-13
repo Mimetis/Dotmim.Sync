@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.SqlServer.Manager;
 using Dotmim.Sync.Tests.Core;
@@ -190,38 +191,816 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+
+        // ------------------------------------------------------------------------
+        // Generate Unique Key failure
+        // ------------------------------------------------------------------------
+        private async Task Generate_Client_UniqueKeyError(SqlSyncProvider sqlSyncProvider)
+        {
+            var sqlConnection = new SqlConnection(sqlSyncProvider.ConnectionString);
+
+            var subcatrandom = Path.GetRandomFileName();
+            var categoryName = string.Concat("A_", string.Concat(subcatrandom.Where(c => char.IsLetter(c))).ToUpperInvariant());
+
+            var cat1 = string.Concat("Z_", string.Concat(Path.GetRandomFileName().Where(c => char.IsLetter(c))).ToUpperInvariant());
+            cat1 = cat1.Substring(0, Math.Min(cat1.Length, 12));
+
+            var cat2 = string.Concat("Z_", string.Concat(Path.GetRandomFileName().Where(c => char.IsLetter(c))).ToUpperInvariant());
+            cat2 = cat2.Substring(0, Math.Min(cat2.Length, 12));
+
+            var pcName = Server.ProviderType == ProviderType.Sql ? "[SalesLT].[ProductCategory]" : "[ProductCategory]";
+
+            var commandText = @$"Begin Tran
+                            ALTER TABLE {pcName} NOCHECK CONSTRAINT ALL
+                            INSERT {pcName} ([ProductCategoryID], [Name]) VALUES (N'{cat1}', N'{categoryName} Category');
+                            INSERT {pcName} ([ProductCategoryID], [Name]) VALUES (N'{cat2}', N'{categoryName} Category');
+                            ALTER TABLE {pcName} CHECK CONSTRAINT ALL
+                            Commit Tran";
+
+            var command = sqlConnection.CreateCommand();
+            command.CommandText = commandText;
+            sqlConnection.Open();
+            await command.ExecuteNonQueryAsync();
+            sqlConnection.Close();
+
+        }
+
+        private async Task Resolve_Client_UniqueKeyError(SqlSyncProvider sqlSyncProvider)
+        {
+            var sqlConnection = new SqlConnection(sqlSyncProvider.ConnectionString);
+
+            var subcatrandom = Path.GetRandomFileName();
+            var categoryName = string.Concat("A_", string.Concat(subcatrandom.Where(c => char.IsLetter(c))).ToUpperInvariant());
+
+            var pcName = Server.ProviderType == ProviderType.Sql ? "[SalesLT].[ProductCategory]" : "[ProductCategory]";
+
+            var commandText = @$"UPDATE {pcName} SET [Name] = '{categoryName}' + [ProductCategoryID];";
+
+            var command = sqlConnection.CreateCommand();
+            command.CommandText = commandText;
+            sqlConnection.Open();
+            await command.ExecuteNonQueryAsync();
+            sqlConnection.Close();
+
+        }
+
+
+        private async Task Update_Client_UniqueKeyError(SqlSyncProvider sqlSyncProvider)
+        {
+            var sqlConnection = new SqlConnection(sqlSyncProvider.ConnectionString);
+
+            var subcatrandom = Path.GetRandomFileName();
+            var categoryName = string.Concat("A_", string.Concat(subcatrandom.Where(c => char.IsLetter(c))).ToUpperInvariant());
+
+            var pcName = Server.ProviderType == ProviderType.Sql ? "[SalesLT].[ProductCategory]" : "[ProductCategory]";
+
+            var commandText = @$"UPDATE {pcName} SET [Name] = [Name];";
+
+            var command = sqlConnection.CreateCommand();
+            command.CommandText = commandText;
+            sqlConnection.Open();
+            await command.ExecuteNonQueryAsync();
+            sqlConnection.Close();
+
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Error_UniqueKey_OnSameTable_RaiseError(SyncOptions options)
+        {
+            // Only works for SQL
+
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                if (client.ProviderType != ProviderType.Sql)
+                    continue;
+
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
+                // create empty client databases
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                await agent.SynchronizeAsync(Tables);
+
+                await Generate_Client_UniqueKeyError(client.Provider as SqlSyncProvider);
+
+                var exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(Tables));
+
+                Assert.NotNull(exc);
+
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.Empty(batchInfos);
+
+                exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(Tables));
+
+                Assert.Empty(batchInfos);
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Error_UniqueKey_OnSameTable_ContinueOnError(SyncOptions options)
+        {
+            // Only works for SQL
+
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                if (client.ProviderType != ProviderType.Sql)
+                    continue;
+
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
+                // create empty client databases
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                await agent.SynchronizeAsync(Tables);
+
+                await Generate_Client_UniqueKeyError(client.Provider as SqlSyncProvider);
+
+                agent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
+                {
+                    // Continue On Error
+                    args.Resolution = ErrorResolution.ContinueOnError;
+                    Assert.NotNull(args.Exception);
+                    Assert.NotNull(args.ErrorRow);
+                    Assert.NotNull(args.SchemaTable);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
+                });
+
+                var s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(2, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERRORS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                var batchInfo = batchInfos[0];
+
+                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+                await foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
+                }
+
+                s = await agent.SynchronizeAsync(Tables);
+
+                // Download 2 rows
+                // But applied only 1
+                // The other one is a failed inserted row
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERRORS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                batchInfo = batchInfos[0];
+
+                syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+                await foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
+                }
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Error_UniqueKey_OnSameTable_RetryOneMoreTimeAndThrowOnError(SyncOptions options)
+        {
+            // Only works for SQL
+
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                if (client.ProviderType != ProviderType.Sql)
+                    continue;
+
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
+                // create empty client databases
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                await agent.SynchronizeAsync(Tables);
+
+                await Generate_Client_UniqueKeyError(client.Provider as SqlSyncProvider);
+
+                agent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
+                {
+                    // Continue On Error
+                    args.Resolution = ErrorResolution.RetryOneMoreTimeAndThrowOnError;
+                    Assert.NotNull(args.Exception);
+                    Assert.NotNull(args.ErrorRow);
+                    Assert.NotNull(args.SchemaTable);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
+                });
+
+                var exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(Tables));
+                Assert.NotNull(exc);
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+                Assert.Empty(batchInfos);
+
+                exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(Tables));
+                Assert.NotNull(exc);
+                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+                Assert.Empty(batchInfos);
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Error_UniqueKey_OnSameTable_RetryOneMoreTimeAndContinueOnError(SyncOptions options)
+        {
+            // Only works for SQL
+
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                if (client.ProviderType != ProviderType.Sql)
+                    continue;
+
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
+                // create empty client databases
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                await agent.SynchronizeAsync(Tables);
+
+                await Generate_Client_UniqueKeyError(client.Provider as SqlSyncProvider);
+
+                agent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
+                {
+                    // Continue On Error
+                    args.Resolution = ErrorResolution.RetryOneMoreTimeAndContinueOnError;
+                    Assert.NotNull(args.Exception);
+                    Assert.NotNull(args.ErrorRow);
+                    Assert.NotNull(args.SchemaTable);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
+                });
+
+                var s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(2, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERRORS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                var batchInfo = batchInfos[0];
+
+                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+                await foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
+                }
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Error_UniqueKey_OnSameTable_RetryOnNextSync(SyncOptions options)
+        {
+            // Only works for SQL
+
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                if (client.ProviderType != ProviderType.Sql)
+                    continue;
+
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
+                // create empty client databases
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                await agent.SynchronizeAsync(Tables);
+
+                await Generate_Client_UniqueKeyError(client.Provider as SqlSyncProvider);
+
+                agent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
+                {
+                    // Continue On Error
+                    args.Resolution = ErrorResolution.RetryOnNextSync;
+                    Assert.NotNull(args.Exception);
+                    Assert.NotNull(args.ErrorRow);
+                    Assert.NotNull(args.SchemaTable);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
+                });
+
+                var s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(2, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERROR", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                var batchInfo = batchInfos[0];
+
+                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+                await foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
+                }
+
+                s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERROR", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                batchInfo = batchInfos[0];
+
+                syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+                await foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
+                }
+            }
+        }
+
+
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Error_UniqueKey_OnSameTable_RetryOnNextSync_ThenResolveClient(SyncOptions options)
+        {
+            // Only works for SQL
+
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                if (client.ProviderType != ProviderType.Sql)
+                    continue;
+
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
+                // create empty client databases
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                await agent.SynchronizeAsync(Tables);
+
+                await Generate_Client_UniqueKeyError(client.Provider as SqlSyncProvider);
+
+                agent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
+                {
+                    // Continue On Error
+                    args.Resolution = ErrorResolution.RetryOnNextSync;
+                    Assert.NotNull(args.Exception);
+                    Assert.NotNull(args.ErrorRow);
+                    Assert.NotNull(args.SchemaTable);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
+                });
+
+                var s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(2, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERROR", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                var batchInfo = batchInfos[0];
+
+                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+                await foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
+                }
+
+                await Resolve_Client_UniqueKeyError(client.Provider as SqlSyncProvider);
+
+
+                s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(13, s.TotalChangesUploadedToServer);
+                Assert.Equal(13, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.Empty(batchInfos);
+            }
+        }
+
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Error_UniqueKey_OnSameTable_RetryOneMoreTime_ThenResolveClient(SyncOptions options)
+        {
+            // Only works for SQL
+
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                if (client.ProviderType != ProviderType.Sql)
+                    continue;
+
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
+                // create empty client databases
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                await agent.SynchronizeAsync(Tables);
+
+                await Generate_Client_UniqueKeyError(client.Provider as SqlSyncProvider);
+
+                agent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
+                {
+                    // Continue On Error
+                    args.Resolution = ErrorResolution.RetryOneMoreTimeAndThrowOnError;
+                    Assert.NotNull(args.Exception);
+                    Assert.NotNull(args.ErrorRow);
+                    Assert.NotNull(args.SchemaTable);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
+                });
+
+                var exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(Tables));
+
+                Assert.NotNull(exc);
+
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.Empty(batchInfos);
+
+                await Resolve_Client_UniqueKeyError(client.Provider as SqlSyncProvider);
+
+                var s = await agent.SynchronizeAsync(Tables);
+                
+                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.Empty(batchInfos);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(13, s.TotalChangesUploadedToServer);
+                Assert.Equal(13, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+        }
+
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Error_UniqueKey_OnSameTable_ContinueOnError_ThenResolveClient(SyncOptions options)
+        {
+            // Only works for SQL
+
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                if (client.ProviderType != ProviderType.Sql)
+                    continue;
+
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
+                // create empty client databases
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                await agent.SynchronizeAsync(Tables);
+
+                await Generate_Client_UniqueKeyError(client.Provider as SqlSyncProvider);
+
+                agent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
+                {
+                    // Continue On Error
+                    args.Resolution = ErrorResolution.ContinueOnError;
+                    Assert.NotNull(args.Exception);
+                    Assert.NotNull(args.ErrorRow);
+                    Assert.NotNull(args.SchemaTable);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
+                });
+
+                var s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(2, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERROR", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                var batchInfo = batchInfos[0];
+
+                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+                await foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
+                }
+
+                await Resolve_Client_UniqueKeyError(client.Provider as SqlSyncProvider);
+
+                s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(13, s.TotalChangesUploadedToServer);
+                Assert.Equal(13, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.Empty(batchInfos);
+            }
+        }
+
+
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Error_UniqueKey_OnSameTable_RetryOnNextSync_Twice_ThenResolveClient(SyncOptions options)
+        {
+            // Only works for SQL
+
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            foreach (var client in Clients)
+            {
+                if (client.ProviderType != ProviderType.Sql)
+                    continue;
+
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
+                // create empty client databases
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                await agent.SynchronizeAsync(Tables);
+
+                await Generate_Client_UniqueKeyError(client.Provider as SqlSyncProvider);
+
+                agent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
+                {
+                    // Continue On Error
+                    args.Resolution = ErrorResolution.RetryOnNextSync;
+                    Assert.NotNull(args.Exception);
+                    Assert.NotNull(args.ErrorRow);
+                    Assert.NotNull(args.SchemaTable);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
+                });
+
+                var s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(2, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERROR", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                var batchInfo = batchInfos[0];
+
+                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+                await foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
+                }
+
+                await Update_Client_UniqueKeyError(client.Provider as SqlSyncProvider);
+
+                s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(13, s.TotalChangesUploadedToServer);
+                Assert.Equal(12, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERRORS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                batchInfo = batchInfos[0];
+
+                syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+                await foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
+                }
+
+
+
+                await Resolve_Client_UniqueKeyError(client.Provider as SqlSyncProvider);
+
+                s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(13, s.TotalChangesUploadedToServer);
+                Assert.Equal(13, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+
+                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.Empty(batchInfos);
+            }
+        }
+
+
         // ------------------------------------------------------------------------
         // Generate Foreign Key failure
         // ------------------------------------------------------------------------
 
         /// <summary>
-        /// Generate an insert on both side; will be resolved as RemoteExistsLocalExists on both side
+        /// Generate a foreign key failure
         /// </summary>
         private async Task Generate_ForeignKeyError()
         {
-            using (var ctx = new AdventureWorksContext(this.Server))
+            using var ctx = new AdventureWorksContext(this.Server);
+            ctx.Add(new ProductCategory
             {
-                ctx.Add(new ProductCategory
-                {
-                    ProductCategoryId = "ZZZZ",
-                    Name = HelperDatabase.GetRandomName("SRV")
-                });
-                ctx.Add(new ProductCategory
-                {
-                    ProductCategoryId = "AAAA",
-                    ParentProductCategoryId = "ZZZZ",
-                    Name = HelperDatabase.GetRandomName("SRV")
-                });
-                await ctx.SaveChangesAsync();
-            }
+                ProductCategoryId = "ZZZZ",
+                Name = HelperDatabase.GetRandomName("SRV")
+            });
+            ctx.Add(new ProductCategory
+            {
+                ProductCategoryId = "AAAA",
+                ParentProductCategoryId = "ZZZZ",
+                Name = HelperDatabase.GetRandomName("SRV")
+            });
+            await ctx.SaveChangesAsync();
 
         }
 
-
-        /// <summary>
-        /// Generate a conflict when inserting one row on server and the same row on each client
-        /// Server should wins the conflict since it's the default behavior
-        /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Error_ForeignKey_OnSameTable_RaiseError(SyncOptions options)
@@ -233,6 +1012,10 @@ namespace Dotmim.Sync.Tests
 
             foreach (var client in Clients)
             {
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectoryName(), directoryName);
+
                 // create empty client databases
                 await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
 
@@ -244,10 +1027,12 @@ namespace Dotmim.Sync.Tests
                 var exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(Tables));
 
                 Assert.NotNull(exc);
+
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.Empty(batchInfos);
             }
-
         }
-
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
@@ -260,6 +1045,10 @@ namespace Dotmim.Sync.Tests
 
             foreach (var client in Clients)
             {
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
                 // create empty client databases
                 await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
 
@@ -275,7 +1064,7 @@ namespace Dotmim.Sync.Tests
                     Assert.NotNull(args.Exception);
                     Assert.NotNull(args.ErrorRow);
                     Assert.NotNull(args.SchemaTable);
-                    Assert.Equal(DataRowState.Modified, args.ApplyType);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
                 });
 
                 var s = await agent.SynchronizeAsync(Tables);
@@ -283,14 +1072,62 @@ namespace Dotmim.Sync.Tests
                 // Download 2 rows
                 // But applied only 1
                 // The other one is a failed inserted row
-                Assert.Equal(2, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(1, s.TotalChangesApplied);
-                Assert.Equal(1, s.TotalChangesFailed);
+                Assert.Equal(2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnClient);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERRORS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                var batchInfo = batchInfos[0];
+
+                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+                await foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
+                }
+
+                s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERRORS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                batchInfo = batchInfos[0];
+
+                syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+                await foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
+                }
+
             }
         }
-
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
@@ -303,6 +1140,11 @@ namespace Dotmim.Sync.Tests
 
             foreach (var client in Clients)
             {
+
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
                 // create empty client databases
                 await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
 
@@ -314,11 +1156,11 @@ namespace Dotmim.Sync.Tests
                 agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
                 {
                     // Continue On Error
-                    args.Resolution = ErrorResolution.RetryOneMoreTime;
+                    args.Resolution = ErrorResolution.RetryOneMoreTimeAndThrowOnError;
                     Assert.NotNull(args.Exception);
                     Assert.NotNull(args.ErrorRow);
                     Assert.NotNull(args.SchemaTable);
-                    Assert.Equal(DataRowState.Modified, args.ApplyType);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
                 });
 
                 var s = await agent.SynchronizeAsync(Tables);
@@ -326,15 +1168,95 @@ namespace Dotmim.Sync.Tests
                 // Download 2 rows
                 // But applied only 1
                 // The other one is a failed inserted row
-                Assert.Equal(2, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(2, s.TotalChangesApplied);
-                Assert.Equal(0, s.TotalChangesFailed);
+                Assert.Equal(2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(2, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
                 Assert.Equal(0, s.TotalResolvedConflicts);
+
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.Empty(batchInfos);
             }
         }
 
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Error_ForeignKey_OnSameTable_RetryOnNextSync(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
+            await Generate_ForeignKeyError();
+
+            foreach (var client in Clients)
+            {
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectoryName(), directoryName);
+
+                // create empty client databases
+                await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
+
+                // Disable bulk operations to generate the fk constraint failure
+                client.Provider.UseBulkOperations = false;
+
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+
+                agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+                {
+                    // Continue On Error
+                    args.Resolution = ErrorResolution.RetryOnNextSync;
+                    Assert.NotNull(args.Exception);
+                    Assert.NotNull(args.ErrorRow);
+                    Assert.NotNull(args.SchemaTable);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
+                });
+
+                var s = await agent.SynchronizeAsync(Tables);
+
+                // Download 2 rows
+                // But applied only 1
+                // The other one is a failed inserted row
+                Assert.Equal(2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERRORS", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                var batchInfo = batchInfos[0];
+
+                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+                await foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
+                }
+
+                s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+
+                Assert.Empty(batchInfos);
+            }
+        }
 
         // ------------------------------------------------------------------------
         // InsertClient - InsertServer
@@ -404,8 +1326,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "SRV");
@@ -448,8 +1370,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("SRV", remoteRow["Name"].ToString());
                     Assert.StartsWith("CLI", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
@@ -468,8 +1390,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
@@ -477,8 +1399,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "SRV");
@@ -510,8 +1432,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "CLI");
@@ -563,8 +1485,8 @@ namespace Dotmim.Sync.Tests
                     var localRow = conflict.LocalRow;
                     var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
@@ -573,8 +1495,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "CLI");
@@ -627,8 +1549,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
@@ -639,8 +1561,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "CLI");
@@ -719,8 +1641,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "SRV");
@@ -764,8 +1686,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("SRV", remoteRow["Name"].ToString());
                     Assert.StartsWith("CLI", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
@@ -784,8 +1706,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
@@ -793,8 +1715,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "SRV");
@@ -826,8 +1748,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "CLI");
@@ -877,8 +1799,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
@@ -886,8 +1808,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "CLI");
@@ -932,8 +1854,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "CLI");
@@ -973,8 +1895,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("BOTH", remoteRow["Name"].ToString());
                     Assert.StartsWith("CLI", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
@@ -994,8 +1916,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
@@ -1012,8 +1934,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "BOTH");
@@ -1092,8 +2014,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "CLI");
@@ -1146,8 +2068,8 @@ namespace Dotmim.Sync.Tests
                     var localRow = conflict.LocalRow;
                     var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalExists, conflict.Type);
@@ -1157,8 +2079,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "CLI");
@@ -1185,8 +2107,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "SRV");
@@ -1222,8 +2144,8 @@ namespace Dotmim.Sync.Tests
                     var localRow = conflict.LocalRow;
                     var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalIsDeleted, conflict.Type);
@@ -1237,8 +2159,8 @@ namespace Dotmim.Sync.Tests
                     var localRow = conflict.LocalRow;
                     var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalExists, conflict.Type);
@@ -1246,8 +2168,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client, "SRV");
@@ -1278,6 +2200,18 @@ namespace Dotmim.Sync.Tests
 
             // Execute a sync to initialize client and server schema 
             var agent = new SyncAgent(client.Provider, Server.Provider, options);
+
+            if (options.TransactionMode != TransactionMode.AllOrNothing && (client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB))
+            {
+                agent.LocalOrchestrator.OnGetCommand(async args =>
+                {
+                    if (args.CommandType == DbCommandType.Reset)
+                    {
+                        var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
+                        await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
+                    }
+                });
+            }
 
             // Since we may have an Outdated situation due to previous client, go for a Reinitialize sync type
             await agent.SynchronizeAsync(setup, SyncType.Reinitialize);
@@ -1349,8 +2283,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(setup);
 
-                Assert.Equal(cpt, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(cpt, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1404,8 +2338,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(setup);
 
-                Assert.Equal(cpt, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
+                Assert.Equal(cpt, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1485,8 +2419,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1523,8 +2457,8 @@ namespace Dotmim.Sync.Tests
                     // remote is server; local is client
                     Assert.StartsWith("CLI_UPDATED", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
@@ -1542,8 +2476,8 @@ namespace Dotmim.Sync.Tests
                     // remote is client; local is server
                     Assert.StartsWith("CLI_UPDATED", remoteRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalIsDeleted, conflict.Type);
@@ -1551,8 +2485,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1580,8 +2514,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1628,8 +2562,8 @@ namespace Dotmim.Sync.Tests
                     // remote is client; local is server
                     Assert.StartsWith("CLI_UPDATED", remoteRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalIsDeleted, conflict.Type);
@@ -1637,8 +2571,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1709,8 +2643,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1744,8 +2678,8 @@ namespace Dotmim.Sync.Tests
                     var localRow = conflict.LocalRow;
                     var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
@@ -1760,8 +2694,8 @@ namespace Dotmim.Sync.Tests
                     var localRow = conflict.LocalRow;
                     var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalIsDeleted, conflict.Type);
@@ -1769,8 +2703,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1797,8 +2731,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1841,8 +2775,8 @@ namespace Dotmim.Sync.Tests
                     var localRow = conflict.LocalRow;
                     var remoteRow = conflict.RemoteRow;
 
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Deleted, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalIsDeleted, conflict.Type);
@@ -1850,8 +2784,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1916,8 +2850,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1958,15 +2892,15 @@ namespace Dotmim.Sync.Tests
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, conflict.Type);
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
                     Assert.Null(localRow);
 
                 });
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -1993,8 +2927,8 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -2039,15 +2973,15 @@ namespace Dotmim.Sync.Tests
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, conflict.Type);
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
                     Assert.Null(localRow);
 
                 });
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -2104,9 +3038,9 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalChangesApplied);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -2140,7 +3074,7 @@ namespace Dotmim.Sync.Tests
 
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, conflict.Type);
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
                     Assert.Null(localRow);
                 });
 
@@ -2152,9 +3086,9 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalChangesApplied);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 await CheckProductCategoryRows(client);
@@ -2182,9 +3116,9 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalChangesApplied);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
 
@@ -2225,7 +3159,7 @@ namespace Dotmim.Sync.Tests
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, conflict.Type);
-                    Assert.Equal(DataRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
                     Assert.Null(localRow);
                 });
 
@@ -2237,9 +3171,9 @@ namespace Dotmim.Sync.Tests
 
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(0, s.TotalChangesUploaded);
-                Assert.Equal(0, s.TotalChangesApplied);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
 
@@ -2288,8 +3222,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("SRV", remoteRow["Name"].ToString());
                     Assert.StartsWith("CLI", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     // The conflict resolution is always the opposite from the one configured by options
                     Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
@@ -2324,8 +3258,8 @@ namespace Dotmim.Sync.Tests
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
 
-                    Assert.Equal(DataRowState.Modified, conflict.RemoteRow.RowState);
-                    Assert.Equal(DataRowState.Modified, conflict.LocalRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
                     Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
@@ -2334,8 +3268,8 @@ namespace Dotmim.Sync.Tests
                 // First sync, we allow server to resolve the conflict and send back the result to client
                 var s = await agent.SynchronizeAsync(Tables);
 
-                Assert.Equal(1, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 // From this point the Server row Name is "SRV...."
@@ -2345,8 +3279,8 @@ namespace Dotmim.Sync.Tests
                 s = await agent.SynchronizeAsync(Tables);
 
 
-                Assert.Equal(0, s.TotalChangesDownloaded);
-                Assert.Equal(1, s.TotalChangesUploaded);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // Check that the product category name has been correctly sended back to the server

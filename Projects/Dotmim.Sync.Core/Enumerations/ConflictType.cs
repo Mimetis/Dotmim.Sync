@@ -72,12 +72,10 @@ namespace Dotmim.Sync.Enumerations
         // Deleted on one side and Not Exists on the other
         // -------------------------------
 
-        /// <summary>
-        /// The Local datasource has deleted a row that does not exists in the Remote datasource 
-        /// Note : this Case can't happen
-        /// From the server point of view : Remote Not Exists means client has not the row. SO it will just not send anything to the server
-        /// From the client point of view : Remote Not Exists means server has not the row. SO it will just not send back anything to client
-        /// </summary>
+        // The Local datasource has deleted a row that does not exists in the Remote datasource 
+        // Note : this Case can't happen
+        // From the server point of view : Remote Not Exists means client has not the row. SO it will just not send anything to the server
+        // From the client point of view : Remote Not Exists means server has not the row. SO it will just not send back anything to client
         //RemoteNotExistsLocalIsDeleted,
 
 

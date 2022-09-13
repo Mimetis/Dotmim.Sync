@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Args;
+﻿
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -20,63 +20,24 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Get a Scope Info Client
-        /// </summary>
-        public virtual async Task<ScopeInfoClient> GetScopeInfoClientAsync(Guid clientId, string scopeName = SyncOptions.DefaultScopeName, SyncParameters syncParameters = default)
-        {
-            // Create context
-            var context = new SyncContext(Guid.NewGuid(), scopeName)
-            {
-                ClientId = clientId,
-                Parameters = syncParameters
-            };
-
-            try
-            {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading).ConfigureAwait(false);
-
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, 
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, 
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                // Get scope if exists
-                ScopeInfoClient scopeInfoClient;
-                (context, scopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context, 
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return scopeInfoClient;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(context, ex);
-            }
-        }
-
-        /// <summary>
         /// Update or Insert a scope info client
         /// </summary>
-        public virtual async Task<ScopeInfoClient> SaveScopeInfoClientAsync(ScopeInfoClient scopeInfoClient)
+        public virtual async Task<ScopeInfoClient> SaveScopeInfoClientAsync(ScopeInfoClient scopeInfoClient, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfoClient);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeWriting).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeWriting, connection, transaction).ConfigureAwait(false);
 
                 bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, 
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-                
+
                 if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, 
+                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                (context, scopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(scopeInfoClient, context, 
+                (context, scopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(scopeInfoClient, context,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -92,13 +53,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get all scopes info clients. scopeName arg is just here for logging purpose and is not used
         /// </summary>
-        public virtual async Task<List<ScopeInfoClient>> GetAllScopeInfoClientsAsync(string scopeName = SyncOptions.DefaultScopeName)
+        public virtual async Task<List<ScopeInfoClient>> GetAllScopeInfoClientsAsync(DbConnection connection = null, DbTransaction transaction = null)
         {
-            var context = new SyncContext(Guid.NewGuid(), scopeName);
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction).ConfigureAwait(false);
 
                 List<ScopeInfoClient> scopeInfoClients;
                 (context, scopeInfoClients) = await InternalLoadAllScopeInfoClientsAsync(context,
@@ -124,10 +85,12 @@ namespace Dotmim.Sync
             if (string.IsNullOrEmpty(context.ScopeName) || !context.ClientId.HasValue)
                 return (context, false);
 
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction).ConfigureAwait(false);
+
             // Get exists command
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            using var existsCommand = scopeBuilder.GetCommandAsync(DbScopeCommandType.ExistScopeInfoClient, connection, transaction);
+            using var existsCommand = scopeBuilder.GetCommandAsync(DbScopeCommandType.ExistScopeInfoClient, runner.Connection, runner.Transaction);
 
             if (existsCommand == null) return (context, false);
 
@@ -135,7 +98,7 @@ namespace Dotmim.Sync
             SetParameterValue(existsCommand, "sync_scope_id", context.ClientId);
             SetParameterValue(existsCommand, "sync_scope_hash", context.Hash);
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
             var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
             var exists = Convert.ToInt32(existsResultObject) > 0;
@@ -150,7 +113,9 @@ namespace Dotmim.Sync
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            using var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetScopeInfoClient, connection, transaction);
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction).ConfigureAwait(false);
+
+            using var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetScopeInfoClient, runner.Connection, runner.Transaction);
 
             if (command == null) return (context, null);
 
@@ -158,7 +123,7 @@ namespace Dotmim.Sync
             SetParameterValue(command, "sync_scope_id", context.ClientId);
             SetParameterValue(command, "sync_scope_hash", context.Hash);
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, command, default, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
             using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -182,13 +147,15 @@ namespace Dotmim.Sync
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            using var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetAllScopeInfoClients, connection, transaction);
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction).ConfigureAwait(false);
+
+            using var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetAllScopeInfoClients, runner.Connection, runner.Transaction);
 
             if (command == null) return (context, null);
 
             var scopeInfoClients = new List<ScopeInfoClient>();
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, command, default, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
             using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -205,7 +172,7 @@ namespace Dotmim.Sync
 
             return (context, scopeInfoClients);
         }
-       
+
         /// <summary>
         /// Internal upsert scope info client
         /// </summary>
@@ -214,26 +181,29 @@ namespace Dotmim.Sync
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction).ConfigureAwait(false);
+
             bool scopeExists;
-            (context, scopeExists) = await InternalExistsScopeInfoClientAsync(context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            (context, scopeExists) = await InternalExistsScopeInfoClientAsync(context, 
+                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
             DbCommand command;
             if (scopeExists)
-                command = scopeBuilder.GetCommandAsync(DbScopeCommandType.UpdateScopeInfoClient, connection, transaction);
+                command = scopeBuilder.GetCommandAsync(DbScopeCommandType.UpdateScopeInfoClient, runner.Connection, runner.Transaction);
             else
-                command = scopeBuilder.GetCommandAsync(DbScopeCommandType.InsertScopeInfoClient, connection, transaction);
+                command = scopeBuilder.GetCommandAsync(DbScopeCommandType.InsertScopeInfoClient, runner.Connection, runner.Transaction);
 
             if (command == null) return (context, null);
 
-            InternalSetSaveScopeInfoClientParameters(scopeInfoClient, command) ;
+            InternalSetSaveScopeInfoClientParameters(scopeInfoClient, command);
 
-            //var action = new ScopeSavingArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeInfoClient, command, connection, transaction);
+            //var action = new ScopeSavingArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeInfoClient, command, runner.Connection, runner.Transaction);
             //await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
             //if (action.Cancel || action.Command == null)
             //    return default;
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ExecuteCommandArgs(context, command, default, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
             using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
@@ -277,6 +247,7 @@ namespace Dotmim.Sync
             SetParameterValue(command, "scope_last_sync", scopeInfoClient.LastSync.HasValue ? (object)scopeInfoClient.LastSync.Value : DBNull.Value);
             SetParameterValue(command, "scope_last_sync_duration", scopeInfoClient.LastSyncDuration);
             SetParameterValue(command, "sync_scope_properties", scopeInfoClient.Properties);
+            SetParameterValue(command, "sync_scope_errors", scopeInfoClient.Errors);
             SetParameterValue(command, "sync_scope_parameters", scopeInfoClient.Parameters != null ? JsonConvert.SerializeObject(scopeInfoClient.Parameters) : DBNull.Value);
 
             return command;
@@ -293,6 +264,7 @@ namespace Dotmim.Sync
                 LastSyncTimestamp = reader["scope_last_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_sync_timestamp")) : null,
                 LastServerSyncTimestamp = reader["scope_last_server_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_server_sync_timestamp")) : null,
                 Properties = reader["sync_scope_properties"] as string,
+                Errors = reader["sync_scope_errors"] as string,
                 Parameters = reader["sync_scope_parameters"] != DBNull.Value ? JsonConvert.DeserializeObject<SyncParameters>((string)reader["sync_scope_parameters"]) : null
 
             };

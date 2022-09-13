@@ -6,6 +6,7 @@ using System.Text;
 using System.Linq;
 
 using System.Data;
+using System.Xml;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -105,6 +106,7 @@ namespace Dotmim.Sync.Sqlite
             this.CreateResetCommandText();
             this.CreateUpdateUntrackedRowsCommandText();
             this.CreateUpdateMetadataCommandText();
+            this.CreateSelectMetadataCommandText();
 
             // Sqlite does not have any constraints, so just return a simple statement
             this.AddCommandName(DbCommandType.DisableConstraints, "Select 0"); // PRAGMA foreign_keys = OFF
@@ -120,6 +122,37 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()};");
             this.AddCommandName(DbCommandType.Reset, stringBuilder.ToString());
         }
+
+        private void CreateSelectMetadataCommandText()
+        {
+            var stringBuilder = new StringBuilder();
+            var pkeysSelect = new StringBuilder();
+            var pkeysWhere = new StringBuilder();
+
+
+            string and = string.Empty;
+            string comma = string.Empty;
+            foreach (var pkColumn in TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
+                pkeysSelect.Append($"{comma}[side].{columnName}");
+
+                pkeysWhere.Append($"{and}[side].{columnName} = @{parameterName}");
+
+                and = " AND ";
+                comma = ", ";
+            }
+
+            stringBuilder.AppendLine($"SELECT {pkeysSelect}, [side].[update_scope_id], [side].[timestamp], [side].[sync_row_is_tombstone]");
+            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"WHERE {pkeysWhere}");
+
+            var commandText = stringBuilder.ToString();
+
+            this.AddCommandName(DbCommandType.SelectMetadata, commandText);
+        }
+
 
         private void CreateUpdateMetadataCommandText()
         {

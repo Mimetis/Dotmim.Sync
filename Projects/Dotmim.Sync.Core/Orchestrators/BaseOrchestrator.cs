@@ -85,8 +85,6 @@ namespace Dotmim.Sync
         /// </summary>
         public void ClearInterceptors(Guid id) => this.interceptors.Clear(id);
 
-
-
         /// <summary>
         /// Returns a boolean value indicating if we have any interceptors for the current type T
         /// </summary>
@@ -128,7 +126,6 @@ namespace Dotmim.Sync
 
             return args;
         }
-
 
         /// <summary>
         /// Try to report progress
@@ -303,7 +300,6 @@ namespace Dotmim.Sync
             return this.Provider.GetTableBuilder(tableDescription, tableName, trackingTableName, scopeInfo.Setup, scopeInfo.Name);
         }
 
-
         /// <summary>
         /// Get a provider scope builder by scope table name
         /// </summary>
@@ -326,11 +322,9 @@ namespace Dotmim.Sync
             return this.Provider.GetScopeBuilder(scopeInfoTableName);
         }
 
-
         /// <summary>
         /// Check if the orchestrator database is outdated
         /// </summary>
-        /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
         internal virtual async Task<(SyncContext, bool)> InternalIsOutDatedAsync(SyncContext context, ScopeInfoClient cScopeInfoClient, ScopeInfo sScopeInfo, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             bool isOutdated = false;
@@ -363,22 +357,22 @@ namespace Dotmim.Sync
             return (context, isOutdated);
         }
 
+        /// <summary>
+        /// Check if a database exists, regarding the provider you are using. Returns database name and database version.
+        /// </summary>
+        public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync() => GetHelloAsync(SyncOptions.DefaultScopeName);
 
-        public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync() 
-            => GetHelloAsync(SyncOptions.DefaultScopeName);
-
+        /// <summary>
+        /// Check if a database exists, regarding the provider you are using. Returns database name and database version.
+        /// </summary>
         public virtual Task<(SyncContext context, string DatabaseName, string Version)> GetHelloAsync(string scopeName)
-        {
-            var context = new SyncContext(Guid.NewGuid(), scopeName);
-            return InternalGetHelloAsync(context, default, default, default, default);
-        }
-
+            => InternalGetHelloAsync(new SyncContext(Guid.NewGuid(), scopeName), default, default, default, default);
 
         /// <summary>
         /// Get hello from database
         /// </summary>
-        internal virtual async Task<(SyncContext context, string DatabaseName, string Version)> InternalGetHelloAsync(
-            SyncContext context, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
+        internal virtual async Task<(SyncContext context, string DatabaseName, string Version)> InternalGetHelloAsync(SyncContext context,
+            DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
             if (this.Provider == null)
                 return (context, default, default);
@@ -398,28 +392,23 @@ namespace Dotmim.Sync
             }
         }
 
+        /// <summary>
+        /// Get a snapshot root directory name and folder directory name
+        /// </summary>
         public virtual Task<(string DirectoryRoot, string DirectoryName)> GetSnapshotDirectoryAsync(SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => GetSnapshotDirectoryAsync(SyncOptions.DefaultScopeName, syncParameters, cancellationToken, progress);
 
         /// <summary>
         /// Get a snapshot root directory name and folder directory name
         /// </summary>
-        public virtual Task<(string DirectoryRoot, string DirectoryName)>
-            GetSnapshotDirectoryAsync(string scopeName, SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        {
-            // check parameters
-            // If context has no parameters specified, and user specifies a parameter collection we switch them
-            //if ((ctx.Parameters == null || ctx.Parameters.Count <= 0) && syncParameters != null && syncParameters.Count > 0)
-            //    ctx.Parameters = syncParameters;
-
-            return this.InternalGetSnapshotDirectoryPathAsync(scopeName, syncParameters, cancellationToken, progress);
-        }
+        public virtual Task<(string DirectoryRoot, string DirectoryName)> GetSnapshotDirectoryAsync(string scopeName, SyncParameters syncParameters = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => this.InternalGetSnapshotDirectoryPathAsync(scopeName, syncParameters, cancellationToken, progress);
 
         /// <summary>
         /// Internal routine to clean tmp folders. MUST be compare also with Options.CleanFolder
         /// </summary>
         internal virtual async Task<bool> InternalCanCleanFolderAsync(string scopeName, SyncParameters parameters, BatchInfo batchInfo,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+                             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var batchInfoDirectoryFullPath = new DirectoryInfo(batchInfo.GetDirectoryFullPath());
 

@@ -17,8 +17,6 @@ namespace Dotmim.Sync.Web.Client
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
 
-
-
         internal override async Task<(SyncContext context, ScopeInfo scopeInfo)> InternalLoadScopeInfoAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             ScopeInfo scopeInfo;
@@ -70,10 +68,10 @@ namespace Dotmim.Sync.Web.Client
             return (context, ensureScopesResponse.ServerScopeInfo, false);
         }
 
-        public override Task<ScopeInfo> SaveScopeInfoAsync(ScopeInfo scopeInfo)
+        public override Task<ScopeInfo> SaveScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null)
             => throw new NotImplementedException();
 
-        public override Task<bool> DeleteScopeInfoAsync(ScopeInfo scopeInfo)
+        public override Task<bool> DeleteScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null)
             => throw new NotImplementedException();
 
     }

@@ -38,12 +38,12 @@ namespace Dotmim.Sync
         public Guid Id { get; }
 
         /// <summary>
-        /// Set a Func<T, Task> as interceptor
+        /// Set a Func as interceptor
         /// </summary>
         public void Set(Func<T, Task> run) => this.wrapperAsync = run != null ? run : Empty;
 
         /// <summary>
-        /// Set an Action<T> as interceptor
+        /// Set an Action as interceptor
         /// </summary>
         [DebuggerStepThrough]
         public void Set(Action<T> run)

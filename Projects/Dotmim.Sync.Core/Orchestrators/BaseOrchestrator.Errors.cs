@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Args;
+﻿
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -24,58 +24,92 @@ namespace Dotmim.Sync
         /// Handle a conflict
         /// The int returned is the conflict count I need 
         /// </summary>
-        private async Task<(SyncContext context, TableConflictErrorApplied tableConflictError)>
-            HandleErrorAsync(ScopeInfo scopeInfo, SyncContext context, SyncRow errorRow, DataRowState applyType,
-                                SyncTable schemaChangesTable, Exception exception,
-                                Guid senderScopeId, long? lastTimestamp,
+        private async Task<(ErrorAction errorAction, Exception ex)> HandleErrorAsync(ScopeInfo scopeInfo, SyncContext context, SyncRow errorRow, SyncRowState applyType,
+                                SyncTable schemaChangesTable, Exception exception, Guid senderScopeId, long? lastTimestamp,
                                 DbConnection connection, DbTransaction transaction,
                                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
-            var errorRowArgs = new ApplyChangesErrorOccuredArgs(context, errorRow, schemaChangesTable, applyType, exception, connection, transaction);
+            var errorRowArgs = new ApplyChangesErrorOccuredArgs(context, errorRow, schemaChangesTable, applyType, exception,
+                connection, transaction);
+
             var errorOccuredArgs = await this.InterceptAsync(errorRowArgs, progress, cancellationToken).ConfigureAwait(false);
+            Exception operationException = null;
 
-            TableConflictErrorApplied tableConflictError = new TableConflictErrorApplied();
-
+            // We are handling a previous error already in the batch info
+            if (errorRow.RowState == SyncRowState.ApplyModifiedFailed || applyType == SyncRowState.ApplyDeletedFailed)
+                return (ErrorAction.Ignore, null);
+            
+            var errorAction = ErrorAction.Throw;
             switch (errorOccuredArgs.Resolution)
             {
-                case ErrorResolution.Throw:
-                    tableConflictError.Exception = exception;
-                    tableConflictError.HasBeenApplied = false;
-                    tableConflictError.HasBeenResolved = false;
+                // We have an error, but we continue
+                // Row in error is saved to the batch error file
+                case ErrorResolution.ContinueOnError:
+                    errorRow.RowState = applyType == SyncRowState.Modified ? SyncRowState.ApplyModifiedFailed : SyncRowState.ApplyDeletedFailed;
+                    errorAction = ErrorAction.Log;
                     break;
-                case ErrorResolution.RetryOneMoreTime:
+
+                // We have an error but at least we try one more time
+                case ErrorResolution.RetryOneMoreTimeAndThrowOnError:
+                case ErrorResolution.RetryOneMoreTimeAndContinueOnError:
+
+                    bool operationComplete;
+
+                    if (applyType == SyncRowState.Deleted)
+                        (context, operationComplete, operationException) = await this.InternalApplyDeleteAsync(scopeInfo, context, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
+                            connection, transaction).ConfigureAwait(false);
+                    else
+                        (context, operationComplete, operationException) = await this.InternalApplyUpdateAsync(scopeInfo, context, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
+                            connection, transaction).ConfigureAwait(false);
+
+
+                    if (operationComplete)
                     {
-                        Exception operationException;
-                        bool operationComplete;
+                        errorAction = ErrorAction.Resolved;
+                        operationException = null;
+                    }
+                    else
+                    {
+                        // we have another error raised even if we tried again
+                        // row is saved to batch error file
+                        errorRow.RowState = applyType == SyncRowState.Modified ? SyncRowState.ApplyModifiedFailed : SyncRowState.ApplyDeletedFailed;
 
-                        if (applyType == DataRowState.Deleted)
-                            (context, operationComplete, operationException) = await this.InternalApplyDeleteAsync(
-                                scopeInfo, context, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true, connection, transaction);
+                        if (errorOccuredArgs.Resolution == ErrorResolution.RetryOneMoreTimeAndContinueOnError)
+                        {
+                            errorAction = ErrorAction.Log;
+                            operationException = null;
+                        }
                         else
-                            (context, operationComplete, operationException) = await this.InternalApplyUpdateAsync(
-                                scopeInfo, context, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true, connection, transaction).ConfigureAwait(false);
-
-                        tableConflictError.Exception = operationException;
-                        tableConflictError.HasBeenApplied = operationComplete;
-                        tableConflictError.HasBeenResolved = operationException == null;
-                        break;
+                        {
+                            errorAction = ErrorAction.Throw;
+                        }
                     }
 
-                case ErrorResolution.ContinueOnError:
-                    tableConflictError.Exception = null;
-                    tableConflictError.HasBeenApplied = false;
-                    tableConflictError.HasBeenResolved = true;
                     break;
+
+                // we mark the row to be tried again on next sync
+                case ErrorResolution.RetryOnNextSync:
+                    errorRow.RowState = applyType == SyncRowState.Modified ? SyncRowState.RetryModifiedOnNextSync : SyncRowState.RetryDeletedOnNextSync;
+                    errorAction = ErrorAction.Log;
+                    break;
+
+                // row is marked as resolved
                 case ErrorResolution.Resolved:
-                default:
-                    tableConflictError.Exception = null;
-                    tableConflictError.HasBeenApplied = true;
-                    tableConflictError.HasBeenResolved = true;
+                    errorAction = ErrorAction.Resolved;
+                    break;
+
+                // default case : we throw the error
+                case ErrorResolution.Throw:
+                    errorRow.RowState = applyType == SyncRowState.Modified ? SyncRowState.ApplyModifiedFailed : SyncRowState.ApplyDeletedFailed;
+                    errorAction = ErrorAction.Throw;
+                    operationException = exception;
                     break;
             }
 
-            return (context, tableConflictError);
+            return (errorAction, operationException);
         }
+
+
     }
 }

@@ -76,18 +76,21 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         }
 
-        public int GetFilterServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t)
+        public int GetFilterServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, Guid? customerId = null)
         {
             int totalCountRows = 0;
+
+            if (!customerId.HasValue)
+                customerId = AdventureWorksContext.CustomerId1ForFilter;
 
             using (var serverDbCtx = new AdventureWorksContext(t))
             {
 
-                var addressesCount = serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == AdventureWorksContext.CustomerIdForFilter)).Count();
-                var customersCount = serverDbCtx.Customer.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                var customerAddressesCount = serverDbCtx.CustomerAddress.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                var salesOrdersDetailsCount = serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                var salesOrdersHeadersCount = serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
+                var addressesCount = serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == customerId)).Count();
+                var customersCount = serverDbCtx.Customer.Where(c => c.CustomerId == customerId).Count();
+                var customerAddressesCount = serverDbCtx.CustomerAddress.Where(c => c.CustomerId == customerId).Count();
+                var salesOrdersDetailsCount = serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == customerId).Count();
+                var salesOrdersHeadersCount = serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == customerId).Count();
                 var employeesCount = serverDbCtx.Employee.Count();
                 var productsCount = serverDbCtx.Product.Count();
                 var productsCategoryCount = serverDbCtx.ProductCategory.Count();
@@ -128,11 +131,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Make a first sync to be sure everything is in place
             var agent = new SyncAgent(clientProvider, serverProvider);
-            var parameters = new SyncParameters(("CustomerID", AdventureWorksContext.CustomerIdForFilter));
+            var parameters = new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId1ForFilter));
 
             // Making a first sync, will initialize everything we need
             var r = await agent.SynchronizeAsync(scopeName, setup, parameters);
-            Assert.Equal(rowsCount, r.TotalChangesDownloaded);
+            Assert.Equal(rowsCount, r.TotalChangesDownloadedFromServer);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -149,7 +152,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 OnlineOrderFlag = true,
                 PurchaseOrderNumber = "PO348186287",
                 AccountNumber = "10-4020-000609",
-                CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                 ShipToAddressId = 4,
                 BillToAddressId = 5,
                 ShipMethod = "CAR TRANSPORTATION",

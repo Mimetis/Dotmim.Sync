@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Http Client is not authorized to ask metadatas deletion on the server
         /// </summary>
-        public override Task<SyncSet> GetSchemaAsync(SyncSetup setup)
+        public override Task<SyncSet> GetSchemaAsync(SyncSetup setup, DbConnection connection = null, DbTransaction transaction = null)
             => throw new NotImplementedException();
 
 

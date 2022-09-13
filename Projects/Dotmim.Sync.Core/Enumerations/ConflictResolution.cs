@@ -1,5 +1,8 @@
 ﻿namespace Dotmim.Sync.Enumerations
 {
+    /// <summary>
+    /// Resolution when a conflict occurs
+    /// </summary>
     public enum ConflictResolution
     {
         /// <summary>
@@ -18,14 +21,9 @@
         MergeRow,
 
         /// <summary>
-        /// Indicates that you want to rollback the whole sync process
+        /// Indicates that you want to design this conflict as an error (and handle it from the OnApplyChangesErrorOccured interceptor)
         /// </summary>
-        Rollback,
-
-        /// <summary>
-        /// Ignore the row in conflict and try to continue sync
-        /// </summary>
-        Ignore
+        Throw,
 
     }
 }

@@ -69,7 +69,7 @@ namespace Dotmim.Sync
         /// </summary>
         Abort,
         /// <summary>
-        /// Continue the sync process. ClientScopeInfo.Setup / Schema & ServerScopeInfo.Setup / Schema must be equals
+        /// Continue the sync process. ClientScopeInfo.Setup / Schema and ServerScopeInfo.Setup / Schema must be equals
         /// </summary>
         Continue,
         /// <summary>

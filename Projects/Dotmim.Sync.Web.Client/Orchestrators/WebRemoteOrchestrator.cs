@@ -174,6 +174,9 @@ namespace Dotmim.Sync.Web.Client
         }
         private static async Task SerializeAsync(HttpResponseMessage response, string fileName, string directoryFullPath, BaseOrchestrator orchestrator = null)
         {
+            if (!Directory.Exists(directoryFullPath))
+                Directory.CreateDirectory(directoryFullPath);
+            
             var fullPath = Path.Combine(directoryFullPath, fileName);
             using var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
             using var fileStream = new FileStream(fullPath, FileMode.CreateNew, FileAccess.ReadWrite);

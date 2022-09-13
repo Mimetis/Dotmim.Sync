@@ -80,7 +80,7 @@ namespace Dotmim.Sync
         }
 
         public override string Source => Connection.Database;
-        public override string Message => $"Applying Changes. Total Changes To Apply: {ApplyChanges.BatchInfo.RowsCount}";
+        public override string Message => $"Applying Changes. Total Changes To Apply: {ApplyChanges.Changes.RowsCount}";
 
         /// <summary>
         /// All parameters that will be used to apply changes

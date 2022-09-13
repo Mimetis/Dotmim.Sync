@@ -16,6 +16,7 @@ namespace Dotmim.Sync
 
         public SyncRows(SyncTable table) => this.Table = table;
 
+        /// <summary>
         /// Since we don't serializer the reference to the schema, this method will reaffect the correct schema
         /// </summary>
         public void EnsureRows(SyncTable table)
@@ -71,7 +72,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Make a filter on primarykeys
         /// </summary>
-        public static SyncRow GetRowByPrimaryKeys(SyncRow criteria, List<SyncRow> rows, SyncTable schemaTable )
+        public static SyncRow GetRowByPrimaryKeys(SyncRow criteria, IList<SyncRow> rows, SyncTable schemaTable )
         {
             // Get the primarykeys to get the ordinal
             var primaryKeysColumn = schemaTable.GetPrimaryKeysColumns().ToList();
@@ -91,10 +92,6 @@ namespace Dotmim.Sync
 
                     if (!critValue.Equals(itemValue))
                         return false;
-
-                    //if (!criteria[syncColumn.ColumnName].Equals(itemRow[syncColumn.ColumnName]))
-                    //    return false;
-
                 }
                 return true;
             });

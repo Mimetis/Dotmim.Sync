@@ -635,7 +635,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             stringBuilder.AppendLine($" INTO @dms_changed -- populates the temp table with successful deleted row");
             stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
-            stringBuilder.Append($"JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
 
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[base]", "[side]"));
 

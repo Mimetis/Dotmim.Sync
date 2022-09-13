@@ -30,6 +30,6 @@ namespace Dotmim.Sync.Enumerations
         /// <summary>
         /// Force to rollback all the sync processus
         /// </summary>
-        Rollback
+        Throw,
     }
 }

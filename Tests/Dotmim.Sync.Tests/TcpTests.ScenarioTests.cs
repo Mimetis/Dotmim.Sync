@@ -74,8 +74,8 @@ namespace Dotmim.Sync.Tests
                 var r1 = await agent.SynchronizeAsync("v1", setup, pMount);
                 var r2 = await agent.SynchronizeAsync("v1", setup, pRoad);
 
-                Assert.Equal(11, r1.TotalChangesDownloaded);
-                Assert.Equal(6, r2.TotalChangesDownloaded);
+                Assert.Equal(11, r1.TotalChangesDownloadedFromServer);
+                Assert.Equal(6, r2.TotalChangesDownloadedFromServer);
             }
         }
 
@@ -113,7 +113,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, Server.Provider);
                 var r = await agent.SynchronizeAsync("v1", setup);
 
-                Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloaded);
+                Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloadedFromServer);
             }
 
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
@@ -199,7 +199,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, Server.Provider);
                 var r = await agent.SynchronizeAsync("v2");
 
-                Assert.Equal(2, r.TotalChangesDownloaded);
+                Assert.Equal(2, r.TotalChangesDownloadedFromServer);
             }
         }
 
@@ -246,11 +246,11 @@ namespace Dotmim.Sync.Tests
 
             var agent1 = new SyncAgent(client1provider, Server.Provider);
             var r1 = await agent1.SynchronizeAsync(setup);
-            Assert.Equal(productCategoryRowsCount, r1.TotalChangesDownloaded);
+            Assert.Equal(productCategoryRowsCount, r1.TotalChangesDownloadedFromServer);
 
             var agent2 = new SyncAgent(client2provider, Server.Provider);
             var r2 = await agent2.SynchronizeAsync(setup);
-            Assert.Equal(productCategoryRowsCount, r2.TotalChangesDownloaded);
+            Assert.Equal(productCategoryRowsCount, r2.TotalChangesDownloadedFromServer);
 
             // From now, the client 1 will upgrade to new scope
             // the client 2 will remain on old scope
@@ -330,11 +330,11 @@ namespace Dotmim.Sync.Tests
             // we still can use the old agent, since it's already configured with correct providers
             // just be sure to set the correct scope
             r1 = await agent1.SynchronizeAsync("v1");
-            Assert.Equal(2, r1.TotalChangesDownloaded);
+            Assert.Equal(2, r1.TotalChangesDownloadedFromServer);
 
             // make a sync on old scope for client 2
             r2 = await agent2.SynchronizeAsync();
-            Assert.Equal(1, r2.TotalChangesDownloaded);
+            Assert.Equal(1, r2.TotalChangesDownloadedFromServer);
 
             // now check values on each client
             using (var ctx1 = new AdventureWorksContext((client1DatabaseName, ProviderType.Sqlite, client1provider), false))
@@ -379,7 +379,7 @@ namespace Dotmim.Sync.Tests
                 productsCount = readCtx.Product.AsNoTracking().Count();
             }
 
-            Assert.Equal(productCategoryRowsCount + productsCount, r2.TotalChangesDownloaded);
+            Assert.Equal(productCategoryRowsCount + productsCount, r2.TotalChangesDownloadedFromServer);
 
         }
 
@@ -417,7 +417,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, Server.Provider);
                 var r = await agent.SynchronizeAsync("v1", setup);
 
-                Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloaded);
+                Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloadedFromServer);
             }
 
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
@@ -509,7 +509,7 @@ namespace Dotmim.Sync.Tests
 
                 var r = await agent.SynchronizeAsync("v1");
 
-                Assert.Equal(2, r.TotalChangesDownloaded);
+                Assert.Equal(2, r.TotalChangesDownloadedFromServer);
 
             }
 
@@ -549,7 +549,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, Server.Provider);
                 var r = await agent.SynchronizeAsync("v1", setup);
 
-                Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloaded);
+                Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloadedFromServer);
             }
 
             var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
@@ -648,11 +648,233 @@ namespace Dotmim.Sync.Tests
 
                 var r = await agent.SynchronizeAsync("v1");
 
-                Assert.Equal(2, r.TotalChangesDownloaded);
+                Assert.Equal(2, r.TotalChangesDownloadedFromServer);
 
             }
 
         }
+
+        [Fact]
+        public virtual async Task Scenario_MultiTables_ThenAll_WithoutScopeFromServer()
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            var productCategoryTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.ProductCategory" : "ProductCategory";
+            var productTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.Product" : "Product";
+            var employeeTableName = "Employee";
+
+            var setupEmployee = new SyncSetup(employeeTableName);
+            var setupProductCategory = new SyncSetup(productCategoryTableName);
+            var setupProduct = new SyncSetup(productTableName);
+            var setupAll = new SyncSetup(productCategoryTableName, productTableName, employeeTableName);
+
+            // Provision ALL scope on server
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
+            await remoteOrchestrator.ProvisionAsync("ALL", setupAll);
+
+            // First sync to initialiaze client database, create table and fill product categories
+            foreach (var client in this.Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider);
+
+                var rEmployees = await agent.SynchronizeAsync("employees", setupEmployee);
+                var rProductCategories = await agent.SynchronizeAsync("productCategories", setupProductCategory);
+                var rProducts = await agent.SynchronizeAsync("products", setupProduct);
+
+                // Provision local without having to get scope from server
+
+                Assert.Equal(3, rEmployees.TotalChangesDownloadedFromServer);
+                Assert.Equal(11, rProductCategories.TotalChangesDownloadedFromServer);
+                Assert.Equal(14, rProducts.TotalChangesDownloadedFromServer);
+            }
+
+            // ----------------------------------------------
+            // SERVER SIDE: Add a product cat and product
+
+            // Add a product and its product category
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                // product category and product items
+                var productCategoryName = HelperDatabase.GetRandomName();
+                var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+                var productId = Guid.NewGuid();
+                var productName = HelperDatabase.GetRandomName();
+                var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.ProductCategory.Add(pc);
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategory = pc };
+                ctx.Product.Add(product);
+
+                await ctx.SaveChangesAsync();
+            }
+
+            foreach (var client in this.Clients)
+            {
+
+                var agent = new SyncAgent(client.Provider, Server.Provider);
+                // CLIENT SIDE: Create a local scope for all tables
+                // --------------------------------------
+                SyncSet syncSetAll = await agent.LocalOrchestrator.GetSchemaAsync(setupAll);
+
+                if (this.Server.ProviderType == ProviderType.Sql)
+                {
+                    if (client.ProviderType != ProviderType.Sql)
+                    {
+                        syncSetAll.Tables["Product"].SchemaName = "SalesLT";
+                        syncSetAll.Tables["ProductCategory"].SchemaName = "SalesLT";
+
+                        foreach (var relation in syncSetAll.Relations)
+                        {
+                            foreach (var k in relation.Keys)
+                                k.SchemaName = "SalesLT";
+
+                            foreach (var k in relation.ParentKeys)
+                                k.SchemaName = "SalesLT";
+                        }
+                    }
+                }
+
+                ScopeInfo cScopeInfo = new ScopeInfo
+                {
+                    Name = "All",
+                    Schema = syncSetAll,
+                    Setup = setupAll,
+                    Version = SyncVersion.Current.ToString()
+                };
+                await agent.LocalOrchestrator.ProvisionAsync(cScopeInfo);
+
+                // Get all scope info clients to get minimum Timestamp
+                // --------------------------------------
+                var cAllScopeInfoClients = await agent.LocalOrchestrator.GetAllScopeInfoClientsAsync();
+
+                var minServerTimeStamp = cAllScopeInfoClients.Min(sic => sic.LastServerSyncTimestamp);
+                var minClientTimeStamp = cAllScopeInfoClients.Min(sic => sic.LastSyncTimestamp);
+                var minLastSync = cAllScopeInfoClients.Min(sic => sic.LastSync);
+
+                // Get (and create) the scope info client for scope ALL
+                // --------------------------------------
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync("All");
+
+                if (cScopeInfoClient.IsNewScope)
+                {
+                    cScopeInfoClient.IsNewScope = false;
+                    cScopeInfoClient.LastSync = minLastSync;
+                    cScopeInfoClient.LastSyncTimestamp = minClientTimeStamp;
+                    cScopeInfoClient.LastServerSyncTimestamp = minServerTimeStamp;
+                    await agent.LocalOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
+                }
+
+                var rAll = await agent.SynchronizeAsync("All");
+
+                Assert.Equal(2, rAll.TotalChangesDownloadedFromServer);
+            }
+        }
+
+        [Fact]
+        public virtual async Task Scenario_MultiTables_ThenAll_WithScopeFromServer()
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            var productCategoryTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.ProductCategory" : "ProductCategory";
+            var productTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.Product" : "Product";
+            var employeeTableName = "Employee";
+
+            var setupEmployee = new SyncSetup(employeeTableName);
+            var setupProductCategory = new SyncSetup(productCategoryTableName);
+            var setupProduct = new SyncSetup(productTableName);
+            var setupAll = new SyncSetup(productCategoryTableName, productTableName, employeeTableName);
+
+            // Provision ALL scope on server
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
+            var sScopeInfo = await remoteOrchestrator.ProvisionAsync("ALL", setupAll);
+
+            // First sync to initialiaze client database, create table and fill product categories
+            foreach (var client in this.Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider);
+
+                var rEmployees = await agent.SynchronizeAsync("employees", setupEmployee);
+                var rProductCategories = await agent.SynchronizeAsync("productCategories", setupProductCategory);
+                var rProducts = await agent.SynchronizeAsync("products", setupProduct);
+
+                // Provision local without having to get scope from server
+
+                Assert.Equal(3, rEmployees.TotalChangesDownloadedFromServer);
+                Assert.Equal(11, rProductCategories.TotalChangesDownloadedFromServer);
+                Assert.Equal(14, rProducts.TotalChangesDownloadedFromServer);
+            }
+
+            // ----------------------------------------------
+            // SERVER SIDE: Add a product cat and product
+
+            // Add a product and its product category
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                // product category and product items
+                var productCategoryName = HelperDatabase.GetRandomName();
+                var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+                var productId = Guid.NewGuid();
+                var productName = HelperDatabase.GetRandomName();
+                var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.ProductCategory.Add(pc);
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategory = pc };
+                ctx.Product.Add(product);
+
+                await ctx.SaveChangesAsync();
+            }
+
+            foreach (var client in this.Clients)
+            {
+
+                var agent = new SyncAgent(client.Provider, Server.Provider);
+                // CLIENT SIDE: Create a local scope for all tables
+                // --------------------------------------
+                await agent.LocalOrchestrator.ProvisionAsync(sScopeInfo);
+
+                // Get all scope info clients to get minimum Timestamp
+                // --------------------------------------
+                var cAllScopeInfoClients = await agent.LocalOrchestrator.GetAllScopeInfoClientsAsync();
+
+                var minServerTimeStamp = cAllScopeInfoClients.Min(sic => sic.LastServerSyncTimestamp);
+                var minClientTimeStamp = cAllScopeInfoClients.Min(sic => sic.LastSyncTimestamp);
+                var minLastSync = cAllScopeInfoClients.Min(sic => sic.LastSync);
+
+                // Get (and create) the scope info client for scope ALL
+                // --------------------------------------
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync("All");
+
+                if (cScopeInfoClient.IsNewScope)
+                {
+                    cScopeInfoClient.IsNewScope = false;
+                    cScopeInfoClient.LastSync = minLastSync;
+                    cScopeInfoClient.LastSyncTimestamp = minClientTimeStamp;
+                    cScopeInfoClient.LastServerSyncTimestamp = minServerTimeStamp;
+                    await agent.LocalOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
+                }
+
+                var rAll = await agent.SynchronizeAsync("All");
+
+                Assert.Equal(2, rAll.TotalChangesDownloadedFromServer);
+            }
+
+        }
+
+
 
 
     }

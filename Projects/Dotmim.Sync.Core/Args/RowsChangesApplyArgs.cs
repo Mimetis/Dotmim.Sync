@@ -19,7 +19,7 @@ namespace Dotmim.Sync
         public bool Cancel { get; set; } = false;
         public DbCommand Command { get; set; }
 
-        public RowsChangesApplyingArgs(SyncContext context, BatchInfo batchInfo, List<SyncRow> syncRows, SyncTable schemaTable, DataRowState state, DbCommand command, DbConnection connection, DbTransaction transaction)
+        public RowsChangesApplyingArgs(SyncContext context, BatchInfo batchInfo, List<SyncRow> syncRows, SyncTable schemaTable, SyncRowState state, DbCommand command, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             this.State = state;
@@ -32,7 +32,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the RowState of the applied rows
         /// </summary>
-        public DataRowState State { get; }
+        public SyncRowState State { get; }
         public BatchInfo BatchInfo { get; }
         public List<SyncRow> SyncRows { get; }
 

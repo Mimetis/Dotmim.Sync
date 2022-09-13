@@ -78,18 +78,21 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         }
 
-        public int GetFilterServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t)
+        public int GetFilterServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, Guid? customerId = null)
         {
             int totalCountRows = 0;
+
+            if (!customerId.HasValue)
+                customerId = AdventureWorksContext.CustomerId1ForFilter;
 
             using (var serverDbCtx = new AdventureWorksContext(t))
             {
 
-                var addressesCount = serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == AdventureWorksContext.CustomerIdForFilter)).Count();
-                var customersCount = serverDbCtx.Customer.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                var customerAddressesCount = serverDbCtx.CustomerAddress.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                var salesOrdersDetailsCount = serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
-                var salesOrdersHeadersCount = serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == AdventureWorksContext.CustomerIdForFilter).Count();
+                var addressesCount = serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == customerId)).Count();
+                var customersCount = serverDbCtx.Customer.Where(c => c.CustomerId == customerId).Count();
+                var customerAddressesCount = serverDbCtx.CustomerAddress.Where(c => c.CustomerId == customerId).Count();
+                var salesOrdersDetailsCount = serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == customerId).Count();
+                var salesOrdersHeadersCount = serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == customerId).Count();
                 var employeesCount = serverDbCtx.Employee.Count();
                 var productsCount = serverDbCtx.Product.Count();
                 var productsCategoryCount = serverDbCtx.ProductCategory.Count();
@@ -130,11 +133,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Make a first sync to be sure everything is in place
             var agent = new SyncAgent(clientProvider, serverProvider);
-            var parameters = new SyncParameters(("CustomerID", AdventureWorksContext.CustomerIdForFilter));
+            var parameters = new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId1ForFilter));
 
             // Making a first sync, will initialize everything we need
             var r = await agent.SynchronizeAsync(scopeName, setup, parameters);
-            Assert.Equal(rowsCount, r.TotalChangesDownloaded);
+            Assert.Equal(rowsCount, r.TotalChangesDownloadedFromServer);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -147,7 +150,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             using var ctxServer = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true);
 
             // get another customer than the filter one
-            otherCustomerId = ctxServer.Customer.First(c => c.CustomerId != AdventureWorksContext.CustomerIdForFilter).CustomerId;
+            otherCustomerId = ctxServer.Customer.First(c => c.CustomerId != AdventureWorksContext.CustomerId1ForFilter).CustomerId;
 
             var soh = new SalesOrderHeader
             {
@@ -157,7 +160,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 OnlineOrderFlag = true,
                 PurchaseOrderNumber = "PO348186287",
                 AccountNumber = "10-4020-000609",
-                CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                 ShipToAddressId = 4,
                 BillToAddressId = 5,
                 ShipMethod = "CAR TRANSPORTATION",
@@ -338,11 +341,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Make a first sync to be sure everything is in place
             var agent = new SyncAgent(clientProvider, remoteOrchestrator);
-            var parameters = new SyncParameters(("CustomerID", AdventureWorksContext.CustomerIdForFilter));
+            var parameters = new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId1ForFilter));
 
             // Making a first sync, will initialize everything we need
             var r = await agent.SynchronizeAsync(scopeName, parameters);
-            Assert.Equal(rowsCount, r.TotalChangesDownloaded);
+            Assert.Equal(rowsCount, r.TotalChangesDownloadedFromServer);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -354,7 +357,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             using var ctxServer = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true);
 
             // get another customer than the filter one
-            otherCustomerId = ctxServer.Customer.First(c => c.CustomerId != AdventureWorksContext.CustomerIdForFilter).CustomerId;
+            otherCustomerId = ctxServer.Customer.First(c => c.CustomerId != AdventureWorksContext.CustomerId1ForFilter).CustomerId;
 
             var soh = new SalesOrderHeader
             {
@@ -364,7 +367,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 OnlineOrderFlag = true,
                 PurchaseOrderNumber = "PO348186287",
                 AccountNumber = "10-4020-000609",
-                CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                 ShipToAddressId = 4,
                 BillToAddressId = 5,
                 ShipMethod = "CAR TRANSPORTATION",
@@ -458,11 +461,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Make a first sync to be sure everything is in place
             var agent = new SyncAgent(clientProvider, remoteOrchestrator);
-            var parameters = new SyncParameters(("CustomerID", AdventureWorksContext.CustomerIdForFilter));
+            var parameters = new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId1ForFilter));
 
             // Making a first sync, will initialize everything we need
             var r = await agent.SynchronizeAsync(scopeName, parameters);
-            Assert.Equal(rowsCount, r.TotalChangesDownloaded);
+            Assert.Equal(rowsCount, r.TotalChangesDownloadedFromServer);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -474,7 +477,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             using var ctxServer = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true);
 
             // get another customer than the filter one
-            otherCustomerId = ctxServer.Customer.First(c => c.CustomerId != AdventureWorksContext.CustomerIdForFilter).CustomerId;
+            otherCustomerId = ctxServer.Customer.First(c => c.CustomerId != AdventureWorksContext.CustomerId1ForFilter).CustomerId;
 
             var soh = new SalesOrderHeader
             {
@@ -484,7 +487,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 OnlineOrderFlag = true,
                 PurchaseOrderNumber = "PO348186287",
                 AccountNumber = "10-4020-000609",
-                CustomerId = AdventureWorksContext.CustomerIdForFilter,
+                CustomerId = AdventureWorksContext.CustomerId1ForFilter,
                 ShipToAddressId = 4,
                 BillToAddressId = 5,
                 ShipMethod = "CAR TRANSPORTATION",
@@ -528,7 +531,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Making a second sync, with these new rows
             r = await agent.SynchronizeAsync(scopeName, parameters);
-            Assert.Equal(4, r.TotalChangesDownloaded);
+            Assert.Equal(4, r.TotalChangesDownloadedFromServer);
 
             // now delete these lines on server
             ctxServer.SalesOrderDetail.Remove(sod1);
@@ -551,31 +554,31 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("SalesOrderHeader", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
 
-            // testing with DataRowState
-            var sodTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", DataRowState.Deleted);
+            // testing with SyncRowState
+            var sodTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", SyncRowState.Deleted);
             Assert.Equal(3, sodTable.Rows.Count);
             foreach (var row in sodTable.Rows)
-                Assert.Equal(DataRowState.Deleted, row.RowState);
+                Assert.Equal(SyncRowState.Deleted, row.RowState);
 
-            // testing with DataRowState
+            // testing with SyncRowState
             var sodTable2 = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", default);
             Assert.Equal(3, sodTable2.Rows.Count);
             foreach (var row in sodTable2.Rows)
-                Assert.Equal(DataRowState.Deleted, row.RowState);
+                Assert.Equal(SyncRowState.Deleted, row.RowState);
 
-            // testing with DataRowState
-            var sodTable3 = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", DataRowState.Modified);
+            // testing with SyncRowState
+            var sodTable3 = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", SyncRowState.Modified);
             Assert.Empty(sodTable3.Rows);
 
-            // testing with DataRowState that is not valid
-            var sodTable4 = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", DataRowState.Unchanged);
+            // testing with SyncRowState that is not valid
+            var sodTable4 = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", SyncRowState.None);
             Assert.Empty(sodTable4.Rows);
 
-            // testing without DataRowState
+            // testing without SyncRowState
             var sohTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
             Assert.Single(sohTable.Rows);
             foreach (var row in sohTable.Rows)
-                Assert.Equal(DataRowState.Deleted, row.RowState);
+                Assert.Equal(SyncRowState.Deleted, row.RowState);
 
         }
 

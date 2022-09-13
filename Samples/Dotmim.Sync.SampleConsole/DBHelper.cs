@@ -3,7 +3,9 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -113,6 +115,60 @@ namespace Dotmim.Sync.SampleConsole
                 await cmdDb.ExecuteNonQueryAsync();
             }
             connection.Close();
+        }
+
+
+        internal static async Task<Guid> AddProductCategoryRowAsync(CoreProvider provider,
+            Guid? productId = default, Guid? parentProductId = default, string name = default)
+        {
+            string commandText = $"Insert into ProductCategory (ProductCategoryId, ParentProductCategoryID, Name, ModifiedDate, rowguid) " +
+                                 $"Values (@ProductCategoryId, @ParentProductCategoryID, @Name, @ModifiedDate, @rowguid)";
+
+            var connection = provider.CreateConnection();
+
+            connection.Open();
+
+            var pId = productId.HasValue ? productId.Value : Guid.NewGuid();
+
+            var command = connection.CreateCommand();
+            command.CommandText = commandText;
+            command.Connection = connection;
+
+            var p = command.CreateParameter();
+            p.DbType = DbType.Guid;
+            p.ParameterName = "@ProductCategoryId";
+            p.Value = pId;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.Guid;
+            p.ParameterName = "@ParentProductCategoryID";
+            p.Value = parentProductId.HasValue ? (object)parentProductId.Value : DBNull.Value;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.String;
+            p.ParameterName = "@Name";
+            p.Value = string.IsNullOrEmpty(name) ? Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ' ' + Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() : name;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.Guid;
+            p.ParameterName = "@rowguid";
+            p.Value = Guid.NewGuid();
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.DateTime;
+            p.ParameterName = "@ModifiedDate";
+            p.Value = DateTime.UtcNow;
+            command.Parameters.Add(p);
+
+            await command.ExecuteNonQueryAsync();
+
+            connection.Close();
+
+            return pId;
         }
 
     }

@@ -81,6 +81,11 @@ namespace Dotmim.Sync
         [IgnoreDataMember]
         public string Properties { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the errors batch info occured on last sync 
+        /// </summary>
+        [IgnoreDataMember]
+        public string Errors { get; set; }
 
         /// <summary>
         /// Gets a readable version of LastSyncDuration
@@ -100,7 +105,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Make a shadow copy of an old scope to get the last sync information copied on this scope
         /// </summary>
-        /// <param name="oldClientScopeInfo">old client scope that we we copy infos</param>
         public void ShadowScope(ScopeInfoClient oldScopeInfoClient)
         {
             this.LastServerSyncTimestamp = oldScopeInfoClient.LastServerSyncTimestamp;

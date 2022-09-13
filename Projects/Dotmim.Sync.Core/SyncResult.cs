@@ -25,25 +25,29 @@ namespace Dotmim.Sync
         public string ScopeName { get; set; }
 
         /// <summary>
-        /// <summary>Gets or sets the time when a sync session ended.
+        /// Gets or sets the time when a sync session ended.
         /// </summary>
         public DateTime CompleteTime { get; set; }
-
 
         /// <summary>
         /// Gets the number of changes applied on the client
         /// </summary>
-        public int TotalChangesApplied => (this.ChangesAppliedOnClient?.TotalAppliedChanges ?? 0) + (this.SnapshotChangesAppliedOnClient?.TotalAppliedChanges ?? 0);
+        public int TotalChangesAppliedOnClient => (this.ChangesAppliedOnClient?.TotalAppliedChanges ?? 0) + (this.SnapshotChangesAppliedOnClient?.TotalAppliedChanges ?? 0);
+
+        /// <summary>
+        /// Gets the number of changes applied on the server
+        /// </summary>
+        public int TotalChangesAppliedOnServer => this.ChangesAppliedOnServer?.TotalAppliedChanges ?? 0;
 
         /// <summary>
         /// Gets total number of changes downloaded from server. 
         /// </summary>
-        public int TotalChangesDownloaded => (this.ServerChangesSelected?.TotalChangesSelected ?? 0) + (this.SnapshotChangesAppliedOnClient?.TotalAppliedChanges ?? 0);
+        public int TotalChangesDownloadedFromServer => (this.ServerChangesSelected?.TotalChangesSelected ?? 0) + (this.SnapshotChangesAppliedOnClient?.TotalAppliedChanges ?? 0);
 
         /// <summary>
         /// Gets the number of change uploaded to the server
         /// </summary>
-        public int TotalChangesUploaded => this.ClientChangesSelected?.TotalChangesSelected ?? 0;
+        public int TotalChangesUploadedToServer => this.ClientChangesSelected?.TotalChangesSelected ?? 0;
 
         /// <summary>
         /// Gets the number of conflicts resolved
@@ -52,17 +56,19 @@ namespace Dotmim.Sync
             Math.Max(this.ChangesAppliedOnClient?.TotalResolvedConflicts ?? 0, this.ChangesAppliedOnServer?.TotalResolvedConflicts ?? 0);
 
         /// <summary>
+        /// Gets the number of row failed to apply on client
+        /// </summary>
+        public int TotalChangesFailedToApplyOnClient => this.ChangesAppliedOnClient?.TotalAppliedChangesFailed ?? 0;
+
+        /// <summary>
         /// Gets the number of sync errors
         /// </summary>
-        public int TotalChangesFailed => (this.ChangesAppliedOnServer?.TotalAppliedChangesFailed ?? 0) +
-            (this.ChangesAppliedOnClient?.TotalAppliedChangesFailed ?? 0);
-
+        public int TotalChangesFailedToApplyOnServer => this.ChangesAppliedOnServer?.TotalAppliedChangesFailed ?? 0;
 
         /// <summary>
         /// Gets or Sets the summary of client changes that where applied on the server
         /// </summary>
         public DatabaseChangesApplied ChangesAppliedOnServer { get; set; }
-
 
         /// <summary>
         /// Gets or Sets the summary of server changes that where applied on the client
@@ -74,29 +80,21 @@ namespace Dotmim.Sync
         /// </summary>
         public DatabaseChangesApplied SnapshotChangesAppliedOnClient { get; set; }
 
-
         /// <summary>
         /// Gets or Sets the summary of client changes to be applied on the server
         /// </summary>
         public DatabaseChangesSelected ClientChangesSelected { get; set; }
-
 
         /// <summary>
         /// Gets or Sets the summary of server changes selected to be applied on the client
         /// </summary>
         public DatabaseChangesSelected ServerChangesSelected { get; set; }
 
-        public SyncResult()
-        {
+        /// <inheritdoc cref="SyncResult" />
+        public SyncResult() { }
 
-        }
-        /// <summary>
-        /// Ctor. New sync context with a new Guid
-        /// </summary>
-        public SyncResult(Guid sessionId)
-        {
-            this.SessionId = sessionId;
-        }
+        /// <inheritdoc cref="SyncResult" />
+        public SyncResult(Guid sessionId) => this.SessionId = sessionId;
 
         /// <summary>
         /// Get the result if sync session is ended
@@ -109,13 +107,15 @@ namespace Dotmim.Sync
                 var tsStarted = TimeSpan.FromTicks(StartTime.Ticks);
                 var durationTs = tsEnded.Subtract(tsStarted);
 
-                return ($"Synchronization done. " + Environment.NewLine +
-                        $"\tTotal changes  uploaded: {TotalChangesUploaded}" + Environment.NewLine +
-                        $"\tTotal changes  downloaded: {TotalChangesDownloaded} " + Environment.NewLine +
-                        $"\tTotal changes  applied: {TotalChangesApplied} " + Environment.NewLine +
-                        $"\tTotal changes  failed: {TotalChangesFailed}" + Environment.NewLine +
+                return $"Synchronization done. " + Environment.NewLine +
+                        $"\tTotal changes  uploaded: {TotalChangesUploadedToServer}" + Environment.NewLine +
+                        $"\tTotal changes  downloaded: {TotalChangesDownloadedFromServer} " + Environment.NewLine +
+                        $"\tTotal changes  applied on client: {TotalChangesAppliedOnClient} " + Environment.NewLine +
+                        $"\tTotal changes  applied on server: {TotalChangesAppliedOnServer} " + Environment.NewLine +
+                        $"\tTotal changes  failed to apply on client: {TotalChangesFailedToApplyOnClient}" + Environment.NewLine +
+                        $"\tTotal changes  failed to apply on server: {TotalChangesFailedToApplyOnServer}" + Environment.NewLine +
                         $"\tTotal resolved conflicts: {TotalResolvedConflicts}" + Environment.NewLine +
-                        $"\tTotal duration :{durationTs:hh\\.mm\\:ss\\.fff} ");
+                        $"\tTotal duration :{durationTs:hh\\.mm\\:ss\\.fff} ";
             }
             return base.ToString();
         }

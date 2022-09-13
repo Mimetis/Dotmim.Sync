@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Args;
+﻿
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -57,14 +57,14 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </returns>        
-        public virtual async Task<ServerSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient)
+        public virtual async Task<ServerSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient, DbConnection connection = null, DbTransaction transaction = null)
         {
 
             var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient);
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction).ConfigureAwait(false);
 
                 // Before getting changes, be sure we have a remote schema available
                 ScopeInfo sScopeInfo;
@@ -95,7 +95,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return new ServerSyncChanges(remoteClientTimestamp, serverBatchInfo, serverChangesSelected);
+                return new ServerSyncChanges(remoteClientTimestamp, serverBatchInfo, serverChangesSelected, null);
             }
             catch (Exception ex)
             {
@@ -130,7 +130,7 @@ namespace Dotmim.Sync
         /// contains an estimation count of the changes from your server datsource for
         /// all the tables from your setup.
         /// </returns>  
-        public virtual async Task<ServerSyncChanges> GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient)
+        public virtual async Task<ServerSyncChanges> GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient, DbConnection connection = null, DbTransaction transaction = null)
         {
 
             var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient);
@@ -139,7 +139,7 @@ namespace Dotmim.Sync
             {
 
                 ScopeInfo sScopeInfo;
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction).ConfigureAwait(false);
                
                 (context, sScopeInfo) = await this.InternalGetScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                
@@ -163,7 +163,7 @@ namespace Dotmim.Sync
                     await this.InternalGetEstimatedChangesCountAsync(sScopeInfo, context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastServerSyncTimestamp,
                     remoteClientTimestamp, cScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, null, serverChangesSelected);
+                var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, null, serverChangesSelected, null);
 
                 return serverSyncChanges;
             }
