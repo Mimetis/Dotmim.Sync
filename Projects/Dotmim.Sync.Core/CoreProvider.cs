@@ -76,6 +76,17 @@ namespace Dotmim.Sync
         public abstract string GetProviderTypeName();
 
         /// <summary>
+        /// Get the provider type name
+        /// </summary>
+        public abstract string GetShortProviderTypeName();
+
+        /// <summary>
+        /// Gets the database name if any
+        /// </summary>
+        /// <returns></returns>
+        public abstract string GetDatabaseName();
+
+        /// <summary>
         /// Gets or sets the connection string used by the implemented provider
         /// </summary>
         public string ConnectionString { get; set; }

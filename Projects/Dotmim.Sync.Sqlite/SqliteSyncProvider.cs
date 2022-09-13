@@ -6,6 +6,7 @@ using Microsoft.Data.Sqlite;
 using System.IO;
 using Dotmim.Sync.Sqlite.Builders;
 using SQLitePCL;
+using System.Reflection;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -17,6 +18,7 @@ namespace Dotmim.Sync.Sqlite
         private string filePath;
         private DbMetadata dbMetadata;
         private static String providerType;
+        private SqliteConnectionStringBuilder builder;
 
         public override DbMetadata GetMetadata()
         {
@@ -45,13 +47,29 @@ namespace Dotmim.Sync.Sqlite
                     return providerType;
 
                 Type type = typeof(SqliteSyncProvider);
-                providerType = $"{type.Name}, {type.ToString()}";
+                providerType = $"{type.Name}, {type}";
 
                 return providerType;
             }
 
         }
 
+
+        static string shortProviderType;
+        public override string GetShortProviderTypeName() => ShortProviderType;
+        public static string ShortProviderType
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(shortProviderType))
+                    return shortProviderType;
+
+                var type = typeof(SqliteSyncProvider);
+                shortProviderType = type.Name;
+
+                return shortProviderType;
+            }
+        }
         public SqliteSyncProvider() : base()
         {
         }
@@ -59,11 +77,11 @@ namespace Dotmim.Sync.Sqlite
         public SqliteSyncProvider(string filePath) : this()
         {
             this.filePath = filePath;
-            var builder = new SqliteConnectionStringBuilder();
 
             if (filePath.ToLowerInvariant().StartsWith("data source"))
             {
                 this.ConnectionString = filePath;
+                this.builder = new SqliteConnectionStringBuilder(this.ConnectionString);
             }
             else
             {
@@ -75,7 +93,7 @@ namespace Dotmim.Sync.Sqlite
                 if (string.IsNullOrEmpty(fileInfo.Name))
                     throw new Exception($"Sqlite database file path needs a file name");
 
-                builder.DataSource = filePath;
+                this.builder = new SqliteConnectionStringBuilder { DataSource = filePath };
 
                 this.ConnectionString = builder.ConnectionString;
             }
@@ -85,11 +103,18 @@ namespace Dotmim.Sync.Sqlite
         public SqliteSyncProvider(FileInfo fileInfo) : this()
         {
             this.filePath = fileInfo.FullName;
-            var builder = new SqliteConnectionStringBuilder { DataSource = filePath };
+            this.builder = new SqliteConnectionStringBuilder { DataSource = filePath };
 
             this.ConnectionString = builder.ConnectionString;
         }
 
+        public override string GetDatabaseName()
+        {
+            if (builder != null && !String.IsNullOrEmpty(builder.DataSource))
+                return builder.DataSource;
+
+            return string.Empty;
+        }
 
         public SqliteSyncProvider(SqliteConnectionStringBuilder sqliteConnectionStringBuilder) : this()
         {

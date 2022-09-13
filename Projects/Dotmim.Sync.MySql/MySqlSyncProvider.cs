@@ -8,6 +8,7 @@ using MySql.Data.MySqlClient;
 #endif
 using Dotmim.Sync.MySql.Builders;
 using System;
+using System.Reflection;
 
 namespace Dotmim.Sync.MySql
 {
@@ -16,6 +17,7 @@ namespace Dotmim.Sync.MySql
     {
         DbMetadata dbMetadata;
         static string providerType;
+        private MySqlConnectionStringBuilder builder;
 
         public override string GetProviderTypeName() => ProviderType;
 
@@ -27,11 +29,27 @@ namespace Dotmim.Sync.MySql
                     return providerType;
 
                 var type = typeof(MySqlSyncProvider);
-                providerType = $"{type.Name}, {type.ToString()}";
+                providerType = $"{type.Name}, {type}";
 
                 return providerType;
             }
 
+        }
+
+        static string shortProviderType;
+        public override string GetShortProviderTypeName() => ShortProviderType;
+        public static string ShortProviderType
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(shortProviderType))
+                    return shortProviderType;
+
+                var type = typeof(MySqlSyncProvider);
+                shortProviderType = type.Name;
+
+                return shortProviderType;
+            }
         }
 
         /// <summary>
@@ -58,7 +76,7 @@ namespace Dotmim.Sync.MySql
         public MySqlSyncProvider(string connectionString) : base()
         {
 
-            var builder = new MySqlConnectionStringBuilder(connectionString);
+            this.builder = new MySqlConnectionStringBuilder(connectionString);
 
             // Set the default behavior to use Found rows and not Affected rows !
             builder.UseAffectedRows = false;
@@ -72,10 +90,21 @@ namespace Dotmim.Sync.MySql
             if (String.IsNullOrEmpty(builder.ConnectionString))
                 throw new Exception("You have to provide parameters to the MySql builder to be able to construct a valid connection string.");
 
+            this.builder = builder;
+
             // Set the default behavior to use Found rows and not Affected rows !
             builder.UseAffectedRows = false;
 
             this.ConnectionString = builder.ConnectionString;
+        }
+
+        public override string GetDatabaseName()
+        {
+            if (builder != null && !String.IsNullOrEmpty(builder.Database))
+                return builder.Database;
+
+            return string.Empty;
+
         }
 
         public override void EnsureSyncException(SyncException syncException)

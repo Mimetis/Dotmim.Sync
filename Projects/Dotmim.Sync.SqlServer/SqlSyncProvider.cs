@@ -14,6 +14,8 @@ namespace Dotmim.Sync.SqlServer
     {
         private DbMetadata dbMetadata;
         static string providerType;
+        private SqlConnectionStringBuilder builder;
+
         public SqlSyncProvider() : base()
         { }
 
@@ -22,8 +24,10 @@ namespace Dotmim.Sync.SqlServer
             this.ConnectionString = connectionString;
 
             if (!string.IsNullOrEmpty(this.ConnectionString))
-                this.SupportsMultipleActiveResultSets = new SqlConnectionStringBuilder(this.ConnectionString).MultipleActiveResultSets;
-
+            {
+                this.builder = new SqlConnectionStringBuilder(this.ConnectionString);
+                this.SupportsMultipleActiveResultSets = this.builder.MultipleActiveResultSets;
+            }
         }
 
         public SqlSyncProvider(SqlConnectionStringBuilder builder) : base()
@@ -31,6 +35,7 @@ namespace Dotmim.Sync.SqlServer
             if (String.IsNullOrEmpty(builder.ConnectionString))
                 throw new Exception("You have to provide parameters to the Sql builder to be able to construct a valid connection string.");
 
+            this.builder = builder;
             this.ConnectionString = builder.ConnectionString;
             this.SupportsMultipleActiveResultSets = builder.MultipleActiveResultSets;
         }
@@ -49,6 +54,31 @@ namespace Dotmim.Sync.SqlServer
 
                 return providerType;
             }
+        }
+
+
+        static string shortProviderType;
+        public override string GetShortProviderTypeName() => ShortProviderType;
+        public static string ShortProviderType
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(shortProviderType))
+                    return shortProviderType;
+
+                var type = typeof(SqlSyncProvider);
+                shortProviderType = type.Name;
+
+                return shortProviderType;
+            }
+        }
+        public override string GetDatabaseName()
+        {
+            if (builder != null && !String.IsNullOrEmpty(builder.InitialCatalog))
+                return builder.InitialCatalog;
+
+            return string.Empty;
+
         }
 
         /// <summary>
@@ -129,6 +159,6 @@ namespace Dotmim.Sync.SqlServer
             => new SqlSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName, this.UseBulkOperations);
 
         public override DbBuilder GetDatabaseBuilder() => new SqlBuilder();
-
+        
     }
 }

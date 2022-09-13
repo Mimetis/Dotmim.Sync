@@ -31,19 +31,19 @@ namespace Dotmim.Sync
             {
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction).ConfigureAwait(false);
 
-                ScopeInfo clientScopeInfo;
-                (context, clientScopeInfo) = await this.InternalLoadScopeInfoAsync(context, 
+                ScopeInfo cScopeInfo;
+                (context, cScopeInfo) = await this.InternalLoadScopeInfoAsync(context, 
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (clientScopeInfo.Schema == null || clientScopeInfo.Schema.Tables == null || clientScopeInfo.Schema.Tables.Count <= 0 || !clientScopeInfo.Schema.HasColumns)
+                if (cScopeInfo.Schema == null || cScopeInfo.Schema.Tables == null || cScopeInfo.Schema.Tables.Count <= 0 || !cScopeInfo.Schema.HasColumns)
                     throw new MissingTablesException(scopeName);
 
                 long totalUpdates = 0L;
                 // Update untracked rows
-                foreach (var table in clientScopeInfo.Schema.Tables)
+                foreach (var table in cScopeInfo.Schema.Tables)
                 {
                     long updates = 0L;
-                    (context, updates) = await this.InternalUpdateUntrackedRowsAsync(clientScopeInfo, context, table, 
+                    (context, updates) = await this.InternalUpdateUntrackedRowsAsync(cScopeInfo, context, table, 
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                     totalUpdates += updates;
                 }

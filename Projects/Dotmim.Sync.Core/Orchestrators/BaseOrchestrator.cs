@@ -464,5 +464,19 @@ namespace Dotmim.Sync
             return Task.FromResult((directoryFullPath, directoryName));
 
         }
+
+
+        /// <summary>
+        /// Gets the inner provider if any
+        /// </summary>
+        /// <returns></returns>
+        public override string ToString()
+        {
+            if (this.Provider == null)
+                return base.ToString();
+
+            return  $"{Provider.GetDatabaseName()}, {Provider.GetShortProviderTypeName()}";
+        }
+
     }
 }

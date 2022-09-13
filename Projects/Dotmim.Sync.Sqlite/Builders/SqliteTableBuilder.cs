@@ -160,7 +160,7 @@ namespace Dotmim.Sync.Sqlite
 
             stringBuilder.Append(");");
 
-            stringBuilder.AppendLine($"CREATE INDEX IF NOT EXISTS [{this.TrackingTableName.Schema().Unquoted().Normalized().ToString()}_timestamp_index] ON {this.TrackingTableName.Schema().Quoted().ToString()} (");
+            stringBuilder.AppendLine($"CREATE INDEX IF NOT EXISTS [{this.TrackingTableName.Unquoted().Normalized().ToString()}_timestamp_index] ON {this.TrackingTableName.Quoted().ToString()} (");
             stringBuilder.AppendLine($"\t [timestamp] ASC");
             stringBuilder.AppendLine($"\t,[update_scope_id] ASC");
             stringBuilder.AppendLine($"\t,[sync_row_is_tombstone] ASC");

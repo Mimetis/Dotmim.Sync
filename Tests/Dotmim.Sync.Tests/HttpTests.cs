@@ -2155,6 +2155,60 @@ namespace Dotmim.Sync.Tests
                 }
             }
         }
+        /// <summary>
+        /// Insert one row on each client, should be sync on server and clients
+        /// </summary>
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Using_ExistingClientDatabase_UpdateUntrackedRowsAsync(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
+           // configure server orchestrator
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
+                new SyncSetup(Tables));
+
+            var serviceUri = this.Kestrell.Run();
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // Get count of rows
+                var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+                // create a client schema without seeding
+                await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
+
+                // insert on product before making any first sync
+                var name = HelperDatabase.GetRandomName();
+                var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
+
+                using var serverDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                serverDbCtx.Product.Add(product);
+                await serverDbCtx.SaveChangesAsync();
+
+                var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                // mark local row as tracked
+                await agent.LocalOrchestrator.UpdateUntrackedRowsAsync();
+                s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                Assert.Equal(this.GetServerDatabaseRowsCount(Server), this.GetServerDatabaseRowsCount(client));
+
+            }
+        }
     }
 }

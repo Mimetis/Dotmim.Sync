@@ -358,10 +358,12 @@ namespace Dotmim.Sync.MySql
                     };
                     var sqlDbType = this.MySqlDbMetadata.GetOwnerDbTypeFromDbType(syncColumn);
 
-                    var customParameterFilter = new MySqlParameter($"in_{columnName}", sqlDbType);
-                    customParameterFilter.Size = param.MaxLength;
-                    customParameterFilter.IsNullable = param.AllowNull;
-                    customParameterFilter.Value = param.DefaultValue;
+                    var customParameterFilter = new MySqlParameter($"in_{columnName}", sqlDbType)
+                    {
+                        Size = param.MaxLength,
+                        IsNullable = param.AllowNull,
+                        Value = param.DefaultValue
+                    };
                     command.Parameters.Add(customParameterFilter);
                 }
                 else
@@ -382,10 +384,12 @@ namespace Dotmim.Sync.MySql
                         this.MySqlDbMetadata.GetMySqlDbType(columnFilter) : this.MySqlDbMetadata.GetOwnerDbTypeFromDbType(columnFilter);
 
                     // Add it as parameter
-                    var sqlParamFilter = new MySqlParameter($"in_{columnName}", sqlDbType);
-                    sqlParamFilter.Size = columnFilter.MaxLength;
-                    sqlParamFilter.IsNullable = param.AllowNull;
-                    sqlParamFilter.Value = param.DefaultValue;
+                    var sqlParamFilter = new MySqlParameter($"in_{columnName}", sqlDbType)
+                    {
+                        Size = columnFilter.MaxLength,
+                        IsNullable = param.AllowNull,
+                        Value = param.DefaultValue
+                    };
                     command.Parameters.Add(sqlParamFilter);
                 }
 

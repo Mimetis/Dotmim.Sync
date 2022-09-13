@@ -177,6 +177,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             return totalCountRows;
         }
 
-
+        
     }
 }

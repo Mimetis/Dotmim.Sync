@@ -253,7 +253,7 @@ namespace Dotmim.Sync.MySql.Builders
             var str3 = new StringBuilder();
             var str4 = MySqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.GetPrimaryKeysColumns(), "`side`", "`base`");
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.AppendLine($"INSERT INTO {trackingName.Quoted().ToString()} (");
 
 
             var comma = "";
@@ -273,10 +273,10 @@ namespace Dotmim.Sync.MySql.Builders
             stringBuilder.Append($"SELECT ");
             stringBuilder.Append(str2.ToString());
             stringBuilder.AppendLine($", NULL, 0, {TimestampValue}, now()");
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} as `base` WHERE NOT EXISTS");
+            stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} as `base` WHERE NOT EXISTS");
             stringBuilder.Append($"(SELECT ");
             stringBuilder.Append(str3.ToString());
-            stringBuilder.AppendLine($" FROM {trackingName.Schema().Quoted().ToString()} as `side` ");
+            stringBuilder.AppendLine($" FROM {trackingName.Quoted().ToString()} as `side` ");
             stringBuilder.AppendLine($"WHERE {str4})");
 
             var r = stringBuilder.ToString();

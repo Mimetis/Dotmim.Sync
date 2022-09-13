@@ -41,6 +41,21 @@ namespace Dotmim.Sync.SqlServer
             }
 
         }
+
+        static string shortProviderType;
+        public static new string ShortProviderType
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(shortProviderType))
+                    return shortProviderType;
+
+                var type = typeof(SqlSyncChangeTrackingProvider);
+                shortProviderType = type.Name;
+
+                return shortProviderType;
+            }
+        }
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqlChangeTrackingScopeBuilder(scopeInfoTableName);
 
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
