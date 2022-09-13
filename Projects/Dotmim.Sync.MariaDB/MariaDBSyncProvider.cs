@@ -5,6 +5,7 @@ using System.Data.Common;
 using MySqlConnector;
 #elif NETSTANDARD 
 using MySql.Data.MySqlClient;
+using System.Reflection;
 #endif
 
 #if MARIADB
@@ -20,8 +21,9 @@ namespace Dotmim.Sync.MariaDB
     public class MariaDBSyncProvider : CoreProvider
     {
         DbMetadata dbMetadata;
-        static string providerType;
+        private MySqlConnectionStringBuilder builder;
 
+        static string providerType;
         public override string GetProviderTypeName() => ProviderType;
 
         public static string ProviderType
@@ -32,11 +34,26 @@ namespace Dotmim.Sync.MariaDB
                     return providerType;
 
                 var type = typeof(MariaDBSyncProvider);
-                providerType = $"{type.Name}, {type.ToString()}";
+                providerType = $"{type.Name}, {type}";
 
                 return providerType;
             }
+        }
 
+        static string shortProviderType;
+        public override string GetShortProviderTypeName() => ShortProviderType;
+        public static string ShortProviderType
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(shortProviderType))
+                    return shortProviderType;
+
+                var type = typeof(MariaDBSyncProvider);
+                shortProviderType = type.Name;
+
+                return shortProviderType;
+            }
         }
 
         /// <summary>
@@ -64,12 +81,20 @@ namespace Dotmim.Sync.MariaDB
         public MariaDBSyncProvider(string connectionString) : base()
         {
 
-            var builder = new MySqlConnectionStringBuilder(connectionString);
+            this.builder = new MySqlConnectionStringBuilder(connectionString);
 
             // Set the default behavior to use Found rows and not Affected rows !
             builder.UseAffectedRows = false;
 
             this.ConnectionString = builder.ConnectionString;
+        }
+        public override string GetDatabaseName()
+        {
+            if (builder != null && !String.IsNullOrEmpty(builder.Database))
+                return builder.Database;
+
+            return string.Empty;
+
         }
 
 
@@ -78,8 +103,10 @@ namespace Dotmim.Sync.MariaDB
             if (String.IsNullOrEmpty(builder.ConnectionString))
                 throw new Exception("You have to provide parameters to the MySql builder to be able to construct a valid connection string.");
 
+            this.builder = builder;
+
             // Set the default behavior to use Found rows and not Affected rows !
-            builder.UseAffectedRows = false;
+            this.builder.UseAffectedRows = false;
 
             this.ConnectionString = builder.ConnectionString;
         }

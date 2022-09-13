@@ -2540,7 +2540,7 @@ namespace Dotmim.Sync.Tests
                         if (args.CommandType == DbCommandType.Reset)
                         {
                             var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
-                            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction) ;
+                            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
                         }
                     });
                 }
@@ -4361,6 +4361,58 @@ namespace Dotmim.Sync.Tests
             }
         }
 
+        /// <summary>
+        /// </summary>
+        [Fact]
+        public async Task Using_ExistingClientDatabase_UpdateUntrackedRowsAsync()
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // generate a sync conf to host the schema
+            var setup = new SyncSetup(this.Tables);
+
+            // options
+            var options = new SyncOptions();
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                // Get count of rows
+                var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+                // create a client schema without seeding
+                await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
+
+                var name = HelperDatabase.GetRandomName();
+                var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
+
+                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                ctx.Product.Add(product);
+                await ctx.SaveChangesAsync();
+
+                // create an agent
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+
+                var s = await agent.SynchronizeAsync(setup);
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                // mark local row as tracked
+                await agent.LocalOrchestrator.UpdateUntrackedRowsAsync();
+                s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                Assert.Equal(this.GetServerDatabaseRowsCount(Server), this.GetServerDatabaseRowsCount(client));
+            }
+        }
 
 
     }

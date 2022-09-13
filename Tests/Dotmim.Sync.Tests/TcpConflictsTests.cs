@@ -266,7 +266,7 @@ namespace Dotmim.Sync.Tests
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Error_UniqueKey_OnSameTable_RaiseError(SyncOptions options)
+        public virtual async Task Error_UniqueKey_OnSameTable_RaiseError(SyncOptions options)
         {
             // Only works for SQL
 
@@ -306,7 +306,7 @@ namespace Dotmim.Sync.Tests
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Error_UniqueKey_OnSameTable_ContinueOnError(SyncOptions options)
+        public virtual async Task Error_UniqueKey_OnSameTable_ContinueOnError(SyncOptions options)
         {
             // Only works for SQL
 
@@ -407,7 +407,7 @@ namespace Dotmim.Sync.Tests
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Error_UniqueKey_OnSameTable_RetryOneMoreTimeAndThrowOnError(SyncOptions options)
+        public virtual async Task Error_UniqueKey_OnSameTable_RetryOneMoreTimeAndThrowOnError(SyncOptions options)
         {
             // Only works for SQL
 
@@ -455,7 +455,7 @@ namespace Dotmim.Sync.Tests
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Error_UniqueKey_OnSameTable_RetryOneMoreTimeAndContinueOnError(SyncOptions options)
+        public virtual async Task Error_UniqueKey_OnSameTable_RetryOneMoreTimeAndContinueOnError(SyncOptions options)
         {
             // Only works for SQL
 
@@ -523,7 +523,7 @@ namespace Dotmim.Sync.Tests
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Error_UniqueKey_OnSameTable_RetryOnNextSync(SyncOptions options)
+        public virtual async Task Error_UniqueKey_OnSameTable_RetryOnNextSync(SyncOptions options)
         {
             // Only works for SQL
 
@@ -623,7 +623,7 @@ namespace Dotmim.Sync.Tests
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Error_UniqueKey_OnSameTable_RetryOnNextSync_ThenResolveClient(SyncOptions options)
+        public virtual async Task Error_UniqueKey_OnSameTable_RetryOnNextSync_ThenResolveClient(SyncOptions options)
         {
             // Only works for SQL
 
@@ -709,7 +709,7 @@ namespace Dotmim.Sync.Tests
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Error_UniqueKey_OnSameTable_RetryOneMoreTime_ThenResolveClient(SyncOptions options)
+        public virtual async Task Error_UniqueKey_OnSameTable_RetryOneMoreTime_ThenResolveClient(SyncOptions options)
         {
             // Only works for SQL
 
@@ -772,7 +772,7 @@ namespace Dotmim.Sync.Tests
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Error_UniqueKey_OnSameTable_ContinueOnError_ThenResolveClient(SyncOptions options)
+        public virtual async Task Error_UniqueKey_OnSameTable_ContinueOnError_ThenResolveClient(SyncOptions options)
         {
             // Only works for SQL
 
@@ -858,7 +858,7 @@ namespace Dotmim.Sync.Tests
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Error_UniqueKey_OnSameTable_RetryOnNextSync_Twice_ThenResolveClient(SyncOptions options)
+        public virtual async Task Error_UniqueKey_OnSameTable_RetryOnNextSync_Twice_ThenResolveClient(SyncOptions options)
         {
             // Only works for SQL
 
@@ -1003,7 +1003,7 @@ namespace Dotmim.Sync.Tests
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Error_ForeignKey_OnSameTable_RaiseError(SyncOptions options)
+        public virtual async Task Error_ForeignKey_OnSameTable_RaiseError(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1036,7 +1036,7 @@ namespace Dotmim.Sync.Tests
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Error_ForeignKey_OnSameTable_ContinueOnError(SyncOptions options)
+        public virtual async Task Error_ForeignKey_OnSameTable_ContinueOnError(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1131,7 +1131,7 @@ namespace Dotmim.Sync.Tests
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Error_ForeignKey_OnSameTable_RetryOneMoreTime(SyncOptions options)
+        public virtual async Task Error_ForeignKey_OnSameTable_RetryOneMoreTime(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1182,7 +1182,7 @@ namespace Dotmim.Sync.Tests
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Error_ForeignKey_OnSameTable_RetryOnNextSync(SyncOptions options)
+        public virtual async Task Error_ForeignKey_OnSameTable_RetryOnNextSync(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1310,7 +1310,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_IC_IS_ServerShouldWins(SyncOptions options)
+        public virtual async Task Conflict_IC_IS_ServerShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1341,7 +1341,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_IC_IS_ServerShouldWins_CozHandler(SyncOptions options)
+        public virtual async Task Conflict_IC_IS_ServerShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1414,7 +1414,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_IC_IS_ClientShouldWins_CozConfiguration(SyncOptions options)
+        public virtual async Task Conflict_IC_IS_ClientShouldWins_CozConfiguration(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1446,7 +1446,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_IC_IS_ClientShouldWins_CozConfiguration_CozHandler(SyncOptions options)
+        public virtual async Task Conflict_IC_IS_ClientShouldWins_CozConfiguration_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1509,7 +1509,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_IC_IS_ClientShouldWins_CozHandler(SyncOptions options)
+        public virtual async Task Conflict_IC_IS_ClientShouldWins_CozHandler(SyncOptions options)
         {
             // Create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1625,7 +1625,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_UC_US_ServerShouldWins(SyncOptions options)
+        public virtual async Task Conflict_UC_US_ServerShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1657,7 +1657,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_UC_US_ServerShouldWins_CozHandler(SyncOptions options)
+        public virtual async Task Conflict_UC_US_ServerShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1731,7 +1731,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_UC_US_ClientShouldWins_CozConfiguration(SyncOptions options)
+        public virtual async Task Conflict_UC_US_ClientShouldWins_CozConfiguration(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1762,7 +1762,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_UC_US_ClientShouldWins_CozConfiguration_CozHandler(SyncOptions options)
+        public virtual async Task Conflict_UC_US_ClientShouldWins_CozConfiguration_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1822,7 +1822,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_UC_US_ClientShouldWins_CozHandler(SyncOptions options)
+        public virtual async Task Conflict_UC_US_ClientShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1869,7 +1869,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_UC_US_Resolved_ByMerge(SyncOptions options)
+        public virtual async Task Conflict_UC_US_Resolved_ByMerge(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -1997,7 +1997,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_DC_US_ClientShouldWins(SyncOptions options)
+        public virtual async Task Conflict_DC_US_ClientShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2030,7 +2030,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_DC_US_ClientShouldWins_CozHandler(SyncOptions options)
+        public virtual async Task Conflict_DC_US_ClientShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2095,7 +2095,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_DC_US_ServerShouldWins(SyncOptions options)
+        public virtual async Task Conflict_DC_US_ServerShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2123,7 +2123,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_DC_US_ServerShouldWins_CozHandler(SyncOptions options)
+        public virtual async Task Conflict_DC_US_ServerShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2246,7 +2246,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_UC_OUTDATED_ServerShouldWins(SyncOptions options)
+        public virtual async Task Conflict_UC_OUTDATED_ServerShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2300,7 +2300,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_UC_OUTDATED_ServerShouldWins_EvenIf_ResolutionIsClientWins(SyncOptions options)
+        public virtual async Task Conflict_UC_OUTDATED_ServerShouldWins_EvenIf_ResolutionIsClientWins(SyncOptions options)
         {
 
             // create a server schema without seeding
@@ -2406,7 +2406,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_UC_DS_ServerShouldWins(SyncOptions options)
+        public virtual async Task Conflict_UC_DS_ServerShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2432,7 +2432,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_UC_DS_ServerShouldWins_CozHandler(SyncOptions options)
+        public virtual async Task Conflict_UC_DS_ServerShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2498,7 +2498,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_UC_DS_ClientShouldWins(SyncOptions options)
+        public virtual async Task Conflict_UC_DS_ClientShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2528,7 +2528,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_UC_DS_ClientShouldWins_CozHandler(SyncOptions options)
+        public virtual async Task Conflict_UC_DS_ClientShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2630,7 +2630,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_DC_DS_ServerShouldWins(SyncOptions options)
+        public virtual async Task Conflict_DC_DS_ServerShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2656,7 +2656,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_DC_DS_ServerShouldWins_CozHandler(SyncOptions options)
+        public virtual async Task Conflict_DC_DS_ServerShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2716,7 +2716,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_DC_DS_ClientShouldWins(SyncOptions options)
+        public virtual async Task Conflict_DC_DS_ClientShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2745,7 +2745,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_DC_DS_ClientShouldWins_CozHandler(SyncOptions options)
+        public virtual async Task Conflict_DC_DS_ClientShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2764,7 +2764,7 @@ namespace Dotmim.Sync.Tests
                 // From client : Remote is server, Local is client
                 localOrchestrator.OnApplyChangesConflictOccured(acf =>
                 {
-                    throw new Exception("Should not happen since Client is the winner of the conflict and conflict has been resolved on the server side");
+                    Debug.WriteLine("Should not happen since Client is the winner of the conflict and conflict has been resolved on the server side");
                 });
 
                 // From Server : Remote is client, Local is server
@@ -2837,7 +2837,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_DC_NULLS_ServerShouldWins(SyncOptions options)
+        public virtual async Task Conflict_DC_NULLS_ServerShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2862,7 +2862,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_DC_NULLS_ServerShouldWins_CozHandler(SyncOptions options)
+        public virtual async Task Conflict_DC_NULLS_ServerShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2911,7 +2911,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_DC_NULLS_ClientShouldWins(SyncOptions options)
+        public virtual async Task Conflict_DC_NULLS_ClientShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -2940,7 +2940,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_DC_NULLS_ClientShouldWins_CozHandler(SyncOptions options)
+        public virtual async Task Conflict_DC_NULLS_ClientShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -3025,7 +3025,7 @@ namespace Dotmim.Sync.Tests
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_NULLC_DS_ServerShouldWins(SyncOptions options)
+        public virtual async Task Conflict_NULLC_DS_ServerShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -3050,7 +3050,7 @@ namespace Dotmim.Sync.Tests
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_NULLC_DS_ServerShouldWins_CozHandler(SyncOptions options)
+        public virtual async Task Conflict_NULLC_DS_ServerShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -3099,7 +3099,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_NULLC_DS_ClientShouldWins(SyncOptions options)
+        public virtual async Task Conflict_NULLC_DS_ClientShouldWins(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -3131,7 +3131,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_NULLC_DS_ClientShouldWins_CozHandler(SyncOptions options)
+        public virtual async Task Conflict_NULLC_DS_ClientShouldWins_CozHandler(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
@@ -3189,7 +3189,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
-        public async Task Conflict_UC_US_ClientChoosedTheWinner(SyncOptions options)
+        public virtual async Task Conflict_UC_US_ClientChoosedTheWinner(SyncOptions options)
         {
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);

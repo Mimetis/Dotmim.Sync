@@ -656,5 +656,15 @@ namespace Dotmim.Sync
         {
 
         }
+        public override string ToString()
+        {
+            var from = this.LocalOrchestrator?.ToString();
+            var to = this.RemoteOrchestrator?.ToString();
+
+            if (!string.IsNullOrEmpty(from) && !string.IsNullOrEmpty(to))
+                return $"[{from}] => [{to}]";
+
+            return base.ToString();
+        }
     }
 }
