@@ -229,7 +229,7 @@ internal class Program
             Console.WriteLine($"ERROR: {args.Exception.Message}");
             Console.WriteLine($"ROW  : {args.ErrorRow}");
             Console.ResetColor();
-            args.Resolution = ErrorResolution.RetryOnNextSync;
+            args.Resolution = ErrorResolution.Resolved;
         });
 
         // Generate foreign key error
@@ -242,13 +242,7 @@ internal class Program
             Console.ResetColor();
             result = await agent.SynchronizeAsync(setup);
             Console.WriteLine(result);
-            Console.WriteLine("FIRST SYNC ENDED. Press a key to start again, or Escapte to end");
-
-
-            Console.ResetColor();
-            result = await agent.SynchronizeAsync(setup);
-            Console.WriteLine(result);
-            Console.WriteLine("SECOND SYNC ENDED. Press a key to start again, or Escapte to end");
+            Console.WriteLine("Sync ended. Press a key to start again, or Escapte to end");
 
         }
         catch (Exception e)

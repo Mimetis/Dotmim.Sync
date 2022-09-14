@@ -349,3 +349,31 @@ As demo purpose we are chaining multiple call to ``SynchronizeAsync`` to see the
 As you can see, the error has been logged in the batch info directory during the first sync, and has been automatically retried on the second sync.
 
 .. note:: IF you look carefully the result on the second sync, you will see that we did not download any rows, but the error has been resolved.
+
+
+ErrorResolution.Resolved
+----------------------------------------------------
+
+Last option, the ``ErrorResolution.Resolved`` will mark the error as resolved, and will not retry to apply the row on the next sync.
+
+.. code-block:: csharp
+
+    // ErrorResolution.Throw is the default resolution. No need to explicitly set it.
+    // It's done here for the demo explanation.
+    agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"ERROR: {args.Exception.Message}");
+        Console.WriteLine($"ROW  : {args.ErrorRow}");
+        Console.ResetColor();
+
+        args.Resolution = ErrorResolution.Resolved;
+    });
+
+.. image:: assets/ErrorResolutionResolved.png
+    :align: center
+    :alt: ErrorResolution.ErrorResolutionResolved
+
+.. warning:: Be careful, if you use this resolution, you will have to manually resolve the error on the server (or client).
+
+    DMS will consider the row as successfully applied, and will not retry to apply it on the next sync. As you can see, we have a Total Changes Applied On Client equals to 2, but the server has only 1 row applied.
