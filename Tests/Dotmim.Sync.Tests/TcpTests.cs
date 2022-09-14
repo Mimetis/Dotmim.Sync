@@ -4364,7 +4364,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// </summary>
         [Fact]
-        public async Task Using_ExistingClientDatabase_UpdateUntrackedRowsAsync()
+        public virtual async Task Using_ExistingClientDatabase_UpdateUntrackedRowsAsync()
         {
             // create a server schema with seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);

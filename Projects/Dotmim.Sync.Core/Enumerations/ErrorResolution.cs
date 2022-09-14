@@ -12,6 +12,11 @@ namespace Dotmim.Sync.Enumerations
     public enum ErrorResolution
     {
         /// <summary>
+        /// Throw the error. Default value.Transaction is rollbacked
+        /// </summary>
+        Throw,
+
+        /// <summary>
         /// Ignore the error and continue to sync. Error will be stored 
         /// locally in a separate batch info file
         /// <para>
@@ -50,18 +55,13 @@ namespace Dotmim.Sync.Enumerations
         /// Considers the row as applied.
         /// </summary>
         Resolved,
-
-        /// <summary>
-        /// Throw the error. Default value.
-        /// </summary>
-        Throw
     }
 
     public enum ErrorAction
     {
-        Resolved,
         Throw,
         Log,
-        Ignore
+        Ignore,
+        Resolved,
     }
 }
