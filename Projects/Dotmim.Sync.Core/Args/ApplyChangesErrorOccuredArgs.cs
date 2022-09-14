@@ -17,13 +17,14 @@ namespace Dotmim.Sync
     {
         /// <inheritdoc cref="ApplyChangesErrorOccuredArgs" />
         public ApplyChangesErrorOccuredArgs(SyncContext context, SyncRow errorRow,
-            SyncTable schemaChangesTable,
-            SyncRowState applyType, Exception exception, DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
+            SyncTable schemaChangesTable, SyncRowState applyType, Exception exception, ErrorResolution errorPolicy,
+            DbConnection connection, DbTransaction transaction) : base(context, connection, transaction)
         {
             this.ErrorRow = errorRow;
             this.SchemaTable = schemaChangesTable;
             this.ApplyType = applyType;
             this.Exception = exception;
+            this.Resolution = errorPolicy;
         }
 
         /// <summary>

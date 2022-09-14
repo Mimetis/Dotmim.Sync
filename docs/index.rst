@@ -120,6 +120,7 @@ Feel free to ping me: `@sebpertus <http://www.twitter.com/sebpertus>`_
    Provision
    Metadatas
    Conflict
+   Errors
    Filters
    SqliteEncryption
    AlreadyExisting

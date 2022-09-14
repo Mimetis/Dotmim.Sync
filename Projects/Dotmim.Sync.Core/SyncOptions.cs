@@ -84,6 +84,12 @@ namespace Dotmim.Sync
         public ConflictResolutionPolicy ConflictResolutionPolicy { get; set; }
 
         /// <summary>
+        /// Gets or Sets the default error resolution policy when an error occurs locally. 
+        /// The error policy can be different on server / clients
+        /// </summary>
+        public ErrorResolution ErrorResolutionPolicy { get; set; }
+
+        /// <summary>
         /// Gets or Sets the default logger used for logging purpose
         /// </summary>
         public ILogger Logger { get; set; }

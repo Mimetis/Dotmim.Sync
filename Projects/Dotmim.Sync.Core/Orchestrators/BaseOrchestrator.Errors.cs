@@ -30,7 +30,7 @@ namespace Dotmim.Sync
                                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
-            var errorRowArgs = new ApplyChangesErrorOccuredArgs(context, errorRow, schemaChangesTable, applyType, exception,
+            var errorRowArgs = new ApplyChangesErrorOccuredArgs(context, errorRow, schemaChangesTable, applyType, exception, this.Options.ErrorResolutionPolicy,
                 connection, transaction);
 
             var errorOccuredArgs = await this.InterceptAsync(errorRowArgs, progress, cancellationToken).ConfigureAwait(false);

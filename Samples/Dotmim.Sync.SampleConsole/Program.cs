@@ -55,7 +55,7 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         serverProvider.UseBulkOperations = false;
 
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
@@ -104,10 +104,10 @@ internal class Program
         //clientProvider.UseBulkOperations = false;
         // await FileTestAsync();
 
-        await TestItAsync();
+        //await TestItAsync();
 
-        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
-
+        // await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        await GenerateErrorsAsync();
     }
 
     private static async Task TestItAsync()
@@ -159,7 +159,8 @@ internal class Program
 
 
     }
-    private static async Task GenerateRetryOnNextOnClientCallSync()
+
+    private static async Task GenerateErrorsAsync()
     {
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("svProduct"));
         serverProvider.UseBulkOperations = false;
@@ -167,73 +168,6 @@ internal class Program
         clientProvider.UseBulkOperations = false;
         var setup = new SyncSetup("ProductCategory");
         var options = new SyncOptions();
-
-        //var options = new SyncOptions();
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}");
-        });
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        var result = await agent.SynchronizeAsync(setup);
-
-        agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            var index = args.Exception.Message.IndexOf(".");
-            if (index <= 0)
-                index = args.Exception.Message.Length;
-
-            Console.WriteLine($"ERROR: {args.Exception.Message.Substring(0, index)}");
-            Console.WriteLine($"{args.ErrorRow}");
-            Console.ResetColor();
-            args.Resolution = ErrorResolution.RetryOnNextSync;
-        });
-
-        // Generate a null exception
-        // On client ModifiedDate is not null allowed (but null allowed on server)
-        await DBHelper.ExecuteScriptAsync("svProduct", "UPDATE [ProductCategory] Set [ModifiedDate]=NULL WHERE [ProductCategoryID]='A_ACCESS'");
-
-        Console.ResetColor();
-        result = await agent.SynchronizeAsync(setup);
-        Console.WriteLine(result);
-        Console.WriteLine("Sync Ended.");
-
-        //await DBHelper.ExecuteScriptAsync("svProduct", "UPDATE [ProductCategory] Set [ModifiedDate]='2022-09-05' WHERE [ProductCategoryID]='A_ACCESS'");
-        //await DBHelper.ExecuteScriptAsync("svProduct", "UPDATE [ProductCategory] Set [ModifiedDate]=NULL WHERE [ProductCategoryID]='A_ACCESS'");
-
-        Console.ResetColor();
-        result = await agent.SynchronizeAsync(setup);
-        Console.WriteLine(result);
-        Console.WriteLine("Sync Ended.");
-
-        Console.ResetColor();
-        result = await agent.SynchronizeAsync(setup);
-        Console.WriteLine(result);
-        Console.WriteLine("Sync Ended.");
-
-    }
-
-    private static async Task GenerateRetryOnNextOnServerCallSync()
-    {
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("svProduct"));
-        serverProvider.UseBulkOperations = false;
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("CliProduct"));
-        clientProvider.UseBulkOperations = false;
-        var setup = new SyncSetup("ProductCategory");
-        var options = new SyncOptions();
-
-        //var options = new SyncOptions();
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}");
-        });
-
-
 
         var getUpdateAndResolveForeignKeyErrorCommand = new Func<string>(() =>
         {
@@ -247,14 +181,8 @@ internal class Program
             return command;
         });
 
-        var getForeignKeyErrorCommand = new Func<string>(() =>
+        var getForeignKeyErrorCommand = new Func<string, string, string>((string subcat, string cat) =>
         {
-            var subcatrandom = Path.GetRandomFileName();
-            var subcat = string.Concat("A_", string.Concat(subcatrandom.Where(c => char.IsLetter(c))).ToUpperInvariant());
-            subcat = subcat.Substring(0, Math.Min(subcat.Length, 12));
-            var cat = string.Concat("Z_", string.Concat(Path.GetRandomFileName().Where(c => char.IsLetter(c))).ToUpperInvariant());
-            cat = cat.Substring(0, Math.Min(cat.Length, 12));
-
             var command = @$"Begin Tran
                             ALTER TABLE [ProductCategory] NOCHECK CONSTRAINT ALL
                             INSERT [ProductCategory] ([ProductCategoryID], [ParentProductCategoryId], [Name]) VALUES (N'{subcat}', '{cat}', N'{subcat} Sub category')
@@ -281,6 +209,14 @@ internal class Program
         });
 
 
+        var getNotNullErrorCommand = new Func<string>(() =>
+        {
+            // Generate a null exception
+            // On client ModifiedDate is not null allowed (but null allowed on server)
+            return "UPDATE [ProductCategory] Set [ModifiedDate]=NULL WHERE [ProductCategoryID]='A_ACCESS'";
+
+        });
+
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
@@ -290,55 +226,37 @@ internal class Program
         agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"ERROR: {args.ErrorRow}");
-            Console.ResetColor();
-            args.Resolution = ErrorResolution.RetryOnNextSync;
-        });
-
-        agent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            var index = args.Exception.Message.IndexOf(".");
-            if (index <= 0)
-                index = args.Exception.Message.Length;
-
-            Console.WriteLine($"ERROR: {args.Exception.Message.Substring(0, index)}");
-            Console.WriteLine($"{args.ErrorRow}");
+            Console.WriteLine($"ERROR: {args.Exception.Message}");
+            Console.WriteLine($"ROW  : {args.ErrorRow}");
             Console.ResetColor();
             args.Resolution = ErrorResolution.RetryOnNextSync;
         });
 
         // Generate foreign key error
-        await DBHelper.ExecuteScriptAsync("CliProduct", getUniqueKeyErrorCommand());
+        await DBHelper.ExecuteScriptAsync("svProduct", getForeignKeyErrorCommand("B", "A"));
 
-        Console.ResetColor();
-        result = await agent.SynchronizeAsync(setup);
-        Console.WriteLine(result);
-        Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-
-
-        do
+        //do
+        //{
+        try
         {
-            try
-            {
-                await DBHelper.ExecuteScriptAsync("CliProduct", getUpdateAndResolveUniqueNameErrorCommand());
-                Console.ResetColor();
-                result = await agent.SynchronizeAsync(setup);
-                Console.WriteLine(result);
-                Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+            Console.ResetColor();
+            result = await agent.SynchronizeAsync(setup);
+            Console.WriteLine(result);
+            Console.WriteLine("FIRST SYNC ENDED. Press a key to start again, or Escapte to end");
 
-            }
-            catch (SyncException e)
-            {
-                Console.ResetColor();
-                Console.WriteLine(e.Message);
-            }
-            catch (Exception e)
-            {
-                Console.ResetColor();
-                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-            }
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+            Console.ResetColor();
+            result = await agent.SynchronizeAsync(setup);
+            Console.WriteLine(result);
+            Console.WriteLine("SECOND SYNC ENDED. Press a key to start again, or Escapte to end");
+
+        }
+        catch (Exception e)
+        {
+            Console.ResetColor();
+            Console.WriteLine("Sync Rollbacked.");
+        }
+        //} while (Console.ReadKey().Key != ConsoleKey.Escape);
 
 
         Console.ResetColor();

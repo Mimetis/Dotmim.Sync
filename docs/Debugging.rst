@@ -25,8 +25,7 @@ Let's see in details how to configure your Visual Studio environment:
 Symbols packages
 ^^^^^^^^^^^^^^^^^^^^
 
-| **Symbol files** (*.pdb) are produced by the .NET compiler alongside assemblies. 
-| **Symbol files** map execution locations to the original source code so you can step through source code as it is running using a debugger. 
+**Symbol files** (*.pdb) are produced by the .NET compiler alongside assemblies. **Symbol files** map execution locations to the original source code so you can step through source code as it is running using a debugger. 
 
 **DMS** publishes the symbols packages, containing the .pdb files, for each release to the nuget symbols server.
 
