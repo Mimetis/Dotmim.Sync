@@ -31,7 +31,7 @@ namespace FilterWebSyncClient
             // Set the web server Options
             var options = new SyncOptions
             {
-                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "client")
+                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), "client")
             };
 
             // Creating an agent that will handle all the process

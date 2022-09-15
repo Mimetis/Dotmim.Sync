@@ -37,7 +37,7 @@ namespace WebSyncServerLast
 
             var options = new SyncOptions
             {
-                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "server")
+                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), "server")
             };
 
             // Create the setup used for your sync process

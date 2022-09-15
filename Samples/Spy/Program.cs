@@ -77,7 +77,7 @@ namespace Spy
 
                 foreach (var table in args.ApplyChanges.Schema.Tables)
                 {
-                    var syncTable = await localOrchestrator.LoadTableFromBatchInfoAsync(args.ApplyChanges.BatchInfo, table.TableName, table.SchemaName);
+                    var syncTable = await localOrchestrator.LoadTableFromBatchInfoAsync(args.ApplyChanges.Changes, table.TableName, table.SchemaName);
 
                     Console.WriteLine($"Changes for table {table.TableName}. Rows:{syncTable.Rows.Count}");
                     foreach (var row in syncTable.Rows)

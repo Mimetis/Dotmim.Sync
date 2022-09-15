@@ -97,7 +97,7 @@ namespace Dotmim.Sync
         /// <code>
         ///  var localOrchestrator = new LocalOrchestrator(clientProvider);
         ///  var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
-        ///  var changes = await localOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient);
+        ///  var estimatedChanges = await localOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient);
         /// </code>
         /// </example>
         /// </summary>

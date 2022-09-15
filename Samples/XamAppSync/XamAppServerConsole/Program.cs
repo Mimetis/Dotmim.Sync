@@ -35,7 +35,7 @@ namespace XamAppServerConsole
 
             var syncOptions = new SyncOptions
             {
-                SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDiretory(), "Snapshots"),
+                SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), "Snapshots"),
                 BatchSize = 2000,
             };
 

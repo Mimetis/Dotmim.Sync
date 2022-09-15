@@ -153,8 +153,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 #pragma warning restore xUnit1026 // Theory methods should use all of their parameters
             => Task.CompletedTask;
 
-        [Theory]
-        [ClassData(typeof(SyncOptionsData))]
+        [Fact]
         public override Task Using_ExistingClientDatabase_UpdateUntrackedRowsAsync() => Task.CompletedTask;
 
     }

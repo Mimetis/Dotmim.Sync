@@ -31,7 +31,7 @@ A set of methods are accessible from both ``LocalOrchestrator`` or ``RemoteOrche
 Schema Methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
+TODO
 
 
 
@@ -151,4 +151,137 @@ Now we can drop this newly created stored procedure and tracking table:
     if (spExists)
         await orchestrator.DropStoredProcedureAsync(productSetupTable, 
                             DbStoredProcedureType.SelectChanges);
+
+
+
+LocalOrchestrator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+GetChangesAsync
+-------------------
+
+Get the changes from local datasource, to be sent to the server.
+
+| You need to provide a ``ScopeInfoClient`` instance to be able to get the changes.
+| Returns an instance of ``ClientSyncChanges`` containing a reference to the changes serialized on disk.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
+    var changes = await localOrchestrator.GetChangesAsync(cScopeInfoClient);
+
+
+If you need to load all changes in memory, you can use ``LoadTableFromBatchInfoAsync`` method:
+
+GetEstimatedChangesCountAsync
+--------------------------------
+
+Get the estimated changes count from local datasource, to be sent to the server.
+
+| You need to provide a ``ScopeInfoClient`` instance to be able to get the changes.
+| Returns an instance of ``ClientSyncChanges`` containing a reference to the changes serialized on disk.
+| The propery ``ClientChangesSelected`` (of type ``DatabaseChangesSelected``) from the returned ``ClientSyncChanges`` value, contains the estimated changes count.
+
+.. warning:: No changes are downloaded, so far the ``ClientBatchInfo`` property is always **null**.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
+    var estimatedChanges = await localOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient);
+
+    Console.WriteLine(estimatedChanges.ClientChangesSelected.TotalChangesSelected);
+
+    foreach (var table in changes.ClientChangesSelected.TableChangesSelected)
+        Console.WriteLine($"Table: {table.TableName} - Total changes:{table.TotalChanges}");
+
+
+
+LoadTableFromBatchInfoAsync
+-----------------------------------
+
+Load a table from a batch info. This method is used to load all rows contains in a ``BatchInfo`` instance in memory.
+
+You can specify a ``SyncRowState`` parameter to get rows with a specific state.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    // Loading all rows for table SalesLT.SalesOrderDetail, with a state fo Deleted:
+    var sodTable = await localOrchestrator.LoadTableFromBatchInfoAsync(
+                scopeName, batchInfo, "SalesOrderDetail", "SalesLT", SyncRowState.Deleted);
+
+    foreach (var orderDetail in sodTable.Rows)
+        Console.WriteLine(orderDetail["TotalLine"]);
+
+
+LoadBatchInfosAsync
+-------------------------
+
+Load all batch infos for a given scope name. The batch infos are loaded from the tmp directory set from ``SyncOptions.BatchDirectory``.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    var batchInfos = await localOrchestrator.LoadBatchInfosAsync();
+        
+    foreach (var batchInfo in batchInfos)
+        Console.WriteLine(batchInfo.RowsCount);
+
+
+LoadTablesFromBatchInfoAsync
+-----------------------------------
+
+Load all tables from a batch info. This method is used to load all tables contains in a ``BatchInfo`` instance in memory.
+
+Each file contained in the BatchInfo instance is loaded in memory, and returned as a ``SyncTable`` instance.
+
+.. warning:: this method returns an ``IAsyncEnumerable<SyncTable>``. You need to iterate on it using the ``async`` keyword to get all tables.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    var batchInfos = await localOrchestrator.LoadBatchInfosAsync();
+
+    foreach (var batchInfo in batchInfos)
+    {
+        var allTables = localOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo);
+
+        // Enumerate all rows from each table
+        await foreach (var table in allTables)
+            foreach (var row in table.Rows)
+                Console.WriteLine(row);
+    }
+
+
+ProvisionAsync
+------------------
+
+Provision the local database with the tables and stored procedures needed for the sync process.
+
+| You need a ``ScopeInfo`` instance to be able to provision the local database.
+| If you do not specify the ``provision`` argument, a default value ``SyncProvision.Table | SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable`` is used.
+
+Usually, the ScopeInfo instance is retrieved from your server database, using a ``RemoteOrchestrator`` or a ``WebRemoteOrchestrator`` instance.
+
+.. code-block:: csharp
+
+    var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+    var sScopeInfo = await remoteOrchestrator.GetScopeInfoAsync();
+    var cScopeInfo = await localOrchestrator.ProvisionAsync(sScopeInfo);
+
+| If you have already done a first sync (or a first provision) of your client database, you can use the ``GetScopeInfoAsync`` method to get the ScopeInfo instance from your client database instead of your server database.
+| Provision an already provisioned local database can be useful if you want to overwrite / recreate everything.
+
+.. note:: Be careful, the client database may not contains a ScopeInfo instance if you have not done a first sync.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    var cScopeInfo = await localOrchestrator.GetScopeInfoAsync();
+    if (cScopeInfo != null)
+        cScopeInfo = await localOrchestrator.ProvisionAsync(cScopeInfo, overwrite:true);
+
 
