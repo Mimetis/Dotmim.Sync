@@ -20,14 +20,29 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
-        /// <summary>
-        /// Load a table from a batch info
-        /// </summary>
+        /// <inheritdoc cref="LoadTableFromBatchInfoAsync(string, BatchInfo, string, string, SyncRowState?)"/>
         public virtual Task<SyncTable> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default)
             => LoadTableFromBatchInfoAsync(SyncOptions.DefaultScopeName, batchInfo, tableName, schemaName, syncRowState);
 
         /// <summary>
-        /// Load a table from a batch info
+        /// Load a table with all rows from a <see cref="BatchInfo"/> instance. You need a <see cref="ScopeInfoClient"/> instance to be able to load rows for this client.
+        /// <para>
+        /// Once loaded, all rows are in memory.
+        /// </para>
+        /// <example>
+        /// <code>
+        /// // get the local client scope info
+        /// var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
+        /// // get all changes from server
+        /// var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
+        /// // load changes for table ProductCategory in memory
+        /// var productCategoryTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes, "ProductCategory")
+        /// foreach (var productCategoryRow in productCategoryTable.Rows)
+        /// {
+        ///    ....
+        /// }
+        /// </code>
+        /// </example>
         /// </summary>
         public virtual async Task<SyncTable> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default)
         {
@@ -49,8 +64,19 @@ namespace Dotmim.Sync
 
 
         /// <summary>
-        /// Load all batch infos from a directory
+        /// Load all batch infos from a the batch directory (see <see cref="SyncOptions.BatchDirectory"/> to ge the batch directory)
+        /// <example>
+        /// <code>
+        /// var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+        /// 
+        /// foreach (var batchInfo in batchInfos)
+        ///     Console.WriteLine(batchInfo.RowsCount);
+        /// </code>
+        /// </example>
         /// </summary>
+        /// <returns>
+        /// 
+        /// </returns>
         public virtual async Task<List<BatchInfo>> LoadBatchInfosAsync(string scopeName = SyncOptions.DefaultScopeName)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -95,14 +121,30 @@ namespace Dotmim.Sync
 
 
         /// <summary>
-        /// Load all tables from a batch info
+        /// Load all tables from a batch info. All rows serialized on disk are loaded in memory once you are iterating
+        /// <para>
+        /// Be careful, this method returns an <c>IAsyncEnumerable</c> instance.
+        /// </para>
+        /// 
+        /// <code>
+        /// var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+        /// foreach (var batchInfo in batchInfos)
+        /// {
+        ///  // Load all rows from error tables specifying the specific SyncRowState states
+        ///  var allTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo,
+        ///  SyncRowState.ApplyDeletedFailed | SyncRowState.ApplyModifiedFailed);
+        ///
+        ///  // Enumerate all rows in error
+        ///  await foreach (var table in allTables)
+        ///  foreach (var row in table.Rows)
+        ///     Console.WriteLine(row);
+        /// }
+        /// </code>   
         /// </summary>
         public virtual IAsyncEnumerable<SyncTable> LoadTablesFromBatchInfoAsync(BatchInfo batchInfo, SyncRowState? syncRowState = default)
             => LoadTablesFromBatchInfoAsync(SyncOptions.DefaultScopeName, batchInfo, syncRowState);
 
-        /// <summary>
-        /// Load all tables from a batch info
-        /// </summary>
+        /// <inheritdoc cref="LoadTablesFromBatchInfoAsync(BatchInfo, SyncRowState?)"/>
         public virtual async IAsyncEnumerable<SyncTable> LoadTablesFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, SyncRowState? syncRowState = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
