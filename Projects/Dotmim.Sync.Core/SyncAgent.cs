@@ -261,7 +261,7 @@ namespace Dotmim.Sync
 
                 // on remote orchestrator, get Server scope
                 ScopeInfo sScopeInfo;
-                bool shouldProvision;
+                bool shouldProvision = false;
                 (context, sScopeInfo, shouldProvision) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 bool isConflicting = false;
@@ -294,6 +294,11 @@ namespace Dotmim.Sync
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
+
+                // we may have created the scope tables and fail before provision
+                // check if we have some scope info clients already saved
+                if (!shouldProvision)
+                    shouldProvision = await this.RemoteOrchestrator.InternalShouldProvisionServerAsync(sScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 // If we just have create the server scope, we need to provision it
                 // the WebServerAgent will do this setp on the GetServrScopeInfoAsync task, just before
@@ -360,8 +365,7 @@ namespace Dotmim.Sync
                     (context, cScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(sScopeInfo, cScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
                 }
 
-                if (setup == null)
-                    setup = cScopeInfo.Setup;
+                setup ??= cScopeInfo.Setup;
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -431,9 +435,10 @@ namespace Dotmim.Sync
 
                 // apply is 25%
                 context.ProgressPercentage = 0.75;
-                
-                        (context, clientSyncChanges, cScopeInfoClient) = await this.LocalOrchestrator.InternalApplyChangesAsync(
-                    cScopeInfo, cScopeInfoClient, context, serverSyncChanges, clientSyncChanges, reverseConflictResolutionPolicy, snapshotApplied, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                (context, clientSyncChanges, cScopeInfoClient) = await this.LocalOrchestrator.InternalApplyChangesAsync(
+                        cScopeInfo, cScopeInfoClient, context, serverSyncChanges, clientSyncChanges, reverseConflictResolutionPolicy, snapshotApplied, default, default, 
+                        cancellationToken, progress).ConfigureAwait(false);
 
                 // Update back failed rows that should be retried on next sync
                 //context = await this.RemoteOrchestrator.InternalApplyBackFailedRowsAsync(cScopeInfo, context, clientSyncChanges.ClientChangesApplied,

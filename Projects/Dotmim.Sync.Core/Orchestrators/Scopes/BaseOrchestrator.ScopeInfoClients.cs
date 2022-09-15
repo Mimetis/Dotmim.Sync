@@ -20,8 +20,58 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Update or Insert a scope info client
+        /// Get all scopes info clients instances
+        /// <example>
+        /// This code gets the min last sync timestamp
+        /// <code>
+        /// var cAllScopeInfoClients = await agent.LocalOrchestrator.GetAllScopeInfoClientsAsync();
+        /// 
+        /// var minServerTimeStamp = cAllScopeInfoClients.Min(sic => sic.LastServerSyncTimestamp);
+        /// var minClientTimeStamp = cAllScopeInfoClients.Min(sic => sic.LastSyncTimestamp);
+        /// var minLastSync = cAllScopeInfoClients.Min(sic => sic.LastSync);
+        /// </code>
+        /// </example>
         /// </summary>
+        public virtual async Task<List<ScopeInfoClient>> GetAllScopeInfoClientsAsync(DbConnection connection = null, DbTransaction transaction = null)
+        {
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
+
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction).ConfigureAwait(false);
+
+                var scopeInfoClients = await InternalLoadAllScopeInfoClientsAsync(context,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return scopeInfoClients;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
+
+        /// <summary>
+        /// Save a <see cref="ScopeInfoClient"/> instance to the local data source.
+        /// <example>
+        /// <code>
+        ///  var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync();
+        ///  
+        ///  if (cScopeInfoClient.IsNewScope)
+        ///  {
+        ///    cScopeInfoClient.IsNewScope = false;
+        ///    cScopeInfoClient.LastSync = DateTime.Now;
+        ///    cScopeInfoClient.LastSyncTimestamp = 0;
+        ///    cScopeInfoClient.LastServerSyncTimestamp = 0;
+        ///  
+        ///    await agent.LocalOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
+        ///  }
+        /// </code>
+        /// </example>
+        /// </summary>
+        /// <returns><see cref="ScopeInfoClient"/> instance.</returns>
         public virtual async Task<ScopeInfoClient> SaveScopeInfoClientAsync(ScopeInfoClient scopeInfoClient, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfoClient);
@@ -43,31 +93,6 @@ namespace Dotmim.Sync
                 await runner.CommitAsync().ConfigureAwait(false);
 
                 return scopeInfoClient;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(context, ex);
-            }
-        }
-
-        /// <summary>
-        /// Get all scopes info clients. scopeName arg is just here for logging purpose and is not used
-        /// </summary>
-        public virtual async Task<List<ScopeInfoClient>> GetAllScopeInfoClientsAsync(DbConnection connection = null, DbTransaction transaction = null)
-        {
-            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
-
-            try
-            {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction).ConfigureAwait(false);
-
-                List<ScopeInfoClient> scopeInfoClients;
-                (context, scopeInfoClients) = await InternalLoadAllScopeInfoClientsAsync(context,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return scopeInfoClients;
             }
             catch (Exception ex)
             {
@@ -142,8 +167,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal load all client histories scopes
         /// </summary>
-        internal virtual async Task<(SyncContext context, List<ScopeInfoClient> scopeInfoClients)>
-            InternalLoadAllScopeInfoClientsAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal virtual async Task<List<ScopeInfoClient>> InternalLoadAllScopeInfoClientsAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
@@ -151,7 +175,7 @@ namespace Dotmim.Sync
 
             using var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetAllScopeInfoClients, runner.Connection, runner.Transaction);
 
-            if (command == null) return (context, null);
+            if (command == null) return default;
 
             var scopeInfoClients = new List<ScopeInfoClient>();
 
@@ -170,7 +194,7 @@ namespace Dotmim.Sync
 
             command.Dispose();
 
-            return (context, scopeInfoClients);
+            return scopeInfoClients;
         }
 
         /// <summary>

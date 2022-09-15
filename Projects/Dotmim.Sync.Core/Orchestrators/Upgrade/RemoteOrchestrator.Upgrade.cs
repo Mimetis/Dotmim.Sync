@@ -279,12 +279,11 @@ namespace Dotmim.Sync
                 // Step 8 : Get final scope_info and scope_info_client 
                 // ----------------------------------------------------
                 List<ScopeInfo> sFinalScopeInfos = null;
-                List<ScopeInfoClient> sFinalScopeInfoClients = null;
 
                 (context, sFinalScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                (context, sFinalScopeInfoClients) = await this.InternalLoadAllScopeInfoClientsAsync(context,
+                var sFinalScopeInfoClients = await this.InternalLoadAllScopeInfoClientsAsync(context,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
 

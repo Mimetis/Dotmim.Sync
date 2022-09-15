@@ -40,9 +40,7 @@ namespace Dotmim.Sync
                     await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, 
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                List<ScopeInfoClient> sScopeInfoClients;
-
-                (context, sScopeInfoClients) = await this.InternalLoadAllScopeInfoClientsAsync(context, 
+                var sScopeInfoClients = await this.InternalLoadAllScopeInfoClientsAsync(context, 
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (sScopeInfoClients == null || sScopeInfoClients.Count == 0)

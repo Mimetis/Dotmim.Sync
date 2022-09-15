@@ -108,7 +108,6 @@ This tutorial will describe all the steps required to create a first sync betwee
     // relying on triggers and tracking tables to create the sync environment
     var clientProvider = new SqliteSyncProvider(clientConnectionString);
 
-
     // Tables involved in the sync process:
     var setup = new SyncSetup("ProductCategory", "ProductModel", "Product",
         "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" );
@@ -134,20 +133,23 @@ And here is the result you should have, after a few seconds:
 
     Synchronization done.
             Total changes  uploaded: 0
-            Total changes  downloaded: 2752
-            Total changes  applied: 2752
+            Total changes  downloaded: 3514
+            Total changes  applied on client: 3514
+            Total changes  applied on server: 0
+            Total changes  failed to apply on client: 0
+            Total changes  failed to apply on server: 0
             Total resolved conflicts: 0
-            Total duration :0:0:3.776
+            Total duration :00.00:02.125
 
-It took almost **4 seconds** on my machine to make a full synchronization between the **Server** and the **Client**.  
+It took **2 seconds** on my machine to make a full synchronization between the **Server** and the **Client**.  
 
 
 Second sync
 ----------------------
 
-This first sample took almost **4 seconds** to make a *full* sync between a **Server** and a **Client**.
+This first sample took **2 seconds** to make a *full* sync between a **Server** and a **Client**.
 
-It's a little bit long, because, under the hood, the ``Dotmim.Sync`` framework, on the **first sync only**, will have to:
+It's a little bit long (I'm kidding... no), because, under the hood, the ``Dotmim.Sync`` framework, on the **first sync only**, will have to:
 
 * Get the schema from the **Server** side and create all the tables on the **Client** side, if needed. (yes, you don't need a client database with an existing schema)
 * Create on both side all the required stuff to be able to manage a full sync process, creating *tracking* tables, stored procedures, triggers and so on ... be careful, ``Dotmim.Sync`` could be a little bit intrusive if you're not using the ``SqlSyncChangeTrackingProvider`` provider :)
@@ -159,8 +161,8 @@ We can add **101** items in the :guilabel:`ProductCategory`  table (on the serve
 
 .. code-block:: sql
 
-    Insert into ProductCategory (Name)
-    Select SUBSTRING(CONVERT(varchar(255), NEWID()), 0, 7)
+    Insert into ProductCategory (ProductCategoryID, Name)
+    Select newid(), SUBSTRING(CONVERT(varchar(255), NEWID()), 0, 7)
     Go 100
 
 From the same console application (indeed, we have a `do while` loop), same code, just hit `enter` to relaunch the synchronization and see the results:
@@ -170,8 +172,14 @@ From the same console application (indeed, we have a `do while` loop), same code
     Synchronization done.
             Total changes  uploaded: 0
             Total changes  downloaded: 100
-            Total changes  applied: 100
+            Total changes  applied on client: 100
+            Total changes  applied on server: 0
+            Total changes  failed to apply on client: 0
+            Total changes  failed to apply on server: 0
             Total resolved conflicts: 0
-            Total duration :0:0:0.145
+            Total duration :00.00:00.059
 
-Boom, less than **150** milliseconds. 
+Boom, it's .... fast, isn't it ?
+
+
+

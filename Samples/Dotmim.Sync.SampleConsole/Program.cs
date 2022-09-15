@@ -55,8 +55,7 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        serverProvider.UseBulkOperations = false;
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
 
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
@@ -106,8 +105,8 @@ internal class Program
 
         //await TestItAsync();
 
-        // await SynchronizeAsync(clientProvider, serverProvider, setup, options);
-        await GenerateErrorsAsync();
+         await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        //await GenerateErrorsAsync();
     }
 
     private static async Task TestItAsync()
@@ -281,9 +280,7 @@ internal class Program
         //var options = new SyncOptions();
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}");
-        });
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);

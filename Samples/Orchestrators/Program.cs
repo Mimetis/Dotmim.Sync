@@ -123,10 +123,10 @@ namespace HelloSync
 
         }
 
-            /// <summary>
-            /// Create a localorchestrator, and get changes that should be sent to server
-            /// </summary>
-            private static async Task GetClientChangesToSendToServerAsync()
+        /// <summary>
+        /// Create a localorchestrator, and get changes that should be sent to server
+        /// </summary>
+        private static async Task GetClientChangesToSendToServerAsync()
         {
             var serverProvider = new SqlSyncProvider(serverConnectionString);
             var clientProvider = new SqlSyncProvider(clientConnectionString);

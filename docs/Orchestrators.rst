@@ -9,13 +9,13 @@ Overview
 
 We have two kind of orchestrators: 
 
-* Local Orchestrator (or let’s say client side orchestrator) : ``LocalOrchestrator``.
-* Remote Orchestrator (or let’s say server side orchestrator) : ``RemoteOrchestrator``.
+* The **Local Orchestrator** (or let’s say client side orchestrator) : ``LocalOrchestrator``.
+* The **Remote Orchestrator** (or let’s say server side orchestrator) : ``RemoteOrchestrator``.
 
-We have more orchestrators, that will handle, under the hood, the web sync process:
+We have other orchestrators, that will handle, under the hood, the web sync process:
 
-* The ``WebRemoteOrchestrator``: This orchestrator will run locally, and will act "*as*" an orchestrator from the sync agent, but under the hood will generate an http request with a payload containing all the required information
-* The ``WebServerAgent``: On the opposite side, this agent is hosted through an exposed web api, and will get the incoming request from the ``WebRemoteOrchestrator`` and will then call the underline ``RemoteOrchestrator`` correctly.
+* The ``WebRemoteOrchestrator``: This orchestrator will run locally, and will act "*as*" an orchestrator from the sync agent, but under the hood will generate an http request with a payload containing all the required information, and will send it to the server side.
+* The ``WebServerAgent``: On the opposite side, this agent is hosted with an ASP.NET WebApi an is exposed by a web api, and will get the incoming request from the ``WebRemoteOrchestrator`` and will then call the underline ``RemoteOrchestrator`` correctly.
 
 A set of methods are accessible from both ``LocalOrchestrator`` or ``RemoteOrchestrator`` (and for some of them from ``WebRemoteOrchestrator``).
 
@@ -27,20 +27,10 @@ A set of methods are accessible from both ``LocalOrchestrator`` or ``RemoteOrche
 * Scopes
 
 
-
-Schema Methods
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-TODO
-
-
-
-
 Builder Methods
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 You need a ``ScopeInfo`` instance to be able to create any metadatas (stored proc, tables, triggers or tracking tables) in your data source.
-
 
 
 This method runs on any ``Orchestrator``, but we are using here a ``RemoteOrchestrator`` because the client database is empty and getting a table schema from an empty database... well.. :)
@@ -157,6 +147,8 @@ Now we can drop this newly created stored procedure and tracking table:
 LocalOrchestrator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+The local orchestrator runs only on the client side. You have access to several useful methods to get the changes to send on the next sync, or even an estimation of these changes.
+
 
 GetChangesAsync
 -------------------
@@ -259,7 +251,7 @@ Each file contained in the BatchInfo instance is loaded in memory, and returned 
 ProvisionAsync
 ------------------
 
-Provision the local database with the tables and stored procedures needed for the sync process.
+Provision the local datasource with the tracking tables, stored procedures, triggers and even tables needed for the sync process.
 
 | You need a ``ScopeInfo`` instance to be able to provision the local database.
 | If you do not specify the ``provision`` argument, a default value ``SyncProvision.Table | SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable`` is used.
@@ -284,4 +276,39 @@ Usually, the ScopeInfo instance is retrieved from your server database, using a 
     if (cScopeInfo != null)
         cScopeInfo = await localOrchestrator.ProvisionAsync(cScopeInfo, overwrite:true);
 
+
+DeprovisionAsync
+----------------------
+
+Deprovision the local datasource. This will drop tracking tables, stored procedures or triggers created by the sync process.
+
+.. note:: By default, **DMS** will never deprovision a table, if not explicitly set with the **provision** argument. 
+    
+    Same behavior applies to the :guilabel:`scope_info` and :guilabel:`scope_info_client`  tables.
+
+
+.. code-block:: csharp
+    
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
+
+
+If you do not have any scope info locally (the :guilabel:`scope_info` table does not exists anymore, or is empty), you still can try to deprovision your local database using a simple ``SyncSetup`` instance:
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    var setup = new SyncSetup("ProductCategory", "Product");
+    await localOrchestrator.DeprovisionAsync(setup, SyncProvision.StoredProcedures | SyncProvision.Triggers);
+
+
+DropAllAsync
+----------------
+
+Drop all DMS metadatas from your local database, except tables. Everythin is dropped: **tracking tables**, **stored procedures**, **triggers**, **scope info tables**, etc.
+
+.. code-block:: csharp
+    
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    await localOrchestrator.DropAllAsync();
 

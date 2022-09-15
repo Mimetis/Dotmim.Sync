@@ -5,6 +5,7 @@ using Dotmim.Sync.Serialization;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
@@ -13,6 +14,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Transactions;
 
 
 namespace Dotmim.Sync
@@ -329,8 +331,9 @@ namespace Dotmim.Sync
         }
 
 
-        internal virtual async Task<(SyncContext context, ScopeInfo sScopeInfo)>
-        InternalProvisionServerAsync(ScopeInfo sScopeInfo, SyncContext context, SyncProvision provision = default, bool overwrite = false, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal virtual async Task<(SyncContext context, ScopeInfo sScopeInfo)> InternalProvisionServerAsync(ScopeInfo sScopeInfo, SyncContext context, 
+                                SyncProvision provision = default, bool overwrite = false, 
+                                DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
@@ -362,5 +365,26 @@ namespace Dotmim.Sync
         }
 
 
+        internal virtual async Task<bool> InternalShouldProvisionServerAsync(ScopeInfo sScopeInfo, SyncContext context,
+                                DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                var scopeInfoClients = await InternalLoadAllScopeInfoClientsAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                if (scopeInfoClients == null || scopeInfoClients.Count <= 0)
+                    return true;
+
+                var scopeInfoClientsForThisScopeNameAlreadyExists = scopeInfoClients.Any(sic => sic.Name == sScopeInfo.Name);
+
+                return !scopeInfoClientsForThisScopeNameAlreadyExists;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
     }
 }

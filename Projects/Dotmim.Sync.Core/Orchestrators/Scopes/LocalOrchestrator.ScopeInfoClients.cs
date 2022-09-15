@@ -66,8 +66,7 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // load all scope info client
-                List<ScopeInfoClient> cScopeInfoClients;
-                (context, cScopeInfoClients) = await this.InternalLoadAllScopeInfoClientsAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                var cScopeInfoClients = await this.InternalLoadAllScopeInfoClientsAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // Get scope info client if exists
                 ScopeInfoClient cScopeInfoClient = null;

@@ -11,7 +11,7 @@ Welcome to Dotmim.Sync
    :alt: icon
 
    
-**DotMim.Sync** (**DMS**) is a straightforward framework for syncing relational databases, developed on top of **.Net Standard 2.0**, available and ready to use within  **IOT**, **Xamarin**, **.NET**, **.NET Core**, **UWP** and so on :)  
+**DotMim.Sync** (**DMS**) is a straightforward framework for syncing relational databases, developed on top of **.Net Standard 2.0**, available and ready to use within  **Xamarin**, **MAUI**, **.NET Core 3.1**, **.NET 6 & 7** and so on :)  
 
 Available for syncing **SQL Server**, **MySQL**, **MariaDB** and **Sqlite** databases.
 
@@ -31,7 +31,7 @@ Starting from scratch
 
 Here is the easiest way to create a first sync, from scratch : 
 
-* Create a **.Net Standard 2.0** compatible project, like a **.Net Core 2.0 / 3.1** or **.Net Fx 4.8** console application.  
+* Create a **.NET Core 3.1** or **.NET 6** / **.NET 7** console application.  
 * Add the nugets packages `DotMim.Sync.SqlServer <https://www.nuget.org/packages/Dotmim.Sync.SqlServer>`_  and `DotMim.Sync.Sqlite <https://www.nuget.org/packages/Dotmim.Sync.Sqlite>`_  
 * If you don't have any hub database for testing purpose, use this one : `AdventureWorks lightweight script for SQL Server </CreateAdventureWorks.sql>`_ 
 * If you want to test **MySql**, use this script : `AdventureWorks lightweight script for MySQL Server </CreateMySqlAdventureWorks.sql>`_   
@@ -69,10 +69,13 @@ And here is the result you should have, after a few seconds:
 
    Synchronization done.
          Total changes  uploaded: 0
-         Total changes  downloaded: 2752
-         Total changes  applied: 2752
+         Total changes  downloaded: 3514
+         Total changes  applied on client: 3514
+         Total changes  applied on server: 0
+         Total changes  failed to apply on client: 0
+         Total changes  failed to apply on server: 0
          Total resolved conflicts: 0
-         Total duration :0:0:3.776
+         Total duration :00.00:02.125
 
 You're done !
 
@@ -81,12 +84,15 @@ You should see something like that:
 
 .. code-block:: csharp
 
-   Synchronization done.
-         Total changes  uploaded: 0
-         Total changes  downloaded: 1
-         Total changes  applied: 1
-         Total resolved conflicts: 0
-         Total duration :0:0:0.045
+Synchronization done.
+        Total changes  uploaded: 0
+        Total changes  downloaded: 1
+        Total changes  applied on client: 1
+        Total changes  applied on server: 0
+        Total changes  failed to apply on client: 0
+        Total changes  failed to apply on server: 0
+        Total resolved conflicts: 0
+        Total duration :00.00:00.030
 
 Yes it's blazing fast !
 
