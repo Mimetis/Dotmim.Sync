@@ -57,8 +57,7 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Called by the  to indicate that a 
-        /// synchronization session has started.
+        /// Called when a new synchronization session has started. Initialize the SyncContext instance, used for this session.
         /// </summary>
         public virtual Task BeginSessionAsync(string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
@@ -69,7 +68,7 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Called when the sync is over
+        /// Called when the synchronization session is over.
         /// </summary>
         public Task EndSessionAsync(SyncResult syncResult, string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {

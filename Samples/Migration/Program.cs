@@ -132,8 +132,8 @@ namespace Migration
 
             // Provision client with the new the V1 scope
             // Getting the scope from server and apply it locally
-            var serverScope = await agent1.RemoteOrchestrator.GetScopeInfoAsync("v1");
-            var v1clientScope = await agent1.LocalOrchestrator.ProvisionAsync(serverScope);
+            var sScopeInfo = await agent1.RemoteOrchestrator.GetScopeInfoAsync("v1");
+            var v1cScopeInfo = await agent1.LocalOrchestrator.ProvisionAsync(sScopeInfo);
             Console.WriteLine("Sql Server client1 Provision done.");
 
             // if you look the stored procs on your local sql database
@@ -179,7 +179,7 @@ namespace Migration
             Console.WriteLine($"Column eventually added to Sqlite client2");
 
             // Provision SQLite client with the new the V1 scope
-            var v1client2Scope= await agent2.LocalOrchestrator.ProvisionAsync(serverScope);
+            var v1cScopeInfo2= await agent2.LocalOrchestrator.ProvisionAsync(sScopeInfo);
             Console.WriteLine($"Provision v1 done on SQLite client2");
 
             // ShadowScope old scope to new scope

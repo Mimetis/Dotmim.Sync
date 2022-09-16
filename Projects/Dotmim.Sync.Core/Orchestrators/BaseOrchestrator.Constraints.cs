@@ -19,7 +19,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Reset a table, deleting all rows from table and tracking_table. This method is used when you want to Reinitialize your database
         /// </summary>
-        public virtual Task<SyncContext> ResetTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
+        public virtual Task ResetTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             return ResetTableAsync(scopeInfo, context, tableName, schemaName, connection, transaction);
@@ -28,26 +28,24 @@ namespace Dotmim.Sync
         /// <summary>
         /// Reset a table, deleting rows from table and tracking_table
         /// </summary>
-        public virtual async Task<SyncContext> ResetTableAsync(ScopeInfo scopeInfo, SyncContext context, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
+        public virtual async Task ResetTableAsync(ScopeInfo scopeInfo, SyncContext context, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
         {
             try
             {
                 if (scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
-                    return context;
+                    return;
 
                 var schemaTable = scopeInfo.Schema.Tables[tableName, schemaName];
 
                 if (schemaTable == null)
-                    return context;
+                    return;
 
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
 
-                context = await this.InternalResetTableAsync(scopeInfo, context, schemaTable, 
+                context = await this.InternalResetTableAsync(scopeInfo, context, schemaTable,
                     runner.Connection, runner.Transaction).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
-
-                return context;
             }
             catch (Exception ex)
             {
@@ -57,28 +55,54 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Disabling constraints on one table
+        /// Disable a table's constraints
+        /// <para>
+        /// Usually this method is surrounded by a connection / transaction
+        /// </para>
+        /// <example>
+        /// <code>
+        /// var localOrchestrator = new LocalOrchestrator(clientProvider);
+        /// 
+        /// using var sqlConnection = new SqlConnection(clientProvider.ConnectionString);
+        /// 
+        /// sqlConnection.Open();
+        /// using var sqlTransaction = sqlConnection.BeginTransaction();
+        /// 
+        /// var scopeInfo = await localOrchestrator.GetScopeInfoAsync(sqlConnection, sqlTransaction);
+        /// await localOrchestrator.DisableConstraintsAsync(scopeInfo, "ProductCategory", default,
+        ///     sqlConnection, sqlTransaction);
+        /// 
+        /// // .. Do some random insert in the ProductCategory table
+        /// await DoSomeRandomInsertInProductCategoryTableAsync(sqlConnection, sqlTransaction);
+        /// 
+        /// await localOrchestrator.EnableConstraintsAsync(scopeInfo, "ProductCategory", default,
+        ///     sqlConnection, sqlTransaction);
+        /// 
+        /// sqlTransaction.Commit();
+        /// sqlConnection.Close();
+        /// </code>
+        /// </example>
         /// </summary>
-        public virtual async Task<SyncContext> DisableConstraintsAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
+        public virtual async Task DisableConstraintsAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
             {
 
                 if (scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
-                    return context;
+                    return;
 
                 var schemaTable = scopeInfo.Schema.Tables[tableName, schemaName];
 
                 if (schemaTable == null)
-                    return context;
+                    return;
 
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
-                
-                context = await this.InternalDisableConstraintsAsync(scopeInfo, context, schemaTable, 
+
+                context = await this.InternalDisableConstraintsAsync(scopeInfo, context, schemaTable,
                     runner.Connection, runner.Transaction).ConfigureAwait(false);
-                
-                return context;
+
+                return;
             }
             catch (Exception ex)
             {
@@ -88,28 +112,54 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Enabling constraints on one table
+        /// Enable a table's constraints
+        /// <para>
+        /// Usually this method is surrounded by a connection / transaction
+        /// </para>
+        /// <example>
+        /// <code>
+        /// var localOrchestrator = new LocalOrchestrator(clientProvider);
+        /// 
+        /// using var sqlConnection = new SqlConnection(clientProvider.ConnectionString);
+        /// 
+        /// sqlConnection.Open();
+        /// using var sqlTransaction = sqlConnection.BeginTransaction();
+        /// 
+        /// var scopeInfo = await localOrchestrator.GetScopeInfoAsync(sqlConnection, sqlTransaction);
+        /// await localOrchestrator.DisableConstraintsAsync(scopeInfo, "ProductCategory", default,
+        ///     sqlConnection, sqlTransaction);
+        /// 
+        /// // .. Do some random insert in the ProductCategory table
+        /// await DoSomeRandomInsertInProductCategoryTableAsync(sqlConnection, sqlTransaction);
+        /// 
+        /// await localOrchestrator.EnableConstraintsAsync(scopeInfo, "ProductCategory", default,
+        ///     sqlConnection, sqlTransaction);
+        /// 
+        /// sqlTransaction.Commit();
+        /// sqlConnection.Close();
+        /// </code>
+        /// </example>
         /// </summary>
-        public virtual async Task<SyncContext> EnableConstraintsAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
+        public virtual async Task EnableConstraintsAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
             {
 
                 if (scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
-                    return context;
+                    return;
 
                 var schemaTable = scopeInfo.Schema.Tables[tableName, schemaName];
 
                 if (schemaTable == null)
-                    return context;
+                    return;
 
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
-                
+
                 context = await this.InternalEnableConstraintsAsync(scopeInfo, context, schemaTable,
                     runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-                return context;
+                return;
             }
             catch (Exception ex)
             {

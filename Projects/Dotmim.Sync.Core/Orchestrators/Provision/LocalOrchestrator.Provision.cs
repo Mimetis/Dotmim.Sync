@@ -76,7 +76,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Deprovision your client datasource.
         /// <example>
-        /// Deprovision a client database:
         /// <code>
         /// var localOrchestrator = new LocalOrchestrator(clientProvider);
         /// await localOrchestrator.DeprovisionAsync();

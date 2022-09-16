@@ -35,8 +35,10 @@ namespace Dotmim.Sync.Web.Client
             => throw new NotImplementedException();
         public override Task<bool> DeprovisionAsync(SyncSetup setup, SyncProvision provision = SyncProvision.NotSet, DbConnection connection = null, DbTransaction transaction = null)
             => throw new NotImplementedException();
-
-
+        public override Task DropAllAsync(DbConnection connection = null, DbTransaction transaction = null) 
+            => throw new NotImplementedException();
+        internal override Task<bool> InternalShouldProvisionServerAsync(ScopeInfo sScopeInfo, SyncContext context, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            => Task.FromResult(false);
 
     }
 }

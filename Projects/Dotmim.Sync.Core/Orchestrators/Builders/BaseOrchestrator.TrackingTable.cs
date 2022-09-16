@@ -138,7 +138,7 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Create all <strong>Tracking Tables</strong> for a given table present in an existing scopeInfo.
+        /// Create ALL <strong>Tracking Tables</strong> for a given table present in an existing scopeInfo.
         /// <example>
         /// <code>
         /// var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);

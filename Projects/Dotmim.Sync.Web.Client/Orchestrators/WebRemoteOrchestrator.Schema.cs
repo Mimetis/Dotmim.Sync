@@ -16,12 +16,17 @@ namespace Dotmim.Sync.Web.Client
 {
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
+
         /// <summary>
-        /// Http Client is not authorized to ask metadatas deletion on the server
+        /// Method not allowed from WebRemoteOrchestrator
         /// </summary>
         public override Task<SyncSet> GetSchemaAsync(SyncSetup setup, DbConnection connection = null, DbTransaction transaction = null)
             => throw new NotImplementedException();
 
-
+        /// <summary>
+        /// Method not allowed from WebRemoteOrchestrator
+        /// </summary>
+        public override Task<SyncSet> GetSchemaAsync(string scopeName, SyncSetup setup, DbConnection connection = null, DbTransaction transaction = null)
+            => throw new NotImplementedException();
     }
 }

@@ -2413,10 +2413,9 @@ namespace Dotmim.Sync.Tests
             var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload);
 
             // Generation of an outdated mark on the server
-            var serverOrchestrator = new RemoteOrchestrator(Server.Provider, options);
-            var ts = await serverOrchestrator.GetLocalTimestampAsync();
-            await serverOrchestrator.DeleteMetadatasAsync(ts + 1);
-
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
+            var ts = await remoteOrchestrator.GetLocalTimestampAsync();
+            await remoteOrchestrator.DeleteMetadatasAsync(ts + 1);
         }
 
         /// <summary>

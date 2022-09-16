@@ -94,14 +94,16 @@ The ``SyncProvision`` enum parameter lets you decide which kind of objects (tabl
     [Flags]
     public enum SyncProvision
     {
+        NotSet = 0,
         Table = 1,
         TrackingTable = 2,
         StoredProcedures = 4,
         Triggers = 8,
-        ClientScope = 16,
-        ServerScope = 32,
-        ServerHistoryScope = 64,
+        ScopeInfo = 16,
+        ScopeInfoClient = 32
     }
+
+.. note:: ``SyncProvision.NotSet`` is the default value, and will provision everything, depending on the orchestrator used to provision.
 
            
 
@@ -137,7 +139,7 @@ Provisioning from server side, using a remote orchestrator:
 
     // Provision everything needed (sp, triggers, tracking tables)
     // Internally provision will fectch the schema a will return it to the caller. 
-    var newSchema = await remoteOrchestrator.ProvisionAsync(setup);
+    var sScopeInfo = await remoteOrchestrator.ProvisionAsync(setup);
 
 
 Provision on the client side is quite similar, despite the fact we will rely on the server schema to create any missing table.
@@ -167,8 +169,8 @@ Provision on the client side is quite similar, despite the fact we will rely on 
     // Because we need the schema from remote side, create a remote orchestrator
     var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
-    // Getting the server scope from server side
-    var serverScope = await remoteOrchestrator.GetServerScopeInfoAsync();
+    // Getting the scope info from server side
+    var serverScope = await remoteOrchestrator.GetScopeInfoAsync();
 
     // At this point, if you need the schema and you are not able to create a RemoteOrchestrator,
     // You can create a WebRemoteOrchestrator and get the schema as well
@@ -361,11 +363,13 @@ Once it's done, the code is almost the same, a part from that you need to get th
     var serverScope = await agent1.RemoteOrchestrator.GetServerScopeInfoAsync("v0", progress: progress);
 
     // provision
-    var clientScope = await agent1.LocalOrchestrator.ProvisionAsync(serverScope, overwrite:true, progress:progress);
+    var clientScope = await agent1.LocalOrchestrator.ProvisionAsync(serverScope,
+                                                                    overwrite:true, progress:progress);
+                                             
     Console.WriteLine("Sql Server client1 Provision done.");
 
 
-| You can use an interceptor as well, that can automate this step (if you are not updating your client application after a database schema update).
+| You can use an interceptor as well, that can automate this step (if you are not able to update your client application after a database schema update).
 | Basically, the interceptor ``OnConflictingSetup`` is called every time a setup from the server is different from the one on the client.
 | You can choose then to update your database accordingly:
 
@@ -514,10 +518,10 @@ _________________
 
     // Provision client with the new the V1 scope
     // Getting the scope from server and apply it locally
-    var serverScope = await agent1.RemoteOrchestrator.GetServerScopeInfoAsync("v1", progress: progress);
+    var sScopeInfo = await agent1.RemoteOrchestrator.GetScopeInfoAsync("v1");
 
     // provision this new scope
-    var v1clientScope = await agent1.LocalOrchestrator.ProvisionAsync(serverScope, progress:progress);
+    var v1cScopeInfo = await agent1.LocalOrchestrator.ProvisionAsync(sScopeInfo);
     Console.WriteLine("Sql Server client1 Provision done.");
 
 
@@ -541,9 +545,10 @@ That's why we are going to "**shadow copy**" the required properties from the "*
         What we want is to sync from the last point we sync the old v0 scope
         That's why we are shadowing the metadata info from v0 into v1  
     */
-    var v0clientScope = await agent1.LocalOrchestrator.GetClientScopeInfoAsync("v0");
-    v1clientScope.ShadowScope(v0clientScope);
-    v1clientScope = await agent1.LocalOrchestrator.SaveClientScopeInfoAsync(v1clientScope);
+    var v1cScopeInfoClient= await agent1.LocalOrchestrator.GetScopeInfoClientAsync("v1");
+    var v0cScopeInfoClient = await agent1.LocalOrchestrator.GetScopeInfoClientAsync("v0");
+    v1cScopeInfoClient.ShadowScope(v0cScopeInfoClient);
+    await agent1.LocalOrchestrator.SaveScopeInfoClientAsync(v1cScopeInfoClient);
 
 Now our client 1 is upgraded, has the new scope and can eventually launch a new sync on this new scope:
 
@@ -611,13 +616,14 @@ Client 2 is still syncing on the "**v0**" scope and will eventually migrate to "
     Console.WriteLine($"Column eventually added to Sqlite client2");
 
     // Provision SQLite client with the new the V1 scope
-    var v1client2Scope= await agent2.LocalOrchestrator.ProvisionAsync(serverScope, progress: progress);
+    var v1cScopeInfo2= await agent2.LocalOrchestrator.ProvisionAsync(sScopeInfo);
     Console.WriteLine($"Provision v1 done on SQLite client2");
 
-    // ShadowScope old scope to new scope
-    var v0client2Scope = await agent2.LocalOrchestrator.GetClientScopeInfoAsync("v0");
-    v1client2Scope.ShadowScope(v0client2Scope);
-    v1client2Scope = await agent2.LocalOrchestrator.SaveClientScopeInfoAsync(v1client2Scope);
+    // ShadowScope old scope info client to new scope info client
+    var v1cScopeInfoClient2 = await agent2.LocalOrchestrator.GetScopeInfoClientAsync("v1");
+    var v0cScopeInfoClient2 = await agent2.LocalOrchestrator.GetScopeInfoClientAsync("v0");
+    v1cScopeInfoClient2.ShadowScope(v0cScopeInfoClient2);
+    await agent2.LocalOrchestrator.SaveScopeInfoClientAsync(v1cScopeInfoClient2);
 
     // let's try to sync firstly
     // Now test a new sync, on this new scope v1

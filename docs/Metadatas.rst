@@ -14,7 +14,6 @@ For example, here is the content of the ``[Customer_tracking]`` after a successf
     :align: center
 
 
-
 | So, over time, we can have an increase of these tracking tables, with a lot of rows that are not useful anymore.
 | These **metadatas rows** are present on the server side of course, and also on the **client side**.
 
@@ -137,18 +136,18 @@ The code became:
 
 .. code-block:: csharp
 
-    // get all history lines from `scope_info_history`
-    var histories = await remoteOrchestrator.GetServerHistoryScopes();
+    // get all scope info clients
+    var sScopeInfoClients = await remoteOrchestrator.GetAllScopeInfoClientsAsync();
 
     // select only clients that have synced at least 30 days earlier
-    var historiesTwoWeeksAgo = histories.Where(h => h.LastSync.HasValue 
-                                                    && h.LastSync.Value >= DateTime.Now.AddDays(-30));
+    var oneMonthMaxScopeInfoClients = sScopeInfoClients.Where(
+        sic => sic.LastSync.HasValue && sic.LastSync.Value >= DateTime.Now.AddDays(-30));
 
     // Get the min timestamp
-    var minTimestamp = historiesTwoWeeksAgo.Min(h => h.LastSyncTimestamp);
+    var minTimestamp = oneMonthMaxScopeInfoClients.Min(h => h.LastSyncTimestamp);
 
     // Call the delete metadatas with this timestamp
-    await remoteOrchestrator.DeleteMetadatasAsync(minTimestamp);
+    await remoteOrchestrator.DeleteMetadatasAsync(minTimestamp.Value);
 
 
 Grab this code, create a *routine* to execute every month, and your server database won't growth too much because of the tracking tables metadata rows.

@@ -248,6 +248,27 @@ Each file contained in the BatchInfo instance is loaded in memory, and returned 
     }
 
 
+GetSchemaAsync
+------------------
+
+Get the schema from the local datasource.
+
+Be careful:
+
+- ``GetScopeInfo()`` returns a ScopeInfo object, which contains the schema of the local database, saved in the :guilabel:`scope_info` table.
+- ``GetSchema()`` returns a SyncSet object, which contains the schema of the local database, read on the fly.
+
+Internally **DMS** is using GetSchema whenever it's needed, and eventually saved the schema in the :guilabel:`scope_info` table.
+
+Using ``GetSchema()`` will not save the schema anywhere.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    var setup = new SyncSetup("ProductCategory", "Product");
+    var schema = await localOrchestrator.GetSchemaAsync(setup);
+
+
 ProvisionAsync
 ------------------
 
@@ -267,7 +288,7 @@ Usually, the ScopeInfo instance is retrieved from your server database, using a 
 | If you have already done a first sync (or a first provision) of your client database, you can use the ``GetScopeInfoAsync`` method to get the ScopeInfo instance from your client database instead of your server database.
 | Provision an already provisioned local database can be useful if you want to overwrite / recreate everything.
 
-.. note:: Be careful, the client database may not contains a ScopeInfo instance if you have not done a first sync.
+.. WARNING:: Be careful, the client database may not contains a ScopeInfo instance if you have not done a first sync.
 
 .. code-block:: csharp
 
@@ -275,6 +296,10 @@ Usually, the ScopeInfo instance is retrieved from your server database, using a 
     var cScopeInfo = await localOrchestrator.GetScopeInfoAsync();
     if (cScopeInfo != null)
         cScopeInfo = await localOrchestrator.ProvisionAsync(cScopeInfo, overwrite:true);
+
+.. admonition:: More ...
+
+   Check the `Provision & Deprovision </Provision.html>`_ section for more details about the provision process.
 
 
 DeprovisionAsync
@@ -299,7 +324,12 @@ If you do not have any scope info locally (the :guilabel:`scope_info` table does
 
     var localOrchestrator = new LocalOrchestrator(clientProvider);
     var setup = new SyncSetup("ProductCategory", "Product");
-    await localOrchestrator.DeprovisionAsync(setup, SyncProvision.StoredProcedures | SyncProvision.Triggers);
+    await localOrchestrator.DeprovisionAsync(setup, 
+                SyncProvision.StoredProcedures | SyncProvision.Triggers);
+
+.. admonition:: More ...
+
+   Check the `Provision & Deprovision </Provision.html>`_ section for more details about the provision process.
 
 
 DropAllAsync
@@ -312,3 +342,75 @@ Drop all DMS metadatas from your local database, except tables. Everythin is dro
     var localOrchestrator = new LocalOrchestrator(clientProvider);
     await localOrchestrator.DropAllAsync();
 
+DeleteMetadatasAsync
+---------------------------
+
+| Delete all DMS metadatas from the tracking tables, in your local database.
+| This operation is automatically managed by DMS on the client side. You should not have to use it manually, except on specific scenario.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    await localOrchestrator.DeleteMetadatasAsync();
+
+.. admonition:: More ...
+
+   Check the `Metadatas </Metadatas.html>`_ section for more details about the metadatas deletion process.
+
+ResetTableAsync
+---------------------
+
+Delete all rows from a **table** and the corresponding **tracking table**.
+
+This method is used internall
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    var scopeInfo = await localOrchestrator.GetScopeInfoAsync();
+    await localOrchestrator.ResetTableAsync(scopeInfo, "ProductCategory");
+
+.. warning:: Be careful, this method will delete all rows from your table !!
+
+
+EnableConstraintsAsync & DisableConstraintsAsync
+------------------------------------------------------------
+
+**Enable** or **Disable** all constraints on your local database.
+
+Useful if you want to apply rows without having to check any constraints.
+
+This method is used internally by **DMS** when you are using the ``SyncOptions.DisableConstraintsOnApplyChanges`` option.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+
+    using var sqlConnection = new SqlConnection(clientProvider.ConnectionString);
+
+    sqlConnection.Open();
+    using var sqlTransaction = sqlConnection.BeginTransaction();
+
+    var scopeInfo = await localOrchestrator.GetScopeInfoAsync(sqlConnection, sqlTransaction);
+    await localOrchestrator.DisableConstraintsAsync(scopeInfo, "ProductCategory", default,
+        sqlConnection, sqlTransaction);
+
+    // .. Do some random insert in the ProductCategory table
+    await DoSomeRandomInsertInProductCategoryTableAsync(sqlConnection, sqlTransaction);
+
+    await localOrchestrator.EnableConstraintsAsync(scopeInfo, "ProductCategory", default,
+        sqlConnection, sqlTransaction);
+
+    sqlTransaction.Commit();
+    sqlConnection.Close();
+
+GetLocalTimestampAsync
+------------------------------
+
+Get the local timestamp from the local database.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    var ts = await localOrchestrator.GetLocalTimestampAsync();
+    

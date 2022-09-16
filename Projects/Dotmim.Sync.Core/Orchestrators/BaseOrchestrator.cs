@@ -164,7 +164,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Open a connection
         /// </summary>
-        //[DebuggerStepThrough]
+        [DebuggerStepThrough]
         internal virtual async Task OpenConnectionAsync(SyncContext context, DbConnection connection, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             if (this.Provider == null)

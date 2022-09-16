@@ -105,59 +105,10 @@ internal class Program
 
         //await TestItAsync();
 
-         await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
         //await GenerateErrorsAsync();
     }
 
-    private static async Task TestItAsync()
-    {
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("svProduct"));
-        var client1Provider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("CliProduct"));
-        var client2Provider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-
-        var setup = new SyncSetup("Customer");
-        setup.Filters.Add("Customer", "Country");
-
-        var agent = new SyncAgent(client1Provider, serverProvider);
-
-        var paramIndia = new SyncParameters(("Country", "India"));
-        var paramSweden = new SyncParameters(("Country", "Sweden"));
-
-        var resultIndia = await agent.SynchronizeAsync(setup, paramIndia);
-        Console.WriteLine(resultIndia);
-
-        await DBHelper.ExecuteScriptAsync("CliProduct",
-            "INSERT [dbo].[Customer] ([CustomerID], [LastName], [Country]) VALUES (NEWID(), 'S1', 'Sweden')");
-        await DBHelper.ExecuteScriptAsync("CliProduct",
-            "INSERT [dbo].[Customer] ([CustomerID], [LastName], [Country]) VALUES (NEWID(), 'S2', 'Sweden')");
-
-        // try to get sweden info client instance:
-        // if it is not existing, DMS will create a new one, with IsNewScope set to true
-        var swedenScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync(syncParameters: paramSweden);
-
-        if (swedenScopeInfoClient.IsNewScope)
-        {
-            swedenScopeInfoClient.IsNewScope = false;
-            swedenScopeInfoClient.LastSync = DateTime.Now;
-            swedenScopeInfoClient.LastSyncTimestamp = 0;
-            swedenScopeInfoClient.LastServerSyncTimestamp = 0;
-
-            await agent.LocalOrchestrator.SaveScopeInfoClientAsync(swedenScopeInfoClient);
-        }
-
-        // sweden rows are sent to server
-        var resultSweden = await agent.SynchronizeAsync(setup, paramSweden);
-        Console.WriteLine(resultSweden);
-
-        agent = new SyncAgent(client2Provider, serverProvider);
-
-        resultIndia = await agent.SynchronizeAsync(setup, paramIndia);
-        Console.WriteLine(resultIndia);
-        resultSweden = await agent.SynchronizeAsync(setup, paramSweden);
-        Console.WriteLine(resultSweden);
-
-
-    }
 
     private static async Task GenerateErrorsAsync()
     {
@@ -167,6 +118,9 @@ internal class Program
         clientProvider.UseBulkOperations = false;
         var setup = new SyncSetup("ProductCategory");
         var options = new SyncOptions();
+
+
+        var localOrchestrator = new LocalOrchestrator(clientProvider);
 
         var getUpdateAndResolveForeignKeyErrorCommand = new Func<string>(() =>
         {

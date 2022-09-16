@@ -74,5 +74,6 @@ namespace Dotmim.Sync.Web.Client
         public override Task<bool> DeleteScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null)
             => throw new NotImplementedException();
 
+        
     }
 }
