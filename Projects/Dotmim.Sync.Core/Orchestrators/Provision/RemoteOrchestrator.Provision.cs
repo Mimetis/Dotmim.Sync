@@ -36,7 +36,7 @@ namespace Dotmim.Sync
         /// <code>
         /// var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
         /// var setup = new SyncSetup("ProductCategory", "Product");
-        /// var sScopeInfo = await localOrchestrator.ProvisionAsync(setup);
+        /// var sScopeInfo = await remoteOrchestrator.ProvisionAsync(setup);
         /// </code>
         /// </example>
         /// </para>

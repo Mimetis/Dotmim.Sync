@@ -414,3 +414,204 @@ Get the local timestamp from the local database.
     var localOrchestrator = new LocalOrchestrator(clientProvider);
     var ts = await localOrchestrator.GetLocalTimestampAsync();
     
+RemoteOrchestrator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The remote orchestrator runs only on the server side. You have access to several useful methods to get the changes to send on the next sync, or even an estimation of these changes.
+
+TCP mode
+---------------
+
+If you have a TCP connection between your server and your client, you can use the ``RemoteOrchestrator`` class within your ``SyncAgent`` instance.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+
+    var agent = new SyncAgent(localOrchestrator, remoteOrchestrator);
+
+That basically means your client application has a direct access to the server database, through a connection string.
+
+HTTP mode
+---------------
+
+In the other hand, if you are using the HTTP mode, you must use another remote orchestrator, that can send http requests. This orchestrator is the ``WebRemoteOrchestrator`` class.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    var remoteOrchestrator = new WebRemoteOrchestrator(serverProvider, "http://localhost:5000");
+
+    var agent = new SyncAgent(localOrchestrator, remoteOrchestrator);
+
+.. note:: More on how to handle a basic http scenario can be found in the `ASP.NET Web Proxy </Web.html>`_ section.
+
+
+GetChangesAsync
+-------------------
+
+Get the changes from local datasource, to be sent to a particular client.
+
+| You need to provide a ``ScopeInfoClient`` instance to be able to get the changes.
+| Returns an instance of ``ServerSyncChanges`` containing a reference to the changes serialized on disk.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    var remoteOrchestrator = new RemoteOrchestrator(remoteProvider);
+    var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
+    
+    var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
+
+| If you are not trying to retrieve the changes from a client perspective, but more from a server perspective, you can get a ``ScopeInfoClient`` instance from the server side as well.
+| As server is maitaining a reference to all clients, you need to pass the clientId reference to get the correct ``ScopeInfoClient`` instance.
+
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    var remoteOrchestrator = new RemoteOrchestrator(remoteProvider);
+
+    // You can load a client scope info from the server database also, if you know the clientId
+    var cScopeInfoClient = await remoteOrchestrator.GetScopeInfoClientAsync(
+       clientId, scopeName, parameters);
+    
+    var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
+
+
+If you need to load all changes in memory, you can use `LoadTableFromBatchInfoAsync <#loadtablefrombatchinfoasync>`_.
+
+
+GetEstimatedChangesCountAsync
+--------------------------------
+
+Get the estimated changes count from local datasource, to be sent to the server.
+
+| You need to provide a ``ScopeInfoClient`` instance to be able to get the changes.
+| Returns an instance of ``ServerSyncChanges`` containing a reference to the changes serialized on disk.
+| The propery ``ServerChangesSelected`` (of type ``DatabaseChangesSelected``) from the returned ``ServerSyncChanges`` value, contains the estimated changes count.
+
+.. warning:: No changes are downloaded, so far the ``ServerBatchInfo`` property is always **null**.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    var remoteOrchestrator = new RemoteOrchestrator(remoteProvider);
+    var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
+    
+    // You can load a client scope info from the server database also, if you know the clientId
+    // var cScopeInfoClient = await remoteOrchestrator.GetScopeInfoClientAsync(
+        clientId, scopeName, parameters);
+    
+    var estimatedChanges = await remoteOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient);
+
+    Console.WriteLine(estimatedChanges.ClientChangesSelected.TotalChangesSelected);
+
+    foreach (var table in changes.ClientChangesSelected.TableChangesSelected)
+        Console.WriteLine($"Table: {table.TableName} - Total changes:{table.TotalChanges}");
+
+
+LoadTableFromBatchInfoAsync
+-----------------------------------
+
+Load a table from a batch info. See `LoadTableFromBatchInfoAsync <#loadtablefrombatchinfoasync>`_.
+
+
+LoadBatchInfosAsync
+-------------------------
+
+Load all batch infos for a given scope name. See `LoadBatchInfosAsync <#loadbatchinfosasync>`_.
+
+
+LoadTablesFromBatchInfoAsync
+-----------------------------------
+
+Load all tables from a batch info. See `LoadTablesFromBatchInfoAsync <#loadtablesfrombatchinfoasync>`_.
+
+
+GetSchemaAsync
+------------------
+
+Get the schema from the local datasource. See `GetSchemaAsync <#getschemaasync>`_.
+
+
+ProvisionAsync
+------------------
+
+Provision the server datasource with the tracking tables, stored procedures, triggers and even tables needed for the sync process.
+
+You need a ``SyncSetup`` instance containing all the tables (and optionally the columns list) you want to sync.
+
+.. code-block:: csharp
+
+    var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+    var setup = new SyncSetup("ProductCategory", "Product");
+    var sScopeInfo = await remoteOrchestrator.ProvisionAsync(setup);
+
+.. admonition:: More ...
+
+   Check the `Provision & Deprovision </Provision.html>`_ section for more details about the provision process.
+
+
+DeprovisionAsync
+----------------------
+
+Deprovision the server datasource. This will drop tracking tables, stored procedures or triggers created by the sync process.
+
+.. note:: By default, **DMS** will never deprovision a table, if not explicitly set with the **provision** argument. 
+    
+    Same behavior applies to the :guilabel:`scope_info` and :guilabel:`scope_info_client`  tables.
+
+
+.. code-block:: csharp
+    
+    var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+    await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers);
+
+.. admonition:: More ...
+
+   Check the `Provision & Deprovision </Provision.html>`_ section for more details about the provision process.
+
+
+DropAllAsync
+----------------
+
+Drop all DMS metadatas from your server database, except tables. Everything is dropped: **tracking tables**, **stored procedures**, **triggers**, **scope info tables**, etc.
+
+.. code-block:: csharp
+    
+    var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+    await remoteOrchestrator.DropAllAsync();
+
+DeleteMetadatasAsync
+---------------------------
+
+| Delete all DMS metadatas from the tracking tables, in your server database.
+
+
+.. warning:: A huge difference between LocalOrchestrator and RemoteOrchestrator is that the first one is done automatically after a successfull sync, while the second one is not. You need to call this method manually.
+
+.. code-block:: csharp
+
+    var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+    await remoteOrchestrator.DeleteMetadatasAsync();
+
+.. admonition:: More ...
+
+   Check the `Metadatas </Metadatas.html>`_ section for more details about the metadatas deletion process.
+
+ResetTableAsync
+---------------------
+
+Delete all rows from a **table** and the corresponding **tracking table**. See `ResetTableAsync <#resettableasync>`_.
+
+EnableConstraintsAsync & DisableConstraintsAsync
+------------------------------------------------------------
+
+**Enable** or **Disable** all constraints on your local database. See `EnableConstraintsAsync <#enableconstraintsasync-disableconstraintsasync>`_.
+
+GetLocalTimestampAsync
+------------------------------
+
+Get the local timestamp from the local database. see `GetLocalTimestampAsync <#getlocaltimestampasync>`_.
