@@ -40,7 +40,7 @@ namespace Spy
             Console.WriteLine(s1);
 
             // Make some changes on the server side
-            var sc = clientProvider.CreateConnection();
+            var sc = serverProvider.CreateConnection();
             await Helper.InsertOneCustomerAsync(sc, "John", "Doe");
             await Helper.InsertOneProductCategoryAsync(sc, Guid.NewGuid(), "Shoes 2020" + Path.GetRandomFileName());
             await Helper.DeleteOneSalesDetailOrderAsync(sc, 113141);
@@ -50,8 +50,9 @@ namespace Spy
 
             // Get local orchestrator to get some info during sync
             var localOrchestrator = agent.LocalOrchestrator;
+            var remoteOrchestrator = agent.LocalOrchestrator;
 
-            localOrchestrator.OnDatabaseChangesSelecting(args =>
+            remoteOrchestrator.OnDatabaseChangesSelecting(args =>
             {
                 Console.WriteLine($"Getting changes from local database:");
                 Console.WriteLine($"Batch directory: {args.BatchDirectory}. Batch size: {args.BatchSize}. Is first sync: {args.IsNew}");
@@ -60,7 +61,7 @@ namespace Spy
             });
 
 
-            localOrchestrator.OnTableChangesSelecting(args =>
+            remoteOrchestrator.OnTableChangesSelecting(args =>
             {
                 Console.WriteLine($"Getting changes from local database for table:{args.SchemaTable.GetFullName()}");
                 Console.WriteLine($"{args.Command.CommandText}");
@@ -68,7 +69,7 @@ namespace Spy
 
             });
 
-            localOrchestrator.OnRowsChangesSelected(args =>
+            remoteOrchestrator.OnRowsChangesSelected(args =>
             {
                 Console.WriteLine($"Row read from local database for table:{args.SchemaTable.GetFullName()}");
                 Console.WriteLine($"{args.SyncRow}");
@@ -76,7 +77,7 @@ namespace Spy
             });
 
 
-            localOrchestrator.OnTableChangesSelected(args =>
+            remoteOrchestrator.OnTableChangesSelected(args =>
             {
                 Console.WriteLine($"Table: {args.SchemaTable.GetFullName()} read. Rows count:{args.BatchInfo.RowsCount}.");
                 Console.WriteLine($"Directory: {args.BatchInfo.DirectoryName}. Number of files: {args.BatchPartInfos?.Count()} ");
@@ -85,7 +86,7 @@ namespace Spy
 
             });
 
-            localOrchestrator.OnDatabaseChangesSelected(args =>
+            remoteOrchestrator.OnDatabaseChangesSelected(args =>
             {
                 Console.WriteLine($"Directory: {args.BatchInfo.DirectoryName}. Number of files: {args.BatchInfo.BatchPartsInfo?.Count()} ");
                 Console.WriteLine($"Total: {args.ChangesSelected.TotalChangesSelected} " +
@@ -97,25 +98,13 @@ namespace Spy
 
 
             // Just before applying something locally, at the database level
-            localOrchestrator.OnDatabaseChangesApplying(async args =>
+            localOrchestrator.OnDatabaseChangesApplying(args =>
             {
+                Console.WriteLine($"Directory: {args.ApplyChanges.Changes.DirectoryName}. " +
+                    $"Number of files: {args.ApplyChanges.Changes.BatchPartsInfo?.Count()} ");
+
+                Console.WriteLine($"Total: {args.ApplyChanges.Changes.RowsCount} ");
                 Console.WriteLine($"--------------------------------------------");
-                Console.WriteLine($"Applying changes to the local database:");
-                Console.WriteLine($"--------------------------------------------");
-                Console.WriteLine($"Last timestamp used to compare local rows : {args.ApplyChanges.LastTimestamp}");
-                Console.WriteLine("List of ALL rows to be sync locally:");
-
-                foreach (var table in args.ApplyChanges.Schema.Tables)
-                {
-                    var syncTable = await localOrchestrator.LoadTableFromBatchInfoAsync(args.ApplyChanges.Changes, table.TableName, table.SchemaName);
-
-                    Console.WriteLine($"Changes for table {table.TableName}. Rows:{syncTable.Rows.Count}");
-                    foreach (var row in syncTable.Rows)
-                        Console.WriteLine(row);
-
-                    Console.WriteLine();
-
-                }
             });
 
             // Just before applying changes locally, at the table level

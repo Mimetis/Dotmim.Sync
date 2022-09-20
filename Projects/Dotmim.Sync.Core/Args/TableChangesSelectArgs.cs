@@ -83,13 +83,24 @@ namespace Dotmim.Sync
     public static partial class InterceptorsExtensions
     {
         /// <summary>
-        /// Intercept the provider action when changes are going to be selected on each table defined in the configuration schema
+        /// Occurs when changes are going to be queried from the underline database for a particular table. 
+        /// <example>
+        /// <code>
+        /// var localOrchestrator = new LocalOrchestrator(clientProvider);
+        /// localOrchestrator.OnTableChangesSelecting(args =>
+        /// {
+        ///     Console.WriteLine($"Getting changes from local database " +
+        ///                       $"for table:{args.SchemaTable.GetFullName()}");
+        /// 
+        ///     Console.WriteLine($"{args.Command.CommandText}");
+        /// });
+        /// </code>
+        /// </example>
         /// </summary>
         public static Guid OnTableChangesSelecting(this BaseOrchestrator orchestrator, Action<TableChangesSelectingArgs> action)
             => orchestrator.AddInterceptor(action);
-        /// <summary>
-        /// Intercept the provider action when changes are going to be selected on each table defined in the configuration schema
-        /// </summary>
+
+        /// <inheritdoc cref="OnTableChangesSelecting(BaseOrchestrator, Action{TableChangesSelectingArgs})"/>
         public static Guid OnTableChangesSelecting(this BaseOrchestrator orchestrator, Func<TableChangesSelectingArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 

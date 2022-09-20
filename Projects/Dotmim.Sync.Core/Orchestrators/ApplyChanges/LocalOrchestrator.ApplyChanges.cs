@@ -66,20 +66,26 @@ namespace Dotmim.Sync
                 }
 
                 context.SyncWay = SyncWay.Download;
-
+            
                 // Transaction mode
                 if (Options.TransactionMode == TransactionMode.AllOrNothing)
                 {
                     runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
                     // affect connection and transaction to reaffect later on save scope
                     connection = runner.Connection;
                     transaction = runner.Transaction;
+                    cancellationToken = runner.CancellationToken;
+                    progress = runner.Progress;
                 }
 
                 // Create the message containing everything needed to apply changes
                 var applyChanges = new MessageApplyChanges(cScopeInfoClient.Id, Guid.Empty, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp,
                     cScopeInfo.Schema, policy, snapshotApplied, this.Options.BatchDirectory, serverBatchInfo, failedRows, clientChangesApplied);
 
+                // call interceptor
+                var databaseChangesApplyingArgs = new DatabaseChangesApplyingArgs(context, applyChanges, connection, transaction);
+                await this.InterceptAsync(databaseChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
 
                 // If we have existing errors happened last sync, we should try to apply them now
                 if (lastSyncErrorsBatchInfo != null && lastSyncErrorsBatchInfo.HasData())
@@ -188,6 +194,9 @@ namespace Dotmim.Sync
                     (context, cScopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(newCScopeInfoClient, context,
                         runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
                 };
+
+                var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, clientChangesApplied, connection ??= this.Provider.CreateConnection(), transaction);
+                await this.InterceptAsync(databaseChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
 
                 if (Options.TransactionMode == TransactionMode.AllOrNothing && runner != null)
                     await runner.CommitAsync().ConfigureAwait(false);

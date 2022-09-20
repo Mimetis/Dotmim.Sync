@@ -32,7 +32,6 @@ namespace Dotmim.Sync
                 DatabaseChangesSelected serverChangesSelected = null;
 
                 DatabaseChangesApplied serverChangesApplied = new DatabaseChangesApplied();
-                BatchInfo serverBatchInfo = null;
 
                 //Direction set to Upload
                 context.SyncWay = SyncWay.Upload;
@@ -63,23 +62,32 @@ namespace Dotmim.Sync
 
                     // Transaction mode
                     if (Options.TransactionMode == TransactionMode.AllOrNothing)
+                    {
                         runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ChangesApplying,
                             connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        connection = runner.Connection;
+                        transaction = runner.Transaction;
+                        cancellationToken = runner.CancellationToken;
+                        progress = runner.Progress;
+                    }
 
                     // Create message containing everything we need to apply on server side
                     var applyChanges = new MessageApplyChanges(Guid.Empty, cScopeInfoClient.Id, false, cScopeInfoClient.LastServerSyncTimestamp, schema,
                         this.Options.ConflictResolutionPolicy, false, this.Options.BatchDirectory, clientChanges.ClientBatchInfo, failedRows, serverChangesApplied);
 
+                    // call interceptor
+                    var databaseChangesApplyingArgs = new DatabaseChangesApplyingArgs(context, applyChanges, connection, transaction);
+                    await this.InterceptAsync(databaseChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
 
                     ScopeInfoClient sScopeInfoClient = null;
                     // Get scope info client from server, to get errors if any
                     await using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading,
-                        runner?.Connection, runner?.Transaction, runner != null ? runner.CancellationToken : default, runner?.Progress).ConfigureAwait(false))
+                        connection, transaction, cancellationToken , progress).ConfigureAwait(false))
                     {
                         (context, sScopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context,
                             runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
                     }
-
 
                     // Getting errors batch info path, saved in scope_info_client table
                     if (sScopeInfoClient != null && !string.IsNullOrEmpty(sScopeInfoClient.Errors))
@@ -101,7 +109,7 @@ namespace Dotmim.Sync
                     {
                         // Try to clean errors
                         applyChanges.Changes = clientChanges.ClientBatchInfo;
-                        await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, lastSyncErrorsBatchInfo, applyChanges, runner?.Connection, runner?.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, lastSyncErrorsBatchInfo, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // Call apply errors on provider
                         applyChanges.Changes = lastSyncErrorsBatchInfo;
@@ -120,7 +128,7 @@ namespace Dotmim.Sync
                     {
                         // Call provider to apply changes
                         failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges,
-                            runner?.Connection, runner?.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     }
 
                     if (failureException != null)
@@ -156,20 +164,22 @@ namespace Dotmim.Sync
                         failedRows.Dispose();
                     }
 
+
+                    var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, serverChangesApplied, connection, transaction);
+                    await this.InterceptAsync(databaseChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
+
                     if (Options.TransactionMode == TransactionMode.AllOrNothing && runner != null)
-                        await runner.CommitAsync().ConfigureAwait(false);
+                        await runner.CommitAsync(false).ConfigureAwait(false);
 
                 }
                 catch (Exception)
                 {
                     if (runner != null)
+                    {
                         await runner.RollbackAsync().ConfigureAwait(false);
-                    throw;
-                }
-                finally
-                {
-                    if (runner != null)
                         await runner.DisposeAsync().ConfigureAwait(false);
+                    }
+                    throw;
                 }
 
                 try
@@ -181,11 +191,6 @@ namespace Dotmim.Sync
 
                     // Get a no transaction runner for getting changes
                     runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    Debug.WriteLine($"--- Runner Connection {runner.Connection.Database}. {this.Provider.GetProviderTypeName()}");
-                    Stopwatch stopw = new Stopwatch();
-                    stopw.Start();
-
 
                     context.ProgressPercentage = 0.55;
 
@@ -199,12 +204,25 @@ namespace Dotmim.Sync
                     // Get if we need to get all rows from the datasource
                     var fromScratch = cScopeInfoClient.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
 
+                    // Create a batch info
+                    string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_REMOTE_GETCHANGES" : "REMOTE_GETCHANGES";
+                    var serverBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
+
+                    // Call interceptor
+                    var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, serverBatchInfo.GetDirectoryFullPath(), this.Options.BatchSize, fromScratch,
+                        cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
+                        runner.Connection, runner.Transaction);
+
+                    await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                    if (runner.CancellationToken.IsCancellationRequested)
+                        runner.CancellationToken.ThrowIfCancellationRequested();
+
                     // When we get the chnages from server, we create the batches if it's requested by the client
                     // the batch decision comes from batchsize from client
-                    (context, serverBatchInfo, serverChangesSelected) =
-                        await this.InternalGetChangesAsync(cScopeInfo, context, fromScratch, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp, cScopeInfoClient.Id,
-                        this.Provider.SupportsMultipleActiveResultSets,
-                        this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    serverChangesSelected = await this.InternalGetChangesAsync(cScopeInfo, context, fromScratch, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp, cScopeInfoClient.Id,
+                        this.Provider.SupportsMultipleActiveResultSets, serverBatchInfo,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     if (runner.CancellationToken.IsCancellationRequested)
                         runner.CancellationToken.ThrowIfCancellationRequested();
@@ -234,8 +252,13 @@ namespace Dotmim.Sync
 
                     var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, serverBatchInfo, serverChangesSelected, serverChangesApplied);
 
-                    stopw.Stop();
-                    Debug.WriteLine($"--- Total duration :{stopw.Elapsed:hh\\.mm\\:ss\\.fff} serverSyncChanges : {serverSyncChanges.ServerChangesSelected.TotalChangesSelected}");
+                    var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp, 
+                        serverBatchInfo, serverChangesSelected, runner.Connection, runner.Transaction);
+
+                    await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                    if (runner.CancellationToken.IsCancellationRequested)
+                        runner.CancellationToken.ThrowIfCancellationRequested();
 
                     return (context, serverSyncChanges, this.Options.ConflictResolutionPolicy);
                 }

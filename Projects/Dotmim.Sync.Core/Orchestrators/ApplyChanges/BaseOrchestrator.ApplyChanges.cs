@@ -124,9 +124,6 @@ namespace Dotmim.Sync
         {
 
             context.SyncStage = SyncStage.ChangesApplying;
-            // call interceptor
-            var databaseChangesApplyingArgs = new DatabaseChangesApplyingArgs(context, message, connection, transaction);
-            await this.InterceptAsync(databaseChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
 
             message.ChangesApplied ??= new DatabaseChangesApplied();
             message.FailedRows ??= message.Schema.Clone();
@@ -220,13 +217,6 @@ namespace Dotmim.Sync
                         message.Changes.TryRemoveDirectory();
                 }
 
-
-                // Just get one for event raising
-                if (connection == null)
-                    connection = this.Provider.CreateConnection();
-
-                var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, message.ChangesApplied, connection, transaction);
-                await this.InterceptAsync(databaseChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
 
                 return failureException;
             }

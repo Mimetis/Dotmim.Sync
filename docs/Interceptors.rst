@@ -56,6 +56,106 @@ On each level you will have:
 - A before event: Generally ending by "_ing_" like ``OnDatabaseChangesApplying``.
 - An after event: Generally ending by "_ied_" like ``OnDatabaseChangesApplied``.
 
+
+Datasource level
+^^^^^^^^^^^^^^^^^^^^^^
+
+| We have some interceptors that are not related to a specific table, but to the whole datasource.
+| They are tight to the connection, the transaction or the command used to get the changes, apply changes or even handle conflicts and errors.
+
+
+OnConnectionOpen
+-------------------------
+
+The ``OnConnectionOpen`` event is raised when a connection is opened, through the underline provider.
+
+TODO
+
+OnReConnect
+-------------------------
+
+The ``OnReConnect`` event is raised when a connection is re-opened, through the underline provider.
+
+DMS is using a custom retry policy, inspired from `Polly <http://www.thepollyproject.org/>`_  to manage a connection retry policy.
+
+
+.. code-block:: csharp
+
+    localOrchestrator.OnReConnect(args => {
+        Console.WriteLine($"[Retry] Can't connect to database {args.Connection?.Database}. " +
+        $"Retry N°{args.Retry}. " +
+        $"Waiting {args.WaitingTimeSpan.Milliseconds}. Exception:{args.HandledException.Message}.");
+    });    
+
+You can customize the retry policy, only on http mode, when using a ``WebRemoteOrchestrator`` instance.
+
+.. code-block:: csharp
+
+    var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+
+    // limit to 2 retries only
+    webRemoteOrchestrator.SyncPolicy.RetryCount = 2;
+
+.. code-block:: csharp
+
+    var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+
+    // retry for ever (not sure it's a good idea, that being said)
+    webRemoteOrchestrator.SyncPolicy = SyncPolicy.WaitAndRetryForever(TimeSpan.FromSeconds(1));
+
+
+OnTransactionOpen
+-------------------------
+
+The ``OnTransactionOpen`` event is raised when a transaction is opened, through the underline provider.
+
+TODO
+
+OnConnectionClose
+-------------------------
+
+The ``OnConnectionClose`` event is raised when a connection is closed, through the underline provider.
+
+TODO
+
+OnTransactionCommit
+-------------------------
+
+The ``OnTransactionCommit`` event is raised when a transaction is committed, through the underline provider.
+
+TODO
+
+OnGetCommand
+-----------------
+
+The OnGetCommand interceptor is happening when a command is retrieved from the underline provider (``SqlSyncProvider``, ``MySqlSyncProvider``, etc..)
+
+.. code-block:: csharp
+
+    agent.RemoteOrchestrator.OnGetCommand(args =>
+    {
+        if (args.Command.CommandType == CommandType.StoredProcedure)
+        {
+            args.Command.CommandText = args.Command.CommandText.Replace("_filterproducts_", "_default_");
+        }
+    });
+
+
+
+OnExecuteCommand
+--------------------
+
+The ``OnExecuteCommand`` interceptor is happening when a command is about to be executed on the client or server.
+
+.. code-block:: csharp
+
+    agent.RemoteOrchestrator.OnExecuteCommand(args =>
+    {
+        Console.WriteLine(args.Command.CommandText);
+    });
+
+
+
 Selecting changes
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -66,8 +166,8 @@ Regarding the rows selection from your client or server:
 
 On the other side, once rows are selected, you still can:
 
-- ``OnRowsChangesSelected`` : Raised once a row is read from the databse, but not yet serialized to disk.
-- ``OnTableChangesSelected`` : Raised once a table changes as been fully read. Changes are serialized to disk.
+- ``OnRowsChangesSelected`` : Raised once a row is read from the databse, but not yet serialized to disk. Row is still in memory, and connection / reader still opened.
+- ``OnTableChangesSelected`` : Raised once a table changes as been fully read. Changes (all batches for this table) are serialized to disk. Connection / reader are closed.
 - ``OnDatabaseChangesSelected`` : Raised once all changes are grabbed from the local database. Changes are serialized to disk.
 
 OnDatabaseChangesSelecting
@@ -202,16 +302,12 @@ OnDatabaseChangesApplying
 | The ``OnDatabaseChangesApplying`` interceptor is happening when changes are going to be applied on the client or server.
 | The changes are not yet loaded in memory. They are all stored locally in a temporary folder.
 
-To be able to load batches from the temporary folder, or save rows, you can use the ``LoadTableFromBatchInfoAsync`` and ``SaveTableToBatchPartInfoAsync`` methods 
+To be able to load batches from the temporary folder, or save rows, you can use the `LoadTablesFromBatchInfoAsync <Orchestrators.html#loadtablesfrombatchinfoasync>`_ and `SaveTableToBatchPartInfoAsync <Orchestrators.html#savetabletobatchpartinfoasync>`_ methods 
 
 .. code-block:: csharp
 
     localOrchestrator.OnDatabaseChangesApplying(async args =>
     {
-        Console.WriteLine($"--------------------------------------------");
-        Console.WriteLine($"Changes to be applied on the local database:");
-        Console.WriteLine($"--------------------------------------------");
-
         foreach (var table in args.ApplyChanges.Schema.Tables)
         {
             // loading in memory all batches containing rows for the current table
@@ -226,31 +322,6 @@ To be able to load batches from the temporary folder, or save rows, you can use 
 
         }
     });
-
-.. code-block:: bash
-
-    --------------------------------------------
-    Changes to be applied on the local database:
-    --------------------------------------------
-    Changes for table ProductCategory. Rows:1
-    [Sync state]:Modified, [ProductCategoryID]:e7224bd1-192d-4237-8dc6-a3c21a017745, 
-    [ParentProductCategoryID]:<NULL />
-
-    Changes for table ProductModel. Rows:0
-
-    Changes for table Product. Rows:0
-
-    Changes for table Address. Rows:0
-
-    Changes for table Customer. Rows:1
-    [Sync state]:Modified, [CustomerID]:30125, [NameStyle]:False, [Title]:<NULL />, 
-    [FirstName]:John, [MiddleName]:<NULL />
-
-    Changes for table CustomerAddress. Rows:0
-
-    Changes for table SalesOrderHeader. Rows:0
-
-    Changes for table SalesOrderDetail. Rows:0
 
 OnTableChangesApplying
 ----------------------------
@@ -275,29 +346,13 @@ OnTableChangesApplying
                 Console.WriteLine($"- --------------------------------------------");
                 Console.WriteLine($"- Applying [{args.State}] 
                         changes to Table {args.SchemaTable.GetFullName()}");
-                Console.WriteLine($"Changes for table 
-                        {args.SchemaTable.TableName}. Rows:{syncTable.Rows.Count}");
+
                 foreach (var row in syncTable.Rows)
                     Console.WriteLine(row);
             }
 
         }
     });
-
-
-.. code-block:: bash
-
-    - --------------------------------------------
-    - Applying [Modified] changes to Table ProductCategory
-    Changes for table ProductCategory. Rows:1
-    [Sync state]:Modified, [ProductCategoryID]:e7224bd1-192d-4237-8dc6-a3c21a017745, 
-    [ParentProductCategoryID]:<NULL />
-    - --------------------------------------------
-    - Applying [Modified] changes to Table Customer
-    Changes for table Customer. Rows:1
-    [Sync state]:Modified, [CustomerID]:30125, [NameStyle]:False, [Title]:<NULL />, [FirstName]:John, 
-    [MiddleName]:<NULL />, [LastName]:Doe, [Suffix]:<NULL />, [CompanyName]:<NULL />, [SalesPerson]:<NULL />,
-    
 
 
 OnRowsChangesApplying
@@ -323,133 +378,239 @@ The number of rows to be applied here is depending on:
     });
 
 
-.. code-block:: bash
+OnTableChangesApplied
+----------------------------
 
-    - --------------------------------------------
-    - In memory rows that are going to be Applied
-    [Sync state]:Modified, [ProductCategoryID]:275c44e0-cfc7-.., [ParentProductCategoryID]:<NULL />
+The ``OnTableChangesApplied`` interceptor is happening when all rows, for a specific table, are applied on the local (client or server) database.
 
-    - --------------------------------------------
-    - In memory rows that are going to be Applied
-    [Sync state]:Modified, [CustomerID]:30130, [NameStyle]:False, [Title]:<NULL />, [FirstName]:John
+TODO
+
+OnDatabaseChangesApplied
+-------------------------------
+
+The ``OnDatabaseChangesApplied`` interceptor is happening when all changes are applied on the client or server.
+
+TODO
+
+
+Snapshots
+^^^^^^^^^^^^^^
+
+See how snapshots work in the `Snapshots <Snapshot.html>`_ section.
+
+OnSnapshotCreating
+-------------------------
+
+The ``OnSnapshotCreating`` interceptor is happening when a snapshot is going to be created from the server side
+
+TODO
+
+OnSnapshotCreated
+-------------------------
+
+The ``OnSnapshotCreated`` interceptor is happening when a snapshot is created from the server side.
+
+TODO
+
+OnSnapshotApplying
+-------------------------
+
+The ``OnSnapshotApplying`` interceptor is happening when a snapshot is going to be applied on the client side.
+
+TODO
+
+OnSnapshotApplied
+-------------------------
+
+The ``OnSnapshotApplied`` interceptor is happening when a snapshot is applied on the client side.
+
+TODO
 
 
 Specific
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Interceptors on ``DbCommand`` will let you change the command used, depending on your requirements:
+OnProvisioning
+------------------
 
-* ``Interceptors`` on creating the architecture.
-* ``Interceptors`` when executing sync queries.
+The ``OnProvisioning`` interceptor is happening when the database is being provisioned.
 
-Let see a straightforward sample : *Customizing a tracking table*.
+TODO
 
-Adding a new column in a tracking table
--------------------------------------------
 
-The idea here is to add a new column ``internal_id`` in the tracking table:
+OnProvisioned
+------------------
+
+The ``OnProvisioned`` interceptor is happening when the database is provisioned.
+
+TODO
+
+
+OnDeprovisioning
+------------------
+
+The ``OnDeprovisioning`` interceptor is happening when the database is being deprovisioned.
+
+TODO
+
+OnDeprovisioned
+------------------
+
+The ``OnDeprovisioned`` interceptor is happening when the database is deprovisioned.
+
+TODO
+
+
+OnLocalTimestampLoading
+------------------------------
+
+OnLocalTimestampLoaded
+------------------------------
+
+OnSchemaLoading
+--------------------
+
+OnSchemaLoaded
+--------------------
+
+OnMetadataCleaning
+-------------------------
+
+OnMetadataCleaned
+-------------------------
+
+OnApplyChangesConflictOccured
+---------------------------------
+
+See `Conflicts <Conflict.html>`_ 
+
+OnApplyChangesErrorOccured
+---------------------------------
+
+See `Errors <Errors.html>`_ 
+
+OnSerializingSyncRow
+------------------------------
+
+OnDeserializingSyncRow
+------------------------------
+
+
+
+OnSessionBegin
+-------------------------
+
+
+OnSessionEnd
+-------------------------
+
+
+
+OnConflictingSetup
+-------------------------
+
+OnGettingOperation
+-------------------------
+
+The ``OnGettingOperation`` interceptor is happening when a server receive a request from a client for initiate a synchronization.
+
+From here, you have the option to **override** the operation, using the ``SyncOperation`` enumeration:
 
 .. code-block:: csharp
 
-    var provider = new SqlSyncProvider(serverConnectionString);
-    var options = new SyncOptions();
-    var setup = new SyncSetup(new string[] { "ProductCategory", "ProductModel", "Product" });
-    var orchestrator = new RemoteOrchestrator(provider, options, setup);
-
-    // working on the product Table
-    var productSetupTable = setup.Tables["Product"];
-
-    orchestrator.OnTrackingTableCreating(ttca =>
+    public enum SyncOperation
     {
-        var addingID = '$'" ALTER TABLE {ttca.TrackingTableName.Schema().Quoted()} " +
-                       '$'" ADD internal_id varchar(10) null";
-        ttca.Command.CommandText += addingID;
-    });
+        /// <summary>
+        /// Normal synchronization
+        /// </summary>
+        Normal = 0,
 
-    var trExists = await orchestrator.ExistTrackingTableAsync(productSetupTable);
-    if (!trExists)
-        await orchestrator.CreateTrackingTableAsync(productSetupTable);
+        /// <summary>
+        /// Reinitialize the whole sync database, 
+        /// applying all rows from the server to the client
+        /// </summary>
+        Reinitialize = 1,
+        
+        /// <summary>
+        /// Reinitialize the whole sync database, 
+        /// applying all rows from the server to the client, after trying a client upload
+        /// </summary>
+        ReinitializeWithUpload = 2,
 
-.. image:: https://user-images.githubusercontent.com/4592555/103886481-e08af980-50e1-11eb-97cf-b54af5a44e8c.png
+        /// <summary>
+        /// Drop all the sync metadatas even tracking tables and 
+        /// scope infos and make a full sync again
+        /// </summary>
+        DropAllAndSync = 4,
 
-Ok, now we need to customize the triggers to insert a correct value in the ``internal_id`` column:
+        /// <summary>
+        /// Drop all the sync metadatas even tracking tables and 
+        /// scope infos and exit
+        /// </summary>
+        DropAllAndExit = 8,
+
+        /// <summary>
+        /// Deprovision stored procedures and triggers and sync again
+        /// </summary>
+        DeprovisionAndSync = 16,
+
+        /// <summary>
+        /// Exit a Sync session without syncing
+        /// </summary>
+        AbortSync = 32,
+    }
+
+Useful for example to force a ReinitializeWithUpload operation, when you have a conflict on the client side, and you want to force the client to upload all his changes to the server, then reinitialize everything.
+
+.. hint:: This method is usefull most of the time, from the server side, when using a proxy ASP.NET Core Web API. 
+
 
 .. code-block:: csharp
 
-    orchestrator.OnTriggerCreating(tca =>
+    [HttpPost]
+    public async Task Post()
     {
-        string val;
-        if (tca.TriggerType == DbTriggerType.Insert)
-            val = "INS";
-        else if (tca.TriggerType == DbTriggerType.Delete)
-            val = "DEL";
-        else
-            val = "UPD";
 
-        var cmdText = '$'"UPDATE Product_tracking " +
-                    '$'"SET Product_tracking.internal_id='{val}' " +
-                    '$'"FROM Product_tracking JOIN Inserted ON " + 
-                    '$'"Product_tracking.ProductID = Inserted.ProductID;";
+        var scopeName = context.GetScopeName();
+        var clientScopeId = context.GetClientScopeId();
 
-        tca.Command.CommandText += Environment.NewLine + cmdText;
+        var webServerAgent = webServerAgents.First(wsa => wsa.ScopeName == scopeName);
+
+        webServerAgent.RemoteOrchestrator.OnGettingOperation(operationArgs =>
+        {
+            if (scopeName == "all" && clientScopeId == A_PARTICULAR_CLIENT_ID_TO_CHECK)
+                operationArgs.SyncOperation = SyncOperation.ReinitializeWithUpload;
+
+        });
+
+        await webServerAgent.HandleRequestAsync(context);
+    }
+
+OnOutdated
+-------------------------
+
+The ``OnOutdated`` interceptor is happening when a client is outdated. You can use this interceptor to force the client to reinitialize its database if it is outdated.
+
+By default, an error is raised, and sync is stopped. This event is raised only on the client side.
+
+.. code-block:: csharp
+
+    agent.LocalOrchestrator.OnOutdated(oa =>
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("local database is too old to synchronize with the server.");
+        Console.ResetColor();
+        Console.WriteLine("Do you want to synchronize anyway, and potentially lost data ? ");
+        Console.Write("Enter a value ('r' for reinitialize or 'ru' for reinitialize with upload): ");
+        var answer = Console.ReadLine();
+
+        if (answer.ToLowerInvariant() == "r")
+            oa.Action = OutdatedAction.Reinitialize;
+        else if (answer.ToLowerInvariant() == "ru")
+            oa.Action = OutdatedAction.ReinitializeWithUpload;
+
     });
 
-    var trgExists = await orchestrator.ExistTriggerAsync(productSetupTable, 
-                            DbTriggerType.Insert);
-    if (!trgExists)
-        await orchestrator.CreateTriggerAsync(productSetupTable, 
-                            DbTriggerType.Insert);
-
-    trgExists = await orchestrator.ExistTriggerAsync(productSetupTable, 
-                            DbTriggerType.Update);
-    if (!trgExists)
-        await orchestrator.CreateTriggerAsync(productSetupTable, 
-                            DbTriggerType.Update);
-
-    trgExists = await orchestrator.ExistTriggerAsync(productSetupTable, 
-                            DbTriggerType.Delete);
-    if (!trgExists)
-        await orchestrator.CreateTriggerAsync(productSetupTable, 
-                            DbTriggerType.Delete);
-
-    orchestrator.OnTriggerCreating(null);
-
-
-Here is the `Sql` script executed for trigger ``Insert``:
-
-.. code-block:: sql
-
-    CREATE TRIGGER [dbo].[Product_insert_trigger] ON [dbo].[Product] FOR INSERT AS
-
-    SET NOCOUNT ON;
-
-    -- If row was deleted before, it already exists, so just make an update
-    UPDATE [side] 
-    SET  [sync_row_is_tombstone] = 0
-        ,[update_scope_id] = NULL -- scope id is always NULL when update is made locally
-        ,[last_change_datetime] = GetUtcDate()
-    FROM [Product_tracking] [side]
-    JOIN INSERTED AS [i] ON [side].[ProductID] = [i].[ProductID]
-
-    INSERT INTO [Product_tracking] (
-        [ProductID]
-        ,[update_scope_id]
-        ,[sync_row_is_tombstone]
-        ,[last_change_datetime]
-    ) 
-    SELECT
-        [i].[ProductID]
-        ,NULL
-        ,0
-        ,GetUtcDate()
-    FROM INSERTED [i]
-    LEFT JOIN [Product_tracking] [side] ON [i].[ProductID] = [side].[ProductID]
-    WHERE [side].[ProductID] IS NULL
-
-
-    UPDATE Product_tracking SET Product_tracking.internal_id='INS' 
-    FROM Product_tracking 
-    JOIN Inserted ON Product_tracking.ProductID = Inserted.ProductID;
 
 
 Web

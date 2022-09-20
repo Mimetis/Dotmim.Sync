@@ -51,13 +51,33 @@ namespace Dotmim.Sync
 
 
         /// <summary>
-        /// Intercept the provider action when a batch changes is going to be applied on a table
+        /// Occurs just before applying a batch of rows to the local(client or server) database.
+        /// <para>
+        /// The number of rows to be applied here is depending on:
+        /// <list type="bullet">
+        /// The batch size you have set in your SyncOptions instance : <c>SyncOptions.BatchSize</c> (Default is 2 Mo)
+        /// </list>
+        /// <list type="bullet">
+        /// The max number of rows to applied in one single instruction : <c>Provider.BulkBatchMaxLinesCount</c> (Default is 10 000 rows per instruction)
+        /// </list>
+        /// </para>
+        /// <example>
+        /// <code>
+        /// localOrchestrator.OnRowsChangesApplying(async args =>
+        /// {
+        ///     Console.WriteLine($"- In memory rows that are going to be Applied");
+        ///     foreach (var row in args.SyncRows)
+        ///         Console.WriteLine(row);
+        /// 
+        ///     Console.WriteLine();
+        /// });
+        /// </code>
+        /// </example>
         /// </summary>
         public static Guid OnRowsChangesApplying(this BaseOrchestrator orchestrator, Action<RowsChangesApplyingArgs> action)
             => orchestrator.AddInterceptor(action);
-        /// <summary>
-        /// Intercept the provider action when a batch changes is going to be applied on a table
-        /// </summary>
+
+        /// <inheritdoc cref="OnRowsChangesApplying(BaseOrchestrator, Action{RowsChangesApplyingArgs})"/>
         public static Guid OnRowsChangesApplying(this BaseOrchestrator orchestrator, Func<RowsChangesApplyingArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 

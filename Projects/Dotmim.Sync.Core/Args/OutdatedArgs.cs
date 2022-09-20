@@ -58,13 +58,31 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Intercept the provider action when a database is out dated
+        /// Intercept the provider action when a database is out dated. Always happens on the client side
+        /// <example>
+        /// <code>
+        /// agent.LocalOrchestrator.OnOutdated(oa =>
+        /// {
+        ///     Console.ForegroundColor = ConsoleColor.Red;
+        ///     Console.WriteLine("local database is too old to synchronize with the server.");
+        ///     Console.ResetColor();
+        ///     Console.WriteLine("Do you want to synchronize anyway, and potentially lost data ? ");
+        ///     Console.Write("Enter a value ('r' for reinitialize or 'ru' for reinitialize with upload): ");
+        ///     var answer = Console.ReadLine();
+        /// 
+        ///     if (answer.ToLowerInvariant() == "r")
+        ///         oa.Action = OutdatedAction.Reinitialize;
+        ///     else if (answer.ToLowerInvariant() == "ru")
+        ///         oa.Action = OutdatedAction.ReinitializeWithUpload;
+        /// 
+        /// });
+        /// </code>
+        /// </example>
         /// </summary>
         public static Guid OnOutdated(this BaseOrchestrator orchestrator, Action<OutdatedArgs> action)
             => orchestrator.AddInterceptor(action);
-        /// <summary>
-        /// Intercept the provider action when a database is out dated
-        /// </summary>
+
+        /// <inheritdoc cref="OnOutdated(BaseOrchestrator, Action{OutdatedArgs})"/>
         public static Guid OnOutdated(this BaseOrchestrator orchestrator, Func<OutdatedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 

@@ -271,12 +271,13 @@ namespace Dotmim.Sync
             if (Directory.Exists(directoryFullPath))
                 Directory.Delete(directoryFullPath, true);
 
-            BatchInfo serverBatchInfo;
+            // Create a batch info
+            string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_REMOTE_SNAPSHOTS_GETCHANGES" : "REMOTE_SNAPSHOTS_GETCHANGES";
+            var serverBatchInfo = new BatchInfo(rootDirectory, nameDirectory);
 
-            (context, serverBatchInfo, _) =
-                    await this.InternalGetChangesAsync(sScopeInfo, context, true, null, null, Guid.Empty,
-                    this.Provider.SupportsMultipleActiveResultSets,
-                    rootDirectory, nameDirectory, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await this.InternalGetChangesAsync(sScopeInfo, context, true, null, null, Guid.Empty,
+                    this.Provider.SupportsMultipleActiveResultSets, serverBatchInfo, 
+                    connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // since we explicitely defined remote client timestamp to null, to get all rows, just reaffect here
             serverBatchInfo.Timestamp = remoteClientTimestamp;

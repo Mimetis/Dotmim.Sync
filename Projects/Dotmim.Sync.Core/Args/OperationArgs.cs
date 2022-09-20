@@ -37,13 +37,30 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Intercept the provider before it begins a database provisioning
+        /// Occurs when server receives a first request for a sync. Can override the whole processus, depending 
+        /// on the <see cref="SyncOperation"/> argument
+        /// <example>
+        /// <code>
+        /// [HttpPost]
+        /// public async Task Post()
+        /// {
+        ///     var scopeName = context.GetScopeName();
+        ///     var clientScopeId = context.GetClientScopeId();
+        ///     var webServerAgent = webServerAgents.First(wsa => wsa.ScopeName == scopeName);
+        ///     webServerAgent.RemoteOrchestrator.OnGettingOperation(operationArgs =>
+        ///     {
+        ///         if (clientScopeId == A_PARTICULAR_CLIENT_ID_TO_CHECK)
+        ///             operationArgs.SyncOperation = SyncOperation.ReinitializeWithUpload;
+        ///     });
+        ///     await webServerAgent.HandleRequestAsync(context);
+        /// }
+        /// </code>
+        /// </example>
         /// </summary>
         public static Guid OnGettingOperation(this BaseOrchestrator orchestrator, Action<OperationArgs> action)
             => orchestrator.AddInterceptor(action);
-        /// <summary>
-        /// Intercept the provider before it begins a database provisioning
-        /// </summary>
+
+        /// <inheritdoc cref="OnGettingOperation(BaseOrchestrator, Action{OperationArgs})"/>
         public static Guid OnGettingOperation(this BaseOrchestrator orchestrator, Func<OperationArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 

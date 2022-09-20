@@ -74,13 +74,34 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Intercept the provider action when a table starts to apply changes
+        /// Occurs when a table is about to be applied on the local data source
+        /// <example>
+        /// <code>
+        /// localOrchestrator.OnTableChangesApplying(async args =>
+        /// {
+        ///     if (args.BatchPartInfos != null)
+        ///     {
+        ///         var syncTable = await localOrchestrator.LoadTableFromBatchInfoAsync(
+        ///             args.BatchInfo, args.SchemaTable.TableName, args.SchemaTable.SchemaName, args.State);
+        /// 
+        ///         if (syncTable != null "and" syncTable.HasRows)
+        ///         {
+        ///             Console.WriteLine($"Changes for table 
+        ///                     {args.SchemaTable.GetFullName()}. Rows:{syncTable.Rows.Count}");
+
+        ///             foreach (var row in syncTable.Rows)
+        ///                 Console.WriteLine(row);
+        ///         }
+        /// 
+        ///     }
+        /// });
+        /// </code>
+        /// </example>
         /// </summary>
         public static Guid OnTableChangesApplying(this BaseOrchestrator orchestrator, Action<TableChangesApplyingArgs> action)
             => orchestrator.AddInterceptor(action);
-        /// <summary>
-        /// Intercept the provider action when a table starts to apply changes
-        /// </summary>
+
+        /// <inheritdoc cref="OnTableChangesApplying(BaseOrchestrator, Action{TableChangesApplyingArgs})"/>
         public static Guid OnTableChangesApplying(this BaseOrchestrator orchestrator, Func<TableChangesApplyingArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 

@@ -112,13 +112,23 @@ namespace Dotmim.Sync
     public static partial class InterceptorsExtensions
     {
         /// <summary>
-        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
+        /// Intercept the provider action when changes are going to be applied on local database
+        /// <example>
+        /// <code>
+        /// localOrchestrator.OnDatabaseChangesApplying(args =>
+        /// {
+        ///   Console.WriteLine($"Directory: {args.ApplyChanges.Changes.DirectoryName}. " +
+        ///     $"Number of files: {args.ApplyChanges.Changes.BatchPartsInfo?.Count()} ");
+        /// 
+        ///   Console.WriteLine($"Total: {args.ApplyChanges.Changes.RowsCount} ");
+        /// });
+        /// </code>
+        /// </example>
         /// </summary>
         public static Guid OnDatabaseChangesApplying(this BaseOrchestrator orchestrator, Action<DatabaseChangesApplyingArgs> func)
             => orchestrator.AddInterceptor(func);
-        /// <summary>
-        /// Intercept the provider action when changes are going to be applied on each table defined in the configuration schema
-        /// </summary>
+        
+        /// <inheritdoc cref="OnDatabaseChangesApplying(BaseOrchestrator, Action{DatabaseChangesApplyingArgs})"/>
         public static Guid OnDatabaseChangesApplying(this BaseOrchestrator orchestrator, Func<DatabaseChangesApplyingArgs, Task> func)
             => orchestrator.AddInterceptor(func);
 
@@ -132,7 +142,6 @@ namespace Dotmim.Sync
         /// </summary>
         public static Guid OnDatabaseChangesApplied(this BaseOrchestrator orchestrator, Func<DatabaseChangesAppliedArgs, Task> func)
             => orchestrator.AddInterceptor(func);
-
 
         /// <summary>
         /// Occurs when changes are going to be queried from the underline database

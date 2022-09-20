@@ -83,15 +83,15 @@ namespace Dotmim.Sync
                 long remoteClientTimestamp;
                 (context, remoteClientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
 
+                // Create a batch info
+                string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_REMOTE_GETCHANGES" : "REMOTE_GETCHANGES";
+                var serverBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
 
-                BatchInfo serverBatchInfo;
-                DatabaseChangesSelected serverChangesSelected;
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
-                (context, serverBatchInfo, serverChangesSelected) =
-                    await this.InternalGetChangesAsync(sScopeInfo, context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
-                    cScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets,
-                    this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                var serverChangesSelected = await this.InternalGetChangesAsync(sScopeInfo, context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
+                    cScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets, serverBatchInfo, 
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 

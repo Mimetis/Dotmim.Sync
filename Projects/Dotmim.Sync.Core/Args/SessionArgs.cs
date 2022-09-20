@@ -164,12 +164,20 @@ namespace Dotmim.Sync
 
         /// <summary>
         /// Occurs when trying to reconnect to a database
+        /// <example>
+        /// <code>
+        /// localOrchestrator.OnReConnect(args => {
+        ///     Console.WriteLine($"[Retry] Can't connect to database {args.Connection?.Database}. " +
+        ///     $"Retry N°{args.Retry}. " +
+        ///     $"Waiting {args.WaitingTimeSpan.Milliseconds}. Exception:{args.HandledException.Message}.");
+        /// });  
+        /// </code>
+        /// </example>
         /// </summary>
         public static Guid OnReConnect(this BaseOrchestrator orchestrator, Action<ReConnectArgs> action)
             => orchestrator.AddInterceptor(action);
-        /// <summary>
-        /// Occurs when trying to reconnect to a database
-        /// </summary>
+
+        /// <inheritdoc cref="OnReConnect(BaseOrchestrator, Action{ReConnectArgs})"/>
         public static Guid OnReConnect(this BaseOrchestrator orchestrator, Func<ReConnectArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 

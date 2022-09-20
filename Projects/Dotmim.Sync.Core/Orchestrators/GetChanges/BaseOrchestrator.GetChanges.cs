@@ -24,49 +24,27 @@ namespace Dotmim.Sync
         /// destination knowledge, and change data retriever parameters.
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
-        internal virtual async Task<(SyncContext, BatchInfo, DatabaseChangesSelected)> InternalGetChangesAsync(
+        internal virtual async Task<DatabaseChangesSelected> InternalGetChangesAsync(
                              ScopeInfo scopeInfo, SyncContext context, bool isNew, long? fromLastTimestamp, long? toNewTimestamp, Guid? excludingScopeId,
-                             bool supportsMultiActiveResultSets, string batchRootDirectory, string batchDirectoryName,
+                             bool supportsMultiActiveResultSets, BatchInfo batchInfo,
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-
-            // batch info containing changes
-            BatchInfo batchInfo;
 
             // Statistics about changes that are selected
             DatabaseChangesSelected changesSelected;
 
             context.SyncStage = SyncStage.ChangesSelecting;
 
+            // Create a new empty in-memory batch info
             if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
-            {
-                // Create the batch info, in memory
-                string emptyInfo = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_EMPTYGETCHANGES" : "EMPTYGETCHANGES";
-
-                batchInfo = new BatchInfo(batchRootDirectory, info: emptyInfo);
-
-                // Create a new empty in-memory batch info
-                changesSelected = new DatabaseChangesSelected();
-
-                return (context, batchInfo, changesSelected);
-            }
+                return new DatabaseChangesSelected();
 
             // create local directory
-            if (!string.IsNullOrEmpty(batchRootDirectory) && !Directory.Exists(batchRootDirectory))
-                Directory.CreateDirectory(batchRootDirectory);
+            if (!string.IsNullOrEmpty(batchInfo.DirectoryRoot) && !Directory.Exists(batchInfo.DirectoryRoot))
+                Directory.CreateDirectory(batchInfo.DirectoryRoot);
 
             changesSelected = new DatabaseChangesSelected();
-
-            // Create a batch 
-            // batchinfo generate a schema clone with scope columns if needed
-            string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_GETCHANGES" : "GETCHANGES";
-            batchInfo = new BatchInfo(batchRootDirectory, batchDirectoryName, info: info);
-
-            // Call interceptor
-            var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, batchInfo.GetDirectoryFullPath(), this.Options.BatchSize, isNew,
-                fromLastTimestamp, toNewTimestamp, connection, transaction);
-            await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
 
             var cptSyncTable = 0;
             var currentProgress = context.ProgressPercentage;
@@ -150,11 +128,7 @@ namespace Dotmim.Sync
                 if (cleanFolder)
                     batchInfo.TryRemoveDirectory();
             }
-
-            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, fromLastTimestamp, toNewTimestamp, batchInfo, changesSelected, connection);
-            await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
-
-            return (context, batchInfo, changesSelected);
+            return changesSelected;
 
         }
 
@@ -186,7 +160,7 @@ namespace Dotmim.Sync
             if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
                 return (context, default, default);
 
-            var (selectIncrementalChangesCommand, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew, 
+            var (selectIncrementalChangesCommand, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew,
                 connection, transaction);
 
             if (selectIncrementalChangesCommand == null)
@@ -334,7 +308,7 @@ namespace Dotmim.Sync
             if (rowsCountInBatchModified == 0)
             {
                 if (!string.IsNullOrEmpty(batchPartInfoFullPathModified) && File.Exists(batchPartInfoFullPathModified))
-                File.Delete(batchPartInfoFullPathModified);
+                    File.Delete(batchPartInfoFullPathModified);
             }
             else
             {

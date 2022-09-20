@@ -248,6 +248,16 @@ Each file contained in the BatchInfo instance is loaded in memory, and returned 
     }
 
 
+SaveTableToBatchPartInfoAsync
+---------------------------------
+
+Save a batch info to a batch part files.
+
+.. code-block:: csharp
+
+    // TODO    
+
+
 GetSchemaAsync
 ------------------
 

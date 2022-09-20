@@ -58,21 +58,44 @@ namespace Dotmim.Sync
     public static partial class InterceptorsExtensions
     {
         /// <summary>
+        /// Occurs when a command is about to be executed on the underline provider
+        /// <example>
+        /// <code>
+        /// agent.RemoteOrchestrator.OnExecuteCommand(args =>
+        /// {
+        ///     Console.WriteLine(args.Command.CommandText);
+        /// });
+        /// </code>
+        /// </example>
         /// </summary>
         public static Guid OnExecuteCommand(this BaseOrchestrator orchestrator, Action<ExecuteCommandArgs> func)
             => orchestrator.AddInterceptor(func);
-        /// <summary>
-        /// </summary>
+
+        /// <inheritdoc cref="OnExecuteCommand(BaseOrchestrator, Action{ExecuteCommandArgs})"/>
         public static Guid OnExecuteCommand(this BaseOrchestrator orchestrator, Func<ExecuteCommandArgs, Task> func)
             => orchestrator.AddInterceptor(func);
 
         /// <summary>
+        /// Occurs every time we get a command from the underline provider
+        /// <para>
+        /// You can change the command text and even the parameters values if needed
+        /// </para>
+        /// <example>
+        /// <code>
+        /// agent.RemoteOrchestrator.OnGetCommand(args =>
+        /// {
+        ///     if (args.Command.CommandType == CommandType.StoredProcedure)
+        ///     {
+        ///         args.Command.CommandText = args.Command.CommandText.Replace("_filterproducts_", "_default_");
+        ///     }
+        /// });
+        /// </code>
+        /// </example>
         /// </summary>
         public static Guid OnGetCommand(this BaseOrchestrator orchestrator, Action<GetCommandArgs> func)
             => orchestrator.AddInterceptor(func);
 
-        /// <summary>
-        /// </summary>
+        /// <inheritdoc cref="OnGetCommand(BaseOrchestrator, Action{GetCommandArgs})"/>
         public static Guid OnGetCommand(this BaseOrchestrator orchestrator, Func<GetCommandArgs, Task> func)
             => orchestrator.AddInterceptor(func);
     }

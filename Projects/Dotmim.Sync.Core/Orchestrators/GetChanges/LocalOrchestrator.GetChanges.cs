@@ -176,9 +176,9 @@ namespace Dotmim.Sync
             try
             {
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
                 // Output
                 long clientTimestamp = 0L;
-                BatchInfo clientBatchInfo = null;
                 DatabaseChangesSelected clientChangesSelected = null;
 
                 // If no schema in the client scope. Maybe the client scope table does not exists, or we never get the schema from server
@@ -196,29 +196,44 @@ namespace Dotmim.Sync
                 // get rows inserted / updated elsewhere since the sync is not over
                 (context, clientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
+                // Create a batch info
+                string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_LOCAL_GETCHANGES" : "LOCAL_GETCHANGES";
+                var clientBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
+
+                // Call interceptor
+                var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, clientBatchInfo.GetDirectoryFullPath(), this.Options.BatchSize, cScopeInfoClient.IsNewScope,
+                    cScopeInfoClient.LastSyncTimestamp, clientTimestamp,
+                    runner.Connection, runner.Transaction);
+
+                await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                if (runner.CancellationToken.IsCancellationRequested)
+                    runner.CancellationToken.ThrowIfCancellationRequested();
+
                 // Locally, if we are new, no need to get changes
                 if (cScopeInfoClient.IsNewScope)
                 {
-                    // Create the batch info, in memory
-                    string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_EMPTYGETCHANGES" : "EMPTYGETCHANGES";
-                    clientBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
-
                     // Create a new empty in-memory batch info
                     clientChangesSelected = new DatabaseChangesSelected();
-
                 }
                 else
                 {
-                    (context, clientBatchInfo, clientChangesSelected) = await this.InternalGetChangesAsync(cScopeInfo,
-                        context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp, clientTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
-                        this.Options.BatchDirectory, null, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    clientChangesSelected = await this.InternalGetChangesAsync(cScopeInfo,
+                        context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp, clientTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets, clientBatchInfo,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                 }
+
+                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastSyncTimestamp, clientTimestamp,
+                            clientBatchInfo, clientChangesSelected, runner.Connection, runner.Transaction);
+
+                await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                if (runner.CancellationToken.IsCancellationRequested)
+                    runner.CancellationToken.ThrowIfCancellationRequested();
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
                 var changes = new ClientSyncChanges(clientTimestamp, clientBatchInfo, clientChangesSelected, null);
-
-                await runner.CommitAsync().ConfigureAwait(false);
 
                 return (context, changes);
 
