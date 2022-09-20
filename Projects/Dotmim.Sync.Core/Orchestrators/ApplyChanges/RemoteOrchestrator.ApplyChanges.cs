@@ -169,7 +169,7 @@ namespace Dotmim.Sync
                     await this.InterceptAsync(databaseChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
 
                     if (Options.TransactionMode == TransactionMode.AllOrNothing && runner != null)
-                        await runner.CommitAsync(false).ConfigureAwait(false);
+                        await runner.CommitAsync().ConfigureAwait(false);
 
                 }
                 catch (Exception)
@@ -190,7 +190,8 @@ namespace Dotmim.Sync
                     //------------------------------------------------------------
 
                     // Get a no transaction runner for getting changes
-                    runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    // Create a new connection, since last one is disposed (at least on mysql)
+                    runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                     context.ProgressPercentage = 0.55;
 
@@ -205,7 +206,7 @@ namespace Dotmim.Sync
                     var fromScratch = cScopeInfoClient.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
 
                     // Create a batch info
-                    string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_REMOTE_GETCHANGES" : "REMOTE_GETCHANGES";
+                    string info = runner.Connection != null && !string.IsNullOrEmpty(runner.Connection.Database) ? $"{runner.Connection.Database}_REMOTE_GETCHANGES" : "REMOTE_GETCHANGES";
                     var serverBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
 
                     // Call interceptor
