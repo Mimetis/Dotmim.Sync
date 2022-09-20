@@ -31,7 +31,7 @@ Imagine you have a table that should **never** be synchronized on one particular
 Be careful, your table will never be synced !
 
 Intercepting rows
-^^^^^^^^^^^^^^^^^^
+-----------------------
 
 | You may want to intercept all the rows that have just been selected from the source (client or server), and are about to be sent to their destination (server or client).   
 | Or even intercept all the rows that are going to be applied on a destination database.   
@@ -57,7 +57,7 @@ On each level you will have:
 - An after event: Generally ending by "_ied_" like ``OnDatabaseChangesApplied``.
 
 Selecting changes
--------------------
+^^^^^^^^^^^^^^^^^^^^
 
 Regarding the rows selection from your client or server:
 
@@ -70,8 +70,119 @@ On the other side, once rows are selected, you still can:
 - ``OnTableChangesSelected`` : Raised once a table changes as been fully read. Changes are serialized to disk.
 - ``OnDatabaseChangesSelected`` : Raised once all changes are grabbed from the local database. Changes are serialized to disk.
 
+OnDatabaseChangesSelecting
+-------------------------------
+
+Occurs when changes are going to be queried from the underline database.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    localOrchestrator.OnDatabaseChangesSelecting(args => {
+        Console.WriteLine($"Getting changes from local database:");
+        Console.WriteLine($"Batch directory: {args.BatchDirectory}. Batch size: {args.BatchSize}. 
+                            Is first sync: {args.IsNew}");
+        Console.WriteLine($"From: {args.FromTimestamp}. To: {args.ToTimestamp}.");
+    }
+
+
+OnTableChangesSelecting
+---------------------------
+
+| Occurs when changes are going to be queried from the underline database for a particular table. 
+| You have access to the command / connection / transaction that going to be used to query the database.
+
+.. note:: The ``Command`` property can be changed here, depending on your needs.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    localOrchestrator.OnTableChangesSelecting(args =>
+    {
+        Console.WriteLine($"Getting changes from local database " +
+                          $"for table:{args.SchemaTable.GetFullName()}");
+
+        Console.WriteLine($"{args.Command.CommandText}");
+    });
+
+
+OnRowsChangesSelected
+-------------------------
+
+| Occurs when a row is selected from the underline database.
+| You have access to the ``SyncRow`` row property, the table schema and the state of the row (Modified, Deleted).
+| You can change any value from the ``SyncRow`` property on the fly if needed.
+
+.. code-block:: csharp
+
+    var localOrchestrator = new LocalOrchestrator(clientProvider);
+    localOrchestrator.OnRowsChangesSelected(args =>
+    {
+        Console.WriteLine($"Row read from local database for table:{args.SchemaTable.GetFullName()}");
+        Console.WriteLine($"{args.SyncRow}");
+    });
+
+.. warning:: This event is raised for each row, so be careful with the number of rows you have in your database.
+
+    Plus, this event is raised during the reading phase of the database, that means that the connection is still opened.
+
+    If you have a lot of rows, you may want to use the ``OnTableChangesSelected`` event instead, that occurs once the table is fully read, and results are serialized on disk.
+
+OnTableChangesSelected
+-------------------------
+
+| Occurs when a table is fully selected from the underline database.
+
+.. code-block:: csharp
+
+    localOrchestrator.OnTableChangesSelected(args =>
+    {
+        Console.WriteLine($"Table: {args.SchemaTable.GetFullName()} read. " +
+                          $"Rows count:{args.BatchInfo.RowsCount}.");" +
+
+        Console.WriteLine($"Directory: {args.BatchInfo.DirectoryName}. " +
+                          $"Number of files: {args.BatchPartInfos?.Count()} ");
+        
+        Console.WriteLine($"Changes: {args.TableChangesSelected.TotalChanges} " +
+                          $"({args.TableChangesSelected.Upserts}/{args.TableChangesSelected.Deletes})");
+    });    
+
+.. hint:: You have access to the serialized rows on disk, in the ``BatchInfo`` property. 
+
+    You can iterate through all the files, and read the rows from the files, using the `LoadTableFromBatchInfoAsync <Orchestrators.html#loadtablefrombatchinfoasync>`_ 
+
+
+OnDatabaseChangesSelected
+-----------------------------
+
+| Occurs when all changes are selected from the underline database.
+| The ``BatchInfo`` property is fully filled with all batch files.
+
+
+.. code-block:: csharp
+
+    localOrchestrator.OnDatabaseChangesSelected(args =>
+    {
+        Console.WriteLine($"Directory: {args.BatchInfo.DirectoryName}. "
+                          $"Number of files: {args.BatchInfo.BatchPartsInfo?.Count()} ");
+        
+        Console.WriteLine($"Total: {args.ChangesSelected.TotalChangesSelected} " +
+                            $"({args.ChangesSelected.TotalChangesSelectedUpdates}" +
+                            $"/{args.ChangesSelected.TotalChangesSelectedDeletes})");
+        
+        foreach (var table in args.ChangesSelected.TableChangesSelected)
+            Console.WriteLine($"Table: {table.TableName}. "
+                              $"Total: {table.TotalChanges} ({table.Upserts / table.Deletes}");
+    });        
+
+.. hint:: You have access to the serialized rows on disk, in the ``BatchInfo`` property. 
+
+    You can iterate through all the files, and read the rows from the files, using the `LoadTablesFromBatchInfoAsync <Orchestrators.html#loadtablesfrombatchinfoasync>`_
+
+
+
 Applying changes
----------------------
+^^^^^^^^^^^^^^^^^^^^
 
 Regarding the rows to apply on your client (or server) database, you can intercept different kind of events:
 
@@ -83,33 +194,6 @@ On the other side, once rows are applied, you can iterate through different inte
 
 - ``OnTableChangesApplied``: Contains a summary of all rows applied on a table for a particular state (DataRowState.Modified or Deleted).
 - ``OnDatabaseChangesApplied`` : Contains a summary of all changes applied on the database level.
-
-Here are some useful information about some of these interceptors:
-
-
-OnDatabaseChangesSelecting
--------------------------------
-
-The ``OnDatabaseChangesSelecting`` occurs before the database will get changes from the database.
-
-.. code-block:: csharp
-
-    localOrchestrator.OnDatabaseChangesSelecting(args =>
-    {
-        Console.WriteLine($"--------------------------------------------");
-        Console.WriteLine($"Getting changes from local database:");
-        Console.WriteLine($"--------------------------------------------");
-
-        Console.WriteLine($"BatchDirectory: {args.BatchDirectory}. BatchSize: {args.BatchSize}.");
-    });
-
-.. code-block:: bash
-    
-    --------------------------------------------
-    Getting changes from local database:
-    --------------------------------------------
-    BatchDirectory: C:\Users\spertus\AppData\Local\Temp\DotmimSync\2022_07_18_36tygabvdj2bw. 
-    BatchSize: 2000.
 
 
 OnDatabaseChangesApplying
@@ -250,7 +334,7 @@ The number of rows to be applied here is depending on:
     [Sync state]:Modified, [CustomerID]:30130, [NameStyle]:False, [Title]:<NULL />, [FirstName]:John
 
 
-Interceptors DbCommand execution
+Specific
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Interceptors on ``DbCommand`` will let you change the command used, depending on your requirements:
@@ -368,7 +452,7 @@ Here is the `Sql` script executed for trigger ``Insert``:
     JOIN Inserted ON Product_tracking.ProductID = Inserted.ProductID;
 
 
-Intercepting web events
+Web
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Some interceptors are specific to web orchestrators ``WebRemoteOrchestrator`` & ``WebServerAgent``.
@@ -523,7 +607,7 @@ You have pretty much the same ``Http`` interceptors on the client side. ``OnHttp
 
 
 Example: Hook Bearer token
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------------
 
 The idea is to inject the user identifier ``UserId`` in the ``SyncParameters`` collection on the server, after having extract this value from a ``Bearer`` token.
 

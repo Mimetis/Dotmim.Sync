@@ -23,6 +23,11 @@ namespace Dotmim.Sync
             this.SyncRow = syncRow;
             this.SchemaTable = schemaTable;
         }
+
+        /// <summary>
+        /// Gets or Sets the sync row selected from the underline table.
+        /// You can change this sync row here, before it's serialized on disk.
+        /// </summary>
         public SyncRow SyncRow { get; set; }
 
         /// <summary>
@@ -44,13 +49,21 @@ namespace Dotmim.Sync
 
         /// <summary>
         /// Intercept the provider action when a sync row is about to be serialized in a batch part info after have been selected from the data source
+        /// <example>
+        /// <code>
+        /// var localOrchestrator = new LocalOrchestrator(clientProvider);
+        /// localOrchestrator.OnRowsChangesSelected(args =>
+        /// {
+        ///     Console.WriteLine($"Row read from local database for table:{args.SchemaTable.GetFullName()}");
+        ///     Console.WriteLine($"{args.SyncRow}");
+        /// });
+        /// </code>
+        /// </example>
         /// </summary>
         public static Guid OnRowsChangesSelected(this BaseOrchestrator orchestrator, Action<RowsChangesSelectedArgs> action)
             => orchestrator.AddInterceptor(action);
 
-        /// <summary>
-        /// Intercept the provider action when a sync row is about to be serialized in a batch part info after have been selected from the data source
-        /// </summary>
+        /// <inheritdoc cref="OnRowsChangesSelected(BaseOrchestrator, Action{RowsChangesSelectedArgs})"/>
         public static Guid OnRowsChangesSelected(this BaseOrchestrator orchestrator, Func<RowsChangesSelectedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 

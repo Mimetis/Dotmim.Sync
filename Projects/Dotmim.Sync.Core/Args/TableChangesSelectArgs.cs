@@ -94,13 +94,22 @@ namespace Dotmim.Sync
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider action when changes are selected on each table defined in the configuration schema
+        /// Occurs once a table is fully read during the get changes step. rows are already serialized on disk
+        /// <example>
+        /// <code>
+        /// localOrchestrator.OnTableChangesSelected(args =>
+        /// {
+        ///   Console.WriteLine($"Table: {args.SchemaTable.GetFullName()} read. Rows count:{args.BatchInfo.RowsCount}.");
+        ///   Console.WriteLine($"Directory: {args.BatchInfo.DirectoryName}. Number of files: {args.BatchPartInfos?.Count()} ");
+        ///   Console.WriteLine($"Changes: {args.TableChangesSelected.TotalChanges} ({args.TableChangesSelected.Upserts}/{args.TableChangesSelected.Deletes})");
+        /// });
+        /// </code>
+        /// </example>
         /// </summary>
         public static Guid OnTableChangesSelected(this BaseOrchestrator orchestrator, Action<TableChangesSelectedArgs> action)
             => orchestrator.AddInterceptor(action);
-        /// <summary>
-        /// Intercept the provider action when changes are selected on each table defined in the configuration schema
-        /// </summary>
+
+        /// <inheritdoc cref="OnTableChangesSelected(BaseOrchestrator, Action{TableChangesSelectedArgs})"/>
         public static Guid OnTableChangesSelected(this BaseOrchestrator orchestrator, Func<TableChangesSelectedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 

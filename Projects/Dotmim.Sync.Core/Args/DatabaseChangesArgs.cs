@@ -135,24 +135,45 @@ namespace Dotmim.Sync
 
 
         /// <summary>
-        /// Occurs when changes are going to be queried on the local database
+        /// Occurs when changes are going to be queried from the underline database
+        /// <example>
+        /// <code>
+        /// var localOrchestrator = new LocalOrchestrator(clientProvider);
+        /// localOrchestrator.OnDatabaseChangesSelecting(args => {
+        ///   Console.WriteLine($"Getting changes from local database:");
+        ///   Console.WriteLine($"Batch directory: {args.BatchDirectory}. Batch size: {args.BatchSize}. Is first sync: {args.IsNew}");
+        ///   Console.WriteLine($"From: {args.FromTimestamp}. To: {args.ToTimestamp}.");
+        /// }
+        /// </code>
+        /// </example>
         /// </summary>
         public static Guid OnDatabaseChangesSelecting(this BaseOrchestrator orchestrator, Action<DatabaseChangesSelectingArgs> func)
             => orchestrator.AddInterceptor(func);
-        /// <summary>
-        /// Occurs when changes are going to be queried on the local database
-        /// </summary>
+        
+        /// <inheritdoc cref="OnDatabaseChangesSelecting(BaseOrchestrator, Action{DatabaseChangesSelectingArgs})"/>
         public static Guid OnDatabaseChangesSelecting(this BaseOrchestrator orchestrator, Func<DatabaseChangesSelectingArgs, Task> func)
             => orchestrator.AddInterceptor(func);
 
         /// <summary>
         /// Occurs when changes have been retrieved from the local database
+        /// <example>
+        /// <code>
+        /// var localOrchestrator = new LocalOrchestrator(clientProvider);
+        /// localOrchestrator.OnDatabaseChangesSelected(args =>
+        /// {
+        ///   Console.WriteLine($"Directory: {args.BatchInfo.DirectoryName}. Number of files: {args.BatchInfo.BatchPartsInfo?.Count()} ");
+        ///   Console.WriteLine($"Total: {args.ChangesSelected.TotalChangesSelected} " +
+        ///             $"({args.ChangesSelected.TotalChangesSelectedUpdates}/{args.ChangesSelected.TotalChangesSelectedDeletes})");
+        ///   foreach (var table in args.ChangesSelected.TableChangesSelected)
+        ///           Console.WriteLine($"Table: {table.TableName}. Total: {table.TotalChanges} ({table.Upserts / table.Deletes}");
+        /// });
+        /// </code>
+        /// </example>
         /// </summary>
         public static Guid OnDatabaseChangesSelected(this BaseOrchestrator orchestrator, Action<DatabaseChangesSelectedArgs> func)
             => orchestrator.AddInterceptor(func);
-        /// <summary>
-        /// Occurs when changes have been retrieved from the local database
-        /// </summary>
+
+        /// <inheritdoc cref="OnDatabaseChangesSelected(BaseOrchestrator, Action{DatabaseChangesSelectedArgs})"/>
         public static Guid OnDatabaseChangesSelected(this BaseOrchestrator orchestrator, Func<DatabaseChangesSelectedArgs, Task> func)
             => orchestrator.AddInterceptor(func);
 

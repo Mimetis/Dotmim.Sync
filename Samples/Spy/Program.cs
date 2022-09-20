@@ -40,7 +40,7 @@ namespace Spy
             Console.WriteLine(s1);
 
             // Make some changes on the server side
-            var sc = serverProvider.CreateConnection();
+            var sc = clientProvider.CreateConnection();
             await Helper.InsertOneCustomerAsync(sc, "John", "Doe");
             await Helper.InsertOneProductCategoryAsync(sc, Guid.NewGuid(), "Shoes 2020" + Path.GetRandomFileName());
             await Helper.DeleteOneSalesDetailOrderAsync(sc, 113141);
@@ -53,18 +53,48 @@ namespace Spy
 
             localOrchestrator.OnDatabaseChangesSelecting(args =>
             {
-                Console.WriteLine($"--------------------------------------------");
                 Console.WriteLine($"Getting changes from local database:");
+                Console.WriteLine($"Batch directory: {args.BatchDirectory}. Batch size: {args.BatchSize}. Is first sync: {args.IsNew}");
+                Console.WriteLine($"From: {args.FromTimestamp}. To: {args.ToTimestamp}.");
                 Console.WriteLine($"--------------------------------------------");
-
-                Console.WriteLine($"BatchDirectory: {args.BatchDirectory}. BatchSize: {args.BatchSize}.");
             });
 
 
             localOrchestrator.OnTableChangesSelecting(args =>
             {
+                Console.WriteLine($"Getting changes from local database for table:{args.SchemaTable.GetFullName()}");
+                Console.WriteLine($"{args.Command.CommandText}");
+                Console.WriteLine($"--------------------------------------------");
 
             });
+
+            localOrchestrator.OnRowsChangesSelected(args =>
+            {
+                Console.WriteLine($"Row read from local database for table:{args.SchemaTable.GetFullName()}");
+                Console.WriteLine($"{args.SyncRow}");
+                Console.WriteLine($"--------------------------------------------");
+            });
+
+
+            localOrchestrator.OnTableChangesSelected(args =>
+            {
+                Console.WriteLine($"Table: {args.SchemaTable.GetFullName()} read. Rows count:{args.BatchInfo.RowsCount}.");
+                Console.WriteLine($"Directory: {args.BatchInfo.DirectoryName}. Number of files: {args.BatchPartInfos?.Count()} ");
+                Console.WriteLine($"Changes: {args.TableChangesSelected.TotalChanges} ({args.TableChangesSelected.Upserts}/{args.TableChangesSelected.Deletes})");
+                Console.WriteLine($"--------------------------------------------");
+
+            });
+
+            localOrchestrator.OnDatabaseChangesSelected(args =>
+            {
+                Console.WriteLine($"Directory: {args.BatchInfo.DirectoryName}. Number of files: {args.BatchInfo.BatchPartsInfo?.Count()} ");
+                Console.WriteLine($"Total: {args.ChangesSelected.TotalChangesSelected} " +
+                                  $"({args.ChangesSelected.TotalChangesSelectedUpdates}/{args.ChangesSelected.TotalChangesSelectedDeletes})");
+                foreach (var table in args.ChangesSelected.TableChangesSelected)
+                    Console.WriteLine($"Table: {table.TableName}. Total: {table.TotalChanges} ({table.Upserts} / {table.Deletes})");
+                Console.WriteLine($"--------------------------------------------");
+            });
+
 
             // Just before applying something locally, at the database level
             localOrchestrator.OnDatabaseChangesApplying(async args =>
