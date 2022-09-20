@@ -351,6 +351,13 @@ namespace Dotmim.Sync
             // Create stats object to store changes count
             var changes = new DatabaseChangesSelected();
 
+            // Call interceptor
+            var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, default, this.Options.BatchSize, true,
+                fromLastTimestamp, toLastTimestamp, connection, transaction);
+
+            await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
+
+
             if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
                 return (context, changes);
 
@@ -432,6 +439,11 @@ namespace Dotmim.Sync
                     changes.TableChangesSelected.Add(tableChangesSelected);
 
             }, threadNumberLimits);
+
+            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, fromLastTimestamp, toLastTimestamp,
+                        default, changes, connection, transaction);
+
+            await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             return (context, changes);
         }
