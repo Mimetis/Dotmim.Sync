@@ -253,7 +253,7 @@ namespace Dotmim.Sync
             if (!File.Exists(fullPath))
                 return null;
 
-            if (batchPartInfo.Tables == null || batchPartInfo.Tables.Count() < 1)
+            if ((batchPartInfo.Tables == null || batchPartInfo.Tables.Count() < 1) && batchPartInfo.RowsCount <= 0)
                 return null;
 
             ScopeInfo scopeInfo = null;
@@ -265,6 +265,10 @@ namespace Dotmim.Sync
 
             // get the sanitazed table (without any readonly / non updatable columns) from batchinfo
             var originalSchemaTable = scopeInfo.Schema.Tables[batchPartInfoTableName, batchPartInfoSchemaName];
+
+            if (originalSchemaTable == null)
+                return null;
+
             var changesSet = originalSchemaTable.Schema.Clone(false);
             var table = BaseOrchestrator.CreateChangesTable(originalSchemaTable, changesSet);
 
@@ -294,11 +298,11 @@ namespace Dotmim.Sync
         /// <param name="batchInfo">Represents the directory containing all batch parts and the schema associated</param>
         /// <param name="batchPartInfo">Represents the table to serialize in a batch part</param>
         /// <param name="syncTable">The table to serialize</param>
-        public virtual Task<SyncContext> SaveTableToBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
+        public virtual Task SaveTableToBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
             => SaveTableToBatchPartInfoAsync(SyncOptions.DefaultScopeName, batchInfo, batchPartInfo, syncTable);
 
         /// <inheritdoc cref="SaveTableToBatchPartInfoAsync(BatchInfo, BatchPartInfo, SyncTable)"/>
-        public virtual Task<SyncContext> SaveTableToBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
+        public virtual Task SaveTableToBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
@@ -312,7 +316,7 @@ namespace Dotmim.Sync
             }
         }
 
-        internal async Task<SyncContext> InternalSaveTableToBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
+        internal async Task InternalSaveTableToBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
         {
             var localSerializer = new LocalJsonSerializer();
 
@@ -322,26 +326,27 @@ namespace Dotmim.Sync
             if (File.Exists(fullPath))
                 File.Delete(fullPath);
 
-            var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
-            if (interceptorsWriting.Count > 0)
+            if (syncTable?.Rows != null && syncTable.Rows.Count <= 0)
             {
-                localSerializer.OnWritingRow(async (schemaTable, rowArray) =>
+                var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
+                if (interceptorsWriting.Count > 0)
                 {
-                    var args = new SerializingRowArgs(context, schemaTable, rowArray);
-                    await this.InterceptAsync(args).ConfigureAwait(false);
-                    return args.Result;
-                });
+                    localSerializer.OnWritingRow(async (schemaTable, rowArray) =>
+                    {
+                        var args = new SerializingRowArgs(context, schemaTable, rowArray);
+                        await this.InterceptAsync(args).ConfigureAwait(false);
+                        return args.Result;
+                    });
+                }
+                // open the file and write table header
+                await localSerializer.OpenFileAsync(fullPath, syncTable).ConfigureAwait(false);
+
+                foreach (var row in syncTable.Rows)
+                    await localSerializer.WriteRowToFileAsync(row, syncTable).ConfigureAwait(false);
+
+                // Close file
+                await localSerializer.CloseFileAsync().ConfigureAwait(false);
             }
-            // open the file and write table header
-            await localSerializer.OpenFileAsync(fullPath, syncTable).ConfigureAwait(false);
-
-            foreach (var row in syncTable.Rows)
-                await localSerializer.WriteRowToFileAsync(row, syncTable).ConfigureAwait(false);
-
-            // Close file
-            await localSerializer.CloseFileAsync().ConfigureAwait(false);
-
-            return context;
         }
 
     }

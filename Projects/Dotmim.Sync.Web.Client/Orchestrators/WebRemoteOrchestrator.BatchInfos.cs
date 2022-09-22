@@ -16,10 +16,10 @@ namespace Dotmim.Sync.Web.Client
 {
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
-        public override Task<SyncContext> SaveTableToBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
+        public override Task SaveTableToBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
                => throw new NotImplementedException();
 
-        public override Task<SyncContext> SaveTableToBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
+        public override Task SaveTableToBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
                => throw new NotImplementedException();
 
     }

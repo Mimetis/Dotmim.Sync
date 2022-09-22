@@ -324,8 +324,11 @@ namespace Dotmim.Sync
             }
             else
             {
-                var bpi2 = new BatchPartInfo(batchPartFileNameDeleted, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchDeleted, batchIndex);
-                bpi2.IsLastBatch = true;
+                var bpi2 = new BatchPartInfo(batchPartFileNameDeleted, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchDeleted, batchIndex)
+                {
+                    IsLastBatch = true
+                };
+
                 syncTableBatchPartInfos.Add(bpi2);
             }
 

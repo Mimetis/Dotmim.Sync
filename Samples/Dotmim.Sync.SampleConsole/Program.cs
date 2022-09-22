@@ -105,8 +105,93 @@ internal class Program
 
         //await TestItAsync();
 
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        await AddProductButRemoveFromSyncAsync(clientProvider, serverProvider, setup, options);
         //await GenerateErrorsAsync();
+    }
+
+
+
+    private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
+    {
+
+        //var options = new SyncOptions();
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        do
+        {
+            try
+            {
+                Console.Clear();
+                Console.ForegroundColor = ConsoleColor.Green;
+                var s = await agent.SynchronizeAsync(setup, progress: progress);
+                Console.ResetColor();
+                Console.WriteLine(s);
+
+            }
+            catch (SyncException e)
+            {
+                Console.ResetColor();
+                Console.WriteLine(e.Message);
+            }
+            catch (Exception e)
+            {
+                Console.ResetColor();
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+    }
+
+
+
+    private static async Task AddProductButRemoveFromSyncAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
+    {
+
+        //var options = new SyncOptions();
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
+        serverProvider.SupportsMultipleActiveResultSets = false;
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        var s = await agent.SynchronizeAsync(setup, progress: progress);
+
+        await DBHelper.AddProductCategoryRowAsync(serverProvider);
+        await DBHelper.AddProductCategoryRowAsync(serverProvider);
+
+
+        agent.RemoteOrchestrator.OnRowsChangesSelected(args =>
+        {
+            if (args.SchemaTable.TableName == "ProductCategory" && args.SyncRow.RowState == SyncRowState.Modified)
+                args.SyncRow = null;
+        });
+
+        agent.RemoteOrchestrator.OnTableChangesSelected(async args =>
+        {
+            foreach (var bpi in args.BatchPartInfos)
+            {
+                var table = await agent.RemoteOrchestrator.LoadTableFromBatchPartInfoAsync(args.BatchInfo, bpi);
+
+                foreach (var row in table.Rows.ToArray())
+                    if (row.RowState == SyncRowState.Deleted)
+                        table.Rows.Remove(row);
+
+                await agent.RemoteOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, bpi, table);
+            }
+        });
+
+
+        s = await agent.SynchronizeAsync(setup, progress: progress);
+        Console.WriteLine(s);
     }
 
 
@@ -224,44 +309,6 @@ internal class Program
 
 
 
-
-    }
-
-
-    private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
-    {
-
-        //var options = new SyncOptions();
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        do
-        {
-            try
-            {
-                Console.Clear();
-                Console.ForegroundColor = ConsoleColor.Green;
-                var s = await agent.SynchronizeAsync(setup, progress: progress);
-                Console.ResetColor();
-                Console.WriteLine(s);
-
-            }
-            catch (SyncException e)
-            {
-                Console.ResetColor();
-                Console.WriteLine(e.Message);
-            }
-            catch (Exception e)
-            {
-                Console.ResetColor();
-                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-            }
-            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
     }
 
