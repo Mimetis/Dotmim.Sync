@@ -97,16 +97,62 @@ internal class Program
 
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
+        // await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("CliProduct"));
         //clientProvider.UseBulkOperations = false;
         // await FileTestAsync();
 
-        //await TestItAsync();
+        //await EditEntityOnceUploadedAsync(clientProvider, serverProvider, setup, options);
 
-        await AddProductButRemoveFromSyncAsync(clientProvider, serverProvider, setup, options);
-        //await GenerateErrorsAsync();
+        await GenerateErrorsAsync();
+    }
+
+    private static async Task EditEntityOnceUploadedAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
+    {
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        var results = await agent.SynchronizeAsync(setup, progress: progress);
+
+        await DBHelper.AddProductCategoryRowAsync(clientProvider);
+
+        agent.RemoteOrchestrator.OnRowsChangesApplied(args =>
+        {
+            if (args.SchemaTable.TableName == "ProductCategory")
+            {
+                var command = args.Connection.CreateCommand();
+                command.CommandText = "Update ProductCategory Set Name=@Name where ProductCategoryID=@ProductCategoryID";
+                command.Connection = args.Connection;
+                command.Transaction = args.Transaction;
+
+                var pId = command.CreateParameter();
+                pId.ParameterName = "@ProductCategoryID";
+                pId.DbType = DbType.Guid;
+                command.Parameters.Add(pId);
+
+                var pName = command.CreateParameter();
+                pName = command.CreateParameter();
+                pName.ParameterName = "@Name";
+                pName.DbType = DbType.String;
+                command.Parameters.Add(pName);
+
+                foreach (var row in args.SyncRows)
+                {
+                    pId.Value = new Guid(row["ProductCategoryId"].ToString());
+                    pName.Value = $"SV_{row["Name"]}";
+
+                    command.ExecuteNonQuery();
+                }
+            }
+        });
+        results = await agent.SynchronizeAsync(setup, progress: progress);
+
+        Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+
     }
 
 
@@ -150,51 +196,6 @@ internal class Program
 
 
 
-    private static async Task AddProductButRemoveFromSyncAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
-    {
-
-        //var options = new SyncOptions();
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
-
-        serverProvider.SupportsMultipleActiveResultSets = false;
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        var s = await agent.SynchronizeAsync(setup, progress: progress);
-
-        await DBHelper.AddProductCategoryRowAsync(serverProvider);
-        await DBHelper.AddProductCategoryRowAsync(serverProvider);
-
-
-        agent.RemoteOrchestrator.OnRowsChangesSelected(args =>
-        {
-            if (args.SchemaTable.TableName == "ProductCategory" && args.SyncRow.RowState == SyncRowState.Modified)
-                args.SyncRow = null;
-        });
-
-        agent.RemoteOrchestrator.OnTableChangesSelected(async args =>
-        {
-            foreach (var bpi in args.BatchPartInfos)
-            {
-                var table = await agent.RemoteOrchestrator.LoadTableFromBatchPartInfoAsync(args.BatchInfo, bpi);
-
-                foreach (var row in table.Rows.ToArray())
-                    if (row.RowState == SyncRowState.Deleted)
-                        table.Rows.Remove(row);
-
-                await agent.RemoteOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, bpi, table);
-            }
-        });
-
-
-        s = await agent.SynchronizeAsync(setup, progress: progress);
-        Console.WriteLine(s);
-    }
-
-
     private static async Task GenerateErrorsAsync()
     {
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("svProduct"));
@@ -203,7 +204,6 @@ internal class Program
         clientProvider.UseBulkOperations = false;
         var setup = new SyncSetup("ProductCategory");
         var options = new SyncOptions();
-
 
         var localOrchestrator = new LocalOrchestrator(clientProvider);
 
@@ -270,6 +270,35 @@ internal class Program
             args.Resolution = ErrorResolution.Resolved;
         });
 
+        agent.LocalOrchestrator.OnRowsChangesApplied(args =>
+        {
+            if (args.SchemaTable.TableName == "ProductCategory")
+            {
+                var command = args.Connection.CreateCommand();
+                command.CommandText = "Update ProductCategory Set Name=@Name where ProductCategoryID=@ProductCategoryID";
+                command.Connection = args.Connection;
+                command.Transaction = args.Transaction;
+
+                var pId = command.CreateParameter();
+                pId.ParameterName = "@ProductCategoryID";
+                pId.DbType = DbType.String;
+                command.Parameters.Add(pId);
+
+                var pName = command.CreateParameter();
+                pName = command.CreateParameter();
+                pName.ParameterName = "@Name";
+                pName.DbType = DbType.String;
+                command.Parameters.Add(pName);
+
+                foreach (var row in args.SyncRows)
+                {
+                    pId.Value = row["ProductCategoryId"].ToString();
+                    pName.Value = $"SV_{row["Name"]}";
+
+                    command.ExecuteNonQuery();
+                }
+            }
+        });
         // Generate foreign key error
         await DBHelper.ExecuteScriptAsync("svProduct", getForeignKeyErrorCommand("B", "A"));
 

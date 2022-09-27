@@ -494,6 +494,12 @@ namespace Dotmim.Sync
                     {
                         conflictsResolvedCount += conflictResolved ? 1 : 0;
                         appliedRows += applied ? 1 : 0;
+
+                        if (applied && this.HasInterceptors<RowsChangesAppliedArgs>())
+                        {
+                            var rowAppliedArgs = new RowsChangesAppliedArgs(context, message.Changes, new List<SyncRow> { conflictRow }, schemaChangesTable, applyType, connection, transaction);
+                            await this.InterceptAsync(rowAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
+                        }
                     }
                 }
 
@@ -515,7 +521,8 @@ namespace Dotmim.Sync
                                         errorRow.Exception, message.SenderScopeId, message.LastTimestamp,
                                         runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
 
-                    // If failed, add the row to the final output failure rows
+
+                    // check if we have already the row in errorsTable
                     var existingRow = SyncRows.GetRowByPrimaryKeys(errorRow.SyncRow, errorsTable.Rows, errorsTable);
 
                     if (existingRow != null)
@@ -539,6 +546,12 @@ namespace Dotmim.Sync
                         {
                             failedRows += errorAction == ErrorAction.Log ? 1 : 0;
                             appliedRows += errorAction == ErrorAction.Resolved ? 1 : 0;
+
+                            if (errorAction == ErrorAction.Resolved && this.HasInterceptors<RowsChangesAppliedArgs>())
+                            {
+                                var rowAppliedArgs = new RowsChangesAppliedArgs(context, message.Changes, new List<SyncRow> { errorRow.SyncRow }, schemaChangesTable, applyType, connection, transaction);
+                                await this.InterceptAsync(rowAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
+                            }
                         }
 
                     }
@@ -608,8 +621,7 @@ namespace Dotmim.Sync
             // Report the overall changes applied for the current table
             if (tableChangesApplied != null)
             {
-                if (connection == null)
-                    connection = this.Provider.CreateConnection();
+                connection ??= this.Provider.CreateConnection();
 
                 var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, tableChangesApplied, connection, transaction);
                 // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
@@ -663,6 +675,13 @@ namespace Dotmim.Sync
                 errorException = ex;
             }
 
+
+            if (rowAppliedCount > 0 && errorException == null && this.HasInterceptors<RowsChangesAppliedArgs>())
+            {
+                var rowAppliedArgs = new RowsChangesAppliedArgs(context, message.Changes, new List<SyncRow> { syncRow }, schemaChangesTable, applyType, connection, transaction);
+                await this.InterceptAsync(rowAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
+            }
+
             return (rowAppliedCount, errorException);
         }
 
@@ -697,6 +716,13 @@ namespace Dotmim.Sync
             }
 
             var rowAppliedCount = errorException != null ? 0 : batchRows.Count - conflictRowsTable.Rows.Count;
+
+
+            if (rowAppliedCount > 0 && errorException == null && this.HasInterceptors<RowsChangesAppliedArgs>())
+            {
+                var rowAppliedArgs = new RowsChangesAppliedArgs(context, message.Changes, batchRows, schemaChangesTable, applyType, connection, transaction);
+                await this.InterceptAsync(rowAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
+            }
 
             return (rowAppliedCount, conflictRowsTable.Rows, errorException);
         }

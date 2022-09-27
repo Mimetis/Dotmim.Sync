@@ -440,10 +440,6 @@ namespace Dotmim.Sync
                         cScopeInfo, cScopeInfoClient, context, serverSyncChanges, clientSyncChanges, reverseConflictResolutionPolicy, snapshotApplied, default, default, 
                         cancellationToken, progress).ConfigureAwait(false);
 
-                // Update back failed rows that should be retried on next sync
-                //context = await this.RemoteOrchestrator.InternalApplyBackFailedRowsAsync(cScopeInfo, context, clientSyncChanges.ClientChangesApplied,
-                //    default, default, cancellationToken, progress).ConfigureAwait(false);
-
                 completeTime = DateTime.UtcNow;
                 this.LocalOrchestrator.CompleteTime = completeTime;
                 this.RemoteOrchestrator.CompleteTime = completeTime;

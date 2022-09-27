@@ -84,15 +84,15 @@ You should see something like that:
 
 .. code-block:: csharp
 
-Synchronization done.
-        Total changes  uploaded: 0
-        Total changes  downloaded: 1
-        Total changes  applied on client: 1
-        Total changes  applied on server: 0
-        Total changes  failed to apply on client: 0
-        Total changes  failed to apply on server: 0
-        Total resolved conflicts: 0
-        Total duration :00.00:00.030
+   Synchronization done.
+         Total changes  uploaded: 0
+         Total changes  downloaded: 1
+         Total changes  applied on client: 1
+         Total changes  applied on server: 0
+         Total changes  failed to apply on client: 0
+         Total changes  failed to apply on server: 0
+         Total resolved conflicts: 0
+         Total duration :00.00:00.030
 
 Yes it's blazing fast !
 

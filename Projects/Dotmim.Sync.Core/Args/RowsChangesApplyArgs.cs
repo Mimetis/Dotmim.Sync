@@ -46,12 +46,43 @@ namespace Dotmim.Sync
     }
 
 
+    /// <summary>
+    /// Event args after a batch changes has been applied on a datasource
+    /// </summary>
+    public class RowsChangesAppliedArgs : ProgressArgs
+    {
+        public RowsChangesAppliedArgs(SyncContext context, BatchInfo batchInfo, List<SyncRow> syncRows, SyncTable schemaTable, SyncRowState state, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+            this.State = state;
+            this.BatchInfo = batchInfo;
+            this.SyncRows = syncRows;
+            this.SchemaTable = schemaTable;
+        }
+
+        /// <summary>
+        /// Gets the RowState of the applied rows
+        /// </summary>
+        public SyncRowState State { get; }
+        public BatchInfo BatchInfo { get; }
+        public List<SyncRow> SyncRows { get; }
+
+        public SyncTable SchemaTable { get; }
+
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
+        public override string Source => Connection.Database;
+        public override string Message => $"Applying [{this.SchemaTable.GetFullName()}] batch rows. State:{this.State}. Count:{this.SyncRows.Count()}";
+
+        public override int EventId => SyncEventsId.RowsChangesApplying.Id;
+    }
+
+
     public static partial class InterceptorsExtensions
     {
 
 
         /// <summary>
-        /// Occurs just before applying a batch of rows to the local(client or server) database.
+        /// Occurs just before applying a batch of rows to the local (client or server) database.
         /// <para>
         /// The number of rows to be applied here is depending on:
         /// <list type="bullet">
@@ -81,7 +112,39 @@ namespace Dotmim.Sync
         public static Guid OnRowsChangesApplying(this BaseOrchestrator orchestrator, Func<RowsChangesApplyingArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
-      
+
+        /// <summary>
+        /// Occurs just after a batch or rows have been applied to the local (client or server) database
+        /// <para>
+        /// The number of rows applied here is depending on:
+        /// <list type="bullet">
+        /// The batch size you have set in your SyncOptions instance : <c>SyncOptions.BatchSize</c> (Default is 2 Mo)
+        /// </list>
+        /// <list type="bullet">
+        /// The max number of rows to applied in one single instruction : <c>Provider.BulkBatchMaxLinesCount</c> (Default is 10 000 rows per instruction)
+        /// </list>
+        /// </para>
+        /// <example>
+        /// <code>
+        /// localOrchestrator.OnRowsChangesApplied(async args =>
+        /// {
+        ///     Console.WriteLine($"- In memory rows that are applied, but still in the on going transaction");
+        ///     foreach (var row in args.SyncRows)
+        ///         Console.WriteLine(row);
+        /// 
+        ///     Console.WriteLine();
+        /// });
+        /// </code>
+        /// </example>
+        /// </summary>
+        public static Guid OnRowsChangesApplied(this BaseOrchestrator orchestrator, Action<RowsChangesAppliedArgs> action)
+            => orchestrator.AddInterceptor(action);
+
+        /// <inheritdoc cref="OnRowsChangesApplied(BaseOrchestrator, Action{RowsChangesAppliedArgs})"/>
+        public static Guid OnRowsChangesApplied(this BaseOrchestrator orchestrator, Func<RowsChangesAppliedArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
+
+
 
     }
 
