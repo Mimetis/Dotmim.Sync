@@ -288,8 +288,6 @@ namespace Dotmim.Sync.Web.Client
 
         [DataMember(Name = "so", IsRequired = true, Order = 2)]
         public SyncOperation SyncOperation { get; set; }
-
-
     }
 
 
@@ -385,4 +383,89 @@ namespace Dotmim.Sync.Web.Client
         public ConflictResolutionPolicy ConflictResolutionPolicy { get; set; }
 
     }
+
+
+
+    [DataContract(Name = "endsessionreq"), Serializable]
+    public class HttpMessageEndSessionRequest
+    {
+        public HttpMessageEndSessionRequest()
+        {
+
+        }
+
+        public HttpMessageEndSessionRequest(SyncContext context)
+            => this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
+
+        /// <summary>
+        /// Gets or Sets the SyncContext
+        /// </summary>
+        [DataMember(Name = "sc", IsRequired = true, Order = 1)]
+        public SyncContext SyncContext { get; set; }
+
+        /// <summary>
+        /// <summary>Gets or sets the time when a sync sessionn started.
+        /// </summary>
+        [DataMember(Name = "st", IsRequired = true, Order = 2)]
+        public DateTime StartTime { get; set; }
+
+        /// <summary>
+        /// Gets or sets the time when a sync session ended.
+        /// </summary>
+        [DataMember(Name = "ct", IsRequired = true, Order = 3)]
+        public DateTime CompleteTime { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the summary of client changes that where applied on the server
+        /// </summary>
+        [DataMember(Name = "cas", IsRequired = false, Order = 4, EmitDefaultValue = false)]
+        public DatabaseChangesApplied ChangesAppliedOnServer { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the summary of server changes that where applied on the client
+        /// </summary>
+        [DataMember(Name = "cac", IsRequired = false, Order = 5, EmitDefaultValue = false)]
+        public DatabaseChangesApplied ChangesAppliedOnClient { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the summary of snapshot changes that where applied on the client
+        /// </summary>
+        [DataMember(Name = "scac", IsRequired = false, Order = 6, EmitDefaultValue = false)]
+        public DatabaseChangesApplied SnapshotChangesAppliedOnClient { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the summary of client changes to be applied on the server
+        /// </summary>
+        [DataMember(Name = "ccs", IsRequired = false, Order = 7, EmitDefaultValue = false)]
+        public DatabaseChangesSelected ClientChangesSelected { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the summary of server changes selected to be applied on the client
+        /// </summary>
+        [DataMember(Name = "scs", IsRequired = false, Order = 8, EmitDefaultValue = false)]
+        public DatabaseChangesSelected ServerChangesSelected { get; set; }
+
+        /// <summary>
+        /// Gets or Sets the exception occured on client if any
+        /// </summary>
+        [DataMember(Name = "exc", IsRequired = false, Order = 9, EmitDefaultValue = false)]
+        public string SyncExceptionMessage { get; set; }
+
+    }
+
+
+    [DataContract(Name = "endsessionres"), Serializable]
+    public class HttpMessageEndSessionResponse
+    {
+        public HttpMessageEndSessionResponse() { }
+
+        public HttpMessageEndSessionResponse(SyncContext context)
+        {
+            this.SyncContext = context ?? throw new ArgumentNullException(nameof(context));
+        }
+
+        [DataMember(Name = "sc", IsRequired = true, Order = 1)]
+        public SyncContext SyncContext { get; set; }
+    }
+
 }

@@ -63,19 +63,54 @@ public class SyncLogsController : ControllerBase
         var sqlProvider = new SqlSyncProvider(this.configuration.GetConnectionString("SqlConnection"));
         var remoteOrchestrator = new RemoteOrchestrator(sqlProvider);
 
-        var scopes = await remoteOrchestrator.GetAllScopeInfoClientsAsync().ConfigureAwait(false);
+        var sScopeInfosClients = await remoteOrchestrator.GetAllScopeInfoClientsAsync().ConfigureAwait(false);
 
         var jArray = new JArray();
 
-        foreach (var scope in scopes)
+        foreach (var scopeInfoClient in sScopeInfosClients)
         {
             jArray.Add(new JObject{
-                { "id", scope.Id },
-                { "scopeName", scope.Name },
-                { "lastSync", scope.LastSync },
-                { "lastSyncDuration", scope.LastSyncDuration },
-                { "lastSyncTimestamp", scope.LastSyncTimestamp },
-                { "properties", scope.Properties },
+                { "id", scopeInfoClient.Id },
+                { "scopeName", scopeInfoClient.Name },
+                { "lastSync", scopeInfoClient.LastSync },
+                { "lastSyncDuration", scopeInfoClient.LastSyncDuration },
+                { "lastSyncTimestamp", scopeInfoClient.LastSyncTimestamp },
+                { "properties", scopeInfoClient.Properties },
+                { "parameters", scopeInfoClient.Parameters != null ? JArray.FromObject(scopeInfoClient.Parameters) :null},
+                { "errors", scopeInfoClient.Errors}
+            });
+        }
+
+        return jArray;
+    }
+
+    [HttpGet("/api/clientsScopesById")]
+    public async Task<JArray> GetClientScopesById(Guid id)
+    {
+        var sqlProvider = new SqlSyncProvider(this.configuration.GetConnectionString("SqlConnection"));
+        var remoteOrchestrator = new RemoteOrchestrator(sqlProvider);
+
+        var sScopeInfosClients = await remoteOrchestrator.GetAllScopeInfoClientsAsync().ConfigureAwait(false);
+
+        if (sScopeInfosClients == null)
+            return null;
+
+        sScopeInfosClients = sScopeInfosClients.Where(s => s.Id == id).ToList();
+
+        var jArray = new JArray();
+
+        foreach (var scopeInfoClient in sScopeInfosClients)
+        {
+            jArray.Add(new JObject{
+                { "id", scopeInfoClient.Id },
+                { "scopeName", scopeInfoClient.Name },
+                { "lastSync", scopeInfoClient.LastSync },
+                { "lastSyncDuration", scopeInfoClient.LastSyncDuration },
+                { "lastSyncTimestamp", scopeInfoClient.LastSyncTimestamp },
+                { "properties", scopeInfoClient.Properties },
+                { "parameters", JArray.FromObject(scopeInfoClient.Parameters) },
+                { "errors", scopeInfoClient.Errors}
+
             });
         }
 

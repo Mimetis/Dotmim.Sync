@@ -25,11 +25,26 @@ namespace Dotmim.Sync.Tests.Models
         {
             this.ConnectionString = connectionString;
         }
+        public SyncLogsContext(DbConnection connection)
+        {
+            this.Connection = connection;
+        }
+
+
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             if (!optionsBuilder.IsConfigured)
-                optionsBuilder.UseSqlServer(this.ConnectionString);
+            {
+                if (this.Connection != null)
+                {
+                    optionsBuilder.UseSqlServer(this.Connection);
+                }
+                else
+                {
+                    optionsBuilder.UseSqlServer(this.ConnectionString);
+                }
+            }
 
         }
 
@@ -75,22 +90,23 @@ namespace Dotmim.Sync.Tests.Models
 	                        [SessionId] [uniqueidentifier] NOT NULL,
 	                        [ClientScopeId] [uniqueidentifier] NOT NULL,
 	                        [ScopeName] [nvarchar](100) NULL,
+	                        [ScopeParameters] [nvarchar](MAX) NULL,
+	                        [State] [nvarchar](50) NULL,
 	                        [SyncType] [nvarchar](100) NULL,
 	                        [IsNew] bit NULL,
 	                        [StartTime] [datetime] NULL,
+	                        [EndTime] [datetime] NULL,
 	                        [FromTimestamp] [bigint] NULL,
 	                        [ToTimestamp] [bigint] NULL,
-	                        [TotalChangesSelected] [bigint] NULL,
-	                        [TotalChangesSelectedUpdates] [bigint] NULL,
-	                        [TotalChangesSelectedDeletes] [bigint] NULL,
-	                        [TotalChangesApplied] [bigint] NULL,
-	                        [TotalChangesAppliedUpdates] [bigint] NULL,
-	                        [TotalChangesAppliedDeletes] [bigint] NULL,
-	                        [TotalResolvedConflicts] [bigint] NULL,
+	                        [ChangesAppliedOnServer] [nvarchar](MAX) NULL,
+	                        [ChangesAppliedOnClient] [nvarchar](MAX) NULL,
+	                        [SnapshotChangesAppliedOnClient] [nvarchar](MAX) NULL,
+	                        [ClientChangesSelected] [nvarchar](MAX) NULL,
+	                        [ServerChangesSelected] [nvarchar](MAX) NULL,
+	                        [Error] [nvarchar](MAX) NULL,
                          CONSTRAINT [PK_scope_info_sync_logs] PRIMARY KEY CLUSTERED 
                         (
-	                        [SessionId] ASC,
-	                        [ClientScopeId] ASC
+	                        [SessionId] ASC
                         ))");
             }
 
@@ -102,18 +118,15 @@ namespace Dotmim.Sync.Tests.Models
 	                        [ClientScopeId] [uniqueidentifier] NOT NULL,
 	                        [TableName] [nvarchar](250) NOT NULL,
 	                        [ScopeName] [nvarchar](100) NULL,
+	                        [ScopeParameters] [nvarchar](MAX) NULL,
+	                        [State] [nvarchar](50) NULL,
 	                        [Command] [nvarchar](MAX) NULL,
-	                        [TotalChangesSelected] [bigint] NULL,
-	                        [TotalChangesSelectedUpdates] [bigint] NULL,
-	                        [TotalChangesSelectedDeletes] [bigint] NULL,
-	                        [TotalChangesApplied] [bigint] NULL,
-	                        [TotalChangesAppliedUpdates] [bigint] NULL,
-	                        [TotalChangesAppliedDeletes] [bigint] NULL,
-	                        [TotalResolvedConflicts] [bigint] NULL,
+	                        [TableChangesSelected] [nvarchar](MAX) NULL,
+	                        [TableChangesUpsertsApplied] [nvarchar](MAX) NULL,
+	                        [TableChangesDeletesApplied] [nvarchar](MAX) NULL,
                          CONSTRAINT [PK_scope_info_sync_tables_logs] PRIMARY KEY CLUSTERED 
                         (
 	                        [SessionId] ASC,
-	                        [ClientScopeId] ASC,
                             [TableName] ASC
                         ))");
             }
@@ -122,13 +135,14 @@ namespace Dotmim.Sync.Tests.Models
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<SyncLog>().HasKey(ba => new { ba.SessionId, ba.ClientScopeId });
-            modelBuilder.Entity<SyncLogTable>().HasKey(ba => new { ba.SessionId, ba.ClientScopeId, ba.TableName });
+            modelBuilder.Entity<SyncLog>().HasKey(ba => new { ba.SessionId});
+            modelBuilder.Entity<SyncLogTable>().HasKey(ba => new { ba.SessionId, ba.TableName });
 
         }
 
         public virtual DbSet<SyncLog> SyncLog { get; set; }
         public virtual DbSet<SyncLogTable> SyncLogTable { get; set; }
+        public DbConnection Connection { get; }
 
         public async Task EnsureDatabasesAsync()
         {
@@ -146,19 +160,22 @@ namespace Dotmim.Sync.Tests.Models
         public Guid SessionId { get; set; }
         public Guid ClientScopeId { get; set; }
         public string ScopeName { get; set; }
+        public string ScopeParameters { get; set; }
+        public string State { get; set; }
+        public string Error { get; set; }
+
         [Column(TypeName = "nvarchar(100)")]
         public SyncType SyncType { get; set; }
-        public DateTime StartTime { get; set; }
+        public DateTime? StartTime { get; set; }
+        public DateTime? EndTime { get; set; }
         public bool IsNew{ get; set; }
         public long? FromTimestamp { get; set; }
         public long? ToTimestamp { get; set; }
-        public long? TotalChangesSelected { get; set; }
-        public long? TotalChangesSelectedUpdates { get; set; }
-        public long? TotalChangesSelectedDeletes { get; set; }
-        public long? TotalChangesApplied { get; set; }
-        public long? TotalChangesAppliedUpdates { get; set; }
-        public long? TotalChangesAppliedDeletes { get; set; }
-        public long? TotalResolvedConflicts { get; set; }
+        public string ChangesAppliedOnServer { get; set; }
+        public string ChangesAppliedOnClient { get; set; }
+        public string SnapshotChangesAppliedOnClient { get; set; }
+        public string ClientChangesSelected { get; set; }
+        public string ServerChangesSelected { get; set; }
     }
 
 
@@ -171,14 +188,12 @@ namespace Dotmim.Sync.Tests.Models
         public Guid ClientScopeId { get; set; }
         public string TableName { get; set; }
         public string ScopeName { get; set; }
-        public string Command { get; set; }
-        public long? TotalChangesSelected { get; set; }
-        public long? TotalChangesSelectedUpdates { get; set; }
-        public long? TotalChangesSelectedDeletes { get; set; }
-        public long? TotalChangesApplied { get; set; }
-        public long? TotalChangesAppliedUpdates { get; set; }
-        public long? TotalChangesAppliedDeletes { get; set; }
-        public long? TotalResolvedConflicts { get; set; }
-    }
+        public string ScopeParameters { get; set; }
+        public string State { get; set; }
 
+        public string Command { get; set; }
+        public string TableChangesSelected { get; set; }
+        public string TableChangesUpsertsApplied { get; set; }
+        public string TableChangesDeletesApplied { get; set; }
+    }
 }

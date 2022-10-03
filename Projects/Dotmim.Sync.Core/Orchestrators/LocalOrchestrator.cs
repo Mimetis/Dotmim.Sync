@@ -46,7 +46,7 @@ namespace Dotmim.Sync
                 throw GetSyncError(null, new MissingProviderException(nameof(LocalOrchestrator)));
 
         }
-        
+
         /// <summary>
         /// Create a local orchestrator, used to orchestrate the whole sync on the client side
         /// </summary>
@@ -97,32 +97,31 @@ namespace Dotmim.Sync
         /// <summary>
         /// Called when the sync is over
         /// </summary>
-        internal async Task<SyncContext> InternalEndSessionAsync(SyncContext context, SyncResult result, ClientSyncChanges clientSyncChanges, ServerSyncChanges serverSyncChanges, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal async Task<SyncContext> InternalEndSessionAsync(SyncContext context, SyncResult result, ClientSyncChanges clientSyncChanges, SyncException syncException = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             context.SyncStage = SyncStage.EndSession;
 
-            var connection = this.Provider.CreateConnection();
-
-            if (this.Options.CleanFolder && clientSyncChanges?.ClientBatchInfo != null)
+            try
             {
-                var cleanFolder = await this.InternalCanCleanFolderAsync(context.ScopeName, context.Parameters, clientSyncChanges.ClientBatchInfo, default).ConfigureAwait(false);
 
-                if (cleanFolder)
-                    clientSyncChanges.ClientBatchInfo.TryRemoveDirectory();
+                var connection = this.Provider.CreateConnection();
 
+                if (this.Options.CleanFolder && clientSyncChanges?.ClientBatchInfo != null)
+                {
+                    var cleanFolder = await this.InternalCanCleanFolderAsync(context.ScopeName, context.Parameters, clientSyncChanges.ClientBatchInfo, default).ConfigureAwait(false);
+
+                    if (cleanFolder)
+                        clientSyncChanges.ClientBatchInfo.TryRemoveDirectory();
+
+                }
+
+                // Progress & interceptor
+                await this.InterceptAsync(new SessionEndArgs(context, result, syncException, connection), progress, cancellationToken).ConfigureAwait(false);
             }
-
-            if (this.Options.CleanFolder && serverSyncChanges?.ServerBatchInfo != null)
+            catch
             {
-                var cleanFolder = await this.InternalCanCleanFolderAsync(context.ScopeName, context.Parameters, serverSyncChanges.ServerBatchInfo, default).ConfigureAwait(false);
-
-                if (cleanFolder)
-                    serverSyncChanges.ServerBatchInfo.TryRemoveDirectory();
-
+                // silent throw
             }
-
-            // Progress & interceptor
-            await this.InterceptAsync(new SessionEndArgs(context, result, connection), progress, cancellationToken).ConfigureAwait(false);
 
             return context;
         }

@@ -60,22 +60,22 @@ internal class Program
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
-        var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
 
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        var setup = new SyncSetup(allTables);
-        //var setup = new SyncSetup("ProductCategory", "Product");
+        // var setup = new SyncSetup(allTables);
+        var setup = new SyncSetup("ProductCategory", "ProductDescription", "Product");
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
         var options = new SyncOptions();
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
-        //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
-        //setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
+        setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
+        setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
 
         //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitserver"));
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitclient"));
@@ -97,7 +97,7 @@ internal class Program
 
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        // await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
+        await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("CliProduct"));
         //clientProvider.UseBulkOperations = false;
@@ -105,7 +105,7 @@ internal class Program
 
         //await EditEntityOnceUploadedAsync(clientProvider, serverProvider, setup, options);
 
-        await GenerateErrorsAsync();
+        // await GenerateErrorsAsync();
     }
 
     private static async Task EditEntityOnceUploadedAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
@@ -152,10 +152,7 @@ internal class Program
         results = await agent.SynchronizeAsync(setup, progress: progress);
 
         Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-
     }
-
-
 
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
@@ -193,8 +190,6 @@ internal class Program
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
     }
-
-
 
     private static async Task GenerateErrorsAsync()
     {
@@ -734,6 +729,8 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
+        agent.LocalOrchestrator.OnApplyChangesErrorOccured(args => args.Resolution = ErrorResolution.ContinueOnError);
+
         var showHelp = new Action(() =>
         {
             Console.WriteLine("+ :\t\t Add 1 Product & 1 Product Category to server");
@@ -747,6 +744,8 @@ internal class Program
         });
 
         await InteruptRemoteOrchestratorInterceptors(agent.RemoteOrchestrator);
+
+        var parameters = new SyncParameters(("ParentProductCategoryID", new Guid("10A7C342-CA82-48D4-8A38-46A2EB089B74")));
 
         ConsoleKey key;
 
@@ -783,11 +782,13 @@ internal class Program
                             break;
                         case ConsoleKey.R:
                             Console.WriteLine("Reinitialiaze");
-                            await agent.SynchronizeAsync(scopeName, setup, SyncType.Reinitialize);
+                            var reinitResut = await agent.SynchronizeAsync(scopeName, setup, SyncType.Reinitialize, parameters);
+                            Console.WriteLine(reinitResut);
                             showHelp();
                             break;
                         default:
-                            await agent.SynchronizeAsync(scopeName, setup);
+                            var r = await agent.SynchronizeAsync(scopeName, setup, parameters);
+                            Console.WriteLine(r);
                             showHelp();
                             break;
                     }
@@ -810,33 +811,122 @@ internal class Program
     }
     static async Task InteruptRemoteOrchestratorInterceptors(RemoteOrchestrator remoteOrchestrator)
     {
-        using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
-        await syncLogContext.Database.EnsureCreatedAsync();
-        syncLogContext.EnsureTablesCreated();
+        using (var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString))
+        {
+            await syncLogContext.Database.EnsureCreatedAsync();
+            syncLogContext.EnsureTablesCreated();
+        }
+
+
+        var ensureSyncLog = new Func<SyncContext, SyncLogsContext, SyncLog>((syncContext, ctx) =>
+        {
+            var log = ctx.SyncLog.Find(syncContext.SessionId);
+
+            if (log != null)
+                return log;
+
+            log = new SyncLog
+            {
+                SessionId = syncContext.SessionId,
+                ClientScopeId = syncContext.ClientId.Value,
+                ScopeParameters = syncContext.Parameters != null ? JsonConvert.SerializeObject(syncContext.Parameters) : null,
+            };
+
+            ctx.SyncLog.Add(log);
+
+            return log;
+        });
+
+        var ensureSyncLogTable = new Func<SyncContext, string, SyncLogsContext, SyncLogTable>((syncContext, fullTableName, ctx) =>
+        {
+            var logTable = ctx.SyncLogTable.Find(syncContext.SessionId, fullTableName);
+
+            if (logTable != null)
+                return logTable;
+
+            logTable = new SyncLogTable
+            {
+                SessionId = syncContext.SessionId,
+                ScopeName = syncContext.ScopeName,
+                ClientScopeId = syncContext.ClientId.Value,
+                TableName = fullTableName,
+                ScopeParameters = syncContext.Parameters != null ? JsonConvert.SerializeObject(syncContext.Parameters) : null
+            };
+            ctx.SyncLogTable.Add(logTable);
+
+            return logTable;
+        });
+
+
+        remoteOrchestrator.OnSessionEnd(args =>
+        {
+            using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
+            //syncLogContext.Database.UseTransaction(args.Transaction);
+
+            var log = ensureSyncLog(args.Context, syncLogContext);
+
+            log.ScopeName = args.Context.ScopeName;
+            log.SyncType = args.Context.SyncType;
+
+            log.StartTime = args.SyncResult.StartTime;
+            log.EndTime = args.SyncResult.CompleteTime;
+
+
+            if (args.SyncResult.ChangesAppliedOnServer != null && args.SyncResult.ChangesAppliedOnServer.TableChangesApplied != null && args.SyncResult.ChangesAppliedOnServer.TableChangesApplied.Count > 0)
+                log.ChangesAppliedOnServer = JsonConvert.SerializeObject(args.SyncResult?.ChangesAppliedOnServer);
+            else
+                log.ChangesAppliedOnServer = null;
+
+            if (args.SyncResult.ChangesAppliedOnClient != null && args.SyncResult.ChangesAppliedOnClient.TableChangesApplied != null && args.SyncResult.ChangesAppliedOnClient.TableChangesApplied.Count > 0)
+                log.ChangesAppliedOnClient = JsonConvert.SerializeObject(args.SyncResult?.ChangesAppliedOnClient);
+            else
+                log.ChangesAppliedOnClient = null;
+
+            if (args.SyncResult.ClientChangesSelected != null && args.SyncResult.ClientChangesSelected.TableChangesSelected!= null &&  args.SyncResult.ClientChangesSelected.TableChangesSelected.Count > 0)
+                log.ClientChangesSelected = JsonConvert.SerializeObject(args.SyncResult?.ClientChangesSelected);
+            else
+                log.ClientChangesSelected = null;
+
+            if (args.SyncResult.ServerChangesSelected != null && args.SyncResult.ServerChangesSelected.TableChangesSelected != null && args.SyncResult.ServerChangesSelected.TableChangesSelected.Count > 0)
+                log.ServerChangesSelected = JsonConvert.SerializeObject(args.SyncResult?.ServerChangesSelected);
+            else
+                log.ServerChangesSelected = null;
+
+            if (args.SyncResult.SnapshotChangesAppliedOnClient != null && args.SyncResult.SnapshotChangesAppliedOnClient.TableChangesApplied != null && args.SyncResult.ServerChangesSelected.TableChangesSelected.Count > 0)
+                log.SnapshotChangesAppliedOnClient = JsonConvert.SerializeObject(args.SyncResult?.SnapshotChangesAppliedOnClient);
+            else
+                log.SnapshotChangesAppliedOnClient = null;
+
+
+            if (args.SyncException != null)
+            {
+                log.State = "Error";
+                log.Error = args.SyncException.Message;
+            }
+            else
+            {
+                if (args.SyncResult?.TotalChangesFailedToApplyOnClient > 0 || args.SyncResult?.TotalChangesFailedToApplyOnServer > 0)
+                    log.State = "Partial";
+                else
+                    log.State = "Success";
+            }
+
+
+            syncLogContext.SaveChanges();
+        });
 
         remoteOrchestrator.OnDatabaseChangesApplying(args =>
         {
-            Console.WriteLine("-----------------------------------------------------");
-            Console.WriteLine("OnDatabaseChangesApplying");
-            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientId}-{args.Context.StartTime}");
-            Console.WriteLine($"SyncType: {args.Context.SyncType}");
-            Console.WriteLine($"SyncWay: {args.Context.SyncWay}");
-            Console.WriteLine($"SenderScopeId: {args.ApplyChanges.SenderScopeId}");
-            Console.WriteLine($"Policy: {args.ApplyChanges.Policy}");
-
             using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
+            //syncLogContext.Database.UseTransaction(args.Transaction);
 
-            var log = syncLogContext.SyncLog.Find(args.Context.SessionId, args.Context.ClientId);
-
-            if (log == null)
-            {
-                log = new SyncLog { SessionId = args.Context.SessionId, ClientScopeId = args.Context.ClientId.Value };
-                syncLogContext.SyncLog.Add(log);
-            }
+            var log = ensureSyncLog(args.Context, syncLogContext);
 
             log.StartTime = args.Context.StartTime;
             log.ScopeName = args.Context.ScopeName;
             log.SyncType = args.Context.SyncType;
+            log.ScopeParameters = args.Context.Parameters != null ? JsonConvert.SerializeObject(args.Context.Parameters) : null;
+            log.State = "DatabaseApplyingChanges";
 
             syncLogContext.SaveChanges();
 
@@ -844,20 +934,13 @@ internal class Program
 
         remoteOrchestrator.OnDatabaseChangesApplied(args =>
         {
-
-            Console.WriteLine("-----------------------------------------------------");
-            Console.WriteLine("OnDatabaseChangesApplied");
-            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientId}-{args.Context.StartTime}");
-            Console.WriteLine($"TotalAppliedChanges: {args.ChangesApplied.TotalAppliedChanges}");
-            Console.WriteLine($"TotalAppliedChangesFailed: {args.ChangesApplied.TotalAppliedChangesFailed}");
-            Console.WriteLine($"TotalResolvedConflicts: {args.ChangesApplied.TotalResolvedConflicts}");
-
             using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
+            //syncLogContext.Database.UseTransaction(args.Transaction);
 
-            var log = syncLogContext.SyncLog.Find(args.Context.SessionId, args.Context.ClientId);
+            var log = ensureSyncLog(args.Context, syncLogContext);
 
-            log.TotalChangesApplied = args.ChangesApplied.TotalAppliedChanges;
-            log.TotalResolvedConflicts = args.ChangesApplied.TotalResolvedConflicts;
+            log.ChangesAppliedOnServer = args.ChangesApplied != null ? JsonConvert.SerializeObject(args.ChangesApplied) : null;
+            log.State = "DatabaseChangesApplied";
 
             syncLogContext.SaveChanges();
 
@@ -866,21 +949,10 @@ internal class Program
 
         remoteOrchestrator.OnDatabaseChangesSelecting(args =>
         {
-            Console.WriteLine("-----------------------------------------------------");
-            Console.WriteLine("OnDatabaseChangesSelecting");
-            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientId}-{args.Context.StartTime}");
-            Console.WriteLine($"From/ To : {args.FromTimestamp}/{args.ToTimestamp}");
-            Console.WriteLine($"IsNew : {args.IsNew}");
-
             using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
+            //syncLogContext.Database.UseTransaction(args.Transaction);
 
-            var log = syncLogContext.SyncLog.Find(args.Context.SessionId, args.Context.ClientId);
-
-            if (log == null)
-            {
-                log = new SyncLog { SessionId = args.Context.SessionId, ClientScopeId = args.Context.ClientId.Value };
-                syncLogContext.SyncLog.Add(log);
-            }
+            var log = ensureSyncLog(args.Context, syncLogContext);
 
             log.StartTime = args.Context.StartTime;
             log.ScopeName = args.Context.ScopeName;
@@ -888,111 +960,7 @@ internal class Program
             log.ToTimestamp = args.ToTimestamp;
             log.SyncType = args.Context.SyncType;
             log.IsNew = args.IsNew;
-
-            syncLogContext.SaveChanges();
-
-        });
-
-        remoteOrchestrator.OnTableChangesSelecting(args =>
-        {
-            Console.WriteLine("-----------------------------------------------------");
-            Console.WriteLine("OnTableChangesSelecting");
-            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientId}-{args.Context.StartTime}");
-            Console.WriteLine($"Table: {args.SchemaTable.GetFullName()}");
-
-            using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
-
-            var logTable = syncLogContext.SyncLogTable.Find(args.Context.SessionId, args.Context.ClientId, args.SchemaTable.GetFullName());
-
-            if (logTable == null)
-            {
-                logTable = new SyncLogTable
-                {
-                    SessionId = args.Context.SessionId,
-                    ScopeName = args.Context.ScopeName,
-                    ClientScopeId = args.Context.ClientId.Value,
-                    TableName = args.SchemaTable.GetFullName()
-                };
-                syncLogContext.SyncLogTable.Add(logTable);
-            }
-
-            var j = new { CommandText = args.Command.CommandText, Parameters = new List<(string Name, object value)>() };
-
-
-            var parameters = new JArray();
-            foreach (DbParameter p in args.Command.Parameters)
-            {
-                var pJ = new JObject();
-                pJ.Add(p.ParameterName, JToken.FromObject(p.Value));
-                parameters.Add(pJ);
-            }
-
-
-            var jObject = new JObject
-            {
-                { "CommandText", args.Command.CommandText },
-                { "Parameters", parameters }
-            };
-
-
-            logTable.Command = jObject.ToString();
-            syncLogContext.SaveChanges();
-        });
-
-        remoteOrchestrator.OnTableChangesSelected(args =>
-        {
-            Console.WriteLine("-----------------------------------------------------");
-            Console.WriteLine("OnTableChangesSelected");
-            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientId}-{args.Context.StartTime}");
-            Console.WriteLine($"Table: {args.SchemaTable.GetFullName()}");
-            Console.WriteLine($"TableChangesSelected: {args.TableChangesSelected.TotalChanges} ({args.TableChangesSelected.Upserts}/{args.TableChangesSelected.Deletes})");
-
-            using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
-            var logTable = syncLogContext.SyncLogTable.Find(args.Context.SessionId, args.Context.ClientId, args.SchemaTable.GetFullName());
-
-            logTable.TotalChangesSelected = args.TableChangesSelected.TotalChanges;
-            logTable.TotalChangesSelectedUpdates = args.TableChangesSelected.Upserts;
-            logTable.TotalChangesSelectedDeletes = args.TableChangesSelected.Deletes;
-            syncLogContext.SaveChanges();
-
-        });
-
-
-        remoteOrchestrator.OnTableChangesApplied(args =>
-        {
-            Console.WriteLine("-----------------------------------------------------");
-            Console.WriteLine("OnTableChangesApplied");
-            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientId}-{args.Context.StartTime}");
-
-            using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
-            var fullName = string.IsNullOrEmpty(args.TableChangesApplied.SchemaName) ? args.TableChangesApplied.TableName : $"{args.TableChangesApplied.SchemaName}.{args.TableChangesApplied.TableName}";
-
-            var logTable = syncLogContext.SyncLogTable.Find(args.Context.SessionId, args.Context.ClientId, fullName);
-
-            if (logTable == null)
-            {
-                logTable = new SyncLogTable
-                {
-                    SessionId = args.Context.SessionId,
-                    ScopeName = args.Context.ScopeName,
-                    ClientScopeId = args.Context.ClientId.Value,
-                    TableName = fullName
-                };
-                syncLogContext.SyncLogTable.Add(logTable);
-            }
-
-
-            if (args.TableChangesApplied.Applied > 0)
-                logTable.TotalChangesApplied = logTable.TotalChangesApplied.HasValue ? logTable.TotalChangesApplied += args.TableChangesApplied.Applied : args.TableChangesApplied.Applied;
-
-            if (args.TableChangesApplied.ResolvedConflicts > 0)
-                logTable.TotalResolvedConflicts = logTable.TotalResolvedConflicts.HasValue ? logTable.TotalResolvedConflicts += args.TableChangesApplied.ResolvedConflicts : args.TableChangesApplied.ResolvedConflicts;
-
-            if (args.TableChangesApplied.State == SyncRowState.Modified)
-                logTable.TotalChangesAppliedUpdates = args.TableChangesApplied.Applied;
-            else
-                logTable.TotalChangesAppliedDeletes = args.TableChangesApplied.Applied;
-
+            log.State = "DatabaseChangesSelecting";
 
             syncLogContext.SaveChanges();
 
@@ -1000,20 +968,58 @@ internal class Program
 
         remoteOrchestrator.OnDatabaseChangesSelected(args =>
         {
-
-            Console.WriteLine("-----------------------------------------------------");
-            Console.WriteLine("OnDatabaseChangesSelected");
-            Console.WriteLine($"{args.Context.SessionId}-{args.Context.ClientId}-{args.Context.StartTime}");
-            Console.WriteLine($"From/ To : {args.FromTimestamp}/{args.ToTimestamp}");
-            Console.WriteLine($"TotalChangesSelected :{args.ChangesSelected.TotalChangesSelected}");
-            Console.WriteLine($"TotalChangesSelectedUpdates :{args.ChangesSelected.TotalChangesSelectedUpdates}");
-            Console.WriteLine($"TotalChangesSelectedDeletes :{args.ChangesSelected.TotalChangesSelectedDeletes}");
-
             using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
-            var log = syncLogContext.SyncLog.Find(args.Context.SessionId, args.Context.ClientId);
-            log.TotalChangesSelected = args.ChangesSelected.TotalChangesSelected;
-            log.TotalChangesSelectedUpdates = args.ChangesSelected.TotalChangesSelectedUpdates;
-            log.TotalChangesSelectedDeletes = args.ChangesSelected.TotalChangesSelectedDeletes;
+            ////syncLogContext.Database.UseTransaction(args.Transaction);
+
+            var log = ensureSyncLog(args.Context, syncLogContext);
+
+            log.ServerChangesSelected = args.ChangesSelected != null ? JsonConvert.SerializeObject(args.ChangesSelected) : null;
+
+            syncLogContext.SaveChanges();
+        });
+
+        remoteOrchestrator.OnTableChangesSelecting(args =>
+        {
+            using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
+            //syncLogContext.Database.UseTransaction(args.Transaction);
+
+            var logTable = ensureSyncLogTable(args.Context, args.SchemaTable.GetFullName(), syncLogContext);
+
+            logTable.State = "TableChangesSelecting";
+            logTable.Command = args.Command.CommandText;
+            syncLogContext.SaveChanges();
+        });
+
+        remoteOrchestrator.OnTableChangesSelected(args =>
+        {
+            using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
+            //syncLogContext.Database.UseTransaction(args.Transaction);
+
+            var logTable = ensureSyncLogTable(args.Context, args.SchemaTable.GetFullName(), syncLogContext);
+
+            logTable.State = "TableChangesSelected";
+            logTable.TableChangesSelected = args.TableChangesSelected != null ? JsonConvert.SerializeObject(args.TableChangesSelected) : null;
+            syncLogContext.SaveChanges();
+
+        });
+
+
+        remoteOrchestrator.OnTableChangesApplied(args =>
+        {
+            using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
+            // syncLogContext.Database.UseTransaction(args.Transaction);
+
+            var fullName = string.IsNullOrEmpty(args.TableChangesApplied.SchemaName) ? args.TableChangesApplied.TableName : $"{args.TableChangesApplied.SchemaName}.{args.TableChangesApplied.TableName}";
+
+            var logTable = ensureSyncLogTable(args.Context, fullName, syncLogContext);
+
+            logTable.State = "TableChangesApplied";
+
+            if (args.TableChangesApplied.State == SyncRowState.Modified)
+                logTable.TableChangesUpsertsApplied = args.TableChangesApplied != null ? JsonConvert.SerializeObject(args.TableChangesApplied) : null;
+            else if (args.TableChangesApplied.State == SyncRowState.Deleted)
+                logTable.TableChangesDeletesApplied = args.TableChangesApplied != null ? JsonConvert.SerializeObject(args.TableChangesApplied) : null;
+
             syncLogContext.SaveChanges();
 
         });
@@ -1697,10 +1703,8 @@ internal class Program
 
                 webServerAgent.RemoteOrchestrator.OnGettingOperation(operationArgs =>
                 {
-                    var syncOperation = SyncOperation.Reinitialize;
-
-                    // this operation will be applied for the current sync
-                    operationArgs.Operation = syncOperation;
+                    //var syncOperation = SyncOperation.Reinitialize;
+                    //operationArgs.Operation = syncOperation;
                 });
 
                 await webServerAgent.HandleRequestAsync(context);
@@ -1714,7 +1718,7 @@ internal class Program
 
         });
 
-        using var server = new KestrellTestServer(configureServices, false);
+        using var server = new KestrellTestServer(configureServices, true);
 
         var clientHandler = new ResponseDelegate(async (serviceUri) =>
         {

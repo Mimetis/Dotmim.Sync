@@ -293,6 +293,14 @@ namespace Dotmim.Sync.Web.Server
                         context = s8.SyncContext;
                         binaryData = await clientSerializerFactory.GetSerializer<HttpMessageOperationResponse>().SerializeAsync(s8);
                         break;
+
+                    case HttpStep.EndSession:
+                        var m9 = await clientSerializerFactory.GetSerializer<HttpMessageEndSessionRequest>().DeserializeAsync(readableStream);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m9.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
+                        var s9 = await this.EndSessionAsync(httpContext, m9, cancellationToken, progress);
+                        context = s9.SyncContext;
+                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEndSessionResponse>().SerializeAsync(s9);
+                        break;
                 }
 
                 httpContext.Session.Set(scopeName, schema);
@@ -521,6 +529,35 @@ namespace Dotmim.Sync.Web.Server
 
             return new HttpMessageOperationResponse(context, operation);
         }
+
+
+        internal protected virtual async Task<HttpMessageEndSessionResponse> EndSessionAsync(HttpContext httpContext, HttpMessageEndSessionRequest httpMessage,
+             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+
+            var context = httpMessage.SyncContext;
+
+            var result = new SyncResult(context.SessionId)
+            {
+                ChangesAppliedOnClient = httpMessage.ChangesAppliedOnClient,
+                ChangesAppliedOnServer = httpMessage.ChangesAppliedOnServer,
+                ClientChangesSelected = httpMessage.ClientChangesSelected,
+                CompleteTime = httpMessage.CompleteTime,
+                ScopeName = context.ScopeName,
+                ServerChangesSelected = httpMessage.ServerChangesSelected,
+                SnapshotChangesAppliedOnClient = httpMessage.SnapshotChangesAppliedOnClient,
+                StartTime = httpMessage.StartTime,
+            };
+
+            SyncException syncException = null;
+            if (httpMessage.SyncExceptionMessage != null)
+                syncException = new SyncException(httpMessage.SyncExceptionMessage);
+
+            context = await this.RemoteOrchestrator.InternalEndSessionAsync(context, result, null, syncException, cancellationToken, progress).ConfigureAwait(false);
+
+            return new HttpMessageEndSessionResponse(context);
+        }
+
 
         internal protected virtual async Task<HttpMessageSummaryResponse> GetSnapshotSummaryAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)

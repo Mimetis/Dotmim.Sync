@@ -122,7 +122,7 @@ namespace Dotmim.Sync
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
         public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Session Begins. Id:{Context.SessionId}. Scope name:{Context.ScopeName}.";
+        public override string Message => $"[{Connection?.Database}] Session Begins. Id:{Context.SessionId}. Scope name:{Context.ScopeName}.";
 
         public override int EventId => SyncEventsId.SessionBegin.Id;
     }
@@ -137,14 +137,20 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncResult SyncResult { get; }
 
-        public SessionEndArgs(SyncContext context, SyncResult syncResult, DbConnection connection)
+        /// <summary>
+        /// Gets the exception occured if any
+        /// </summary>
+        public SyncException SyncException { get; }
+
+        public SessionEndArgs(SyncContext context, SyncResult syncResult, SyncException syncException, DbConnection connection)
             : base(context, connection, null)
         {
             SyncResult = syncResult;
+            this.SyncException = syncException;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Session Ends. Id:{Context.SessionId}. Scope name:{Context.ScopeName}.";
+        public override string Source => Connection?.Database;
+        public override string Message => $"[{Connection?.Database}] Session Ends. Id:{Context.SessionId}. Scope name:{Context.ScopeName}.";
         public override int EventId => SyncEventsId.SessionEnd.Id;
     }
 

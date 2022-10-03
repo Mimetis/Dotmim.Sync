@@ -193,7 +193,7 @@ namespace Dotmim.Sync
         {
             ClientSyncChanges clientSyncChanges = null;
             ServerSyncChanges serverSyncChanges = null;
-
+            SyncException syncException = null;
             // checkpoints dates
             var startTime = DateTime.UtcNow;
             var completeTime = DateTime.UtcNow;
@@ -258,6 +258,9 @@ namespace Dotmim.Sync
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
+
+                // Begin session
+                context = await this.RemoteOrchestrator.InternalBeginSessionAsync(context, cancellationToken, progress).ConfigureAwait(false);
 
                 // on remote orchestrator, get Server scope
                 ScopeInfo sScopeInfo;
@@ -444,6 +447,7 @@ namespace Dotmim.Sync
                 this.LocalOrchestrator.CompleteTime = completeTime;
                 this.RemoteOrchestrator.CompleteTime = completeTime;
 
+
                 result.CompleteTime = completeTime;
 
                 // All clients changes selected
@@ -460,17 +464,20 @@ namespace Dotmim.Sync
             catch (SyncException se)
             {
                 this.Options.Logger.LogError(SyncEventsId.Exception, se, se.TypeName);
+                syncException = se;
                 throw;
             }
             catch (Exception ex)
             {
                 this.Options.Logger.LogCritical(SyncEventsId.Exception, ex, ex.Message);
-                throw new SyncException(ex, SyncStage.None);
+                syncException = new SyncException(ex, SyncStage.None);
+                throw syncException;
             }
             finally
             {
                 context.ProgressPercentage = 1;
-                context = await this.LocalOrchestrator.InternalEndSessionAsync(context, result, clientSyncChanges, serverSyncChanges, cancellationToken, progress).ConfigureAwait(false);
+                context = await this.LocalOrchestrator.InternalEndSessionAsync(context, result, clientSyncChanges, syncException, cancellationToken, progress).ConfigureAwait(false);
+                context = await this.RemoteOrchestrator.InternalEndSessionAsync(context, result, serverSyncChanges, syncException, cancellationToken, progress).ConfigureAwait(false);
 
                 // End the current session
                 this.SessionState = SyncSessionState.Ready;
@@ -480,7 +487,6 @@ namespace Dotmim.Sync
                 GC.WaitForPendingFinalizers();
                 UnlockSync();
             }
-            //});
 
             return result;
         }

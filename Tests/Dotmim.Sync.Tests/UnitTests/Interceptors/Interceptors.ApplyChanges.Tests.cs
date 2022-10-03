@@ -206,5 +206,220 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
 
+        [Fact]
+        public async Task RemoteOrchestrator_ApplyChanges_OnRowsApplied_ContinueOnError()
+        {
+            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
+
+            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
+
+            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
+            var serverProvider = new SqlSyncProvider(csServer);
+
+            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
+            var clientProvider = new SqlSyncProvider(csClient);
+            // Disable bulk operations to generate the fk constraint failure
+            clientProvider.UseBulkOperations = false;
+
+            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, false).Database.EnsureCreatedAsync();
+            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
+
+            // Generate a foreign key conflict
+            using var ctx = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider));
+            ctx.Add(new ProductCategory
+            {
+                ProductCategoryId = "ZZZZ",
+                Name = HelperDatabase.GetRandomName("SRV")
+            });
+            ctx.Add(new ProductCategory
+            {
+                ProductCategoryId = "AAAA",
+                ParentProductCategoryId = "ZZZZ",
+                Name = HelperDatabase.GetRandomName("SRV")
+            });
+            await ctx.SaveChangesAsync();
+
+
+            var scopeName = "scopesnap1";
+            var syncOptions = new SyncOptions();
+            var setup = new SyncSetup();
+
+            // Make a first sync to be sure everything is in place
+            var agent = new SyncAgent(clientProvider, serverProvider);
+
+
+            // Get the orchestrators
+            var localOrchestrator = agent.LocalOrchestrator;
+            var remoteOrchestrator = agent.RemoteOrchestrator;
+
+            var onRowsChangesAppliedHappened = 0;
+            var onRowsErrorOccuredHappened = 0;
+
+            localOrchestrator.OnApplyChangesErrorOccured(args =>
+            {
+                args.Resolution = ErrorResolution.ContinueOnError;
+                onRowsErrorOccuredHappened++;
+            });
+
+            localOrchestrator.OnRowsChangesApplied(args =>
+            {
+                Assert.NotNull(args.SyncRows);
+                Assert.Single(args.SyncRows);
+                Assert.Equal("ZZZZ", args.SyncRows[0]["ProductCategory"].ToString());
+                onRowsChangesAppliedHappened++;
+            });
+
+            // Making a first sync, will initialize everything we need
+            var s = await agent.SynchronizeAsync(scopeName, this.Tables);
+
+            Assert.Equal(1, onRowsChangesAppliedHappened);
+            Assert.Equal(1, onRowsErrorOccuredHappened);
+        }
+
+        [Fact]
+        public async Task RemoteOrchestrator_ApplyChanges_OnRowsApplied_ErrorResolved()
+        {
+            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
+
+            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
+
+            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
+            var serverProvider = new SqlSyncProvider(csServer);
+
+            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
+            var clientProvider = new SqlSyncProvider(csClient);
+            // Disable bulk operations to generate the fk constraint failure
+            clientProvider.UseBulkOperations = false;
+
+            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, false).Database.EnsureCreatedAsync();
+            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
+
+            // Generate a foreign key conflict
+            using var ctx = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider));
+            ctx.Add(new ProductCategory
+            {
+                ProductCategoryId = "ZZZZ",
+                Name = HelperDatabase.GetRandomName("SRV")
+            });
+            ctx.Add(new ProductCategory
+            {
+                ProductCategoryId = "AAAA",
+                ParentProductCategoryId = "ZZZZ",
+                Name = HelperDatabase.GetRandomName("SRV")
+            });
+            await ctx.SaveChangesAsync();
+
+
+            var scopeName = "scopesnap1";
+            var syncOptions = new SyncOptions();
+            var setup = new SyncSetup();
+
+            // Make a first sync to be sure everything is in place
+            var agent = new SyncAgent(clientProvider, serverProvider);
+
+
+            // Get the orchestrators
+            var localOrchestrator = agent.LocalOrchestrator;
+            var remoteOrchestrator = agent.RemoteOrchestrator;
+
+            var onRowsChangesAppliedHappened = 0;
+            var onRowsErrorOccuredHappened = 0;
+
+            localOrchestrator.OnApplyChangesErrorOccured(args =>
+            {
+                args.Resolution = ErrorResolution.Resolved;
+                onRowsErrorOccuredHappened++;
+            });
+
+            localOrchestrator.OnRowsChangesApplied(args =>
+            {
+                Assert.NotNull(args.SyncRows);
+                Assert.Single(args.SyncRows);
+                onRowsChangesAppliedHappened++;
+            });
+
+            // Making a first sync, will initialize everything we need
+            var s = await agent.SynchronizeAsync(scopeName, this.Tables);
+
+            Assert.Equal(2, onRowsChangesAppliedHappened);
+            Assert.Equal(1, onRowsErrorOccuredHappened);
+        }
+
+
+        [Fact]
+        public async Task RemoteOrchestrator_ApplyChanges_OnRowsApplied_ErrorRetryOneMoreTime()
+        {
+            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
+
+            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
+
+            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
+            var serverProvider = new SqlSyncProvider(csServer);
+
+            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
+            var clientProvider = new SqlSyncProvider(csClient);
+            // Disable bulk operations to generate the fk constraint failure
+            clientProvider.UseBulkOperations = false;
+
+            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, false).Database.EnsureCreatedAsync();
+            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
+
+            // Generate a foreign key conflict
+            using var ctx = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider));
+            ctx.Add(new ProductCategory
+            {
+                ProductCategoryId = "ZZZZ",
+                Name = HelperDatabase.GetRandomName("SRV")
+            });
+            ctx.Add(new ProductCategory
+            {
+                ProductCategoryId = "AAAA",
+                ParentProductCategoryId = "ZZZZ",
+                Name = HelperDatabase.GetRandomName("SRV")
+            });
+            await ctx.SaveChangesAsync();
+
+
+            var scopeName = "scopesnap1";
+            var syncOptions = new SyncOptions();
+            var setup = new SyncSetup();
+
+            // Make a first sync to be sure everything is in place
+            var agent = new SyncAgent(clientProvider, serverProvider);
+
+
+            // Get the orchestrators
+            var localOrchestrator = agent.LocalOrchestrator;
+            var remoteOrchestrator = agent.RemoteOrchestrator;
+
+            var onRowsChangesAppliedHappened = 0;
+            var onRowsErrorOccuredHappened = 0;
+
+            localOrchestrator.OnApplyChangesErrorOccured(args =>
+            {
+                args.Resolution = ErrorResolution.RetryOneMoreTimeAndContinueOnError;
+                onRowsErrorOccuredHappened++;
+            });
+
+            localOrchestrator.OnRowsChangesApplied(args =>
+            {
+                Assert.NotNull(args.SyncRows);
+                Assert.Single(args.SyncRows);
+                onRowsChangesAppliedHappened++;
+            });
+
+            // Making a first sync, will initialize everything we need
+            var s = await agent.SynchronizeAsync(scopeName, this.Tables);
+
+            Assert.Equal(2, onRowsChangesAppliedHappened);
+            Assert.Equal(1, onRowsErrorOccuredHappened);
+        }
+
     }
 }
