@@ -91,6 +91,7 @@ namespace Dotmim.Sync.Tests.Models
 	                        [ClientScopeId] [uniqueidentifier] NOT NULL,
 	                        [ScopeName] [nvarchar](100) NULL,
 	                        [ScopeParameters] [nvarchar](MAX) NULL,
+	                        [Network] [nvarchar](10) NULL,
 	                        [State] [nvarchar](50) NULL,
 	                        [SyncType] [nvarchar](100) NULL,
 	                        [IsNew] bit NULL,
@@ -104,6 +105,7 @@ namespace Dotmim.Sync.Tests.Models
 	                        [ClientChangesSelected] [nvarchar](MAX) NULL,
 	                        [ServerChangesSelected] [nvarchar](MAX) NULL,
 	                        [Error] [nvarchar](MAX) NULL,
+	                        [Properties] [nvarchar](MAX) NULL,
                          CONSTRAINT [PK_scope_info_sync_logs] PRIMARY KEY CLUSTERED 
                         (
 	                        [SessionId] ASC
@@ -124,6 +126,7 @@ namespace Dotmim.Sync.Tests.Models
 	                        [TableChangesSelected] [nvarchar](MAX) NULL,
 	                        [TableChangesUpsertsApplied] [nvarchar](MAX) NULL,
 	                        [TableChangesDeletesApplied] [nvarchar](MAX) NULL,
+	                        [Properties] [nvarchar](MAX) NULL,
                          CONSTRAINT [PK_scope_info_sync_tables_logs] PRIMARY KEY CLUSTERED 
                         (
 	                        [SessionId] ASC,
@@ -156,12 +159,12 @@ namespace Dotmim.Sync.Tests.Models
     [Table("scope_info_sync_logs")]
     public class SyncLog
     {
-
         public Guid SessionId { get; set; }
         public Guid ClientScopeId { get; set; }
         public string ScopeName { get; set; }
         public string ScopeParameters { get; set; }
         public string State { get; set; }
+        public string Network { get; set; }
         public string Error { get; set; }
 
         [Column(TypeName = "nvarchar(100)")]
@@ -176,6 +179,7 @@ namespace Dotmim.Sync.Tests.Models
         public string SnapshotChangesAppliedOnClient { get; set; }
         public string ClientChangesSelected { get; set; }
         public string ServerChangesSelected { get; set; }
+        public string Properties { get; set; }
     }
 
 
@@ -183,17 +187,17 @@ namespace Dotmim.Sync.Tests.Models
     [Table("scope_info_sync_tables_logs")]
     public class SyncLogTable
     {
-
         public Guid SessionId { get; set; }
         public Guid ClientScopeId { get; set; }
         public string TableName { get; set; }
         public string ScopeName { get; set; }
         public string ScopeParameters { get; set; }
         public string State { get; set; }
-
         public string Command { get; set; }
         public string TableChangesSelected { get; set; }
         public string TableChangesUpsertsApplied { get; set; }
         public string TableChangesDeletesApplied { get; set; }
+        public string Properties { get; set; }
     }
+
 }

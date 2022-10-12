@@ -664,4 +664,13 @@ namespace Dotmim.Sync
 
         public SyncHashException(string hash1, string hash2) : base(string.Format(message, hash1, hash2)) { }
     }
+
+
+    public class ApplyChangesException : Exception
+    {
+        const string message = "Error on table [{0}]: {1}. Row:{2}. ApplyType:{3}";
+
+        public ApplyChangesException(SyncRow errorRow, SyncTable schemaChangesTable, SyncRowState rowState, Exception innerException) 
+            : base(string.Format(message, schemaChangesTable.GetFullName(), innerException.Message, errorRow, rowState), innerException) { }
+    }
 }

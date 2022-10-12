@@ -27,7 +27,7 @@ import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import { useSyncLogs } from "../hooks";
 import { useState } from "react";
 import { useScopes } from "../hooks/useScopes";
-import SetupJsonDialogComponent from "./SetupJsonDialogComponent";
+import JsonDialogComponent from "./JsonDialogComponent";
 import { Scope } from "../models";
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
@@ -81,7 +81,7 @@ const ScopesComponent: React.FunctionComponent = (props) => {
             )}
             {scopesQuery && scopesQuery.data && scopesQuery.data.length > 0 && (
                 <>
-                    <SetupJsonDialogComponent open={setupJsonOpen} setOpen={setSetupJsonOpen} jsonString={setupJsonString} />
+                    <JsonDialogComponent open={setupJsonOpen} setOpen={setSetupJsonOpen} jsonString={setupJsonString} />
                     <Paper
                         sx={{
                             overflow: "hidden",

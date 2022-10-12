@@ -1,8 +1,8 @@
-import { UseQueryResult, useQuery } from 'react-query';
+import { UseQueryResult, useQuery, QueryKey } from 'react-query';
 import { SyncLog } from '../models';
 
 
-export const useSyncLogs = (): UseQueryResult<SyncLog[], Error> => {
+export const useSyncLogs = (clientScopeId?: string): UseQueryResult<SyncLog[], Error> => {
 
   const callApiAsync = async () => {
 
@@ -11,24 +11,32 @@ export const useSyncLogs = (): UseQueryResult<SyncLog[], Error> => {
     headers.append('Content-Type', 'application/json');
     headers.append('Accept', 'application/json');
 
-    var requestInit: RequestInit = {
+    const requestInit: RequestInit = {
       method: 'GET',
       headers: headers,
     };
 
-    var response = await fetch('/api/SyncLogs', requestInit);
+    let response:Response;
+    if (clientScopeId) {
+      response = await fetch(`/api/synclogs/${clientScopeId}`, requestInit);
+    } else {
+
+      response = await fetch('/api/SyncLogs', requestInit);
+    }
 
     if (!response) throw new Error(`No response available for /api/SyncLogs`);
     else if (response.status < 200 || response.status > 204) {
-      var message = await response.text();
+      const message = await response.text();
       throw new Error(message);
     }
 
     return await response.json();
   };
 
+  const queryKey:QueryKey = clientScopeId ?['synclogs', clientScopeId] :  ['synclogs'];
+
   // calling API
-  const queryResult = useQuery<SyncLog[], Error>(['SyncLogs'], callApiAsync, {
+  const queryResult = useQuery<SyncLog[], Error>(queryKey, callApiAsync, {
     refetchInterval: 0,
     refetchOnMount: false,
     refetchOnWindowFocus: false,

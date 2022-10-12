@@ -67,8 +67,8 @@ internal class Program
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        // var setup = new SyncSetup(allTables);
-        var setup = new SyncSetup("ProductCategory", "ProductDescription", "Product");
+        var setup = new SyncSetup(allTables);
+        //var setup = new SyncSetup("ProductCategory", "ProductDescription", "Product");
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
         var options = new SyncOptions();
@@ -97,7 +97,7 @@ internal class Program
 
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
+        //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("CliProduct"));
         //clientProvider.UseBulkOperations = false;
@@ -105,7 +105,7 @@ internal class Program
 
         //await EditEntityOnceUploadedAsync(clientProvider, serverProvider, setup, options);
 
-        // await GenerateErrorsAsync();
+        await GenerateErrorsAsync();
     }
 
     private static async Task EditEntityOnceUploadedAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
@@ -241,7 +241,6 @@ internal class Program
             return command;
         });
 
-
         var getNotNullErrorCommand = new Func<string>(() =>
         {
             // Generate a null exception
@@ -262,38 +261,9 @@ internal class Program
             Console.WriteLine($"ERROR: {args.Exception.Message}");
             Console.WriteLine($"ROW  : {args.ErrorRow}");
             Console.ResetColor();
-            args.Resolution = ErrorResolution.Resolved;
+            args.Resolution = ErrorResolution.RetryOneMoreTimeAndThrowOnError;
         });
 
-        agent.LocalOrchestrator.OnRowsChangesApplied(args =>
-        {
-            if (args.SchemaTable.TableName == "ProductCategory")
-            {
-                var command = args.Connection.CreateCommand();
-                command.CommandText = "Update ProductCategory Set Name=@Name where ProductCategoryID=@ProductCategoryID";
-                command.Connection = args.Connection;
-                command.Transaction = args.Transaction;
-
-                var pId = command.CreateParameter();
-                pId.ParameterName = "@ProductCategoryID";
-                pId.DbType = DbType.String;
-                command.Parameters.Add(pId);
-
-                var pName = command.CreateParameter();
-                pName = command.CreateParameter();
-                pName.ParameterName = "@Name";
-                pName.DbType = DbType.String;
-                command.Parameters.Add(pName);
-
-                foreach (var row in args.SyncRows)
-                {
-                    pId.Value = row["ProductCategoryId"].ToString();
-                    pName.Value = $"SV_{row["Name"]}";
-
-                    command.ExecuteNonQuery();
-                }
-            }
-        });
         // Generate foreign key error
         await DBHelper.ExecuteScriptAsync("svProduct", getForeignKeyErrorCommand("B", "A"));
 
@@ -309,6 +279,7 @@ internal class Program
         }
         catch (Exception e)
         {
+            Console.WriteLine(e);
             Console.ResetColor();
             Console.WriteLine("Sync Rollbacked.");
         }
@@ -729,7 +700,7 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-        agent.LocalOrchestrator.OnApplyChangesErrorOccured(args => args.Resolution = ErrorResolution.ContinueOnError);
+        //agent.LocalOrchestrator.OnApplyChangesErrorOccured(args => args.Resolution = ErrorResolution.ContinueOnError);
 
         var showHelp = new Action(() =>
         {
@@ -745,7 +716,7 @@ internal class Program
 
         await InteruptRemoteOrchestratorInterceptors(agent.RemoteOrchestrator);
 
-        var parameters = new SyncParameters(("ParentProductCategoryID", new Guid("10A7C342-CA82-48D4-8A38-46A2EB089B74")));
+        var parameters = scopeName == "filter" ? new SyncParameters(("ParentProductCategoryID", new Guid("10A7C342-CA82-48D4-8A38-46A2EB089B74"))) : null;
 
         ConsoleKey key;
 
@@ -811,6 +782,9 @@ internal class Program
     }
     static async Task InteruptRemoteOrchestratorInterceptors(RemoteOrchestrator remoteOrchestrator)
     {
+
+        var network = remoteOrchestrator.GetType().Name == "WebRemoteOrchestrator" ? "Http" : "Tcp";
+
         using (var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString))
         {
             await syncLogContext.Database.EnsureCreatedAsync();
@@ -830,6 +804,7 @@ internal class Program
                 SessionId = syncContext.SessionId,
                 ClientScopeId = syncContext.ClientId.Value,
                 ScopeParameters = syncContext.Parameters != null ? JsonConvert.SerializeObject(syncContext.Parameters) : null,
+                Network = network,
             };
 
             ctx.SyncLog.Add(log);
@@ -882,7 +857,7 @@ internal class Program
             else
                 log.ChangesAppliedOnClient = null;
 
-            if (args.SyncResult.ClientChangesSelected != null && args.SyncResult.ClientChangesSelected.TableChangesSelected!= null &&  args.SyncResult.ClientChangesSelected.TableChangesSelected.Count > 0)
+            if (args.SyncResult.ClientChangesSelected != null && args.SyncResult.ClientChangesSelected.TableChangesSelected != null && args.SyncResult.ClientChangesSelected.TableChangesSelected.Count > 0)
                 log.ClientChangesSelected = JsonConvert.SerializeObject(args.SyncResult?.ClientChangesSelected);
             else
                 log.ClientChangesSelected = null;

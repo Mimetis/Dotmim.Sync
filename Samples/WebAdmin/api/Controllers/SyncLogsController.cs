@@ -33,6 +33,18 @@ public class SyncLogsController : ControllerBase
         return logs;
     }
 
+    /// <summary>
+    /// Get all sync logs
+    /// </summary>
+    [HttpGet("/api/synclogs/{clientScopeId}")]
+    public async Task<IList<SyncLog>> GetSyncLogsAsync(Guid clientScopeId)
+    {
+        var logs = await context.SyncLog.OrderByDescending(sl => sl.StartTime).Where(l => l.ClientScopeId == clientScopeId).ToListAsync();
+
+        return logs;
+    }
+
+
 
     [HttpGet("/api/scopes")]
     public async Task<JArray> GetScopes()

@@ -1,8 +1,7 @@
-import { AppBar, Grid, IconButton, Paper, styled, Table, TableBody, TableCell, tableCellClasses, TableContainer, TableHead, TableRow, TextField, Toolbar, Tooltip, Typography } from "@mui/material";
+import { alpha, AppBar, Grid, IconButton, Paper, Slider, SliderProps, styled, Table, TableBody, TableCell, tableCellClasses, TableContainer, TableHead, TableRow, TextField, Toolbar, Tooltip, Typography } from "@mui/material";
 import SearchIcon from '@mui/icons-material/Search';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { useSyncLogs } from "../hooks";
-import { useState } from "react";
 import SyncLogsTableRowComponent from "./SyncLogsTableRowComponent";
 
 const StyledTableCell = styled(TableCell)(({ theme }) => ({
@@ -16,11 +15,18 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
   },
 }));
 
-const SyncLogsComponent: React.FunctionComponent = () => {
-  const syncLogsQuery = useSyncLogs();
+interface ISyncLogsComponentProps {
+  clientScopeId?: string;
+}
+
+
+const SyncLogsComponent: React.FunctionComponent<ISyncLogsComponentProps> = ({ clientScopeId }) => {
+  const syncLogsQuery = useSyncLogs(clientScopeId);
+
 
   return (
     <>
+
       {(!syncLogsQuery || !syncLogsQuery.data || syncLogsQuery.data.length <= 0) && (
         <Typography sx={{ my: 5, mx: 2 }} color="text.secondary" align="center">
           No logs
@@ -75,29 +81,30 @@ const SyncLogsComponent: React.FunctionComponent = () => {
             <Table size="small" aria-label="simple table">
               <TableHead>
                 <TableRow>
-                  <StyledTableCell></StyledTableCell>
-                  <StyledTableCell sortDirection='desc' >Session Id</StyledTableCell>
                   <StyledTableCell>Client Scope Id</StyledTableCell>
-                  <StyledTableCell>Scope Name</StyledTableCell>
+                  <StyledTableCell>Scope</StyledTableCell>
+                  <StyledTableCell>Parameters</StyledTableCell>
+                  <StyledTableCell>State</StyledTableCell>
                   <StyledTableCell>Start Time</StyledTableCell>
+                  <StyledTableCell>End Time</StyledTableCell>
                   <StyledTableCell>Type</StyledTableCell>
-                  <StyledTableCell>From Timestamp</StyledTableCell>
-                  <StyledTableCell>To Timestamp</StyledTableCell>
-                  <StyledTableCell>Applied</StyledTableCell>
-                  <StyledTableCell>Selected</StyledTableCell>
-                  <StyledTableCell>Conflicts</StyledTableCell>
+                  <StyledTableCell>Selected From Client</StyledTableCell>
+                  <StyledTableCell>Applied On Server</StyledTableCell>
+                  <StyledTableCell>Selected From Server</StyledTableCell>
+                  <StyledTableCell>Applied On Client</StyledTableCell>
+                  <StyledTableCell>Network</StyledTableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {syncLogsQuery.data.map((row) => (
                   <SyncLogsTableRowComponent key={row.sessionId + row.clientScopeId} row={row} />
                 ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableBody>
+            </Table>
+          </TableContainer>
         </>
-  )
-}
+      )
+      }
 
     </>
   );
