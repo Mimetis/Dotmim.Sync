@@ -39,7 +39,8 @@ namespace Dotmim.Sync
                 return Convert.ToUInt64(value);
             else if (typeOfT == typeof(DateTime))
             {
-                if (DateTime.TryParse(value.ToString(), provider, DateTimeStyles.None, out DateTime dateTime))
+                string valueStr = value.ToString();
+                if (DateTime.TryParse(valueStr, provider, DateTimeStyles.None, out DateTime dateTime))
                     return (T)Convert.ChangeType(dateTime, typeOfT, provider);
                 else if (typeOfU == typeof(long))
                     return (T)Convert.ChangeType(new DateTime(value), typeOfT, provider);
