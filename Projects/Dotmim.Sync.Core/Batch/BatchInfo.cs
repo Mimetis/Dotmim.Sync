@@ -213,7 +213,7 @@ namespace Dotmim.Sync.Batch
             else if (batchIndex.Length == 4)
                 batchIndex = $"{batchIndex}";
             else
-                throw new OverflowException("too much batches !!!");
+                throw new OverflowException("too much batches !!! You have reached the maximum amount of batch files generated. You need to increase the batch file value from the SyncOptions instance");
 
 
             info = string.IsNullOrEmpty(info) ? "" : $"_{info}";

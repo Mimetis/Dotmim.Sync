@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-#if NET5_0 || NET6_0 || NETCOREAPP3_1
+#if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
 using MySqlConnector;
 #elif NETCOREAPP2_1
 using MySql.Data.MySqlClient;

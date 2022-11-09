@@ -30,8 +30,10 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Serialization;
+using NLog.Extensions.Logging;
+using NLog.Web;
 
-#if NET5_0 || NET6_0
+#if NET5_0 || NET6_0 || NET7_0 
 using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;
@@ -72,6 +74,8 @@ internal class Program
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
         var options = new SyncOptions();
+        options.Logger = new SyncLogger().AddConsole().SetMinimumLevel(LogLevel.Information);
+
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
         setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
@@ -105,7 +109,11 @@ internal class Program
 
         //await EditEntityOnceUploadedAsync(clientProvider, serverProvider, setup, options);
 
-        await GenerateErrorsAsync();
+        //await GenerateErrorsAsync();
+
+        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+
+        await SynchronizeWithLoggerAsync();
     }
 
     private static async Task EditEntityOnceUploadedAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
@@ -1967,123 +1975,137 @@ internal class Program
     //    Console.WriteLine("End");
     //}
 
-    //private static async Task SynchronizeWithLoggerAsync()
-    //{
+    private static async Task SynchronizeWithLoggerAsync()
+    {
 
-    //    //docker run -it --name seq -p 5341:80 -e ACCEPT_EULA=Y datalust/seq
+        //docker run -it --name seq -p 5341:80 -e ACCEPT_EULA=Y datalust/seq
 
-    //    // Create 2 Sql Sync providers
-    //    var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-    //    var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-    //    //var clientProvider = new SqliteSyncProvider("clientX.db");
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("clientX.db");
 
-    //    var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
-    //    //var setup = new SyncSetup(new string[] { "Customer" });
-    //    //var setup = new SyncSetup(new[] { "Customer" });
-    //    //setup.Tables["Customer"].Columns.AddRange(new[] { "CustomerID", "FirstName", "LastName" });
+        var setup = new SyncSetup(new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+        //var setup = new SyncSetup(new string[] { "Customer" });
+        //var setup = new SyncSetup(new[] { "Customer" });
+        //setup.Tables["Customer"].Columns.AddRange(new[] { "CustomerID", "FirstName", "LastName" });
 
+        var options = new SyncOptions();
+        options.BatchSize = 500;
 
-    //    //Log.Logger = new LoggerConfiguration()
-    //    //    .Enrich.FromLogContext()
-    //    //    .MinimumLevel.Verbose()
-    //    //    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-    //    //    .WriteTo.Console()
-    //    //    .CreateLogger();
+        //Log.Logger = new LoggerConfiguration()
+        //    .Enrich.FromLogContext()
+        //    .MinimumLevel.Verbose()
+        //    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+        //    .WriteTo.Console()
+        //    .CreateLogger();
 
-    //    // *) create a console logger
-    //    //var loggerFactory = LoggerFactory.Create(builder => { builder.AddConsole().SetMinimumLevel(LogLevel.Trace); });
-    //    //var logger = loggerFactory.CreateLogger("Dotmim.Sync");
-    //    //options.Logger = logger;
+        ILoggerFactory loggerFactory = null;
+        Microsoft.Extensions.Logging.ILogger logger = null;
 
-    //    // *) create a seq logger
-    //    var loggerFactory = LoggerFactory.Create(builder => { builder.AddSeq().SetMinimumLevel(LogLevel.Debug); });
-    //    var logger = loggerFactory.CreateLogger("Dotmim.Sync");
-
-
-    //    // *) create a serilog logger
-    //    //var loggerFactory = LoggerFactory.Create(builder => { builder.AddSerilog().SetMinimumLevel(LogLevel.Trace); });
-    //    //var logger = loggerFactory.CreateLogger("SyncAgent");
-    //    //options.Logger = logger;
-
-    //    // *) Using Serilog with Seq
-    //    //var serilogLogger = new LoggerConfiguration()
-    //    //    .Enrich.FromLogContext()
-    //    //    .MinimumLevel.Debug()
-    //    //    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-    //    //    .WriteTo.Seq("http://localhost:5341")
-    //    //    .CreateLogger();
+        // *) Synclogger
+        //options.Logger = new SyncLogger().AddConsole().SetMinimumLevel(LogLevel.Debug);
 
 
-    //    //var actLogging = new Action<SyncLoggerOptions>(slo =>
-    //    //{
-    //    //    slo.AddConsole();
-    //    //    slo.SetMinimumLevel(LogLevel.Information);
-    //    //});
-
-    //    ////var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog().AddConsole().SetMinimumLevel(LogLevel.Information));
-
-    //    //var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog(serilogLogger));
-
-    //    //loggerFactory.AddSerilog(serilogLogger);
-
-    //    //options.Logger = loggerFactory.CreateLogger("dms");
-
-    //    // 2nd option to add serilog
-    //    //var loggerFactorySerilog = new SerilogLoggerFactory();
-    //    //var logger = loggerFactorySerilog.CreateLogger<SyncAgent>();
-    //    //options.Logger = logger;
-
-    //    //options.Logger = new SyncLogger().AddConsole().AddDebug().SetMinimumLevel(LogLevel.Trace);
-
-    //    //var snapshotDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
-    //    //options.BatchSize = 500;
-    //    //options.SnapshotsDirectory = snapshotDirectory;
-    //    //var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
-    //    //remoteOrchestrator.CreateSnapshotAsync().GetAwaiter().GetResult();
-
-    //    var options = new SyncOptions();
-    //    options.BatchSize = 500;
-    //    options.Logger = logger;
-    //    //options.Logger = new SyncLogger().AddConsole().SetMinimumLevel(LogLevel.Debug);
+        // *) create a NLog logger
+        loggerFactory = LoggerFactory.Create(builder => { builder.AddNLogWeb(); });
+        logger = loggerFactory.CreateLogger("Dotmim.Sync");
+        options.Logger = logger;
 
 
-    //    // Creating an agent that will handle all the process
-    //    var agent = new SyncAgent(clientProvider, serverProvider, options, setup);
+        //// *) create a console logger
+        //loggerFactory = LoggerFactory.Create(builder => { builder.AddConsole().SetMinimumLevel(LogLevel.Trace); });
+        //logger = loggerFactory.CreateLogger("Dotmim.Sync");
+        //options.Logger = logger;
 
-    //    // Using the Progress pattern to handle progession during the synchronization
-    //    var progress = new SynchronousProgress<ProgressArgs>(s =>
-    //    {
-    //        Console.ForegroundColor = ConsoleColor.Green;
-    //        Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Message}");
-    //        Console.ResetColor();
-    //    });
-
-    //    do
-    //    {
-    //        // Console.Clear();
-    //        Console.WriteLine("Sync Start");
-    //        try
-    //        {
-    //            // Launch the sync process
-    //            //if (!agent.Parameters.Contains("CompanyName"))
-    //            //    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
-
-    //            var s1 = await agent.SynchronizeAsync(progress);
-
-    //            // Write results
-    //            Console.WriteLine(s1);
-    //        }
-    //        catch (Exception e)
-    //        {
-    //            Console.WriteLine(e.Message);
-    //        }
+        //// *) create a seq logger
+        //loggerFactory = LoggerFactory.Create(builder => { builder.AddSeq().SetMinimumLevel(LogLevel.Debug); });
+        //logger = loggerFactory.CreateLogger("Dotmim.Sync");
+        //options.Logger = logger;
 
 
-    //        //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-    //    } while (Console.ReadKey().Key != ConsoleKey.Escape);
+        //// *) create a serilog logger
+        //loggerFactory = LoggerFactory.Create(builder => { builder.AddSerilog().SetMinimumLevel(LogLevel.Trace); });
+        //logger = loggerFactory.CreateLogger("Dotmim.Sync");
+        //options.Logger = logger;
 
-    //    Console.WriteLine("End");
-    //}
+        // *) Using Serilog with Seq
+        //var serilogLogger = new LoggerConfiguration()
+        //    .Enrich.FromLogContext()
+        //    .MinimumLevel.Debug()
+        //    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+        //    .WriteTo.Seq("http://localhost:5341")
+        //    .CreateLogger();
+
+
+        //var actLogging = new Action<SyncLoggerOptions>(slo =>
+        //{
+        //    slo.AddConsole();
+        //    slo.SetMinimumLevel(LogLevel.Information);
+        //});
+
+        ////var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog().AddConsole().SetMinimumLevel(LogLevel.Information));
+
+        //var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog(serilogLogger));
+
+        //loggerFactory.AddSerilog(serilogLogger);
+
+        //options.Logger = loggerFactory.CreateLogger("dms");
+
+        // 2nd option to add serilog
+        //var loggerFactorySerilog = new SerilogLoggerFactory();
+        //var logger = loggerFactorySerilog.CreateLogger<SyncAgent>();
+        //options.Logger = logger;
+
+        //options.Logger = new SyncLogger().AddConsole().AddDebug().SetMinimumLevel(LogLevel.Trace);
+
+        //var snapshotDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
+        //options.BatchSize = 500;
+        //options.SnapshotsDirectory = snapshotDirectory;
+        //var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options, setup);
+        //remoteOrchestrator.CreateSnapshotAsync().GetAwaiter().GetResult();
+
+
+        //options.Logger = new SyncLogger().AddConsole().SetMinimumLevel(LogLevel.Debug);
+
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        do
+        {
+            // Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                // Launch the sync process
+                //if (!agent.Parameters.Contains("CompanyName"))
+                //    agent.Parameters.Add("CompanyName", "Professional Sales and Service");
+
+                var s1 = await agent.SynchronizeAsync(setup, progress);
+
+                // Write results
+                Console.WriteLine(s1);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
 
 
 }
