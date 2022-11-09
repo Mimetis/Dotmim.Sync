@@ -12,17 +12,13 @@ jobs:
       buildConfiguration: "Release"
 
     steps:
-      - task: UseDotNet@2
-        displayName: 'Use .Net Core sdk'
-        inputs:
-          version: 3.x
 
       # Use the latest .NET SDK
       - task: UseDotNet@2
-        displayName: 'Use .Net Sdk 6.x'
+        displayName: 'Use .Net Sdk 7.x'
         inputs:
           packageType: 'sdk'
-          version: 6.0.x
+          version: 7.0.x
           includePreviewVersions: true
 
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
@@ -80,6 +76,13 @@ jobs:
           version: 6.0.x
           includePreviewVersions: true
 
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
+          includePreviewVersions: true
+  
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
  
@@ -128,6 +131,14 @@ jobs:
           version: 6.0.x
           includePreviewVersions: true
 
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
+          includePreviewVersions: true
+
+
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
  
@@ -174,6 +185,13 @@ jobs:
         inputs:
           packageType: 'sdk'
           version: 6.0.x
+          includePreviewVersions: true
+
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
           includePreviewVersions: true
 
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
@@ -224,6 +242,13 @@ jobs:
           version: 6.0.x
           includePreviewVersions: true
 
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
+          includePreviewVersions: true
+
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
  
@@ -270,6 +295,13 @@ jobs:
         inputs:
           packageType: 'sdk'
           version: 6.0.x
+          includePreviewVersions: true
+
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
           includePreviewVersions: true
 
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
@@ -320,6 +352,13 @@ jobs:
           version: 6.0.x
           includePreviewVersions: true
 
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
+          includePreviewVersions: true
+          
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
  
@@ -366,6 +405,13 @@ jobs:
         inputs:
           packageType: 'sdk'
           version: 6.0.x
+          includePreviewVersions: true
+
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
           includePreviewVersions: true
 
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
@@ -416,6 +462,13 @@ jobs:
           version: 6.0.x
           includePreviewVersions: true
 
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
+          includePreviewVersions: true
+
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
  
@@ -462,6 +515,13 @@ jobs:
         inputs:
           packageType: 'sdk'
           version: 6.0.x
+          includePreviewVersions: true
+
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
           includePreviewVersions: true
 
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
@@ -512,6 +572,13 @@ jobs:
           version: 6.0.x
           includePreviewVersions: true
 
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
+          includePreviewVersions: true
+
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
  
@@ -558,6 +625,13 @@ jobs:
         inputs:
           packageType: 'sdk'
           version: 6.0.x
+          includePreviewVersions: true
+
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
           includePreviewVersions: true
 
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
@@ -608,6 +682,13 @@ jobs:
           version: 6.0.x
           includePreviewVersions: true
 
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
+          includePreviewVersions: true
+
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
  
@@ -654,6 +735,13 @@ jobs:
         inputs:
           packageType: 'sdk'
           version: 6.0.x
+          includePreviewVersions: true
+
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
           includePreviewVersions: true
 
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
@@ -704,6 +792,13 @@ jobs:
           version: 6.0.x
           includePreviewVersions: true
 
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
+          includePreviewVersions: true
+
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
  
@@ -752,6 +847,13 @@ jobs:
         inputs:
           packageType: 'sdk'
           version: 6.0.x
+          includePreviewVersions: true
+
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
           includePreviewVersions: true
 
       - bash: |
@@ -845,6 +947,13 @@ jobs:
         inputs:
           packageType: 'sdk'
           version: 6.0.x
+          includePreviewVersions: true
+
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
           includePreviewVersions: true
 
       - script: |
