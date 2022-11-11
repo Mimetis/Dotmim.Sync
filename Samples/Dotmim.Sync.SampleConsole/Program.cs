@@ -74,7 +74,7 @@ internal class Program
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
         var options = new SyncOptions();
-        options.Logger = new SyncLogger().AddConsole().SetMinimumLevel(LogLevel.Information);
+        options.Logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Information);
 
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
@@ -111,9 +111,9 @@ internal class Program
 
         //await GenerateErrorsAsync();
 
-        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
-        await SynchronizeWithLoggerAsync();
+        //await SynchronizeTemporalTablesAsync();
     }
 
     private static async Task EditEntityOnceUploadedAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
@@ -172,6 +172,48 @@ internal class Program
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
+        agent.LocalOrchestrator.OnRowsChangesApplying(args =>
+        {
+            Console.WriteLine(args.Message);
+        });
+        do
+        {
+            try
+            {
+                Console.Clear();
+                Console.ForegroundColor = ConsoleColor.Green;
+                var s = await agent.SynchronizeAsync(setup, progress: progress);
+                Console.ResetColor();
+                Console.WriteLine(s);
+
+            }
+            catch (SyncException e)
+            {
+                Console.ResetColor();
+                Console.WriteLine(e.Message);
+            }
+            catch (Exception e)
+            {
+                Console.ResetColor();
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+    }
+
+
+    private static async Task SynchronizeTemporalTablesAsync()
+    {
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("TemporalServer"));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("TemporalClient"));
+        var setup = new SyncSetup("User");
+        setup.Tables["User"].Columns.AddRange("UserId", "Username", "FirstName", "LastName", "Emailaddress", "VeritasTemplateId");
+
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
+        var agent = new SyncAgent(clientProvider, serverProvider);
 
         do
         {

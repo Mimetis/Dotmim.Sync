@@ -34,10 +34,12 @@
 		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="6.0.2" />
 	</ItemGroup>
 
+
+	<!--Until POMELO has not upgraded to .net 7, we still need to use 6-->
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet7)'">
-		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="7.0.0" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.0" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="7.0.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="6.0.0" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.0" />
 		<!--<PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="7.0.0" />-->
 		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.9.1" />
 		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="6.0.2" />
