@@ -265,13 +265,13 @@ namespace Dotmim.Sync.MySql.Builders
             var filterColumnsString3 = new StringBuilder();
 
             createTrigger.AppendLine("\t) ");
-            createTrigger.AppendLine("\tSELECT ");
+            createTrigger.AppendLine("\tVALUES (");
             createTrigger.Append(stringBuilderArguments2.ToString());
             createTrigger.AppendLine("\t\t,NULL");
             createTrigger.AppendLine($"\t\t,{this.timestampValue}");
             createTrigger.AppendLine("\t\t,0");
             createTrigger.AppendLine("\t\t,utc_timestamp()");
-            createTrigger.AppendLine($"\tFROM {tableName.Quoted().ToString()}"); //[AB] added to be compatible with MariaDB 10.3.x
+            createTrigger.AppendLine("\t)");
 
             //if (this.tableDescription.GetMutableColumns().Count() > 0)
             //{
