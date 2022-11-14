@@ -71,7 +71,7 @@ namespace XamSyncSample.ViewModels
 
             try
             {
-                var progress = new SynchronousProgress<ProgressArgs>(args =>
+                var progress = new Progress<ProgressArgs>(args =>
                 {
                     Device.BeginInvokeOnMainThread(() =>
                     {
