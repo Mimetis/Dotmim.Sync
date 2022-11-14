@@ -13,6 +13,9 @@ jobs:
 
     steps:
 
+      - script: printenv
+        displayName: Get env variables
+
       # Use the latest .NET SDK
       - task: UseDotNet@2
         displayName: 'Use .Net Sdk 7.x'
