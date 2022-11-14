@@ -44,7 +44,7 @@ namespace Dotmim.Sync.Tests
                 builder.UserID = "sa";
                 builder.Password = "Password12!";
             }
-
+            Console.WriteLine(builder.ToString());
             return builder.ToString();
 
         }
