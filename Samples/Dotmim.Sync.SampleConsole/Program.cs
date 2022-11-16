@@ -62,8 +62,8 @@ internal class Program
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
-        //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
 
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
@@ -74,12 +74,12 @@ internal class Program
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
         var options = new SyncOptions();
-        options.Logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Information);
+        //options.Logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Information);
 
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
-        setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
-        setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
+        //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
+        //setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
 
         //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitserver"));
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitclient"));
@@ -111,9 +111,9 @@ internal class Program
 
         //await GenerateErrorsAsync();
 
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        // await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
-        //await SynchronizeTemporalTablesAsync();
+        await SynchronizeBigTablesAsync();
     }
 
     private static async Task EditEntityOnceUploadedAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
@@ -172,10 +172,7 @@ internal class Program
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
-        agent.LocalOrchestrator.OnRowsChangesApplying(args =>
-        {
-            Console.WriteLine(args.Message);
-        });
+
         do
         {
             try
@@ -203,12 +200,17 @@ internal class Program
     }
 
 
-    private static async Task SynchronizeTemporalTablesAsync()
+    private static async Task SynchronizeBigTablesAsync()
     {
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("TemporalServer"));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("TemporalClient"));
-        var setup = new SyncSetup("User");
-        setup.Tables["User"].Columns.AddRange("UserId", "Username", "FirstName", "LastName", "Emailaddress", "VeritasTemplateId");
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("MAPRADO.Configuration"));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("MAPRADO.Client"));
+        //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+
+        var setup1 = new SyncSetup("StateHistoryOnline");
+        var scopeName1 = "StateHistoryOnline";
+
+        var setup2 = new SyncSetup("ProductCategory");
+        var scopeName2 = "ProductCategory";
 
         var progress = new SynchronousProgress<ProgressArgs>(s =>
             Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
@@ -221,9 +223,14 @@ internal class Program
             {
                 Console.Clear();
                 Console.ForegroundColor = ConsoleColor.Green;
-                var s = await agent.SynchronizeAsync(setup, progress: progress);
+                var s = await agent.SynchronizeAsync(scopeName1, setup1, syncType: SyncType.Reinitialize, progress: progress);
                 Console.ResetColor();
                 Console.WriteLine(s);
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                var s2 = await agent.SynchronizeAsync(scopeName2, setup2, syncType:SyncType.Reinitialize, progress: progress);
+                Console.ResetColor();
+                Console.WriteLine(s2);
 
             }
             catch (SyncException e)

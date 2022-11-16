@@ -360,6 +360,10 @@ namespace Dotmim.Sync
 
                 foreach (var batchPartInfo in bpiTables)
                 {
+                    var batchChangesApplyingArgs = new BatchChangesApplyingArgs(context, message.Changes, batchPartInfo, schemaTable, applyType, command, connection, transaction);
+                    // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
+                    await this.InterceptAsync(batchChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
+
                     // Rows fetch (either of the good state or not) from the BPI
                     var rowsFetched = 0;
 
@@ -401,6 +405,13 @@ namespace Dotmim.Sync
 
                             var (rowAppliedCount, conflictSyncRows, errorException) = await this.InternalApplyBatchRowsAsync(context, command, batchRows, schemaChangesTable, applyType, message, dbCommandType, syncAdapter,
                                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                            errorException = null;
+                            rowAppliedCount = batchRows.Count;
+                            conflictSyncRows = schemaChangesTable.Schema.Clone().Tables[schemaChangesTable.TableName, schemaChangesTable.SchemaName].Rows;
+                            //Exception errorException = null;
+                            //var rowAppliedCount = batchRows.Count;
+                            //var conflictSyncRows = schemaChangesTable.Schema.Clone().Tables[schemaChangesTable.TableName, schemaChangesTable.SchemaName].Rows;
 
                             if (errorException == null)
                             {
@@ -495,6 +506,10 @@ namespace Dotmim.Sync
                     }
 
                     await runner.CommitAsync().ConfigureAwait(false);
+
+                    var batchChangesAppliedArgs = new BatchChangesAppliedArgs(context, message.Changes, batchPartInfo, schemaTable, applyType, command, connection, transaction);
+                    // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
+                    await this.InterceptAsync(batchChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
                 }
 
 

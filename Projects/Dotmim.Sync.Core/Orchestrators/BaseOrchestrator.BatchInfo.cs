@@ -20,9 +20,9 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
-        /// <inheritdoc cref="LoadTableFromBatchInfoAsync(string, BatchInfo, string, string, SyncRowState?)"/>
-        public virtual Task<SyncTable> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default)
-            => LoadTableFromBatchInfoAsync(SyncOptions.DefaultScopeName, batchInfo, tableName, schemaName, syncRowState);
+        /// <inheritdoc cref="LoadTableFromBatchInfoAsync(string, BatchInfo, string, string, SyncRowState?, DbConnection, DbTransaction)"/>
+        public virtual Task<SyncTable> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
+            => LoadTableFromBatchInfoAsync(SyncOptions.DefaultScopeName, batchInfo, tableName, schemaName, syncRowState, connection, transaction);
 
         /// <summary>
         /// Load a table with all rows from a <see cref="BatchInfo"/> instance. You need a <see cref="ScopeInfoClient"/> instance to be able to load rows for this client.
@@ -44,13 +44,13 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </summary>
-        public virtual async Task<SyncTable> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default)
+        public virtual async Task<SyncTable> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
                 ScopeInfo scopeInfo = null;
-                (context, scopeInfo) = await this.InternalGetScopeInfoAsync(context, default, default, default, default).ConfigureAwait(false);
+                (context, scopeInfo) = await this.InternalGetScopeInfoAsync(context, connection, transaction, default, default).ConfigureAwait(false);
 
                 var syncTable = await InternalLoadTableFromBatchInfoAsync(scopeInfo, context, batchInfo, tableName, schemaName, syncRowState).ConfigureAwait(false);
 
@@ -77,12 +77,12 @@ namespace Dotmim.Sync
         /// <returns>
         /// 
         /// </returns>
-        public virtual async Task<List<BatchInfo>> LoadBatchInfosAsync(string scopeName = SyncOptions.DefaultScopeName)
+        public virtual async Task<List<BatchInfo>> LoadBatchInfosAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
 
             ScopeInfo scopeInfo;
-            (_, scopeInfo) = await this.InternalGetScopeInfoAsync(context, default, default, default, default).ConfigureAwait(false);
+            (_, scopeInfo) = await this.InternalGetScopeInfoAsync(context, connection, transaction, default, default).ConfigureAwait(false);
 
             if (scopeInfo == null)
                 throw new MissingSchemaInScopeException();
@@ -141,16 +141,16 @@ namespace Dotmim.Sync
         /// }
         /// </code>   
         /// </summary>
-        public virtual IAsyncEnumerable<SyncTable> LoadTablesFromBatchInfoAsync(BatchInfo batchInfo, SyncRowState? syncRowState = default)
+        public virtual IAsyncEnumerable<SyncTable> LoadTablesFromBatchInfoAsync(BatchInfo batchInfo, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
             => LoadTablesFromBatchInfoAsync(SyncOptions.DefaultScopeName, batchInfo, syncRowState);
 
-        /// <inheritdoc cref="LoadTablesFromBatchInfoAsync(BatchInfo, SyncRowState?)"/>
-        public virtual async IAsyncEnumerable<SyncTable> LoadTablesFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, SyncRowState? syncRowState = default)
+        /// <inheritdoc cref="LoadTablesFromBatchInfoAsync(BatchInfo, SyncRowState?, DbConnection, DbTransaction)"/>
+        public virtual async IAsyncEnumerable<SyncTable> LoadTablesFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
 
             ScopeInfo scopeInfo;
-            (context, scopeInfo) = await this.InternalGetScopeInfoAsync(context, default, default, default, default).ConfigureAwait(false);
+            (context, scopeInfo) = await this.InternalGetScopeInfoAsync(context, connection, transaction, default, default).ConfigureAwait(false);
 
             if (scopeInfo == null)
                 throw new MissingSchemaInScopeException();
@@ -217,19 +217,19 @@ namespace Dotmim.Sync
         /// <summary>
         /// Load a table from a batch part info
         /// </summary>
-        public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncRowState? syncRowState = default)
-            => LoadTableFromBatchPartInfoAsync(SyncOptions.DefaultScopeName, batchInfo, batchPartInfo, syncRowState);
+        public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
+            => LoadTableFromBatchPartInfoAsync(SyncOptions.DefaultScopeName, batchInfo, batchPartInfo, syncRowState, connection, transaction);
 
 
         /// <summary>
         /// Load a table from a batch part info
         /// </summary>
-        public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncRowState? syncRowState = default)
+        public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
-                return InternalLoadTableFromBatchPartInfoAsync(context, batchInfo, batchPartInfo, syncRowState);
+                return InternalLoadTableFromBatchPartInfoAsync(context, batchInfo, batchPartInfo, syncRowState, connection, transaction);
             }
             catch (Exception ex)
             {
@@ -240,7 +240,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Load the Batch part info in memory, in a SyncTable
         /// </summary>
-        internal async Task<SyncTable> InternalLoadTableFromBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncRowState? syncRowState = default)
+        internal async Task<SyncTable> InternalLoadTableFromBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
         {
             if (batchInfo == null)
                 return null;
@@ -257,7 +257,7 @@ namespace Dotmim.Sync
                 return null;
 
             ScopeInfo scopeInfo = null;
-            (context, scopeInfo) = await this.InternalGetScopeInfoAsync(context, default, default, default, default).ConfigureAwait(false);
+            (context, scopeInfo) = await this.InternalGetScopeInfoAsync(context, connection, transaction, default, default).ConfigureAwait(false);
 
             // Backward compatibility
             var batchPartInfoTableName = batchPartInfo.Tables != null && batchPartInfo.Tables.Length >= 1 ? batchPartInfo.Tables[0].TableName : batchPartInfo.TableName;

@@ -79,8 +79,6 @@ namespace Dotmim.Sync
 
     public static partial class InterceptorsExtensions
     {
-
-
         /// <summary>
         /// Occurs just before applying a batch of rows to the local (client or server) database.
         /// <para>
