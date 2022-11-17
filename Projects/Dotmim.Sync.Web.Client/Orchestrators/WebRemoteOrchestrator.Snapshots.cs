@@ -133,7 +133,7 @@ namespace Dotmim.Sync.Web.Client
 
                 // Raise response from server containing a batch changes 
                 await this.InterceptAsync(new HttpGettingServerChangesResponseArgs(serverBatchInfo, bpi.Index, bpi.RowsCount, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
-            });
+            }, this.MaxDownladingDegreeOfParallelism).ConfigureAwait(false);
 
             await this.InterceptAsync(new HttpBatchesDownloadedArgs(summaryResponseContent, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
