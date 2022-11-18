@@ -45,9 +45,7 @@ namespace Dotmim.Sync.Tests
                 builder.Password = "Password12!";
                 builder.TrustServerCertificate = true;
             }
-            Console.WriteLine(builder.ToString());
             return builder.ToString();
-
         }
 
         /// <summary>
