@@ -406,13 +406,6 @@ namespace Dotmim.Sync
                             var (rowAppliedCount, conflictSyncRows, errorException) = await this.InternalApplyBatchRowsAsync(context, command, batchRows, schemaChangesTable, applyType, message, dbCommandType, syncAdapter,
                                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                            errorException = null;
-                            rowAppliedCount = batchRows.Count;
-                            conflictSyncRows = schemaChangesTable.Schema.Clone().Tables[schemaChangesTable.TableName, schemaChangesTable.SchemaName].Rows;
-                            //Exception errorException = null;
-                            //var rowAppliedCount = batchRows.Count;
-                            //var conflictSyncRows = schemaChangesTable.Schema.Clone().Tables[schemaChangesTable.TableName, schemaChangesTable.SchemaName].Rows;
-
                             if (errorException == null)
                             {
                                 // Add applied rows
@@ -422,7 +415,6 @@ namespace Dotmim.Sync
                                 if (conflictSyncRows != null && conflictSyncRows.Count > 0)
                                     foreach (var conflictRow in conflictSyncRows)
                                         conflictRows.Add(conflictRow);
-
                             }
                             else
                             {
