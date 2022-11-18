@@ -43,6 +43,7 @@ namespace Dotmim.Sync.Tests
                 builder.DataSource = @"localhost";
                 builder.UserID = "sa";
                 builder.Password = "Password12!";
+                builder.TrustServerCertificate = true;
             }
             Console.WriteLine(builder.ToString());
             return builder.ToString();
