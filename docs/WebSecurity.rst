@@ -8,7 +8,7 @@ The ``Dotmim.Sync.Web.Server`` package used to expose ``DMS`` through **ASP.Net 
 
 .. hint:: You will find the auth sample here : `Web Authentication Sample <https://github.com/Mimetis/Dotmim.Sync/blob/master/Samples/HelloWebAuthSync>`_ 
 
-Just as a remember, the **Web Server** code looks like this:
+Just as a reminder, the **Web Server** code looks like this:
 
 .. code-block:: csharp
 
