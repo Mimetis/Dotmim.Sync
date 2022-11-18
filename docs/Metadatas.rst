@@ -39,7 +39,7 @@ So far, the client side is easy to maintain, since it's by default, automatic...
 Server side
 ^^^^^^^^^^^^
 
-There is no automatic mechanism on the server side. Mainly because **DMS** does not know *when* he should clean the metadata rows on the server.   
+There is no automatic mechanism on the server side. Mainly because **DMS** does not know *when* it should clean the metadata rows on the server.   
 
 
 .. note:: Indeed we can launch the metadata rows cleanup routine after *every* client synchronization, but it will lead to an non-necessary overhead and will extend the time needed for each sync
