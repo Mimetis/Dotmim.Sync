@@ -36,9 +36,7 @@ jobs:
         displayName: "Run SQL Server latest on Linux container"
  
 
-      - script: |
-          docker exec -it sqlserver "bash"
-          /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "Password12!"
+      - script: docker exec -i sqlserver "bash" & /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "Password12!"
           select name from sys.databases
           go
         displayName: Try to connect to SQL Server and get databases
