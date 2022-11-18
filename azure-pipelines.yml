@@ -39,9 +39,9 @@ jobs:
       - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
         displayName: "Run MySql on Linux container"
 
-      - script: |
-          docker exec -i sqlserver "bash" & /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "Password12!"
-        displayName: Try to connect to SQL Server and get databases
+      # - script: |
+      #     docker exec -i sqlserver "bash" & /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "Password12!"
+      #   displayName: Try to connect to SQL Server and get databases
 
       - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
         displayName: "Run MariaDB on Linux container"
