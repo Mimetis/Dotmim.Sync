@@ -35,6 +35,14 @@ jobs:
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
  
+
+      - script: |
+          docker exec -it sql "bash"
+          /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "Password12!"
+          select name from sys.databases
+          go
+        displayName: Try to connect to SQL Server and get databases
+
         # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
       - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
         displayName: "Run MySql on Linux container"
