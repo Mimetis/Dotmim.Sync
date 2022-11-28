@@ -352,6 +352,8 @@ namespace Dotmim.Sync
             // conflict resolved count
             int conflictsResolvedCount = 0;
 
+            string batchPartInfoFileName = null;
+
             try
             {
                 foreach (var batchPartInfo in bpiTables)
@@ -359,6 +361,9 @@ namespace Dotmim.Sync
                     var batchChangesApplyingArgs = new BatchChangesApplyingArgs(context, message.Changes, batchPartInfo, schemaTable, applyType, command, connection, transaction);
                     // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
                     await this.InterceptAsync(batchChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                    // for error handling
+                    batchPartInfoFileName = batchPartInfo.FileName;
 
                     // Rows fetch (either of the good state or not) from the BPI
                     var rowsFetched = 0;
@@ -500,7 +505,31 @@ namespace Dotmim.Sync
                     await this.InterceptAsync(batchChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
                 }
 
+            }
+            catch (Exception ex)
+            {
+                string errorMessage = null;
 
+                if (message != null && message.Changes != null && message.Changes.DirectoryRoot != null)
+                    errorMessage += $"DirectoryName:{message.Changes.DirectoryRoot}.";
+
+                if (message != null && message.Changes != null && message.Changes.DirectoryName != null)
+                    errorMessage += $"FolderName:{message.Changes.DirectoryName}.";
+
+                if (batchPartInfoFileName != null)
+                    errorMessage += $"FileName:{batchPartInfoFileName}.";
+
+                errorMessage += $"IsBatch:{isBatch}.";
+                errorMessage += $"CommandType:{dbCommandType}.";
+
+                if (command != null && command.CommandText != null)
+                    errorMessage += $"CommandText:{command.CommandText}.";
+
+                throw GetSyncError(context, ex);
+            }
+
+            try
+            {
                 if ((conflictRows != null && conflictRows.Count > 0) || (errorsRows != null && errorsRows.Count > 0))
                 {
                     await using var runnerError = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.None ? SyncMode.NoTransaction : SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);

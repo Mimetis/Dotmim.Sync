@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -27,15 +28,8 @@ namespace Dotmim.Sync
 
         }
 
-        public SyncException(Exception innerException, SyncStage stage = SyncStage.None) : base(innerException.Message, innerException)
+        public SyncException(Exception innerException, SyncStage stage = SyncStage.None) : this(innerException, innerException.Message, stage)
         {
-            this.SyncStage = stage;
-
-            if (innerException is null)
-                return;
-
-
-            this.TypeName = innerException.GetType().Name;
         }
 
         public SyncException(Exception innerException, string message, SyncStage stage = SyncStage.None) : base(message, innerException)
@@ -45,7 +39,17 @@ namespace Dotmim.Sync
             if (innerException is null)
                 return;
 
-            this.TypeName = innerException.GetType().Name;
+            if (innerException is SyncException se)
+            {
+                this.DataSource = se.DataSource;
+                this.InitialCatalog = se.InitialCatalog;
+                this.TypeName = se.TypeName;
+                this.Number = se.Number;
+            }
+            else
+            {
+                this.TypeName = innerException.GetType().Name;
+            }
         }
 
         /// <summary>
@@ -718,7 +722,7 @@ namespace Dotmim.Sync
     {
         const string message = "Error on table [{0}]: {1}. Row:{2}. ApplyType:{3}";
 
-        public ApplyChangesException(SyncRow errorRow, SyncTable schemaChangesTable, SyncRowState rowState, Exception innerException) 
+        public ApplyChangesException(SyncRow errorRow, SyncTable schemaChangesTable, SyncRowState rowState, Exception innerException)
             : base(string.Format(message, schemaChangesTable.GetFullName(), innerException.Message, errorRow, rowState), innerException) { }
     }
 }

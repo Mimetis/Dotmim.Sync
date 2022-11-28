@@ -958,41 +958,37 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Write exception to output message
         /// </summary>
-        public virtual async Task WriteExceptionAsync(HttpRequest httpRequest, HttpResponse httpResponse, Exception ex, string additionalInfo = null)
+        public virtual async Task WriteExceptionAsync(HttpRequest httpRequest, HttpResponse httpResponse, Exception exception)
         {
-            // Check if it's an unknown error, not managed (yet)
-            if (!(ex is SyncException syncException))
-                syncException = new SyncException(ex);
-
-            var message = new StringBuilder();
-            message.AppendLine(syncException.Message);
-            message.AppendLine("-----------------------");
-            message.AppendLine(syncException.StackTrace);
-            message.AppendLine("-----------------------");
-            if (syncException.InnerException != null)
+            string message = exception is SyncException se && se.BaseMessage != null ? se.BaseMessage : exception.Message;
+            message += Environment.NewLine;
+            message += "-----------------------" + Environment.NewLine;
+            if (this.Options.UseVerboseErrors)
             {
-                message.AppendLine("-----------------------");
-                message.AppendLine("INNER EXCEPTION");
-                message.AppendLine("-----------------------");
-                message.AppendLine(syncException.InnerException.Message);
-                message.AppendLine("-----------------------");
-                message.AppendLine(syncException.InnerException.StackTrace);
-                message.AppendLine("-----------------------");
+                var innerException = exception.InnerException;
+                int cpt = 1;
+                while (innerException != null)
+                {
+                    message += Environment.NewLine;
+                    var sign = innerException.InnerException != null ? "├" : "└";
+                    message += sign;
 
-            }
-            if (!string.IsNullOrEmpty(additionalInfo))
-            {
-                message.AppendLine("-----------------------");
-                message.AppendLine("ADDITIONAL INFO");
-                message.AppendLine("-----------------------");
-                message.AppendLine(additionalInfo);
-                message.AppendLine("-----------------------");
+                    for (int i = 0; i < cpt; i++)
+                        message += "─";
 
+                    message += $" {innerException.Message}";
+
+                    innerException = innerException.InnerException;
+                    cpt++;
+                }
             }
 
+            var syncException = new SyncException(exception, message);
+
+         
             var webException = new WebSyncException
             {
-                Message = message.ToString(),
+                Message = message,
                 SyncStage = syncException.SyncStage,
                 TypeName = syncException.TypeName,
                 DataSource = syncException.DataSource,

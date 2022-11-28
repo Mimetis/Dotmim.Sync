@@ -21,6 +21,5 @@ namespace Dotmim.Sync.Web.Client
 
         public override Task SaveTableToBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
                => throw new NotImplementedException();
-
     }
 }

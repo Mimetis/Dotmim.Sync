@@ -113,7 +113,6 @@ namespace Dotmim.Sync.Web.Client
                 var exrror = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                 throw new HttpResponseContentException(exrror);
-
             }
 
         }

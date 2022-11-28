@@ -100,7 +100,7 @@ internal class Program
         // await ScenarioAddColumnSyncAsync(clientProvider, serverProvider, setup, options);
 
 
-        //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
+        await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
         //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
@@ -112,7 +112,7 @@ internal class Program
 
         //await GenerateErrorsAsync();
 
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
     }
 
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
@@ -1673,6 +1673,8 @@ internal class Program
 
     public static async Task SyncHttpThroughKestrellAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
+        options.DbCommandTimeout = 1;
+        options.UseVerboseErrors = true;
         var configureServices = new Action<IServiceCollection>(services =>
         {
             services.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "DefaultScope", setup, options);
@@ -1707,7 +1709,7 @@ internal class Program
 
         });
 
-        using var server = new KestrellTestServer(configureServices, true);
+        using var server = new KestrellTestServer(configureServices, false);
 
         var clientHandler = new ResponseDelegate(async (serviceUri) =>
         {

@@ -118,7 +118,7 @@ namespace Dotmim.Sync
             this.BatchSize = 2000;
             this.CleanMetadatas = true;
             this.CleanFolder = true;
-            this.UseVerboseErrors = false;
+            this.UseVerboseErrors = true;
             this.DisableConstraintsOnApplyChanges = false;
             this.ScopeInfoTableName = DefaultScopeInfoTableName;
             this.ConflictResolutionPolicy = ConflictResolutionPolicy.ServerWins;

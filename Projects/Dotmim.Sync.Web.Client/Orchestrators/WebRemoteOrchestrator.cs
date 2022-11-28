@@ -192,9 +192,6 @@ namespace Dotmim.Sync.Web.Client
             return httpMessageContent;
         }
 
-
-
-
         public override string ToString() => !String.IsNullOrEmpty(this.ServiceUri) ? this.ServiceUri : base.ToString();
     }
 }

@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
+using Newtonsoft.Json;
 
 namespace Dotmim.Sync.Web.Client
 {
@@ -22,7 +23,7 @@ namespace Dotmim.Sync.Web.Client
         /// Apply changes
         /// </summary>
         internal override async Task<(SyncContext context, ServerSyncChanges serverSyncChanges, ConflictResolutionPolicy serverResolutionPolicy)>
-            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, ClientSyncChanges clientChanges, 
+            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, ClientSyncChanges clientChanges,
             DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -45,28 +46,42 @@ namespace Dotmim.Sync.Web.Client
             // But we need to send something, so generate a little batch part
             if (clientChanges.ClientBatchInfo.BatchPartsInfo.Count == 0)
             {
-                var changesToSend = new HttpMessageSendChangesRequest(context, cScopeInfoClient);
+                HttpMessageSendChangesRequest changesToSend = null;
+                try
+                {
 
-                var containerSet = new ContainerSet();
+                    changesToSend = new HttpMessageSendChangesRequest(context, cScopeInfoClient);
 
-                changesToSend.ClientLastSyncTimestamp = clientChanges.ClientTimestamp;
-                changesToSend.Changes = containerSet;
-                changesToSend.IsLastBatch = true;
-                changesToSend.BatchIndex = 0;
-                changesToSend.BatchCount = clientChanges.ClientBatchInfo.BatchPartsInfo == null ? 0 : clientChanges.ClientBatchInfo.BatchPartsInfo.Count;
-                var inMemoryRowsCount = changesToSend.Changes.RowsCount();
+                    var containerSet = new ContainerSet();
 
-                context.ProgressPercentage += 0.125;
+                    changesToSend.ClientLastSyncTimestamp = clientChanges.ClientTimestamp;
+                    changesToSend.Changes = containerSet;
+                    changesToSend.IsLastBatch = true;
+                    changesToSend.BatchIndex = 0;
+                    changesToSend.BatchCount = clientChanges.ClientBatchInfo.BatchPartsInfo == null ? 0 : clientChanges.ClientBatchInfo.BatchPartsInfo.Count;
+                    var inMemoryRowsCount = changesToSend.Changes.RowsCount();
 
-                await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, inMemoryRowsCount, inMemoryRowsCount, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
+                    context.ProgressPercentage += 0.125;
 
-                // serialize message
-                var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
-                var binaryData = await serializer.SerializeAsync(changesToSend);
+                    await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, inMemoryRowsCount, inMemoryRowsCount, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
-                response = await this.httpRequestHandler.ProcessRequestAsync
-                    (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.SendChangesInProgress,
-                     this.SerializerFactory, this.Converter, this.Options.BatchSize, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
+                    // serialize message
+                    var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
+                    var binaryData = await serializer.SerializeAsync(changesToSend);
+
+                    response = await this.httpRequestHandler.ProcessRequestAsync
+                        (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.SendChangesInProgress,
+                         this.SerializerFactory, this.Converter, this.Options.BatchSize, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    string message = null;
+
+                    if (changesToSend != null)
+                        message = $"Error during Send empty Changes:{JsonConvert.SerializeObject(changesToSend)}.";
+
+                    throw GetSyncError(context, ex, message);
+                }
 
             }
             else
@@ -88,55 +103,67 @@ namespace Dotmim.Sync.Web.Client
                         return args.Result;
                     });
                 }
-                foreach (var bpi in clientChanges.ClientBatchInfo.BatchPartsInfo.OrderBy(bpi => bpi.Index))
+                try
                 {
-                    // Backward compatibility
-                    var batchPartInfoTableName = bpi.Tables != null && bpi.Tables.Length >= 1 ? bpi.Tables[0].TableName : bpi.TableName;
-                    var batchPartInfoSchemaName = bpi.Tables != null && bpi.Tables.Length >= 1 ? bpi.Tables[0].SchemaName : bpi.SchemaName;
-
-                    // Get the updatable schema for the only table contained in the batchpartinfo
-                    var schemaTable = CreateChangesTable(schema.Tables[batchPartInfoTableName, batchPartInfoSchemaName]);
-
-                    // Generate the ContainerSet containing rows to send to the user
-                    var containerSet = new ContainerSet();
-                    var containerTable = new ContainerTable(schemaTable);
-                    var fullPath = Path.Combine(clientChanges.ClientBatchInfo.GetDirectoryFullPath(), bpi.FileName);
-                    containerSet.Tables.Add(containerTable);
-
-                    // read rows from file
-                    foreach (var row in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
-                        containerTable.Rows.Add(row.ToArray());
-
-                    // Call the converter if needed
-                    if (this.Converter != null && containerTable.HasRows)
-                        BeforeSerializeRows(containerTable, schemaTable, this.Converter);
-
-                    // Create the send changes request
-                    var changesToSend = new HttpMessageSendChangesRequest(context, cScopeInfoClient)
+                    foreach (var bpi in clientChanges.ClientBatchInfo.BatchPartsInfo.OrderBy(bpi => bpi.Index))
                     {
-                        Changes = containerSet,
-                        IsLastBatch = bpi.IsLastBatch,
-                        BatchIndex = bpi.Index,
-                        BatchCount = clientChanges.ClientBatchInfo.BatchPartsInfo.Count,
-                        ClientLastSyncTimestamp = clientChanges.ClientTimestamp,
-                    };
+                        // Backward compatibility
+                        var batchPartInfoTableName = bpi.Tables != null && bpi.Tables.Length >= 1 ? bpi.Tables[0].TableName : bpi.TableName;
+                        var batchPartInfoSchemaName = bpi.Tables != null && bpi.Tables.Length >= 1 ? bpi.Tables[0].SchemaName : bpi.SchemaName;
 
-                    tmpRowsSendedCount += containerTable.Rows.Count;
+                        // Get the updatable schema for the only table contained in the batchpartinfo
+                        var schemaTable = CreateChangesTable(schema.Tables[batchPartInfoTableName, batchPartInfoSchemaName]);
 
-                    context.ProgressPercentage = initialPctProgress1 + ((changesToSend.BatchIndex + 1) * 0.2d / changesToSend.BatchCount);
-                    await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, tmpRowsSendedCount, clientChanges.ClientBatchInfo.RowsCount, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
+                        // Generate the ContainerSet containing rows to send to the user
+                        var containerSet = new ContainerSet();
+                        var containerTable = new ContainerTable(schemaTable);
+                        var fullPath = Path.Combine(clientChanges.ClientBatchInfo.GetDirectoryFullPath(), bpi.FileName);
+                        containerSet.Tables.Add(containerTable);
 
-                    // serialize message
-                    var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
-                    var binaryData = await serializer.SerializeAsync(changesToSend);
+                        // read rows from file
+                        foreach (var row in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
+                            containerTable.Rows.Add(row.ToArray());
 
-                    response = await this.httpRequestHandler.ProcessRequestAsync
-                        (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.SendChangesInProgress,
-                         this.SerializerFactory, this.Converter, this.Options.BatchSize, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
+                        // Call the converter if needed
+                        if (this.Converter != null && containerTable.HasRows)
+                            BeforeSerializeRows(containerTable, schemaTable, this.Converter);
 
-                    // See #721 for issue and #721 for PR from slagtejn
-                    if (!bpi.IsLastBatch)
-                        response.Dispose();
+                        // Create the send changes request
+                        var changesToSend = new HttpMessageSendChangesRequest(context, cScopeInfoClient)
+                        {
+                            Changes = containerSet,
+                            IsLastBatch = bpi.IsLastBatch,
+                            BatchIndex = bpi.Index,
+                            BatchCount = clientChanges.ClientBatchInfo.BatchPartsInfo.Count,
+                            ClientLastSyncTimestamp = clientChanges.ClientTimestamp,
+                        };
+
+                        tmpRowsSendedCount += containerTable.Rows.Count;
+
+                        context.ProgressPercentage = initialPctProgress1 + ((changesToSend.BatchIndex + 1) * 0.2d / changesToSend.BatchCount);
+                        await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, tmpRowsSendedCount, clientChanges.ClientBatchInfo.RowsCount, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
+
+                        // serialize message
+                        var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
+                        var binaryData = await serializer.SerializeAsync(changesToSend);
+
+                        response = await this.httpRequestHandler.ProcessRequestAsync
+                            (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.SendChangesInProgress,
+                             this.SerializerFactory, this.Converter, this.Options.BatchSize, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
+
+                        // See #721 for issue and #721 for PR from slagtejn
+                        if (!bpi.IsLastBatch)
+                            response.Dispose();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    string message = null;
+
+                    if (clientChanges != null)
+                        message = $"Error during Send Changes. Batch count:{clientChanges.ClientBatchInfo.BatchPartsInfo.Count}.";
+
+                    throw GetSyncError(context, ex, message);
                 }
             }
 
@@ -261,31 +288,51 @@ namespace Dotmim.Sync.Web.Client
                 await this.InterceptAsync(new HttpGettingServerChangesResponseArgs(serverBatchInfo, bpi.Index, bpi.RowsCount, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
             });
 
-            // Parrallel download of all bpis (which will launch the delete directory on the server side)
-            await serverBatchInfo.BatchPartsInfo.ForEachAsync(bpi => dl(bpi), this.MaxDownladingDegreeOfParallelism).ConfigureAwait(false);
+            try
+            {
+                // Parrallel download of all bpis (which will launch the delete directory on the server side)
+                await serverBatchInfo.BatchPartsInfo.ForEachAsync(bpi => dl(bpi), this.MaxDownladingDegreeOfParallelism).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                string message = null;
+
+                if (serverBatchInfo != null)
+                    message = $"Error during Get Changes. Batches count:{serverBatchInfo.BatchPartsInfo.Count}.";
+
+                throw GetSyncError(context, ex, message);
+            }
 
             // Send order of end of download
             var lastBpi = serverBatchInfo.BatchPartsInfo.FirstOrDefault(bpi => bpi.IsLastBatch);
 
             if (lastBpi != null)
             {
-                var endOfDownloadChanges = new HttpMessageGetMoreChangesRequest(context, lastBpi.Index);
+                try
+                {
 
-                var serializerEndOfDownloadChanges = this.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
-                var binaryData3 = await serializerEndOfDownloadChanges.SerializeAsync(endOfDownloadChanges).ConfigureAwait(false);
+                    var endOfDownloadChanges = new HttpMessageGetMoreChangesRequest(context, lastBpi.Index);
 
-                var endResponse = await this.httpRequestHandler.ProcessRequestAsync(
-                    this.HttpClient, context, this.ServiceUri, binaryData3, HttpStep.SendEndDownloadChanges,
-                    this.SerializerFactory, this.Converter, 0, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
+                    var serializerEndOfDownloadChanges = this.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
+                    var binaryData3 = await serializerEndOfDownloadChanges.SerializeAsync(endOfDownloadChanges).ConfigureAwait(false);
 
-                // Deserialize response incoming from server
-                // This is the last response
-                // Should contains step HttpStep.SendEndDownloadChanges
-                using var streamResponse = await endResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                var endResponseSerializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
-                var endResponseContent = await endResponseSerializer.DeserializeAsync(streamResponse);
-                context = endResponseContent.SyncContext;
+                    var endResponse = await this.httpRequestHandler.ProcessRequestAsync(
+                        this.HttpClient, context, this.ServiceUri, binaryData3, HttpStep.SendEndDownloadChanges,
+                        this.SerializerFactory, this.Converter, 0, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
 
+                    // Deserialize response incoming from server
+                    // This is the last response
+                    // Should contains step HttpStep.SendEndDownloadChanges
+                    using var streamResponse = await endResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                    var endResponseSerializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
+                    var endResponseContent = await endResponseSerializer.DeserializeAsync(streamResponse);
+                    context = endResponseContent.SyncContext;
+                }
+                catch (Exception ex)
+                {
+                    string message = $"Error during Send End Changes Order.";
+                    throw GetSyncError(context, ex, message);
+                }
             }
 
             // generate the new scope item

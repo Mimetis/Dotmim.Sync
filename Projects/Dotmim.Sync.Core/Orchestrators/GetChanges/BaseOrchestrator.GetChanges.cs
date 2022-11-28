@@ -157,6 +157,9 @@ namespace Dotmim.Sync
             if (cancellationToken.IsCancellationRequested)
                 return default;
 
+            DbCommand selectIncrementalChangesCommand = null;
+            DbCommandType dbCommandType = DbCommandType.None;
+
             try
             {
                 var setupTable = scopeInfo.Setup.Tables[syncTable.TableName, syncTable.SchemaName];
@@ -176,7 +179,7 @@ namespace Dotmim.Sync
                 if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
                     return (context, default, default);
 
-                var (selectIncrementalChangesCommand, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew,
+                (selectIncrementalChangesCommand, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew,
                     connection, transaction);
 
                 if (selectIncrementalChangesCommand == null)
@@ -358,11 +361,8 @@ namespace Dotmim.Sync
             {
                 string message = null;
 
-                if (batchInfo != null && batchInfo.DirectoryRoot != null)
-                    message += $"Directory:{batchInfo.DirectoryRoot}.";
-
-                if (batchInfo != null && batchInfo.DirectoryName!= null)
-                    message += $"Folder:{batchInfo.DirectoryName}.";
+                if (selectIncrementalChangesCommand != null)
+                    message += $"SelectChangesCommand:{selectIncrementalChangesCommand.CommandText}.";
 
                 if (syncTable != null)
                     message += $"Table:{syncTable.GetFullName()}.";
@@ -384,6 +384,7 @@ namespace Dotmim.Sync
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+
             try
             {
                 context.SyncStage = SyncStage.ChangesSelecting;
