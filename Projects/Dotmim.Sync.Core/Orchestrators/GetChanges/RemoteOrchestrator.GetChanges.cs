@@ -59,7 +59,6 @@ namespace Dotmim.Sync
         /// </returns>        
         public virtual async Task<ServerSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient, DbConnection connection = null, DbTransaction transaction = null)
         {
-
             var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient);
 
             try

@@ -23,30 +23,39 @@ namespace Dotmim.Sync
                                 CancellationToken cancellationToken = default,
                                 IProgress<ProgressArgs> progress = default)
         {
-            // Get context or create a new one
-            context.SyncStage = syncStage;
-
-            if (orchestrator.Provider == null)
-                return new DbConnectionRunner(null, context, null, null, true, true, cancellationToken, progress);
-
-            if (connection == null)
-                connection = orchestrator.Provider.CreateConnection();
-
-            var alreadyOpened = connection.State == ConnectionState.Open;
-            var alreadyInTransaction = transaction != null && transaction.Connection == connection;
-
-            // Open connection
-            if (!alreadyOpened)
-                await orchestrator.OpenConnectionAsync(context, connection, cancellationToken, progress).ConfigureAwait(false);
-
-            // Create a transaction
-            if (!alreadyInTransaction && syncMode == SyncMode.WithTransaction)
+            try
             {
-                transaction = connection.BeginTransaction(orchestrator.Provider.IsolationLevel);
-                await orchestrator.InterceptAsync(new TransactionOpenedArgs(context, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+                // Get context or create a new one
+                context.SyncStage = syncStage;
+
+                if (orchestrator.Provider == null)
+                    return new DbConnectionRunner(null, context, null, null, true, true, cancellationToken, progress);
+
+                if (connection == null)
+                    connection = orchestrator.Provider.CreateConnection();
+
+                var alreadyOpened = connection.State == ConnectionState.Open;
+                var alreadyInTransaction = transaction != null && transaction.Connection == connection;
+
+                // Open connection
+                if (!alreadyOpened)
+                    await orchestrator.OpenConnectionAsync(context, connection, cancellationToken, progress).ConfigureAwait(false);
+
+                // Create a transaction
+                if (!alreadyInTransaction && syncMode == SyncMode.WithTransaction)
+                {
+                    transaction = connection.BeginTransaction(orchestrator.Provider.IsolationLevel);
+                    await orchestrator.InterceptAsync(new TransactionOpenedArgs(context, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                }
+
+                return new DbConnectionRunner(orchestrator, context, connection, transaction, alreadyOpened, alreadyInTransaction, cancellationToken, progress);
+            }
+            catch (Exception ex)
+            {
+                throw orchestrator.GetSyncError(context, ex);
             }
 
-            return new DbConnectionRunner(orchestrator, context, connection, transaction, alreadyOpened, alreadyInTransaction, cancellationToken, progress);
         }
     }
 

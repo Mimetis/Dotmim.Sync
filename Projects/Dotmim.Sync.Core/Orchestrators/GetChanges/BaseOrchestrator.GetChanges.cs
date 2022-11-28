@@ -30,106 +30,120 @@ namespace Dotmim.Sync
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-
-            // Statistics about changes that are selected
-            DatabaseChangesSelected changesSelected;
-
-            context.SyncStage = SyncStage.ChangesSelecting;
-
-            // Create a new empty in-memory batch info
-            if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
-                return new DatabaseChangesSelected();
-
-            // create local directory
-            if (!string.IsNullOrEmpty(batchInfo.DirectoryRoot) && !Directory.Exists(batchInfo.DirectoryRoot))
-                Directory.CreateDirectory(batchInfo.DirectoryRoot);
-
-            changesSelected = new DatabaseChangesSelected();
-
-            var cptSyncTable = 0;
-            var currentProgress = context.ProgressPercentage;
-
-            var schemaTables = scopeInfo.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
-
-            var lstAllBatchPartInfos = new ConcurrentBag<BatchPartInfo>();
-            var lstTableChangesSelected = new ConcurrentBag<TableChangesSelected>();
-
-            var threadNumberLimits = supportsMultiActiveResultSets ? 16 : 1;
-
-            if (supportsMultiActiveResultSets)
+            try
             {
-                await schemaTables.ForEachAsync(async syncTable =>
+                // Statistics about changes that are selected
+                DatabaseChangesSelected changesSelected;
+
+                context.SyncStage = SyncStage.ChangesSelecting;
+
+                // Create a new empty in-memory batch info
+                if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
+                    return new DatabaseChangesSelected();
+
+                // create local directory
+                if (!string.IsNullOrEmpty(batchInfo.DirectoryRoot) && !Directory.Exists(batchInfo.DirectoryRoot))
+                    Directory.CreateDirectory(batchInfo.DirectoryRoot);
+
+                changesSelected = new DatabaseChangesSelected();
+
+                var cptSyncTable = 0;
+                var currentProgress = context.ProgressPercentage;
+
+                var schemaTables = scopeInfo.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
+
+                var lstAllBatchPartInfos = new ConcurrentBag<BatchPartInfo>();
+                var lstTableChangesSelected = new ConcurrentBag<TableChangesSelected>();
+
+                var threadNumberLimits = supportsMultiActiveResultSets ? 16 : 1;
+
+                if (supportsMultiActiveResultSets)
                 {
-                    if (cancellationToken.IsCancellationRequested)
-                        return;
+                    await schemaTables.ForEachAsync(async syncTable =>
+                    {
+                        if (cancellationToken.IsCancellationRequested)
+                            return;
 
-                    // tmp count of table for report progress pct
-                    cptSyncTable++;
+                        // tmp count of table for report progress pct
+                        cptSyncTable++;
 
-                    List<BatchPartInfo> syncTableBatchPartInfos;
-                    TableChangesSelected tableChangesSelected;
-                    (context, syncTableBatchPartInfos, tableChangesSelected) = await InternalReadSyncTableChangesAsync(
-                            scopeInfo, context, excludingScopeId, syncTable, batchInfo, isNew, fromLastTimestamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        List<BatchPartInfo> syncTableBatchPartInfos;
+                        TableChangesSelected tableChangesSelected;
+                        (context, syncTableBatchPartInfos, tableChangesSelected) = await InternalReadSyncTableChangesAsync(
+                                scopeInfo, context, excludingScopeId, syncTable, batchInfo, isNew, fromLastTimestamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    if (syncTableBatchPartInfos == null)
-                        return;
+                        if (syncTableBatchPartInfos == null)
+                            return;
 
-                    // We don't report progress if no table changes is empty, to limit verbosity
-                    if (tableChangesSelected != null && (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0))
-                        lstTableChangesSelected.Add(tableChangesSelected);
+                        // We don't report progress if no table changes is empty, to limit verbosity
+                        if (tableChangesSelected != null && (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0))
+                            lstTableChangesSelected.Add(tableChangesSelected);
 
-                    // Add sync table bpi to all bpi
-                    syncTableBatchPartInfos.ForEach(bpi => lstAllBatchPartInfos.Add(bpi));
+                        // Add sync table bpi to all bpi
+                        syncTableBatchPartInfos.ForEach(bpi => lstAllBatchPartInfos.Add(bpi));
 
-                    context.ProgressPercentage = currentProgress + (cptSyncTable * 0.2d / scopeInfo.Schema.Tables.Count);
+                        context.ProgressPercentage = currentProgress + (cptSyncTable * 0.2d / scopeInfo.Schema.Tables.Count);
 
-                }, threadNumberLimits);
-            }
-            else
-            {
-                foreach (var syncTable in schemaTables)
-                {
-                    if (cancellationToken.IsCancellationRequested)
-                        continue;
-
-                    // tmp count of table for report progress pct
-                    cptSyncTable++;
-
-                    List<BatchPartInfo> syncTableBatchPartInfos;
-                    TableChangesSelected tableChangesSelected;
-                    (context, syncTableBatchPartInfos, tableChangesSelected) = await InternalReadSyncTableChangesAsync(
-                            scopeInfo, context, excludingScopeId, syncTable, batchInfo, isNew, fromLastTimestamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    if (syncTableBatchPartInfos == null)
-                        continue;
-
-                    // We don't report progress if no table changes is empty, to limit verbosity
-                    if (tableChangesSelected != null && (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0))
-                        lstTableChangesSelected.Add(tableChangesSelected);
-
-                    // Add sync table bpi to all bpi
-                    syncTableBatchPartInfos.ForEach(bpi => lstAllBatchPartInfos.Add(bpi));
-
-                    context.ProgressPercentage = currentProgress + (cptSyncTable * 0.2d / scopeInfo.Schema.Tables.Count);
-
+                    }, threadNumberLimits);
                 }
+                else
+                {
+                    foreach (var syncTable in schemaTables)
+                    {
+                        if (cancellationToken.IsCancellationRequested)
+                            continue;
+
+                        // tmp count of table for report progress pct
+                        cptSyncTable++;
+
+                        List<BatchPartInfo> syncTableBatchPartInfos;
+                        TableChangesSelected tableChangesSelected;
+                        (context, syncTableBatchPartInfos, tableChangesSelected) = await InternalReadSyncTableChangesAsync(
+                                scopeInfo, context, excludingScopeId, syncTable, batchInfo, isNew, fromLastTimestamp, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        if (syncTableBatchPartInfos == null)
+                            continue;
+
+                        // We don't report progress if no table changes is empty, to limit verbosity
+                        if (tableChangesSelected != null && (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0))
+                            lstTableChangesSelected.Add(tableChangesSelected);
+
+                        // Add sync table bpi to all bpi
+                        syncTableBatchPartInfos.ForEach(bpi => lstAllBatchPartInfos.Add(bpi));
+
+                        context.ProgressPercentage = currentProgress + (cptSyncTable * 0.2d / scopeInfo.Schema.Tables.Count);
+
+                    }
+                }
+
+                while (!lstTableChangesSelected.IsEmpty)
+                    if (lstTableChangesSelected.TryTake(out var tableChangesSelected))
+                        changesSelected.TableChangesSelected.Add(tableChangesSelected);
+
+                // Ensure correct order
+                this.EnsureLastBatchInfo(scopeInfo, context, batchInfo, lstAllBatchPartInfos, schemaTables);
+
+                if (batchInfo.RowsCount <= 0)
+                {
+                    var cleanFolder = await this.InternalCanCleanFolderAsync(scopeInfo.Name, context.Parameters, batchInfo).ConfigureAwait(false);
+                    if (cleanFolder)
+                        batchInfo.TryRemoveDirectory();
+                }
+                return changesSelected;
             }
-
-            while (!lstTableChangesSelected.IsEmpty)
-                if (lstTableChangesSelected.TryTake(out var tableChangesSelected))
-                    changesSelected.TableChangesSelected.Add(tableChangesSelected);
-
-            // Ensure correct order
-            this.EnsureLastBatchInfo(scopeInfo, context, batchInfo, lstAllBatchPartInfos, schemaTables);
-
-            if (batchInfo.RowsCount <= 0)
+            catch (Exception ex)
             {
-                var cleanFolder = await this.InternalCanCleanFolderAsync(scopeInfo.Name, context.Parameters, batchInfo).ConfigureAwait(false);
-                if (cleanFolder)
-                    batchInfo.TryRemoveDirectory();
-            }
-            return changesSelected;
+                string message = null;
 
+                if (batchInfo != null && batchInfo.DirectoryRoot != null)
+                    message += $"Directory:{batchInfo.DirectoryRoot}.";
+
+                message += $"Supports MultiActiveResultSets:{supportsMultiActiveResultSets}.";
+                message += $"Is New:{isNew}.";
+                message += $"Interval:{fromLastTimestamp}/{toNewTimestamp}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
 
@@ -143,200 +157,222 @@ namespace Dotmim.Sync
             if (cancellationToken.IsCancellationRequested)
                 return default;
 
-            var setupTable = scopeInfo.Setup.Tables[syncTable.TableName, syncTable.SchemaName];
-
-            if (setupTable == null)
-                return (context, default, default);
-
-            // Only table schema is replicated, no datas are applied
-            if (setupTable.SyncDirection == SyncDirection.None)
-                return (context, default, default);
-
-            // if we are in upload stage, so check if table is not download only
-            if (context.SyncWay == SyncWay.Upload && setupTable.SyncDirection == SyncDirection.DownloadOnly)
-                return (context, default, default);
-
-            // if we are in download stage, so check if table is not download only
-            if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
-                return (context, default, default);
-
-            var (selectIncrementalChangesCommand, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew,
-                connection, transaction);
-
-            if (selectIncrementalChangesCommand == null)
-                return (context, default, default);
-
-            this.InternalSetSelectChangesCommonParameters(context, syncTable, excludintScopeId, isNew, lastTimestamp, selectIncrementalChangesCommand);
-
-            var schemaChangesTable = CreateChangesTable(syncTable);
-
-            // numbers of batch files generated
-            var batchIndex = -1;
-
-            var localSerializerModified = new LocalJsonSerializer();
-            var localSerializerDeleted = new LocalJsonSerializer();
-
-            var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
-            if (interceptorsWriting.Count > 0)
+            try
             {
-                localSerializerModified.OnWritingRow(async (syncTable, rowArray) =>
+                var setupTable = scopeInfo.Setup.Tables[syncTable.TableName, syncTable.SchemaName];
+
+                if (setupTable == null)
+                    return (context, default, default);
+
+                // Only table schema is replicated, no datas are applied
+                if (setupTable.SyncDirection == SyncDirection.None)
+                    return (context, default, default);
+
+                // if we are in upload stage, so check if table is not download only
+                if (context.SyncWay == SyncWay.Upload && setupTable.SyncDirection == SyncDirection.DownloadOnly)
+                    return (context, default, default);
+
+                // if we are in download stage, so check if table is not download only
+                if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
+                    return (context, default, default);
+
+                var (selectIncrementalChangesCommand, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew,
+                    connection, transaction);
+
+                if (selectIncrementalChangesCommand == null)
+                    return (context, default, default);
+
+                this.InternalSetSelectChangesCommonParameters(context, syncTable, excludintScopeId, isNew, lastTimestamp, selectIncrementalChangesCommand);
+
+                var schemaChangesTable = CreateChangesTable(syncTable);
+
+                // numbers of batch files generated
+                var batchIndex = -1;
+
+                var localSerializerModified = new LocalJsonSerializer();
+                var localSerializerDeleted = new LocalJsonSerializer();
+
+                var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
+                if (interceptorsWriting.Count > 0)
                 {
-                    var copyArray = new object[rowArray.Length];
-                    Array.Copy(rowArray, copyArray, rowArray.Length);
-
-                    var args = new SerializingRowArgs(context, syncTable, copyArray);
-                    await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-                    return args.Result;
-                });
-            }
-
-            string batchPartInfoFullPathModified = null, batchPartFileNameModified = null;
-            string batchPartInfoFullPathDeleted = null, batchPartFileNameDeleted = null;
-
-            // Statistics
-            var tableChangesSelected = new TableChangesSelected(schemaChangesTable.TableName, schemaChangesTable.SchemaName);
-
-            var rowsCountInBatchModified = 0;
-            var rowsCountInBatchDeleted = 0;
-
-            var syncTableBatchPartInfos = new List<BatchPartInfo>();
-
-            // launch interceptor if any
-            var args = await this.InterceptAsync(new TableChangesSelectingArgs(context, schemaChangesTable, selectIncrementalChangesCommand, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-            if (!args.Cancel && args.Command != null)
-            {
-                // Parametrized command timeout established if exist
-                if (Options.DbCommandTimeout.HasValue)
-                    args.Command.CommandTimeout = Options.DbCommandTimeout.Value;
-
-                await this.InterceptAsync(new ExecuteCommandArgs(context, args.Command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-                // Get the reader
-                using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
-
-                while (dataReader.Read())
-                {
-                    // Create a row from dataReader
-                    var syncRow = CreateSyncRowFromReader2(dataReader, schemaChangesTable);
-
-                    var tableChangesSelectedSyncRowArgs = await this.InterceptAsync(new RowsChangesSelectedArgs(context, syncRow, schemaChangesTable, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-                    syncRow = tableChangesSelectedSyncRowArgs.SyncRow;
-
-                    if (syncRow == null)
-                        continue;
-
-                    // Set the correct state to be applied
-                    if (syncRow.RowState == SyncRowState.Deleted)
+                    localSerializerModified.OnWritingRow(async (syncTable, rowArray) =>
                     {
-                        // open the file and write table header for all deleted rows
-                        if (!localSerializerDeleted.IsOpen)
-                        {
-                            batchIndex++;
-                            (batchPartInfoFullPathDeleted, batchPartFileNameDeleted) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerDeleted.Extension, "DELETED");
-                            await localSerializerDeleted.OpenFileAsync(batchPartInfoFullPathDeleted, schemaChangesTable).ConfigureAwait(false);
-                        }
+                        var copyArray = new object[rowArray.Length];
+                        Array.Copy(rowArray, copyArray, rowArray.Length);
 
-                        tableChangesSelected.Deletes++;
-                        rowsCountInBatchDeleted++;
-                        await localSerializerDeleted.WriteRowToFileAsync(syncRow, schemaChangesTable).ConfigureAwait(false);
-                        var currentBatchSizeDeleted = await localSerializerDeleted.GetCurrentFileSizeAsync().ConfigureAwait(false);
-
-                        if (currentBatchSizeDeleted > this.Options.BatchSize)
-                        {
-                            //Add a new batch part info with deleted rows
-                            batchIndex++;
-                            var bpiDeleted = new BatchPartInfo(batchPartFileNameDeleted, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchDeleted, batchIndex);
-                            syncTableBatchPartInfos.Add(bpiDeleted);
-
-                            // Close file
-                            if (localSerializerDeleted.IsOpen)
-                                await localSerializerDeleted.CloseFileAsync().ConfigureAwait(false);
-
-                            rowsCountInBatchDeleted = 0;
-
-                            (batchPartInfoFullPathDeleted, batchPartFileNameDeleted) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerDeleted.Extension, "DELETED");
-                        }
-
-                    }
-                    else if (syncRow.RowState == SyncRowState.Modified)
-                    {
-                        // open the file and write table header for all Inserted / Modified rows
-                        if (!localSerializerModified.IsOpen)
-                        {
-                            batchIndex++;
-                            (batchPartInfoFullPathModified, batchPartFileNameModified) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerModified.Extension, "UPSERTS");
-                            await localSerializerModified.OpenFileAsync(batchPartInfoFullPathModified, schemaChangesTable).ConfigureAwait(false);
-                        }
-
-                        rowsCountInBatchModified++;
-                        tableChangesSelected.Upserts++;
-                        await localSerializerModified.WriteRowToFileAsync(syncRow, schemaChangesTable).ConfigureAwait(false);
-                        var currentBatchSizeModified = await localSerializerModified.GetCurrentFileSizeAsync().ConfigureAwait(false);
-
-                        if (currentBatchSizeModified > this.Options.BatchSize)
-                        {
-                            //Add a new batch part info with modified rows
-                            batchIndex++;
-                            var bpiModified = new BatchPartInfo(batchPartFileNameModified, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchModified, batchIndex);
-                            syncTableBatchPartInfos.Add(bpiModified);
-
-                            // Close file
-                            if (localSerializerModified.IsOpen)
-                                await localSerializerModified.CloseFileAsync().ConfigureAwait(false);
-
-                            rowsCountInBatchModified = 0;
-
-                            (batchPartInfoFullPathModified, batchPartFileNameModified) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerModified.Extension, "UPSERTS");
-                        }
-                    }
+                        var args = new SerializingRowArgs(context, syncTable, copyArray);
+                        await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+                        return args.Result;
+                    });
                 }
 
-                dataReader.Close();
+                string batchPartInfoFullPathModified = null, batchPartFileNameModified = null;
+                string batchPartInfoFullPathDeleted = null, batchPartFileNameDeleted = null;
 
-                // Close file
-                if (localSerializerModified.IsOpen)
-                    await localSerializerModified.CloseFileAsync().ConfigureAwait(false);
+                // Statistics
+                var tableChangesSelected = new TableChangesSelected(schemaChangesTable.TableName, schemaChangesTable.SchemaName);
 
-                if (localSerializerDeleted.IsOpen)
-                    await localSerializerDeleted.CloseFileAsync().ConfigureAwait(false);
-            }
+                var rowsCountInBatchModified = 0;
+                var rowsCountInBatchDeleted = 0;
 
-            // Check if we have ..something.
-            // Delete folder if nothing
-            // Add the BPI to BI if something
-            if (rowsCountInBatchModified == 0)
-            {
-                if (!string.IsNullOrEmpty(batchPartInfoFullPathModified) && File.Exists(batchPartInfoFullPathModified))
-                    File.Delete(batchPartInfoFullPathModified);
-            }
-            else
-            {
-                var bpi2 = new BatchPartInfo(batchPartFileNameModified, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchModified, batchIndex);
-                bpi2.IsLastBatch = true;
-                syncTableBatchPartInfos.Add(bpi2);
-            }
+                var syncTableBatchPartInfos = new List<BatchPartInfo>();
 
-            if (rowsCountInBatchDeleted == 0)
-            {
-                if (!string.IsNullOrEmpty(batchPartInfoFullPathDeleted) && File.Exists(batchPartInfoFullPathDeleted))
-                    File.Delete(batchPartInfoFullPathDeleted);
-            }
-            else
-            {
-                var bpi2 = new BatchPartInfo(batchPartFileNameDeleted, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchDeleted, batchIndex)
+                // launch interceptor if any
+                var args = await this.InterceptAsync(new TableChangesSelectingArgs(context, schemaChangesTable, selectIncrementalChangesCommand, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+                if (!args.Cancel && args.Command != null)
                 {
-                    IsLastBatch = true
-                };
+                    // Parametrized command timeout established if exist
+                    if (Options.DbCommandTimeout.HasValue)
+                        args.Command.CommandTimeout = Options.DbCommandTimeout.Value;
 
-                syncTableBatchPartInfos.Add(bpi2);
+                    await this.InterceptAsync(new ExecuteCommandArgs(context, args.Command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+                    // Get the reader
+                    using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
+
+                    while (dataReader.Read())
+                    {
+                        // Create a row from dataReader
+                        var syncRow = CreateSyncRowFromReader2(context, dataReader, schemaChangesTable);
+
+                        var tableChangesSelectedSyncRowArgs = await this.InterceptAsync(new RowsChangesSelectedArgs(context, syncRow, schemaChangesTable, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                        syncRow = tableChangesSelectedSyncRowArgs.SyncRow;
+
+                        if (syncRow == null)
+                            continue;
+
+                        // Set the correct state to be applied
+                        if (syncRow.RowState == SyncRowState.Deleted)
+                        {
+                            // open the file and write table header for all deleted rows
+                            if (!localSerializerDeleted.IsOpen)
+                            {
+                                batchIndex++;
+                                (batchPartInfoFullPathDeleted, batchPartFileNameDeleted) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerDeleted.Extension, "DELETED");
+                                await localSerializerDeleted.OpenFileAsync(batchPartInfoFullPathDeleted, schemaChangesTable).ConfigureAwait(false);
+                            }
+
+                            tableChangesSelected.Deletes++;
+                            rowsCountInBatchDeleted++;
+                            await localSerializerDeleted.WriteRowToFileAsync(syncRow, schemaChangesTable).ConfigureAwait(false);
+                            var currentBatchSizeDeleted = await localSerializerDeleted.GetCurrentFileSizeAsync().ConfigureAwait(false);
+
+                            if (currentBatchSizeDeleted > this.Options.BatchSize)
+                            {
+                                //Add a new batch part info with deleted rows
+                                batchIndex++;
+                                var bpiDeleted = new BatchPartInfo(batchPartFileNameDeleted, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchDeleted, batchIndex);
+                                syncTableBatchPartInfos.Add(bpiDeleted);
+
+                                // Close file
+                                if (localSerializerDeleted.IsOpen)
+                                    await localSerializerDeleted.CloseFileAsync().ConfigureAwait(false);
+
+                                rowsCountInBatchDeleted = 0;
+
+                                (batchPartInfoFullPathDeleted, batchPartFileNameDeleted) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerDeleted.Extension, "DELETED");
+                            }
+
+                        }
+                        else if (syncRow.RowState == SyncRowState.Modified)
+                        {
+                            // open the file and write table header for all Inserted / Modified rows
+                            if (!localSerializerModified.IsOpen)
+                            {
+                                batchIndex++;
+                                (batchPartInfoFullPathModified, batchPartFileNameModified) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerModified.Extension, "UPSERTS");
+                                await localSerializerModified.OpenFileAsync(batchPartInfoFullPathModified, schemaChangesTable).ConfigureAwait(false);
+                            }
+
+                            rowsCountInBatchModified++;
+                            tableChangesSelected.Upserts++;
+                            await localSerializerModified.WriteRowToFileAsync(syncRow, schemaChangesTable).ConfigureAwait(false);
+                            var currentBatchSizeModified = await localSerializerModified.GetCurrentFileSizeAsync().ConfigureAwait(false);
+
+                            if (currentBatchSizeModified > this.Options.BatchSize)
+                            {
+                                //Add a new batch part info with modified rows
+                                batchIndex++;
+                                var bpiModified = new BatchPartInfo(batchPartFileNameModified, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchModified, batchIndex);
+                                syncTableBatchPartInfos.Add(bpiModified);
+
+                                // Close file
+                                if (localSerializerModified.IsOpen)
+                                    await localSerializerModified.CloseFileAsync().ConfigureAwait(false);
+
+                                rowsCountInBatchModified = 0;
+
+                                (batchPartInfoFullPathModified, batchPartFileNameModified) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerModified.Extension, "UPSERTS");
+                            }
+                        }
+                    }
+
+                    dataReader.Close();
+
+                    // Close file
+                    if (localSerializerModified.IsOpen)
+                        await localSerializerModified.CloseFileAsync().ConfigureAwait(false);
+
+                    if (localSerializerDeleted.IsOpen)
+                        await localSerializerDeleted.CloseFileAsync().ConfigureAwait(false);
+                }
+
+                // Check if we have ..something.
+                // Delete folder if nothing
+                // Add the BPI to BI if something
+                if (rowsCountInBatchModified == 0)
+                {
+                    if (!string.IsNullOrEmpty(batchPartInfoFullPathModified) && File.Exists(batchPartInfoFullPathModified))
+                        File.Delete(batchPartInfoFullPathModified);
+                }
+                else
+                {
+                    var bpi2 = new BatchPartInfo(batchPartFileNameModified, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchModified, batchIndex);
+                    bpi2.IsLastBatch = true;
+                    syncTableBatchPartInfos.Add(bpi2);
+                }
+
+                if (rowsCountInBatchDeleted == 0)
+                {
+                    if (!string.IsNullOrEmpty(batchPartInfoFullPathDeleted) && File.Exists(batchPartInfoFullPathDeleted))
+                        File.Delete(batchPartInfoFullPathDeleted);
+                }
+                else
+                {
+                    var bpi2 = new BatchPartInfo(batchPartFileNameDeleted, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchDeleted, batchIndex)
+                    {
+                        IsLastBatch = true
+                    };
+
+                    syncTableBatchPartInfos.Add(bpi2);
+                }
+
+                // even if no rows raise the interceptor
+                var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, batchInfo, syncTableBatchPartInfos, syncTable, tableChangesSelected, connection, transaction);
+                await this.InterceptAsync(tableChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                return (context, syncTableBatchPartInfos, tableChangesSelected);
             }
+            catch (Exception ex)
+            {
+                string message = null;
 
-            // even if no rows raise the interceptor
-            var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, batchInfo, syncTableBatchPartInfos, syncTable, tableChangesSelected, connection, transaction);
-            await this.InterceptAsync(tableChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
+                if (batchInfo != null && batchInfo.DirectoryRoot != null)
+                    message += $"Directory:{batchInfo.DirectoryRoot}.";
 
-            return (context, syncTableBatchPartInfos, tableChangesSelected);
+                if (batchInfo != null && batchInfo.DirectoryName!= null)
+                    message += $"Folder:{batchInfo.DirectoryName}.";
+
+                if (syncTable != null)
+                    message += $"Table:{syncTable.GetFullName()}.";
+
+                message += $"Is New:{isNew}.";
+
+                message += $"LastTimestamp:{lastTimestamp}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -348,107 +384,119 @@ namespace Dotmim.Sync
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-
-            context.SyncStage = SyncStage.ChangesSelecting;
-
-            // Create stats object to store changes count
-            var changes = new DatabaseChangesSelected();
-
-            // Call interceptor
-            var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, default, this.Options.BatchSize, true,
-                fromLastTimestamp, toLastTimestamp, connection, transaction);
-
-            await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
-
-
-            if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
-                return (context, changes);
-
-            var threadNumberLimits = supportsMultiActiveResultSets ? 8 : 1;
-
-            await scopeInfo.Schema.Tables.ForEachAsync(async syncTable =>
+            try
             {
-                if (cancellationToken.IsCancellationRequested)
-                    return;
+                context.SyncStage = SyncStage.ChangesSelecting;
 
-                var setupTable = scopeInfo.Setup.Tables[syncTable.TableName, syncTable.SchemaName];
+                // Create stats object to store changes count
+                var changes = new DatabaseChangesSelected();
 
-                if (setupTable == null)
-                    return;
+                // Call interceptor
+                var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, default, this.Options.BatchSize, true,
+                    fromLastTimestamp, toLastTimestamp, connection, transaction);
 
-                // Only table schema is replicated, no datas are applied
-                if (setupTable.SyncDirection == SyncDirection.None)
-                    return;
+                await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
 
-                // if we are in upload stage, so check if table is not download only
-                if (context.SyncWay == SyncWay.Upload && setupTable.SyncDirection == SyncDirection.DownloadOnly)
-                    return;
 
-                // if we are in download stage, so check if table is not download only
-                if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
-                    return;
+                if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
+                    return (context, changes);
 
-                // Get Command
-                var (command, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew, connection, transaction);
+                var threadNumberLimits = supportsMultiActiveResultSets ? 8 : 1;
 
-                if (command == null) return;
-
-                this.InternalSetSelectChangesCommonParameters(context, syncTable, excludingScopeId, isNew, fromLastTimestamp, command);
-
-                // launch interceptor if any
-                var args = new TableChangesSelectingArgs(context, syncTable, command, connection, transaction);
-                await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-
-                if (args.Cancel || args.Command == null)
-                    return;
-
-                // Statistics
-                var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
-
-                // Parametrized command timeout established if exist
-                if (this.Options.DbCommandTimeout.HasValue)
-                    command.CommandTimeout = this.Options.DbCommandTimeout.Value;
-
-                await this.InterceptAsync(new ExecuteCommandArgs(context, args.Command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-                // Get the reader
-                using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
-
-                while (dataReader.Read())
+                await scopeInfo.Schema.Tables.ForEachAsync(async syncTable =>
                 {
-                    bool isTombstone = false;
-                    for (var i = 0; i < dataReader.FieldCount; i++)
+                    if (cancellationToken.IsCancellationRequested)
+                        return;
+
+                    var setupTable = scopeInfo.Setup.Tables[syncTable.TableName, syncTable.SchemaName];
+
+                    if (setupTable == null)
+                        return;
+
+                    // Only table schema is replicated, no datas are applied
+                    if (setupTable.SyncDirection == SyncDirection.None)
+                        return;
+
+                    // if we are in upload stage, so check if table is not download only
+                    if (context.SyncWay == SyncWay.Upload && setupTable.SyncDirection == SyncDirection.DownloadOnly)
+                        return;
+
+                    // if we are in download stage, so check if table is not download only
+                    if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
+                        return;
+
+                    // Get Command
+                    var (command, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew, connection, transaction);
+
+                    if (command == null) return;
+
+                    this.InternalSetSelectChangesCommonParameters(context, syncTable, excludingScopeId, isNew, fromLastTimestamp, command);
+
+                    // launch interceptor if any
+                    var args = new TableChangesSelectingArgs(context, syncTable, command, connection, transaction);
+                    await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+
+                    if (args.Cancel || args.Command == null)
+                        return;
+
+                    // Statistics
+                    var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
+
+                    // Parametrized command timeout established if exist
+                    if (this.Options.DbCommandTimeout.HasValue)
+                        command.CommandTimeout = this.Options.DbCommandTimeout.Value;
+
+                    await this.InterceptAsync(new ExecuteCommandArgs(context, args.Command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                    // Get the reader
+                    using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
+
+                    while (dataReader.Read())
                     {
-                        if (dataReader.GetName(i) == "sync_row_is_tombstone")
+                        bool isTombstone = false;
+                        for (var i = 0; i < dataReader.FieldCount; i++)
                         {
-                            isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
-                            break;
+                            if (dataReader.GetName(i) == "sync_row_is_tombstone")
+                            {
+                                isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
+                                break;
+                            }
                         }
+
+                        // Set the correct state to be applied
+                        if (isTombstone)
+                            tableChangesSelected.Deletes++;
+                        else
+                            tableChangesSelected.Upserts++;
                     }
 
-                    // Set the correct state to be applied
-                    if (isTombstone)
-                        tableChangesSelected.Deletes++;
-                    else
-                        tableChangesSelected.Upserts++;
-                }
+                    dataReader.Close();
 
-                dataReader.Close();
+                    // Check interceptor
+                    var changesArgs = new TableChangesSelectedArgs(context, null, null, syncTable, tableChangesSelected, connection, transaction);
+                    await this.InterceptAsync(changesArgs, progress, cancellationToken).ConfigureAwait(false);
 
-                // Check interceptor
-                var changesArgs = new TableChangesSelectedArgs(context, null, null, syncTable, tableChangesSelected, connection, transaction);
-                await this.InterceptAsync(changesArgs, progress, cancellationToken).ConfigureAwait(false);
+                    if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
+                        changes.TableChangesSelected.Add(tableChangesSelected);
 
-                if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
-                    changes.TableChangesSelected.Add(tableChangesSelected);
+                }, threadNumberLimits);
 
-            }, threadNumberLimits);
+                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, fromLastTimestamp, toLastTimestamp,
+                            default, changes, connection, transaction);
 
-            var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, fromLastTimestamp, toLastTimestamp,
-                        default, changes, connection, transaction);
+                await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
 
-            await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
+                return (context, changes);
+            }
+            catch (Exception ex)
+            {
+                string message = null;
 
-            return (context, changes);
+                message += $"Supports MultiActiveResultSets:{supportsMultiActiveResultSets}.";
+                message += $"Is New:{isNew}.";
+                message += $"Interval:{fromLastTimestamp}/{toLastTimestamp}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
 
@@ -463,36 +511,49 @@ namespace Dotmim.Sync
         internal async Task<(DbCommand, DbCommandType)> InternalGetSelectChangesCommandAsync(ScopeInfo scopeInfo, SyncContext context,
             SyncTable syncTable, bool isNew, DbConnection connection, DbTransaction transaction)
         {
-            DbCommandType dbCommandType;
-
+            DbCommandType dbCommandType = DbCommandType.None;
             SyncFilter tableFilter = null;
 
+            try
+            {
+                // Sqlite does not have any filter, since he can't be server side
+                if (this.Provider != null && this.Provider.CanBeServerProvider)
+                    tableFilter = syncTable.GetFilter();
 
-            // Check if we have parameters specified
+                var hasFilters = tableFilter != null;
 
-            // Sqlite does not have any filter, since he can't be server side
-            if (this.Provider != null && this.Provider.CanBeServerProvider)
-                tableFilter = syncTable.GetFilter();
+                // Determing the correct DbCommandType
+                if (isNew && hasFilters)
+                    dbCommandType = DbCommandType.SelectInitializedChangesWithFilters;
+                else if (isNew && !hasFilters)
+                    dbCommandType = DbCommandType.SelectInitializedChanges;
+                else if (!isNew && hasFilters)
+                    dbCommandType = DbCommandType.SelectChangesWithFilters;
+                else
+                    dbCommandType = DbCommandType.SelectChanges;
 
-            var hasFilters = tableFilter != null;
+                // Get correct Select incremental changes command 
+                var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
 
-            // Determing the correct DbCommandType
-            if (isNew && hasFilters)
-                dbCommandType = DbCommandType.SelectInitializedChangesWithFilters;
-            else if (isNew && !hasFilters)
-                dbCommandType = DbCommandType.SelectInitializedChanges;
-            else if (!isNew && hasFilters)
-                dbCommandType = DbCommandType.SelectChangesWithFilters;
-            else
-                dbCommandType = DbCommandType.SelectChanges;
+                var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType, tableFilter,
+                    connection, transaction, default, default).ConfigureAwait(false);
 
-            // Get correct Select incremental changes command 
-            var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
+                return (command, dbCommandType);
+            }
+            catch (Exception ex)
+            {
+                string message = null;
 
-            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType, tableFilter,
-                connection, transaction, default, default).ConfigureAwait(false);
+                if (syncTable != null)
+                    message += $"Table:{syncTable.GetFullName()}.";
 
-            return (command, dbCommandType);
+                message += $"Is New:{isNew}.";
+
+                if (dbCommandType != DbCommandType.None)
+                    message += $"dbCommandType:{dbCommandType}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -500,72 +561,98 @@ namespace Dotmim.Sync
         /// </summary>
         internal void InternalSetSelectChangesCommonParameters(SyncContext context, SyncTable syncTable, Guid? excludingScopeId, bool isNew, long? lastTimestamp, DbCommand selectIncrementalChangesCommand)
         {
-            // Set the parameters
-            SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
-            SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? excludingScopeId.Value : DBNull.Value);
-
-            // Check filters
-            SyncFilter tableFilter = null;
-
-            // Sqlite does not have any filter, since he can't be server side
-            if (this.Provider != null && this.Provider.CanBeServerProvider)
-                tableFilter = syncTable.GetFilter();
-
-            var hasFilters = tableFilter != null;
-
-            if (!hasFilters)
-                return;
-
-            // context parameters can be null at some point.
-            var contexParameters = context.Parameters ?? new SyncParameters();
-
-            foreach (var filterParam in tableFilter.Parameters)
+            try
             {
-                var parameter = contexParameters.FirstOrDefault(p =>
-                    p.Name.Equals(filterParam.Name, SyncGlobalization.DataSourceStringComparison));
+                // Set the parameters
+                SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
+                SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? excludingScopeId.Value : DBNull.Value);
 
-                object val = parameter?.Value;
+                // Check filters
+                SyncFilter tableFilter = null;
 
-                SetParameterValue(selectIncrementalChangesCommand, filterParam.Name, val);
+                // Sqlite does not have any filter, since he can't be server side
+                if (this.Provider != null && this.Provider.CanBeServerProvider)
+                    tableFilter = syncTable.GetFilter();
+
+                var hasFilters = tableFilter != null;
+
+                if (!hasFilters)
+                    return;
+
+                // context parameters can be null at some point.
+                var contexParameters = context.Parameters ?? new SyncParameters();
+
+                foreach (var filterParam in tableFilter.Parameters)
+                {
+                    var parameter = contexParameters.FirstOrDefault(p =>
+                        p.Name.Equals(filterParam.Name, SyncGlobalization.DataSourceStringComparison));
+
+                    object val = parameter?.Value;
+
+                    SetParameterValue(selectIncrementalChangesCommand, filterParam.Name, val);
+                }
             }
+            catch (Exception ex)
+            {
+                string message = null;
 
+                if (syncTable != null)
+                    message += $"Table:{syncTable.GetFullName()}.";
+
+                message += $"Is New:{isNew}.";
+                message += $"lastTimestamp:{lastTimestamp}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
-
-
-
 
         /// <summary>
         /// Create a new SyncRow from a dataReader.
         /// </summary>
-        internal SyncRow CreateSyncRowFromReader2(IDataReader dataReader, SyncTable schemaTable)
+        internal SyncRow CreateSyncRowFromReader2(SyncContext context, IDataReader dataReader, SyncTable schemaTable)
         {
             // Create a new row, based on table structure
-
-            var syncRow = new SyncRow(schemaTable);
-
-            bool isTombstone = false;
-
-            for (var i = 0; i < dataReader.FieldCount; i++)
+            SyncRow syncRow = null;
+            try
             {
-                var columnName = dataReader.GetName(i);
+                syncRow = new SyncRow(schemaTable);
 
-                // if we have the tombstone value, do not add it to the table
-                if (columnName == "sync_row_is_tombstone")
+                bool isTombstone = false;
+
+                for (var i = 0; i < dataReader.FieldCount; i++)
                 {
-                    isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
-                    continue;
+                    var columnName = dataReader.GetName(i);
+
+                    // if we have the tombstone value, do not add it to the table
+                    if (columnName == "sync_row_is_tombstone")
+                    {
+                        isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
+                        continue;
+                    }
+                    if (columnName == "sync_update_scope_id")
+                        continue;
+
+                    var columnValueObject = dataReader.GetValue(i);
+                    var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
+
+                    syncRow[i] = columnValue;
                 }
-                if (columnName == "sync_update_scope_id")
-                    continue;
 
-                var columnValueObject = dataReader.GetValue(i);
-                var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
-
-                syncRow[i] = columnValue;
+                syncRow.RowState = isTombstone ? SyncRowState.Deleted : SyncRowState.Modified;
+                return syncRow;
             }
+            catch (Exception ex)
+            {
+                string message = null;
 
-            syncRow.RowState = isTombstone ? SyncRowState.Deleted : SyncRowState.Modified;
-            return syncRow;
+                if (schemaTable != null)
+                    message += $"Table:{schemaTable.GetFullName()}.";
+
+                if (syncRow != null)
+                    message += $"Row:{syncRow}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -574,37 +661,49 @@ namespace Dotmim.Sync
         /// <returns></returns>
         internal void EnsureLastBatchInfo(ScopeInfo scopeInfo, SyncContext context, BatchInfo batchInfo, IEnumerable<BatchPartInfo> lstAllBatchPartInfos, IEnumerable<SyncTable> schemaTables)
         {
-
-            // delete all empty batchparts (empty tables)
-            foreach (var bpi in lstAllBatchPartInfos.Where(bpi => bpi.RowsCount <= 0))
-                File.Delete(Path.Combine(batchInfo.GetDirectoryFullPath(), bpi.FileName));
-
-            // Generate a good index order to be compliant with previous versions
-            var tmpLstBatchPartInfos = new List<BatchPartInfo>();
-            foreach (var table in schemaTables)
+            try
             {
-                // get all bpi where count > 0 and ordered by index
-                foreach (var bpi in lstAllBatchPartInfos.Where(bpi => bpi.RowsCount > 0 && bpi.EqualsByName(new BatchPartInfo { TableName = table.TableName, SchemaName = table.SchemaName })).OrderBy(bpi => bpi.Index).ToArray())
+                // delete all empty batchparts (empty tables)
+                foreach (var bpi in lstAllBatchPartInfos.Where(bpi => bpi.RowsCount <= 0))
+                    File.Delete(Path.Combine(batchInfo.GetDirectoryFullPath(), bpi.FileName));
+
+                // Generate a good index order to be compliant with previous versions
+                var tmpLstBatchPartInfos = new List<BatchPartInfo>();
+                foreach (var table in schemaTables)
                 {
-                    batchInfo.BatchPartsInfo.Add(bpi);
-                    batchInfo.RowsCount += bpi.RowsCount;
+                    // get all bpi where count > 0 and ordered by index
+                    foreach (var bpi in lstAllBatchPartInfos.Where(bpi => bpi.RowsCount > 0 && bpi.EqualsByName(new BatchPartInfo { TableName = table.TableName, SchemaName = table.SchemaName })).OrderBy(bpi => bpi.Index).ToArray())
+                    {
+                        batchInfo.BatchPartsInfo.Add(bpi);
+                        batchInfo.RowsCount += bpi.RowsCount;
 
-                    tmpLstBatchPartInfos.Add(bpi);
+                        tmpLstBatchPartInfos.Add(bpi);
+                    }
                 }
-            }
 
-            var newBatchIndex = 0;
-            foreach (var bpi in tmpLstBatchPartInfos)
+                var newBatchIndex = 0;
+                foreach (var bpi in tmpLstBatchPartInfos)
+                {
+                    bpi.Index = newBatchIndex;
+                    newBatchIndex++;
+                    bpi.IsLastBatch = newBatchIndex == tmpLstBatchPartInfos.Count;
+                }
+
+                //Set the total rows count contained in the batch info
+                batchInfo.EnsureLastBatch();
+            }
+            catch (Exception ex)
             {
-                bpi.Index = newBatchIndex;
-                newBatchIndex++;
-                bpi.IsLastBatch = newBatchIndex == tmpLstBatchPartInfos.Count;
+                string message = null;
+
+                if (batchInfo != null && batchInfo.DirectoryRoot != null)
+                    message += $"Directory:{batchInfo.DirectoryRoot}.";
+
+                if (batchInfo != null && batchInfo.DirectoryName != null)
+                    message += $"Folder:{batchInfo.DirectoryName}.";
+
+                throw GetSyncError(context, ex, message);
             }
-
-            //Set the total rows count contained in the batch info
-            batchInfo.EnsureLastBatch();
-
         }
-
     }
 }

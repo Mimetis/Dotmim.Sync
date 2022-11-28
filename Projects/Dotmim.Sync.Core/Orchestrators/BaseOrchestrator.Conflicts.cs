@@ -56,7 +56,7 @@ namespace Dotmim.Sync
                         case ConflictType.RemoteExistsLocalNotExists:
                         case ConflictType.RemoteExistsLocalIsDeleted:
                         case ConflictType.UniqueKeyConstraint:
-                            (context, operationComplete, exception) = await this.InternalApplyUpdateAsync(scopeInfo, context,
+                            (_, operationComplete, exception) = await this.InternalApplyUpdateAsync(scopeInfo, context,
                                 conflictRow, schemaChangesTable, lastTimestamp, nullableSenderScopeId, true, connection, transaction).ConfigureAwait(false);
 
                             applied = operationComplete;
@@ -65,7 +65,7 @@ namespace Dotmim.Sync
 
                         // Conflict, but both have delete the row, so just update the metadata to the right winner
                         case ConflictType.RemoteIsDeletedLocalIsDeleted:
-                            (context, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context,
+                            (_, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context,
                                 conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction).ConfigureAwait(false);
 
                             applied = false;
@@ -87,7 +87,7 @@ namespace Dotmim.Sync
                             // Conflict, but both have delete the row, so just update the metadata to the right winner
                             if (!operationComplete && exception == null)
                             {
-                                (context, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context,
+                                (_, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context,
                                     conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction);
                                 applied = false;
                                 conflictResolved = operationComplete && exception == null;
@@ -108,7 +108,7 @@ namespace Dotmim.Sync
                     // We don't update metadatas so the row is updated locally and is marked as updated by the trigger
                     // and will be returned back to client if occurs on server
                     // and will be returned to the server on next sync if occurs on client
-                    (context, operationComplete, exception) = await this.InternalApplyUpdateAsync(scopeInfo, context,
+                    (_, operationComplete, exception) = await this.InternalApplyUpdateAsync(scopeInfo, context,
                         finalRow, schemaChangesTable, lastTimestamp, null, true, connection, transaction).ConfigureAwait(false);
 
                     if (!operationComplete && exception == null)
@@ -177,44 +177,57 @@ namespace Dotmim.Sync
         /// <summary>
         /// We have a conflict, try to get the source row and generate a conflict
         /// </summary>
-        internal SyncConflict InternalGetConflict(SyncRow remoteConflictRow, SyncRow localConflictRow)
+        internal SyncConflict InternalGetConflict(SyncContext context, SyncRow remoteConflictRow, SyncRow localConflictRow)
         {
+            try
+            {
+                var dbConflictType = ConflictType.ErrorsOccurred;
 
-            var dbConflictType = ConflictType.ErrorsOccurred;
+                if (remoteConflictRow == null)
+                    throw new UnknownException("Remote Conflict Row Should Exists.");
 
-            if (remoteConflictRow == null)
-                throw new UnknownException("THAT can't happen...");
+                // local row is null
+                if (localConflictRow == null && remoteConflictRow.RowState == SyncRowState.Modified)
+                    dbConflictType = ConflictType.RemoteExistsLocalNotExists;
+                else if (localConflictRow == null && remoteConflictRow.RowState == SyncRowState.Deleted)
+                    dbConflictType = ConflictType.RemoteIsDeletedLocalNotExists;
 
+                //// remote row is null. Can't happen
+                //else if (remoteConflictRow == null && localConflictRow.RowState == SyncRowState.Modified)
+                //    dbConflictType = ConflictType.RemoteNotExistsLocalExists;
+                //else if (remoteConflictRow == null && localConflictRow.RowState == SyncRowState.Deleted)
+                //    dbConflictType = ConflictType.RemoteNotExistsLocalIsDeleted;
 
-            // local row is null
-            if (localConflictRow == null && remoteConflictRow.RowState == SyncRowState.Modified)
-                dbConflictType = ConflictType.RemoteExistsLocalNotExists;
-            else if (localConflictRow == null && remoteConflictRow.RowState == SyncRowState.Deleted)
-                dbConflictType = ConflictType.RemoteIsDeletedLocalNotExists;
+                else if (remoteConflictRow.RowState == SyncRowState.Deleted && localConflictRow.RowState == SyncRowState.Deleted)
+                    dbConflictType = ConflictType.RemoteIsDeletedLocalIsDeleted;
+                else if (remoteConflictRow.RowState == SyncRowState.Modified && localConflictRow.RowState == SyncRowState.Deleted)
+                    dbConflictType = ConflictType.RemoteExistsLocalIsDeleted;
+                else if (remoteConflictRow.RowState == SyncRowState.Deleted && localConflictRow.RowState == SyncRowState.Modified)
+                    dbConflictType = ConflictType.RemoteIsDeletedLocalExists;
+                else if (remoteConflictRow.RowState == SyncRowState.Modified && localConflictRow.RowState == SyncRowState.Modified)
+                    dbConflictType = ConflictType.RemoteExistsLocalExists;
 
-            //// remote row is null. Can't happen
-            //else if (remoteConflictRow == null && localConflictRow.RowState == SyncRowState.Modified)
-            //    dbConflictType = ConflictType.RemoteNotExistsLocalExists;
-            //else if (remoteConflictRow == null && localConflictRow.RowState == SyncRowState.Deleted)
-            //    dbConflictType = ConflictType.RemoteNotExistsLocalIsDeleted;
+                // Generate the conflict
+                var conflict = new SyncConflict(dbConflictType);
+                conflict.AddRemoteRow(remoteConflictRow);
 
-            else if (remoteConflictRow.RowState == SyncRowState.Deleted && localConflictRow.RowState == SyncRowState.Deleted)
-                dbConflictType = ConflictType.RemoteIsDeletedLocalIsDeleted;
-            else if (remoteConflictRow.RowState == SyncRowState.Modified && localConflictRow.RowState == SyncRowState.Deleted)
-                dbConflictType = ConflictType.RemoteExistsLocalIsDeleted;
-            else if (remoteConflictRow.RowState == SyncRowState.Deleted && localConflictRow.RowState == SyncRowState.Modified)
-                dbConflictType = ConflictType.RemoteIsDeletedLocalExists;
-            else if (remoteConflictRow.RowState == SyncRowState.Modified && localConflictRow.RowState == SyncRowState.Modified)
-                dbConflictType = ConflictType.RemoteExistsLocalExists;
+                if (localConflictRow != null)
+                    conflict.AddLocalRow(localConflictRow);
 
-            // Generate the conflict
-            var conflict = new SyncConflict(dbConflictType);
-            conflict.AddRemoteRow(remoteConflictRow);
+                return conflict;
+            }
+            catch (Exception ex)
+            {
+                string message = null;
 
-            if (localConflictRow != null)
-                conflict.AddLocalRow(localConflictRow);
+                if (localConflictRow != null)
+                    message += $"Local Row:{localConflictRow}.";
 
-            return conflict;
+                if (remoteConflictRow != null)
+                    message += $"Remote Row:{remoteConflictRow}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -223,62 +236,74 @@ namespace Dotmim.Sync
         internal async Task<(SyncContext context, SyncRow syncRow)> InternalGetConflictRowAsync(ScopeInfo scopeInfo, SyncContext context,
             SyncTable schemaTable, SyncRow primaryKeyRow, DbConnection connection, DbTransaction transaction)
         {
-
-            var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
-
-            // Get the row in the local repository
-            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.SelectRow, null,
-                connection, transaction, default, default).ConfigureAwait(false);
-
-            if (command == null) return (context, null);
-
-            // set the primary keys columns as parameters
-            this.SetColumnParametersValues(command, primaryKeyRow);
-
-            // Create a select table based on the schema in parameter + scope columns
-            var changesSet = schemaTable.Schema.Clone(false);
-            var selectTable = CreateChangesTable(schemaTable, changesSet);
-
-            await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.SelectRow, connection, transaction)).ConfigureAwait(false);
-
-            using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-
-            if (!dataReader.Read())
+            try
             {
+                var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+
+                // Get the row in the local repository
+                var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.SelectRow, null,
+                    connection, transaction, default, default).ConfigureAwait(false);
+
+                if (command == null) return (context, null);
+
+                // set the primary keys columns as parameters
+                this.SetColumnParametersValues(command, primaryKeyRow);
+
+                // Create a select table based on the schema in parameter + scope columns
+                var changesSet = schemaTable.Schema.Clone(false);
+                var selectTable = CreateChangesTable(schemaTable, changesSet);
+
+                await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.SelectRow, connection, transaction)).ConfigureAwait(false);
+
+                using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+
+                if (!dataReader.Read())
+                {
+                    dataReader.Close();
+                    command.Dispose();
+                    return (context, null);
+                }
+
+                // Create a new empty row
+                var syncRow = selectTable.NewRow();
+                for (var i = 0; i < dataReader.FieldCount; i++)
+                {
+                    var columnName = dataReader.GetName(i);
+
+                    // if we have the tombstone value, do not add it to the table
+                    if (columnName == "sync_row_is_tombstone")
+                    {
+                        var isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
+                        syncRow.RowState = isTombstone ? SyncRowState.Deleted : SyncRowState.Modified;
+                        continue;
+                    }
+                    if (columnName == "sync_update_scope_id")
+                        continue;
+
+                    var columnValueObject = dataReader.GetValue(i);
+                    var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
+                    syncRow[columnName] = columnValue;
+                }
+
+                // if syncRow is not a deleted row, we can check for which kind of row it is.
+                if (syncRow != null && syncRow.RowState == SyncRowState.None)
+                    syncRow.RowState = SyncRowState.Modified;
+
                 dataReader.Close();
                 command.Dispose();
-                return (context, null);
-            }
 
-            // Create a new empty row
-            var syncRow = selectTable.NewRow();
-            for (var i = 0; i < dataReader.FieldCount; i++)
+                return (context, syncRow);
+            }
+            catch (Exception ex)
             {
-                var columnName = dataReader.GetName(i);
+                string message = null;
 
-                // if we have the tombstone value, do not add it to the table
-                if (columnName == "sync_row_is_tombstone")
-                {
-                    var isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
-                    syncRow.RowState = isTombstone ? SyncRowState.Deleted : SyncRowState.Modified;
-                    continue;
-                }
-                if (columnName == "sync_update_scope_id")
-                    continue;
+                if (primaryKeyRow != null)
+                    message += $"Primary Key:{primaryKeyRow}.";
 
-                var columnValueObject = dataReader.GetValue(i);
-                var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
-                syncRow[columnName] = columnValue;
+                throw GetSyncError(context, ex, message);
             }
 
-            // if syncRow is not a deleted row, we can check for which kind of row it is.
-            if (syncRow != null && syncRow.RowState == SyncRowState.None)
-                syncRow.RowState = SyncRowState.Modified;
-
-            dataReader.Close();
-            command.Dispose();
-
-            return (context, syncRow);
         }
 
     }

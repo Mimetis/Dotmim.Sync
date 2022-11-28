@@ -35,7 +35,6 @@ namespace Dotmim.Sync
         /// <param name="overwrite">If specified the stored procedure is generated again, even if already exists.</param>
         public virtual async Task<bool> CreateStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default, bool overwrite = false)
         {
-
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
             {
@@ -55,7 +54,7 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
 
                 bool exists;
-                (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, 
+                (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // should create only if not exists OR if overwrite has been set
@@ -76,7 +75,15 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                string message = null;
+
+                var tableFullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
+                message += $"Table:{tableFullName}.";
+
+                message += $"StoredProcedure:{storedProcedureType}.";
+                message += $"Overwrite:{overwrite}.";
+
+                throw GetSyncError(context, ex, message);
             }
         }
 
@@ -123,7 +130,13 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                string message = null;
+
+                var tableFullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
+                message += $"Table:{tableFullName}.";
+                message += $"Overwrite:{overwrite}.";
+
+                throw GetSyncError(context, ex, message);
             }
 
         }
@@ -160,14 +173,21 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                 bool exists;
-                (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, 
+                (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 return exists;
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                string message = null;
+
+                var tableFullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
+                message += $"Table:{tableFullName}.";
+
+                message += $"StoredProcedure:{storedProcedureType}.";
+
+                throw GetSyncError(context, ex, message);
             }
         }
 
@@ -204,11 +224,11 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                 bool existsAndCanBeDeleted;
-                (context, existsAndCanBeDeleted) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, 
+                (context, existsAndCanBeDeleted) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (existsAndCanBeDeleted)
-                    (context, hasBeenDropped) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, 
+                    (context, hasBeenDropped) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // Removing cached commands
@@ -220,7 +240,14 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                string message = null;
+
+                var tableFullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
+                message += $"Table:{tableFullName}.";
+
+                message += $"StoredProcedure:{storedProcedureType}.";
+
+                throw GetSyncError(context, ex, message);
             }
         }
 
@@ -258,7 +285,7 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                 // check bulk before
-                (context, hasDroppedAtLeastOneStoredProcedure) = await InternalDropStoredProceduresAsync(scopeInfo, context, tableBuilder, 
+                (context, hasDroppedAtLeastOneStoredProcedure) = await InternalDropStoredProceduresAsync(scopeInfo, context, tableBuilder,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // Removing cached commands
@@ -270,7 +297,12 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                string message = null;
+
+                var tableFullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
+                message += $"Table:{tableFullName}.";
+
+                throw GetSyncError(context, ex, message);
             }
 
         }
@@ -278,90 +310,135 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal create Stored Procedure routine
         /// </summary>
-        internal async Task<(SyncContext context, bool created)> InternalCreateStoredProcedureAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool created)> InternalCreateStoredProcedureAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType, 
+            DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            if (tableBuilder.TableDescription.Columns.Count <= 0)
-                throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
+            try
+            {
+                if (tableBuilder.TableDescription.Columns.Count <= 0)
+                    throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
 
-            if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
-                throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
+                if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
+                    throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
 
-            var filter = tableBuilder.TableDescription.GetFilter();
+                var filter = tableBuilder.TableDescription.GetFilter();
 
-            var command = await tableBuilder.GetCreateStoredProcedureCommandAsync(storedProcedureType, filter, connection, transaction).ConfigureAwait(false);
+                var command = await tableBuilder.GetCreateStoredProcedureCommandAsync(storedProcedureType, filter, connection, transaction).ConfigureAwait(false);
 
-            if (command == null)
-                return (context, false);
+                if (command == null)
+                    return (context, false);
 
-            var action = new StoredProcedureCreatingArgs(context, tableBuilder.TableDescription, storedProcedureType, command, connection, transaction);
-            await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
+                var action = new StoredProcedureCreatingArgs(context, tableBuilder.TableDescription, storedProcedureType, command, connection, transaction);
+                await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
-            if (action.Cancel || action.Command == null)
-                return (context, false);
+                if (action.Cancel || action.Command == null)
+                    return (context, false);
 
-            // Parametrized command timeout established if exist
-            if (this.Options.DbCommandTimeout.HasValue)
-                action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
+                // Parametrized command timeout established if exist
+                if (this.Options.DbCommandTimeout.HasValue)
+                    action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            await this.InterceptAsync(new StoredProcedureCreatedArgs(context, tableBuilder.TableDescription, storedProcedureType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                await this.InterceptAsync(new StoredProcedureCreatedArgs(context, tableBuilder.TableDescription, storedProcedureType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            return (context, true);
+                return (context, true);
+            }
+            catch (Exception ex)
+            {
+                string message = null;
+
+                if (tableBuilder != null && tableBuilder.TableDescription != null)
+                    message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
+
+                message += $"StoredProcedure:{storedProcedureType}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
         /// Internal drop storedProcedure routine
         /// </summary>
-        internal async Task<(SyncContext context, bool dropped)> InternalDropStoredProcedureAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool dropped)> InternalDropStoredProcedureAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType, 
+            DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            var filter = tableBuilder.TableDescription.GetFilter();
+            try
+            {
+                var filter = tableBuilder.TableDescription.GetFilter();
 
-            var command = await tableBuilder.GetDropStoredProcedureCommandAsync(storedProcedureType, filter, connection, transaction).ConfigureAwait(false);
+                var command = await tableBuilder.GetDropStoredProcedureCommandAsync(storedProcedureType, filter, connection, transaction).ConfigureAwait(false);
 
-            if (command == null)
-                return (context, false);
+                if (command == null)
+                    return (context, false);
 
-            var action = await this.InterceptAsync(new StoredProcedureDroppingArgs(context, tableBuilder.TableDescription, storedProcedureType, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                var action = await this.InterceptAsync(new StoredProcedureDroppingArgs(context, tableBuilder.TableDescription, storedProcedureType, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            if (action.Cancel || action.Command == null)
-                return (context, false);
+                if (action.Cancel || action.Command == null)
+                    return (context, false);
 
-            // Parametrized command timeout established if exist
-            if (this.Options.DbCommandTimeout.HasValue)
-                action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
+                // Parametrized command timeout established if exist
+                if (this.Options.DbCommandTimeout.HasValue)
+                    action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-            await this.InterceptAsync(new StoredProcedureDroppedArgs(context, tableBuilder.TableDescription, storedProcedureType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new StoredProcedureDroppedArgs(context, tableBuilder.TableDescription, storedProcedureType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            return (context, true);
+                return (context, true);
+            }
+            catch (Exception ex)
+            {
+                string message = null;
+
+                if (tableBuilder != null && tableBuilder.TableDescription != null)
+                    message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
+
+                message += $"StoredProcedure:{storedProcedureType}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
         /// Internal exists storedProcedure procedure routine
         /// </summary>
-        internal async Task<(SyncContext context, bool exists)> InternalExistsStoredProcedureAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext context, bool exists)> InternalExistsStoredProcedureAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType, 
+            DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            var filter = tableBuilder.TableDescription.GetFilter();
+            try
+            {
+                var filter = tableBuilder.TableDescription.GetFilter();
 
-            var existsCommand = await tableBuilder.GetExistsStoredProcedureCommandAsync(storedProcedureType, filter, connection, transaction).ConfigureAwait(false);
-            if (existsCommand == null)
-                return (context, false);
+                var existsCommand = await tableBuilder.GetExistsStoredProcedureCommandAsync(storedProcedureType, filter, connection, transaction).ConfigureAwait(false);
+                if (existsCommand == null)
+                    return (context, false);
 
-            // Parametrized command timeout established if exist
-            if (this.Options.DbCommandTimeout.HasValue)
-                existsCommand.CommandTimeout = this.Options.DbCommandTimeout.Value;
+                // Parametrized command timeout established if exist
+                if (this.Options.DbCommandTimeout.HasValue)
+                    existsCommand.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
-            var exists = Convert.ToInt32(existsResultObject) > 0;
+                var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
+                var exists = Convert.ToInt32(existsResultObject) > 0;
 
-            return (context, exists);
+                return (context, exists);
+            }
+            catch (Exception ex)
+            {
+                string message = null;
+
+                if (tableBuilder != null && tableBuilder.TableDescription != null)
+                    message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
+
+                message += $"StoredProcedure:{storedProcedureType}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -370,27 +447,39 @@ namespace Dotmim.Sync
         internal async Task<(SyncContext context, bool dropped)> InternalDropStoredProceduresAsync(
             ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            // check bulk before
-            var hasDroppedAtLeastOneStoredProcedure = false;
-
-            var listStoredProcedureType = Enum.GetValues(typeof(DbStoredProcedureType)).Cast<DbStoredProcedureType>().OrderBy(sp => (int)sp);
-
-            foreach (DbStoredProcedureType storedProcedureType in Enum.GetValues(typeof(DbStoredProcedureType)))
+            try
             {
-                bool exists;
-                (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                if (exists)
+                // check bulk before
+                var hasDroppedAtLeastOneStoredProcedure = false;
+
+                var listStoredProcedureType = Enum.GetValues(typeof(DbStoredProcedureType)).Cast<DbStoredProcedureType>().OrderBy(sp => (int)sp);
+
+                foreach (DbStoredProcedureType storedProcedureType in Enum.GetValues(typeof(DbStoredProcedureType)))
                 {
-                    bool dropped;
-                    (context, dropped) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    bool exists;
+                    (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    if (exists)
+                    {
+                        bool dropped;
+                        (context, dropped) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    // If at least one stored proc has been dropped, we're good to return true;
-                    if (dropped)
-                        hasDroppedAtLeastOneStoredProcedure = true;
+                        // If at least one stored proc has been dropped, we're good to return true;
+                        if (dropped)
+                            hasDroppedAtLeastOneStoredProcedure = true;
+                    }
                 }
-            }
 
-            return (context, hasDroppedAtLeastOneStoredProcedure);
+                return (context, hasDroppedAtLeastOneStoredProcedure);
+            }
+            catch (Exception ex)
+            {
+                string message = null;
+
+                if (tableBuilder != null && tableBuilder.TableDescription != null)
+                    message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -399,57 +488,70 @@ namespace Dotmim.Sync
         internal async Task<(SyncContext context, bool created)> InternalCreateStoredProceduresAsync(
             ScopeInfo scopeInfo, SyncContext context, bool overwrite, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            var hasCreatedAtLeastOneStoredProcedure = false;
-
-            // Order Asc is the correct order to Delete
-            var listStoredProcedureType = Enum.GetValues(typeof(DbStoredProcedureType)).Cast<DbStoredProcedureType>().OrderBy(sp => (int)sp);
-
-            // we need to drop bulk in order to be sure bulk type is delete after all
-            if (overwrite)
+            try
             {
+                var hasCreatedAtLeastOneStoredProcedure = false;
+
+                // Order Asc is the correct order to Delete
+                var listStoredProcedureType = Enum.GetValues(typeof(DbStoredProcedureType)).Cast<DbStoredProcedureType>().OrderBy(sp => (int)sp);
+
+                // we need to drop bulk in order to be sure bulk type is delete after all
+                if (overwrite)
+                {
+                    foreach (DbStoredProcedureType storedProcedureType in listStoredProcedureType)
+                    {
+                        bool exists;
+                        (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        if (exists)
+                            (context, _) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    }
+
+                }
+
+                // Order Desc is the correct order to Create
+                listStoredProcedureType = Enum.GetValues(typeof(DbStoredProcedureType)).Cast<DbStoredProcedureType>().OrderByDescending(sp => (int)sp);
+
                 foreach (DbStoredProcedureType storedProcedureType in listStoredProcedureType)
                 {
+                    // check with filter
+                    if ((storedProcedureType is DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType is DbStoredProcedureType.SelectInitializedChangesWithFilters)
+                        && tableBuilder.TableDescription.GetFilter() == null)
+                        continue;
+
                     bool exists;
                     (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    if (exists)
+                    // Drop storedProcedure if already exists
+                    if (exists && overwrite)
                         (context, _) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    var shouldCreate = !exists || overwrite;
+
+                    if (!shouldCreate)
+                        continue;
+
+                    bool created;
+                    (context, created) = await InternalCreateStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    // If at least one stored proc has been created, we're good to return true;
+                    if (created)
+                        hasCreatedAtLeastOneStoredProcedure = true;
                 }
 
+                return (context, hasCreatedAtLeastOneStoredProcedure);
             }
-
-            // Order Desc is the correct order to Create
-            listStoredProcedureType = Enum.GetValues(typeof(DbStoredProcedureType)).Cast<DbStoredProcedureType>().OrderByDescending(sp => (int)sp);
-
-            foreach (DbStoredProcedureType storedProcedureType in listStoredProcedureType)
+            catch (Exception ex)
             {
-                // check with filter
-                if ((storedProcedureType is DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType is DbStoredProcedureType.SelectInitializedChangesWithFilters)
-                    && tableBuilder.TableDescription.GetFilter() == null)
-                    continue;
+                string message = null;
 
-                bool exists;
-                (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                if (tableBuilder != null && tableBuilder.TableDescription != null)
+                    message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
 
-                // Drop storedProcedure if already exists
-                if (exists && overwrite)
-                    (context, _) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                message += $"Overwrite:{overwrite}.";
 
-                var shouldCreate = !exists || overwrite;
-
-                if (!shouldCreate)
-                    continue;
-
-                bool created;
-                (context, created) = await InternalCreateStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                // If at least one stored proc has been created, we're good to return true;
-                if (created)
-                    hasCreatedAtLeastOneStoredProcedure = true;
+                throw GetSyncError(context, ex, message);
             }
-
-            return (context, hasCreatedAtLeastOneStoredProcedure);
         }
-
     }
 }

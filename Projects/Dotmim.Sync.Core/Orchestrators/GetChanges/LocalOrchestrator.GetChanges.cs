@@ -77,13 +77,11 @@ namespace Dotmim.Sync
                 await runner.CommitAsync().ConfigureAwait(false);
 
                 return clientChanges;
-
             }
             catch (Exception ex)
             {
                 throw GetSyncError(context, ex);
             }
-
         }
 
         /// <summary>

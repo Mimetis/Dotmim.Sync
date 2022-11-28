@@ -57,10 +57,10 @@ namespace Dotmim.Sync
                     bool operationComplete;
 
                     if (applyType == SyncRowState.Deleted)
-                        (context, operationComplete, operationException) = await this.InternalApplyDeleteAsync(scopeInfo, context, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
+                        (_, operationComplete, operationException) = await this.InternalApplyDeleteAsync(scopeInfo, context, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
                             connection, transaction).ConfigureAwait(false);
                     else
-                        (context, operationComplete, operationException) = await this.InternalApplyUpdateAsync(scopeInfo, context, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
+                        (_, operationComplete, operationException) = await this.InternalApplyUpdateAsync(scopeInfo, context, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
                             connection, transaction).ConfigureAwait(false);
 
 

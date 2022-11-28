@@ -355,6 +355,34 @@ OnTableChangesApplying
     });
 
 
+OnBatchChangesApplying
+-------------------------------
+
+| The ``OnBatchChangesApplying`` interceptor is happening when a batch for a particular table is about to be applied on the local data source.
+| The number of rows contained in each batch file is depending on the value you have set in your SyncOptions instance : ``SyncOptions.BatchSize`` (Default is 2 Mo)
+| This interceptor is called for each batch file, and for each state (``Modified`` / ``Deleted``).
+| That means that if you have **1000** batches, and **2** calls of this interceptor (one for ``Modified``, one for ``Deleted``), you will fire **2000** times this interceptor.
+
+.. code-block:: csharp
+
+    agent.LocalOrchestrator.OnBatchChangesApplying(async args =>
+    {
+        if (args.BatchPartInfo != null)
+        {
+            Console.WriteLine($"FileName:{args.BatchPartInfo.FileName}. RowsCount:{args.BatchPartInfo.RowsCount} ");
+            Console.WriteLine($"Applying rows from this batch part info:");
+
+            var table = await agent.LocalOrchestrator.LoadTableFromBatchPartInfoAsync(args.BatchInfo,
+                            args.BatchPartInfo, args.State, args.Connection, args.Transaction);
+
+            foreach (var row in table.Rows)
+                Console.WriteLine(row);
+
+        }
+    });
+
+
+
 OnRowsChangesApplying
 -----------------------------------
 
@@ -384,6 +412,33 @@ OnTableChangesApplied
 The ``OnTableChangesApplied`` interceptor is happening when all rows, for a specific table, are applied on the local (client or server) database.
 
 TODO
+
+
+OnBatchChangesApplying
+-------------------------------
+
+| The ``OnBatchChangesApplied`` interceptor is happening when a batch for a particular table has been applied.
+
+.. code-block:: csharp
+
+    agent.LocalOrchestrator.OnBatchChangesApplied(async args =>
+    {
+        if (args.BatchPartInfo != null)
+        {
+            Console.WriteLine($"FileName:{args.BatchPartInfo.FileName}. RowsCount:{args.BatchPartInfo.RowsCount} ");
+            Console.WriteLine($"Applied rows from this batch part info:");
+
+            var table = await agent.LocalOrchestrator.LoadTableFromBatchPartInfoAsync(args.BatchInfo,
+                            args.BatchPartInfo, args.State, args.Connection, args.Transaction);
+
+            foreach (var row in table.Rows)
+                Console.WriteLine(row);
+
+        }
+    });
+
+
+
 
 OnDatabaseChangesApplied
 -------------------------------

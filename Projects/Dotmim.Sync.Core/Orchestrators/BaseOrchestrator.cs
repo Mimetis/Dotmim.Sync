@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -220,21 +221,44 @@ namespace Dotmim.Sync
         }
 
 
-        [DebuggerStepThrough]
-        internal SyncException GetSyncError(SyncContext context, Exception exception)
+        //[DebuggerStepThrough]
+        internal SyncException GetSyncError(SyncContext context, Exception innerException, string message = default, [CallerMemberName] string methodName = null)
         {
-            if (exception is SyncException)
-                return exception as SyncException;
+            // First we log the error before adding a new layer
+            if (this.Logger != null)
+                this.Logger.LogError(SyncEventsId.Exception, innerException, innerException.Message);
 
-            var syncStage = context == null ? SyncStage.None : context.SyncStage;
-            var syncException = new SyncException(exception, syncStage);
+            var strSyncStage = context == null ? SyncStage.None : context.SyncStage;
+            var strScopeName = context == null ? null : $"[{context.ScopeName}].";
+            var strMethodName = string.IsNullOrEmpty(methodName) ? "" : $"[{methodName}].";
+            var strMessage = string.IsNullOrEmpty(message) ? "" : message;
+
+            var strDataSource = innerException is SyncException se ? se.DataSource : "";
+            strDataSource = string.IsNullOrEmpty(strDataSource) ? "" : $"[{strDataSource}].";
+
+            var strInitialCatalog = innerException is SyncException se2 ? se2.InitialCatalog : "";
+            strInitialCatalog = string.IsNullOrEmpty(strInitialCatalog) ? "" : $"[{strInitialCatalog}].";
+
+            message = $"{strDataSource}{strInitialCatalog}{strScopeName}{strMethodName}{strMessage}";
+
+            var baseMessage = innerException.Message;
+
+            if (innerException is SyncException se3)
+            {
+                if (!string.IsNullOrEmpty(se3.BaseMessage))
+                    baseMessage = se3.BaseMessage;
+            }
+
+            message += $":{baseMessage}";
+
+            var syncException = new SyncException(innerException, message, strSyncStage)
+            {
+                BaseMessage = baseMessage
+            };
 
             // try to let the provider enrich the exception
             if (this.Provider != null)
                 this.Provider.EnsureSyncException(syncException);
-
-            if (this.Logger != null)
-                this.Logger.LogError(SyncEventsId.Exception, syncException, syncException.Message);
 
             return syncException;
         }
@@ -475,7 +499,7 @@ namespace Dotmim.Sync
             if (this.Provider == null)
                 return base.ToString();
 
-            return  $"{Provider.GetDatabaseName()}, {Provider.GetShortProviderTypeName()}";
+            return $"{Provider.GetDatabaseName()}, {Provider.GetShortProviderTypeName()}";
         }
 
     }

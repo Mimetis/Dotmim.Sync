@@ -35,9 +35,9 @@ namespace Dotmim.Sync
             try
             {
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
-               
+
                 long timestamp;
-                (context, timestamp) = await this.InternalGetLocalTimestampAsync(context, 
+                (context, timestamp) = await this.InternalGetLocalTimestampAsync(context,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
 
                 return timestamp;
@@ -60,34 +60,41 @@ namespace Dotmim.Sync
                              DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
         {
-            var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+            try
+            {
+                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
 
-            // we don't care about DbScopeType. That's why we are using a random value DbScopeType.Client...
-            using var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetLocalTimestamp, runner.Connection, runner.Transaction);
+                // we don't care about DbScopeType. That's why we are using a random value DbScopeType.Client...
+                using var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetLocalTimestamp, runner.Connection, runner.Transaction);
 
-            if (command == null)
-                return (context, 0L);
+                if (command == null)
+                    return (context, 0L);
 
-            var action = await this.InterceptAsync(new LocalTimestampLoadingArgs(context, command, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                var action = await this.InterceptAsync(new LocalTimestampLoadingArgs(context, command, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-            if (action.Cancel || action.Command == null)
-                return (context, 0L);
+                if (action.Cancel || action.Command == null)
+                    return (context, 0L);
 
-            // Parametrized command timeout established if exist
-            if (this.Options.DbCommandTimeout.HasValue)
-                action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
+                // Parametrized command timeout established if exist
+                if (this.Options.DbCommandTimeout.HasValue)
+                    action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-            
-            long result = Convert.ToInt64(await action.Command.ExecuteScalarAsync().ConfigureAwait(false));
+                await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-            var loadedArgs = await this.InterceptAsync(new LocalTimestampLoadedArgs(context, result, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                long result = Convert.ToInt64(await action.Command.ExecuteScalarAsync().ConfigureAwait(false));
 
-            action.Command.Dispose();
+                var loadedArgs = await this.InterceptAsync(new LocalTimestampLoadedArgs(context, result, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-            return (context, loadedArgs.LocalTimestamp);
+                action.Command.Dispose();
+
+                return (context, loadedArgs.LocalTimestamp);
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
         }
 
     }

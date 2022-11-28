@@ -14,6 +14,8 @@ using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,7 +31,8 @@ namespace Dotmim.Sync
         internal virtual async Task<(SyncContext context, ClientSyncChanges clientSyncChange, ScopeInfoClient CScopeInfoClient)>
             InternalApplyChangesAsync(ScopeInfo cScopeInfo, ScopeInfoClient cScopeInfoClient, SyncContext context, ServerSyncChanges serverSyncChanges,
                               ClientSyncChanges clientSyncChanges, ConflictResolutionPolicy policy, bool snapshotApplied,
-                              DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+                              DbConnection connection = default, DbTransaction transaction = default, 
+                              CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             // Connection & Transaction runner
             DbConnectionRunner runner = null;
@@ -103,14 +106,12 @@ namespace Dotmim.Sync
                 if (failureException != null)
                     throw failureException;
 
-
                 if (serverBatchInfo != null && serverBatchInfo.HasData())
                 {
                     // Call apply changes on provider
                     applyChanges.Changes = serverBatchInfo;
                     failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 }
-
 
                 if (failureException != null)
                     throw failureException;

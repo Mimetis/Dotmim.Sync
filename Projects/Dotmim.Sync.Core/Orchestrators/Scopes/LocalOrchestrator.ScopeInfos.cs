@@ -69,35 +69,41 @@ namespace Dotmim.Sync
         internal virtual async Task<(SyncContext context, ScopeInfo serverScopeInfo)> InternalEnsureScopeInfoAsync(SyncContext context,
             DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            bool exists;
-            (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-            if (!exists)
-                await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-            (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-            if (!exists)
-                await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-            ScopeInfo cScopeInfo;
-            bool cScopeInfoExists;
-            (context, cScopeInfoExists) = await this.InternalExistsScopeInfoAsync(context.ScopeName, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-            if (!cScopeInfoExists)
+            try
             {
-                cScopeInfo = this.InternalCreateScopeInfo(context.ScopeName);
-                (context, cScopeInfo) = await this.InternalSaveScopeInfoAsync(cScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                bool exists;
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                if (!exists)
+                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                if (!exists)
+                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                ScopeInfo cScopeInfo;
+                bool cScopeInfoExists;
+                (context, cScopeInfoExists) = await this.InternalExistsScopeInfoAsync(context.ScopeName, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                if (!cScopeInfoExists)
+                {
+                    cScopeInfo = this.InternalCreateScopeInfo(context.ScopeName);
+                    (context, cScopeInfo) = await this.InternalSaveScopeInfoAsync(cScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                }
+                else
+                {
+                    (context, cScopeInfo) = await this.InternalLoadScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                }
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return (context, cScopeInfo);
             }
-            else
+            catch (Exception ex)
             {
-                (context, cScopeInfo) = await this.InternalLoadScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                throw GetSyncError(context, ex);
             }
-
-            await runner.CommitAsync().ConfigureAwait(false);
-
-            return (context, cScopeInfo);
-
         }
 
         /// <summary>
@@ -109,47 +115,68 @@ namespace Dotmim.Sync
             if (clientScopeInfo.Schema == null)
                 return (context, false, clientScopeInfo, serverScopeInfo);
 
-            if (inputSetup != null && clientScopeInfo.Setup != null && !clientScopeInfo.Setup.EqualsByProperties(inputSetup))
+            try
             {
-                var conflictingSetupArgs = new ConflictingSetupArgs(context, inputSetup, clientScopeInfo, serverScopeInfo);
-                await this.InterceptAsync(conflictingSetupArgs, progress, cancellationToken).ConfigureAwait(false);
+                if (inputSetup != null && clientScopeInfo.Setup != null && !clientScopeInfo.Setup.EqualsByProperties(inputSetup))
+                {
+                    var conflictingSetupArgs = new ConflictingSetupArgs(context, inputSetup, clientScopeInfo, serverScopeInfo);
+                    await this.InterceptAsync(conflictingSetupArgs, progress, cancellationToken).ConfigureAwait(false);
 
-                if (conflictingSetupArgs.Action == ConflictingSetupAction.Rollback)
-                    throw new Exception("Seems you are trying another Setup tables that what is stored in your client scope database. Please create a new scope or deprovision and provision again your client scope.");
+                    if (conflictingSetupArgs.Action == ConflictingSetupAction.Rollback)
+                        throw new SetupConflictOnClientException(inputSetup, clientScopeInfo.Setup);
 
-                if (conflictingSetupArgs.Action == ConflictingSetupAction.Abort)
-                    return (context, true, clientScopeInfo, serverScopeInfo);
+                    if (conflictingSetupArgs.Action == ConflictingSetupAction.Abort)
+                        return (context, true, clientScopeInfo, serverScopeInfo);
 
-                // re affect scope infos
-                clientScopeInfo = conflictingSetupArgs.ClientScopeInfo;
-                serverScopeInfo = conflictingSetupArgs.ServerScopeInfo;
+                    // re affect scope infos
+                    clientScopeInfo = conflictingSetupArgs.ClientScopeInfo;
+                    serverScopeInfo = conflictingSetupArgs.ServerScopeInfo;
+                }
+
+                if (clientScopeInfo.Setup != null && serverScopeInfo.Setup != null && !clientScopeInfo.Setup.EqualsByProperties(serverScopeInfo.Setup))
+                {
+                    var conflictingSetupArgs = new ConflictingSetupArgs(context, inputSetup, clientScopeInfo, serverScopeInfo);
+                    await this.InterceptAsync(conflictingSetupArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                    if (conflictingSetupArgs.Action == ConflictingSetupAction.Rollback)
+                        throw new SetupConflictOnClientException(clientScopeInfo.Setup, clientScopeInfo.Setup);
+
+                    if (conflictingSetupArgs.Action == ConflictingSetupAction.Abort)
+                        return (context, true, clientScopeInfo, serverScopeInfo);
+
+                    // re affect scope infos
+                    clientScopeInfo = conflictingSetupArgs.ClientScopeInfo;
+                    serverScopeInfo = conflictingSetupArgs.ServerScopeInfo;
+                }
+
+                // We gave 2 chances to user to edit the setup and fill correct values.
+                // Final check, but if not valid, raise an error
+                if (clientScopeInfo.Setup != null && serverScopeInfo.Setup != null && !clientScopeInfo.Setup.EqualsByProperties(serverScopeInfo.Setup))
+                    throw new SetupConflictOnClientException(clientScopeInfo.Setup, clientScopeInfo.Setup);
+
+                return (context, false, clientScopeInfo, serverScopeInfo);
+
             }
-
-            if (clientScopeInfo.Setup != null && serverScopeInfo.Setup != null && !clientScopeInfo.Setup.EqualsByProperties(serverScopeInfo.Setup))
+            catch (SetupConflictOnClientException)
             {
-                var conflictingSetupArgs = new ConflictingSetupArgs(context, inputSetup, clientScopeInfo, serverScopeInfo);
-                await this.InterceptAsync(conflictingSetupArgs, progress, cancellationToken).ConfigureAwait(false);
-
-                if (conflictingSetupArgs.Action == ConflictingSetupAction.Rollback)
-                    throw new Exception("Seems your client setup is different from your server setup. Please create a new scope or deprovision and provision again your client scope with the server scope.");
-
-                if (conflictingSetupArgs.Action == ConflictingSetupAction.Abort)
-                    return (context, true, clientScopeInfo, serverScopeInfo);
-
-                // re affect scope infos
-                clientScopeInfo = conflictingSetupArgs.ClientScopeInfo;
-                serverScopeInfo = conflictingSetupArgs.ServerScopeInfo;
+                // direct throw because message is already really long and we don't want to duplicate it
+                throw;
             }
+            catch (Exception ex)
+            {
+                string message = null;
 
-            // We gave 2 chances to user to edit the setup and fill correct values.
-            // Final check, but if not valid, raise an error
-            if (clientScopeInfo.Setup != null && serverScopeInfo.Setup != null && !clientScopeInfo.Setup.EqualsByProperties(serverScopeInfo.Setup))
-                throw new Exception("Seems your client setup is different from your server setup. Please create a new scope or deprovision and provision again your client scope with the server scope.");
+                if (inputSetup != null)
+                    message += $"Input Setup:{JsonConvert.SerializeObject(inputSetup)}.";
 
-            return (context, false, clientScopeInfo, serverScopeInfo);
+                if (clientScopeInfo != null && clientScopeInfo.Setup != null)
+                    message += $"Client Scope Setup:{JsonConvert.SerializeObject(clientScopeInfo.Setup)}.";
 
+                if (serverScopeInfo != null && serverScopeInfo.Setup != null)
+                    message += $"Server Scope Setup:{JsonConvert.SerializeObject(serverScopeInfo.Setup)}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
-
-
     }
 }

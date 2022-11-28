@@ -49,9 +49,13 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
-            }
+                string message = null;
 
+                var tableFullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
+                message += $"Table:{tableFullName}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -88,7 +92,6 @@ namespace Dotmim.Sync
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
             {
-
                 if (scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
                     return;
 
@@ -106,9 +109,13 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
-            }
+                string message = null;
 
+                var tableFullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
+                message += $"Table:{tableFullName}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -145,7 +152,6 @@ namespace Dotmim.Sync
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
             {
-
                 if (scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
                     return;
 
@@ -163,7 +169,12 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                string message = null;
+
+                var tableFullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
+                message += $"Table:{tableFullName}.";
+
+                throw GetSyncError(context, ex, message);
             }
         }
 
@@ -173,24 +184,36 @@ namespace Dotmim.Sync
         internal async Task<SyncContext> InternalDisableConstraintsAsync(ScopeInfo scopeInfo, SyncContext context,
             SyncTable schemaTable, DbConnection connection, DbTransaction transaction = null)
         {
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction).ConfigureAwait(false);
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction).ConfigureAwait(false);
 
-            var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+                var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
 
-            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DisableConstraints, null,
-            runner.Connection, runner.Transaction, default, default).ConfigureAwait(false);
+                var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DisableConstraints, null,
+                runner.Connection, runner.Transaction, default, default).ConfigureAwait(false);
 
-            if (command == null) return context;
+                if (command == null) return context;
 
-            // Parametrized command timeout established if exist
-            if (this.Options.DbCommandTimeout.HasValue)
-                command.CommandTimeout = this.Options.DbCommandTimeout.Value;
+                // Parametrized command timeout established if exist
+                if (this.Options.DbCommandTimeout.HasValue)
+                    command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DisableConstraints, runner.Connection, runner.Transaction)).ConfigureAwait(false);
-            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            command.Dispose();
+                await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DisableConstraints, runner.Connection, runner.Transaction)).ConfigureAwait(false);
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                command.Dispose();
 
-            return context;
+                return context;
+            }
+            catch (Exception ex)
+            {
+                string message = null;
+
+                if (schemaTable != null)
+                    message += $"Table:{schemaTable.GetFullName()}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -199,25 +222,37 @@ namespace Dotmim.Sync
         internal async Task<SyncContext> InternalEnableConstraintsAsync(ScopeInfo scopeInfo, SyncContext context,
             SyncTable schemaTable, DbConnection connection, DbTransaction transaction)
         {
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction).ConfigureAwait(false);
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction).ConfigureAwait(false);
 
-            var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+                var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
 
-            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.EnableConstraints, null,
-                runner.Connection, runner.Transaction, default, default).ConfigureAwait(false);
+                var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.EnableConstraints, null,
+                    runner.Connection, runner.Transaction, default, default).ConfigureAwait(false);
 
-            if (command == null) return context;
+                if (command == null) return context;
 
-            // Parametrized command timeout established if exist
-            if (this.Options.DbCommandTimeout.HasValue)
-                command.CommandTimeout = this.Options.DbCommandTimeout.Value;
+                // Parametrized command timeout established if exist
+                if (this.Options.DbCommandTimeout.HasValue)
+                    command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.EnableConstraints, runner.Connection, runner.Transaction)).ConfigureAwait(false);
+                await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.EnableConstraints, runner.Connection, runner.Transaction)).ConfigureAwait(false);
 
-            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            command.Dispose();
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                command.Dispose();
 
-            return context;
+                return context;
+            }
+            catch (Exception ex)
+            {
+                string message = null;
+
+                if (schemaTable != null)
+                    message += $"Table:{schemaTable.GetFullName()}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -226,25 +261,36 @@ namespace Dotmim.Sync
         internal async Task<SyncContext> InternalResetTableAsync(ScopeInfo scopeInfo, SyncContext context,
             SyncTable schemaTable, DbConnection connection, DbTransaction transaction)
         {
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction).ConfigureAwait(false);
-
-            var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
-
-            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.Reset, null,
-                runner.Connection, runner.Transaction, default, default).ConfigureAwait(false);
-
-            if (command != null)
+            try
             {
-                // Parametrized command timeout established if exist
-                if (this.Options.DbCommandTimeout.HasValue)
-                    command.CommandTimeout = this.Options.DbCommandTimeout.Value;
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction).ConfigureAwait(false);
 
-                await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.Reset, runner.Connection, runner.Transaction)).ConfigureAwait(false);
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                command.Dispose();
+                var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+
+                var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.Reset, null,
+                    runner.Connection, runner.Transaction, default, default).ConfigureAwait(false);
+
+                if (command != null)
+                {
+                    // Parametrized command timeout established if exist
+                    if (this.Options.DbCommandTimeout.HasValue)
+                        command.CommandTimeout = this.Options.DbCommandTimeout.Value;
+
+                    await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.Reset, runner.Connection, runner.Transaction)).ConfigureAwait(false);
+                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    command.Dispose();
+                }
+                return context;
             }
+            catch (Exception ex)
+            {
+                string message = null;
 
-            return context;
+                if (schemaTable != null)
+                    message += $"Table:{schemaTable.GetFullName()}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
     }

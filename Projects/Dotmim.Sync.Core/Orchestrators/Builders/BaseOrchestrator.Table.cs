@@ -56,15 +56,15 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                 bool schemaExists;
-                (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder, 
+                (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (!schemaExists)
-                    (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder, 
+                    (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 bool exists;
-                (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, 
+                (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // should create only if not exists OR if overwrite has been set
@@ -74,7 +74,7 @@ namespace Dotmim.Sync
                 {
                     // Drop if already exists and we need to overwrite
                     if (exists && overwrite)
-                        (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder, 
+                        (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     (context, hasBeenCreated) = await InternalCreateTableAsync(scopeInfo, context, tableBuilder,
@@ -127,11 +127,11 @@ namespace Dotmim.Sync
                     {
                         var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
                         bool exists;
-                        (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, 
+                        (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                         if (exists)
-                            (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder, 
+                            (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder,
                                 runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                     }
                 }
@@ -142,15 +142,15 @@ namespace Dotmim.Sync
                     var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                     bool schemaExists;
-                    (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder, 
+                    (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     if (!schemaExists)
-                        (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder, 
+                        (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     bool exists;
-                    (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, 
+                    (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     // should create only if not exists OR if overwrite has been set
@@ -160,11 +160,11 @@ namespace Dotmim.Sync
                     {
                         // Drop if already exists and we need to overwrite
                         if (exists && overwrite)
-                            (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder, 
+                            (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder,
                                 runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                         bool hasBeenCreated;
-                        (context, hasBeenCreated) = await InternalCreateTableAsync(scopeInfo, context, tableBuilder, 
+                        (context, hasBeenCreated) = await InternalCreateTableAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                         if (hasBeenCreated)
@@ -212,7 +212,7 @@ namespace Dotmim.Sync
 
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
                 bool exists;
-                (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, 
+                (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -220,7 +220,12 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                string message = null;
+
+                var tableFullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
+                message += $"Table:{tableFullName}.";
+
+                throw GetSyncError(context, ex, message);
             }
         }
 
@@ -258,11 +263,11 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                 bool exists;
-                (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, 
+                (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (exists)
-                    (context, hasBeenDropped) = await InternalDropTableAsync(scopeInfo, context, tableBuilder, 
+                    (context, hasBeenDropped) = await InternalDropTableAsync(scopeInfo, context, tableBuilder,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -271,7 +276,12 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                string message = null;
+
+                var tableFullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
+                message += $"Table:{tableFullName}.";
+
+                throw GetSyncError(context, ex, message);
             }
         }
 
@@ -310,7 +320,7 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     if (exists)
-                        (context, atLeastOneTableHasBeenDropped) = await InternalDropTableAsync(scopeInfo, context, tableBuilder, 
+                        (context, atLeastOneTableHasBeenDropped) = await InternalDropTableAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                 }
 
@@ -329,42 +339,57 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<(SyncContext contet, bool added)> InternalAddColumnAsync(ScopeInfo scopeInfo, SyncContext context, string addedColumnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            if (Provider == null)
-                throw new MissingProviderException(nameof(InternalAddColumnAsync));
+            try
+            {
+                if (Provider == null)
+                    throw new MissingProviderException(nameof(InternalAddColumnAsync));
 
-            if (tableBuilder.TableDescription.Columns.Count <= 0)
-                throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
+                if (tableBuilder.TableDescription.Columns.Count <= 0)
+                    throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
 
-            if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
-                throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
+                if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
+                    throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
 
-            using var command = await tableBuilder.GetAddColumnCommandAsync(addedColumnName, connection, transaction).ConfigureAwait(false);
+                using var command = await tableBuilder.GetAddColumnCommandAsync(addedColumnName, connection, transaction).ConfigureAwait(false);
 
-            if (command == null)
-                return (context, false);
+                if (command == null)
+                    return (context, false);
 
-            var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
+                var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
 
-            var action = new ColumnCreatingArgs(context, addedColumnName, tableBuilder.TableDescription, tableName, command, connection, transaction);
+                var action = new ColumnCreatingArgs(context, addedColumnName, tableBuilder.TableDescription, tableName, command, connection, transaction);
 
-            await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
-            if (action.Cancel || action.Command == null)
-                return (context, false);
+                if (action.Cancel || action.Command == null)
+                    return (context, false);
 
-            // Parametrized command timeout established if exist
-            if (this.Options.DbCommandTimeout.HasValue)
-                action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
+                // Parametrized command timeout established if exist
+                if (this.Options.DbCommandTimeout.HasValue)
+                    action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-            
-            await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            await this.InterceptAsync(new ColumnCreatedArgs(context, addedColumnName, tableBuilder.TableDescription, tableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-            action.Command.Dispose();
+                await this.InterceptAsync(new ColumnCreatedArgs(context, addedColumnName, tableBuilder.TableDescription, tableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            return (context, true);
+                action.Command.Dispose();
+
+                return (context, true);
+            }
+            catch (Exception ex)
+            {
+                string message = null;
+
+                if (tableBuilder != null && tableBuilder.TableDescription != null)
+                    message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
+
+                if (!string.IsNullOrEmpty(addedColumnName))
+                    message += $"Column:{addedColumnName}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
 
@@ -373,37 +398,53 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<(SyncContext context, bool dropped)> InternalDropColumnAsync(ScopeInfo scopeInfo, SyncContext context, string droppedColumnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            if (tableBuilder.TableDescription.Columns.Count <= 0)
-                throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
+            try
+            {
 
-            if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
-                throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
+                if (tableBuilder.TableDescription.Columns.Count <= 0)
+                    throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
 
-            using var command = await tableBuilder.GetDropColumnCommandAsync(droppedColumnName, connection, transaction).ConfigureAwait(false);
+                if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
+                    throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
 
-            if (command == null)
-                return (context, false);
+                using var command = await tableBuilder.GetDropColumnCommandAsync(droppedColumnName, connection, transaction).ConfigureAwait(false);
 
-            var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
+                if (command == null)
+                    return (context, false);
 
-            var action = await this.InterceptAsync(new ColumnDroppingArgs(context, droppedColumnName, tableBuilder.TableDescription, tableName, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
 
-            if (action.Cancel || action.Command == null)
-                return (context, false);
+                var action = await this.InterceptAsync(new ColumnDroppingArgs(context, droppedColumnName, tableBuilder.TableDescription, tableName, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            // Parametrized command timeout established if exist
-            if (this.Options.DbCommandTimeout.HasValue)
-                action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
+                if (action.Cancel || action.Command == null)
+                    return (context, false);
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                // Parametrized command timeout established if exist
+                if (this.Options.DbCommandTimeout.HasValue)
+                    action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
-            await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            await this.InterceptAsync(new ColumnDroppedArgs(context, droppedColumnName, tableBuilder.TableDescription, tableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-            action.Command.Dispose();
+                await this.InterceptAsync(new ColumnDroppedArgs(context, droppedColumnName, tableBuilder.TableDescription, tableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            return (context, true);
+                action.Command.Dispose();
+
+                return (context, true);
+            }
+            catch (Exception ex)
+            {
+                string message = null;
+
+                if (tableBuilder != null && tableBuilder.TableDescription != null)
+                    message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
+
+                if (!string.IsNullOrEmpty(droppedColumnName))
+                    message += $"Column:{droppedColumnName}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -411,39 +452,52 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<(SyncContext context, bool created)> InternalCreateTableAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            if (tableBuilder.TableDescription.Columns.Count <= 0)
-                throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
+            try
+            {
 
-            if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
-                throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
+                if (tableBuilder.TableDescription.Columns.Count <= 0)
+                    throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
 
-            using var command = await tableBuilder.GetCreateTableCommandAsync(connection, transaction).ConfigureAwait(false);
+                if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
+                    throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
 
-            if (command == null)
-                return (context, false);
+                using var command = await tableBuilder.GetCreateTableCommandAsync(connection, transaction).ConfigureAwait(false);
 
-            var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
+                if (command == null)
+                    return (context, false);
 
-            var action = new TableCreatingArgs(context, tableBuilder.TableDescription, tableName, command, connection, transaction);
+                var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
 
-            await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
+                var action = new TableCreatingArgs(context, tableBuilder.TableDescription, tableName, command, connection, transaction);
 
-            if (action.Cancel || action.Command == null)
-                return (context, false);
+                await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
-            // Parametrized command timeout established if exist
-            if (this.Options.DbCommandTimeout.HasValue)
-                action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
+                if (action.Cancel || action.Command == null)
+                    return (context, false);
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                // Parametrized command timeout established if exist
+                if (this.Options.DbCommandTimeout.HasValue)
+                    action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
-            await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            await this.InterceptAsync(new TableCreatedArgs(context, tableBuilder.TableDescription, tableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-            action.Command.Dispose();
-            
-            return (context, true);
+                await this.InterceptAsync(new TableCreatedArgs(context, tableBuilder.TableDescription, tableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+                action.Command.Dispose();
+
+                return (context, true);
+            }
+            catch (Exception ex)
+            {
+                string message = null;
+
+                if (tableBuilder != null && tableBuilder.TableDescription != null)
+                    message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -452,29 +506,42 @@ namespace Dotmim.Sync
         internal async Task<(SyncContext context, bool created)> InternalCreateSchemaAsync(
             ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            using var command = await tableBuilder.GetCreateSchemaCommandAsync(connection, transaction).ConfigureAwait(false);
+            try
+            {
 
-            if (command == null)
-                return (context, false);
+                using var command = await tableBuilder.GetCreateSchemaCommandAsync(connection, transaction).ConfigureAwait(false);
 
-            var action = await this.InterceptAsync(new SchemaNameCreatingArgs(context, tableBuilder.TableDescription, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                if (command == null)
+                    return (context, false);
 
-            if (action.Cancel || action.Command == null)
-                return (context, false);
+                var action = await this.InterceptAsync(new SchemaNameCreatingArgs(context, tableBuilder.TableDescription, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            // Parametrized command timeout established if exist
-            if (this.Options.DbCommandTimeout.HasValue)
-                action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
+                if (action.Cancel || action.Command == null)
+                    return (context, false);
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                // Parametrized command timeout established if exist
+                if (this.Options.DbCommandTimeout.HasValue)
+                    action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
-            await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            await this.InterceptAsync(new SchemaNameCreatedArgs(context, tableBuilder.TableDescription, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-            action.Command.Dispose();
+                await this.InterceptAsync(new SchemaNameCreatedArgs(context, tableBuilder.TableDescription, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            return (context, true);
+                action.Command.Dispose();
+
+                return (context, true);
+            }
+            catch (Exception ex)
+            {
+                string message = null;
+
+                if (tableBuilder != null && tableBuilder.TableDescription != null)
+                    message += $"Schema:{tableBuilder.TableDescription.SchemaName}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -482,32 +549,44 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<(SyncContext context, bool dropped)> InternalDropTableAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            using var command = await tableBuilder.GetDropTableCommandAsync(connection, transaction).ConfigureAwait(false);
+            try
+            {
 
-            if (command == null)
-                return (context, false);
+                using var command = await tableBuilder.GetDropTableCommandAsync(connection, transaction).ConfigureAwait(false);
 
-            var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
+                if (command == null)
+                    return (context, false);
 
-            var action = await this.InterceptAsync(new TableDroppingArgs(context, tableBuilder.TableDescription, tableName, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
 
-            if (action.Cancel || action.Command == null)
-                return (context, false);
+                var action = await this.InterceptAsync(new TableDroppingArgs(context, tableBuilder.TableDescription, tableName, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            // Parametrized command timeout established if exist
-            if (this.Options.DbCommandTimeout.HasValue)
-                action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
+                if (action.Cancel || action.Command == null)
+                    return (context, false);
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                // Parametrized command timeout established if exist
+                if (this.Options.DbCommandTimeout.HasValue)
+                    action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
-            await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            await this.InterceptAsync(new TableDroppedArgs(context, tableBuilder.TableDescription, tableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-            action.Command.Dispose();
+                await this.InterceptAsync(new TableDroppedArgs(context, tableBuilder.TableDescription, tableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-            return (context, true);
+                action.Command.Dispose();
 
+                return (context, true);
+            }
+            catch (Exception ex)
+            {
+                string message = null;
+
+                if (tableBuilder != null && tableBuilder.TableDescription != null)
+                    message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -515,22 +594,34 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<(SyncContext context, bool exists)> InternalExistsTableAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            // Get exists command
-            using var existsCommand = await tableBuilder.GetExistsTableCommandAsync(connection, transaction).ConfigureAwait(false);
+            try
+            {
 
-            if (existsCommand == null)
-                return (context, false);
+                // Get exists command
+                using var existsCommand = await tableBuilder.GetExistsTableCommandAsync(connection, transaction).ConfigureAwait(false);
 
-            // Parametrized command timeout established if exist
-            if (this.Options.DbCommandTimeout.HasValue)
-                existsCommand.CommandTimeout = this.Options.DbCommandTimeout.Value;
-            
-            await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                if (existsCommand == null)
+                    return (context, false);
 
-            var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
-            var exists = Convert.ToInt32(existsResultObject) > 0;
-            return (context, exists);
+                // Parametrized command timeout established if exist
+                if (this.Options.DbCommandTimeout.HasValue)
+                    existsCommand.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
+                await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+                var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
+                var exists = Convert.ToInt32(existsResultObject) > 0;
+                return (context, exists);
+            }
+            catch (Exception ex)
+            {
+                string message = null;
+
+                if (tableBuilder != null && tableBuilder.TableDescription != null)
+                    message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -538,25 +629,38 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<(SyncContext context, bool exists)> InternalExistsSchemaAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            if (string.IsNullOrEmpty(tableBuilder.TableDescription.SchemaName) || tableBuilder.TableDescription.SchemaName == "dbo")
-                return (context, true);
+            try
+            {
 
-            // Get exists command
-            using var existsCommand = await tableBuilder.GetExistsSchemaCommandAsync(connection, transaction).ConfigureAwait(false);
+                if (string.IsNullOrEmpty(tableBuilder.TableDescription.SchemaName) || tableBuilder.TableDescription.SchemaName == "dbo")
+                    return (context, true);
 
-            if (existsCommand == null)
-                return (context, false);
+                // Get exists command
+                using var existsCommand = await tableBuilder.GetExistsSchemaCommandAsync(connection, transaction).ConfigureAwait(false);
 
-            // Parametrized command timeout established if exist
-            if (this.Options.DbCommandTimeout.HasValue)
-                existsCommand.CommandTimeout = this.Options.DbCommandTimeout.Value;
+                if (existsCommand == null)
+                    return (context, false);
 
-            await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                // Parametrized command timeout established if exist
+                if (this.Options.DbCommandTimeout.HasValue)
+                    existsCommand.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
-            var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
-            var exists = Convert.ToInt32(existsResultObject) > 0;
-            return (context, exists);
+                await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
+                var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
+                var exists = Convert.ToInt32(existsResultObject) > 0;
+                return (context, exists);
+
+            }
+            catch (Exception ex)
+            {
+                string message = null;
+
+                if (tableBuilder != null && tableBuilder.TableDescription != null)
+                    message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -564,22 +668,39 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<(SyncContext context, bool exists)> InternalExistsColumnAsync(ScopeInfo scopeInfo, SyncContext context, string columnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            // Get exists command
-            using var existsCommand = await tableBuilder.GetExistsColumnCommandAsync(columnName, connection, transaction).ConfigureAwait(false);
+            try
+            {
 
-            if (existsCommand == null)
-                return (context, false);
 
-            // Parametrized command timeout established if exist
-            if (this.Options.DbCommandTimeout.HasValue)
-                existsCommand.CommandTimeout = this.Options.DbCommandTimeout.Value;
-           
-            await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                // Get exists command
+                using var existsCommand = await tableBuilder.GetExistsColumnCommandAsync(columnName, connection, transaction).ConfigureAwait(false);
 
-            var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
-            var exists = Convert.ToInt32(existsResultObject) > 0;
+                if (existsCommand == null)
+                    return (context, false);
 
-            return (context, exists);
+                // Parametrized command timeout established if exist
+                if (this.Options.DbCommandTimeout.HasValue)
+                    existsCommand.CommandTimeout = this.Options.DbCommandTimeout.Value;
+
+                await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+                var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
+                var exists = Convert.ToInt32(existsResultObject) > 0;
+
+                return (context, exists);
+            }
+            catch (Exception ex)
+            {
+                string message = null;
+
+                if (tableBuilder != null && tableBuilder.TableDescription != null)
+                    message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
+
+                if (!string.IsNullOrEmpty(columnName))
+                    message += $"Column:{columnName}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
     }

@@ -68,7 +68,12 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                string message = null;
+
+                message += $"Provision:{provision}.";
+                message += $"Overwrite:{overwrite}.";
+
+                throw GetSyncError(context, ex, message);
             }
         }
 
@@ -124,7 +129,11 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                string message = null;
+
+                message += $"Provision:{provision}.";
+
+                throw GetSyncError(context, ex, message);
             }
         }
 
@@ -177,9 +186,12 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
-            }
+                string message = null;
 
+                message += $"Provision:{provision}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <summary>
@@ -297,7 +309,12 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                string message = null;
+
+                message += $"Provision:{provision}.";
+                message += $"Overwrite:{overwrite}.";
+
+                throw GetSyncError(context, ex, message);
             }
         }
 

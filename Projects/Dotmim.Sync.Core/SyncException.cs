@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -20,20 +21,37 @@ namespace Dotmim.Sync
     /// </summary>
     public class SyncException : Exception
     {
-        public SyncException(string message) : base(message)
-        {
-
-        }
-
-        public SyncException(Exception exception, SyncStage stage = SyncStage.None) : base(exception.Message, exception)
+        public SyncException(string message, SyncStage stage = SyncStage.None) : base(message)
         {
             this.SyncStage = stage;
 
-            if (exception is null)
+        }
+
+        public SyncException(Exception innerException, SyncStage stage = SyncStage.None) : base(innerException.Message, innerException)
+        {
+            this.SyncStage = stage;
+
+            if (innerException is null)
                 return;
 
-            this.TypeName = exception.GetType().Name;
+
+            this.TypeName = innerException.GetType().Name;
         }
+
+        public SyncException(Exception innerException, string message, SyncStage stage = SyncStage.None) : base(message, innerException)
+        {
+            this.SyncStage = stage;
+
+            if (innerException is null)
+                return;
+
+            this.TypeName = innerException.GetType().Name;
+        }
+
+        /// <summary>
+        /// Base message
+        /// </summary>
+        public string BaseMessage { get; set; }
 
         /// <summary>
         /// Gets or Sets type name of exception
@@ -160,15 +178,6 @@ namespace Dotmim.Sync
         public MissingConnectionException() : base(message) { }
     }
 
-    /// <summary>
-    /// Occurs when a file is missing
-    /// </summary>
-    public class MissingFileException : Exception
-    {
-        const string message = "File {0} doesn't exist.";
-
-        public MissingFileException(string fileName) : base(string.Format(message, fileName)) { }
-    }
 
     /// <summary>
     /// Occurs when a schema is needed, but does not exists
@@ -239,9 +248,48 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingTableException : Exception
     {
-        const string message = "Table {0} does not exists in your scope info setup (scope name : {1}).";
+        const string message = "Table {0} does not exists in your scope info setup.";
 
-        public MissingTableException(string tableName, string schemaName, string scopeName) : base(string.Format(message, string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}", scopeName)) { }
+        public MissingTableException(string tableName, string schemaName) : base(string.Format(message, string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}")) { }
+    }
+
+
+    /// <summary>
+    /// Setup Conflict, when setup provided by the user in code is different from the one in database.
+    /// </summary>
+    public class SetupConflictOnClientException : Exception
+    {
+        const string message = "Seems you are trying another Setup that what is stored in your client scope database.\n" +
+                               "You have already made a sync with a setup that has been stored in the client database.\n" +
+                               "And you are trying now a new setup in your code, different from the one you have used before.\n" +
+                               "If you want to use 2 differents setups, please use a different a scope name for each setup.\n" +
+                               "If you want to replace the setup stored in database with a new one, make a migration (see docs).\n" +
+                               "-----------------------------------------------------\n" +
+                               "Setup you trying to use from your code: {0}\n" +
+                               "-----------------------------------------------------\n" +
+                               "Setup found in your database: {1}\n" +
+                               "-----------------------------------------------------\n";
+
+        public SetupConflictOnClientException(SyncSetup inputSetup, SyncSetup clientScopeInfoSetup) : base(string.Format(message, JsonConvert.SerializeObject(inputSetup), JsonConvert.SerializeObject(clientScopeInfoSetup))) { }
+    }
+
+    /// <summary>
+    /// Setup Conflict, when setup provided by the user in code is different from the one in database.
+    /// </summary>
+    public class SetupConflictOnServerException : Exception
+    {
+        const string message = "Seems you are trying another Setup that what is stored in your server scope database.\n" +
+                               "You have already made a sync with a setup that has been stored in the server (and client) database.\n" +
+                               "And you are trying now a new setup in your code, different from the one you have used before.\n" +
+                               "If you want to use 2 differents setups, please use a different a scope name for each setup.\n" +
+                               "If you want to replace the setup stored in database with a new one, make a migration (see docs).\n" +
+                               "-----------------------------------------------------\n" +
+                               "Setup you trying to use from your code: {0}\n" +
+                               "-----------------------------------------------------\n" +
+                               "Setup found in your database: {1}\n" +
+                               "-----------------------------------------------------\n";
+
+        public SetupConflictOnServerException(SyncSetup inputSetup, SyncSetup clientScopeInfoSetup) : base(string.Format(message, JsonConvert.SerializeObject(inputSetup), JsonConvert.SerializeObject(clientScopeInfoSetup))) { }
     }
 
     /// <summary>
@@ -289,9 +337,9 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingTablesException : Exception
     {
-        const string message = "Your setup with scope name {0} does not contains any table.";
+        const string message = "Your setup does not contains any table.";
 
-        public MissingTablesException(string scopeName) : base(string.Format(message, scopeName)) { }
+        public MissingTablesException() : base(message) { }
     }
 
     /// <summary>

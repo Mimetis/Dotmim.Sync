@@ -36,7 +36,7 @@ namespace Dotmim.Sync
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (cScopeInfo.Schema == null || cScopeInfo.Schema.Tables == null || cScopeInfo.Schema.Tables.Count <= 0 || !cScopeInfo.Schema.HasColumns)
-                    throw new MissingTablesException(scopeName);
+                    throw new MissingTablesException();
 
                 long totalUpdates = 0L;
                 // Update untracked rows

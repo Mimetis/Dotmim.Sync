@@ -28,15 +28,14 @@ namespace Dotmim.Sync
         {
             if (lastSyncErrorsBatchInfo == null)
                 return;
-
-            context.SyncStage = SyncStage.ChangesApplying;
-
-            var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
-
-            this.Logger.LogInformation($@"[InternalApplyCleanErrorsAsync]. Directory name {{directoryName}}. BatchParts count {{BatchPartsInfoCount}}", lastSyncErrorsBatchInfo.DirectoryName, lastSyncErrorsBatchInfo.BatchPartsInfo.Count);
-
             try
             {
+                context.SyncStage = SyncStage.ChangesApplying;
+
+                var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
+
+                this.Logger.LogInformation($@"[InternalApplyCleanErrorsAsync]. Directory name {{directoryName}}. BatchParts count {{BatchPartsInfoCount}}", lastSyncErrorsBatchInfo.DirectoryName, lastSyncErrorsBatchInfo.BatchPartsInfo.Count);
+
                 foreach (var schemaTable in schemaTables)
                 {
                     var tableChangesApplied = message.ChangesApplied?.TableChangesApplied?.FirstOrDefault(tca =>
@@ -49,7 +48,6 @@ namespace Dotmim.Sync
                         return tca.TableName.Equals(schemaTable.TableName, sc) &&
                                 sn.Equals(otherSn, sc);
                     });
-
 
                     // tmp sync table with only writable columns
                     var changesSet = schemaTable.Schema.Clone(false);
@@ -158,7 +156,6 @@ namespace Dotmim.Sync
                     // create local directory
                     if (!string.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
                         Directory.CreateDirectory(message.BatchDirectory);
-
 
                     // Disable check constraints
                     // Because Sqlite does not support "PRAGMA foreign_keys=OFF" Inside a transaction
@@ -357,7 +354,6 @@ namespace Dotmim.Sync
 
             try
             {
-
                 foreach (var batchPartInfo in bpiTables)
                 {
                     var batchChangesApplyingArgs = new BatchChangesApplyingArgs(context, message.Changes, batchPartInfo, schemaTable, applyType, command, connection, transaction);

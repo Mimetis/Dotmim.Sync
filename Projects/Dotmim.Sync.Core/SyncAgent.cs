@@ -5,9 +5,11 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -440,7 +442,7 @@ namespace Dotmim.Sync
                 context.ProgressPercentage = 0.75;
 
                 (context, clientSyncChanges, cScopeInfoClient) = await this.LocalOrchestrator.InternalApplyChangesAsync(
-                        cScopeInfo, cScopeInfoClient, context, serverSyncChanges, clientSyncChanges, reverseConflictResolutionPolicy, snapshotApplied, default, default, 
+                        cScopeInfo, cScopeInfoClient, context, serverSyncChanges, clientSyncChanges, reverseConflictResolutionPolicy, snapshotApplied, default, default,
                         cancellationToken, progress).ConfigureAwait(false);
 
                 completeTime = DateTime.UtcNow;
@@ -461,16 +463,34 @@ namespace Dotmim.Sync
 
             }
 
-            catch (SyncException se)
+            catch (Exception exception)
             {
-                this.Options.Logger.LogError(SyncEventsId.Exception, se, se.TypeName);
-                syncException = se;
-                throw;
-            }
-            catch (Exception ex)
-            {
-                this.Options.Logger.LogCritical(SyncEventsId.Exception, ex, ex.Message);
-                syncException = new SyncException(ex, SyncStage.None);
+                // First we log the error before adding a new layer
+                if (this.Options.Logger != null)
+                    this.Options.Logger.LogError(SyncEventsId.Exception, exception, exception.Message);
+
+                string message = exception is SyncException se && se.BaseMessage != null ? se.BaseMessage : exception.Message;
+                if (this.Options.UseVerboseErrors)
+                {
+                    var innerException = exception.InnerException;
+                    int cpt = 1;
+                    while (innerException != null)
+                    {
+                        message += Environment.NewLine;
+                        var sign = innerException.InnerException != null ? "├" : "└";
+                        message += sign;
+
+                        for (int i = 0; i < cpt; i++)
+                            message += "─";
+
+                        message += $" {innerException.Message}";
+
+                        innerException = innerException.InnerException;
+                        cpt++;
+                    }
+                }
+
+                syncException = new SyncException(exception, message);
                 throw syncException;
             }
             finally

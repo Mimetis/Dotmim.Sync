@@ -172,14 +172,14 @@ namespace Dotmim.Sync
                         await runner.CommitAsync().ConfigureAwait(false);
 
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     if (runner != null)
                     {
                         await runner.RollbackAsync().ConfigureAwait(false);
                         await runner.DisposeAsync().ConfigureAwait(false);
                     }
-                    throw;
+                    throw GetSyncError(context, ex);
                 }
 
                 try
@@ -263,11 +263,12 @@ namespace Dotmim.Sync
 
                     return (context, serverSyncChanges, this.Options.ConflictResolutionPolicy);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
                     if (runner != null)
                         await runner.RollbackAsync().ConfigureAwait(false);
-                    throw;
+
+                    throw GetSyncError(context, ex);
                 }
                 finally
                 {

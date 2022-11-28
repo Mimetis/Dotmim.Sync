@@ -85,18 +85,14 @@ Creating a stored procedure could be done like this:
 .. code-block:: csharp
 
     var provider = new SqlSyncProvider(serverConnectionString);
-    var options = new SyncOptions();
-    var setup = new SyncSetup(new string[] { "ProductCategory", "ProductModel", "Product" });
-    var orchestrator = new RemoteOrchestrator(provider, options, setup);
+    var remoteOrchestrator = new RemoteOrchestrator(provider, options);
+    var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
-    // working on the product Table
-    var productSetupTable = setup.Tables["Product"];
-
-    var spExists = await orchestrator.ExistStoredProcedureAsync(productSetupTable, 
-                    DbStoredProcedureType.SelectChanges);
+    var spExists = await orchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", null,
+                            DbStoredProcedureType.SelectChanges);
     if (!spExists)
-        await orchestrator.CreateStoredProcedureAsync(productSetupTable, 
-                    DbStoredProcedureType.SelectChanges);
+        await orchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", null,
+                            DbStoredProcedureType.SelectChanges);
 
 .. image:: https://user-images.githubusercontent.com/4592555/103882421-11683000-50dc-11eb-8805-d2fe79342f12.png
 
@@ -111,16 +107,12 @@ Continuing on the last sample, we can create in the same way, the tracking table
 .. code-block:: csharp
 
     var provider = new SqlSyncProvider(serverConnectionString);
-    var options = new SyncOptions();
-    var setup = new SyncSetup(new string[] { "ProductCategory", "ProductModel", "Product" });
-    var orchestrator = new RemoteOrchestrator(provider, options, setup);
+    var remoteOrchestrator = new RemoteOrchestrator(provider, options);
+    var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
-    // working on the product Table
-    var productSetupTable = setup.Tables["Product"];
-
-    var spExists = await orchestrator.ExistTrackingTableAsync(productSetupTable);
+    var spExists = await remoteOrchestrator.ExistTrackingTableAsync(scopeInfo, "Employee");
     if (!spExists)
-        await orchestrator.CreateTrackingTableAsync(productSetupTable);
+        await remoteOrchestrator.CreateTrackingTableAsync(scopeInfo, "Employee");
 
 .. image:: https://user-images.githubusercontent.com/4592555/103882789-99e6d080-50dc-11eb-824d-47e564a91fa7.png
 
@@ -132,14 +124,18 @@ Now we can drop this newly created stored procedure and tracking table:
 
 .. code-block:: csharp
 
-    var trExists = await orchestrator.ExistTrackingTableAsync(productSetupTable);
-    if (trExists)
-        await orchestrator.DropTrackingTableAsync(productSetupTable);
+    var provider = new SqlSyncProvider(serverConnectionString);
+    var remoteOrchestrator = new RemoteOrchestrator(provider, options);
+    var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
-    var spExists = await orchestrator.ExistStoredProcedureAsync(productSetupTable, 
+    var trExists = await orchestrator.ExistTrackingTableAsync(scopeInfo, "Employee");
+    if (trExists)
+        await orchestrator.DropTrackingTableAsync(scopeInfo, "Employee");
+
+    var spExists = await orchestrator.ExistStoredProcedureAsync(scopeInfo, "Employee", null,
                             DbStoredProcedureType.SelectChanges);
     if (spExists)
-        await orchestrator.DropStoredProcedureAsync(productSetupTable, 
+        await orchestrator.DropStoredProcedureAsync(scopeInfo, "Employee", null,
                             DbStoredProcedureType.SelectChanges);
 
 

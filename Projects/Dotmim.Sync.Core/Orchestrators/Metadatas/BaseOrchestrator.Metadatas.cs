@@ -12,6 +12,8 @@ using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,89 +34,91 @@ namespace Dotmim.Sync
 
             var databaseMetadatasCleaned = new DatabaseMetadatasCleaned { TimestampLimit = timestampLimit };
 
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning, connection, transaction).ConfigureAwait(false);
-
-            await this.InterceptAsync(new MetadataCleaningArgs(context, scopeInfos, timestampLimit,
-                                        runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-
-            // contains all tables already processed
-            var doneList = new List<SetupTable>();
-
-            foreach (var scopeInfo in scopeInfos)
+            try
             {
-                if (scopeInfo.Setup?.Tables == null || scopeInfo.Setup.Tables.Count <= 0)
-                    continue;
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning, connection, transaction).ConfigureAwait(false);
 
-                foreach (var setupTable in scopeInfo.Setup.Tables)
+                await this.InterceptAsync(new MetadataCleaningArgs(context, scopeInfos, timestampLimit,
+                                            runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+
+                // contains all tables already processed
+                var doneList = new List<SetupTable>();
+
+                foreach (var scopeInfo in scopeInfos)
                 {
-                    var isDone = doneList.Any(t => t.EqualsByName(setupTable));
-
-                    if (isDone)
+                    if (scopeInfo.Setup?.Tables == null || scopeInfo.Setup.Tables.Count <= 0)
                         continue;
 
-                    // create a fake syncTable
-                    // Don't need anything else than table name to make a delete metadata clean up
-                    var syncTable = new SyncTable(setupTable.TableName, setupTable.SchemaName);
-                    var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
-
-                    var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DeleteMetadata, null,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                    if (command != null)
+                    foreach (var setupTable in scopeInfo.Setup.Tables)
                     {
-                        // Set the special parameters for delete metadata
-                        SetParameterValue(command, "sync_row_timestamp", timestampLimit);
+                        var isDone = doneList.Any(t => t.EqualsByName(setupTable));
 
-                        await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DeleteMetadata, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                        if (isDone)
+                            continue;
 
-                        // Parametrized command timeout established if exist
-                        if (Options.DbCommandTimeout.HasValue)
+                        // create a fake syncTable
+                        // Don't need anything else than table name to make a delete metadata clean up
+                        var syncTable = new SyncTable(setupTable.TableName, setupTable.SchemaName);
+                        var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
+
+                        var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DeleteMetadata, null,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                        if (command != null)
                         {
-                            command.CommandTimeout = Options.DbCommandTimeout.Value;
-                        }
+                            // Set the special parameters for delete metadata
+                            SetParameterValue(command, "sync_row_timestamp", timestampLimit);
 
-                        int rowsCleanedCount = 0;
-                        try
-                        {
-                            rowsCleanedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                        }
-                        catch (Exception)
-                        {
+                            await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DeleteMetadata, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                            // we can try a stored proc that is not existing anymore
-                            // so just pass through it
-                        }
-
-                        // Check if we have a return value instead
-                        var syncRowCountParam = InternalGetParameter(command, "sync_row_count");
-
-                        if (syncRowCountParam != null)
-                            rowsCleanedCount = (int)syncRowCountParam.Value;
-
-                        // Only add a new table metadata stats object, if we have, at least, purged 1 or more rows
-                        if (rowsCleanedCount > 0)
-                        {
-                            var tableMetadatasCleaned = new TableMetadatasCleaned(syncTable.TableName, syncTable.SchemaName)
+                            // Parametrized command timeout established if exist
+                            if (Options.DbCommandTimeout.HasValue)
                             {
-                                RowsCleanedCount = rowsCleanedCount,
-                                TimestampLimit = timestampLimit
-                            };
+                                command.CommandTimeout = Options.DbCommandTimeout.Value;
+                            }
 
-                            databaseMetadatasCleaned.Tables.Add(tableMetadatasCleaned);
+                            int rowsCleanedCount = 0;
+                            rowsCleanedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                            // Check if we have a return value instead
+                            var syncRowCountParam = InternalGetParameter(command, "sync_row_count");
+
+                            if (syncRowCountParam != null)
+                                rowsCleanedCount = (int)syncRowCountParam.Value;
+
+                            // Only add a new table metadata stats object, if we have, at least, purged 1 or more rows
+                            if (rowsCleanedCount > 0)
+                            {
+                                var tableMetadatasCleaned = new TableMetadatasCleaned(syncTable.TableName, syncTable.SchemaName)
+                                {
+                                    RowsCleanedCount = rowsCleanedCount,
+                                    TimestampLimit = timestampLimit
+                                };
+
+                                databaseMetadatasCleaned.Tables.Add(tableMetadatasCleaned);
+                            }
+
+                            command.Dispose();
                         }
 
-                        command.Dispose();
+                        doneList.Add(setupTable);
                     }
-
-                    doneList.Add(setupTable);
                 }
+
+                await this.InterceptAsync(new MetadataCleanedArgs(context, databaseMetadatasCleaned, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return (context, databaseMetadatasCleaned);
             }
+            catch (Exception ex)
+            {
+                string message = null;
 
-            await this.InterceptAsync(new MetadataCleanedArgs(context, databaseMetadatasCleaned, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                message += $"TimestampLimit:{timestampLimit}.";
 
-            await runner.CommitAsync().ConfigureAwait(false);
-
-            return (context, databaseMetadatasCleaned);
+                throw GetSyncError(context, ex, message);
+            }
         }
 
 

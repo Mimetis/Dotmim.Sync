@@ -88,7 +88,6 @@ namespace Dotmim.Sync
         ///         {
         ///             Console.WriteLine($"Changes for table 
         ///                     {args.SchemaTable.GetFullName()}. Rows:{syncTable.Rows.Count}");
-
         ///             foreach (var row in syncTable.Rows)
         ///                 Console.WriteLine(row);
         ///         }

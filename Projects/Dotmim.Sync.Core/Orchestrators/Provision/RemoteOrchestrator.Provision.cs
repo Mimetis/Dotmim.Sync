@@ -21,8 +21,6 @@ namespace Dotmim.Sync
 {
     public partial class RemoteOrchestrator : BaseOrchestrator
     {
-
-
         /// <summary>
         /// Provision a server datasource (<strong>triggers</strong>, <strong>stored procedures</strong> (if supported) and <strong>tracking tables</strong> if needed. Create also <strong>scope_info</strong> and <strong>scope_info_client</strong> tables.
         /// <para>
@@ -77,7 +75,12 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                string message = null;
+
+                message += $"Provision:{provision}.";
+                message += $"Overwrite:{overwrite}.";
+
+                throw GetSyncError(context, ex, message);
             }
         }
 
@@ -118,9 +121,13 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
-            }
+                string message = null;
 
+                message += $"Provision:{provision}.";
+                message += $"Overwrite:{overwrite}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
         /// <inheritdoc cref="ProvisionAsync(string, SyncSetup, SyncProvision, bool, DbConnection, DbTransaction)"/>
@@ -157,7 +164,6 @@ namespace Dotmim.Sync
         /// are not deprovisioned by default to preserve existing configurations
         /// </remarks>
         /// <param name="provision">If you do not specify <c>provision</c>, a default value <c>SyncProvision.StoredProcedures | SyncProvision.Triggers</c> is used.</param>
-        /// <param name=""></param>
         /// <param name="connection">Optional Connection</param>
         /// <param name="transaction">Optional Transaction</param>
         /// <returns></returns>
@@ -194,12 +200,16 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                string message = null;
+
+                message += $"Provision:{provision}.";
+
+                throw GetSyncError(context, ex, message);
             }
 
         }
 
-        /// <inheritdoc cref="DeprovisionAsync(string, SyncSetup, SyncProvision)"/>
+        /// <inheritdoc cref="DeprovisionAsync(string, SyncSetup, SyncProvision, DbConnection, DbTransaction)"/>
         public virtual Task<bool> DeprovisionAsync(SyncSetup setup, SyncProvision provision = default, DbConnection connection = null, DbTransaction transaction = null)  
             => DeprovisionAsync(SyncOptions.DefaultScopeName, setup, provision, connection, transaction);
 
@@ -249,7 +259,11 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                string message = null;
+
+                message += $"Provision:{provision}.";
+
+                throw GetSyncError(context, ex, message);
             }
 
         }
@@ -359,9 +373,13 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
-            }
+                string message = null;
 
+                message += $"Provision:{provision}.";
+                message += $"Overwrite:{overwrite}.";
+
+                throw GetSyncError(context, ex, message);
+            }
         }
 
 
