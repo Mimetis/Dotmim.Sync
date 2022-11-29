@@ -158,13 +158,15 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnMetadataCleaned(args =>
             {
                 cleaned++;
+                Console.WriteLine($"Pass 3. {args.Message}");
+                Console.WriteLine($"Pass 3. OnMetadataCleaned cleaned count:{cleaned}");
+                Console.WriteLine($"Pass 3. OnMetadataCleaned args.DatabaseMetadatasCleaned.RowsCleanedCount:{args.DatabaseMetadatasCleaned.RowsCleanedCount}");
+                Console.WriteLine($"Pass 3. OnMetadataCleaned args.DatabaseMetadatasCleaned.Tables[0].RowsCleanedCount:{args.DatabaseMetadatasCleaned.Tables[0].RowsCleanedCount}");
                 Assert.Equal(1, args.DatabaseMetadatasCleaned.RowsCleanedCount);
                 Assert.Single(args.DatabaseMetadatasCleaned.Tables);
                 Assert.Equal("SalesLT", args.DatabaseMetadatasCleaned.Tables[0].SchemaName);
                 Assert.Equal("ProductCategory", args.DatabaseMetadatasCleaned.Tables[0].TableName);
                 Assert.Equal(1, args.DatabaseMetadatasCleaned.Tables[0].RowsCleanedCount);
-                Console.WriteLine($"Pass 3. {args.Message}");
-                Console.WriteLine($"Pass 3. OnMetadataCleaned cleaned count:{cleaned}");
 
             });
             var s4 = await agent.SynchronizeAsync(scopeName);
