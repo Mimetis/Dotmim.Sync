@@ -1494,7 +1494,6 @@ namespace Dotmim.Sync.Tests
                     await webServerAgent.HandleRequestAsync(context);
                 });
 
-
                 var serviceUri = this.Kestrell.Run(serverHandler);
 
                 var orch = new WebRemoteOrchestrator(serviceUri);
@@ -1649,7 +1648,7 @@ namespace Dotmim.Sync.Tests
                 var agent = new SyncAgent(client.Provider, orch, options);
 
 
-                var ex = await Assert.ThrowsAsync<HttpSyncWebException>(async () =>
+                var ex = await Assert.ThrowsAsync<SyncException>(async () =>
                 {
                     var r = await agent.SynchronizeAsync();
                 });
