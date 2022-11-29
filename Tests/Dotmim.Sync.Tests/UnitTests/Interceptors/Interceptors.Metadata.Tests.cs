@@ -185,6 +185,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
                 syncTable = new SyncTable();
 
+                reader.Close();
+
                 using var reader2 = sqlCommand.ExecuteReader();
 
                 syncTable.Load(reader2);
@@ -198,6 +200,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                     Console.WriteLine(row.ToString());
 
                 }
+                reader2.Close();
 
             });
 
