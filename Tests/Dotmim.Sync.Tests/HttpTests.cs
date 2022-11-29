@@ -1519,7 +1519,7 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, orch, options);
 
-                var ex = await Assert.ThrowsAsync<HttpSyncWebException>(() => agent.SynchronizeAsync());
+                var ex = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync());
 
                 // Assert
                 Assert.NotNull(ex); //"exception required!"
