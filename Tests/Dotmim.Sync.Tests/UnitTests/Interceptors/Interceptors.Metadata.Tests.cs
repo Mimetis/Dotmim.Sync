@@ -78,6 +78,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnMetadataCleaning(args =>
             {
                 cleaning++;
+                Console.WriteLine($"Pass 1. {args.Message}");
+                Console.WriteLine($"Pass 1. OnMetadataCleaning cleaning count:{cleaning}");
             });
 
             localOrchestrator.OnMetadataCleaned(args =>
@@ -85,6 +87,8 @@ namespace Dotmim.Sync.Tests.UnitTests
                 cleaned++;
                 Assert.Equal(0, args.DatabaseMetadatasCleaned.RowsCleanedCount);
                 Assert.Empty(args.DatabaseMetadatasCleaned.Tables);
+                Console.WriteLine($"Pass 1. {args.Message}");
+                Console.WriteLine($"Pass 1. OnMetadataCleaned cleaned count:{cleaned}");
 
             });
 
@@ -106,11 +110,15 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnMetadataCleaning(args =>
             {
                 cleaning++;
+                Console.WriteLine($"Pass 2. {args.Message}");
+                Console.WriteLine($"Pass 2. OnMetadataCleaning cleaning count:{cleaning}");
             });
 
             localOrchestrator.OnMetadataCleaned(args =>
             {
                 cleaned++;
+                Console.WriteLine($"Pass 2. {args.Message}");
+                Console.WriteLine($"Pass 2. OnMetadataCleaned cleaned count:{cleaned}");
             });
 
             // Making a second empty sync.
@@ -143,6 +151,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnMetadataCleaning(args =>
             {
                 cleaning++;
+                Console.WriteLine($"Pass 3. {args.Message}");
+                Console.WriteLine($"Pass 3. OnMetadataCleaning cleaning count:{cleaning}");
             });
 
             localOrchestrator.OnMetadataCleaned(args =>
@@ -153,6 +163,8 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.Equal("SalesLT", args.DatabaseMetadatasCleaned.Tables[0].SchemaName);
                 Assert.Equal("ProductCategory", args.DatabaseMetadatasCleaned.Tables[0].TableName);
                 Assert.Equal(1, args.DatabaseMetadatasCleaned.Tables[0].RowsCleanedCount);
+                Console.WriteLine($"Pass 3. {args.Message}");
+                Console.WriteLine($"Pass 3. OnMetadataCleaned cleaned count:{cleaned}");
 
             });
             var s4 = await agent.SynchronizeAsync(scopeName);
@@ -191,12 +203,16 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnMetadataCleaning(args =>
             {
                 cleaning++;
+                Console.WriteLine($"Pass 4. {args.Message}");
+                Console.WriteLine($"Pass 4. OnMetadataCleaning cleaning count:{cleaning}");
             });
 
             localOrchestrator.OnMetadataCleaned(args =>
             {
                 cleaned++;
                 Assert.Equal(0, args.DatabaseMetadatasCleaned.RowsCleanedCount);
+                Console.WriteLine($"Pass 4. {args.Message}");
+                Console.WriteLine($"Pass 4. OnMetadataCleaning cleaned count:{cleaned}");
             });
 
             var s5 = await agent.SynchronizeAsync(scopeName);
