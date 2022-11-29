@@ -159,9 +159,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 cleaned++;
                 Console.WriteLine($"Pass 3. {args.Message}");
+                foreach (var tbl in args.DatabaseMetadatasCleaned.Tables)
+                {
+                    Console.WriteLine($"Pass 3. Table:{tbl.SchemaName}.{tbl.TableName}. Rows cleaned:{tbl.RowsCleanedCount}.");
+                }
                 Console.WriteLine($"Pass 3. OnMetadataCleaned cleaned count:{cleaned}");
-                Console.WriteLine($"Pass 3. OnMetadataCleaned args.DatabaseMetadatasCleaned.RowsCleanedCount:{args.DatabaseMetadatasCleaned.RowsCleanedCount}");
-                Console.WriteLine($"Pass 3. OnMetadataCleaned args.DatabaseMetadatasCleaned.Tables[0].RowsCleanedCount:{args.DatabaseMetadatasCleaned.Tables[0].RowsCleanedCount}");
                 Assert.Equal(1, args.DatabaseMetadatasCleaned.RowsCleanedCount);
                 Assert.Single(args.DatabaseMetadatasCleaned.Tables);
                 Assert.Equal("SalesLT", args.DatabaseMetadatasCleaned.Tables[0].SchemaName);
