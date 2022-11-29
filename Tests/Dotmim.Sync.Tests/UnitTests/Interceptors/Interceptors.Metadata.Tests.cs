@@ -77,10 +77,10 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task LocalOrchestrator_MetadataCleaning()
         {
-            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
+            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv_mc");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
 
-            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
+            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli_mc");
             await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
 
             var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
@@ -125,6 +125,11 @@ namespace Dotmim.Sync.Tests.UnitTests
                 await ctx.SaveChangesAsync();
             }
 
+            var ts = await localOrchestrator.GetLocalTimestampAsync();
+            Console.WriteLine($"Pass 1. TS:{ts}");
+            Debug.WriteLine($"Pass 1. TS:{ts}");
+
+
             var cleaning = 0;
             var cleaned = 0;
 
@@ -161,6 +166,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             cleaning = 0;
             cleaned = 0;
 
+            ts = await localOrchestrator.GetLocalTimestampAsync();
+            Console.WriteLine($"Pass 2. TS:{ts}");
+            Debug.WriteLine($"Pass 2. TS:{ts}");
+
 
             localOrchestrator.OnMetadataCleaning(args =>
             {
@@ -185,6 +194,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, cleaning);
             Assert.Equal(0, cleaned);
 
+            ts = await localOrchestrator.GetLocalTimestampAsync();
+            Console.WriteLine($"Pass 3. TS:{ts}");
+            Debug.WriteLine($"Pass 3. TS:{ts}");
+
+
 
             // Server side : Create a product category 
             productCategoryName = HelperDatabase.GetRandomName();
@@ -197,6 +211,12 @@ namespace Dotmim.Sync.Tests.UnitTests
 
                 await ctx.SaveChangesAsync();
             }
+
+            ts = await localOrchestrator.GetLocalTimestampAsync();
+            Console.WriteLine($"Pass 3 bis. TS:{ts}");
+            Debug.WriteLine($"Pass 3 bis. TS:{ts}");
+
+
 
             // Reset interceptors
             localOrchestrator.ClearInterceptors();
