@@ -35,7 +35,7 @@ namespace Dotmim.Sync.Web.Client
         /// </summary>
         public async Task<HttpResponseMessage> ProcessRequestAsync(HttpClient client, SyncContext context,
             string baseUri, byte[] data, HttpStep step,
-            ISerializerFactory serializerFactory, IConverter converter, int batchSize, SyncPolicy policy, 
+            ISerializerFactory serializerFactory, IConverter converter, int batchSize, SyncPolicy policy,
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (client is null)
@@ -85,7 +85,7 @@ namespace Dotmim.Sync.Web.Client
                 var ser = JsonConvert.SerializeObject(new { f = serializerFactory.Key, s = batchSize });
 
                 //// Execute my OpenAsync in my policy context
-                response = await policy.ExecuteAsync(ct => this.SendAsync(client,context,  requestUri.ToString(),
+                response = await policy.ExecuteAsync(ct => this.SendAsync(client, context, requestUri.ToString(),
                     step, data, ser, converter, hashString, contentType, ct), cancellationToken, progress);
 
                 // try to set the cookie for http session
@@ -101,18 +101,22 @@ namespace Dotmim.Sync.Web.Client
 
                 return response;
             }
-            catch (SyncException)
+            catch (HttpSyncWebException)
             {
                 throw;
+            }
+            catch (SyncException se)
+            {
+                throw new HttpSyncWebException(se.Message);
             }
             catch (Exception e)
             {
                 if (response == null || response.Content == null)
-                    throw new HttpResponseContentException(e.Message);
+                    throw new HttpSyncWebException(e.Message);
 
                 var exrror = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
-                throw new HttpResponseContentException(exrror);
+                throw new HttpSyncWebException(exrror);
             }
 
         }
@@ -174,7 +178,7 @@ namespace Dotmim.Sync.Web.Client
             if (!string.IsNullOrEmpty(contentType) && !requestMessage.Content.Headers.Contains("content-type"))
                 requestMessage.Content.Headers.Add("content-type", contentType);
 
-            await this.orchestrator.InterceptAsync(new HttpSendingRequestMessageArgs(requestMessage, context), progress:default, cancellationToken).ConfigureAwait(false);
+            await this.orchestrator.InterceptAsync(new HttpSendingRequestMessageArgs(requestMessage, context), progress: default, cancellationToken).ConfigureAwait(false);
 
             // Eventually, send the request
             var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);

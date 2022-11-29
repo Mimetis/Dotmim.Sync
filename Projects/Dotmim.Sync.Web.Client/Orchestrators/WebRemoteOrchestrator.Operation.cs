@@ -53,12 +53,8 @@ namespace Dotmim.Sync.Web.Client
                 // Return scopes and new shema
                 return (context, operationResponse.SyncOperation);
             }
-            catch (Exception ex)
-            {
-                string message = $"Error during Get Operation.";
-
-                throw GetSyncError(context, ex, message);
-            }
+            catch (HttpSyncWebException) { throw; } // throw server error
+            catch (Exception ex) { throw GetSyncError(context, ex); } // throw client error
         }
 
     }

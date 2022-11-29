@@ -1673,12 +1673,17 @@ internal class Program
 
     public static async Task SyncHttpThroughKestrellAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
-        options.DbCommandTimeout = 1;
-        options.UseVerboseErrors = true;
+
         var configureServices = new Action<IServiceCollection>(services =>
         {
-            services.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "DefaultScope", setup, options);
-            services.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "pc", setup, options);
+            var serverOptions = new SyncOptions
+            {
+                DbCommandTimeout = 1,
+                UseVerboseErrors = false,
+
+            };
+            services.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "DefaultScope", setup, serverOptions);
+            services.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "pc", setup, serverOptions);
         });
 
         var serverHandler = new RequestDelegate(async context =>

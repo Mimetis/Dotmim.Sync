@@ -752,7 +752,7 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
 
-                var exception = await Assert.ThrowsAsync<HttpSyncWebException>(async () =>
+                var exception = await Assert.ThrowsAsync<SyncException>(async () =>
                 {
                     var s = await agent.SynchronizeAsync();
 

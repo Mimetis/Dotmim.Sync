@@ -267,7 +267,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 Assert.NotNull(args.SyncRows);
                 Assert.Single(args.SyncRows);
-                Assert.Equal("ZZZZ", args.SyncRows[0]["ProductCategory"].ToString());
+                Assert.Equal("ZZZZ", args.SyncRows[0]["ProductCategoryId"].ToString());
                 onRowsChangesAppliedHappened++;
             });
 

@@ -496,8 +496,13 @@ namespace Dotmim.Sync
             finally
             {
                 context.ProgressPercentage = 1;
-                context = await this.LocalOrchestrator.InternalEndSessionAsync(context, result, clientSyncChanges, syncException, cancellationToken, progress).ConfigureAwait(false);
-                context = await this.RemoteOrchestrator.InternalEndSessionAsync(context, result, serverSyncChanges, syncException, cancellationToken, progress).ConfigureAwait(false);
+                try
+                {
+                    context = await this.LocalOrchestrator.InternalEndSessionAsync(context, result, clientSyncChanges, syncException, cancellationToken, progress).ConfigureAwait(false);
+                    context = await this.RemoteOrchestrator.InternalEndSessionAsync(context, result, serverSyncChanges, syncException, cancellationToken, progress).ConfigureAwait(false);
+
+                }
+                catch { }
 
                 // End the current session
                 this.SessionState = SyncSessionState.Ready;

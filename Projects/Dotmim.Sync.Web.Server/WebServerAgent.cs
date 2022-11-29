@@ -960,21 +960,28 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public virtual async Task WriteExceptionAsync(HttpRequest httpRequest, HttpResponse httpResponse, Exception exception)
         {
-            string message = exception is SyncException se && se.BaseMessage != null ? se.BaseMessage : exception.Message;
-            message += Environment.NewLine;
-            message += "-----------------------" + Environment.NewLine;
+
+            string message;
+
             if (this.Options.UseVerboseErrors)
             {
+                message = exception is SyncException se && se.BaseMessage != null ? se.BaseMessage : exception.Message;
                 var innerException = exception.InnerException;
                 int cpt = 1;
+                if (innerException != null)
+                {
+                    message += Environment.NewLine;
+                    message += "  -----------------------" + Environment.NewLine;
+                }
+
                 while (innerException != null)
                 {
                     message += Environment.NewLine;
-                    var sign = innerException.InnerException != null ? "├" : "└";
+                    var sign = innerException.InnerException != null ? "  ├" : "  └";
                     message += sign;
 
                     for (int i = 0; i < cpt; i++)
-                        message += "─";
+                        message += "  ─";
 
                     message += $" {innerException.Message}";
 
@@ -982,10 +989,13 @@ namespace Dotmim.Sync.Web.Server
                     cpt++;
                 }
             }
+            else
+            {
+                message = "Synchronization failed on the server side. Please contact your admin.";
+            }
 
             var syncException = new SyncException(exception, message);
 
-         
             var webException = new WebSyncException
             {
                 Message = message,

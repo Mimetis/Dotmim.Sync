@@ -70,10 +70,8 @@ namespace Dotmim.Sync.Web.Client
                 // Return scopes and new shema
                 return (context, ensureScopesResponse.ServerScopeInfo, false);
             }
-            catch (Exception ex)
-            {
-                throw GetSyncError(context, ex);
-            }
+            catch (HttpSyncWebException) { throw; } // throw server error
+            catch (Exception ex) { throw GetSyncError(context, ex); } // throw client error
 
         }
 

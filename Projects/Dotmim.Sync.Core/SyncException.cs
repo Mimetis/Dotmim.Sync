@@ -519,14 +519,6 @@ namespace Dotmim.Sync
     }
 
     /// <summary>
-    /// Http response exception.
-    /// </summary>
-    public class HttpResponseContentException : Exception
-    {
-        public HttpResponseContentException(string content) : base(content) { }
-    }
-
-    /// <summary>
     /// Occurs when a header is missing in the http request
     /// </summary>
     public class HttpHeaderMissingException : Exception
