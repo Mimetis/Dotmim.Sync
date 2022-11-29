@@ -21,7 +21,7 @@ namespace Dotmim.Sync
             this.TimeStampStart = timeStampStart;
         }
         public override string Source => Connection.Database;
-        public override string Message => $"Cleaning Metadatas.";
+        public override string Message => $"Cleaning Metadatas. TimestampStart:{this.TimeStampStart}";
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         public override int EventId => SyncEventsId.MetadataCleaning.Id;
@@ -42,7 +42,7 @@ namespace Dotmim.Sync
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
 
         public override string Source => Connection.Database;
-        public override string Message => $"Tables Cleaned:{DatabaseMetadatasCleaned.Tables.Count}. Rows Cleaned:{DatabaseMetadatasCleaned.RowsCleanedCount}.";
+        public override string Message => $"Tables Cleaned:{DatabaseMetadatasCleaned.Tables.Count}. Rows Cleaned:{DatabaseMetadatasCleaned.RowsCleanedCount}. TimestampLimit:{this.DatabaseMetadatasCleaned.TimestampLimit}";
 
         public override int EventId => SyncEventsId.MetadataCleaned.Id;
     }

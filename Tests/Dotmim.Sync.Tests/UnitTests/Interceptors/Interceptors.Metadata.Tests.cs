@@ -9,6 +9,7 @@ using MySqlConnector;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
@@ -22,6 +23,57 @@ namespace Dotmim.Sync.Tests.UnitTests
 {
     public partial class InterceptorsTests
     {
+
+        private void TestReader(DbConnection connection, DbTransaction transaction, string add)
+        {
+            var sqlCommand = new SqlCommand("Select * from SalesLT.ProductCategory_tracking")
+            {
+                Connection = connection as SqlConnection,
+                Transaction = transaction as SqlTransaction,
+                CommandType = CommandType.Text
+            };
+
+            var syncTable = new SyncTable();
+
+            using var reader = sqlCommand.ExecuteReader();
+
+            syncTable.Load(reader);
+
+            Console.WriteLine("ProductCategory tracking rows");
+            Debug.WriteLine("ProductCategory tracking rows");
+
+            foreach (var row in syncTable.Rows)
+            {
+                Debug.WriteLine($"{add}{row}");
+                Console.WriteLine($"{add}{row}");
+            }
+
+            sqlCommand = new SqlCommand("Select * from SalesLT.Product_tracking")
+            {
+                Connection = connection as SqlConnection,
+                Transaction = transaction as SqlTransaction,
+                CommandType = CommandType.Text
+            };
+
+            syncTable = new SyncTable();
+
+            reader.Close();
+
+            using var reader2 = sqlCommand.ExecuteReader();
+
+            syncTable.Load(reader2);
+
+            Console.WriteLine("Product tracking rows");
+            Debug.WriteLine("Product tracking rows");
+
+            foreach (var row in syncTable.Rows)
+            {
+                Debug.WriteLine($"{add}{row}");
+                Console.WriteLine($"{add}{row}");
+            }
+            reader2.Close();
+        }
+
         [Fact]
         public async Task LocalOrchestrator_MetadataCleaning()
         {
@@ -80,7 +132,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 cleaning++;
                 Console.WriteLine($"Pass 1. {args.Message}");
-                Console.WriteLine($"Pass 1. OnMetadataCleaning cleaning count:{cleaning}");
+                Debug.WriteLine($"Pass 1. {args.Message}");
+                TestReader(args.Connection, args.Transaction, "OnMetadataCleaning Pass 1:");
             });
 
             localOrchestrator.OnMetadataCleaned(args =>
@@ -89,7 +142,8 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.Equal(0, args.DatabaseMetadatasCleaned.RowsCleanedCount);
                 Assert.Empty(args.DatabaseMetadatasCleaned.Tables);
                 Console.WriteLine($"Pass 1. {args.Message}");
-                Console.WriteLine($"Pass 1. OnMetadataCleaned cleaned count:{cleaned}");
+                Debug.WriteLine($"Pass 1. {args.Message}");
+                TestReader(args.Connection, args.Transaction, "OnMetadataCleaned Pass 1:");
 
             });
 
@@ -112,14 +166,16 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 cleaning++;
                 Console.WriteLine($"Pass 2. {args.Message}");
-                Console.WriteLine($"Pass 2. OnMetadataCleaning cleaning count:{cleaning}");
+                Debug.WriteLine($"Pass 2. {args.Message}");
+                TestReader(args.Connection, args.Transaction, "OnMetadataCleaning Pass 2:");
             });
 
             localOrchestrator.OnMetadataCleaned(args =>
             {
                 cleaned++;
                 Console.WriteLine($"Pass 2. {args.Message}");
-                Console.WriteLine($"Pass 2. OnMetadataCleaned cleaned count:{cleaned}");
+                Debug.WriteLine($"Pass 2. {args.Message}");
+                TestReader(args.Connection, args.Transaction, "OnMetadataCleaned Pass 2:");
             });
 
             // Making a second empty sync.
@@ -152,72 +208,20 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnMetadataCleaning(args =>
             {
                 cleaning++;
+                Console.WriteLine($"Pass 3. {args.Message}");
+                Debug.WriteLine($"Pass 3. {args.Message}");
 
-                var sqlCommand = new SqlCommand("Select * from SalesLT.ProductCategory_tracking")
-                {
-                    Connection = args.Connection as SqlConnection,
-                    Transaction = args.Transaction as SqlTransaction,
-                    CommandType = CommandType.Text
-                };
+                TestReader(args.Connection, args.Transaction, "OnMetadataCleaning Pass 3:");
 
-                var syncTable = new SyncTable();
-
-                using var reader = sqlCommand.ExecuteReader();
-                
-                syncTable.Load(reader);
-
-                Console.WriteLine("ProductCategory tracking rows");
-                Debug.WriteLine("ProductCategory tracking rows");
-
-                foreach (var row in syncTable.Rows)
-                {
-                    Debug.WriteLine(row.ToString());
-                    Console.WriteLine(row.ToString());  
-
-                }
-
-                sqlCommand = new SqlCommand("Select * from SalesLT.Product_tracking")
-                {
-                    Connection = args.Connection as SqlConnection,
-                    Transaction = args.Transaction as SqlTransaction,
-                    CommandType = CommandType.Text
-                };
-
-                syncTable = new SyncTable();
-
-                reader.Close();
-
-                using var reader2 = sqlCommand.ExecuteReader();
-
-                syncTable.Load(reader2);
-
-                Console.WriteLine("Product tracking rows");
-                Debug.WriteLine("Product tracking rows");
-
-                foreach (var row in syncTable.Rows)
-                {
-                    Debug.WriteLine(row.ToString());
-                    Console.WriteLine(row.ToString());
-
-                }
-                reader2.Close();
 
             });
 
             localOrchestrator.OnMetadataCleaned(args =>
             {
                 cleaned++;
-                Console.WriteLine($"Pass 3. {args.Message}. {args.DatabaseMetadatasCleaned.TimestampLimit}");
-                Debug.WriteLine($"Pass 3. {args.Message}. {args.DatabaseMetadatasCleaned.TimestampLimit}");
-
-                foreach (var tbl in args.DatabaseMetadatasCleaned.Tables)
-                {
-                    Console.WriteLine($"Pass 3. Table:{tbl.SchemaName}.{tbl.TableName}. Rows cleaned:{tbl.RowsCleanedCount}. TimestampLimit:{tbl.TimestampLimit}");
-                    Debug.WriteLine($"Pass 3. Table:{tbl.SchemaName}.{tbl.TableName}. Rows cleaned:{tbl.RowsCleanedCount}. TimestampLimit:{tbl.TimestampLimit}");
-                }
-                Console.WriteLine($"Pass 3. OnMetadataCleaned cleaned count:{cleaned}");
-                Debug.WriteLine($"Pass 3. OnMetadataCleaned cleaned count:{cleaned}");
-                
+                Console.WriteLine($"Pass 3. {args.Message}");
+                Debug.WriteLine($"Pass 3. {args.Message}");
+                TestReader(args.Connection, args.Transaction, "OnMetadataCleaned Pass 3:");
                 Assert.Equal(1, args.DatabaseMetadatasCleaned.RowsCleanedCount);
                 Assert.Single(args.DatabaseMetadatasCleaned.Tables);
                 Assert.Equal("SalesLT", args.DatabaseMetadatasCleaned.Tables[0].SchemaName);
