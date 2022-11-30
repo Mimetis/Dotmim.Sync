@@ -48,13 +48,12 @@ namespace Dotmim.Sync.Tests.Models
         {
         }
 
-
+#if NET7_0
         protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
         {
-#if NET7_0
             configurationBuilder.Conventions.Add(_ => new AdventureWorksTriggerAddingConvention());
-#endif
         }
+#endif
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
