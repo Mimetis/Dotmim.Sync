@@ -279,25 +279,13 @@ namespace Dotmim.Sync
                 ScopeInfo cScopeInfo;
                 (context, cScopeInfo) = await this.LocalOrchestrator.InternalEnsureScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
 
-                var ts = await this.LocalOrchestrator.GetLocalTimestampAsync();
-                Console.WriteLine($"SYNC TS:{ts}");
-                Debug.WriteLine($"SYNC TS:{ts}");
-
                 ScopeInfoClient cScopeInfoClient;
                 (context, cScopeInfoClient) = await this.LocalOrchestrator.InternalEnsureScopeInfoClientAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
-
-                ts = await this.LocalOrchestrator.GetLocalTimestampAsync();
-                Console.WriteLine($"SYNC TS InternalEnsureScopeInfoClientAsync:{ts}");
-                Debug.WriteLine($"SYNC TS InternalEnsureScopeInfoClientAsync:{ts}");
 
                 // Check if we have a problem with the SyncSetup local and the one coming from server
                 // Let a chance to the user to update the local setup accordingly to the server one
                 isConflicting = false;
                 (context, isConflicting, cScopeInfo, sScopeInfo) = await this.LocalOrchestrator.InternalIsConflictingSetupAsync(context, setup, cScopeInfo, sScopeInfo).ConfigureAwait(false);
-
-                ts = await this.LocalOrchestrator.GetLocalTimestampAsync();
-                Console.WriteLine($"SYNC TS InternalIsConflictingSetupAsync:{ts}");
-                Debug.WriteLine($"SYNC TS InternalIsConflictingSetupAsync:{ts}");
 
                 if (isConflicting)
                 {
@@ -382,10 +370,6 @@ namespace Dotmim.Sync
                     (context, cScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(sScopeInfo, cScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
                 }
 
-                ts = await this.LocalOrchestrator.GetLocalTimestampAsync();
-                Console.WriteLine($"SYNC TS InternalProvisionClientAsync:{ts}");
-                Debug.WriteLine($"SYNC TS InternalProvisionClientAsync:{ts}");
-
                 setup ??= cScopeInfo.Setup;
 
                 if (cancellationToken.IsCancellationRequested)
@@ -408,10 +392,6 @@ namespace Dotmim.Sync
                 // On local orchestrator, get local changes
                 (context, clientSyncChanges) = await this.LocalOrchestrator.InternalGetChangesAsync(cScopeInfo, context, cScopeInfoClient,
                     default, default, cancellationToken, progress).ConfigureAwait(false);
-
-                ts = await this.LocalOrchestrator.GetLocalTimestampAsync();
-                Console.WriteLine($"SYNC TS InternalGetChangesAsync:{ts}");
-                Debug.WriteLine($"SYNC TS InternalGetChangesAsync:{ts}");
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -464,10 +444,6 @@ namespace Dotmim.Sync
                 (context, clientSyncChanges, cScopeInfoClient) = await this.LocalOrchestrator.InternalApplyChangesAsync(
                         cScopeInfo, cScopeInfoClient, context, serverSyncChanges, clientSyncChanges, reverseConflictResolutionPolicy, snapshotApplied, default, default,
                         cancellationToken, progress).ConfigureAwait(false);
-
-                ts = await this.LocalOrchestrator.GetLocalTimestampAsync();
-                Console.WriteLine($"SYNC TS InternalApplyChangesAsync:{ts}");
-                Debug.WriteLine($"SYNC TS InternalApplyChangesAsync:{ts}");
 
                 completeTime = DateTime.UtcNow;
                 this.LocalOrchestrator.CompleteTime = completeTime;
@@ -524,11 +500,6 @@ namespace Dotmim.Sync
                 {
                     context = await this.LocalOrchestrator.InternalEndSessionAsync(context, result, clientSyncChanges, syncException, cancellationToken, progress).ConfigureAwait(false);
                     context = await this.RemoteOrchestrator.InternalEndSessionAsync(context, result, serverSyncChanges, syncException, cancellationToken, progress).ConfigureAwait(false);
-
-                    var ts = await this.LocalOrchestrator.GetLocalTimestampAsync();
-                    Console.WriteLine($"SYNC TS InternalEndSessionAsync:{ts}");
-                    Debug.WriteLine($"SYNC TS InternalEndSessionAsync:{ts}");
-
                 }
                 catch { }
 
