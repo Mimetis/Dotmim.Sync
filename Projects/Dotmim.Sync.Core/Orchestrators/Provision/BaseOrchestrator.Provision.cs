@@ -19,26 +19,30 @@ namespace Dotmim.Sync
         internal virtual async Task<(SyncContext context, bool provisioned)> InternalProvisionAsync(ScopeInfo scopeInfo, SyncContext context, bool overwrite, SyncProvision provision,
             DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
+            if (Provider == null)
+                throw new MissingProviderException(nameof(InternalProvisionAsync));
+
+            context.SyncStage = SyncStage.Provisioning;
+
+            // If schema does not have any table, raise an exception
+            if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || !scopeInfo.Schema.HasTables)
+                throw new MissingTablesException();
+
+            await this.InterceptAsync(new ProvisioningArgs(context, provision, scopeInfo.Schema, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
             try
             {
-
-                if (Provider == null)
-                    throw new MissingProviderException(nameof(InternalProvisionAsync));
-
-                context.SyncStage = SyncStage.Provisioning;
-
-                // If schema does not have any table, raise an exception
-                if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || !scopeInfo.Schema.HasTables)
-                    throw new MissingTablesException();
-
-                await this.InterceptAsync(new ProvisioningArgs(context, provision, scopeInfo.Schema, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
                 // get Database builder
                 var builder = this.Provider.GetDatabaseBuilder();
-
-                // Initialize database if needed
                 await builder.EnsureDatabaseAsync(connection, transaction).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex, "Error during EnsureDatabaseAsync");
+            }
 
+            try
+            {
                 // Check if we have tables AND columns
                 // If we don't have any columns it's most probably because user called method with the Setup only
                 // So far we have only tables names, it's enough to get the schema
@@ -124,7 +128,6 @@ namespace Dotmim.Sync
         {
             try
             {
-
                 if (Provider == null)
                     throw new MissingProviderException(nameof(InternalDeprovisionAsync));
 
