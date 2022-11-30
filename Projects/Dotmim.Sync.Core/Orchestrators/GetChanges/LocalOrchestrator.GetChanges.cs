@@ -194,6 +194,10 @@ namespace Dotmim.Sync
                 // get rows inserted / updated elsewhere since the sync is not over
                 (context, clientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
+                var ts = await this.GetLocalTimestampAsync();
+                Console.WriteLine($"SYNC TS InternalGetChangesAsync InternalGetLocalTimestampAsync:{ts}");
+                Debug.WriteLine($"SYNC TS InternalGetChangesAsync InternalGetLocalTimestampAsync:{ts}");
+
                 // Create a batch info
                 string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_LOCAL_GETCHANGES" : "LOCAL_GETCHANGES";
                 var clientBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
@@ -219,6 +223,10 @@ namespace Dotmim.Sync
                     clientChangesSelected = await this.InternalGetChangesAsync(cScopeInfo,
                         context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp, clientTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets, clientBatchInfo,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    ts = await this.GetLocalTimestampAsync();
+                    Console.WriteLine($"SYNC TS InternalGetChangesAsync InternalGetChangesAsync:{ts}");
+                    Debug.WriteLine($"SYNC TS InternalGetChangesAsync InternalGetChangesAsync:{ts}");
                 }
 
                 var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastSyncTimestamp, clientTimestamp,

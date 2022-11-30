@@ -23,57 +23,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 {
     public partial class InterceptorsTests
     {
-
-        private void TestReader(DbConnection connection, DbTransaction transaction, string add)
-        {
-            var sqlCommand = new SqlCommand("Select * from SalesLT.ProductCategory_tracking")
-            {
-                Connection = connection as SqlConnection,
-                Transaction = transaction as SqlTransaction,
-                CommandType = CommandType.Text
-            };
-
-            var syncTable = new SyncTable();
-
-            using var reader = sqlCommand.ExecuteReader();
-
-            syncTable.Load(reader);
-
-            Console.WriteLine("ProductCategory tracking rows");
-            Debug.WriteLine("ProductCategory tracking rows");
-
-            foreach (var row in syncTable.Rows)
-            {
-                Debug.WriteLine($"{add}{row}");
-                Console.WriteLine($"{add}{row}");
-            }
-
-            sqlCommand = new SqlCommand("Select * from SalesLT.Product_tracking")
-            {
-                Connection = connection as SqlConnection,
-                Transaction = transaction as SqlTransaction,
-                CommandType = CommandType.Text
-            };
-
-            syncTable = new SyncTable();
-
-            reader.Close();
-
-            using var reader2 = sqlCommand.ExecuteReader();
-
-            syncTable.Load(reader2);
-
-            Console.WriteLine("Product tracking rows");
-            Debug.WriteLine("Product tracking rows");
-
-            foreach (var row in syncTable.Rows)
-            {
-                Debug.WriteLine($"{add}{row}");
-                Console.WriteLine($"{add}{row}");
-            }
-            reader2.Close();
-        }
-
         [Fact]
         public async Task LocalOrchestrator_MetadataCleaning()
         {
@@ -125,20 +74,12 @@ namespace Dotmim.Sync.Tests.UnitTests
                 await ctx.SaveChangesAsync();
             }
 
-            var ts = await localOrchestrator.GetLocalTimestampAsync();
-            Console.WriteLine($"Pass 1. TS:{ts}");
-            Debug.WriteLine($"Pass 1. TS:{ts}");
-
-
             var cleaning = 0;
             var cleaned = 0;
 
             localOrchestrator.OnMetadataCleaning(args =>
             {
                 cleaning++;
-                Console.WriteLine($"Pass 1. {args.Message}");
-                Debug.WriteLine($"Pass 1. {args.Message}");
-                TestReader(args.Connection, args.Transaction, "OnMetadataCleaning Pass 1:");
             });
 
             localOrchestrator.OnMetadataCleaned(args =>
@@ -146,10 +87,6 @@ namespace Dotmim.Sync.Tests.UnitTests
                 cleaned++;
                 Assert.Equal(0, args.DatabaseMetadatasCleaned.RowsCleanedCount);
                 Assert.Empty(args.DatabaseMetadatasCleaned.Tables);
-                Console.WriteLine($"Pass 1. {args.Message}");
-                Debug.WriteLine($"Pass 1. {args.Message}");
-                TestReader(args.Connection, args.Transaction, "OnMetadataCleaned Pass 1:");
-
             });
 
 
@@ -166,25 +103,14 @@ namespace Dotmim.Sync.Tests.UnitTests
             cleaning = 0;
             cleaned = 0;
 
-            ts = await localOrchestrator.GetLocalTimestampAsync();
-            Console.WriteLine($"Pass 2. TS:{ts}");
-            Debug.WriteLine($"Pass 2. TS:{ts}");
-
-
             localOrchestrator.OnMetadataCleaning(args =>
             {
                 cleaning++;
-                Console.WriteLine($"Pass 2. {args.Message}");
-                Debug.WriteLine($"Pass 2. {args.Message}");
-                TestReader(args.Connection, args.Transaction, "OnMetadataCleaning Pass 2:");
             });
 
             localOrchestrator.OnMetadataCleaned(args =>
             {
                 cleaned++;
-                Console.WriteLine($"Pass 2. {args.Message}");
-                Debug.WriteLine($"Pass 2. {args.Message}");
-                TestReader(args.Connection, args.Transaction, "OnMetadataCleaned Pass 2:");
             });
 
             // Making a second empty sync.
@@ -193,12 +119,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             // If there is no changes on any tables, no metadata cleaning is called
             Assert.Equal(0, cleaning);
             Assert.Equal(0, cleaned);
-
-            ts = await localOrchestrator.GetLocalTimestampAsync();
-            Console.WriteLine($"Pass 3. TS:{ts}");
-            Debug.WriteLine($"Pass 3. TS:{ts}");
-
-
 
             // Server side : Create a product category 
             productCategoryName = HelperDatabase.GetRandomName();
@@ -212,48 +132,25 @@ namespace Dotmim.Sync.Tests.UnitTests
                 await ctx.SaveChangesAsync();
             }
 
-            ts = await localOrchestrator.GetLocalTimestampAsync();
-            Console.WriteLine($"Pass 3 bis. TS:{ts}");
-            Debug.WriteLine($"Pass 3 bis. TS:{ts}");
-
-
-
             // Reset interceptors
             localOrchestrator.ClearInterceptors();
 
             cleaning = 0;
             cleaned = 0;
 
-
             localOrchestrator.OnMetadataCleaning(args =>
             {
                 cleaning++;
-                Console.WriteLine($"Pass 3. {args.Message}");
-                Debug.WriteLine($"Pass 3. {args.Message}");
-
-                TestReader(args.Connection, args.Transaction, "OnMetadataCleaning Pass 3:");
-
-
             });
 
             localOrchestrator.OnMetadataCleaned(args =>
             {
                 cleaned++;
-                Console.WriteLine($"Pass 3. {args.Message}");
-                Debug.WriteLine($"Pass 3. {args.Message}");
-                TestReader(args.Connection, args.Transaction, "OnMetadataCleaned Pass 3:");
-                Assert.Equal(1, args.DatabaseMetadatasCleaned.RowsCleanedCount);
-                Assert.Single(args.DatabaseMetadatasCleaned.Tables);
-                Assert.Equal("SalesLT", args.DatabaseMetadatasCleaned.Tables[0].SchemaName);
-                Assert.Equal("ProductCategory", args.DatabaseMetadatasCleaned.Tables[0].TableName);
-                Assert.Equal(1, args.DatabaseMetadatasCleaned.Tables[0].RowsCleanedCount);
-
             });
             var s4 = await agent.SynchronizeAsync(scopeName);
 
             Assert.Equal(1, cleaning);
             Assert.Equal(1, cleaned);
-
 
             // Server side : Create a product category and a product
             // Create a productcategory item
@@ -281,20 +178,14 @@ namespace Dotmim.Sync.Tests.UnitTests
             cleaning = 0;
             cleaned = 0;
 
-
             localOrchestrator.OnMetadataCleaning(args =>
             {
                 cleaning++;
-                Console.WriteLine($"Pass 4. {args.Message}");
-                Console.WriteLine($"Pass 4. OnMetadataCleaning cleaning count:{cleaning}");
             });
 
             localOrchestrator.OnMetadataCleaned(args =>
             {
                 cleaned++;
-                Assert.Equal(0, args.DatabaseMetadatasCleaned.RowsCleanedCount);
-                Console.WriteLine($"Pass 4. {args.Message}");
-                Console.WriteLine($"Pass 4. OnMetadataCleaning cleaned count:{cleaned}");
             });
 
             var s5 = await agent.SynchronizeAsync(scopeName);
@@ -302,7 +193,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             // cleaning is always called on N-1 rows, so nothing here should be called
             Assert.Equal(1, cleaning);
             Assert.Equal(1, cleaned);
-
 
             HelperDatabase.DropDatabase(ProviderType.Sql, dbNameSrv);
             HelperDatabase.DropDatabase(ProviderType.Sql, dbNameCli);
