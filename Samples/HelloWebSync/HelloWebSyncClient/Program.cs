@@ -1,6 +1,9 @@
 ﻿using Dotmim.Sync;
+using Dotmim.Sync.PostgreSql;
+using Dotmim.Sync.PostgreSql.Scope;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web.Client;
+using Npgsql;
 using System;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -9,10 +12,17 @@ namespace HelloWebSyncClient
 {
     class Program
     {
-        private static string clientConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=Client;Integrated Security=true;";
+        private static string clientConnectionString = $"Host=localhost;Username=postgres;Password=postgres;Database=Adventureworks;port=5433;Include Error Detail=true;";
 
         static async Task Main(string[] args)
         {
+
+            var obj = new NpgsqlScopeBuilder("hr.scope_info");
+            var connection = new NpgsqlConnection(clientConnectionString);
+            connection.Open();
+            var transaction = connection.BeginTransaction();
+            var command = obj.GetAllScopeInfoClientsCommand(connection, transaction);
+            
             Console.WriteLine("Be sure the web api has started. Then click enter..");
             Console.ReadLine();
             await SynchronizeAsync();
@@ -25,7 +35,8 @@ namespace HelloWebSyncClient
             var serverOrchestrator = new WebRemoteOrchestrator("https://localhost:44342/api/sync");
 
             // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment
-            var clientProvider = new SqlSyncProvider(clientConnectionString);
+            //var clientProvider = new SqlSyncProvider(clientConnectionString);
+            var clientProvider = new NpgsqlSyncProvider(clientConnectionString);
 
             var options = new SyncOptions
             {

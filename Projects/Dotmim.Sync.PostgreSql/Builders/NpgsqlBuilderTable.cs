@@ -1,4 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Manager;
+using Dotmim.Sync.PostgreSql.Builders;
 using Npgsql;
 using System;
 using System.Collections.Generic;
@@ -10,179 +12,317 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Postgres.Builders
+namespace Dotmim.Sync.PostgreSql.Builders
 {
     public class NpgsqlBuilderTable
     {
-        private ParserName tableName;
-        private ParserName trackingName;
+        private SyncSetup setup;
         private SyncTable tableDescription;
-        private readonly SyncSetup setup;
-        private NpgsqlDbMetadata sqlDbMetadata;
-
-
-        public NpgsqlBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        private ParserName tableName;
+        private ParserName trackingTableName;
+        public NpgsqlBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
         {
             this.tableDescription = tableDescription;
-            this.setup = setup;
             this.tableName = tableName;
-            this.trackingName = trackingName;
-            this.sqlDbMetadata = new NpgsqlDbMetadata();
+            this.trackingTableName = trackingTableName;
+            this.setup = setup;
+            this.NpgsqlDbMetadata = new NpgsqlDbMetadata();
         }
 
-
-        private static Dictionary<string, string> createdRelationNames = new Dictionary<string, string>();
-
-        private static string GetRandomString() =>
-            Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-
-        /// <summary>
-        /// Ensure the relation name is correct to be created in MySql
-        /// </summary>
-        public static string NormalizeRelationName(string relation)
+        public NpgsqlDbMetadata NpgsqlDbMetadata { get; set; }
+        public Task<DbCommand> GetAddColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
-            if (createdRelationNames.ContainsKey(relation))
-                return createdRelationNames[relation];
+            var command = connection.CreateCommand();
 
-            var name = relation;
+            command.Connection = connection;
+            command.Transaction = transaction;
 
-            if (relation.Length > 128)
-                name = $"{relation.Substring(0, 110)}_{GetRandomString()}";
+            var stringBuilder = new StringBuilder($"ALTER TABLE IF EXISTS {tableName.Schema().Quoted().ToString()}");
 
-            // MySql could have a special character in its relation names
-            name = name.Replace("~", "").Replace("#", "");
+            var column = this.tableDescription.Columns[columnName];
+            var columnNameString = ParserName.Parse(column).Quoted().ToString();
+            var columnType = this.NpgsqlDbMetadata.GetNpgsqlDbType(column);
 
-            createdRelationNames.Add(relation, name);
+            var identity = string.Empty;
 
-            return name;
+            if (column.IsAutoIncrement)
+            {
+                //var s = column.GetAutoIncrementSeedAndStep();
+                identity = $"SERIAL";
+            }
+            var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
+
+            // if we have a computed column, we should allow null
+            if (column.IsReadOnly)
+                nullString = "NULL";
+
+            string defaultValue = string.Empty;
+            if (this.tableDescription.OriginalProvider == NpgsqlSyncProvider.ProviderType)
+            {
+                if (!string.IsNullOrEmpty(column.DefaultValue))
+                {
+                    defaultValue = "DEFAULT " + column.DefaultValue;
+                }
+            }
+
+            stringBuilder.AppendLine($"ADD {columnNameString} {columnType} {identity} {nullString} {defaultValue}");
+
+            command.CommandText = stringBuilder.ToString();
+
+            return Task.FromResult(command);
         }
 
-        public async Task<bool> NeedToCreateForeignKeyConstraintsAsync(SyncRelation relation, DbConnection connection, DbTransaction transaction)
+        public async Task<IEnumerable<SyncColumn>> GetColumnsAsync(DbConnection connection, DbTransaction transaction)
         {
-            // Don't want foreign key on same table since it could be a problem on first 
-            // sync. We are not sure that parent row will be inserted in first position
-            //if (relation.GetParentTable() == relation.GetTable())
-            //    return false;
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var columns = new List<SyncColumn>();
+            // Get the columns definition
+            var syncTableColumnsList = await NpgsqlManagementUtils.GetColumnsForTableAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, this.tableName.ToString(), schema).ConfigureAwait(false);
 
-            string tableName = relation.GetTable().TableName;
-            string schemaName = relation.GetTable().SchemaName;
-            string fullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
-            var relationName = NormalizeRelationName(relation.RelationName);
-
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            foreach (var c in syncTableColumnsList.Rows.OrderBy(r => (int)r["ordinal_position"]))
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+                var typeName = c["data_type"].ToString();
+                var name = c["column_name"].ToString();
+                var maxLengthLong = Convert.ToInt64(c["max_length"]);
 
-                var syncTable = await NpgsqlManagementUtils.GetRelationsForTableAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, tableName, schemaName).ConfigureAwait(false);
+                var sColumn = new SyncColumn(name)
+                {
+                    OriginalDbType = typeName,
+                    Ordinal = (int)c["ordinal_position"],
+                    OriginalTypeName = c["udt_name"].ToString(),
+                    MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong,
+                    Precision = (byte)c["numeric_precision"],
+                    Scale = (byte)c["numeric_scale"],
+                    AllowDBNull = (bool)c["is_nullable"],
+                    IsAutoIncrement = (bool)c["is_identity"],
+                    IsUnique = c["is_identity"] != DBNull.Value ? (bool)c["is_identity"] : false,
+                    IsCompute = c["is_generated"].ToString() == "NEVER" ? false : true,
+                    DefaultValue = c["column_default"] != DBNull.Value ? c["column_default"].ToString() : null
+                };
 
-                var foreignKeyExist = syncTable.Rows.Any(r =>
-                   string.Equals(r["ForeignKey"].ToString(), relationName, SyncGlobalization.DataSourceStringComparison));
+                if (sColumn.IsAutoIncrement)
+                {
+                    sColumn.AutoIncrementSeed = Convert.ToInt32(c["identity_start"]);
+                    sColumn.AutoIncrementStep = Convert.ToInt32(c["identity_increment"]);
+                }
 
-                return !foreignKeyExist;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during checking foreign keys: {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-            }
-        }
-        private NpgsqlCommand BuildForeignKeyConstraintsCommand(SyncRelation constraint, DbConnection connection, DbTransaction transaction)
-        {
-            var tableName = ParserName.Parse(constraint.GetTable(), "\"").Quoted().Schema().ToString();
-            var parentTableName = ParserName.Parse(constraint.GetParentTable(), "\"").Quoted().Schema().ToString();
+                switch (sColumn.OriginalTypeName.ToLowerInvariant())
+                {
+                    case "varchar":
+                        sColumn.IsUnicode = true;
+                        break;
+                    default:
+                        sColumn.IsUnicode = false;
+                        break;
+                }
 
-            var relationName = NormalizeRelationName(constraint.RelationName);
+                // No unsigned type in Postgres Server
+                sColumn.IsUnsigned = false;
 
-            var stringBuilder = new StringBuilder();
-            stringBuilder.Append("ALTER TABLE ");
-            stringBuilder.Append(tableName);
-            stringBuilder.Append("ADD CONSTRAINT ");
-            stringBuilder.AppendLine(relationName);
-            stringBuilder.Append("FOREIGN KEY (");
-            string empty = string.Empty;
-            foreach (var column in constraint.Keys)
-            {
-                var childColumnName = ParserName.Parse(column.ColumnName, "\"").Quoted().ToString();
-                stringBuilder.Append($"{empty} {childColumnName}");
-                empty = ", ";
+                columns.Add(sColumn);
             }
-            stringBuilder.AppendLine(" )");
-            stringBuilder.Append("REFERENCES ");
-            stringBuilder.Append(parentTableName).Append(" (");
-            empty = string.Empty;
-            foreach (var parentdColumn in constraint.ParentKeys)
-            {
-                var parentColumnName = ParserName.Parse(parentdColumn.ColumnName, "\"").Quoted().ToString();
-                stringBuilder.Append($"{empty} {parentColumnName}");
-                empty = ", ";
-            }
-            stringBuilder.Append(" ) ");
 
-            var sqlCommand = new NpgsqlCommand(stringBuilder.ToString(), (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
-            return sqlCommand;
-        }
-        public async Task CreateForeignKeyConstraintsAsync(SyncRelation constraint, DbConnection connection, DbTransaction transaction)
-        {
-            using (var command = BuildForeignKeyConstraintsCommand(constraint, connection, transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            return columns;
         }
 
-        private NpgsqlCommand BuildPkCommand(DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var stringBuilder = new StringBuilder();
-            var tableNameString = tableName.Schema().Quoted().ToString();
-            var primaryKeyNameString = tableName.Schema().Unquoted().Normalized().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            if (schema == "public")
+                return null;
 
-            stringBuilder.AppendLine($"ALTER TABLE {tableNameString} ADD CONSTRAINT \"PK_{primaryKeyNameString}\" PRIMARY KEY(");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
-            {
-                var pkColumn = this.tableDescription.PrimaryKeys[i];
-                var quotedColumnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
-                stringBuilder.Append(quotedColumnName);
-
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
-            }
-            stringBuilder.Append(")");
-
-            return new NpgsqlCommand(stringBuilder.ToString(), (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = $"CREATE SCHEMA {schema}";
+            //Testing
+            Console.WriteLine(command.CommandText);
+            return Task.FromResult(command);
         }
-        public async Task CreatePrimaryKeyAsync(DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            using (var command = BuildPkCommand(connection, transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            var command = BuildCreateTableCommand(connection, transaction);
+            //Testing
+            Console.WriteLine(command.CommandText);
+            return Task.FromResult((DbCommand)command);
         }
 
-        private NpgsqlCommand BuildTableCommand(DbConnection connection, DbTransaction transaction)
+        public Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
-            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.Schema().Quoted().ToString()} (");
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = $"ALTER TABLE IF EXISTS {tableName.Schema().Unquoted().ToString()} DROP COLUMN {columnName};";
+
+            //Testing
+            Console.WriteLine(command.CommandText);
+            return Task.FromResult(command);
+        }
+
+        public Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = $"DROP TABLE {tableName.Schema().Unquoted().ToString()};";
+
+            return Task.FromResult(command);
+        }
+
+        public Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+        {
+            var tbl = tableName.ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = $"SELECT EXISTS (SELECT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=@schemaName AND TABLE_NAME=@tableName AND COLUMN_NAME =@columnName);";
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@tableName";
+            parameter.Value = tbl;
+            command.Parameters.Add(parameter);
+
+            parameter = command.CreateParameter();
+            parameter.ParameterName = "@schemaName";
+            parameter.Value = schema;
+            command.Parameters.Add(parameter);
+
+            parameter = command.CreateParameter();
+            parameter.ParameterName = "@columnName";
+            parameter.Value = columnName;
+            command.Parameters.Add(parameter);
+
+            return Task.FromResult(command);
+        }
+
+        public Task<DbCommand> GetExistsSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
+        {
+            if (string.IsNullOrEmpty(tableName.SchemaName))
+                return null;
+
+            var schemaCommand = $"SELECT EXISTS (SELECT FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = @SCHEMANAME)";
+
+            var command = connection.CreateCommand();
+            command.Connection = connection;
+            command.Transaction = transaction;
+            command.CommandText = schemaCommand;
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@schemaName";
+            parameter.Value = tableName.SchemaName;
+            command.Parameters.Add(parameter);
+
+            return Task.FromResult(command);
+        }
+
+        public Task<DbCommand> GetExistsTableCommandAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var pTableName = tableName.ToString();
+            var pSchemaName = tableName.SchemaName;
+            pSchemaName = string.IsNullOrEmpty(tableName.ToString()) ? "public" : pSchemaName;
+
+            //Todo: update command text for postgresql
+            var dbCommand = connection.CreateCommand();
+            dbCommand.Connection = connection;
+            dbCommand.Transaction = transaction;
+            dbCommand.CommandText = @"SELECT EXISTS (SELECT FROM PG_TABLES WHERE SCHEMANAME=@SCHEMANAME AND TABLENAME=@TABLENAME)";
+
+
+            var parameter = dbCommand.CreateParameter();
+
+            parameter.ParameterName = "@tableName";
+            parameter.Value = pTableName;
+            dbCommand.Parameters.Add(parameter);
+
+            parameter = dbCommand.CreateParameter();
+            parameter.ParameterName = "@schemaName";
+            parameter.Value = pSchemaName;
+            dbCommand.Parameters.Add(parameter);
+
+            return Task.FromResult(dbCommand);
+        }
+
+        public async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            if (string.IsNullOrEmpty(schema))
+                schema = "public";
+            var syncTableKeys = await NpgsqlManagementUtils.GetPrimaryKeysForTableAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, this.tableName.ToString(), schema).ConfigureAwait(false);
+
+            var lstKeys = new List<SyncColumn>();
+
+            foreach (var dmKey in syncTableKeys.Rows)
+            {
+
+                var keyColumn = SyncColumn.Create<string>((string)dmKey["column_name"]);
+                keyColumn.Ordinal = Convert.ToInt32(dmKey["ordinal_position"]);
+                lstKeys.Add(keyColumn);
+            }
+
+            return lstKeys;
+
+        }
+
+        public async Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync(DbConnection connection, DbTransaction transaction)
+        {
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var relations = new List<DbRelationDefinition>();
+            var tableRelations = await NpgsqlManagementUtils.GetRelationsForTableAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, this.tableName.ToString(), schema).ConfigureAwait(false);
+
+            if (tableRelations != null && tableRelations.Rows.Count > 0)
+            {
+                foreach (var fk in tableRelations.Rows.GroupBy(row =>
+                new
+                {
+                    Name = (string)row["ForeignKey"],
+                    TableName = (string)row["TableName"],
+                    SchemaName = (string)row["SchemaName"] == "public" ? "" : (string)row["SchemaName"],
+                    ReferenceTableName = (string)row["ReferenceTableName"],
+                    ReferenceSchemaName = (string)row["ReferenceSchemaName"] == "public" ? "" : (string)row["ReferenceSchemaName"],
+                }))
+                {
+                    var relationDefinition = new DbRelationDefinition()
+                    {
+                        ForeignKey = fk.Key.Name,
+                        TableName = fk.Key.TableName,
+                        SchemaName = fk.Key.SchemaName,
+                        ReferenceTableName = fk.Key.ReferenceTableName,
+                        ReferenceSchemaName = fk.Key.ReferenceSchemaName,
+                    };
+
+                    relationDefinition.Columns.AddRange(fk.Select(dmRow =>
+                       new DbRelationColumnDefinition
+                       {
+                           KeyColumnName = (string)dmRow["ColumnName"],
+                           ReferenceColumnName = (string)dmRow["ReferenceColumnName"],
+                           Order = (int)dmRow["ForeignKeyOrder"]
+                       }));
+
+                    relations.Add(relationDefinition);
+                }
+
+            }
+            return relations.OrderBy(t => t.ForeignKey).ToArray();
+
+        }
+
+        private NpgsqlCommand BuildCreateTableCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.Schema().Unquoted().ToString()} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
             {
-                var columnName = ParserName.Parse(column, "\"").Quoted().ToString();
+                var columnName = ParserName.Parse(column).Unquoted().ToString();
 
-                var columnTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, NpgsqlSyncProvider.ProviderType);
-                var columnPrecisionString = this.sqlDbMetadata.TryGetOwnerDbTypePrecision(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, NpgsqlSyncProvider.ProviderType);
-                var columnType = $"{columnTypeString} {columnPrecisionString}";
+                var columnType = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.tableDescription.OriginalProvider);
                 var identity = string.Empty;
 
                 if (column.IsAutoIncrement)
                 {
-                    var s = column.GetAutoIncrementSeedAndStep();
-                    identity = $"GENERATED ALWAYS AS IDENTITY ( INCREMENT {s.Step} START {s.Seed})";
+                    identity = $"SERIAL";
                 }
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
@@ -204,64 +344,10 @@ namespace Dotmim.Sync.Postgres.Builders
             }
             stringBuilder.Append(")");
             string createTableCommandString = stringBuilder.ToString();
-            return new NpgsqlCommand(createTableCommandString, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
-        }
-
-        private NpgsqlCommand BuildDeleteTableCommand(DbConnection connection, DbTransaction transaction)
-            => new NpgsqlCommand($"DROP TABLE {tableName.Schema().Quoted().ToString()};", (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
-
-        public async Task CreateSchemaAsync(DbConnection connection, DbTransaction transaction)
-        {
-            if (string.IsNullOrEmpty(tableName.SchemaName) || tableName.SchemaName.ToLowerInvariant() == "public")
-                return;
-
-            var schemaCommand = $"Create Schema {tableName.SchemaName}";
-
-            using (var command = new NpgsqlCommand(schemaCommand, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        public async Task CreateTableAsync(DbConnection connection, DbTransaction transaction)
-        {
-            using (var command = BuildTableCommand(connection, transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        public async Task DropTableAsync(DbConnection connection, DbTransaction transaction)
-        {
-            using (var command = BuildDeleteTableCommand(connection, transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        /// <summary>
-        /// Check if we need to create the table in the current database
-        /// </summary>
-        public async Task<bool> NeedToCreateTableAsync(DbConnection connection, DbTransaction transaction)
-        {
-            return !await NpgsqlManagementUtils.TableExistsAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, tableName.Schema().Quoted().ToString()).ConfigureAwait(false);
-
-        }
-
-        /// <summary>
-        /// Check if we need to create the table in the current database
-        /// </summary>
-        public async Task<bool> NeedToCreateSchemaAsync(DbConnection connection, DbTransaction transaction)
-        {
-            if (string.IsNullOrEmpty(tableName.SchemaName) || tableName.SchemaName.ToLowerInvariant() == "public")
-                return false;
-
-            return !await NpgsqlManagementUtils.SchemaExistsAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, tableName.SchemaName).ConfigureAwait(false);
-        }
-
-        public Task SeedTableIdentityAsync()
-        {
-            throw new NotImplementedException();
+            var command = new NpgsqlCommand(createTableCommandString, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
+            //Testing
+            Console.WriteLine(command.CommandText);
+            return command;
         }
     }
 }

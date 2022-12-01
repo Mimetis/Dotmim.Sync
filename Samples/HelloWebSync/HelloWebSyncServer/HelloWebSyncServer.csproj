@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.MySql\Dotmim.Sync.MySql.csproj" />
+    <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.PostgreSql\Dotmim.Sync.PostgreSql.csproj" />
     <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.SqlServer.ChangeTracking\Dotmim.Sync.SqlServer.ChangeTracking.csproj" />
     <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.Web.Server\Dotmim.Sync.Web.Server.csproj" />
   </ItemGroup>

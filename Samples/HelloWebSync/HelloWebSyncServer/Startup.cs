@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Dotmim.Sync;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.MySql;
+using Dotmim.Sync.PostgreSql;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Builder;
@@ -34,7 +35,8 @@ namespace HelloWebSyncServer
             services.AddSession(options => options.IdleTimeout = TimeSpan.FromMinutes(30));
 
             // [Required]: Get a connection string to your server data source
-            var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
+            //var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
+            var connectionString = Configuration.GetSection("ConnectionStrings")["NpgsqlConnection"];
             // var connectionString = Configuration.GetSection("ConnectionStrings")["MySqlConnection"];
 
             var options = new SyncOptions
@@ -44,11 +46,12 @@ namespace HelloWebSyncServer
             };
 
             // [Required] Tables involved in the sync process:
-            var tables = new string[] {"ProductCategory", "ProductModel", "Product",
-            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+            //var tables = new string[] { "ProductCategory", "ProductModel", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+            var tables = new string[] { "humanresources.department", "humanresources.employee" };
 
             // [Required]: Add a SqlSyncProvider acting as the server hub.
-            services.AddSyncServer<SqlSyncProvider>(connectionString, tables, options);
+            //services.AddSyncServer<SqlSyncProvider>(connectionString, tables, options);
+            services.AddSyncServer<NpgsqlSyncProvider>(connectionString, tables, options);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

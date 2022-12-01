@@ -6,21 +6,100 @@ using System.Data;
 using System.Linq;
 using NpgsqlTypes;
 
-namespace Dotmim.Sync.Postgres
+namespace Dotmim.Sync.PostgreSql.Builders
 {
     public class NpgsqlDbMetadata : DbMetadata
     {
-
-        // Even if precision max can be 38 on SQL Server, prefer go for 28, to not having a truncation
-        public const Byte PRECISION_MAX = 28;
-        public const Byte SCALE_MAX = 18;
-
-        /// <summary>
-        /// Gets the DbType issue from the server type name
-        /// </summary>
-        public override DbType ValidateDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
+        public const byte PRECISION_MAX = 28;
+        public const byte SCALE_MAX = 18;
+        public NpgsqlDbMetadata() { }
+        public static (byte p, byte s) CoercePrecisionAndScale(int precision, int scale)
         {
-            switch (typeName.ToLowerInvariant())
+            byte p = Convert.ToByte(precision);
+            byte s = Convert.ToByte(scale);
+            if (p > PRECISION_MAX)
+                p = PRECISION_MAX;
+
+            if (s > SCALE_MAX)
+                s = SCALE_MAX;
+
+            // scale should always be lesser than precision
+            if (s >= p && p > 1)
+                s = (byte)(p - 1);
+
+            return (p, s);
+        }
+
+        public (byte p, byte s) GetCompatibleColumnPrecisionAndScale(SyncColumn column, string fromProviderType)
+        {
+            // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
+            var sqlDbType = fromProviderType == NpgsqlSyncProvider.ProviderType ?
+                this.GetNpgsqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
+
+            return sqlDbType switch
+            {
+                NpgsqlDbType.Numeric => CoercePrecisionAndScale(column.Precision, column.Scale),
+                _ => (0, 0),
+            };
+        }
+
+        public string GetCompatibleColumnTypeDeclarationString(SyncColumn column, string fromProviderType)
+        {
+            string argument = string.Empty;
+
+            // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
+            var sqlDbType = fromProviderType == NpgsqlSyncProvider.ProviderType ? this.GetNpgsqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
+
+            switch (sqlDbType)
+            {
+                case NpgsqlDbType.Varbit:
+                case NpgsqlDbType.Varchar:
+                case NpgsqlDbType.Text:
+                    if (column.MaxLength > 0 && column.MaxLength <= 8000)
+                        argument = $"({column.MaxLength})";
+                    else
+                        argument = "(10485760)";
+                    break;
+                case NpgsqlDbType.Char:
+                    argument = $"({Math.Min(4000, column.MaxLength)})";
+                    break;
+                case NpgsqlDbType.Numeric:
+                    var (p, s) = this.GetPrecisionAndScale(column);
+
+                    if (column.DbType == (int)DbType.Single && column.Precision == 0 && column.Scale == 0)
+                        argument = $"({PRECISION_MAX}, 8)";
+                    else if (p > 0 && s <= 0)
+                        argument = $"({p})";
+                    else if (p > 0 && s > 0)
+                        argument = $"({p}, {s})";
+                    break;
+                default:
+                    argument = string.Empty;
+                    break;
+            }
+
+            string typeName = fromProviderType == NpgsqlSyncProvider.ProviderType ? column.OriginalTypeName.ToLowerInvariant() : sqlDbType.ToString().ToLowerInvariant();
+
+            return string.IsNullOrEmpty(argument) ? typeName : $"{typeName} {argument}";
+
+        }
+
+        public int GetCompatibleMaxLength(SyncColumn column, string fromProviderType)
+        {
+            // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
+            var sqlDbType = fromProviderType == NpgsqlSyncProvider.ProviderType ?
+                this.GetNpgsqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
+
+            return sqlDbType switch
+            {
+                NpgsqlDbType.Varbit or NpgsqlDbType.Char or NpgsqlDbType.Varchar => column.MaxLength,
+                _ => 0,
+            };
+        }
+
+        public override DbType GetDbType(SyncColumn column)
+        {
+            switch (column.OriginalTypeName.ToLowerInvariant())
             {
                 case "smallint":
                 case "int2":
@@ -138,16 +217,30 @@ namespace Dotmim.Sync.Postgres
                     return DbType.String;
 
             }
-            throw new Exception($"this type {typeName} is not supported");
+            throw new Exception($"this type {column.OriginalTypeName.ToLowerInvariant()} is not supported");
+        }
+        public override int GetMaxLength(SyncColumn column)
+        {
+            var sqlDbType = GetNpgsqlDbType(column);
+
+            var iMaxLength = column.MaxLength > 8000 ? 8000 : Convert.ToInt32(column.MaxLength);
+
+            // special length for nchar and nvarchar
+            if ((sqlDbType == NpgsqlDbType.Bytea || sqlDbType == NpgsqlDbType.Varchar || sqlDbType == NpgsqlDbType.Text) && iMaxLength > 0)
+                iMaxLength /= 2;
+
+            if (iMaxLength > 0 && sqlDbType != NpgsqlDbType.Varchar && sqlDbType != NpgsqlDbType.Text &&
+                sqlDbType != NpgsqlDbType.Char && sqlDbType != NpgsqlDbType.Bytea)
+                iMaxLength = 0;
+
+            return iMaxLength;
         }
 
-        /// <summary>
-        /// Gets the NpgsqlDbType issued from the server type name
-        /// </summary>
-        public override object ValidateOwnerDbType(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
-        {
+        public NpgsqlDbType GetNpgsqlDbType(SyncColumn column) => (NpgsqlDbType)this.GetOwnerDbType(column);
 
-            switch (typeName.ToLowerInvariant())
+        public override object GetOwnerDbType(SyncColumn column)
+        {
+            switch (column.OriginalTypeName.ToLowerInvariant())
             {
                 case "array":
                     return NpgsqlDbType.Array;
@@ -267,264 +360,11 @@ namespace Dotmim.Sync.Postgres
                 case "xml":
                     return NpgsqlDbType.Xml;
             }
-            throw new Exception($"this type name {typeName} is not supported");
+            throw new Exception($"this type name {column.OriginalTypeName.ToLowerInvariant()} is not supported");
         }
-
-        /// <summary>
-        /// Gets the max length autorized
-        /// </summary>
-        public override int ValidateMaxLength(string typeName, bool isUnsigned, bool isUnicode, long maxLength)
+        public NpgsqlDbType GetOwnerDbTypeFromDbType(SyncColumn column)
         {
-            var iMaxLength = maxLength > 8000 ? 8000 : Convert.ToInt32(maxLength);
-
-            return iMaxLength;
-        }
-
-        /// <summary>
-        /// Gets a Sql type name from a DbType enum value
-        /// </summary>
-        public override string GetStringFromDbType(DbType dbType)
-        {
-            switch (dbType)
-            {
-                case DbType.AnsiString:
-                case DbType.AnsiStringFixedLength:
-                    return "varchar";
-                case DbType.Binary:
-                    return "bytea";
-                case DbType.Boolean:
-                    return "boolean";
-                case DbType.Byte:
-                    return "smallint";
-                case DbType.Currency:
-                    return "money";
-                case DbType.Date:
-                    return "date";
-                case DbType.DateTime:
-                    return "timestamp";
-                case DbType.DateTime2:
-                    return "timestamp";
-                case DbType.DateTimeOffset:
-                    return "timestamptz";
-                case DbType.Double:
-                    return "double precision";
-                case DbType.Single:
-                    return "real";
-                case DbType.Decimal:
-                case DbType.VarNumeric:
-                    return "numeric";
-                case DbType.Guid:
-                    return "uuid";
-                case DbType.Int16:
-                    return "smallint";
-                case DbType.Int32:
-                case DbType.UInt16:
-                    return "int";
-                case DbType.Int64:
-                case DbType.UInt32:
-                case DbType.UInt64:
-                    return "bigint";
-                case DbType.SByte:
-                    return "smallint";
-                case DbType.String:
-                case DbType.StringFixedLength:
-                case DbType.Xml:
-                    return "varchar";
-                case DbType.Time:
-                    return "time";
-                case DbType.Object:
-                    return "bytea";
-            }
-            throw new Exception($"this DbType {dbType.ToString()} is not supported");
-        }
-
-        /// <summary>
-        /// Gets a npgsql type name form a NpgsqlType enum value
-        /// </summary>
-        public override string GetStringFromOwnerDbType(object ownerType)
-        {
-            NpgsqlDbType npgsqlDbType = (NpgsqlDbType)ownerType;
-
-
-            switch (npgsqlDbType)
-            {
-                case NpgsqlDbType.Bigint:
-                    return "bigint";
-                case NpgsqlDbType.Double:
-                    return "double precision";
-                case NpgsqlDbType.Integer:
-                    return "integer";
-                case NpgsqlDbType.Numeric:
-                    return "numeric";
-                case NpgsqlDbType.Real:
-                    return "real";
-                case NpgsqlDbType.Smallint:
-                    return "smallint";
-                case NpgsqlDbType.Money:
-                    return "money";
-                case NpgsqlDbType.Boolean:
-                    return "boolean";
-                case NpgsqlDbType.Char:
-                    return "char";
-                case NpgsqlDbType.Text:
-                    return "text";
-                case NpgsqlDbType.Varchar:
-                    return "varchar";
-                case NpgsqlDbType.Name:
-                    return "name";
-                case NpgsqlDbType.Citext:
-                    return "citext";
-                case NpgsqlDbType.Bytea:
-                    return "bytea";
-                case NpgsqlDbType.Date:
-                    return "date";
-                case NpgsqlDbType.Time:
-                    return "time";
-                case NpgsqlDbType.Timestamp:
-                    return "timestamp";
-                case NpgsqlDbType.TimestampTz:
-                    return "timestamptz";
-                case NpgsqlDbType.TimeTz:
-                    return "timetz";
-                case NpgsqlDbType.Inet:
-                    return "inet";
-                case NpgsqlDbType.Cidr:
-                    return "cidr";
-                case NpgsqlDbType.MacAddr:
-                    return "macaddr";
-                case NpgsqlDbType.MacAddr8:
-                    return "macaddr8";
-                case NpgsqlDbType.Bit:
-                    return "bit";
-                case NpgsqlDbType.Varbit:
-                    return "varbit";
-                case NpgsqlDbType.TsVector:
-                    return "tsvector";
-                case NpgsqlDbType.TsQuery:
-                    return "tsquery";
-                case NpgsqlDbType.Uuid:
-                    return "uuid";
-                case NpgsqlDbType.Xml:
-                    return "xml";
-                case NpgsqlDbType.Json:
-                    return "json";
-                case NpgsqlDbType.Jsonb:
-                    return "jsonb";
-                case NpgsqlDbType.Hstore:
-                    return "hstore";
-                case NpgsqlDbType.Array:
-                    return "array";
-                case NpgsqlDbType.Refcursor:
-                    return "refcursor";
-                case NpgsqlDbType.Int2Vector:
-                    return "int2vector";
-                case NpgsqlDbType.Oid:
-                    return "";
-                case NpgsqlDbType.Xid:
-                    return "xid";
-                case NpgsqlDbType.Cid:
-                    return "cidr";
-            }
-
-
-            throw new Exception($"this NpgsqlDbType {ownerType.ToString()} is not supported");
-        }
-
-
-        public override string GetPrecisionStringFromDbType(DbType dbType, int maxLength, byte precision, byte scale)
-        {
-            switch (dbType)
-            {
-                case DbType.AnsiString:
-                    if (maxLength > 0 && maxLength <= 8000)
-                        return $"({maxLength})";
-                    else
-                        return $"(8000)";
-                case DbType.String:
-                    if (maxLength > 0 && maxLength <= 4000)
-                        return $"({maxLength})";
-                    else
-                        return $"(4000)";
-                case DbType.AnsiStringFixedLength:
-                case DbType.Binary:
-                    if (maxLength > 0 && maxLength <= 8000)
-                        return $"({maxLength})";
-                    else
-                        return $"";
-                case DbType.StringFixedLength:
-                    return $"({Math.Min(4000, maxLength)})";
-                case DbType.Decimal:
-                case DbType.VarNumeric:
-                    var (p, s) = CoercePrecisionAndScale(precision, scale);
-
-                    if (p > 0 && s <= 0)
-                        return $"({ p})";
-                    else if (p > 0 && s > 0)
-                        return $"({ p}, {s})";
-                    else
-                        return string.Empty;
-            }
-            return string.Empty;
-
-        }
-
-        private static (byte p, byte s) CoercePrecisionAndScale(int precision, int scale)
-        {
-            byte p = Convert.ToByte(precision);
-            byte s = Convert.ToByte(scale);
-            if (p > PRECISION_MAX)
-            {
-                p = PRECISION_MAX;
-                //s = SCALE_MAX;
-            }
-
-            if (s > SCALE_MAX)
-            {
-                s = SCALE_MAX;
-            }
-            // scale should always be lesser than precision
-            if (s >= p)
-            {
-                s = (byte)(p - 1);
-            }
-
-            return (p, s);
-        }
-
-        /// <summary>
-        /// return the precision | maxlength string used when generating scripts
-        /// </summary>
-        public override string GetPrecisionStringFromOwnerDbType(object ownerDbType, int maxLength, byte precision, byte scale)
-        {
-            NpgsqlDbType sqlDbType = (NpgsqlDbType)ownerDbType;
-            switch (sqlDbType)
-            {
-                case NpgsqlDbType.Varchar:
-                    if (maxLength > 0 && maxLength <= 8000)
-                        return $"({maxLength})";
-                    else
-                        return "";
-                case NpgsqlDbType.Numeric:
-                    var (p, s) = CoercePrecisionAndScale(precision, scale);
-
-                    if (p > 0 && s <= 0)
-                        return $"({ p})";
-                    else if (p > 0 && s > 0)
-                        return $"({ p}, {s})";
-                    else
-                        return string.Empty;
-                default:
-                    return string.Empty;
-            }
-        }
-
-        /// <summary>
-        /// Gets the corresponding NpgsqlDbType from a classic DbType
-        /// </summary>
-        public override object GetOwnerDbTypeFromDbType(DbType dbType)
-        {
-            // Fallback on DbType
-            switch (dbType)
+            switch (column.GetDbType())
             {
                 case DbType.AnsiString:
                 case DbType.AnsiStringFixedLength:
@@ -573,21 +413,27 @@ namespace Dotmim.Sync.Postgres
                 case DbType.Object:
                     return NpgsqlDbType.Bytea;
             }
+            throw new Exception($"this type name {column.GetType().ToString()} is not supported");
+        }
+        public override byte GetPrecision(SyncColumn columnDefinition)
+        {
+            var (p, _) = CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
 
-            throw new Exception($"this type {dbType} is not supported");
-
+            return p;
         }
 
-        /// <summary>
-        /// Gets a managed type from a NpgsqlDbType
-        /// </summary>
-        public override Type ValidateType(object ownerType)
+        public override (byte precision, byte scale) GetPrecisionAndScale(SyncColumn columnDefinition)
         {
-            NpgsqlDbType sqlDbType = (NpgsqlDbType)ownerType;
+            if (columnDefinition.DbType == (int)DbType.Single && columnDefinition.Precision == 0 && columnDefinition.Scale == 0)
+                return (PRECISION_MAX, 8);
 
-            switch (sqlDbType)
+            return CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
+        }
+
+        public override Type GetType(SyncColumn column)
+        {
+            switch (GetNpgsqlDbType(column))
             {
-                
                 case NpgsqlDbType.Bigint:
                     return Type.GetType("System.Int64");
                 case NpgsqlDbType.Double:
@@ -637,22 +483,12 @@ namespace Dotmim.Sync.Postgres
                 case NpgsqlDbType.Hstore:
                     return Type.GetType("System.String");
             }
-            throw new Exception($"this NpgsqlDbType {ownerType.ToString()} is not supported");
-        }
+            throw new Exception($"this NpgsqlDbType {GetNpgsqlDbType(column).ToString()} is not supported");
 
-        public override bool SupportScale(string typeName)
-        {
-            switch (typeName.ToLowerInvariant())
-            {
-                case "decimal":
-                case "numeric":
-                    return true;
-            }
-            return false;
         }
-        public override bool IsNumericType(string typeName)
+        public override bool IsNumericType(SyncColumn column)
         {
-            switch (typeName.ToLowerInvariant())
+            switch (column.OriginalTypeName.ToLowerInvariant())
             {
                 case "bigint":
                 case "int8":
@@ -678,38 +514,18 @@ namespace Dotmim.Sync.Postgres
             }
             return false;
         }
-
-        public override bool IsTextType(string typeName)
+        public override bool IsReadonly(SyncColumn columnDefinition) => columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp" || columnDefinition.IsCompute;
+        public override bool IsSupportingScale(SyncColumn columnDefinition)
         {
-            switch (typeName.ToLowerInvariant())
+            switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
             {
-                case "xml":
-                case "json":
-                case "jsonb":
-                case "hstore":
-                case "character varying":
-                case "varchar":
-                case "refcursor":
-                case "citext":
-                case "text":
-                case "character":
-                case "char":
-                case "name":
-                case "bit":
-                case "varbit":
-                case "bit varying":
-                case "cid":
-                case "cidr":
-                case "inet":
-                case "macaddr":
-                case "macaddr8":
-                case "tsquery":
-                case "tsvector":
+                case "real":
+                case "money":
+                case "numeric":
                     return true;
             }
             return false;
         }
-
         public override bool IsValid(SyncColumn columnDefinition)
         {
             switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
@@ -776,69 +592,5 @@ namespace Dotmim.Sync.Postgres
             }
             return false;
         }
-
-
-
-        public override bool ValidateIsReadonly(SyncColumn columnDefinition)
-        {
-            return columnDefinition.IsCompute;
-        }
-
-        public override byte ValidatePrecision(SyncColumn columnDefinition)
-        {
-            var (p, s) = CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
-
-            return p;
-        }
-
-        public override (byte precision, byte scale) GetPrecisionFromOwnerDbType(object ownerDbType, byte precision, byte scale)
-        {
-            NpgsqlDbType sqlDbType = (NpgsqlDbType)ownerDbType;
-            switch (sqlDbType)
-            {
-                case NpgsqlDbType.Numeric:
-                    return CoercePrecisionAndScale(precision, scale);
-            }
-            return (0, 0);
-        }
-
-        public override (byte precision, byte scale) GetPrecisionFromDbType(DbType dbType, byte precision, byte scale)
-        {
-            switch (dbType)
-            {
-                case DbType.Decimal:
-                case DbType.Double:
-                case DbType.Single:
-                case DbType.VarNumeric:
-                    return CoercePrecisionAndScale(precision, scale);
-            }
-            return (0, 0);
-        }
-
-        public override int GetMaxLengthFromDbType(DbType dbType, int maxLength)
-        {
-            switch (dbType)
-            {
-                case DbType.AnsiString:
-                case DbType.AnsiStringFixedLength:
-                case DbType.Binary:
-                case DbType.String:
-                case DbType.StringFixedLength:
-                    return maxLength;
-            }
-            return 0;
-        }
-
-        public override int GetMaxLengthFromOwnerDbType(object ownerDbType, int maxLength)
-        {
-            return maxLength;
-        }
-
-        public override (byte precision, byte scale) ValidatePrecisionAndScale(SyncColumn columnDefinition)
-        {
-            return CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
-        }
     }
-
 }
-
