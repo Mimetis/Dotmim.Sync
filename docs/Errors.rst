@@ -207,7 +207,7 @@ ErrorResolution.Throw
         catch (Exception e)
         {
             Console.ResetColor();
-            Console.WriteLine("Sync Rollbacked.");
+            Console.WriteLine("Sync Rolled back.");
         }
     } while (Console.ReadKey().Key != ConsoleKey.Escape);
     
@@ -218,7 +218,7 @@ The error is raised for the second line, as it's the one who triggers the forein
     :align: center
     :alt: ErrorResolution.ErrorResolutionThrow
 
-Be careful, we do not have any files in the ``BatchInfo`` directory, as the sync has been rollbacked.
+Be careful, we do not have any files in the ``BatchInfo`` directory, as the sync has been rolled back.
 
 ErrorResolution.ContinueOnError
 -------------------------------
@@ -291,7 +291,7 @@ As a demo purpose, we are going to generate a new error (A **Not Null Constraint
     :align: center
     :alt: ErrorResolution.ErrorResolutionRetryThrow2
 
-Ok, this time, the error can't be resolved, even if we tried to apply the row twice. So the sync has been rollbacked, and the error has been raised.
+Ok, this time, the error can't be resolved, even if we tried to apply the row twice. So the sync has been rolled back, and the error has been raised.
 
 
 ErrorResolution.RetryOneMoreTimeAndContinueOnError
