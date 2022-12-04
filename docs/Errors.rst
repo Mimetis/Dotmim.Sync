@@ -6,7 +6,7 @@ Overview
 
 Errors can happens during a synchronization process.
 
-By default, if an error occurs, the synchronization process is stopped and the transaction is rollbacked.
+By default, if an error occurs, the synchronization process is stopped and the transaction is rolled back.
 
 .. note:: The Error Resolution can be different on each side.
 
