@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.MySql\Dotmim.Sync.MySql.csproj" />
     <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.PostgreSql\Dotmim.Sync.PostgreSql.csproj" />
     <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj" />
     <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />

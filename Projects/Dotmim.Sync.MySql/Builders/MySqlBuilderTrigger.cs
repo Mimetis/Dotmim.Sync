@@ -117,7 +117,7 @@ namespace Dotmim.Sync.MySql.Builders
 
         public DbCommand CreateInsertTriggerCommand(DbConnection connection, DbTransaction transaction)
         {
-            var insTriggerName = string.Format(this.mySqlObjectNames.GetTriggerCommandName(DbTriggerType.Insert), tableName.Unquoted().Normalized().ToString());
+            var insTriggerName = string.Format(this.mySqlObjectNames.GetTriggerCommandName(DbTriggerType.Insert), tableName.ToString());
 
             StringBuilder createTrigger = new StringBuilder();
             createTrigger.AppendLine($"CREATE TRIGGER {insTriggerName} AFTER INSERT ON {tableName.Quoted().ToString()} FOR EACH ROW ");

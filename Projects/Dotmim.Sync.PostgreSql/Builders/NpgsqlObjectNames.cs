@@ -10,9 +10,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
 {
     public class NpgsqlObjectNames
     {
-        internal const string insertTriggerName = "{0}.{1}insert_trigger";
-        internal const string updateTriggerName = "{0}.{1}update_trigger";
-        internal const string deleteTriggerName = "{0}.{1}delete_trigger";
+        internal const string insertTriggerName = "{0}insert_trigger";
+        internal const string updateTriggerName = "{0}update_trigger";
+        internal const string deleteTriggerName = "{0}delete_trigger";
 
         internal const string selectChangesProcName = "{0}.{1}{2}changes";
         internal const string selectChangesProcNameWithFilters = "{0}.{1}{2}{3}changes";
@@ -275,9 +275,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
             this.AddStoredProcedureName(DbStoredProcedureType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
             this.AddStoredProcedureName(DbStoredProcedureType.Reset, string.Format(resetMetadataProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
 
-            this.AddTriggerName(DbTriggerType.Insert, string.Format(insertTriggerName, schema, triggerName));
-            this.AddTriggerName(DbTriggerType.Update, string.Format(updateTriggerName, schema, triggerName));
-            this.AddTriggerName(DbTriggerType.Delete, string.Format(deleteTriggerName, schema, triggerName));
+            this.AddTriggerName(DbTriggerType.Insert, string.Format(insertTriggerName, triggerName));
+            this.AddTriggerName(DbTriggerType.Update, string.Format(updateTriggerName, triggerName));
+            this.AddTriggerName(DbTriggerType.Delete, string.Format(deleteTriggerName, triggerName));
 
             this.AddStoredProcedureName(DbStoredProcedureType.BulkTableType, string.Format(bulkTableTypeName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
             this.AddStoredProcedureName(DbStoredProcedureType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));

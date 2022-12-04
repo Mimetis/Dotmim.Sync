@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Input;
 
 namespace Dotmim.Sync.PostgreSql.Builders
 {
@@ -48,10 +49,11 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             // adding the tracking columns
             stringBuilder.AppendLine($"update_scope_id uuid NULL, ");
-            stringBuilder.AppendLine($"timestamp timestamp NULL, ");
-            stringBuilder.AppendLine($"timestamp_bigint AS (CONVERT(bigint,timestamp)) PERSISTED, ");
-            stringBuilder.AppendLine($"sync_row_is_tombstone bit NOT NULL default(0), ");
-            stringBuilder.AppendLine($"last_change_datetime datetime NULL, ");
+            stringBuilder.AppendLine($"timestamp timestamptz NULL, ");
+            stringBuilder.AppendLine($"timestamp_bigint timestamptz NULL, ");
+            //stringBuilder.AppendLine($"timestamp_bigint AS (CONVERT(bigint,timestamp)) PERSISTED, ");
+            stringBuilder.AppendLine($"sync_row_is_tombstone BIT(1) NOT NULL default '0'::\"bit\", ");
+            stringBuilder.AppendLine($"last_change_datetime timestamptz NULL ");
             stringBuilder.AppendLine(");");
 
             // Primary Keys
@@ -73,7 +75,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             // Index
             var indexName = trackingName.Schema().Unquoted().Normalized().ToString();
 
-            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX {indexName}_timestamp_index ON {trackingName.Schema().Unquoted().ToString()} (");
+            stringBuilder.AppendLine($"CREATE INDEX {indexName}_timestamp_index ON {trackingName.Schema().Unquoted().ToString()} (");
             stringBuilder.AppendLine($"\t  timestamp_bigint ASC");
             stringBuilder.AppendLine($"\t, update_scope_id ASC");
             stringBuilder.AppendLine($"\t, sync_row_is_tombstone ASC");
@@ -138,7 +140,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0;";
+            command.CommandText = @"SELECT EXISTS (SELECT FROM PG_TABLES WHERE SCHEMANAME=@SCHEMANAME AND TABLENAME=@TABLENAME)";
+            //command.CommandText = $"IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0;";
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";

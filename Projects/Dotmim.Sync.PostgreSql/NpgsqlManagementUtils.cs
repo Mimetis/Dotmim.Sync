@@ -84,11 +84,27 @@ namespace Dotmim.Sync.PostgreSql
             return tableExist;
         }
 
-        public static Task DropProcedureIfExistsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, int commandTimout, string quotedProcedureName)
+        public static async Task DropProcedureIfExistsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, int commandTimout, string quotedProcedureName)
         {
-            throw new NotImplementedException();
-        }
+            var procName = ParserName.Parse(quotedProcedureName).ToString();
+            //var schemaName = GetUnquotedSqlSchemaName(ParserName.Parse(quotedProcedureName));
 
+            using (var sqlCommand = new NpgsqlCommand($"drop procedure if exists {procName}", connection))
+            {
+                sqlCommand.CommandTimeout = commandTimout;
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                sqlCommand.Transaction = transaction;
+                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+        }
         public static async Task DropTableIfExistsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string quotedTableName, string schemaName)
         {
             var tableName = ParserName.Parse(quotedTableName, "\"").ToString();
@@ -96,7 +112,6 @@ namespace Dotmim.Sync.PostgreSql
             using (var sqlCommand = new NpgsqlCommand(
                 string.Format(CultureInfo.InvariantCulture, "DROP TABLE IF EXISTS {0}", quotedTableName), connection))
             {
-
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
@@ -142,10 +157,13 @@ namespace Dotmim.Sync.PostgreSql
 
         public static async Task<SyncSetup> GetAllTablesAsync(NpgsqlConnection connection, NpgsqlTransaction transaction)
         {
-            var command = $"Select tbl.name as TableName, " +
-                          $"sch.name as SchemaName " +
-                          $"  from sys.tables as tbl  " +
-                          $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id;";
+            var command = $@"
+                            SELECT TABLE_NAME,
+	                            TABLE_SCHEMA
+                            FROM INFORMATION_SCHEMA.TABLES
+                            WHERE TABLE_TYPE = 'BASE TABLE'
+	                            AND TABLE_SCHEMA not in ('information_schema';
+                           ";
 
             var syncSetup = new SyncSetup();
 
@@ -163,7 +181,7 @@ namespace Dotmim.Sync.PostgreSql
                     while (reader.Read())
                     {
                         var tableName = reader.GetString(0);
-                        var schemaName = reader.GetString(1) == "dbo" ? null : reader.GetString(1);
+                        var schemaName =  reader.GetString(1);
                         var setupTable = new SetupTable(tableName, schemaName);
                         syncSetup.Tables.Add(setupTable);
                     }
@@ -174,7 +192,7 @@ namespace Dotmim.Sync.PostgreSql
                     var syncTableColumnsList = await GetColumnsForTableAsync(connection, transaction, setupTable.TableName, setupTable.SchemaName).ConfigureAwait(false);
 
                     foreach (var column in syncTableColumnsList.Rows)
-                        setupTable.Columns.Add(column["name"].ToString());
+                        setupTable.Columns.Add(column["column_name"].ToString());
                 }
 
 
@@ -187,21 +205,24 @@ namespace Dotmim.Sync.PostgreSql
 
         public static async Task<SyncTable> GetColumnsForTableAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string tableName, string schemaName)
         {
-            var commandColumn = $"Select column_name, " +
-                                $"ordinal_position,  " +
-                                $"data_type,  " +
-                                $"udt_name,  " +
-                                $"character_maximum_length,  " +
-                                $"numeric_precision,  " +
-                                $"numeric_scale,  " +
-                                $"is_nullable,  " +
-                                $"is_generated,  " +
-                                $"is_identity,  " +
-                                $"column_default,  " +
-                                $"identity_start, " +
-                                $"identity_increment " +
-                                $"from information_schema.columns " +
-                                $"where table_name = @tableName and table_schema = @schemaName ";
+            var commandColumn = @"
+                                SELECT COLUMN_NAME,
+	                                ORDINAL_POSITION,
+	                                DATA_TYPE,
+	                                UDT_NAME,
+	                                CHARACTER_MAXIMUM_LENGTH,
+	                                NUMERIC_PRECISION,
+	                                NUMERIC_SCALE,
+	                                IS_NULLABLE,
+	                                IS_GENERATED,
+	                                IS_IDENTITY,
+	                                COLUMN_DEFAULT,
+	                                IDENTITY_START,
+	                                IDENTITY_INCREMENT,
+	                                CHARACTER_MAXIMUM_LENGTH
+                                FROM INFORMATION_SCHEMA.COLUMNS
+                                WHERE TABLE_NAME = @TABLENAME
+	                                AND TABLE_SCHEMA = @SCHEMANAME;";
 
             var tableNameNormalized = ParserName.Parse(tableName, "\"").Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName, "\"").Unquoted().ToString();
@@ -216,8 +237,16 @@ namespace Dotmim.Sync.PostgreSql
             var syncTable = new SyncTable(tableNameNormalized);
             using (var sqlCommand = new NpgsqlCommand(commandColumn, connection))
             {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
-                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
+
+                var parameter = sqlCommand.CreateParameter();
+                parameter.ParameterName = "@TABLENAME";
+                parameter.Value = tableNameString;
+                sqlCommand.Parameters.Add(parameter);
+
+                parameter = sqlCommand.CreateParameter();
+                parameter.ParameterName = "@SCHEMANAME";
+                parameter.Value = schemaNameString;
+                sqlCommand.Parameters.Add(parameter);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -280,13 +309,19 @@ namespace Dotmim.Sync.PostgreSql
 
         public static async Task<SyncTable> GetPrimaryKeysForTableAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string tableName, string schemaName)
         {
-            var commandColumn = @"SELECT ccu.column_name, tc.constraint_name, c.ordinal_position
-                                  FROM information_schema.table_constraints tc 
-                                  JOIN information_schema.constraint_column_usage AS ccu on ccu.constraint_schema = tc.constraint_schema 
-                                    AND ccu.constraint_name = tc.constraint_name
-                                  JOIN information_schema.columns AS c ON c.table_schema = tc.constraint_schema
-                                    AND tc.table_name = c.table_name AND ccu.column_name = c.column_name
-                                  WHERE tc.constraint_type = 'PRIMARY KEY' and tc.table_name = @tableName and tc.table_schema=@schemaName;";
+            var commandColumn = @"
+                SELECT CCU.COLUMN_NAME,
+	                TC.CONSTRAINT_NAME,
+	                C.ORDINAL_POSITION
+                FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS TC
+                JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE AS CCU ON CCU.CONSTRAINT_SCHEMA = TC.CONSTRAINT_SCHEMA
+                AND CCU.CONSTRAINT_NAME = TC.CONSTRAINT_NAME
+                JOIN INFORMATION_SCHEMA.COLUMNS AS C ON C.TABLE_SCHEMA = TC.CONSTRAINT_SCHEMA
+                AND TC.TABLE_NAME = C.TABLE_NAME
+                AND CCU.COLUMN_NAME = C.COLUMN_NAME
+                WHERE TC.CONSTRAINT_TYPE = 'PRIMARY KEY'
+	                AND TC.TABLE_NAME = @TABLENAME
+	                AND TC.TABLE_SCHEMA = @SCHEMANAME;";
 
             var tableNameNormalized = ParserName.Parse(tableName, "\"").Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName, "\"").ToString();
@@ -301,8 +336,17 @@ namespace Dotmim.Sync.PostgreSql
             var syncTable = new SyncTable(tableNameNormalized);
             using (var command = new NpgsqlCommand(commandColumn, connection))
             {
-                command.Parameters.AddWithValue("@tableName", tableNameString);
-                command.Parameters.AddWithValue("@schemaName", schemaNameString);
+
+                var parameter = command.CreateParameter();
+                parameter.ParameterName = "@TABLENAME";
+                parameter.Value = tableNameString;
+                command.Parameters.Add(parameter);
+
+                parameter = command.CreateParameter();
+                parameter.ParameterName = "@SCHEMANAME";
+                parameter.Value = schemaNameString;
+                command.Parameters.Add(parameter);
+
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -324,8 +368,12 @@ namespace Dotmim.Sync.PostgreSql
 
         public static async Task<SyncTable> GetRelationsForTableAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string tableName, string schemaName)
         {
+            // Todo: get from metadata
+
             var commandRelations = @"
-                SELECT tc.constraint_name AS ForeignKey,
+                SELECT 
+                    0 AS ForeignKeyOrder, 
+                    tc.constraint_name AS ForeignKey,
                     tc.table_schema  AS SchemaName,
                     tc.table_name AS TableName,
                     kcu.column_name AS ColumnName,
@@ -348,8 +396,16 @@ namespace Dotmim.Sync.PostgreSql
 
             using (var sqlCommand = new NpgsqlCommand(commandRelations, connection))
             {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
-                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
+
+                var parameter = sqlCommand.CreateParameter();
+                parameter.ParameterName = "@tableName";
+                parameter.Value = tableNameString;
+                sqlCommand.Parameters.Add(parameter);
+
+                parameter = sqlCommand.CreateParameter();
+                parameter.ParameterName = "@schemaName";
+                parameter.Value = schemaNameString;
+                sqlCommand.Parameters.Add(parameter);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -370,13 +426,17 @@ namespace Dotmim.Sync.PostgreSql
 
         public static async Task<SyncTable> GetTableAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string tableName, string schemaName)
         {
-            var command = $"SELECT * " +
-                           " FROM information_schema.tables " +
-                           " WHERE table_type = 'BASE TABLE' " +
-                           " AND table_schema != 'pg_catalog' AND table_schema != 'information_schema' " +
-                           " AND table_name=@tableName AND table_schema=@schemaName " +
-                           " ORDER BY table_schema, table_name " +
-                           " LIMIT 1";
+            var command = @"
+                            SELECT *
+                            FROM INFORMATION_SCHEMA.TABLES
+                            WHERE TABLE_TYPE = 'BASE TABLE'
+	                            AND TABLE_SCHEMA != 'pg_catalog'
+	                            AND TABLE_SCHEMA != 'information_schema'
+	                            AND TABLE_NAME = @TABLENAME
+	                            AND TABLE_SCHEMA = @SCHEMANAME
+                            ORDER BY TABLE_SCHEMA,
+	                            TABLE_NAME
+                            LIMIT 1";
 
             var tableNameNormalized = ParserName.Parse(tableName, "\"").Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName, "\"").ToString();
@@ -392,8 +452,15 @@ namespace Dotmim.Sync.PostgreSql
 
             using (var sqlCommand = new NpgsqlCommand(command, connection))
             {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
-                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
+                var parameter = sqlCommand.CreateParameter();
+                parameter.ParameterName = "@tableName";
+                parameter.Value = tableNameString;
+                sqlCommand.Parameters.Add(parameter);
+
+                parameter = sqlCommand.CreateParameter();
+                parameter.ParameterName = "@schemaName";
+                parameter.Value = schemaNameString;
+                sqlCommand.Parameters.Add(parameter);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -414,11 +481,13 @@ namespace Dotmim.Sync.PostgreSql
         }
         public static async Task<SyncTable> GetTableDefinitionAsync(string tableName, string schemaName, NpgsqlConnection connection, NpgsqlTransaction transaction)
         {
-            var command = $"Select top 1 tbl.name as TableName, " +
-                          $"sch.name as SchemaName " +
-                          $"  from sys.tables as tbl  " +
-                          $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id " +
-                          $"  Where tbl.name = @tableName and sch.name = @schemaName ";
+            var command = @"
+                            SELECT TABLE_NAME as TableName,
+	                            TABLE_SCHEMA as SchemaName
+                            FROM INFORMATION_SCHEMA.TABLES
+                            WHERE TABLE_TYPE = 'BASE TABLE'
+                                and table_name=@tableName and table_schema=@schemaName
+	                            AND TABLE_SCHEMA not in ('information_schema','pg_catalog');";
 
             var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();
@@ -432,19 +501,26 @@ namespace Dotmim.Sync.PostgreSql
 
             var syncTable = new SyncTable(tableNameNormalized, schemaNameString);
 
-            using (var NpgsqlCommand = new NpgsqlCommand(command, connection))
+            using (var npgsqlCommand = new NpgsqlCommand(command, connection))
             {
-                NpgsqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
-                NpgsqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
+                var parameter = npgsqlCommand.CreateParameter();
+                parameter.ParameterName = "@tableName";
+                parameter.Value = tableNameString;
+                npgsqlCommand.Parameters.Add(parameter);
+
+                parameter = npgsqlCommand.CreateParameter();
+                parameter.ParameterName = "@schemaName";
+                parameter.Value = schemaNameString;
+                npgsqlCommand.Parameters.Add(parameter);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
                 if (!alreadyOpened)
                     await connection.OpenAsync().ConfigureAwait(false);
 
-                NpgsqlCommand.Transaction = transaction;
+                npgsqlCommand.Transaction = transaction;
 
-                using (var reader = await NpgsqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                using (var reader = await npgsqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                     syncTable.Load(reader);
 
                 if (!alreadyOpened)
@@ -455,8 +531,11 @@ namespace Dotmim.Sync.PostgreSql
         }
         public static async Task<SyncTable> GetTriggerAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string triggerName, string schemaName)
         {
-            var command = $"Select trigger_name from Information_schema.triggers " +
-                           "Where trigger_name = @triggerName and trigger_schema = @schemaName";
+            var command = @"
+                            SELECT TRIGGER_NAME
+                            FROM INFORMATION_SCHEMA.TRIGGERS
+                            WHERE TRIGGER_NAME = @TRIGGERNAME
+	                            AND TRIGGER_SCHEMA = @SCHEMANAME;";
 
 
             var triggerNameNormalized = ParserName.Parse(triggerName, "\"").Unquoted().Normalized().ToString();
@@ -473,8 +552,16 @@ namespace Dotmim.Sync.PostgreSql
 
             using (var npgsqlCommand = new NpgsqlCommand(command, connection))
             {
-                npgsqlCommand.Parameters.AddWithValue("@triggerName", triggerNameString);
-                npgsqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
+                var parameter = npgsqlCommand.CreateParameter();
+                parameter.ParameterName = "@TRIGGERNAME";
+                parameter.Value = triggerNameString;
+                npgsqlCommand.Parameters.Add(parameter);
+
+                parameter = npgsqlCommand.CreateParameter();
+                parameter.ParameterName = "@SCHEMANAME";
+                parameter.Value = schemaNameString;
+                npgsqlCommand.Parameters.Add(parameter);
+
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -677,8 +764,17 @@ namespace Dotmim.Sync.PostgreSql
 
             using (var sqlCommand = new NpgsqlCommand(commandText, connection))
             {
-                sqlCommand.Parameters.AddWithValue("@triggerName", triggerName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", NpgsqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTriggerName, "\"")));
+
+                var parameter = sqlCommand.CreateParameter();
+                parameter.ParameterName = "@triggerName";
+                parameter.Value = triggerName;
+                sqlCommand.Parameters.Add(parameter);
+
+                parameter = sqlCommand.CreateParameter();
+                parameter.ParameterName = "@schemaName";
+                parameter.Value = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTriggerName, "\""));
+                sqlCommand.Parameters.Add(parameter);
+
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 

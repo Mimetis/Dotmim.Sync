@@ -31,8 +31,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
         }
         public virtual Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
-
             var commandTriggerCommandString = triggerType switch
+
             {
                 DbTriggerType.Delete => CreateDeleteTriggerAsync(),
                 DbTriggerType.Insert => CreateInsertTriggerAsync(),
@@ -46,8 +46,14 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var commandTriggerName = this.objectNames.GetTriggerCommandName(triggerType);
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TRIGGER {commandTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR {triggerFor} AS");
             stringBuilder.AppendLine(commandTriggerCommandString);
+            stringBuilder.AppendLine($@"
+                                CREATE TRIGGER {commandTriggerName}
+                                  BEFORE UPDATE
+                                  ON {tableName.Schema().Unquoted().ToString()}
+                                  FOR EACH ROW
+                                  EXECUTE PROCEDURE {tableName.Unquoted().SchemaName}.{commandTriggerName}_function()");
+
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -63,7 +69,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             var commandTriggerName = this.objectNames.GetTriggerCommandName(triggerType);
 
-            var commandText = $@"DROP TRIGGER {commandTriggerName}";
+            var commandText = $@"drop trigger IF EXISTS {commandTriggerName} on {tableName.Schema().Unquoted().ToString()}";
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -80,10 +86,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var commandTriggerName = this.objectNames.GetTriggerCommandName(triggerType);
             var triggerName = ParserName.Parse(commandTriggerName).ToString();
 
-            var commandText = $@"IF EXISTS (SELECT tr.name FROM sys.triggers tr  
-                                            JOIN sys.tables t ON tr.parent_id = t.object_id 
-                                            JOIN sys.schemas s ON t.schema_id = s.schema_id 
-                                            WHERE tr.name = @triggerName and s.name = @schemaName) SELECT 1 ELSE SELECT 0";
+            var commandText = $@"
+                                SELECT EXISTS
+	                                (SELECT
+		                                FROM INFORMATION_SCHEMA.TRIGGERS
+		                                WHERE TRIGGER_SCHEMA = @schemaName
+			                                AND TRIGGER_NAME = @triggerName )";
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -108,199 +116,114 @@ namespace Dotmim.Sync.PostgreSql.Builders
         private string CreateDeleteTriggerAsync()
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("SET NOCOUNT ON;");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("UPDATE [side] ");
-            stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 1");
-            stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
-            stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
-            stringBuilder.Append($"JOIN DELETED AS [d] ON ");
-            stringBuilder.AppendLine(NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[d]"));
-            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($@"
+                                CREATE FUNCTION {tableName.Schema().Unquoted().ToString()}_delete_trigger_function()
+                                    RETURNS trigger
+                                    LANGUAGE 'plpgsql'
+                                    COST 100
+                                    VOLATILE NOT LEAKPROOF
+                                AS $BODY$
+                                BEGIN
+                                INSERT INTO {tableName.Schema().Unquoted().ToString()} (
+	                                 ""AddressID""
+	                                ,update_scope_id
+	                                ,sync_row_is_tombstone
+	                                ,last_change_datetime
+	                                ,timestamp
+                                ) 
+                                VALUES (
+	                                 OLD.""AddressID""
+	                                ,NULL
+	                                ,true
+	                                ,now()
+	                                ,to_char(current_timestamp, 'YYYYDDDSSSSUS')::bigint
+                                )
+                                ON CONFLICT( ""AddressID"")
+                                DO UPDATE SET
+	                                sync_row_is_tombstone = true
+	                                ,update_scope_id = NULL
+	                                ,last_change_datetime = now()
+	                                ,timestamp = to_char(current_timestamp, 'YYYYDDDSSSSUS')::bigint;
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
-
-            var stringBuilderArguments = new StringBuilder();
-            var stringBuilderArguments2 = new StringBuilder();
-            var stringPkAreNull = new StringBuilder();
-
-            string argComma = " ";
-            string argAnd = string.Empty;
-            var primaryKeys = this.tableDescription.GetPrimaryKeysColumns();
-
-            foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
-            {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilderArguments.AppendLine($"\t{argComma}[d].{columnName}");
-                stringBuilderArguments2.AppendLine($"\t{argComma}{columnName}");
-                stringPkAreNull.Append($"{argAnd}[side].{columnName} IS NULL");
-                argComma = ",";
-                argAnd = " AND ";
-            }
-
-            stringBuilder.Append(stringBuilderArguments2.ToString());
-            stringBuilder.AppendLine("\t,[update_scope_id]");
-            stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
-            stringBuilder.AppendLine("\t,[last_change_datetime]");
-            stringBuilder.AppendLine(") ");
-            stringBuilder.AppendLine("SELECT");
-            stringBuilder.Append(stringBuilderArguments.ToString());
-            stringBuilder.AppendLine("\t,NULL");
-            stringBuilder.AppendLine("\t,1");
-            stringBuilder.AppendLine("\t,GetUtcDate()");
-            stringBuilder.AppendLine("FROM DELETED [d]");
-            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
-            stringBuilder.AppendLine(NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[side]"));
-            stringBuilder.Append("WHERE ");
-            stringBuilder.AppendLine(stringPkAreNull.ToString());
-
+                                RETURN NULL;
+                                END;
+                                $BODY$;
+");
             return stringBuilder.ToString();
-
         }
         private string CreateInsertTriggerAsync()
         {
-            var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("SET NOCOUNT ON;");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("-- If row was deleted before, it already exists, so just make an update");
-            stringBuilder.AppendLine("UPDATE [side] ");
-            stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 0");
-            stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
-            stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
-            stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
-            stringBuilder.AppendLine(NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[i]"));
-            stringBuilder.AppendLine();
+            var tablename = tableName.Unquoted().ToString();
+            var stringBuilder = new StringBuilder(
+                    @$"
+                        CREATE FUNCTION {tableName.Schema().Unquoted().ToString()}_insert_trigger_function()
+                            RETURNS trigger
+                            LANGUAGE 'plpgsql'
+                            COST 100
+                            VOLATILE NOT LEAKPROOF
+                        AS $BODY$
+                        BEGIN
+	                        UPDATE ""side"" 
+	                        SET  ""sync_row_is_tombstone"" = 0
+		                        ,""update_scope_id"" = NULL -- scope id is always NULL when update is made locally
+		                        ,""last_change_datetime"" = GetUtcDate()
+	                        FROM {tableName.Schema().Unquoted().ToString()} ""side""
+	                        JOIN NEW AS ""i"" ON ""side"".""ProductID"" = ""i"".""ProductID"";
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
-
-            var stringBuilderArguments = new StringBuilder();
-            var stringBuilderArguments2 = new StringBuilder();
-            var stringPkAreNull = new StringBuilder();
-
-            string argComma = " ";
-            string argAnd = string.Empty;
-            var primaryKeys = this.tableDescription.GetPrimaryKeysColumns();
-
-            foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
-            {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilderArguments.AppendLine($"\t{argComma}[i].{columnName}");
-                stringBuilderArguments2.AppendLine($"\t{argComma}{columnName}");
-                stringPkAreNull.Append($"{argAnd}[side].{columnName} IS NULL");
-                argComma = ",";
-                argAnd = " AND ";
-            }
-
-            stringBuilder.Append(stringBuilderArguments2.ToString());
-            stringBuilder.AppendLine("\t,[update_scope_id]");
-            stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
-            stringBuilder.AppendLine("\t,[last_change_datetime]");
-            stringBuilder.AppendLine(") ");
-            stringBuilder.AppendLine("SELECT");
-            stringBuilder.Append(stringBuilderArguments.ToString());
-            stringBuilder.AppendLine("\t,NULL");
-            stringBuilder.AppendLine("\t,0");
-            stringBuilder.AppendLine("\t,GetUtcDate()");
-            stringBuilder.AppendLine("FROM INSERTED [i]");
-            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
-            stringBuilder.AppendLine(NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[i]", "[side]"));
-            stringBuilder.Append("WHERE ");
-            stringBuilder.AppendLine(stringPkAreNull.ToString());
+	                        INSERT INTO {tableName.Schema().Unquoted().ToString()} (
+		                            ""ProductID""
+		                        ,""update_scope_id""
+		                        ,""sync_row_is_tombstone""
+		                        ,""last_change_datetime""
+	                        ) 
+	                        SELECT
+		                            ""i"".""ProductID""
+		                        ,NULL
+		                        ,0
+		                        ,GetUtcDate()
+	                        FROM NEW AS ""i""
+	                        LEFT JOIN {tableName.Schema().Unquoted().ToString()} ""side"" ON ""i"".""ProductID"" = ""side"".""ProductID""
+	                        WHERE ""side"".""ProductID"" IS NULL;
+                        END;
+                        $BODY$;");
 
             return stringBuilder.ToString();
         }
         private string CreateUpdateTriggerAsync()
         {
-
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("SET NOCOUNT ON;");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("UPDATE [side] ");
-            stringBuilder.AppendLine("SET \t[update_scope_id] = NULL -- since the update if from local, it's a NULL");
-            stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
-            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($@"
+                        CREATE FUNCTION {tableName.Schema().Unquoted().ToString()}_update_trigger_function()
+                            RETURNS trigger
+                            LANGUAGE 'plpgsql'
+                            COST 100
+                            VOLATILE NOT LEAKPROOF
+                        AS $BODY$
+                        BEGIN
+	                        UPDATE ""side"" 
+	                        SET  ""sync_row_is_tombstone"" = 0
+		                        ,""update_scope_id"" = NULL -- scope id is always NULL when update is made locally
+		                        ,""last_change_datetime"" = GetUtcDate()
+	                        FROM {tableName.Schema().Unquoted().ToString()} ""side""
+	                        JOIN NEW AS ""i"" ON ""side"".""ProductID"" = ""i"".""ProductID"";
 
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
-            stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
-            stringBuilder.AppendLine(NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[i]"));
-
-
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
-
-            var stringBuilderArguments = new StringBuilder();
-            var stringBuilderArguments2 = new StringBuilder();
-            var stringPkAreNull = new StringBuilder();
-
-            string argComma = " ";
-            string argAnd = string.Empty;
-            var primaryKeys = this.tableDescription.GetPrimaryKeysColumns();
-
-            foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
-            {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilderArguments.AppendLine($"\t{argComma}[i].{columnName}");
-                stringBuilderArguments2.AppendLine($"\t{argComma}{columnName}");
-                stringPkAreNull.Append($"{argAnd}[side].{columnName} IS NULL");
-                argComma = ",";
-                argAnd = " AND ";
-            }
-
-            stringBuilder.Append(stringBuilderArguments2.ToString());
-            stringBuilder.AppendLine("\t,[update_scope_id]");
-            stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
-            stringBuilder.AppendLine("\t,[last_change_datetime]");
-            stringBuilder.AppendLine(") ");
-            stringBuilder.AppendLine("SELECT");
-            stringBuilder.Append(stringBuilderArguments.ToString());
-            stringBuilder.AppendLine("\t,NULL");
-            stringBuilder.AppendLine("\t,0");
-            stringBuilder.AppendLine("\t,GetUtcDate()");
-            stringBuilder.AppendLine("FROM INSERTED [i]");
-            stringBuilder.Append($"JOIN DELETED AS [d] ON ");
-            stringBuilder.AppendLine(NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[i]"));
-            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
-            stringBuilder.AppendLine(NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[i]", "[side]"));
-            stringBuilder.Append("WHERE ");
-            stringBuilder.AppendLine(stringPkAreNull.ToString());
-
-            //if (this.tableDescription.GetMutableColumns().Count() > 0)
-            //{
-            //    stringBuilder.AppendLine("AND (");
-            //    string or = "";
-            //    foreach (var column in this.tableDescription.GetMutableColumns())
-            //    {
-            //        var quotedColumn = ParserName.Parse(column).Quoted().ToString();
-
-            //        stringBuilder.Append("\t");
-            //        stringBuilder.Append(or);
-            //        stringBuilder.Append("ISNULL(");
-            //        stringBuilder.Append("NULLIF(");
-            //        stringBuilder.Append("[d].");
-            //        stringBuilder.Append(quotedColumn);
-            //        stringBuilder.Append(", ");
-            //        stringBuilder.Append("[i].");
-            //        stringBuilder.Append(quotedColumn);
-            //        stringBuilder.Append(")");
-            //        stringBuilder.Append(", ");
-            //        stringBuilder.Append("NULLIF(");
-            //        stringBuilder.Append("[i].");
-            //        stringBuilder.Append(quotedColumn);
-            //        stringBuilder.Append(", ");
-            //        stringBuilder.Append("[d].");
-            //        stringBuilder.Append(quotedColumn);
-            //        stringBuilder.Append(")");
-            //        stringBuilder.AppendLine(") IS NOT NULL");
-
-            //        or = " OR ";
-            //    }
-            //    stringBuilder.AppendLine(") ");
-            //}
-
+	                        INSERT INTO {tableName.Schema().Unquoted().ToString()} (
+		                            ""ProductID""
+		                        ,""update_scope_id""
+		                        ,""sync_row_is_tombstone""
+		                        ,""last_change_datetime""
+	                        ) 
+	                        SELECT
+		                            ""i"".""ProductID""
+		                        ,NULL
+		                        ,0
+		                        ,GetUtcDate()
+	                        FROM NEW AS ""i""
+	                        LEFT JOIN {tableName.Schema().Unquoted().ToString()} ""side"" ON ""i"".""ProductID"" = ""side"".""ProductID""
+	                        WHERE ""side"".""ProductID"" IS NULL;
+                        END;
+                        $BODY$;
+");
             return stringBuilder.ToString();
 
         }

@@ -83,19 +83,21 @@ namespace Dotmim.Sync.PostgreSql.Builders
             {
                 var typeName = c["data_type"].ToString();
                 var name = c["column_name"].ToString();
-                var maxLengthLong = Convert.ToInt64(c["max_length"]);
-
+                var maxLengthLong = c["character_maximum_length"] != DBNull.Value ? Convert.ToInt64(c["character_maximum_length"]) : 0;
+                byte precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"].ToString()) : byte.MinValue;
+                byte numeric_scale = c["numeric_scale"] != DBNull.Value ? Convert.ToByte(c["numeric_scale"].ToString()) : byte.MinValue;
                 var sColumn = new SyncColumn(name)
                 {
                     OriginalDbType = typeName,
                     Ordinal = (int)c["ordinal_position"],
                     OriginalTypeName = c["udt_name"].ToString(),
                     MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong,
-                    Precision = (byte)c["numeric_precision"],
-                    Scale = (byte)c["numeric_scale"],
-                    AllowDBNull = (bool)c["is_nullable"],
-                    IsAutoIncrement = (bool)c["is_identity"],
-                    IsUnique = c["is_identity"] != DBNull.Value ? (bool)c["is_identity"] : false,
+                    Precision = precision,
+                    Scale = numeric_scale,
+                    AllowDBNull = c["is_nullable"].ToString() == "YES" ? true : false,
+                    IsAutoIncrement = c["is_identity"].ToString() == "YES" ? true : false,
+                    IsUnique = false,
+                    //IsUnique = c["is_identity"] != DBNull.Value ? (bool)c["is_identity"] : false, //Todo: need to join to get index info
                     IsCompute = c["is_generated"].ToString() == "NEVER" ? false : true,
                     DefaultValue = c["column_default"] != DBNull.Value ? c["column_default"].ToString() : null
                 };
@@ -161,10 +163,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         public Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
+            var table = tableName.Unquoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"DROP TABLE {tableName.Schema().Unquoted().ToString()};";
+            command.CommandText = $"DROP TABLE {schema}.{table};";
 
             return Task.FromResult(command);
         }
@@ -177,7 +182,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"SELECT EXISTS (SELECT FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=@schemaName AND TABLE_NAME=@tableName AND COLUMN_NAME =@columnName);";
+            command.CommandText = @"SELECT EXISTS (SELECT FROM INFORMATION_SCHEMA.COLUMNS 
+                                        WHERE TABLE_SCHEMA=@schemaName 
+                                        AND TABLE_NAME=@tableName 
+                                        AND COLUMN_NAME =@columnName);";
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
@@ -202,7 +210,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             if (string.IsNullOrEmpty(tableName.SchemaName))
                 return null;
 
-            var schemaCommand = $"SELECT EXISTS (SELECT FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = @SCHEMANAME)";
+            var schemaCommand = $"SELECT EXISTS (SELECT FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = @schemaName)";
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -227,7 +235,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var dbCommand = connection.CreateCommand();
             dbCommand.Connection = connection;
             dbCommand.Transaction = transaction;
-            dbCommand.CommandText = @"SELECT EXISTS (SELECT FROM PG_TABLES WHERE SCHEMANAME=@SCHEMANAME AND TABLENAME=@TABLENAME)";
+            dbCommand.CommandText = @"SELECT EXISTS (SELECT FROM PG_TABLES 
+                                          WHERE SCHEMANAME=@schemaName 
+                                            AND TABLENAME=@tableName)";
 
 
             var parameter = dbCommand.CreateParameter();
@@ -262,7 +272,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
             }
 
             return lstKeys;
-
         }
 
         public async Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync(DbConnection connection, DbTransaction transaction)
@@ -310,7 +319,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         private NpgsqlCommand BuildCreateTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {tableName.Schema().Unquoted().ToString()} (");
+            var table = this.tableName.Unquoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {schema}.{table} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
@@ -329,11 +341,11 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 // if we have a computed column, we should allow null
                 if (column.IsReadOnly)
                     nullString = "NULL";
-
+                //&& !column.DefaultValue.StartsWith("nextval")
                 string defaultValue = string.Empty;
                 if (this.tableDescription.OriginalProvider == NpgsqlSyncProvider.ProviderType)
                 {
-                    if (!string.IsNullOrEmpty(column.DefaultValue))
+                    if (!string.IsNullOrEmpty(column.DefaultValue) )
                     {
                         defaultValue = "DEFAULT " + column.DefaultValue;
                     }
@@ -345,8 +357,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.Append(")");
             string createTableCommandString = stringBuilder.ToString();
             var command = new NpgsqlCommand(createTableCommandString, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
-            //Testing
-            Console.WriteLine(command.CommandText);
+           
             return command;
         }
     }

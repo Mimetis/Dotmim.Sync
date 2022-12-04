@@ -124,6 +124,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 // Bit strings are strings of 1's and 0's.They can be used to store or visualize bit masks.  
                 // https://www.postgresql.org/docs/current/datatype-bit.html
                 case "bit":
+                    return DbType.Boolean;
                 case "varbit":
                 case "bit varying":
                     return DbType.String;
@@ -164,6 +165,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case "character":
                 case "char":
                 case "name":
+                case "bpchar":
                     return DbType.AnsiStringFixedLength;
 
 
@@ -258,6 +260,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                     return NpgsqlDbType.Bytea;
                 case "character":
                 case "char":
+                case "bpchar":
                     return NpgsqlDbType.Char;
                 case "cid":
                     return NpgsqlDbType.Cid;
@@ -284,6 +287,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                     return NpgsqlDbType.Int2Vector;
                 case "integer":
                 case "int":
+                case "int2":
                 case "int4":
                     return NpgsqlDbType.Integer;
                 case "internalchar":
@@ -366,8 +370,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
         {
             switch (column.GetDbType())
             {
-                case DbType.AnsiString:
                 case DbType.AnsiStringFixedLength:
+                    return NpgsqlDbType.Char;
+                case DbType.AnsiString:
                     return NpgsqlDbType.Varchar;
                 case DbType.Binary:
                     return NpgsqlDbType.Bytea;
@@ -451,6 +456,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case NpgsqlDbType.Boolean:
                     return Type.GetType("System.Boolean");
                 case NpgsqlDbType.Char:
+                    return Type.GetType("System.Char");
                 case NpgsqlDbType.Text:
                 case NpgsqlDbType.Varchar:
                 case NpgsqlDbType.Name:
@@ -588,6 +594,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case "real":
                 case "uuid":
                 case "xml":
+                case "bpchar":
                     return true;
             }
             return false;
