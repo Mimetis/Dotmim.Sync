@@ -32,8 +32,10 @@ using Dotmim.Sync.Builders;
 using Dotmim.Sync.Serialization;
 using NLog.Extensions.Logging;
 using NLog.Web;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using Dotmim.Sync.SqlServer.Builders;
 
-#if NET5_0 || NET6_0 || NET7_0 
+#if NET5_0 || NET6_0 || NET7_0
 using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;
@@ -70,7 +72,8 @@ internal class Program
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        var setup = new SyncSetup(allTables);
+        //var setup = new SyncSetup(allTables);
+        var setup = new SyncSetup(oneTable);
         //var setup = new SyncSetup("ProductCategory", "ProductDescription", "Product");
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
@@ -113,93 +116,10 @@ internal class Program
 
         //await GenerateErrorsAsync();
 
-        await CreateSnapshotThenDeleteRowsThenSync(clientProvider, serverProvider, setup, options);
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
     }
 
 
-    private static async Task CreateSnapshotThenDeleteRowsThenSync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
-    {
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
-
-        setup = new SyncSetup("ProductCategory");
-        options.SnapshotsDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), "snapshots");
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        var ts = await agent.RemoteOrchestrator.GetLocalTimestampAsync();
-        Console.WriteLine($"Before adding a Product Category manually, TS is:{ts}");
-
-        var productCategoryName1 = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-        var productCategoryName2 = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-
-
-        await DBHelper.AddProductCategoryRowAsync(serverProvider, name: productCategoryName1);
-        Console.WriteLine($"Added Product Category {productCategoryName1}");
-
-        await DBHelper.AddProductCategoryRowAsync(serverProvider, name: productCategoryName2);
-        Console.WriteLine($"Added Product Category {productCategoryName2}");
-
-        ts = await agent.RemoteOrchestrator.GetLocalTimestampAsync();
-        Console.WriteLine($"Before snapshot, TS is:{ts}");
-
-        // Create snapshot
-        await agent.RemoteOrchestrator.CreateSnapshotAsync(scopeName, setup);
-
-        ts = await agent.RemoteOrchestrator.GetLocalTimestampAsync();
-        Console.WriteLine($"After snapshot, TS is:{ts}");
-
-        await DBHelper.DeleteProductCategoryRowAsync(serverProvider, name: productCategoryName1);
-
-        ts = await agent.RemoteOrchestrator.GetLocalTimestampAsync();
-        Console.WriteLine($"After drop a Product Category, TS is:{ts}");
-
-        var s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
-
-        ts = await agent.RemoteOrchestrator.GetLocalTimestampAsync();
-        Console.WriteLine($"After Sync, TS is:{ts}");
-
-        await DBHelper.DeleteProductCategoryRowAsync(serverProvider, name: productCategoryName2);
-
-        s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
-
-        ts = await agent.RemoteOrchestrator.GetLocalTimestampAsync();
-        Console.WriteLine($"After Drop a second line on server and sync, TS is:{ts}");
-
-
-    }
-
-    private static async Task GetBatchInfos(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
-    {
-
-        //var options = new SyncOptions();
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-        var localOrchestrator = agent.LocalOrchestrator;
-
-        var batches = localOrchestrator.LoadBatchInfos();
-
-        foreach (var batch in batches)
-        {
-            var allTables = localOrchestrator.LoadTablesFromBatchInfo(batch);
-
-            foreach (var table in allTables)
-            {
-                foreach (var row in table.Rows)
-                {
-                    Console.WriteLine(row);
-                }
-            }
-        }
-
-
-    }
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
         // Using the Progress pattern to handle progession during the synchronization
@@ -213,7 +133,6 @@ internal class Program
         {
             try
             {
-                setup = new SyncSetup("LaborItems");
                 Console.Clear();
                 Console.ForegroundColor = ConsoleColor.Green;
                 var s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
