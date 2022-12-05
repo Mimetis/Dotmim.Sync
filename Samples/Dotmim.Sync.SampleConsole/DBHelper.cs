@@ -171,5 +171,37 @@ namespace Dotmim.Sync.SampleConsole
             return pId;
         }
 
+        internal static async Task DeleteProductCategoryRowAsync(CoreProvider provider, Guid? productId = default, string name = default)
+        {
+            string commandText = $"Delete From ProductCategory Where " +
+                                 $"(ProductCategoryId = @ProductCategoryId And @ProductCategoryId is not null) OR " +
+                                 $"(Name = @Name And @Name is not null)";
+
+            var connection = provider.CreateConnection();
+
+            connection.Open();
+
+            var command = connection.CreateCommand();
+            command.CommandText = commandText;
+            command.Connection = connection;
+
+            var p = command.CreateParameter();
+            p.DbType = DbType.Guid;
+            p.ParameterName = "@ProductCategoryId";
+            p.Value = productId.HasValue ? productId.Value : DBNull.Value;
+            command.Parameters.Add(p);
+
+
+            p = command.CreateParameter();
+            p.DbType = DbType.String;
+            p.ParameterName = "@Name";
+            p.Value = string.IsNullOrEmpty(name) ? DBNull.Value : name;
+            command.Parameters.Add(p);
+
+            await command.ExecuteNonQueryAsync();
+
+            connection.Close();
+        }
+
     }
 }
