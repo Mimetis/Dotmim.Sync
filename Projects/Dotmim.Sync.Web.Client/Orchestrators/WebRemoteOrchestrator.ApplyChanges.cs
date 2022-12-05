@@ -113,7 +113,7 @@ namespace Dotmim.Sync.Web.Client
                         containerSet.Tables.Add(containerTable);
 
                         // read rows from file
-                        foreach (var row in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
+                        foreach (var row in localSerializer.GetRowsFromFile(fullPath, schemaTable))
                             containerTable.Rows.Add(row.ToArray());
 
                         // Call the converter if needed

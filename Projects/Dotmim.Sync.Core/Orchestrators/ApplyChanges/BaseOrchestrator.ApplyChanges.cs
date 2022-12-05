@@ -72,7 +72,8 @@ namespace Dotmim.Sync
 
                     // Read already present lines
                     var lastSyncErrorsBpiFullPath = lastSyncErrorsBatchInfo.GetBatchPartInfoPath(tableBpis.ToList()[0]).FullPath;
-                    foreach (var syncRow in localSerializerReader.ReadRowsFromFile(lastSyncErrorsBpiFullPath, schemaChangesTable))
+
+                    foreach (var syncRow in localSerializerReader.GetRowsFromFile(lastSyncErrorsBpiFullPath, schemaChangesTable))
                         failedRows.Add(syncRow);
 
                     // Open again the same file
@@ -83,7 +84,7 @@ namespace Dotmim.Sync
                         // Get full path of my batchpartinfo
                         var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo).FullPath;
 
-                        foreach (var syncRow in localSerializerReader.ReadRowsFromFile(fullPath, schemaChangesTable))
+                        foreach (var syncRow in localSerializerReader.GetRowsFromFile(fullPath, schemaChangesTable))
                         {
                             var rowIsInBatch = SyncRows.GetRowByPrimaryKeys(syncRow, failedRows, schemaTable);
 
@@ -380,7 +381,7 @@ namespace Dotmim.Sync
 
                     if (isBatch)
                     {
-                        foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
+                        foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, schemaChangesTable))
                         {
                             rowsFetched++;
 
@@ -468,7 +469,7 @@ namespace Dotmim.Sync
                     }
                     else
                     {
-                        foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
+                        foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, schemaChangesTable))
                         {
                             if (syncRow.RowState == SyncRowState.ApplyModifiedFailed || syncRow.RowState == SyncRowState.ApplyDeletedFailed)
                             {

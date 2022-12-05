@@ -798,7 +798,7 @@ namespace Dotmim.Sync.Web.Server
                     {
                         var paths = serverSyncChanges.ServerBatchInfo.GetBatchPartInfoPath(part);
                         var localSerializer = new LocalJsonSerializer();
-                        foreach (var syncRow in localSerializer.ReadRowsFromFile(paths.FullPath, table))
+                        foreach (var syncRow in localSerializer.GetRowsFromFile(paths.FullPath, table))
                         {
                             containerTable.Rows.Add(syncRow.ToArray());
                         }
@@ -888,7 +888,7 @@ namespace Dotmim.Sync.Web.Server
 
             // read rows from file
             var localSerializer = new LocalJsonSerializer();
-            foreach (var row in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
+            foreach (var row in localSerializer.GetRowsFromFile(fullPath, schemaTable))
                 containerTable.Rows.Add(row.ToArray());
 
             // if client request a conversion on each row, apply the conversion

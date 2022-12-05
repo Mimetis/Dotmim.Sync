@@ -258,7 +258,9 @@ namespace Dotmim.Sync
 
                             tableChangesSelected.Deletes++;
                             rowsCountInBatchDeleted++;
+                            
                             await localSerializerDeleted.WriteRowToFileAsync(syncRow, schemaChangesTable).ConfigureAwait(false);
+
                             var currentBatchSizeDeleted = await localSerializerDeleted.GetCurrentFileSizeAsync().ConfigureAwait(false);
 
                             if (currentBatchSizeDeleted > this.Options.BatchSize)
