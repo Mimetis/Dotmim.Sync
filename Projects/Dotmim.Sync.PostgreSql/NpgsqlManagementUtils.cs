@@ -218,8 +218,7 @@ namespace Dotmim.Sync.PostgreSql
 	                                IS_IDENTITY,
 	                                COLUMN_DEFAULT,
 	                                IDENTITY_START,
-	                                IDENTITY_INCREMENT,
-	                                CHARACTER_MAXIMUM_LENGTH
+	                                IDENTITY_INCREMENT
                                 FROM INFORMATION_SCHEMA.COLUMNS
                                 WHERE TABLE_NAME = @TABLENAME
 	                                AND TABLE_SCHEMA = @SCHEMANAME;";

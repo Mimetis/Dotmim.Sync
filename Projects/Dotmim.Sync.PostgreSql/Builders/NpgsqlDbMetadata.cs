@@ -54,14 +54,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
             {
                 case NpgsqlDbType.Varbit:
                 case NpgsqlDbType.Varchar:
-                case NpgsqlDbType.Text:
-                    if (column.MaxLength > 0 && column.MaxLength <= 8000)
-                        argument = $"({column.MaxLength})";
-                    else
-                        argument = "(10485760)";
-                    break;
                 case NpgsqlDbType.Char:
-                    argument = $"({Math.Min(4000, column.MaxLength)})";
+                //case NpgsqlDbType.Text:
+                        argument = $"({column.MaxLength})";
                     break;
                 case NpgsqlDbType.Numeric:
                     var (p, s) = this.GetPrecisionAndScale(column);

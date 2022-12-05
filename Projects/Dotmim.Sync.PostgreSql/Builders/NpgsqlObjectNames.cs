@@ -30,14 +30,14 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         internal const string resetMetadataProcName = "{0}.{1}{2}reset";
 
-        internal const string bulkTableTypeName = "{0}.{1}{2}BulkType";
+        //internal const string bulkTableTypeName = "{0}.{1}{2}BulkType";
 
-        internal const string bulkInsertProcName = "{0}.{1}{2}bulkinsert";
-        internal const string bulkUpdateProcName = "{0}.{1}{2}bulkupdate";
-        internal const string bulkDeleteProcName = "{0}.{1}{2}bulkdelete";
+        //internal const string bulkInsertProcName = "{0}.{1}{2}bulkinsert";
+        //internal const string bulkUpdateProcName = "{0}.{1}{2}bulkupdate";
+        //internal const string bulkDeleteProcName = "{0}.{1}{2}bulkdelete";
 
         internal const string disableConstraintsText = "ALTER TABLE {0} DISABLE TRIGGER ALL";
-        internal const string enableConstraintsText = "ALTER TABLE {0} DISABLE TRIGGER ALL";
+        internal const string enableConstraintsText = "ALTER TABLE {0} ENABLE TRIGGER ALL";
 
         Dictionary<DbCommandType, string> commandNames = new Dictionary<DbCommandType, string>();
         private string scopeName;
@@ -69,7 +69,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
         public void AddStoredProcedureName(DbStoredProcedureType objectType, string name)
         {
             if (storedProceduresNames.ContainsKey(objectType))
-                throw new Exception("Yous can't add an objectType multiple times");
+                throw new Exception("You can't add an objectType multiple times");
 
             storedProceduresNames.Add(objectType, name);
         }
@@ -77,7 +77,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
         public void AddTriggerName(DbTriggerType objectType, string name)
         {
             if (triggersNames.ContainsKey(objectType))
-                throw new Exception("Yous can't add an objectType multiple times");
+                throw new Exception("You can't add an objectType multiple times");
 
             triggersNames.Add(objectType, name);
         }
@@ -85,7 +85,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
         public string GetCommandName(DbCommandType objectType, SyncFilter filter)
         {
             if (!commandNames.ContainsKey(objectType))
-                throw new Exception("Yous should provide a value for all DbCommandName");
+                throw new Exception("You should provide a value for all DbCommandName");
 
             var commandName = commandNames[objectType];
 
@@ -99,7 +99,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
         public string GetStoredProcedureCommandName(DbStoredProcedureType storedProcedureType, SyncFilter filter = null)
         {
             if (!storedProceduresNames.ContainsKey(storedProcedureType))
-                throw new Exception("Yous should provide a value for all storedProcedureType");
+                throw new Exception("You should provide a value for all storedProcedureType");
 
             var commandName = storedProceduresNames[storedProcedureType];
 
@@ -279,9 +279,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
             this.AddTriggerName(DbTriggerType.Update, string.Format(updateTriggerName, triggerName));
             this.AddTriggerName(DbTriggerType.Delete, string.Format(deleteTriggerName, triggerName));
 
-            this.AddStoredProcedureName(DbStoredProcedureType.BulkTableType, string.Format(bulkTableTypeName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
-            this.AddStoredProcedureName(DbStoredProcedureType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
-            this.AddStoredProcedureName(DbStoredProcedureType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            //this.AddStoredProcedureName(DbStoredProcedureType.BulkTableType, string.Format(bulkTableTypeName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            //this.AddStoredProcedureName(DbStoredProcedureType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            //this.AddStoredProcedureName(DbStoredProcedureType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
 
             this.AddCommandName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(tableDescription).Schema().Unquoted().ToString()));
             this.AddCommandName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(tableDescription).Schema().Unquoted().ToString()));

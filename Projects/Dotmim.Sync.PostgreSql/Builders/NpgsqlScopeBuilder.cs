@@ -444,7 +444,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
         {
             var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
             var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.ScopeInfoTableName);
-           
+
             var commandText = $@"
                                 with changes as (
                                                     SELECT @sync_scope_name AS sync_scope_name,
@@ -454,7 +454,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
                                                     @sync_scope_last_clean_timestamp AS sync_scope_last_clean_timestamp,
                                                     @sync_scope_properties as sync_scope_properties
                                                  )
-                                insert into  public.scope_info (sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, sync_scope_last_clean_timestamp, sync_scope_properties)
+                                insert into  {schemaName}.{tableName} (sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, sync_scope_last_clean_timestamp, sync_scope_properties)
                                                   SELECT sync_scope_name,sync_scope_schema,sync_scope_setup,sync_scope_version,sync_scope_last_clean_timestamp,sync_scope_properties from changes
                                 on conflict (sync_scope_name)								
                                 DO UPDATE SET 
@@ -465,7 +465,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
                                                 sync_scope_last_clean_timestamp = EXCLUDED.sync_scope_last_clean_timestamp,
                                                 sync_scope_properties = EXCLUDED.sync_scope_properties
                                     returning	* ";
-                
+
             var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = commandText;

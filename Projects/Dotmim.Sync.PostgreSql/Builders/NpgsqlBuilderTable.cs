@@ -83,7 +83,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             {
                 var typeName = c["data_type"].ToString();
                 var name = c["column_name"].ToString();
-                var maxLengthLong = c["character_maximum_length"] != DBNull.Value ? Convert.ToInt64(c["character_maximum_length"]) : 0;
+                var maxLengthLong = c["character_maximum_length"] != DBNull.Value ? (int)c["CHARACTER_MAXIMUM_LENGTH"] : 0;
                 byte precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"].ToString()) : byte.MinValue;
                 byte numeric_scale = c["numeric_scale"] != DBNull.Value ? Convert.ToByte(c["numeric_scale"].ToString()) : byte.MinValue;
                 var sColumn = new SyncColumn(name)
@@ -136,16 +136,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"CREATE SCHEMA {schema}";
-            //Testing
-            Console.WriteLine(command.CommandText);
+            command.CommandText = $"CREATE SCHEMA {schema};";
             return Task.FromResult(command);
         }
         public Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var command = BuildCreateTableCommand(connection, transaction);
-            //Testing
-            Console.WriteLine(command.CommandText);
+           
             return Task.FromResult((DbCommand)command);
         }
 
@@ -330,11 +327,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 var columnName = ParserName.Parse(column).Unquoted().ToString();
 
                 var columnType = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.tableDescription.OriginalProvider);
-                var identity = string.Empty;
 
                 if (column.IsAutoIncrement)
                 {
-                    identity = $"SERIAL";
+                    columnType = $"SERIAL";
                 }
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
@@ -345,19 +341,24 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 string defaultValue = string.Empty;
                 if (this.tableDescription.OriginalProvider == NpgsqlSyncProvider.ProviderType)
                 {
-                    if (!string.IsNullOrEmpty(column.DefaultValue) )
+                    if (!string.IsNullOrEmpty(column.DefaultValue))
                     {
-                        defaultValue = "DEFAULT " + column.DefaultValue;
+                        if (column.DefaultValue.StartsWith("nextval"))
+                        { columnType = $"SERIAL"; }
+                        else
+                        {
+                            defaultValue = "DEFAULT " + column.DefaultValue;
+                        }
                     }
                 }
 
-                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {nullString} {defaultValue}");
+                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {nullString} {defaultValue}");
                 empty = ",";
             }
-            stringBuilder.Append(")");
+            stringBuilder.Append(");");
             string createTableCommandString = stringBuilder.ToString();
             var command = new NpgsqlCommand(createTableCommandString, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
-           
+
             return command;
         }
     }
