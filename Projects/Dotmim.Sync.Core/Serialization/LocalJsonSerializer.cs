@@ -16,11 +16,35 @@ namespace Dotmim.Sync.Serialization
     public class LocalJsonSerializer
     {
 
-
         private StreamWriter sw;
         private JsonTextWriter writer;
         private Func<SyncTable, object[], Task<string>> writingRowAsync;
         private Func<SyncTable, string, Task<object[]>> readingRowAsync;
+
+
+        public LocalJsonSerializer()
+        {
+
+        }
+
+        public LocalJsonSerializer(BaseOrchestrator orchestrator, SyncContext context)
+        {
+            if (orchestrator.HasInterceptors<DeserializingRowArgs>())
+                this.OnReadingRow(async (schemaTable, rowString) =>
+                {
+                    var args = new DeserializingRowArgs(context, schemaTable, rowString);
+                    await orchestrator.InterceptAsync(args).ConfigureAwait(false);
+                    return args.Result;
+                });
+
+            if (orchestrator.HasInterceptors<SerializingRowArgs>())
+                this.OnWritingRow(async (schemaTable, rowArray) =>
+                {
+                    var args = new SerializingRowArgs(context, schemaTable, rowArray);
+                    await orchestrator.InterceptAsync(args).ConfigureAwait(false);
+                    return args.Result;
+                });
+        }
 
         /// <summary>
         /// Returns if the file is opened
@@ -286,7 +310,7 @@ namespace Dotmim.Sync.Serialization
                             if (this.readingRowAsync != null)
                             {
                                 var jArray = serializer.Deserialize<JArray>(reader);
-                                var value = jArray.ToString();
+                                var value = jArray[0].Value<string>();
                                 array = this.readingRowAsync(schemaTable, value).GetAwaiter().GetResult();
                             }
                             else

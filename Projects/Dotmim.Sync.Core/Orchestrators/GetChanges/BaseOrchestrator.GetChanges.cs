@@ -192,22 +192,22 @@ namespace Dotmim.Sync
                 // numbers of batch files generated
                 var batchIndex = -1;
 
-                var localSerializerModified = new LocalJsonSerializer();
-                var localSerializerDeleted = new LocalJsonSerializer();
+                var localSerializerModified = new LocalJsonSerializer(this, context);
+                var localSerializerDeleted = new LocalJsonSerializer(this, context);
 
-                var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
-                if (interceptorsWriting.Count > 0)
-                {
-                    localSerializerModified.OnWritingRow(async (syncTable, rowArray) =>
-                    {
-                        var copyArray = new object[rowArray.Length];
-                        Array.Copy(rowArray, copyArray, rowArray.Length);
+                //var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
+                //if (interceptorsWriting.Count > 0)
+                //{
+                //    localSerializerModified.OnWritingRow(async (syncTable, rowArray) =>
+                //    {
+                //        var copyArray = new object[rowArray.Length];
+                //        Array.Copy(rowArray, copyArray, rowArray.Length);
 
-                        var args = new SerializingRowArgs(context, syncTable, copyArray);
-                        await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-                        return args.Result;
-                    });
-                }
+                //        var args = new SerializingRowArgs(context, syncTable, copyArray);
+                //        await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+                //        return args.Result;
+                //    });
+                //}
 
                 string batchPartInfoFullPathModified = null, batchPartFileNameModified = null;
                 string batchPartInfoFullPathDeleted = null, batchPartFileNameDeleted = null;

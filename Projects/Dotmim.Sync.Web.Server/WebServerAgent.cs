@@ -668,7 +668,7 @@ namespace Dotmim.Sync.Web.Server
             if (httpMessage.Changes != null && httpMessage.Changes.HasRows)
             {
                 // we have only one table here
-                var localSerializer = new LocalJsonSerializer();
+                var localSerializer = new LocalJsonSerializer(this.RemoteOrchestrator, context);
                 var containerTable = httpMessage.Changes.Tables[0];
                 var schemaTable = BaseOrchestrator.CreateChangesTable(sScopeInfo.Schema.Tables[containerTable.TableName, containerTable.SchemaName]);
                 var tableName = ParserName.Parse(new SyncTable(containerTable.TableName, containerTable.SchemaName)).Unquoted().Schema().Normalized().ToString();
@@ -679,16 +679,16 @@ namespace Dotmim.Sync.Web.Server
                 if (this.clientConverter != null)
                     AfterDeserializedRows(containerTable, schemaTable, this.clientConverter);
 
-                var interceptorsWriting = this.RemoteOrchestrator.interceptors.GetInterceptors<SerializingRowArgs>();
-                if (interceptorsWriting.Count > 0)
-                {
-                    localSerializer.OnWritingRow(async (syncTable, rowArray) =>
-                    {
-                        var args = new SerializingRowArgs(httpMessage.SyncContext, syncTable, rowArray);
-                        await this.RemoteOrchestrator.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-                        return args.Result;
-                    });
-                }
+                //var interceptorsWriting = this.RemoteOrchestrator.interceptors.GetInterceptors<SerializingRowArgs>();
+                //if (interceptorsWriting.Count > 0)
+                //{
+                //    localSerializer.OnWritingRow(async (syncTable, rowArray) =>
+                //    {
+                //        var args = new SerializingRowArgs(httpMessage.SyncContext, syncTable, rowArray);
+                //        await this.RemoteOrchestrator.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+                //        return args.Result;
+                //    });
+                //}
                 // open the file and write table header
                 await localSerializer.OpenFileAsync(fullPath, schemaTable).ConfigureAwait(false);
 
@@ -797,7 +797,7 @@ namespace Dotmim.Sync.Web.Server
                     foreach (var part in serverSyncChanges.ServerBatchInfo.GetBatchPartsInfo(table))
                     {
                         var paths = serverSyncChanges.ServerBatchInfo.GetBatchPartInfoPath(part);
-                        var localSerializer = new LocalJsonSerializer();
+                        var localSerializer = new LocalJsonSerializer(this.RemoteOrchestrator, context);
                         foreach (var syncRow in localSerializer.GetRowsFromFile(paths.FullPath, table))
                         {
                             containerTable.Rows.Add(syncRow.ToArray());
@@ -887,7 +887,7 @@ namespace Dotmim.Sync.Web.Server
             containerSet.Tables.Add(containerTable);
 
             // read rows from file
-            var localSerializer = new LocalJsonSerializer();
+            var localSerializer = new LocalJsonSerializer(this.RemoteOrchestrator, context);
             foreach (var row in localSerializer.GetRowsFromFile(fullPath, schemaTable))
                 containerTable.Rows.Add(row.ToArray());
 

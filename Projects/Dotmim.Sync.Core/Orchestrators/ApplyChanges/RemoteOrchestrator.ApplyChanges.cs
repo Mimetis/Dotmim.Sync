@@ -146,7 +146,7 @@ namespace Dotmim.Sync
                             if (!table.HasRows)
                                 continue;
 
-                            var localSerializer = new LocalJsonSerializer();
+                            var localSerializer = new LocalJsonSerializer(this, context);
 
                             var (filePath, fileName) = errorsBatchInfo.GetNewBatchPartInfoPath(table, batchIndex, "json", info);
                             var batchPartInfo = new BatchPartInfo(fileName, table.TableName, table.SchemaName, table.Rows.Count, batchIndex);
