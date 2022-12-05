@@ -252,7 +252,7 @@ namespace Dotmim.Sync
                 // re-apply scope is new flag
                 // to be sure we are calling the Initialize method, even for the delta
                 // in that particular case, we want the delta rows coming from the current scope
-                cScopeInfoClient.IsNewScope = true;
+                // cScopeInfoClient.IsNewScope = true;
 
                 return (context, clientSyncChanges, cScopeInfoClient);
             }
