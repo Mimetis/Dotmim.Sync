@@ -28,6 +28,11 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Returns a boolean value indicating if we have any interceptors for the current type T
+        /// </summary>
+        public bool HasInterceptors<T>() where T : ProgressArgs => this.GetInterceptors<T>().Any();
+
+        /// <summary>
         /// Remove all interceptors based on type of ProgressArgs
         /// </summary>
         public void Clear<T>() where T : ProgressArgs => this.GetInterceptors<T>().Clear();

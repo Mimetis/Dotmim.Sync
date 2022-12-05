@@ -84,18 +84,18 @@ namespace Dotmim.Sync.Web.Client
                     // Foreach part, will have to send them to the remote
                     // once finished, return context
                     var initialPctProgress1 = context.ProgressPercentage;
-                    var localSerializer = new LocalJsonSerializer();
+                    var localSerializer = new LocalJsonSerializer(this, context);
 
-                    var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
-                    if (interceptorsReading.Count > 0)
-                    {
-                        localSerializer.OnReadingRow(async (schemaTable, rowString) =>
-                        {
-                            var args = new DeserializingRowArgs(context, schemaTable, rowString);
-                            await this.InterceptAsync(args);
-                            return args.Result;
-                        });
-                    }
+                    //var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
+                    //if (interceptorsReading.Count > 0)
+                    //{
+                    //    localSerializer.OnReadingRow(async (schemaTable, rowString) =>
+                    //    {
+                    //        var args = new DeserializingRowArgs(context, schemaTable, rowString);
+                    //        await this.InterceptAsync(args);
+                    //        return args.Result;
+                    //    });
+                    //}
 
                     foreach (var bpi in clientChanges.ClientBatchInfo.BatchPartsInfo.OrderBy(bpi => bpi.Index))
                     {
@@ -113,7 +113,7 @@ namespace Dotmim.Sync.Web.Client
                         containerSet.Tables.Add(containerTable);
 
                         // read rows from file
-                        foreach (var row in localSerializer.ReadRowsFromFile(fullPath, schemaTable))
+                        foreach (var row in localSerializer.GetRowsFromFile(fullPath, schemaTable))
                             containerTable.Rows.Add(row.ToArray());
 
                         // Call the converter if needed
@@ -235,19 +235,18 @@ namespace Dotmim.Sync.Web.Client
 
                         if (getMoreChanges != null && getMoreChanges.Changes != null && getMoreChanges.Changes.HasRows)
                         {
-                            var localSerializer = new LocalJsonSerializer();
+                            var localSerializer = new LocalJsonSerializer(this, context);
 
-                            var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
-                            if (interceptorsWriting.Count > 0)
-                            {
-                                localSerializer.OnWritingRow(async (syncTable, rowArray) =>
-                                {
-                                    var args = new SerializingRowArgs(context, syncTable, rowArray);
-                                    await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-                                    return args.Result;
-                                });
-                            }
-
+                            //var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
+                            //if (interceptorsWriting.Count > 0)
+                            //{
+                            //    localSerializer.OnWritingRow(async (syncTable, rowArray) =>
+                            //    {
+                            //        var args = new SerializingRowArgs(context, syncTable, rowArray);
+                            //        await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+                            //        return args.Result;
+                            //    });
+                            //}
 
                             // Should have only one table
                             var table = getMoreChanges.Changes.Tables[0];

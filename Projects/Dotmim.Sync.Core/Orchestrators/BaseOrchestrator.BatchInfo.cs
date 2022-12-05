@@ -7,67 +7,28 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Transactions;
 
 namespace Dotmim.Sync
 {
     public abstract partial class BaseOrchestrator
     {
 
-        /// <inheritdoc cref="LoadTableFromBatchInfoAsync(string, BatchInfo, string, string, SyncRowState?, DbConnection, DbTransaction)"/>
-        public virtual Task<SyncTable> LoadTableFromBatchInfoAsync(BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
-            => LoadTableFromBatchInfoAsync(SyncOptions.DefaultScopeName, batchInfo, tableName, schemaName, syncRowState, connection, transaction);
 
         /// <summary>
-        /// Load a table with all rows from a <see cref="BatchInfo"/> instance. You need a <see cref="ScopeInfoClient"/> instance to be able to load rows for this client.
-        /// <para>
-        /// Once loaded, all rows are in memory.
-        /// </para>
+        /// Load all batch infos from the batch directory (see <see cref="SyncOptions.BatchDirectory"/>)
         /// <example>
         /// <code>
-        /// // get the local client scope info
-        /// var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
-        /// // get all changes from server
-        /// var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
-        /// // load changes for table ProductCategory in memory
-        /// var productCategoryTable = await localOrchestrator.LoadTableFromBatchInfoAsync(scopeName, changes, "ProductCategory")
-        /// foreach (var productCategoryRow in productCategoryTable.Rows)
-        /// {
-        ///    ....
-        /// }
-        /// </code>
-        /// </example>
-        /// </summary>
-        public virtual async Task<SyncTable> LoadTableFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
-        {
-            var context = new SyncContext(Guid.NewGuid(), scopeName);
-            try
-            {
-                ScopeInfo scopeInfo = null;
-                (context, scopeInfo) = await this.InternalGetScopeInfoAsync(context, connection, transaction, default, default).ConfigureAwait(false);
-
-                var syncTable = await InternalLoadTableFromBatchInfoAsync(scopeInfo, context, batchInfo, tableName, schemaName, syncRowState).ConfigureAwait(false);
-
-                return syncTable;
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(context, ex);
-            }
-        }
-
-
-        /// <summary>
-        /// Load all batch infos from a the batch directory (see <see cref="SyncOptions.BatchDirectory"/> to ge the batch directory)
-        /// <example>
-        /// <code>
-        /// var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+        /// var batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
         /// 
         /// foreach (var batchInfo in batchInfos)
         ///     Console.WriteLine(batchInfo.RowsCount);
@@ -77,17 +38,9 @@ namespace Dotmim.Sync
         /// <returns>
         /// 
         /// </returns>
-        public virtual async Task<List<BatchInfo>> LoadBatchInfosAsync(string scopeName = SyncOptions.DefaultScopeName, DbConnection connection = null, DbTransaction transaction = null)
+        public virtual List<BatchInfo> LoadBatchInfos()
         {
-            var context = new SyncContext(Guid.NewGuid(), scopeName);
-
-            ScopeInfo scopeInfo;
-            (_, scopeInfo) = await this.InternalGetScopeInfoAsync(context, connection, transaction, default, default).ConfigureAwait(false);
-
-            if (scopeInfo == null)
-                throw new MissingSchemaInScopeException();
-
-            var localSerializer = new LocalJsonSerializer();
+            var localSerializer = new LocalJsonSerializer(this, new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName));
 
             var directoryInfo = new DirectoryInfo(this.Options.BatchDirectory);
 
@@ -102,101 +55,159 @@ namespace Dotmim.Sync
 
                 foreach (var file in directory.GetFiles())
                 {
-                    var (tableName, schemaName, rowsCount) = localSerializer.GetTableNameFromFile(file.FullName);
-
-                    var schemaTable = scopeInfo.Schema.Tables[tableName, schemaName];
-
-                    if (schemaTable == null)
-                        continue;
-
-                    var bpi = new BatchPartInfo(file.Name, tableName, schemaName, rowsCount);
-                    batchInfo.BatchPartsInfo.Add(bpi);
+                    var (schemaTable, rowsCount) = localSerializer.GetSchemaTableFromFile(file.FullName);
+                    batchInfo.BatchPartsInfo.Add(new BatchPartInfo(file.Name, schemaTable.TableName, schemaTable.SchemaName, rowsCount));
                 }
-
                 batchInfos.Add(batchInfo);
             }
-
             return batchInfos;
         }
 
 
+        /// <inheritdoc cref="LoadTablesFromBatchInfo(string, BatchInfo, SyncRowState?)"/>
+        public virtual IEnumerable<SyncTable> LoadTablesFromBatchInfo(BatchInfo batchInfo, SyncRowState? syncRowState = default)
+            => LoadTablesFromBatchInfo(SyncOptions.DefaultScopeName, batchInfo, syncRowState);
+
+
         /// <summary>
         /// Load all tables from a batch info. All rows serialized on disk are loaded in memory once you are iterating
-        /// <para>
-        /// Be careful, this method returns an <c>IAsyncEnumerable</c> instance.
-        /// </para>
         /// 
         /// <code>
-        /// var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+        /// var batchInfos = await agent.LocalOrchestrator.LoadBatchInfos();
         /// foreach (var batchInfo in batchInfos)
         /// {
-        ///  // Load all rows from error tables specifying the specific SyncRowState states
-        ///  var allTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo,
-        ///  SyncRowState.ApplyDeletedFailed | SyncRowState.ApplyModifiedFailed);
+        ///    // Load all rows from error tables specifying the specific SyncRowState states
+        ///    var allTables = agent.LocalOrchestrator.LoadTablesFromBatchInfo(batchInfo, SyncRowState.ApplyDeletedFailed | SyncRowState.ApplyModifiedFailed);
         ///
-        ///  // Enumerate all rows in error
-        ///  await foreach (var table in allTables)
-        ///  foreach (var row in table.Rows)
-        ///     Console.WriteLine(row);
+        ///    // Enumerate all rows in error
+        ///    foreach (var table in allTables)
+        ///      foreach (var row in table.Rows)
+        ///        Console.WriteLine(row);
         /// }
         /// </code>   
         /// </summary>
-        public virtual IAsyncEnumerable<SyncTable> LoadTablesFromBatchInfoAsync(BatchInfo batchInfo, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
-            => LoadTablesFromBatchInfoAsync(SyncOptions.DefaultScopeName, batchInfo, syncRowState);
-
-        /// <inheritdoc cref="LoadTablesFromBatchInfoAsync(BatchInfo, SyncRowState?, DbConnection, DbTransaction)"/>
-        public virtual async IAsyncEnumerable<SyncTable> LoadTablesFromBatchInfoAsync(string scopeName, BatchInfo batchInfo, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
+        public virtual IEnumerable<SyncTable> LoadTablesFromBatchInfo(string scopeName, BatchInfo batchInfo, SyncRowState? syncRowState = default)
         {
+            if (batchInfo == null || batchInfo.BatchPartsInfo == null || batchInfo.BatchPartsInfo.Count == 0)
+                yield break;
+
             var context = new SyncContext(Guid.NewGuid(), scopeName);
+            var bpiGroupedTables = batchInfo.BatchPartsInfo.GroupBy(st => st.TableName + st.SchemaName);
 
-            ScopeInfo scopeInfo;
-            (context, scopeInfo) = await this.InternalGetScopeInfoAsync(context, connection, transaction, default, default).ConfigureAwait(false);
+            var localSerializer = new LocalJsonSerializer(this, context);
 
-            if (scopeInfo == null)
-                throw new MissingSchemaInScopeException();
+            //if (this.HasInterceptors<DeserializingRowArgs>())
+            //{
+            //    localSerializer.OnReadingRow(async (schemaTable, rowString) =>
+            //    {
+            //        var args = new DeserializingRowArgs(context, schemaTable, rowString);
+            //        await this.InterceptAsync(args).ConfigureAwait(false);
+            //        return args.Result;
+            //    });
+            //}
 
-            foreach (var schemaTable in scopeInfo.Schema.Tables)
+            SyncTable currentTable = null;
+
+            foreach (var bpiGroupedTable in bpiGroupedTables)
             {
-                var syncTable = await InternalLoadTableFromBatchInfoAsync(scopeInfo, context, batchInfo, schemaTable.TableName, schemaTable.SchemaName, syncRowState).ConfigureAwait(false);
+                var bpiTable = bpiGroupedTable.FirstOrDefault();
 
-                if (syncTable != null && syncTable.HasRows)
-                    yield return syncTable;
+                if (bpiTable == null)
+                    continue;
+
+                // Gets all BPI containing this table
+                foreach (var bpi in batchInfo.GetBatchPartsInfo(bpiTable.TableName, bpiTable.SchemaName))
+                {
+                    try
+                    {
+                        // Get full path of my batchpartinfo
+                        var fullPath = batchInfo.GetBatchPartInfoPath(bpi).FullPath;
+
+                        if (!File.Exists(fullPath))
+                            continue;
+
+                        var (syncTable, _) = localSerializer.GetSchemaTableFromFile(fullPath);
+
+                        // on first iteration, creating the return table
+                        currentTable ??= syncTable.Clone();
+
+                        foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, syncTable))
+                            if (!syncRowState.HasValue || syncRowState == default || (syncRowState.HasValue && syncRowState.Value.HasFlag(syncRow.RowState)))
+                                currentTable.Rows.Add(syncRow);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw GetSyncError(context, ex);
+                    }
+                }
+
+                yield return currentTable;
             }
         }
 
+        //-------------------------------------------------------
+        // Load Batch Info for a given Table Name into SyncTable
+        //-------------------------------------------------------
+
+        public virtual SyncTable LoadTableFromBatchInfo(BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default)
+            => LoadTableFromBatchInfo(SyncOptions.DefaultScopeName, batchInfo, tableName, schemaName, syncRowState);
+
 
         /// <summary>
-        /// Load the Batch part info in memory, in a SyncTable
-        /// TODO: Now we should be able to load only batch part info with correct SyncRowState
+        /// Load a table with all rows from a <see cref="BatchInfo"/> instance. You need a <see cref="ScopeInfoClient"/> instance to be able to load rows for this client.
+        /// <para>
+        /// Once loaded, all rows are in memory.
+        /// </para>
+        /// <example>
+        /// <code>
+        /// // get the local client scope info
+        /// var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
+        /// // get all changes from server
+        /// var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
+        /// // load changes for table ProductCategory in memory
+        /// var productCategoryTable = await localOrchestrator.LoadBatchInfo(scopeName, changes, "ProductCategory")
+        /// foreach (var productCategoryRow in productCategoryTable.Rows)
+        /// {
+        ///    ....
+        /// }
+        /// </code>
+        /// </example>
         /// </summary>
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        internal virtual async Task<SyncTable> InternalLoadTableFromBatchInfoAsync(ScopeInfo scopeInfo,
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
-            SyncContext context, BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default)
+        public virtual SyncTable LoadTableFromBatchInfo(string scopeName, BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default)
         {
             if (batchInfo == null)
                 return null;
 
-            if (scopeInfo == null)
-                throw new MissingSchemaInScopeException();
+            var context = new SyncContext(Guid.NewGuid(), scopeName);
 
-            // get the sanitazed table (without any readonly / non updatable columns) from batchinfo
-            var originalSchemaTable = scopeInfo.Schema.Tables[tableName, schemaName];
-            var changesSet = originalSchemaTable.Schema.Clone(false);
-            var table = CreateChangesTable(originalSchemaTable, changesSet);
-
-            var localSerializer = new LocalJsonSerializer();
-
-            var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
-            if (interceptorsReading.Count > 0)
+            try
             {
-                localSerializer.OnReadingRow(async (schemaTable, rowString) =>
-                {
-                    var args = new DeserializingRowArgs(context, schemaTable, rowString);
-                    await this.InterceptAsync(args).ConfigureAwait(false);
-                    return args.Result;
-                });
+                return InternalLoadTableFromBatchInfo(context, batchInfo, tableName, schemaName, syncRowState);
             }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+
+
+        }
+
+        internal SyncTable InternalLoadTableFromBatchInfo(SyncContext context, BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default)
+        {
+            var localSerializer = new LocalJsonSerializer(this, context);
+
+            //var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
+            //if (interceptorsReading.Count > 0)
+            //{
+            //    localSerializer.OnReadingRow(async (schemaTable, rowString) =>
+            //    {
+            //        var args = new DeserializingRowArgs(context, schemaTable, rowString);
+            //        await this.InterceptAsync(args).ConfigureAwait(false);
+            //        return args.Result;
+            //    });
+            //}
+            SyncTable syncTable = null;
+
             // Gets all BPI containing this table
             foreach (var bpi in batchInfo.GetBatchPartsInfo(tableName, schemaName))
             {
@@ -206,30 +217,37 @@ namespace Dotmim.Sync
                 if (!File.Exists(fullPath))
                     continue;
 
-                foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, table))
+                // Get table from file
+                if (syncTable == null)
+                    (syncTable, _) = localSerializer.GetSchemaTableFromFile(fullPath);
+
+                foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, syncTable))
                     if (!syncRowState.HasValue || syncRowState == default || (syncRowState.HasValue && syncRowState.Value.HasFlag(syncRow.RowState)))
-                        table.Rows.Add(syncRow);
+                        syncTable.Rows.Add(syncRow);
             }
-            return table;
+            return syncTable;
+
         }
 
+        //-------------------------------------------------------
+        // Load Batch Part Info into SyncTable
+        //-------------------------------------------------------
 
         /// <summary>
         /// Load a table from a batch part info
         /// </summary>
-        public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
-            => LoadTableFromBatchPartInfoAsync(SyncOptions.DefaultScopeName, batchInfo, batchPartInfo, syncRowState, connection, transaction);
-
+        public virtual SyncTable LoadTableFromBatchPartInfo(string path, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
+            => LoadTableFromBatchPartInfo(SyncOptions.DefaultScopeName, path, syncRowState, connection, transaction);
 
         /// <summary>
         /// Load a table from a batch part info
         /// </summary>
-        public virtual Task<SyncTable> LoadTableFromBatchPartInfoAsync(string scopeName, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
+        public virtual SyncTable LoadTableFromBatchPartInfo(string scopeName, string path, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
-                return InternalLoadTableFromBatchPartInfoAsync(context, batchInfo, batchPartInfo, syncRowState, connection, transaction);
+                return InternalLoadTableFromBatchPartInfo(context, path, syncRowState, connection, transaction);
             }
             catch (Exception ex)
             {
@@ -240,56 +258,36 @@ namespace Dotmim.Sync
         /// <summary>
         /// Load the Batch part info in memory, in a SyncTable
         /// </summary>
-        internal async Task<SyncTable> InternalLoadTableFromBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
+        internal SyncTable InternalLoadTableFromBatchPartInfo(SyncContext context, string fullPath, SyncRowState? syncRowState = default, DbConnection connection = null, DbTransaction transaction = null)
         {
-            if (batchInfo == null)
-                return null;
-
-            var localSerializer = new LocalJsonSerializer();
-
-            // Get full path of my batchpartinfo
-            var fullPath = batchInfo.GetBatchPartInfoPath(batchPartInfo).FullPath;
-
             if (!File.Exists(fullPath))
                 return null;
 
-            if ((batchPartInfo.Tables == null || batchPartInfo.Tables.Count() < 1) && batchPartInfo.RowsCount <= 0)
-                return null;
+            var localSerializer = new LocalJsonSerializer(this, context);
 
-            ScopeInfo scopeInfo = null;
-            (context, scopeInfo) = await this.InternalGetScopeInfoAsync(context, connection, transaction, default, default).ConfigureAwait(false);
+            //var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
+            //if (interceptorsReading.Count > 0)
+            //{
+            //    localSerializer.OnReadingRow(async (schemaTable, rowString) =>
+            //    {
+            //        var args = new DeserializingRowArgs(context, schemaTable, rowString);
+            //        await this.InterceptAsync(args).ConfigureAwait(false);
+            //        return args.Result;
+            //    });
+            //}
 
-            // Backward compatibility
-            var batchPartInfoTableName = batchPartInfo.Tables != null && batchPartInfo.Tables.Length >= 1 ? batchPartInfo.Tables[0].TableName : batchPartInfo.TableName;
-            var batchPartInfoSchemaName = batchPartInfo.Tables != null && batchPartInfo.Tables.Length >= 1 ? batchPartInfo.Tables[0].SchemaName : batchPartInfo.SchemaName;
+            // Get table from file
+            var (syncTable, rowsCount) = localSerializer.GetSchemaTableFromFile(fullPath);
 
-            // get the sanitazed table (without any readonly / non updatable columns) from batchinfo
-            var originalSchemaTable = scopeInfo.Schema.Tables[batchPartInfoTableName, batchPartInfoSchemaName];
+            foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, syncTable))
+                if (!syncRowState.HasValue || syncRowState == default || (syncRowState.HasValue && syncRowState.Value.HasFlag(syncRow.RowState)))
+                    syncTable.Rows.Add(syncRow);
 
-            if (originalSchemaTable == null)
-                return null;
-
-            var changesSet = originalSchemaTable.Schema.Clone(false);
-            var table = BaseOrchestrator.CreateChangesTable(originalSchemaTable, changesSet);
-
-
-            var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
-            if (interceptorsReading.Count > 0)
-            {
-                localSerializer.OnReadingRow(async (schemaTable, rowString) =>
-                {
-                    var args = new DeserializingRowArgs(context, schemaTable, rowString);
-                    await this.InterceptAsync(args).ConfigureAwait(false);
-                    return args.Result;
-                });
-            }
-
-            foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, table))
-                if (!syncRowState.HasValue || syncRowState == default || syncRow.RowState == syncRowState)
-                    table.Rows.Add(syncRow);
-
-            return table;
+            return syncTable;
         }
+
+
+
 
 
         /// <summary>
@@ -318,7 +316,7 @@ namespace Dotmim.Sync
 
         internal async Task InternalSaveTableToBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
         {
-            var localSerializer = new LocalJsonSerializer();
+            var localSerializer = new LocalJsonSerializer(this, context);
 
             // Get full path of my batchpartinfo
             var fullPath = batchInfo.GetBatchPartInfoPath(batchPartInfo).FullPath;
@@ -328,16 +326,16 @@ namespace Dotmim.Sync
 
             if (syncTable?.Rows != null && syncTable.Rows.Count <= 0)
             {
-                var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
-                if (interceptorsWriting.Count > 0)
-                {
-                    localSerializer.OnWritingRow(async (schemaTable, rowArray) =>
-                    {
-                        var args = new SerializingRowArgs(context, schemaTable, rowArray);
-                        await this.InterceptAsync(args).ConfigureAwait(false);
-                        return args.Result;
-                    });
-                }
+                //var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
+                //if (interceptorsWriting.Count > 0)
+                //{
+                //    localSerializer.OnWritingRow(async (schemaTable, rowArray) =>
+                //    {
+                //        var args = new SerializingRowArgs(context, schemaTable, rowArray);
+                //        await this.InterceptAsync(args).ConfigureAwait(false);
+                //        return args.Result;
+                //    });
+                //}
                 // open the file and write table header
                 await localSerializer.OpenFileAsync(fullPath, syncTable).ConfigureAwait(false);
 

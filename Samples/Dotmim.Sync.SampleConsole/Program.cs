@@ -100,7 +100,7 @@ internal class Program
         // await ScenarioAddColumnSyncAsync(clientProvider, serverProvider, setup, options);
 
 
-        await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
+        // await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
         //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
@@ -112,9 +112,39 @@ internal class Program
 
         //await GenerateErrorsAsync();
 
-        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        await GetBatchInfos(clientProvider, serverProvider, setup, options);
     }
 
+
+    private static async Task GetBatchInfos(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
+    {
+
+        //var options = new SyncOptions();
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+        var localOrchestrator = agent.LocalOrchestrator;
+
+        var batches = localOrchestrator.LoadBatchInfos();
+
+        foreach (var batch in batches)
+        {
+            var allTables = localOrchestrator.LoadTablesFromBatchInfo(batch);
+
+            foreach (var table in allTables)
+            {
+                foreach (var row in table.Rows)
+                {
+                    Console.WriteLine(row);
+                }
+            }
+        }
+
+
+    }
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
 
@@ -123,17 +153,33 @@ internal class Program
         var progress = new SynchronousProgress<ProgressArgs>(s =>
             Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
 
-        options.UseVerboseErrors = true;
-        options.DbCommandTimeout = 1;
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-        //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate2");
+        //foreach (var table in setup.Tables)
+        //{
+        //    table.SyncDirection = SyncDirection.UploadOnly;
+        //}
 
         do
         {
             try
             {
+
+                agent.RemoteOrchestrator.OnTableChangesSelected(async args =>
+                {
+                    foreach (var bpi in args.BatchPartInfos)
+                    {
+                        var table = agent.RemoteOrchestrator.LoadTableFromBatchPartInfo(args.BatchInfo.GetBatchPartInfoPath(bpi).FullPath);
+
+                        foreach (var row in table.Rows.ToArray())
+                            if (row.RowState == SyncRowState.Deleted)
+                                table.Rows.Remove(row);
+
+                        await agent.RemoteOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, bpi, table);
+                    }
+                });
+
                 Console.Clear();
                 Console.ForegroundColor = ConsoleColor.Green;
                 var s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
@@ -303,15 +349,15 @@ internal class Program
         Console.ResetColor();
         Console.WriteLine();
         // Loading all batch infos from tmp dir
-        var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+        var batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
         foreach (var batchInfo in batchInfos)
         {
             // Load all rows from error tables specifying the specific SyncRowState states
-            var allTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo,
+            var allTables = agent.LocalOrchestrator.LoadTablesFromBatchInfo(batchInfo,
                 SyncRowState.ApplyDeletedFailed | SyncRowState.ApplyModifiedFailed);
 
             // Enumerate all rows in error
-            await foreach (var table in allTables)
+            foreach (var table in allTables)
                 foreach (var row in table.Rows)
                     Console.WriteLine(row);
         }

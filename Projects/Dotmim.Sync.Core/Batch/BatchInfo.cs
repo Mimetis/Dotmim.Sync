@@ -3,6 +3,7 @@
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
+using Microsoft.Extensions.Primitives;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -267,6 +268,8 @@ namespace Dotmim.Sync.Batch
                 catch { }
             }
         }
+
+        public override string ToString() => $"{this.GetDirectoryFullPath()} [{this.RowsCount}]";
 
     }
 }

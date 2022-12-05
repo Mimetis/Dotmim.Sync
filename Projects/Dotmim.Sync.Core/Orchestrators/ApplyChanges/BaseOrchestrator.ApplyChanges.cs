@@ -64,15 +64,16 @@ namespace Dotmim.Sync
                     if (tableBpis == null || !tableBpis.Any())
                         continue;
 
-                    var localSerializerReader = new LocalJsonSerializer();
-                    var localSerializerWriter = new LocalJsonSerializer();
+                    var localSerializerReader = new LocalJsonSerializer(this, context);
+                    var localSerializerWriter = new LocalJsonSerializer(this, context);
 
                     // Load in memory failed rows for this table
                     var failedRows = new List<SyncRow>();
 
                     // Read already present lines
                     var lastSyncErrorsBpiFullPath = lastSyncErrorsBatchInfo.GetBatchPartInfoPath(tableBpis.ToList()[0]).FullPath;
-                    foreach (var syncRow in localSerializerReader.ReadRowsFromFile(lastSyncErrorsBpiFullPath, schemaChangesTable))
+
+                    foreach (var syncRow in localSerializerReader.GetRowsFromFile(lastSyncErrorsBpiFullPath, schemaChangesTable))
                         failedRows.Add(syncRow);
 
                     // Open again the same file
@@ -83,7 +84,7 @@ namespace Dotmim.Sync
                         // Get full path of my batchpartinfo
                         var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo).FullPath;
 
-                        foreach (var syncRow in localSerializerReader.ReadRowsFromFile(fullPath, schemaChangesTable))
+                        foreach (var syncRow in localSerializerReader.GetRowsFromFile(fullPath, schemaChangesTable))
                         {
                             var rowIsInBatch = SyncRows.GetRowByPrimaryKeys(syncRow, failedRows, schemaTable);
 
@@ -320,19 +321,19 @@ namespace Dotmim.Sync
 
             TableChangesApplied tableChangesApplied = null;
 
-            var localSerializer = new LocalJsonSerializer();
+            var localSerializer = new LocalJsonSerializer(this, context);
 
-            // If someone has an interceptor on deserializing, we read the row and intercept
-            var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
-            if (interceptorsReading.Count > 0)
-            {
-                localSerializer.OnReadingRow(async (schemaTable, rowString) =>
-                {
-                    var args = new DeserializingRowArgs(context, schemaTable, rowString);
-                    await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-                    return args.Result;
-                });
-            }
+            //// If someone has an interceptor on deserializing, we read the row and intercept
+            //var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
+            //if (interceptorsReading.Count > 0)
+            //{
+            //    localSerializer.OnReadingRow(async (schemaTable, rowString) =>
+            //    {
+            //        var args = new DeserializingRowArgs(context, schemaTable, rowString);
+            //        await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+            //        return args.Result;
+            //    });
+            //}
 
             // Failure exception if any
             Exception failureException = null;
@@ -380,7 +381,7 @@ namespace Dotmim.Sync
 
                     if (isBatch)
                     {
-                        foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
+                        foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, schemaChangesTable))
                         {
                             rowsFetched++;
 
@@ -468,7 +469,7 @@ namespace Dotmim.Sync
                     }
                     else
                     {
-                        foreach (var syncRow in localSerializer.ReadRowsFromFile(fullPath, schemaChangesTable))
+                        foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, schemaChangesTable))
                         {
                             if (syncRow.RowState == SyncRowState.ApplyModifiedFailed || syncRow.RowState == SyncRowState.ApplyDeletedFailed)
                             {
