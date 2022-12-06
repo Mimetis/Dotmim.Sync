@@ -116,10 +116,29 @@ internal class Program
 
         //await GenerateErrorsAsync();
 
-        await ChangeSetupInProgressAsync(clientProvider, serverProvider, setup, options);
+        //await ChangeSetupInProgressAsync(clientProvider, serverProvider, setup, options);
+        await LoadLocalSchemaAsync();
     }
 
+    private static async Task LoadLocalSchemaAsync()
+    {
+        var clientProvider = new SqliteSyncProvider(@$"C:\PROJECTS\SAMPLES\client.db");
+        var localOrchestrator = new LocalOrchestrator(clientProvider);
+        var setup = new SyncSetup("LaborItems");
+        var schema = await localOrchestrator.GetSchemaAsync(setup);
+        foreach(var table in schema.Tables)
+        {
+            Console.WriteLine($"Table:{table.TableName}");
+            Console.WriteLine($"PrimaryKeys:");
+            foreach (var pk in table.PrimaryKeys)
+                Console.WriteLine($"\t{pk}");
 
+            Console.WriteLine($"Columns:");
+            foreach (var column in table.Columns)
+                Console.WriteLine($"\t{column.ColumnName}");
+        }
+
+    }
 
     private static async Task ChangeSetupInProgressAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
