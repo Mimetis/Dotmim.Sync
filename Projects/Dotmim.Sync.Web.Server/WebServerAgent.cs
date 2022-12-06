@@ -690,13 +690,13 @@ namespace Dotmim.Sync.Web.Server
                 //    });
                 //}
                 // open the file and write table header
-                await localSerializer.OpenFileAsync(fullPath, schemaTable).ConfigureAwait(false);
+                localSerializer.OpenFile(fullPath, schemaTable);
 
                 foreach (var row in containerTable.Rows)
                     await localSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable).ConfigureAwait(false);
 
                 // Close file
-                await localSerializer.CloseFileAsync().ConfigureAwait(false);
+                localSerializer.CloseFile();
 
                 var bpi = new BatchPartInfo
                 {

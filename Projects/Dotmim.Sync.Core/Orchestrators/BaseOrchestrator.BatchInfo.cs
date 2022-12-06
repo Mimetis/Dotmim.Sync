@@ -326,24 +326,14 @@ namespace Dotmim.Sync
 
             if (syncTable?.Rows != null && syncTable.Rows.Count <= 0)
             {
-                //var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
-                //if (interceptorsWriting.Count > 0)
-                //{
-                //    localSerializer.OnWritingRow(async (schemaTable, rowArray) =>
-                //    {
-                //        var args = new SerializingRowArgs(context, schemaTable, rowArray);
-                //        await this.InterceptAsync(args).ConfigureAwait(false);
-                //        return args.Result;
-                //    });
-                //}
                 // open the file and write table header
-                await localSerializer.OpenFileAsync(fullPath, syncTable).ConfigureAwait(false);
+                localSerializer.OpenFile(fullPath, syncTable);
 
                 foreach (var row in syncTable.Rows)
                     await localSerializer.WriteRowToFileAsync(row, syncTable).ConfigureAwait(false);
 
                 // Close file
-                await localSerializer.CloseFileAsync().ConfigureAwait(false);
+                localSerializer.CloseFile();
             }
         }
 

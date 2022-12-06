@@ -255,13 +255,13 @@ namespace Dotmim.Sync.Web.Client
                             var fullPath = Path.Combine(serverBatchInfo.GetDirectoryFullPath(), bpi.FileName);
 
                             // open the file and write table header
-                            await localSerializer.OpenFileAsync(fullPath, schemaTable).ConfigureAwait(false);
+                            localSerializer.OpenFile(fullPath, schemaTable);
 
                             foreach (var row in table.Rows)
                                 await localSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable).ConfigureAwait(false);
 
                             // Close file
-                            await localSerializer.CloseFileAsync().ConfigureAwait(false);
+                            localSerializer.CloseFile();
                         }
 
                     }

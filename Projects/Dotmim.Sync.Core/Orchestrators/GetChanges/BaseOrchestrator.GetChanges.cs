@@ -239,7 +239,7 @@ namespace Dotmim.Sync
                             {
                                 batchIndex++;
                                 (batchPartInfoFullPathDeleted, batchPartFileNameDeleted) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerDeleted.Extension, "DELETED");
-                                await localSerializerDeleted.OpenFileAsync(batchPartInfoFullPathDeleted, schemaChangesTable).ConfigureAwait(false);
+                                localSerializerDeleted.OpenFile(batchPartInfoFullPathDeleted, schemaChangesTable);
                             }
 
                             tableChangesSelected.Deletes++;
@@ -258,7 +258,7 @@ namespace Dotmim.Sync
 
                                 // Close file
                                 if (localSerializerDeleted.IsOpen)
-                                    await localSerializerDeleted.CloseFileAsync().ConfigureAwait(false);
+                                    localSerializerDeleted.CloseFile();
 
                                 rowsCountInBatchDeleted = 0;
 
@@ -273,7 +273,7 @@ namespace Dotmim.Sync
                             {
                                 batchIndex++;
                                 (batchPartInfoFullPathModified, batchPartFileNameModified) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerModified.Extension, "UPSERTS");
-                                await localSerializerModified.OpenFileAsync(batchPartInfoFullPathModified, schemaChangesTable).ConfigureAwait(false);
+                                localSerializerModified.OpenFile(batchPartInfoFullPathModified, schemaChangesTable);
                             }
 
                             rowsCountInBatchModified++;
@@ -290,7 +290,7 @@ namespace Dotmim.Sync
 
                                 // Close file
                                 if (localSerializerModified.IsOpen)
-                                    await localSerializerModified.CloseFileAsync().ConfigureAwait(false);
+                                    localSerializerModified.CloseFile();
 
                                 rowsCountInBatchModified = 0;
 
@@ -303,10 +303,10 @@ namespace Dotmim.Sync
 
                     // Close file
                     if (localSerializerModified.IsOpen)
-                        await localSerializerModified.CloseFileAsync().ConfigureAwait(false);
+                        localSerializerModified.CloseFile();
 
                     if (localSerializerDeleted.IsOpen)
-                        await localSerializerDeleted.CloseFileAsync().ConfigureAwait(false);
+                        localSerializerDeleted.CloseFile();
                 }
 
                 // Check if we have ..something.

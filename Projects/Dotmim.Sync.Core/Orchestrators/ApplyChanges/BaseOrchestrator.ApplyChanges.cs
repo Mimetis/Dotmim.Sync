@@ -77,7 +77,7 @@ namespace Dotmim.Sync
                         failedRows.Add(syncRow);
 
                     // Open again the same file
-                    await localSerializerWriter.OpenFileAsync(lastSyncErrorsBpiFullPath, schemaChangesTable).ConfigureAwait(false);
+                    localSerializerWriter.OpenFile(lastSyncErrorsBpiFullPath, schemaChangesTable);
 
                     foreach (var batchPartInfo in bpiTables)
                     {
@@ -109,7 +109,7 @@ namespace Dotmim.Sync
                     foreach (var row in failedRows)
                         await localSerializerWriter.WriteRowToFileAsync(row, schemaChangesTable).ConfigureAwait(false);
 
-                    await localSerializerWriter.CloseFileAsync();
+                    localSerializerWriter.CloseFile();
 
                     if (failedRows.Count <= 0 && File.Exists(lastSyncErrorsBpiFullPath))
                         File.Delete(lastSyncErrorsBpiFullPath);
@@ -322,18 +322,6 @@ namespace Dotmim.Sync
             TableChangesApplied tableChangesApplied = null;
 
             var localSerializer = new LocalJsonSerializer(this, context);
-
-            //// If someone has an interceptor on deserializing, we read the row and intercept
-            //var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
-            //if (interceptorsReading.Count > 0)
-            //{
-            //    localSerializer.OnReadingRow(async (schemaTable, rowString) =>
-            //    {
-            //        var args = new DeserializingRowArgs(context, schemaTable, rowString);
-            //        await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-            //        return args.Result;
-            //    });
-            //}
 
             // Failure exception if any
             Exception failureException = null;
@@ -620,7 +608,7 @@ namespace Dotmim.Sync
 
                     // Close file
                     if (localSerializer.IsOpen)
-                        await localSerializer.CloseFileAsync().ConfigureAwait(false);
+                        localSerializer.CloseFile();
 
                     if (shouldRollbackTransaction)
                         await runnerError.RollbackAsync().ConfigureAwait(false);

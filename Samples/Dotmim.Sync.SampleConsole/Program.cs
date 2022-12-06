@@ -116,7 +116,56 @@ internal class Program
 
         //await GenerateErrorsAsync();
 
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        await ChangeSetupInProgressAsync(clientProvider, serverProvider, setup, options);
+    }
+
+
+
+    private static async Task ChangeSetupInProgressAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
+    {
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        try
+        {
+            Console.Clear();
+
+            setup = new SyncSetup("ProductCategory");
+
+            var s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
+            Console.WriteLine(s);
+
+            setup = new SyncSetup("ProductCategory", "ProductDescription", "Product");
+
+            await agent.RemoteOrchestrator.DeprovisionAsync();
+            await agent.RemoteOrchestrator.ProvisionAsync(setup);
+
+            agent.LocalOrchestrator.OnConflictingSetup(async args =>
+            {
+                await agent.LocalOrchestrator.DeprovisionAsync().ConfigureAwait(false);
+                await agent.LocalOrchestrator.ProvisionAsync(args.ServerScopeInfo, connection:args.Connection, transaction:args.Transaction).ConfigureAwait(false);
+            });
+
+            s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
+            Console.WriteLine(s);
+
+        }
+        catch (SyncException e)
+        {
+            Console.ResetColor();
+            Console.WriteLine(e.Message);
+        }
+        catch (Exception e)
+        {
+            Console.ResetColor();
+            Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+        }
+        Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+
     }
 
 

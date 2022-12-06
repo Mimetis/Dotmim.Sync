@@ -20,6 +20,7 @@ namespace Dotmim.Sync.Serialization
         private JsonTextWriter writer;
         private Func<SyncTable, object[], Task<string>> writingRowAsync;
         private Func<SyncTable, string, Task<object[]>> readingRowAsync;
+        private readonly object writerLock = new object();
 
 
         public LocalJsonSerializer()
@@ -60,30 +61,43 @@ namespace Dotmim.Sync.Serialization
         /// Close the current file, close the writer
         /// </summary>
         /// <returns></returns>
-        public async Task CloseFileAsync()
+        public void CloseFile()
         {
             // Close file
-            this.writer.WriteEndArray();
-            this.writer.WriteEndObject();
-            this.writer.WriteEndArray();
-            this.writer.WriteEndObject();
-            this.writer.Flush();
-            await this.writer.CloseAsync();
-            this.sw.Close();
-            this.IsOpen = false;
+            if (!this.IsOpen)
+                return;
+
+            lock (writerLock)
+            {
+                this.writer.WriteEndArray();
+                this.writer.WriteEndObject();
+                this.writer.WriteEndArray();
+                this.writer.WriteEndObject();
+                this.writer.Flush();
+                this.writer.Close();
+                this.sw.Close();
+                this.IsOpen = false;
+            }
 
         }
 
         /// <summary>
         /// Open the file and write header
         /// </summary>
-        public async Task OpenFileAsync(string path, SyncTable shemaTable, bool append = false)
+        public void OpenFile(string path, SyncTable shemaTable, bool append = false)
         {
             if (this.writer != null)
             {
-                await this.writer.CloseAsync();
-                this.writer = null;
+                lock (writerLock)
+                {
+                    if (this.writer != null)
+                    {
+                        this.writer.Close();
+                        this.writer = null;
+                    }
+                }
             }
+
             this.IsOpen = true;
 
             var fi = new FileInfo(path);
@@ -92,7 +106,7 @@ namespace Dotmim.Sync.Serialization
                 fi.Directory.Create();
 
             this.sw = new StreamWriter(path, append);
-            this.writer = new JsonTextWriter(sw) { CloseOutput = true };
+            this.writer = new JsonTextWriter(sw) { CloseOutput = true, AutoCompleteOnClose = false };
 
             this.writer.WriteStartObject();
             this.writer.WritePropertyName("t");
@@ -119,7 +133,6 @@ namespace Dotmim.Sync.Serialization
             this.writer.WritePropertyName("r");
             this.writer.WriteStartArray();
             this.writer.WriteWhitespace(Environment.NewLine);
-
         }
 
         /// <summary>
@@ -341,7 +354,7 @@ namespace Dotmim.Sync.Serialization
                                 schemaEmpty = false;
                             }
 
-                             
+
                             if ((schemaTable.Columns.Count + 1) != array.Length)
                             {
                                 string rowStr = "";
@@ -353,7 +366,7 @@ namespace Dotmim.Sync.Serialization
                                         rowStr += array[o].ToString() + ",";
                                     rowStr += "]";
 
-                                    rowsCount = (array.Length - 1).ToString() ;
+                                    rowsCount = (array.Length - 1).ToString();
                                 }
 
                                 throw new Exception($"Table {schemaTable.GetFullName()} with {schemaTable.Columns.Count} columns does not have the same columns count as the row read {rowStr} which have {rowsCount} values.");

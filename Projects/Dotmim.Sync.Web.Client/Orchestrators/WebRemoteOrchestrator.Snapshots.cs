@@ -116,14 +116,14 @@ namespace Dotmim.Sync.Web.Client
 
                             // open the file and write table header
                             if (!localSerializer.IsOpen)
-                                await localSerializer.OpenFileAsync(fullPath, schemaTable).ConfigureAwait(false);
+                                localSerializer.OpenFile(fullPath, schemaTable);
 
                             foreach (var row in table.Rows)
                                 await localSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable).ConfigureAwait(false);
 
                             // Close file
                             if (localSerializer.IsOpen)
-                                await localSerializer.CloseFileAsync().ConfigureAwait(false);
+                                localSerializer.CloseFile();
                         }
 
                     }
