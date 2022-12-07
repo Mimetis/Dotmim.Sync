@@ -8,7 +8,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Microsoft.Net.Http.Headers;
 using System.Net.Http.Headers;
 
 namespace Dotmim.Sync.Web.Client
@@ -133,14 +132,9 @@ namespace Dotmim.Sync.Web.Client
             // var cookieList = response.Headers.GetValues("Set-Cookie").ToList();
             if (cookieList != null && cookieList.Count > 0)
             {
-#if NETSTANDARD
-                // Get the first cookie
-                this.Cookie = CookieHeaderValue.ParseList(cookieList).FirstOrDefault();
-#else
                 //try to parse the very first cookie
                 if (CookieHeaderValue.TryParse(cookieList[0], out var cookie))
                     this.Cookie = cookie;
-#endif
             }
         }
 
