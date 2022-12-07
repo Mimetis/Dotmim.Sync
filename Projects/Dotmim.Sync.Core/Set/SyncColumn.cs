@@ -103,7 +103,7 @@ namespace Dotmim.Sync
         /// </summary>
         public void SetType(Type type)
         {
-            this.DataType = GetAssemblyQualifiedName(type);
+            this.DataType = type == null ? "-1" : GetAssemblyQualifiedName(type);
             this.DbType = (int)CoerceDbType();
 
         }
@@ -234,7 +234,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get DataType from a string value
         /// </summary>
-        private static Type GetTypeFromAssemblyQualifiedName(string valueType)
+        internal static Type GetTypeFromAssemblyQualifiedName(string valueType)
         {
             if (valueType == "1")
                 return typeof(bool);
@@ -276,6 +276,8 @@ namespace Dotmim.Sync
                 return typeof(TimeSpan);
             else if (valueType == "20")
                 return typeof(char[]);
+            else if (valueType == "-1")
+                return typeof(object);
 
             return Type.GetType(valueType, true, true);
 
@@ -326,6 +328,8 @@ namespace Dotmim.Sync
                 return "19";
             else if (valueType == typeof(char[]))
                 return "20";
+            else if (valueType == typeof(object))
+                return "-1";
 
             return valueType.AssemblyQualifiedName;
 

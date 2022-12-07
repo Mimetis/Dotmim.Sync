@@ -32,8 +32,10 @@ using Dotmim.Sync.Builders;
 using Dotmim.Sync.Serialization;
 using NLog.Extensions.Logging;
 using NLog.Web;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using Dotmim.Sync.SqlServer.Builders;
 
-#if NET5_0 || NET6_0 || NET7_0 
+#if NET5_0 || NET6_0 || NET7_0
 using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;
@@ -57,6 +59,7 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
+        //var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
 
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
@@ -69,7 +72,8 @@ internal class Program
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        var setup = new SyncSetup(allTables);
+        //var setup = new SyncSetup(allTables);
+        var setup = new SyncSetup(oneTable);
         //var setup = new SyncSetup("ProductCategory", "ProductDescription", "Product");
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
@@ -100,7 +104,7 @@ internal class Program
         // await ScenarioAddColumnSyncAsync(clientProvider, serverProvider, setup, options);
 
 
-        await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
+        // await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
         //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
 
@@ -112,23 +116,86 @@ internal class Program
 
         //await GenerateErrorsAsync();
 
-        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        //await ChangeSetupInProgressAsync(clientProvider, serverProvider, setup, options);
+        await LoadLocalSchemaAsync();
     }
 
-    private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
+    private static async Task LoadLocalSchemaAsync()
     {
+        var clientProvider = new SqliteSyncProvider(@$"C:\PROJECTS\SAMPLES\client.db");
+        var localOrchestrator = new LocalOrchestrator(clientProvider);
+        var setup = new SyncSetup("LaborItems");
+        var schema = await localOrchestrator.GetSchemaAsync(setup);
+        foreach(var table in schema.Tables)
+        {
+            Console.WriteLine($"Table:{table.TableName}");
+            Console.WriteLine($"PrimaryKeys:");
+            foreach (var pk in table.PrimaryKeys)
+                Console.WriteLine($"\t{pk}");
 
-        //var options = new SyncOptions();
+            Console.WriteLine($"Columns:");
+            foreach (var column in table.Columns)
+                Console.WriteLine($"\t{column.ColumnName}");
+        }
+
+    }
+
+    private static async Task ChangeSetupInProgressAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
+    {
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
             Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
 
-        options.UseVerboseErrors = true;
-        options.DbCommandTimeout = 1;
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-        //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate2");
+        try
+        {
+            Console.Clear();
+
+            setup = new SyncSetup("ProductCategory");
+
+            var s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
+            Console.WriteLine(s);
+
+            setup = new SyncSetup("ProductCategory", "ProductDescription", "Product");
+
+            await agent.RemoteOrchestrator.DeprovisionAsync();
+            await agent.RemoteOrchestrator.ProvisionAsync(setup);
+
+            agent.LocalOrchestrator.OnConflictingSetup(async args =>
+            {
+                await agent.LocalOrchestrator.DeprovisionAsync().ConfigureAwait(false);
+                await agent.LocalOrchestrator.ProvisionAsync(args.ServerScopeInfo, connection:args.Connection, transaction:args.Transaction).ConfigureAwait(false);
+            });
+
+            s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
+            Console.WriteLine(s);
+
+        }
+        catch (SyncException e)
+        {
+            Console.ResetColor();
+            Console.WriteLine(e.Message);
+        }
+        catch (Exception e)
+        {
+            Console.ResetColor();
+            Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+        }
+        Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+
+    }
+
+
+    private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
+    {
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
 
         do
         {
@@ -303,15 +370,15 @@ internal class Program
         Console.ResetColor();
         Console.WriteLine();
         // Loading all batch infos from tmp dir
-        var batchInfos = await agent.LocalOrchestrator.LoadBatchInfosAsync();
+        var batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
         foreach (var batchInfo in batchInfos)
         {
             // Load all rows from error tables specifying the specific SyncRowState states
-            var allTables = agent.LocalOrchestrator.LoadTablesFromBatchInfoAsync(batchInfo,
+            var allTables = agent.LocalOrchestrator.LoadTablesFromBatchInfo(batchInfo,
                 SyncRowState.ApplyDeletedFailed | SyncRowState.ApplyModifiedFailed);
 
             // Enumerate all rows in error
-            await foreach (var table in allTables)
+            foreach (var table in allTables)
                 foreach (var row in table.Rows)
                     Console.WriteLine(row);
         }

@@ -91,15 +91,27 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public override string ToString()
         {
-            if (this.Tables == null || this.Tables.Length <= 0)
-                return base.ToString();
+            if (!string.IsNullOrEmpty(this.TableName))
+            {
+                if (!string.IsNullOrEmpty(this.SchemaName))
+                    return $"{this.SchemaName}.{this.TableName} [{this.RowsCount}]";
+                else
+                    return $"{this.TableName} [{this.RowsCount}]";
 
-            var table = this.Tables[0];
-
-            if (!string.IsNullOrEmpty(table.SchemaName))
-                return $"{table.SchemaName}.{table.TableName}";
+            }
             else
-                return table.TableName;
+            {
+
+                if (this.Tables == null || this.Tables.Length <= 0)
+                    return base.ToString();
+
+                var table = this.Tables[0];
+
+                if (!string.IsNullOrEmpty(table.SchemaName))
+                    return $"{table.SchemaName}.{table.TableName}";
+                else
+                    return table.TableName;
+            }
         }
 
         /// <summary>
@@ -111,5 +123,8 @@ namespace Dotmim.Sync.Batch
             yield return this.SchemaName;
 
         }
+
+
+
     }
 }

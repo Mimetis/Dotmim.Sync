@@ -170,7 +170,7 @@ namespace Dotmim.Sync.Sqlite
         public static async Task<SyncTable> GetPrimaryKeysForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string unquotedTableName)
         {
 
-            string commandColumn = $"SELECT * FROM pragma_table_info('{unquotedTableName}') where pk = 1;";
+            string commandColumn = $"SELECT * FROM pragma_table_info('{unquotedTableName}') where pk <> 0 order by pk asc;";
             var syncTable = new SyncTable(unquotedTableName);
 
             using var sqlCommand = new SqliteCommand(commandColumn, connection);

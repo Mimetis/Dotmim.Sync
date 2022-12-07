@@ -26,10 +26,17 @@ namespace Dotmim.Sync
         [DataMember(Name = "s", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public string SchemaName { get; set; }
 
+
+        /// <summary>
+        /// Get or Set the columns name used for the DmTableSurrogate
+        /// </summary>
+        [DataMember(Name = "c", IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        public List<ContainerTableColum> Columns { get; set; }
+
         /// <summary>
         /// List of rows
         /// </summary>
-        [DataMember(Name = "r", IsRequired = false, Order = 3)]
+        [DataMember(Name = "r", IsRequired = false, Order = 4)]
         public List<object[]> Rows { get; set; } = new List<object[]>();
 
         public ContainerTable()
@@ -41,6 +48,10 @@ namespace Dotmim.Sync
         {
             this.TableName = table.TableName;
             this.SchemaName = table.SchemaName;
+            this.Columns = new List<ContainerTableColum>();
+            foreach (var colum in table.Columns)
+                this.Columns.Add(new ContainerTableColum { ColumnName = colum.ColumnName, TypeName = colum.DataType });
+            
         }
 
         /// <summary>
@@ -56,6 +67,22 @@ namespace Dotmim.Sync
 
         }
 
+    }
+
+
+    [DataContract(Name = "c"), Serializable]
+    public class ContainerTableColum
+    {
+        [DataMember(Name = "n", IsRequired = true, Order = 1)]
+        public string ColumnName { get; set; }
+
+        [DataMember(Name = "t", IsRequired = true, Order = 2)]
+        public string TypeName { get; set; }
+
+        public ContainerTableColum()
+        {
+
+        }
     }
 
 }

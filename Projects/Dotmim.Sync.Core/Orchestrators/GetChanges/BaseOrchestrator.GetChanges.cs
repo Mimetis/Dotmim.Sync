@@ -192,22 +192,8 @@ namespace Dotmim.Sync
                 // numbers of batch files generated
                 var batchIndex = -1;
 
-                var localSerializerModified = new LocalJsonSerializer();
-                var localSerializerDeleted = new LocalJsonSerializer();
-
-                var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
-                if (interceptorsWriting.Count > 0)
-                {
-                    localSerializerModified.OnWritingRow(async (syncTable, rowArray) =>
-                    {
-                        var copyArray = new object[rowArray.Length];
-                        Array.Copy(rowArray, copyArray, rowArray.Length);
-
-                        var args = new SerializingRowArgs(context, syncTable, copyArray);
-                        await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-                        return args.Result;
-                    });
-                }
+                var localSerializerModified = new LocalJsonSerializer(this, context);
+                var localSerializerDeleted = new LocalJsonSerializer(this, context);
 
                 string batchPartInfoFullPathModified = null, batchPartFileNameModified = null;
                 string batchPartInfoFullPathDeleted = null, batchPartFileNameDeleted = null;
@@ -253,12 +239,14 @@ namespace Dotmim.Sync
                             {
                                 batchIndex++;
                                 (batchPartInfoFullPathDeleted, batchPartFileNameDeleted) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerDeleted.Extension, "DELETED");
-                                await localSerializerDeleted.OpenFileAsync(batchPartInfoFullPathDeleted, schemaChangesTable).ConfigureAwait(false);
+                                localSerializerDeleted.OpenFile(batchPartInfoFullPathDeleted, schemaChangesTable);
                             }
 
                             tableChangesSelected.Deletes++;
                             rowsCountInBatchDeleted++;
+                            
                             await localSerializerDeleted.WriteRowToFileAsync(syncRow, schemaChangesTable).ConfigureAwait(false);
+
                             var currentBatchSizeDeleted = await localSerializerDeleted.GetCurrentFileSizeAsync().ConfigureAwait(false);
 
                             if (currentBatchSizeDeleted > this.Options.BatchSize)
@@ -270,7 +258,7 @@ namespace Dotmim.Sync
 
                                 // Close file
                                 if (localSerializerDeleted.IsOpen)
-                                    await localSerializerDeleted.CloseFileAsync().ConfigureAwait(false);
+                                    localSerializerDeleted.CloseFile();
 
                                 rowsCountInBatchDeleted = 0;
 
@@ -285,7 +273,7 @@ namespace Dotmim.Sync
                             {
                                 batchIndex++;
                                 (batchPartInfoFullPathModified, batchPartFileNameModified) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerModified.Extension, "UPSERTS");
-                                await localSerializerModified.OpenFileAsync(batchPartInfoFullPathModified, schemaChangesTable).ConfigureAwait(false);
+                                localSerializerModified.OpenFile(batchPartInfoFullPathModified, schemaChangesTable);
                             }
 
                             rowsCountInBatchModified++;
@@ -302,7 +290,7 @@ namespace Dotmim.Sync
 
                                 // Close file
                                 if (localSerializerModified.IsOpen)
-                                    await localSerializerModified.CloseFileAsync().ConfigureAwait(false);
+                                    localSerializerModified.CloseFile();
 
                                 rowsCountInBatchModified = 0;
 
@@ -315,10 +303,10 @@ namespace Dotmim.Sync
 
                     // Close file
                     if (localSerializerModified.IsOpen)
-                        await localSerializerModified.CloseFileAsync().ConfigureAwait(false);
+                        localSerializerModified.CloseFile();
 
                     if (localSerializerDeleted.IsOpen)
-                        await localSerializerDeleted.CloseFileAsync().ConfigureAwait(false);
+                        localSerializerDeleted.CloseFile();
                 }
 
                 // Check if we have ..something.

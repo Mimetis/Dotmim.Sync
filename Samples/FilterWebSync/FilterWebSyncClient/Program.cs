@@ -52,7 +52,7 @@ namespace FilterWebSyncClient
                 try
                 {
                     // Launch the sync process
-                    var s1 = await agent.SynchronizeAsync(progress);
+                    var s1 = await agent.SynchronizeAsync(parameters, progress);
                     // Write results
                     Console.WriteLine(s1);
 

@@ -155,18 +155,18 @@ namespace Dotmim.Sync
                         if (!table.HasRows)
                             continue;
 
-                        var localSerializer = new LocalJsonSerializer();
+                        var localSerializer = new LocalJsonSerializer(this, context);
 
                         var (filePath, fileName) = errorsBatchInfo.GetNewBatchPartInfoPath(table, batchIndex, "json", info);
                         var batchPartInfo = new BatchPartInfo(fileName, table.TableName, table.SchemaName, table.Rows.Count, batchIndex);
                         errorsBatchInfo.BatchPartsInfo.Add(batchPartInfo);
 
-                        await localSerializer.OpenFileAsync(filePath, table).ConfigureAwait(false);
+                        localSerializer.OpenFile(filePath, table);
 
                         foreach (var row in table.Rows)
                             await localSerializer.WriteRowToFileAsync(row, table).ConfigureAwait(false);
 
-                        await localSerializer.CloseFileAsync();
+                        localSerializer.CloseFile();
                         batchIndex++;
                     }
                     failedRows.Dispose();
@@ -252,7 +252,7 @@ namespace Dotmim.Sync
                 // re-apply scope is new flag
                 // to be sure we are calling the Initialize method, even for the delta
                 // in that particular case, we want the delta rows coming from the current scope
-                cScopeInfoClient.IsNewScope = true;
+                // cScopeInfoClient.IsNewScope = true;
 
                 return (context, clientSyncChanges, cScopeInfoClient);
             }

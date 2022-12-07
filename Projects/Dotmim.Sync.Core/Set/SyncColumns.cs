@@ -66,6 +66,14 @@ namespace Dotmim.Sync
             }
         }
 
+
+        /// <summary>
+        /// Returns a bool indicating if the columns contains at least one column of type argument
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public bool HasSyncColumnOfType(Type type) => this.InnerCollection.Any(sc => sc.GetDataType() == type);
+
         /// <summary>
         /// Add a new Column to the Schema Column collection
         /// </summary>

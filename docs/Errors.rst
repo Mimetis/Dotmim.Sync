@@ -6,7 +6,7 @@ Overview
 
 Errors can happens during a synchronization process.
 
-By default, if an error occurs, the synchronization process is stopped and the transaction is rollbacked.
+By default, if an error occurs, the synchronization process is stopped and the transaction is rolled back.
 
 .. note:: The Error Resolution can be different on each side.
 
@@ -54,7 +54,7 @@ Here is the description of the ``ErrorResolution`` enum, used to define the defa
         /// <summary>
         /// Will try one more time once after all the others rows in the table. 
         /// <para>
-        /// If the error is raised again, an exception is thrown and transaction is rollback
+        /// If the error is raised again, an exception is thrown and transaction is rolled back
         /// </para>
         /// </summary>
         RetryOneMoreTimeAndThrowOnError,
@@ -207,23 +207,23 @@ ErrorResolution.Throw
         catch (Exception e)
         {
             Console.ResetColor();
-            Console.WriteLine("Sync Rollbacked.");
+            Console.WriteLine("Sync rolled back.");
         }
     } while (Console.ReadKey().Key != ConsoleKey.Escape);
     
 
-The error is raised for the second line, as it's the one who triggers the foreing key constraint failure:
+The error is raised for the second line, as it's the one who triggers the foreign key constraint failure:
 
 .. image:: assets/ErrorResolutionThrow.png
     :align: center
     :alt: ErrorResolution.ErrorResolutionThrow
 
-Be careful, we do not have any files in the ``BatchInfo`` directory, as the sync has been rollbacked.
+Be careful, we do not have any files in the ``BatchInfo`` directory, as the sync has been rolled back.
 
 ErrorResolution.ContinueOnError
 -------------------------------
 
-| The ``ErrorResolution.ContinueOnError`` will continue the sync, and will not rollback the transaction. 
+| The ``ErrorResolution.ContinueOnError`` will continue the sync, and will not roll back the transaction. 
 | Error is logged in the error's batch info directory:
 
 .. code-block:: csharp
@@ -291,7 +291,7 @@ As a demo purpose, we are going to generate a new error (A **Not Null Constraint
     :align: center
     :alt: ErrorResolution.ErrorResolutionRetryThrow2
 
-Ok, this time, the error can't be resolved, even if we tried to apply the row twice. So the sync has been rollbacked, and the error has been raised.
+Ok, this time, the error can't be resolved, even if we tried to apply the row twice. So the sync has been rolled back, and the error has been raised.
 
 
 ErrorResolution.RetryOneMoreTimeAndContinueOnError

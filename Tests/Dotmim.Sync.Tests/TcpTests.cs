@@ -3867,6 +3867,158 @@ namespace Dotmim.Sync.Tests
 
 
         /// <summary>
+        /// Create a snapshot, then add a row from server, then sync
+        /// </summary>
+        [Fact]
+        public async Task Snapshot_Initialize_ThenAddServerRows_ThenSync()
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            var setup = new SyncSetup(Tables);
+
+            // snapshot directory
+            var snapshotDirctory = HelperDatabase.GetRandomName();
+            var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
+
+            var options = new SyncOptions
+            {
+                SnapshotsDirectory = directory,
+                BatchSize = 3000
+            };
+
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
+
+            // ----------------------------------
+            // Create a snapshot
+            // ----------------------------------
+            await remoteOrchestrator.CreateSnapshotAsync(setup);
+
+            // ----------------------------------
+            // Add rows on server AFTER snapshot
+            // ----------------------------------
+            var productCategoryName = HelperDatabase.GetRandomName();
+            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+
+                await ctx.SaveChangesAsync();
+            }
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+
+                var s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.ChangesAppliedOnClient.TotalAppliedChanges);
+                Assert.Equal(rowsCount - 1, s.SnapshotChangesAppliedOnClient.TotalAppliedChanges);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+
+            }
+        }
+
+        /// <summary>
+        /// Create a snapshot, then remove a row from server, then sync
+        /// </summary>
+        [Fact]
+        public async Task Snapshot_Initialize_ThenDeleteServerRows_ThenSync()
+        {
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            var setup = new SyncSetup(Tables);
+
+            // snapshot directory
+            var snapshotDirctory = HelperDatabase.GetRandomName();
+            var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
+
+            var options = new SyncOptions
+            {
+                SnapshotsDirectory = directory,
+                BatchSize = 3000
+            };
+
+            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
+
+            // ----------------------------------
+            // Add rows on server BEFORE snapshot (just easier to delete it after)
+            // ----------------------------------
+            var productCategoryName = HelperDatabase.GetRandomName();
+            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
+                ctx.Add(pc);
+
+                await ctx.SaveChangesAsync();
+            }
+
+
+            // ----------------------------------
+            // Create a snapshot
+            // ----------------------------------
+            await remoteOrchestrator.CreateSnapshotAsync(setup);
+
+            // ----------------------------------
+            // Delete added rows on server BEFORE Sync
+            // ----------------------------------
+
+            using (var ctx = new AdventureWorksContext(this.Server))
+            {
+                var pc = ctx.ProductCategory.Where(pc => pc.ProductCategoryId == productCategoryId).First();
+
+                ctx.ProductCategory.Remove(pc);
+
+                await ctx.SaveChangesAsync();
+
+            }
+
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+
+            var clientTotalChangesApplied = rowsCount + 2; // rows count + 1 insert (before delete, contained in snapshot) + 1 delete (after delete)
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+
+                var s = await agent.SynchronizeAsync(Tables);
+
+                Assert.Equal(clientTotalChangesApplied, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.ChangesAppliedOnClient.TotalAppliedChanges);
+                Assert.Equal(rowsCount + 1, s.SnapshotChangesAppliedOnClient.TotalAppliedChanges);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
+
+            }
+        }
+
+
+        /// <summary>
         /// Insert one row on server, should be correctly sync on all clients
         /// </summary>
         [Theory]
