@@ -10,6 +10,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
 {
     public class NpgsqlObjectNames
     {
+        public const string TimestampValue = "(extract(epoch from now())*1000)";
         internal const string insertTriggerName = "{0}insert_trigger";
         internal const string updateTriggerName = "{0}update_trigger";
         internal const string deleteTriggerName = "{0}delete_trigger";
@@ -57,6 +58,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
             this.scopeName = scopeName;
             this.SetDefaultNames();
         }
+
+        
 
         public void AddCommandName(DbCommandType objectType, string name)
         {

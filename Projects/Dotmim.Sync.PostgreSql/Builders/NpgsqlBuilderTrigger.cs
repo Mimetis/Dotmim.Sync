@@ -20,6 +20,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
         private SyncTable tableDescription;
         private ParserName tableName;
         private ParserName trackingName;
+        private string timestampValue;
+
         public NpgsqlBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
         {
             this.tableDescription = tableDescription;
@@ -28,6 +30,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             this.setup = setup;
             this.scopeName = scopeName;
             this.objectNames = new NpgsqlObjectNames(this.tableDescription, tableName, trackingTableName, this.setup, scopeName);
+            this.timestampValue = NpgsqlObjectNames.TimestampValue;
         }
         public virtual Task<DbCommand> GetExistsTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
@@ -77,7 +80,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
         }
         public virtual Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
-            var commandTriggerCommandString = triggerType switch
+            var commandTriggerFunctionString = triggerType switch
 
             {
                 DbTriggerType.Delete => CreateDeleteTriggerAsync(),
@@ -92,7 +95,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var commandTriggerName = this.objectNames.GetTriggerCommandName(triggerType);
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine(commandTriggerCommandString);
+            stringBuilder.AppendLine(commandTriggerFunctionString);
             stringBuilder.AppendLine($@"
                                   CREATE OR REPLACE TRIGGER {commandTriggerName}
                                   AFTER {triggerFor}
@@ -113,27 +116,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
         private string CreateInsertTriggerAsync()
         {
             var tablename = tableName.Unquoted().ToString();
-            var stringBuilder = new StringBuilder(
-                    @$"
-                        CREATE OR REPLACE FUNCTION {tableName.Schema().Unquoted().ToString()}_insert_trigger_function()
-                            RETURNS trigger
-                            LANGUAGE 'plpgsql'
-                            COST 100
-                            VOLATILE NOT LEAKPROOF
-                        AS $BODY$
-                        BEGIN
-	                        UPDATE side 
-	                        SET  sync_row_is_tombstone = 0
-		                        ,update_scope_id = NULL -- scope id is always NULL when update is made locally
-		                        ,last_change_datetime = GetUtcDate()
-	                        FROM {trackingName.Schema().Unquoted().ToString()} side
-                            JOIN NEW AS i ON ");
-            stringBuilder.AppendLine(NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "side", "i")).Append(";");
-            stringBuilder.Append(@$"INSERT INTO {trackingName.Schema().Unquoted().ToString()} ( ");
-            var stringBuilderArguments = new StringBuilder();
-            var stringBuilderArguments2 = new StringBuilder();
-            var stringPkAreNull = new StringBuilder();
-
+            var idColumnsSelects = new StringBuilder();
+            var idColumns = new StringBuilder();
+            //var stringPkAreNull = new StringBuilder();
             string argComma = " ";
             string argAnd = string.Empty;
             var primaryKeys = this.tableDescription.GetPrimaryKeysColumns();
@@ -141,109 +126,145 @@ namespace Dotmim.Sync.PostgreSql.Builders
             foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn).Unquoted().ToString();
-                stringBuilderArguments.AppendLine($"\t{argComma}i.{columnName}");
-                stringBuilderArguments2.AppendLine($"\t{argComma}{columnName}");
-                stringPkAreNull.Append($"{argAnd}side.{columnName} IS NULL");
+                idColumns.AppendLine($"{argComma}{columnName}");
+                idColumnsSelects.AppendLine($"{argComma}NEW.{columnName}");
+                //stringPkAreNull.Append($"{argAnd}side.{columnName} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
-            stringBuilder.Append(stringBuilderArguments2.ToString());
-            stringBuilder.Append(@",update_scope_id
-		                        ,timestamp
-		                        ,sync_row_is_tombstone
-		                        ,last_change_datetime
-	                        ) 
-	                        SELECT");
-            stringBuilder.Append(stringBuilderArguments.ToString());
-            stringBuilder.Append(@$",NULL
-		                        ,0
-		                        ,(extract(epoch from now()) * 1000)
-		                        ,GetUtcDate()
-	                        FROM NEW AS i
-	                        LEFT JOIN {trackingName.Schema().Unquoted().ToString()} side ON ");
-            stringBuilder.AppendLine(NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "side", "i"));
-            stringBuilder.AppendLine("WHERE ");
-            stringBuilder.AppendLine(stringPkAreNull.ToString()).Append(";");
-            stringBuilder.Append(@"END;
-                        $BODY$;");
-
-            return stringBuilder.ToString();
-        }
-        private string CreateUpdateTriggerAsync()
-        {
-            var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($@"
-                        CREATE OR REPLACE FUNCTION {tableName.Schema().Unquoted().ToString()}_update_trigger_function()
-                            RETURNS trigger
-                            LANGUAGE 'plpgsql'
-                            COST 100
-                            VOLATILE NOT LEAKPROOF
-                        AS $BODY$
-                        BEGIN
-	                        UPDATE ""side"" 
-	                        SET  ""sync_row_is_tombstone"" = 0
-		                        ,""update_scope_id"" = NULL -- scope id is always NULL when update is made locally
-		                        ,""last_change_datetime"" = GetUtcDate()
-	                        FROM {tableName.Schema().Unquoted().ToString()} ""side""
-	                        JOIN NEW AS ""i"" ON ""side"".""ProductID"" = ""i"".""ProductID"";
-
-	                        INSERT INTO {tableName.Schema().Unquoted().ToString()} (
-		                            ""ProductID""
-		                        ,""update_scope_id""
-		                        ,""sync_row_is_tombstone""
-		                        ,""last_change_datetime""
-	                        ) 
-	                        SELECT
-		                            ""i"".""ProductID""
-		                        ,NULL
-		                        ,0
-		                        ,GetUtcDate()
-	                        FROM NEW AS ""i""
-	                        LEFT JOIN {tableName.Schema().Unquoted().ToString()} ""side"" ON ""i"".""ProductID"" = ""side"".""ProductID""
-	                        WHERE ""side"".""ProductID"" IS NULL;
-                        END;
-                        $BODY$;
-");
-            return stringBuilder.ToString();
-
-        }
-        private string CreateDeleteTriggerAsync()
-        {
-            var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($@"
-                                CREATE OR REPLACE FUNCTION {tableName.Schema().Unquoted().ToString()}_delete_trigger_function()
+            string stringBuilder = @$"CREATE OR REPLACE FUNCTION {tableName.Schema().Unquoted().ToString()}_insert_trigger_function()
                                     RETURNS trigger
                                     LANGUAGE 'plpgsql'
                                     COST 100
                                     VOLATILE NOT LEAKPROOF
-                                AS $BODY$
+                                AS $new$
                                 BEGIN
-                                INSERT INTO {trackingName.Schema().Unquoted().ToString()} (
-	                                 ""AddressID""
-	                                ,update_scope_id
-	                                ,sync_row_is_tombstone
-	                                ,last_change_datetime
-	                                ,timestamp
-                                ) 
-                                VALUES (
-	                                 OLD.""AddressID""
-	                                ,NULL
-	                                ,true
-	                                ,now()
-	                                ,to_char(current_timestamp, 'YYYYDDDSSSSUS')::bigint
-                                )
-                                ON CONFLICT( ""AddressID"")
-                                DO UPDATE SET
-	                                sync_row_is_tombstone = true
-	                                ,update_scope_id = NULL
-	                                ,last_change_datetime = now()
-	                                ,timestamp = to_char(current_timestamp, 'YYYYDDDSSSSUS')::bigint;
+                                    insert into {trackingName.Schema().Unquoted().ToString()} 
+                                    ({idColumns.ToString()}
+                                        , update_scope_id
+                                        ,""timestamp""
+                                        ,sync_row_is_tombstone
+                                        ,last_change_datetime
+                                        )
+                                    values( {idColumnsSelects.ToString()}
+                                        ,null
+                                        ,{this.timestampValue}
+                                        ,0::bit
+                                        ,now()
+                                        )
+                                    on conflict({idColumns.ToString()}) do update
+                                   SET
+                                   ""timestamp"" = {this.timestampValue}
+                                    ,sync_row_is_tombstone = 0::bit
+                                    ,update_scope_id = null
+                                    ,last_change_datetime = now();
+                                return NEW;
+                                end;
+                                $new$;";
+            
+            return stringBuilder;
+        }
+        private string CreateUpdateTriggerAsync()
+        {
+            var tablename = tableName.Unquoted().ToString();
+            var idColumnsSelects = new StringBuilder();
+            var idColumns = new StringBuilder();
+            //var stringPkAreNull = new StringBuilder();
+            string argComma = " ";
+            string argAnd = string.Empty;
+            var primaryKeys = this.tableDescription.GetPrimaryKeysColumns();
 
-                                RETURN NULL;
-                                END;
-                                $BODY$;
-");
-            return stringBuilder.ToString();
+            foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn).Unquoted().ToString();
+                idColumns.AppendLine($"{argComma}{columnName}");
+                idColumnsSelects.AppendLine($"{argComma}NEW.{columnName}");
+                //stringPkAreNull.Append($"{argAnd}side.{columnName} IS NULL");
+                argComma = ",";
+                argAnd = " AND ";
+            }
+            string stringBuilder = @$"CREATE OR REPLACE FUNCTION {tableName.Schema().Unquoted().ToString()}_update_trigger_function()
+                                    RETURNS trigger
+                                    LANGUAGE 'plpgsql'
+                                    COST 100
+                                    VOLATILE NOT LEAKPROOF
+                                AS $new$
+                                BEGIN
+                                    insert into {trackingName.Schema().Unquoted().ToString()} 
+                                    ({idColumns.ToString()}
+                                        , update_scope_id
+                                        ,""timestamp""
+                                        ,sync_row_is_tombstone
+                                        ,last_change_datetime
+                                        )
+                                    values( {idColumnsSelects.ToString()}
+                                        ,null
+                                        ,{this.timestampValue}
+                                        ,0::bit
+                                        ,now()
+                                        )
+                                    on conflict({idColumns.ToString()}) do update
+                                   SET
+                                   ""timestamp"" = {this.timestampValue}
+                                    ,sync_row_is_tombstone = 0::bit
+                                    ,update_scope_id = null
+                                    ,last_change_datetime = now();
+                                return NEW;
+                                end;
+                                $new$;";
+
+            return stringBuilder;
+        }
+        private string CreateDeleteTriggerAsync()
+        {
+            var tablename = tableName.Unquoted().ToString();
+            var idColumnsSelects = new StringBuilder();
+            var idColumns = new StringBuilder();
+            //var stringPkAreNull = new StringBuilder();
+            string argComma = " ";
+            string argAnd = string.Empty;
+            var primaryKeys = this.tableDescription.GetPrimaryKeysColumns();
+
+            foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn).Unquoted().ToString();
+                idColumns.AppendLine($"{argComma}{columnName}");
+                idColumnsSelects.AppendLine($"{argComma}OLD.{columnName}");
+                //stringPkAreNull.Append($"{argAnd}side.{columnName} IS NULL");
+                argComma = ",";
+                argAnd = " AND ";
+            }
+            string stringBuilder = @$"CREATE OR REPLACE FUNCTION {tableName.Schema().Unquoted().ToString()}_delete_trigger_function()
+                                    RETURNS trigger
+                                    LANGUAGE 'plpgsql'
+                                    COST 100
+                                    VOLATILE NOT LEAKPROOF
+                                AS $new$
+                                BEGIN
+                                    insert into {trackingName.Schema().Unquoted().ToString()} 
+                                    ({idColumns.ToString()}
+                                        , update_scope_id
+                                        ,""timestamp""
+                                        ,sync_row_is_tombstone
+                                        ,last_change_datetime
+                                        )
+                                    values( {idColumnsSelects.ToString()}
+                                        ,null
+                                        ,{this.timestampValue}
+                                        ,0::bit
+                                        ,now()
+                                        )
+                                    on conflict({idColumns.ToString()}) do update
+                                   SET
+                                   ""timestamp"" = {this.timestampValue}
+                                    ,sync_row_is_tombstone = 0::bit
+                                    ,update_scope_id = null
+                                    ,last_change_datetime = now();
+                                return OLD;
+                                end;
+                                $new$;";
+
+            return stringBuilder;
         }
     }
 }

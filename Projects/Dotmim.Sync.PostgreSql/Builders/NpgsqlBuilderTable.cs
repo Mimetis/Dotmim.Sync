@@ -153,8 +153,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
             command.Transaction = transaction;
             command.CommandText = $"ALTER TABLE IF EXISTS {tableName.Schema().Unquoted().ToString()} DROP COLUMN {columnName};";
 
-            //Testing
-            Console.WriteLine(command.CommandText);
             return Task.FromResult(command);
         }
 
