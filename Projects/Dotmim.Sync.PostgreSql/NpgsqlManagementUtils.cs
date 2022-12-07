@@ -597,7 +597,7 @@ namespace Dotmim.Sync.PostgreSql
             string str = "";
             foreach (var column in columns)
             {
-                var quotedColumn = ParserName.Parse(column, "\"").Quoted().ToString();
+                var quotedColumn = ParserName.Parse(column, "\"").Unquoted().ToString();
 
                 stringBuilder.Append(str);
                 stringBuilder.Append(strLeftName);

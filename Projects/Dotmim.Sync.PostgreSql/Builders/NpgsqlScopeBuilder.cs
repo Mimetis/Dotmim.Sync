@@ -180,7 +180,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
 
             var p = command.CreateParameter();
             p.ParameterName = "@sync_scope_id";
-            p.DbType = DbType.String;
+            p.DbType = DbType.Guid;
             p.Size = -1;
             command.Parameters.Add(p);
 
@@ -294,7 +294,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
                            , sync_scope_properties
                     FROM  {schemaName}.{tableName}
                     WHERE sync_scope_name = @sync_scope_name 
-                    and sync_scope_id = @sync_scope_id 
+                    and sync_scope_id = @sync_scope_id::uuid
                     and sync_scope_hash = @sync_scope_hash";
 
             var command = connection.CreateCommand();

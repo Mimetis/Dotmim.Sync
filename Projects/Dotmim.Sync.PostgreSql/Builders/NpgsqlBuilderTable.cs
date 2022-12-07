@@ -91,7 +91,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                     OriginalDbType = typeName,
                     Ordinal = (int)c["ordinal_position"],
                     OriginalTypeName = c["udt_name"].ToString(),
-                    MaxLength = maxLengthLong > int.MaxValue ? int.MaxValue : (int)maxLengthLong,
+                    MaxLength = maxLengthLong,
                     Precision = precision,
                     Scale = numeric_scale,
                     AllowDBNull = c["is_nullable"].ToString() == "YES" ? true : false,

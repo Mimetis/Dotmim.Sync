@@ -520,8 +520,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             var pTimestamp = new NpgsqlParameter("sync_min_timestamp", NpgsqlDbType.Bigint);
 
-            //Todo: moving forward
-            pTimestamp.Direction = ParameterDirection.Output;
+            ////Todo: moving forward
+            //pTimestamp.Direction = ParameterDirection.Output;
             sqlCommand.Parameters.Add(pTimestamp);
 
             // Add filter parameters
@@ -1003,15 +1003,18 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {procName}(");
-            string str = "\n\t";
+            string str = "";
             foreach (NpgsqlParameter parameter in cmd.Parameters)
             {
                 stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
                 str = ",\n\t";
             }
-            stringBuilder.AppendLine("\n\t)");
-            //stringBuilder.AppendLine("\n\tRETURNS void");
-            stringBuilder.AppendLine("\n\tLANGUAGE 'plpgsql'");
+            stringBuilder.AppendLine(") ");
+            if(cmd.Parameters.All(x=> x.Direction != ParameterDirection.Output))
+                stringBuilder.AppendLine("RETURNS void");
+            stringBuilder.AppendLine("LANGUAGE 'plpgsql'");
+            stringBuilder.AppendLine("COST 100");
+            stringBuilder.AppendLine("VOLATILE");
             stringBuilder.AppendLine("AS $BODY$");
             stringBuilder.AppendLine("BEGIN");
             stringBuilder.AppendLine(cmd.CommandText);

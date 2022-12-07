@@ -161,10 +161,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case "char":
                 case "name":
                 case "bpchar":
+                case "character varying":
                     return DbType.AnsiStringFixedLength;
 
 
-                case "character varying":
                 case "varchar":
                 case "refcursor":
                 case "citext":

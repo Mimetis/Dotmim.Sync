@@ -51,7 +51,7 @@ namespace HelloWebSyncServer
             // [Required] Tables involved in the sync process:
             //var tables = new string[] { "ProductCategory", "ProductModel", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
             //var tables = new string[] { "humanresources.department", "humanresources.employeedepartmenthistory", "humanresources.employee", "humanresources.jobcandidate", "person.person", "person.address" };
-            var tables = new string[] { "person.person"};
+            var tables = new string[] { "public.waseem" };
 
             // [Required]: Add a SqlSyncProvider acting as the server hub.
             //services.AddSyncServer<SqlSyncProvider>(connectionString, tables, options);
