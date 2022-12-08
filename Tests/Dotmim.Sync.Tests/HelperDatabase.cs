@@ -14,6 +14,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
+using System.Xml.Linq;
 
 namespace Dotmim.Sync.Tests
 {
@@ -361,20 +363,80 @@ namespace Dotmim.Sync.Tests
         }
 
         /// <summary>
+        /// Backup a SQL Server database
+        /// </summary>
+        public static void BackupDatabase(string dbName)
+        {
+            if (!Directory.Exists(Path.Combine(Path.GetTempPath(), "Backup")))
+                Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "Backup"));
+
+            string localDatabasePath = Path.Combine(Path.GetTempPath(), "Backup", $"{dbName}.bak");
+
+            var formatMediaName = $"DatabaseToolkitBackup_{dbName}";
+
+            using var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString(dbName));
+
+            var sql = @$"BACKUP DATABASE [{dbName}] TO DISK = N'{localDatabasePath}' WITH NAME = '{formatMediaName}'";
+
+            connection.Open();
+
+            using (var command = new SqlCommand(sql, connection))
+            {
+                command.CommandType = CommandType.Text;
+                command.ExecuteNonQuery();
+            }
+
+            connection.Close();
+
+        }
+
+        /// <summary>
         /// Restore a sql backup file
         /// </summary>
-        public static void RestoreSqlDatabase(string dbName, string filePath)
+        public static void RestoreSqlDatabase(string dbName)
         {
-            var dataName = Path.GetFileNameWithoutExtension(dbName) + ".mdf";
-            var logName = Path.GetFileNameWithoutExtension(dbName) + ".ldf";
+            string localDatabasePath = Path.Combine(Path.GetTempPath(), "Backup", $"{dbName}.bak");
+
             var script = $@"
                 if (exists (select * from sys.databases where name = '{dbName}'))
+                begin                
+                    ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
+                End
+
+                RESTORE DATABASE [{dbName}] FROM  DISK = N'{localDatabasePath}' WITH  RESTRICTED_USER, NOUNLOAD, REPLACE
+
+                ALTER DATABASE [{dbName}] SET MULTI_USER";
+
+
+            using var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master"));
+            connection.Open();
+
+            using var cmdDb = new SqlCommand(script, connection);
+
+            cmdDb.ExecuteNonQuery();
+
+            connection.Close();
+        }
+
+        /// <summary>
+        /// Restore a sql backup file from a server to client
+        /// </summary>
+        public static void RestoreSqlDatabase(string fromDbName, string toDbName)
+        {
+            var dataName = Path.GetFileNameWithoutExtension(toDbName) + ".mdf";
+            var logName = Path.GetFileNameWithoutExtension(toDbName) + ".ldf";
+
+            string localDatabaseBackupPath = Path.Combine(Path.GetTempPath(), "Backup", $"{fromDbName}.bak");
+
+
+            var script = $@"
+                if (exists (select * from sys.databases where name = '{toDbName}'))
                     begin                
-                        ALTER DATABASE [{dbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
+                        ALTER DATABASE [{toDbName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE
                     End
                 else
                     begin
-                        CREATE DATABASE [{dbName}]
+                        CREATE DATABASE [{toDbName}]
                     end
 
                 -- the backup contains the full path to the database files
@@ -389,10 +451,10 @@ namespace Dotmim.Sync.Tests
                 set @dataFile =@databaseFolder + '{dataName}';
                 set @logFile =@databaseFolder + '{logName}';
 
-                RESTORE DATABASE [{dbName}] FROM  DISK = N'{filePath}' WITH  RESTRICTED_USER, REPLACE,
-                    MOVE '{dbName}' TO @dataFile,
-                    MOVE '{dbName}_log' TO @logFile;
-                ALTER DATABASE [{dbName}] SET MULTI_USER";
+                RESTORE DATABASE [{toDbName}] FROM  DISK = N'{localDatabaseBackupPath}' WITH  RESTRICTED_USER, REPLACE,
+                    MOVE '{fromDbName}' TO @dataFile,
+                    MOVE '{fromDbName}_log' TO @logFile;
+                ALTER DATABASE [{toDbName}] SET MULTI_USER";
 
 
             using var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master"));
@@ -405,8 +467,6 @@ namespace Dotmim.Sync.Tests
 
             connection.Close();
         }
-
-
 
         /// <summary>
         /// Gets the Create or Re-create a database script text

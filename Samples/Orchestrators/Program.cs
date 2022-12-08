@@ -153,7 +153,7 @@ namespace HelloSync
 
             foreach (var tableChanges in changes.ClientChangesSelected.TableChangesSelected)
             {
-                var syncTable = await localOrchestrator.LoadTableFromBatchInfoAsync(changes.ClientBatchInfo, tableChanges.TableName, tableChanges.SchemaName);
+                var syncTable = localOrchestrator.LoadTableFromBatchInfo(changes.ClientBatchInfo, tableChanges.TableName, tableChanges.SchemaName);
 
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.WriteLine($"Changes for table {syncTable.TableName}. Rows:{syncTable.Rows.Count}");
@@ -199,7 +199,7 @@ namespace HelloSync
             // enumerate changes retrieved
             foreach (var tableChanges in changes.ServerChangesSelected.TableChangesSelected)
             {
-                var syncTable = await remoteOrchestrator.LoadTableFromBatchInfoAsync(changes.ServerBatchInfo, tableChanges.TableName, tableChanges.SchemaName);
+                var syncTable = remoteOrchestrator.LoadTableFromBatchInfo(changes.ServerBatchInfo, tableChanges.TableName, tableChanges.SchemaName);
 
                 Console.ForegroundColor = ConsoleColor.White;
                 Console.WriteLine($"Changes for table {syncTable.TableName}. Rows:{syncTable.Rows.Count}");
