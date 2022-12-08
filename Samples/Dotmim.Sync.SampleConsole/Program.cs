@@ -34,6 +34,7 @@ using NLog.Extensions.Logging;
 using NLog.Web;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using Dotmim.Sync.SqlServer.Builders;
+using Microsoft.Extensions.Options;
 
 #if NET5_0 || NET6_0 || NET7_0
 using MySqlConnector;
@@ -122,21 +123,58 @@ internal class Program
 
     private static async Task LoadLocalSchemaAsync()
     {
-        var clientProvider = new SqliteSyncProvider(@$"C:\PROJECTS\SAMPLES\client.db");
-        var localOrchestrator = new LocalOrchestrator(clientProvider);
-        var setup = new SyncSetup("LaborItems");
-        var schema = await localOrchestrator.GetSchemaAsync(setup);
-        foreach(var table in schema.Tables)
-        {
-            Console.WriteLine($"Table:{table.TableName}");
-            Console.WriteLine($"PrimaryKeys:");
-            foreach (var pk in table.PrimaryKeys)
-                Console.WriteLine($"\t{pk}");
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
-            Console.WriteLine($"Columns:");
-            foreach (var column in table.Columns)
-                Console.WriteLine($"\t{column.ColumnName}");
-        }
+        var  setup = new SyncSetup("ProductCategory");
+        var localOrchestrator = new LocalOrchestrator(clientProvider);
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+
+        var options = new SyncOptions();
+        // 1) Make a backup of the server database
+        // ....
+        // 
+
+        // 2) Provision server database
+        var serverScope = await remoteOrchestrator.ProvisionAsync(setup);
+
+        // 3) Get the timestamp to use on the client
+        var serverTimeStamp = await remoteOrchestrator.GetLocalTimestampAsync();
+
+        // Once you have done the first step (1), you need to make Provision (2) and get timestamp (3)
+        // really quickly to be SURE you don't have any new / modified or deleted rows in the server 
+        // database that are not in the backup and not tracked.
+        // Once (2) and (3) are done, you are safe and you have all the time for next steps...
+
+
+        // 4) Restore backup on client
+        // ...
+        //
+
+        // 5) Provision client
+        await localOrchestrator.ProvisionAsync(serverScope);
+
+        // 6) Get the local timestamp
+        var clientTimestamp = await localOrchestrator.GetLocalTimestampAsync();
+
+        // 7) Get scopeinfoclient
+        // ScopeInfoClient table contains all information fro the "next" sync to do (timestamp, parameters and so on ...)
+        var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync();
+
+        // As we have some existing lines, we say it's not a new sync
+        scopeInfoClient.IsNewScope = false;
+
+        // Affecting the correct timestamp, the local one and the server one
+        scopeInfoClient.LastServerSyncTimestamp = serverTimeStamp;
+        scopeInfoClient.LastSyncTimestamp = clientTimestamp;
+        await localOrchestrator.SaveScopeInfoClientAsync(scopeInfoClient);
+
+        // We're done
+        // We can sync safely now
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+        var r = await agent.SynchronizeAsync(setup);
+
+        Console.Write(r.ToString());
 
     }
 
