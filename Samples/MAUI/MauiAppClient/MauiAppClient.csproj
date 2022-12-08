@@ -48,4 +48,22 @@
 		<MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <None Remove="platforms\android\resources\xml\network_security_config.xml" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="6.0.11" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
+	  <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.Sqlite\Dotmim.Sync.Sqlite.csproj" />
+	  <ProjectReference Include="..\..\..\Projects\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Platforms\Android\Resources\xml\" />
+	</ItemGroup>
+
 </Project>

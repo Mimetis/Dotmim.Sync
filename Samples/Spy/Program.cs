@@ -108,11 +108,11 @@ namespace Spy
             });
 
             // Just before applying changes locally, at the table level
-            localOrchestrator.OnTableChangesApplying(async args =>
+            localOrchestrator.OnTableChangesApplying(args =>
             {
                 if (args.BatchPartInfos != null)
                 {
-                    var syncTable = await localOrchestrator.LoadTableFromBatchInfoAsync(
+                    var syncTable = localOrchestrator.LoadTableFromBatchInfo(
                         args.BatchInfo, args.SchemaTable.TableName, args.SchemaTable.SchemaName, args.State);
 
                     if (syncTable.HasRows)
