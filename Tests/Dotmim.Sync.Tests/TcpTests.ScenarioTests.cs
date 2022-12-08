@@ -933,10 +933,103 @@ namespace Dotmim.Sync.Tests
                 await ctx.SaveChangesAsync();
             }
 
+            // First sync to initialiaze client database, create table and fill product categories
+            foreach (var client in this.Clients)
+            {
+                // get orchestrator
+                var localOrchestrator = new LocalOrchestrator(client.Provider);
+                // provision client side
+                await localOrchestrator.ProvisionAsync(serverScope);
+
+                // 6) Get the local timestamp
+                var clientTimestamp = await localOrchestrator.GetLocalTimestampAsync();
+
+                // 7) Get scopeinfoclient
+                // ScopeInfoClient table contains all information fro the "next" sync to do (timestamp, parameters and so on ...)
+                var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync();
+
+                // As we have some existing lines, we say it's not a new sync
+                scopeInfoClient.IsNewScope = false;
+
+                // Affecting the correct timestamp, the local one and the server one
+                scopeInfoClient.LastServerSyncTimestamp = serverTimeStamp;
+                scopeInfoClient.LastSyncTimestamp = clientTimestamp;
+                await localOrchestrator.SaveScopeInfoClientAsync(scopeInfoClient);
+
+                var agent = new SyncAgent(client.Provider, Server.Provider);
+                var r1 = await agent.SynchronizeAsync(setup);
+
+                Assert.Equal(2, r1.TotalChangesDownloadedFromServer);
+                Assert.Equal(2, r1.ChangesAppliedOnClient.TotalAppliedChanges);
+
+            }
+        }
+
+
+        [Fact]
+        public virtual async Task Scenario_StartingWithAClientBackup()
+        {
+            if (this.Server.ProviderType != ProviderType.Sql)
+                return;
+
+            // create a server schema with seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+
+            //// create all clients database with seeding.
+            //// we are "mimic" here the backup restore
+            //foreach (var client in this.Clients)
+            //    await this.EnsureDatabaseSchemaAndSeedAsync(client, true, UseFallbackSchema);
+
+            var productCategoryTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.ProductCategory" : "ProductCategory";
+            var productTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.Product" : "Product";
+
+            var setup = new SyncSetup(productCategoryTableName, productTableName, "Employee");
+            var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider);
+
+            // 1) Make a backup
+            HelperDatabase.BackupDatabase(Server.DatabaseName);
+
+            // 2) Provision server database
+            var serverScope = await remoteOrchestrator.ProvisionAsync(setup);
+
+            // 3) Get the timestamp to use on the client
+            var serverTimeStamp = await remoteOrchestrator.GetLocalTimestampAsync();
+
+            // 4) Insert some rows in server
+            // Create a new ProductCategory and a related Product
+            var productId = Guid.NewGuid();
+            var productName = HelperDatabase.GetRandomName();
+            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
+            var productCategoryName = HelperDatabase.GetRandomName();
+            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+
+            var newAttributeWithSpaceValue = HelperDatabase.GetRandomName();
+
+            using (var ctx = new AdventureWorksContext(Server, this.UseFallbackSchema))
+            {
+                var pc = new ProductCategory
+                {
+                    ProductCategoryId = productCategoryId,
+                    Name = productCategoryName,
+                    AttributeWithSpace = newAttributeWithSpaceValue
+                };
+                ctx.ProductCategory.Add(pc);
+
+                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
+                ctx.Product.Add(product);
+
+                await ctx.SaveChangesAsync();
+            }
 
             // First sync to initialiaze client database, create table and fill product categories
             foreach (var client in this.Clients)
             {
+                if (client.ProviderType != ProviderType.Sql)
+                    continue;
+
+                // 5) Restore a backup
+                HelperDatabase.RestoreSqlDatabase(Server.DatabaseName, client.DatabaseName);
+
                 // get orchestrator
                 var localOrchestrator = new LocalOrchestrator(client.Provider);
                 // provision client side
