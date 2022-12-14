@@ -17,7 +17,7 @@ namespace MauiAppClient.Services
 
         private SqliteSyncProvider sqliteSyncProvider;
         private SyncAgent syncAgent;
-        private WebRemoteOrchestrator webProxyProvider;
+        private WebRemoteOrchestrator webRemoteOrchestrator;
         private HttpClient httpClient;
 
         private ISettingServices settings;
@@ -55,13 +55,13 @@ namespace MauiAppClient.Services
 
             this.httpClient.DefaultRequestHeaders.AcceptEncoding.Add(new StringWithQualityHeaderValue("gzip"));
 
-            this.webProxyProvider = new WebRemoteOrchestrator(this.settings.SyncApiUrl, client: this.httpClient);
+            this.webRemoteOrchestrator = new WebRemoteOrchestrator(this.settings.SyncApiUrl, client: this.httpClient, maxDownladingDegreeOfParallelism: 1);
 
             this.sqliteSyncProvider = new SqliteSyncProvider(this.settings.DataSource);
 
             var clientOptions = new SyncOptions { BatchSize = settings.BatchSize, BatchDirectory = settings.BatchDirectoryPath };
 
-            this.syncAgent = new SyncAgent(sqliteSyncProvider, webProxyProvider, clientOptions);
+            this.syncAgent = new SyncAgent(sqliteSyncProvider, webRemoteOrchestrator, clientOptions);
         }
 
         public SyncAgent GetSyncAgent() => this.syncAgent;

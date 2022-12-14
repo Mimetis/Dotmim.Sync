@@ -101,10 +101,12 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
+                if (serverChangesSelected != null && serverChangesSelected.TotalChangesSelected > 0)
+                {
+                    var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
                     serverBatchInfo, serverChangesSelected, runner.Connection, runner.Transaction);
-
-                await this.InterceptAsync(databaseChangesSelectedArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(databaseChangesSelectedArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                }
 
                 return new ServerSyncChanges(remoteClientTimestamp, serverBatchInfo, serverChangesSelected, null);
             }

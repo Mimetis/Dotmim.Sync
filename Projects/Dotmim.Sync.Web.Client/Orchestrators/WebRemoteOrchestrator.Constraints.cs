@@ -19,13 +19,15 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Http Client is not authorized to ask for a table reset on the server
         /// </summary>
-        public override Task ResetTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
+        public override Task ResetTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null,
+            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => throw new NotImplementedException();
 
         /// <summary>
         /// Http Client is not authorized to ask metadatas deletion on the server
         /// </summary>
-        public override Task ResetTableAsync(ScopeInfo scopeInfo, SyncContext context, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
+        public override Task ResetTableAsync(ScopeInfo scopeInfo, SyncContext context, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null,
+            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => throw new NotImplementedException();
 
         /// <summary>

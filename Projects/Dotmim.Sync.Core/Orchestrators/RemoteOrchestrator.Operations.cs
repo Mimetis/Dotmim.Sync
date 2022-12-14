@@ -32,7 +32,6 @@ namespace Dotmim.Sync
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var operationArgs = new OperationArgs(context, serverScopeInfo, clientScopeInfo, scopeInfoClient, runner.Connection, runner.Transaction);
-
                 await this.InterceptAsync(operationArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                 syncOperation = operationArgs.Operation;

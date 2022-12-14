@@ -19,7 +19,7 @@ namespace Dotmim.Sync
             this.ScopeInfoFromClient = clientScopeInfo;
             this.ScopeInfoClient = scopeInfoClient;
         }
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         public override string Source => Connection.Database;
         public override string Message => $"[{Connection.Database}] Overriding operation from server. Operation: {Operation}.";

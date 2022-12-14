@@ -41,7 +41,7 @@ namespace Dotmim.Sync
         public SyncTable SchemaTable { get; }
 
         public override string Source => Connection?.Database;
-        public override string Message => $"[{this.SchemaTable.GetFullName()}] Batch {BatchPartInfo.FileName} ({BatchPartInfo.Index + 1}/{BatchInfo.BatchPartsInfo.Count}) Applied.";
+        public override string Message => $"[{this.SchemaTable.GetFullName()}] [{this.State}] Batch {BatchPartInfo.FileName} ({BatchPartInfo.Index + 1}/{BatchInfo.BatchPartsInfo.Count}) Applied.";
 
         public override int EventId => SyncEventsId.BacthChangesApplied.Id;
     }

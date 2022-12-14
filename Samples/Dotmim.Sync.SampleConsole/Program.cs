@@ -117,12 +117,16 @@ internal class Program
 
         //await GenerateErrorsAsync();
 
-        //await ChangeSetupInProgressAsync(clientProvider, serverProvider, setup, options);
-        await LoadLocalSchemaAsync();
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        //await LoadLocalSchemaAsync();
     }
 
     private static async Task LoadLocalSchemaAsync()
     {
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
         var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
@@ -136,7 +140,7 @@ internal class Program
         // 
 
         // 2) Provision server database
-        var serverScope = await remoteOrchestrator.ProvisionAsync(setup);
+        var serverScope = await remoteOrchestrator.ProvisionAsync(setup, overwrite:true, progress: progress);
 
         // 3) Get the timestamp to use on the client
         var serverTimeStamp = await remoteOrchestrator.GetLocalTimestampAsync();
@@ -152,7 +156,7 @@ internal class Program
         //
 
         // 5) Provision client
-        await localOrchestrator.ProvisionAsync(serverScope);
+        await localOrchestrator.ProvisionAsync(serverScope, overwrite:true, progress: progress);
 
         // 6) Get the local timestamp
         var clientTimestamp = await localOrchestrator.GetLocalTimestampAsync();
@@ -172,7 +176,7 @@ internal class Program
         // We're done
         // We can sync safely now
         var agent = new SyncAgent(clientProvider, serverProvider, options);
-        var r = await agent.SynchronizeAsync(setup);
+        var r = await agent.SynchronizeAsync(setup, progress: progress);
 
         Console.Write(r.ToString());
 

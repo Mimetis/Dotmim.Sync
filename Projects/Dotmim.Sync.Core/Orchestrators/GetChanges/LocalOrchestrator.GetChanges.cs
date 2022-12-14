@@ -221,11 +221,13 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                 }
 
-                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastSyncTimestamp, clientTimestamp,
+                if (clientChangesSelected != null && clientChangesSelected.TotalChangesSelected > 0)
+                {
+                    var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastSyncTimestamp, clientTimestamp,
                             clientBatchInfo, clientChangesSelected, runner.Connection, runner.Transaction);
 
-                await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
-
+                    await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
+                }
                 if (runner.CancellationToken.IsCancellationRequested)
                     runner.CancellationToken.ThrowIfCancellationRequested();
 

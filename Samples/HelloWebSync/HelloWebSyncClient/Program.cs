@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync;
+using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web.Client;
 using System;
@@ -22,10 +23,11 @@ namespace HelloWebSyncClient
         {
             // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
 
-            var serverOrchestrator = new WebRemoteOrchestrator("https://localhost:44342/api/sync");
+            var serverOrchestrator = new WebRemoteOrchestrator("http://localhost:5213/api/sync");
 
             // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment
-            var clientProvider = new SqlSyncProvider(clientConnectionString);
+            //var clientProvider = new SqlSyncProvider(clientConnectionString);
+            var clientProvider = new SqliteSyncProvider("adv.db");
 
             var options = new SyncOptions
             {
@@ -42,7 +44,7 @@ namespace HelloWebSyncClient
                     var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.ProgressPercentage:p}:\t{args.Message}"));
 
                     // Launch the sync process
-                    var s1 = await agent.SynchronizeAsync(progress);
+                    var s1 = await agent.SynchronizeAsync(Dotmim.Sync.Enumerations.SyncType.Reinitialize, progress);
                     // Write results
                     Console.WriteLine(s1);
 

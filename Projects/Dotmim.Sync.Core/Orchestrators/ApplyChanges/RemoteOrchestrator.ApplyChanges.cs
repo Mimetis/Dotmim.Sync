@@ -83,7 +83,7 @@ namespace Dotmim.Sync
                     ScopeInfoClient sScopeInfoClient = null;
                     // Get scope info client from server, to get errors if any
                     await using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading,
-                        connection, transaction, cancellationToken , progress).ConfigureAwait(false))
+                        connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                     {
                         (context, sScopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context,
                             runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
@@ -253,10 +253,12 @@ namespace Dotmim.Sync
 
                     var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, serverBatchInfo, serverChangesSelected, serverChangesApplied);
 
-                    var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp, 
-                        serverBatchInfo, serverChangesSelected, runner.Connection, runner.Transaction);
-
-                    await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
+                    if (serverChangesSelected != null && serverChangesSelected.TotalChangesSelected > 0)
+                    {
+                        var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
+                            serverBatchInfo, serverChangesSelected, runner.Connection, runner.Transaction);
+                        await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
+                    }
 
                     if (runner.CancellationToken.IsCancellationRequested)
                         runner.CancellationToken.ThrowIfCancellationRequested();

@@ -321,7 +321,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal create tracking table routine
         /// </summary>
-        internal virtual async Task<(SyncContext context, bool crated)> InternalCreateTrackingTableAsync(
+        internal virtual async Task<(SyncContext context, bool created)> InternalCreateTrackingTableAsync(
             ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             try

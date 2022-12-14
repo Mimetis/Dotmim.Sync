@@ -876,9 +876,7 @@ namespace Dotmim.Sync.Tests
 
 
         /// <summary>
-        /// The idea here is to start with an existing client database, that COULD BE a backup restore from server
-        /// The server made a backup, then we are intiliazing DMS to track changes from that point
-        /// Once the client has restored the database, we can setup the DMS things on client
+        /// The idea here is to start with an existing client database, where we don't want to upload anything or download anything on first sync
         /// Manipulate the client scope as it should be marked as not new (and set the correct timestamps)
         /// Then trying to sync
         /// </summary>
@@ -966,6 +964,13 @@ namespace Dotmim.Sync.Tests
         }
 
 
+        /// <summary>
+        /// The idea here is to start from a client restore from server backup
+        /// The server made a backup, then we are intiliazing DMS to track changes from that point
+        /// Once the client has restored the database, we can setup the DMS things on client
+        /// Manipulate the client scope as it should be marked as not new (and set the correct timestamps)
+        /// Then trying to sync
+        /// </summary>
         [Fact]
         public virtual async Task Scenario_StartingWithAClientBackup()
         {
@@ -974,11 +979,6 @@ namespace Dotmim.Sync.Tests
 
             // create a server schema with seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-            //// create all clients database with seeding.
-            //// we are "mimic" here the backup restore
-            //foreach (var client in this.Clients)
-            //    await this.EnsureDatabaseSchemaAndSeedAsync(client, true, UseFallbackSchema);
 
             var productCategoryTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.ProductCategory" : "ProductCategory";
             var productTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.Product" : "Product";

@@ -173,7 +173,8 @@ namespace Dotmim.Sync
                     if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal && !message.SnapshoteApplied)
                     {
                         foreach (var table in schemaTables.Reverse())
-                            context = await this.InternalResetTableAsync(scopeInfo, context, table, connection, transaction).ConfigureAwait(false);
+                            context = await this.InternalResetTableAsync(scopeInfo, context, table, connection, transaction,
+                                        cancellationToken, progress).ConfigureAwait(false);
                     }
 
                     // Trying to change order (from deletes-upserts to upserts-deletes)

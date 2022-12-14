@@ -139,7 +139,7 @@ namespace Dotmim.Sync
                     await this.InterceptAsync(conflictingSetupArgs, progress, cancellationToken).ConfigureAwait(false);
 
                     if (conflictingSetupArgs.Action == ConflictingSetupAction.Rollback)
-                        throw new SetupConflictOnClientException(clientScopeInfo.Setup, clientScopeInfo.Setup);
+                        throw new SetupConflictOnClientException(serverScopeInfo.Setup, clientScopeInfo.Setup);
 
                     if (conflictingSetupArgs.Action == ConflictingSetupAction.Abort)
                         return (context, true, clientScopeInfo, serverScopeInfo);
@@ -152,7 +152,7 @@ namespace Dotmim.Sync
                 // We gave 2 chances to user to edit the setup and fill correct values.
                 // Final check, but if not valid, raise an error
                 if (clientScopeInfo.Setup != null && serverScopeInfo.Setup != null && !clientScopeInfo.Setup.EqualsByProperties(serverScopeInfo.Setup))
-                    throw new SetupConflictOnClientException(clientScopeInfo.Setup, clientScopeInfo.Setup);
+                    throw new SetupConflictOnClientException(serverScopeInfo.Setup, clientScopeInfo.Setup);
 
                 return (context, false, clientScopeInfo, serverScopeInfo);
 

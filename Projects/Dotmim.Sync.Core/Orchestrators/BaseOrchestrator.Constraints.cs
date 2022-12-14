@@ -19,16 +19,18 @@ namespace Dotmim.Sync
         /// <summary>
         /// Reset a table, deleting all rows from table and tracking_table. This method is used when you want to Reinitialize your database
         /// </summary>
-        public virtual Task ResetTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
+        public virtual Task ResetTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null,
+            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
-            return ResetTableAsync(scopeInfo, context, tableName, schemaName, connection, transaction);
+            return ResetTableAsync(scopeInfo, context, tableName, schemaName, connection, transaction, cancellationToken, progress);
         }
 
         /// <summary>
         /// Reset a table, deleting rows from table and tracking_table
         /// </summary>
-        public virtual async Task ResetTableAsync(ScopeInfo scopeInfo, SyncContext context, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
+        public virtual async Task ResetTableAsync(ScopeInfo scopeInfo, SyncContext context, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null,
+            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
             {
@@ -40,10 +42,10 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 context = await this.InternalResetTableAsync(scopeInfo, context, schemaTable,
-                    runner.Connection, runner.Transaction).ConfigureAwait(false);
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
             }
@@ -259,7 +261,8 @@ namespace Dotmim.Sync
         /// Reset a table, deleting rows from table and tracking_table
         /// </summary>
         internal async Task<SyncContext> InternalResetTableAsync(ScopeInfo scopeInfo, SyncContext context,
-            SyncTable schemaTable, DbConnection connection, DbTransaction transaction)
+            SyncTable schemaTable, DbConnection connection, DbTransaction transaction,
+            CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             try
             {
@@ -280,6 +283,11 @@ namespace Dotmim.Sync
                     await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                     command.Dispose();
                 }
+
+                var args = new TableResetAppliedArgs(context, schemaTable, connection, transaction);
+                await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+
+
                 return context;
             }
             catch (Exception ex)

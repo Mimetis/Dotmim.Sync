@@ -143,6 +143,9 @@ namespace Dotmim.Sync
         /// </summary>
         public bool HasColumns => this.InnerCollection?.SelectMany(t => t.Columns).Count() > 0;  // using SelectMany to get columns and not Collection<Column>
 
+
+
+
         public void Clear() => this.InnerCollection.Clear();
         public SetupTable this[int index] => InnerCollection[index];
         public int Count => InnerCollection.Count;

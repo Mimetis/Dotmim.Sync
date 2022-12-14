@@ -464,7 +464,7 @@ namespace Dotmim.Sync
                         (context, dropped) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // If at least one stored proc has been dropped, we're good to return true;
-                        if (dropped)
+                        if (dropped && !hasDroppedAtLeastOneStoredProcedure)
                             hasDroppedAtLeastOneStoredProcedure = true;
                     }
                 }
@@ -535,7 +535,7 @@ namespace Dotmim.Sync
                     (context, created) = await InternalCreateStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // If at least one stored proc has been created, we're good to return true;
-                    if (created)
+                    if (created && !hasCreatedAtLeastOneStoredProcedure)
                         hasCreatedAtLeastOneStoredProcedure = true;
                 }
 
