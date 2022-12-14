@@ -661,6 +661,12 @@ namespace Dotmim.Sync
                     // we've got 0.25% to fill here 
                     var progresspct = appliedRows * 0.25d / tableChangesApplied.TotalRowsCount;
                     context.ProgressPercentage += progresspct;
+
+                    connection ??= this.Provider.CreateConnection();
+                    var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, tableChangesApplied, connection, transaction);
+                    // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
+                    await this.InterceptAsync(tableChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
+
                 }
 
                 schemaChangesTable.Dispose();
@@ -668,11 +674,6 @@ namespace Dotmim.Sync
                 changesSet.Dispose();
                 changesSet = null;
 
-                connection ??= this.Provider.CreateConnection();
-
-                var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, tableChangesApplied, connection, transaction);
-                // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
-                await this.InterceptAsync(tableChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
 
                 if (command != null)
                     command.Dispose();
