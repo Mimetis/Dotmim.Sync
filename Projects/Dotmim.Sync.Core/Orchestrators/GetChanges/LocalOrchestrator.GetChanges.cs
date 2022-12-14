@@ -195,7 +195,7 @@ namespace Dotmim.Sync
                 (context, clientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // Create a batch info
-                string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_LOCAL_GETCHANGES" : "LOCAL_GETCHANGES";
+                string info = runner.Connection != null && !string.IsNullOrEmpty(runner.Connection.Database) ? $"{runner.Connection.Database}_LOCAL_GETCHANGES" : "LOCAL_GETCHANGES";
                 var clientBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
 
                 // Call interceptor
@@ -221,13 +221,11 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                 }
 
-                if (clientChangesSelected != null && clientChangesSelected.TotalChangesSelected > 0)
-                {
-                    var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastSyncTimestamp, clientTimestamp,
-                            clientBatchInfo, clientChangesSelected, runner.Connection, runner.Transaction);
+                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastSyncTimestamp, clientTimestamp,
+                        clientBatchInfo, clientChangesSelected, runner.Connection, runner.Transaction);
 
-                    await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
-                }
+                await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
+
                 if (runner.CancellationToken.IsCancellationRequested)
                     runner.CancellationToken.ThrowIfCancellationRequested();
 

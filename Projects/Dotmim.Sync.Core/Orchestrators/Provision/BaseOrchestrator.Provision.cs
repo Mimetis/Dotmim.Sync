@@ -164,8 +164,7 @@ namespace Dotmim.Sync
                 var atLeastSomethingHasBeenCreated = atLeastOneSchemaTableBeenCreated || atLeastOneTableBeenCreated || atLeastOneTrackingTableBeenCreated || atLeastOneTriggerHasBeenCreated 
                                                   || atLeastOneStoredProcedureHasBeenCreated || atLeastOneScopeInfoTableBeenCreated || atLeastOneScopeInfoClientTableBeenCreated;
 
-                if (atLeastSomethingHasBeenCreated)
-                    await this.InterceptAsync(new ProvisionedArgs(context, provision, scopeInfo.Schema, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new ProvisionedArgs(context, provision, scopeInfo.Schema, atLeastSomethingHasBeenCreated, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 return (context, true);
             }
@@ -331,11 +330,8 @@ namespace Dotmim.Sync
                 var atLeastSomethingHasBeenDropped = atLeastScopeInfoTableBeenDropped || atLeastScopeInfoClientTableBeenDropped || atLeastOneTableBeenDropped || atLeastOneTrackingTableBeenDropped
                                                   || atLeastOneTriggerHasBeenDropped || atLeastOneStoredProcedureHasBeenDropped;
 
-                if (atLeastSomethingHasBeenDropped)
-                {
-                    var args = new DeprovisionedArgs(context, provision, scopeInfo?.Setup, runner.Connection);
-                    await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-                }
+                var args = new DeprovisionedArgs(context, provision, scopeInfo?.Setup, atLeastSomethingHasBeenDropped, runner.Connection, runner.Transaction);
+                await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 

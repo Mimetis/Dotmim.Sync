@@ -96,17 +96,14 @@ namespace Dotmim.Sync
                 // When we get the chnages from server, we create the batches if it's requested by the client
                 // the batch decision comes from batchsize from client
                 var serverChangesSelected = await this.InternalGetChangesAsync(sScopeInfo, context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
-                    cScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets, serverBatchInfo, 
+                    cScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets, serverBatchInfo,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                if (serverChangesSelected != null && serverChangesSelected.TotalChangesSelected > 0)
-                {
-                    var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
-                    serverBatchInfo, serverChangesSelected, runner.Connection, runner.Transaction);
-                    await this.InterceptAsync(databaseChangesSelectedArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-                }
+                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
+                serverBatchInfo, serverChangesSelected, runner.Connection, runner.Transaction);
+                await this.InterceptAsync(databaseChangesSelectedArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                 return new ServerSyncChanges(remoteClientTimestamp, serverBatchInfo, serverChangesSelected, null);
             }
@@ -153,9 +150,9 @@ namespace Dotmim.Sync
 
                 ScopeInfo sScopeInfo;
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction).ConfigureAwait(false);
-               
+
                 (context, sScopeInfo) = await this.InternalGetScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-               
+
                 // Should we ?
                 if (sScopeInfo.Schema == null)
                     throw new MissingRemoteOrchestratorSchemaException();

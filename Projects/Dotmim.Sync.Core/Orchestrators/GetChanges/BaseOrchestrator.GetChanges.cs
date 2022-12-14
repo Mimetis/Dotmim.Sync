@@ -469,14 +469,10 @@ namespace Dotmim.Sync
                 }, threadNumberLimits);
 
 
-                if (changes != null && changes.TotalChangesSelected > 0)
-                {
-                    var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, fromLastTimestamp, toLastTimestamp,
-                                default, changes, connection, transaction);
+                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, fromLastTimestamp, toLastTimestamp,
+                            default, changes, connection, transaction);
 
-                    await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
-
-                }
+                await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
 
 
                 return (context, changes);

@@ -39,10 +39,14 @@ namespace Dotmim.Sync
         /// Gets or Sets the rows count cleaned for all tables, during a DeleteMetadatasAsync call
         /// </summary>
         public DatabaseMetadatasCleaned DatabaseMetadatasCleaned { get; set; }
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
+        public override SyncProgressLevel ProgressLevel => DatabaseMetadatasCleaned != null && DatabaseMetadatasCleaned.RowsCleanedCount > 0 ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
 
         public override string Source => Connection.Database;
-        public override string Message => $"Tables Cleaned:{DatabaseMetadatasCleaned.Tables.Count}. Rows Cleaned:{DatabaseMetadatasCleaned.RowsCleanedCount}. TimestampLimit:{this.DatabaseMetadatasCleaned.TimestampLimit}";
+        
+        public override string Message =>
+            DatabaseMetadatasCleaned == null 
+            ? $"MetadataCleanedArgs progress."
+            : $"Tables Cleaned:{DatabaseMetadatasCleaned.Tables.Count}. Rows Cleaned:{DatabaseMetadatasCleaned.RowsCleanedCount}. TimestampLimit:{this.DatabaseMetadatasCleaned.TimestampLimit}";
 
         public override int EventId => SyncEventsId.MetadataCleaned.Id;
     }

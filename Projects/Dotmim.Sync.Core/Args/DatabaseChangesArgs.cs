@@ -55,10 +55,15 @@ namespace Dotmim.Sync
         }
 
         public override string Source => Connection?.Database;
-        public override string Message => $"[Total] Upserts:{this.ChangesSelected.TotalChangesSelectedUpdates}. Deletes:{this.ChangesSelected.TotalChangesSelectedDeletes}. Total:{this.ChangesSelected.TotalChangesSelected}. [{this.BatchInfo.GetDirectoryFullPath()}]";
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
+        public override SyncProgressLevel ProgressLevel => this.ChangesSelected != null && this.ChangesSelected.TotalChangesSelected> 0 ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
         public long? FromTimestamp { get; }
         public long? ToTimestamp { get; }
+
+
+        public override string Message => 
+            this.ChangesSelected == null
+            ? $"DatabaseChangesSelectedArgs progress."
+            : $"[Total] Upserts:{this.ChangesSelected.TotalChangesSelectedUpdates}. Deletes:{this.ChangesSelected.TotalChangesSelectedDeletes}. Total:{this.ChangesSelected.TotalChangesSelected}. [{this.BatchInfo.GetDirectoryFullPath()}]";
 
         /// <summary>
         /// Get the batch info. Always null when raised from a call from GetEstimatedChangesCount
@@ -102,9 +107,12 @@ namespace Dotmim.Sync
         }
 
         public DatabaseChangesApplied ChangesApplied { get; set; }
-        public override SyncProgressLevel ProgressLevel => ChangesApplied.TotalAppliedChanges > 0 ? SyncProgressLevel.Information: SyncProgressLevel.Debug;
+        public override SyncProgressLevel ProgressLevel => ChangesApplied != null && ChangesApplied.TotalAppliedChanges > 0 ? SyncProgressLevel.Information: SyncProgressLevel.Debug;
         public override string Source => Connection.Database;
-        public override string Message => $"[Total] Applied:{ChangesApplied.TotalAppliedChanges}. Conflicts:{ChangesApplied.TotalResolvedConflicts}.";
+        public override string Message =>
+            ChangesApplied == null 
+            ? "DatabaseChangesAppliedArgs progress."
+            : $"[Total] Applied:{ChangesApplied.TotalAppliedChanges}. Conflicts:{ChangesApplied.TotalResolvedConflicts}.";
 
         public override int EventId => SyncEventsId.DatabaseChangesApplied.Id;
     }

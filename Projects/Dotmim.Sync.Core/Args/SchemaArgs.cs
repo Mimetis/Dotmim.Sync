@@ -35,7 +35,7 @@ namespace Dotmim.Sync
         {
             this.Schema = schema;
         }
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
+        public override SyncProgressLevel ProgressLevel => this.Schema != null && this.Schema.HasTables ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
 
         /// <summary>
         /// Gets the schema loaded.

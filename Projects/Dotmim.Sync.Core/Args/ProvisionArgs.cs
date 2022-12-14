@@ -11,17 +11,20 @@ namespace Dotmim.Sync
 
     public class ProvisionedArgs : ProgressArgs
     {
+        private readonly bool atLeastSomethingHasBeenCreated;
+
         public SyncProvision Provision { get; }
         public SyncSet Schema { get; }
 
-        public ProvisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection = null, DbTransaction transaction = null)
+        public ProvisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, bool atLeastSomethingHasBeenCreated, DbConnection connection = null, DbTransaction transaction = null)
         : base(context, connection, transaction)
 
         {
-            Provision = provision;
-            Schema = schema;
+            this.Provision = provision;
+            this.Schema = schema;
+            this.atLeastSomethingHasBeenCreated = atLeastSomethingHasBeenCreated;
         }
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
+        public override SyncProgressLevel ProgressLevel => this.atLeastSomethingHasBeenCreated?  SyncProgressLevel.Information : SyncProgressLevel.Debug;
 
         public override string Source => Connection.Database;
         public override string Message => $"Provisioned {Schema.Tables.Count} Tables. Provision:{Provision}.";
@@ -58,17 +61,20 @@ namespace Dotmim.Sync
 
     public class DeprovisionedArgs : ProgressArgs
     {
+        private readonly bool atLeastSomethingHasBeenDropped;
+
         public SyncProvision Provision { get; }
         public SyncSetup Setup { get; }
 
 
-        public DeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSetup setup, DbConnection connection = null, DbTransaction transaction = null)
+        public DeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSetup setup, bool atLeastSomethingHasBeenDropped, DbConnection connection = null, DbTransaction transaction = null)
         : base(context, connection, transaction)
         {
-            Provision = provision;
-            Setup = setup;
+            this.Provision = provision;
+            this.atLeastSomethingHasBeenDropped = atLeastSomethingHasBeenDropped;
+            this.Setup = setup;
         }
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
+        public override SyncProgressLevel ProgressLevel => this.atLeastSomethingHasBeenDropped ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
         public override string Source => Connection.Database;
         public override string Message => $"Deprovisioned {Setup.Tables.Count} Tables. Provision:{Provision}.";
         public override int EventId => SyncEventsId.Deprovisioned.Id;

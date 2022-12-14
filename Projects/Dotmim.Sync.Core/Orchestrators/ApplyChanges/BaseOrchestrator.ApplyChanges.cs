@@ -668,15 +668,11 @@ namespace Dotmim.Sync
                 changesSet.Dispose();
                 changesSet = null;
 
-                // Report the overall changes applied for the current table
-                if (tableChangesApplied != null)
-                {
-                    connection ??= this.Provider.CreateConnection();
+                connection ??= this.Provider.CreateConnection();
 
-                    var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, tableChangesApplied, connection, transaction);
-                    // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
-                    await this.InterceptAsync(tableChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
-                }
+                var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, tableChangesApplied, connection, transaction);
+                // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
+                await this.InterceptAsync(tableChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
 
                 if (command != null)
                     command.Dispose();

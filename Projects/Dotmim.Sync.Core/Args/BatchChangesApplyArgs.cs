@@ -28,7 +28,7 @@ namespace Dotmim.Sync
             this.State = state;
             this.Command = command;
         }
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
+        public override SyncProgressLevel ProgressLevel => BatchPartInfo != null && BatchPartInfo.RowsCount > 0 ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
 
         public SyncRowState State { get; }
         public DbCommand Command { get; set; }
@@ -41,7 +41,10 @@ namespace Dotmim.Sync
         public SyncTable SchemaTable { get; }
 
         public override string Source => Connection?.Database;
-        public override string Message => $"[{this.SchemaTable.GetFullName()}] [{this.State}] Batch {BatchPartInfo.FileName} ({BatchPartInfo.Index + 1}/{BatchInfo.BatchPartsInfo.Count}) Applied.";
+        public override string Message =>
+            BatchPartInfo == null 
+            ? $"[{this.SchemaTable.GetFullName()}] [{this.State}] BatchChangesAppliedArgs progress."
+            : $"[{this.SchemaTable.GetFullName()}] [{this.State}] Batch {BatchPartInfo.FileName} ({BatchPartInfo.Index + 1}/{BatchInfo.BatchPartsInfo.Count}) Applied.";
 
         public override int EventId => SyncEventsId.BacthChangesApplied.Id;
     }

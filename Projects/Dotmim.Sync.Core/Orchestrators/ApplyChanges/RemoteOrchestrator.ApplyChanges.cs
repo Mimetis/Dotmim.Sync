@@ -253,12 +253,9 @@ namespace Dotmim.Sync
 
                     var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, serverBatchInfo, serverChangesSelected, serverChangesApplied);
 
-                    if (serverChangesSelected != null && serverChangesSelected.TotalChangesSelected > 0)
-                    {
-                        var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
-                            serverBatchInfo, serverChangesSelected, runner.Connection, runner.Transaction);
-                        await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
-                    }
+                    var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
+                        serverBatchInfo, serverChangesSelected, runner.Connection, runner.Transaction);
+                    await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
 
                     if (runner.CancellationToken.IsCancellationRequested)
                         runner.CancellationToken.ThrowIfCancellationRequested();
