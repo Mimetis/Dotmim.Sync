@@ -21,7 +21,6 @@ namespace Dotmim.Sync
             this.StoredProcedureType = StoredProcedureType;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
-        public override string Source => Connection.Database;
         public override string Message => $"[{this.Table.GetFullName()}] Stored Procedure [{this.StoredProcedureType}] Created.";
 
         public override int EventId => SyncEventsId.StoredProcedureCreated.Id;
@@ -41,7 +40,6 @@ namespace Dotmim.Sync
             this.Table = table;
             this.StoredProcedureType = StoredProcedureType;
         }
-        public override string Source => Connection.Database;
         public override string Message => $"[{this.Table.GetFullName()}] Stored Procedure [{this.StoredProcedureType}] Creating.";
         public override int EventId => SyncEventsId.StoredProcedureCreating.Id;
     }
@@ -58,7 +56,6 @@ namespace Dotmim.Sync
             this.StoredProcedureType = StoredProcedureType;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
-        public override string Source => Connection.Database;
         public override string Message => $"[{Table.GetFullName()}] Stored Procedure [{this.StoredProcedureType}] Dropped.";
         public override int EventId => SyncEventsId.StoredProcedureDropped.Id;
     }
@@ -78,7 +75,6 @@ namespace Dotmim.Sync
             this.StoredProcedureType = StoredProcedureType;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
-        public override string Source => Connection.Database;
         public override string Message => $"[{Table.GetFullName()}] Stored Procedure [{this.StoredProcedureType}] Dropping.";
         public override int EventId => SyncEventsId.StoredProcedureDropping.Id;
 

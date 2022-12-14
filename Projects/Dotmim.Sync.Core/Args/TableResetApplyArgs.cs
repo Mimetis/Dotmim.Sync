@@ -27,7 +27,6 @@ namespace Dotmim.Sync
 
         public SyncTable Table { get; set; }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
-        public override string Source => Connection?.Database;
         public override string Message => $"[{this.Table.GetFullName()}] reset.";
         public override int EventId => SyncEventsId.TableResetApplied.Id;
     }

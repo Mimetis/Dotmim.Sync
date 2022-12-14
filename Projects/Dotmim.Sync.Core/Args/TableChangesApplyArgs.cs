@@ -27,7 +27,6 @@ namespace Dotmim.Sync
 
         public TableChangesApplied TableChangesApplied { get; set; }
         public override SyncProgressLevel ProgressLevel => this.TableChangesApplied != null && this.TableChangesApplied.Applied > 0 ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
-        public override string Source => Connection.Database;
         public override string Message =>
             this.TableChangesApplied == null 
             ? $"TableChangesAppliedArgs progress."
@@ -67,7 +66,6 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncTable SchemaTable { get; }
 
-        public override string Source => Connection.Database;
         public override string Message => $"Applying Changes To {this.SchemaTable.GetFullName()}.";
 
         public override int EventId => SyncEventsId.TableChangesApplying.Id;

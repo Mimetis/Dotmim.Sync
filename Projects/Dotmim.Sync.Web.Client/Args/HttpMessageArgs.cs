@@ -27,7 +27,7 @@ namespace Dotmim.Sync
             get
             {
                 if (this.BatchCount <= 1)
-                    return $"Getting Batch Changes.";
+                    return $"Getting Batch Changes. (1)";
                 else
                     return $"Getting Batch Changes. ({this.BatchIndexRequested + 1}/{this.BatchCount}).";
             }

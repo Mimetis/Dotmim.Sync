@@ -22,7 +22,6 @@ namespace Dotmim.Sync
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
 
-        public override string Source => Connection.Database;
         public override string Message => this.message;
 
         public override int EventId => 999999;

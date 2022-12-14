@@ -165,7 +165,7 @@ namespace Dotmim.Sync.Web.Client
 
             }, async (ex, cpt, ts, arg) =>
             {
-                await this.InterceptAsync(new HttpSyncPolicyArgs(10, cpt, ts), default).ConfigureAwait(false);
+                await this.InterceptAsync(new HttpSyncPolicyArgs(10, cpt, ts, this.GetServiceHost()), default).ConfigureAwait(false);
             });
 
 

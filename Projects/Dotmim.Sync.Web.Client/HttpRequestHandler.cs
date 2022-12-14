@@ -23,9 +23,9 @@ namespace Dotmim.Sync.Web.Client
 
         internal CookieHeaderValue Cookie { get; set; }
 
-        private BaseOrchestrator orchestrator;
+        private WebRemoteOrchestrator orchestrator;
 
-        public HttpRequestHandler(BaseOrchestrator orchestrator)
+        public HttpRequestHandler(WebRemoteOrchestrator orchestrator)
             => this.orchestrator = orchestrator;
 
 
@@ -96,7 +96,7 @@ namespace Dotmim.Sync.Web.Client
                 if (response.Content == null)
                     throw new HttpEmptyResponseContentException();
 
-                await this.orchestrator.InterceptAsync(new HttpGettingResponseMessageArgs(response, context), progress, cancellationToken).ConfigureAwait(false);
+                await this.orchestrator.InterceptAsync(new HttpGettingResponseMessageArgs(response, requestUri.ToString(), step, context, orchestrator.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                 return response;
             }
@@ -172,7 +172,7 @@ namespace Dotmim.Sync.Web.Client
             if (!string.IsNullOrEmpty(contentType) && !requestMessage.Content.Headers.Contains("content-type"))
                 requestMessage.Content.Headers.Add("content-type", contentType);
 
-            await this.orchestrator.InterceptAsync(new HttpSendingRequestMessageArgs(requestMessage, context), progress: default, cancellationToken).ConfigureAwait(false);
+            await this.orchestrator.InterceptAsync(new HttpSendingRequestMessageArgs(requestMessage, context, orchestrator.GetServiceHost()), progress: default, cancellationToken).ConfigureAwait(false);
 
             // Eventually, send the request
             var response = await client.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);

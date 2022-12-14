@@ -21,7 +21,6 @@ namespace Dotmim.Sync
             this.TriggerType = triggerType;
         }
 
-        public override string Source => Connection.Database;
         public override string Message => $"[{this.Table.GetFullName()}] Trigger [{this.TriggerType}] Created.";
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override int EventId => SyncEventsId.TriggerCreated.Id;
@@ -41,7 +40,6 @@ namespace Dotmim.Sync
             this.TriggerType = triggerType;
             this.Command = command;
         }
-        public override string Source => Connection.Database;
         public override string Message => $"[{Table.GetFullName()}] Trigger [{this.TriggerType}] Creating.";
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override int EventId => SyncEventsId.TriggerCreating.Id;
@@ -59,7 +57,6 @@ namespace Dotmim.Sync
             this.TriggerType = triggerType;
         }
 
-        public override string Source => Connection.Database;
         public override string Message => $"[{Table.GetFullName()}] Trigger [{this.TriggerType}] Dropped.";
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override int EventId => SyncEventsId.TriggerDropped.Id;
@@ -80,7 +77,6 @@ namespace Dotmim.Sync
             this.TriggerType = triggerType;
             this.Command = command;
         }
-        public override string Source => Connection.Database;
         public override string Message => $"[{Table.GetFullName()}] Trigger [{this.TriggerType}] Dropping.";
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override int EventId => SyncEventsId.TriggerDropping.Id;

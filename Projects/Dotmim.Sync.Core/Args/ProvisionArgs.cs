@@ -26,7 +26,6 @@ namespace Dotmim.Sync
         }
         public override SyncProgressLevel ProgressLevel => this.atLeastSomethingHasBeenCreated?  SyncProgressLevel.Information : SyncProgressLevel.Debug;
 
-        public override string Source => Connection.Database;
         public override string Message => $"Provisioned {Schema.Tables.Count} Tables. Provision:{Provision}.";
 
         public override int EventId => SyncEventsId.Provisioned.Id;
@@ -51,7 +50,6 @@ namespace Dotmim.Sync
             Provision = provision;
             Schema = schema;
         }
-        public override string Source => Connection.Database;
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         public override string Message => $"Provisioning {Schema.Tables.Count} Tables. Provision:{Provision}.";
@@ -75,8 +73,7 @@ namespace Dotmim.Sync
             this.Setup = setup;
         }
         public override SyncProgressLevel ProgressLevel => this.atLeastSomethingHasBeenDropped ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
-        public override string Source => Connection.Database;
-        public override string Message => $"Deprovisioned {Setup.Tables.Count} Tables. Provision:{Provision}.";
+        public override string Message => $"Deprovisioned {Setup.Tables.Count} Tables. Deprovision:{Provision}.";
         public override int EventId => SyncEventsId.Deprovisioned.Id;
     }
 
@@ -98,9 +95,8 @@ namespace Dotmim.Sync
             Provision = provision;
             Setup = setup;
         }
-        public override string Source => Connection.Database;
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-        public override string Message => $"Deprovisioning {Setup.Tables.Count} Tables. Provision:{Provision}.";
+        public override string Message => $"Deprovisioning {Setup.Tables.Count} Tables. Deprovision:{Provision}.";
         public override int EventId => SyncEventsId.Deprovisioning.Id;
     }
 

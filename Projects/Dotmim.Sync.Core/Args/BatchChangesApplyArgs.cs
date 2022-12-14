@@ -40,7 +40,6 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncTable SchemaTable { get; }
 
-        public override string Source => Connection?.Database;
         public override string Message =>
             BatchPartInfo == null 
             ? $"[{this.SchemaTable.GetFullName()}] [{this.State}] BatchChangesAppliedArgs progress."
@@ -77,8 +76,10 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncTable SchemaTable { get; }
 
-        public override string Source => Connection?.Database;
-        public override string Message => $"[{this.SchemaTable.GetFullName()}] Applying Batch {BatchPartInfo.FileName} ({BatchPartInfo.Index + 1}/{BatchInfo.BatchPartsInfo.Count}).";
+       public override string Message =>
+                        BatchPartInfo == null
+            ? $"[{this.SchemaTable.GetFullName()}] [{this.State}] BatchChangesApplyingArgs progress."
+            : $"[{this.SchemaTable.GetFullName()}] Applying Batch {BatchPartInfo.FileName} ({BatchPartInfo.Index + 1}/{BatchInfo.BatchPartsInfo.Count}).";
 
         public override int EventId => SyncEventsId.BacthChangesApplying.Id;
     }

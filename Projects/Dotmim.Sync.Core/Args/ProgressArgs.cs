@@ -43,6 +43,7 @@ namespace Dotmim.Sync
             this.Transaction = transaction;
             this.Message = this.GetType().Name;
             this.ProgressLevel = SyncProgressLevel.Information;
+            this.Source = connection?.Database;
         }
 
         /// <summary>
@@ -54,6 +55,7 @@ namespace Dotmim.Sync
             this.Connection = connection;
             this.Message = this.GetType().Name;
             this.ProgressLevel = SyncProgressLevel.Information;
+            this.Source = connection?.Database;
         }
 
 
@@ -65,17 +67,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// return a global message about current progress
         /// </summary>
-        public virtual string Message { get; } = string.Empty;
+        public virtual string Message { get; set; } = string.Empty;
 
         /// <summary>
         /// return the progress initiator source
         /// </summary>
-        public virtual string Source { get; } = string.Empty;
+        public virtual string Source { get; set; } = string.Empty;
 
         /// <summary>
         /// Gets the event id, used for logging purpose
         /// </summary>
-        public virtual int EventId { get; } = 1;
+        public virtual int EventId { get; set; } = 1;
 
         /// <summary>
         /// Gets the overall percentage progress

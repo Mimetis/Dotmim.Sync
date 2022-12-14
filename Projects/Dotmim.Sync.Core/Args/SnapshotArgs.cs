@@ -18,7 +18,6 @@ namespace Dotmim.Sync
         {
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-        public override string Source => Connection.Database;
         public override string Message => $"Applying Snapshot.";
         public override int EventId => SyncEventsId.SnapshotApplying.Id;
     }
@@ -78,7 +77,6 @@ namespace Dotmim.Sync
         /// </summary>
         public long Timestamp { get; }
 
-        public override string Source => Connection.Database;
         public override string Message => $"Creating Snapshot.";
         public override int EventId => SyncEventsId.SnapshotCreating.Id;
     }
@@ -92,7 +90,6 @@ namespace Dotmim.Sync
         public SnapshotCreatedArgs(SyncContext context, BatchInfo batchInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction)
             => this.BatchInfo = batchInfo;
 
-        public override string Source => Connection.Database;
         public override SyncProgressLevel ProgressLevel => BatchInfo != null && BatchInfo.RowsCount > 0 ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
 
         public override string Message => BatchInfo == null ? $"SnapshotCreatedArgs progress." : $"Snapshot Created [{BatchInfo.GetDirectoryFullPath()}].";

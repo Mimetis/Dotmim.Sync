@@ -21,8 +21,7 @@ namespace Dotmim.Sync
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Overriding operation from server. Operation: {Operation}.";
+        public override string Message => $"Overriding operation from server. Operation: {Operation}.";
 
         public SyncOperation Operation { get; set; }
 

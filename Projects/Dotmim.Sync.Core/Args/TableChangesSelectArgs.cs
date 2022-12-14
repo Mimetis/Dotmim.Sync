@@ -48,8 +48,6 @@ namespace Dotmim.Sync
         public TableChangesSelected TableChangesSelected { get; }
 
         public override SyncProgressLevel ProgressLevel => this.TableChangesSelected != null && this.TableChangesSelected.TotalChanges > 0 ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
-
-        public override string Source => Connection.Database;
        
         public override string Message => 
             this.TableChangesSelected == null 
@@ -77,7 +75,6 @@ namespace Dotmim.Sync
         /// Gets the table from where the changes are going to be selected.
         /// </summary>
         public SyncTable SchemaTable { get; }
-        public override string Source => Connection.Database;
         public override string Message => $"[{this.SchemaTable.GetFullName()}] Getting Changes.";
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override int EventId => SyncEventsId.TableChangesSelecting.Id;

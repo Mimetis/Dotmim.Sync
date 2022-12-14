@@ -10,13 +10,15 @@ namespace Dotmim.Sync
 {
     public class HttpSyncPolicyArgs : ProgressArgs
     {
-        public HttpSyncPolicyArgs(int retryCount, int retryNumber, TimeSpan delay)
+        public HttpSyncPolicyArgs(int retryCount, int retryNumber, TimeSpan delay, string host)
             : base(null, null, null)
         {
             this.RetryCount = retryCount;
             this.RetryNumber = retryNumber;
             this.Delay = delay;
+            this.Host = host;
         }
+        public override string Source => this.Host;
 
         public override string Message => $"Retry Sending Http Request ({RetryNumber}/{RetryCount}. Waiting {Delay.TotalMilliseconds}ms... )";
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
@@ -36,6 +38,7 @@ namespace Dotmim.Sync
         /// Gets the delay until next retry
         /// </summary>
         public TimeSpan Delay { get; }
+        public string Host { get; }
     }
 
     public static partial class HttpClientSyncEventsId

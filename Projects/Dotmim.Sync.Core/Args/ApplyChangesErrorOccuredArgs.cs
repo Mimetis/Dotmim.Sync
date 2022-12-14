@@ -58,14 +58,9 @@ namespace Dotmim.Sync
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         /// <summary>
-        /// Gets the connection database name
-        /// </summary>
-        public override string Source => Connection.Database;
-
-        /// <summary>
         /// Gets the error message
         /// </summary>
-        public override string Message => $"[{Connection.Database}] Error: {Exception.Message}. Row:{ErrorRow}. ApplyType:{ApplyType}";
+        public override string Message => $"Error: {Exception.Message}. Row:{ErrorRow}. ApplyType:{ApplyType}";
 
         /// <summary>
         /// Gets the unique event id

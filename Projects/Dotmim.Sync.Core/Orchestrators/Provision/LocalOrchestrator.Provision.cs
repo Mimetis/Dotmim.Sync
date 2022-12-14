@@ -52,7 +52,6 @@ namespace Dotmim.Sync
         /// </returns> 
         public async Task<ScopeInfo> ProvisionAsync(ScopeInfo sScopeInfo, SyncProvision provision = default, bool overwrite = true, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            if (progress is null) throw new ArgumentNullException(nameof(progress));
             var context = new SyncContext(Guid.NewGuid(), sScopeInfo.Name);
             try
             {

@@ -24,7 +24,6 @@ namespace Dotmim.Sync
 
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
-        public override string Source => Connection.Database;
         public override string Message => $"Client Setup is desynchronized.";
 
         /// <summary>

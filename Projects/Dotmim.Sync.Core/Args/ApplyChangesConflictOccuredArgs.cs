@@ -75,9 +75,6 @@ namespace Dotmim.Sync
         }
 
         /// <inheritdoc />
-        public override string Source => Connection.Database;
-
-        /// <inheritdoc />
         public override string Message => $"Conflict {conflictRow}.";
 
         /// <inheritdoc />

@@ -20,7 +20,6 @@ namespace Dotmim.Sync
             this.ScopeInfos = scopeInfos;
             this.TimeStampStart = timeStampStart;
         }
-        public override string Source => Connection.Database;
         public override string Message => $"Cleaning Metadatas. TimestampStart:{this.TimeStampStart}";
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
@@ -41,8 +40,6 @@ namespace Dotmim.Sync
         public DatabaseMetadatasCleaned DatabaseMetadatasCleaned { get; set; }
         public override SyncProgressLevel ProgressLevel => DatabaseMetadatasCleaned != null && DatabaseMetadatasCleaned.RowsCleanedCount > 0 ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
 
-        public override string Source => Connection.Database;
-        
         public override string Message =>
             DatabaseMetadatasCleaned == null 
             ? $"MetadataCleanedArgs progress."

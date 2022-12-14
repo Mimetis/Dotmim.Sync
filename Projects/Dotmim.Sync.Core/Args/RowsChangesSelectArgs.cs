@@ -37,7 +37,6 @@ namespace Dotmim.Sync
 
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
 
-        public override string Source => Connection.Database;
         public override string Message => $"[{this.SchemaTable.GetFullName()}] [SyncRow] {SyncRow.ToString()}.";
         public override int EventId => SyncEventsId.RowsChangesSelected.Id;
     }

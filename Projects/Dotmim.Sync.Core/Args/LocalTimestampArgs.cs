@@ -20,8 +20,7 @@ namespace Dotmim.Sync
         }
 
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Source}] Getting Local Timestamp.";
+        public override string Message => $"Getting Local Timestamp.";
 
         public override int EventId => SyncEventsId.LocalTimestampLoading.Id;
     }
@@ -33,8 +32,7 @@ namespace Dotmim.Sync
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Source}] Local Timestamp Loaded:{LocalTimestamp}.";
+        public override string Message => $"Local Timestamp Loaded:{LocalTimestamp}.";
         public long LocalTimestamp { get; }
         public override int EventId => SyncEventsId.LocalTimestampLoaded.Id;
     }
