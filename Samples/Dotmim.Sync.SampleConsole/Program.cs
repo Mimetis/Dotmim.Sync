@@ -236,6 +236,7 @@ internal class Program
         var progress = new SynchronousProgress<ProgressArgs>(s =>
             Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
 
+        options.DisableConstraintsOnApplyChanges = true;
         //options.ProgressLevel = SyncProgressLevel.Debug;
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
@@ -563,7 +564,7 @@ internal class Program
         await DBHelper.CreateDatabaseAsync(serverDbName, true);
         await DBHelper.CreateDatabaseAsync(clientDbName1, true);
 
-        var script = @"CREATE TABLE [dbo].[ProductCategory](
+        var script = @"CREATE TABLE [ProductCategory](
 	                    [ProductCategoryID] [uniqueidentifier] NOT NULL,
 	                    [ParentProductCategoryID] [uniqueidentifier] NULL,
 	                    [Name] [nvarchar](50) NOT NULL,
@@ -571,15 +572,15 @@ internal class Program
 	                    [ModifiedDate] [datetime] NULL,
                      CONSTRAINT [PK_ProductCategory_ProductCategoryID] PRIMARY KEY CLUSTERED ([ProductCategoryID] ASC));
 
-                    ALTER TABLE [dbo].[ProductCategory] WITH CHECK 
+                    ALTER TABLE [ProductCategory] WITH CHECK 
                     ADD CONSTRAINT [FK_ProductCategory_ProductCategory_ParentProductCategoryID_ProductCategoryID] 
                     FOREIGN KEY([ParentProductCategoryID])
-                    REFERENCES [dbo].[ProductCategory] ([ProductCategoryID])
+                    REFERENCES [ProductCategory] ([ProductCategoryID])
                     
-                    ALTER TABLE [dbo].[ProductCategory] CHECK CONSTRAINT [FK_ProductCategory_ProductCategory_ParentProductCategoryID_ProductCategoryID]
+                    ALTER TABLE [ProductCategory] CHECK CONSTRAINT [FK_ProductCategory_ProductCategory_ParentProductCategoryID_ProductCategoryID]
 
-                    INSERT [dbo].[ProductCategory] ([ProductCategoryID], [ParentProductCategoryID], [Name], [rowguid], [ModifiedDate]) VALUES ('cfbda25c-df71-47a7-b81b-64ee161aa37c', NULL, N'Bikes', newid(), CAST(N'2002-06-01T00:00:00.000' AS DateTime));
-                    INSERT [dbo].[ProductCategory] ([ProductCategoryID], [ParentProductCategoryID], [Name], [rowguid], [ModifiedDate]) VALUES ('ad364ade-264a-433c-b092-4fcbf3804e01', 'cfbda25c-df71-47a7-b81b-64ee161aa37c', N'Mountain Bikes', newid(), CAST(N'2002-06-01T00:00:00.000' AS DateTime));";
+                    INSERT [ProductCategory] ([ProductCategoryID], [ParentProductCategoryID], [Name], [rowguid], [ModifiedDate]) VALUES ('cfbda25c-df71-47a7-b81b-64ee161aa37c', NULL, N'Bikes', newid(), CAST(N'2002-06-01T00:00:00.000' AS DateTime));
+                    INSERT [ProductCategory] ([ProductCategoryID], [ParentProductCategoryID], [Name], [rowguid], [ModifiedDate]) VALUES ('ad364ade-264a-433c-b092-4fcbf3804e01', 'cfbda25c-df71-47a7-b81b-64ee161aa37c', N'Mountain Bikes', newid(), CAST(N'2002-06-01T00:00:00.000' AS DateTime));";
 
         await DBHelper.ExecuteScriptAsync(serverDbName, script);
 
@@ -1420,7 +1421,7 @@ internal class Program
 
     //private static async Task RemoveColumnsFromProductCategoryAsync(CoreProvider provider)
     //{
-    //    var commandText = @"ALTER TABLE dbo.ProductCategory DROP COLUMN rowguid, ModifiedDate;";
+    //    var commandText = @"ALTER TABLE ProductCategory DROP COLUMN rowguid, ModifiedDate;";
 
     //    var connection = provider.CreateConnection();
 
@@ -1437,7 +1438,7 @@ internal class Program
 
     private static async Task AddColumnsToProductCategoryAsync(CoreProvider provider)
     {
-        var commandText = @"ALTER TABLE dbo.ProductCategory ADD CreatedDate datetime NULL;";
+        var commandText = @"ALTER TABLE ProductCategory ADD CreatedDate datetime NULL;";
 
         var connection = provider.CreateConnection();
 

@@ -138,7 +138,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var scopeNameWithoutDefaultScope = ScopeName == SyncOptions.DefaultScopeName ? "" : $"{ScopeName}_";
 
-            var schema = string.IsNullOrEmpty(tableName.SchemaName) ? "dbo" : tableName.SchemaName;
+            var schema = string.IsNullOrEmpty(tableName.SchemaName) ? null : tableName.SchemaName;
 
             var storedProcedureName = $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}_";
             var triggerName = $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}_";

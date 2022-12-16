@@ -632,7 +632,7 @@ namespace Dotmim.Sync
             try
             {
 
-                if (string.IsNullOrEmpty(tableBuilder.TableDescription.SchemaName) || tableBuilder.TableDescription.SchemaName == "dbo")
+                if (string.IsNullOrEmpty(tableBuilder.TableDescription.SchemaName))
                     return (context, true);
 
                 // Get exists command

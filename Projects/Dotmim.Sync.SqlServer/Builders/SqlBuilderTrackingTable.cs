@@ -33,8 +33,9 @@ namespace Dotmim.Sync.SqlServer.Builders
         public Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
-            var tbl = trackingName.ToString();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
+            //var tbl = trackingName.ToString();
+            //var schemaNameString = string.IsNullOrEmpty(trackingName.SchemaName) ? null : trackingName.SchemaName;
+
             stringBuilder.AppendLine($"CREATE TABLE {trackingName.Schema().Quoted().ToString()} (");
 
             // Adding the primary key
@@ -86,46 +87,46 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append(");");
 
             var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
-            SqlParameter sqlParameter = new SqlParameter()
-            {
-                ParameterName = "@tableName",
-                Value = tbl
-            };
-            command.Parameters.Add(sqlParameter);
+            //SqlParameter sqlParameter = new SqlParameter()
+            //{
+            //    ParameterName = "@tableName",
+            //    Value = tbl
+            //};
+            //command.Parameters.Add(sqlParameter);
 
-            sqlParameter = new SqlParameter()
-            {
-                ParameterName = "@schemaName",
-                Value = schema
-            };
-            command.Parameters.Add(sqlParameter);
+            //sqlParameter = new SqlParameter()
+            //{
+            //    ParameterName = "@schemaName",
+            //    Value = schema
+            //};
+            //command.Parameters.Add(sqlParameter);
 
             return Task.FromResult((DbCommand)command);
         }
 
         public Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var tbl = trackingName.ToString();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
+            //var tbl = trackingName.ToString();
+            //var schemaNameString = string.IsNullOrEmpty(trackingName.SchemaName) ? null : trackingName.SchemaName;
 
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"ALTER TABLE {trackingName.Schema().Quoted().ToString()} NOCHECK CONSTRAINT ALL; DROP TABLE {trackingName.Schema().Quoted().ToString()};");
 
             var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
 
-            SqlParameter sqlParameter = new SqlParameter()
-            {
-                ParameterName = "@tableName",
-                Value = tbl
-            };
-            command.Parameters.Add(sqlParameter);
+            //SqlParameter sqlParameter = new SqlParameter()
+            //{
+            //    ParameterName = "@tableName",
+            //    Value = tbl
+            //};
+            //command.Parameters.Add(sqlParameter);
 
-            sqlParameter = new SqlParameter()
-            {
-                ParameterName = "@schemaName",
-                Value = schema
-            };
-            command.Parameters.Add(sqlParameter);
+            //sqlParameter = new SqlParameter()
+            //{
+            //    ParameterName = "@schemaName",
+            //    Value = schemaNameString
+            //};
+            //command.Parameters.Add(sqlParameter);
 
             return Task.FromResult((DbCommand)command);
         }
@@ -133,22 +134,21 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             StringBuilder stringBuilder = new StringBuilder();
 
-            var schemaName = this.trackingName.SchemaName;
+            var schemaNameString = string.IsNullOrEmpty(trackingName.SchemaName) ? null : trackingName.SchemaName;
             var tableName = this.trackingName.ObjectName;
 
-            schemaName = string.IsNullOrEmpty(schemaName) ? "dbo" : schemaName;
-            var oldSchemaNameString = string.IsNullOrEmpty(oldTableName.SchemaName) ? "dbo" : oldTableName.SchemaName;
+            var oldSchemaNameString = string.IsNullOrEmpty(oldTableName.SchemaName) ? null : oldTableName.SchemaName;
 
-            var oldFullName = $"{oldSchemaNameString}.{oldTableName}";
+            var oldFullName = string.IsNullOrEmpty(oldTableName.SchemaName) ? oldTableName.ObjectName : $"{oldSchemaNameString}.{oldTableName}";
 
             // First of all, renaming the table   
             stringBuilder.Append($"EXEC sp_rename '{oldFullName}', '{tableName}'; ");
 
             // then if necessary, move to another schema
-            if (!string.Equals(oldSchemaNameString, schemaName, SyncGlobalization.DataSourceStringComparison))
+            if (!string.Equals(oldSchemaNameString, schemaNameString, SyncGlobalization.DataSourceStringComparison))
             {
                 var tmpName = $"[{oldSchemaNameString}].[{tableName}]";
-                stringBuilder.Append($"ALTER SCHEMA {schemaName} TRANSFER {tmpName};");
+                stringBuilder.Append($"ALTER SCHEMA {schemaNameString} TRANSFER {tmpName};");
             }
             var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
 
@@ -157,13 +157,12 @@ namespace Dotmim.Sync.SqlServer.Builders
         public Task<DbCommand> GetExistsTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var tbl = trackingName.ToString();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
-
+            var schemaNameString = string.IsNullOrEmpty(trackingName.SchemaName) ? DBNull.Value : (object)trackingName.SchemaName;
             var command = connection.CreateCommand();
 
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0;";
+            command.CommandText = $"IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND (s.name = @schemaName or @schemaName is null))  SELECT 1 ELSE SELECT 0;";
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
@@ -172,7 +171,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaName";
-            parameter.Value = schema;
+            parameter.Value = schemaNameString;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);

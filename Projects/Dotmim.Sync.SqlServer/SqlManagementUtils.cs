@@ -21,10 +21,8 @@ namespace Dotmim.Sync.SqlServer
         /// </summary>
         public static async Task<SyncSetup> GetAllTablesAsync(SqlConnection connection, SqlTransaction transaction)
         {
-            var command = $"Select tbl.name as TableName, " +
-                          $"sch.name as SchemaName " +
-                          $"  from sys.tables as tbl  " +
-                          $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id;";
+            var command = $"Select tbl.name as TableName, sch.name as SchemaName " +
+                          $"From sys.tables as tbl Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id;";
 
             var syncSetup = new SyncSetup();
 
@@ -42,7 +40,7 @@ namespace Dotmim.Sync.SqlServer
                     while (reader.Read())
                     {
                         var tableName = reader.GetString(0);
-                        var schemaName = reader.GetString(1) == "dbo" ? null : reader.GetString(1);
+                        var schemaName = reader.GetString(1);
                         var setupTable = new SetupTable(tableName, schemaName);
                         syncSetup.Tables.Add(setupTable);
                     }
@@ -69,28 +67,20 @@ namespace Dotmim.Sync.SqlServer
         /// </summary>
         public static async Task<SyncTable> GetTableDefinitionAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
-            var command = $"Select top 1 tbl.name as TableName, " +
-                          $"sch.name as SchemaName " +
-                          $"  from sys.tables as tbl  " +
-                          $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id " +
-                          $"  Where tbl.name = @tableName and sch.name = @schemaName ";
+            var command= $"Select top 1 tbl.name as TableName, sch.name as SchemaName " +
+                            $"From sys.tables as tbl Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id " +
+                            $"Where tbl.name = @tableName and (sch.name = @schemaName or @schemaName is null)";
 
             var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();
 
-            var schemaNameString = "dbo";
-            if (!string.IsNullOrEmpty(schemaName))
-            {
-                schemaNameString = ParserName.Parse(schemaName).ToString();
-                schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "dbo" : schemaNameString;
-            }
-
+            string schemaNameString = string.IsNullOrEmpty(schemaName) ? null : ParserName.Parse(schemaName).ToString();
             var syncTable = new SyncTable(tableNameNormalized, schemaNameString);
 
             using (var sqlCommand = new SqlCommand(command, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
-                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
+                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString == null ? DBNull.Value : schemaNameString);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -116,9 +106,9 @@ namespace Dotmim.Sync.SqlServer
             var pSchemaName = ParserName.Parse(schemaName);
 
             var name = $"{pTableName.Quoted()}";
-            var sName = String.IsNullOrEmpty(schemaName) ? "[dbo]" : $"{pSchemaName.Quoted()}";
 
-            var command = $"Select * from {sName}.{name};";
+            var sName = string.IsNullOrEmpty(schemaName) ? null : $"{pSchemaName.Quoted()}.";
+            var command = $"Select * from {sName}{name};";
 
             var syncTable = new SyncTable(name, sName);
 
@@ -145,7 +135,7 @@ namespace Dotmim.Sync.SqlServer
             var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
             var pSchemaName = ParserName.Parse(schemaName).Unquoted().ToString();
 
-            var pNewTableName = ParserName.Parse(newTableName).Unquoted().ToString(); 
+            var pNewTableName = ParserName.Parse(newTableName).Unquoted().ToString();
             var pNewSchemaName = ParserName.Parse(newSchemaName).Unquoted().ToString();
 
             var quotedTableName = string.IsNullOrEmpty(pSchemaName) ? pTableName : $"{pSchemaName}.{pTableName}";
@@ -175,26 +165,20 @@ namespace Dotmim.Sync.SqlServer
         public static async Task<SyncTable> GetTriggerAsync(string triggerName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
             var command = $"SELECT tr.name FROM sys.triggers tr " +
-                           "JOIN sys.tables t ON tr.parent_id = t.object_id " +
-                           "JOIN sys.schemas s ON t.schema_id = s.schema_id " +
-                           "WHERE tr.name = @triggerName and s.name = @schemaName";
+                        "JOIN sys.tables t ON tr.parent_id = t.object_id " +
+                        "JOIN sys.schemas s ON t.schema_id = s.schema_id " +
+                        "WHERE tr.name = @triggerName and (s.name = @schemaName or @schemaName is null)";
 
             var triggerNameNormalized = ParserName.Parse(triggerName).Unquoted().Normalized().ToString();
             var triggerNameString = ParserName.Parse(triggerName).ToString();
 
-            var schemaNameString = "dbo";
-            if (!string.IsNullOrEmpty(schemaName))
-            {
-                schemaNameString = ParserName.Parse(schemaName).ToString();
-                schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "dbo" : schemaNameString;
-            }
-
+            string schemaNameString = string.IsNullOrEmpty(schemaName) ? null : ParserName.Parse(schemaName).ToString();
             var syncTable = new SyncTable(triggerNameNormalized, schemaNameString);
 
             using (var sqlCommand = new SqlCommand(command, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@triggerName", triggerNameString);
-                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
+                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString == null ? DBNull.Value : schemaNameString);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -237,23 +221,18 @@ namespace Dotmim.Sync.SqlServer
                                 $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id " +
                                 $"  Inner Join sys.systypes typ on typ.xusertype = col.system_type_id " +
                                 $"  Left outer join sys.indexes ind on ind.object_id = col.object_id and ind.index_id = col.column_id " +
-                                $"  Where tbl.name = @tableName and sch.name = @schemaName ";
+                                $"  Where tbl.name = @tableName and (sch.name = @schemaName or @schemaName is null) ";
 
             var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();
 
-            var schemaNameString = "dbo";
-            if (!string.IsNullOrEmpty(schemaName))
-            {
-                schemaNameString = ParserName.Parse(schemaName).ToString();
-                schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "dbo" : schemaNameString;
-            }
+            string schemaNameString = string.IsNullOrEmpty(schemaName) ? null : ParserName.Parse(schemaName).ToString();
 
             var syncTable = new SyncTable(tableNameNormalized);
             using (var sqlCommand = new SqlCommand(commandColumn, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
-                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
+                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString == null ? DBNull.Value : schemaNameString);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -284,24 +263,19 @@ namespace Dotmim.Sync.SqlServer
                                   inner join sys.columns col on col.object_id = ind_col.object_id and col.column_id = ind_col.column_id
                                   inner join sys.tables tbl on tbl.object_id = ind.object_id
                                   inner join sys.schemas as sch on tbl.schema_id = sch.schema_id
-                                  where tbl.name = @tableName and sch.name = @schemaName and ind.index_id >= 0 and ind.type <> 3 and ind.type <> 4 and ind.is_hypothetical = 0 and ind.is_primary_key = 1
+                                  where tbl.name = @tableName and (sch.name = @schemaName or @schemaName is null) and ind.index_id >= 0 and ind.type <> 3 and ind.type <> 4 and ind.is_hypothetical = 0 and ind.is_primary_key = 1
                                   order by ind_col.column_id";
 
             var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();
 
-            var schemaNameString = "dbo";
-            if (!string.IsNullOrEmpty(schemaName))
-            {
-                schemaNameString = ParserName.Parse(schemaName).ToString();
-                schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "dbo" : schemaNameString;
-            }
+            string schemaNameString = string.IsNullOrEmpty(schemaName) ? null : ParserName.Parse(schemaName).ToString();
 
             var syncTable = new SyncTable(tableNameNormalized);
             using (var sqlCommand = new SqlCommand(commandColumn, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
-                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
+                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString == null ? DBNull.Value : schemaNameString);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -337,21 +311,19 @@ namespace Dotmim.Sync.SqlServer
                 FROM sys.foreign_keys AS f
                 INNER JOIN sys.foreign_key_columns AS fc ON f.OBJECT_ID = fc.constraint_object_id
                 INNER JOIN sys.tables reft on reft.object_id =  f.referenced_object_id
-                WHERE OBJECT_NAME(f.parent_object_id) = @tableName AND SCHEMA_NAME(f.schema_id) = @schemaName";
+                WHERE OBJECT_NAME(f.parent_object_id) = @tableName AND (SCHEMA_NAME(f.schema_id) = @schemaName or @schemaName is null)";
 
             var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();
 
-            var schemaNameString = ParserName.Parse(schemaName).ToString();
-            // default as dbo
-            schemaNameString = string.IsNullOrEmpty(schemaNameString) ? "dbo" : schemaNameString;
+            string schemaNameString = string.IsNullOrEmpty(schemaName) ? null : ParserName.Parse(schemaName).ToString();
 
             var syncTable = new SyncTable(tableNameNormalized, schemaNameString);
 
             using (var sqlCommand = new SqlCommand(commandRelations, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
-                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString);
+                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString == null ? DBNull.Value : schemaNameString);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -372,39 +344,38 @@ namespace Dotmim.Sync.SqlServer
         public static async Task DropProcedureIfExistsAsync(SqlConnection connection, SqlTransaction transaction, int commandTimout, string quotedProcedureName)
         {
             var procName = ParserName.Parse(quotedProcedureName).ToString();
-            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) DROP PROCEDURE {0}", quotedProcedureName), connection))
-            {
-                sqlCommand.CommandTimeout = commandTimout;
-                sqlCommand.Parameters.AddWithValue("@procName", procName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedProcedureName)));
-
-                bool alreadyOpened = connection.State == ConnectionState.Open;
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                sqlCommand.Transaction = transaction;
+            var schemaName = ParserName.Parse(quotedProcedureName).SchemaName;
+            string schemaNameString = string.IsNullOrEmpty(schemaName) ? null : ParserName.Parse(schemaName).ToString();
 
 
-                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+            using var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND (s.name = @schemaName or @schemaName is null)) DROP PROCEDURE {0}", quotedProcedureName), connection);
+            
+            sqlCommand.CommandTimeout = commandTimout;
+            sqlCommand.Parameters.AddWithValue("@procName", procName);
+            sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString == null ? DBNull.Value : schemaNameString);
 
-                if (!alreadyOpened)
-                    connection.Close();
+            bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
+
+            sqlCommand.Transaction = transaction;
 
 
-            }
+            await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            if (!alreadyOpened)
+                connection.Close();
         }
 
         public static async Task DropTableIfExistsAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
             var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
-            var pSchemaName = ParserName.Parse(schemaName).Unquoted().ToString();
-            pSchemaName = string.IsNullOrEmpty(schemaName) ? "dbo" : pSchemaName;
-
-            var quotedTableName = $"{pSchemaName}.{pTableName}";
+            var pSchemaName = string.IsNullOrEmpty(schemaName) ? null : ParserName.Parse(schemaName).Unquoted().ToString();
+            var quotedTableName = string.IsNullOrEmpty(pSchemaName) ? pTableName : $"{pSchemaName}.{pTableName}";
 
             var commandText = $"IF EXISTS " +
-                $"(SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) " +
+                $"(SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND (s.name = @schemaName or @schemaName is null)) " +
                 $"DROP TABLE {quotedTableName}";
 
             using var sqlCommand = new SqlCommand(commandText, connection);
@@ -428,66 +399,58 @@ namespace Dotmim.Sync.SqlServer
         public static async Task DropTriggerIfExistsAsync(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTriggerName)
         {
             var triggerName = ParserName.Parse(quotedTriggerName).ToString();
+            var schemaName = ParserName.Parse(quotedTriggerName).SchemaName;
+            string schemaNameString = string.IsNullOrEmpty(schemaName) ? null : ParserName.Parse(schemaName).ToString();
 
-            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and s.name = @schemaName) DROP TRIGGER {0}", quotedTriggerName), connection))
-            {
-                sqlCommand.CommandTimeout = commandTimeout;
-                sqlCommand.Parameters.AddWithValue("@triggerName", triggerName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTriggerName)));
+            using var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture,
+                "IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and (s.name = @schemaName or @schemaName is null)) DROP TRIGGER {0}", quotedTriggerName), connection);
 
-                bool alreadyOpened = connection.State == ConnectionState.Open;
+            sqlCommand.CommandTimeout = commandTimeout;
+            sqlCommand.Parameters.AddWithValue("@triggerName", triggerName);
+            sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString == null ? DBNull.Value : schemaNameString);
 
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-                sqlCommand.Transaction = transaction;
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
 
-
-                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                if (!alreadyOpened)
-                    connection.Close();
+            sqlCommand.Transaction = transaction;
 
 
-            }
+            await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+
+            if (!alreadyOpened)
+                connection.Close();
         }
 
         public static async Task DropTypeIfExistsAsync(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTypeName)
         {
             var typeName = ParserName.Parse(quotedTypeName).ToString();
 
-            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.types t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @typeName AND s.name = @schemaName) DROP TYPE {0}", quotedTypeName), connection))
-            {
-                sqlCommand.CommandTimeout = commandTimeout;
-                sqlCommand.Parameters.AddWithValue("@typeName", typeName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTypeName)));
+            var schemaName = ParserName.Parse(quotedTypeName).SchemaName;
+            string schemaNameString = string.IsNullOrEmpty(schemaName) ? null : ParserName.Parse(schemaName).ToString();
 
-                bool alreadyOpened = connection.State == ConnectionState.Open;
+            using var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.types t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @typeName AND (s.name = @schemaName or @schemaName is null)) DROP TYPE {0}", quotedTypeName), connection);
+            
+            sqlCommand.CommandTimeout = commandTimeout;
+            sqlCommand.Parameters.AddWithValue("@typeName", typeName);
+            sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString == null ? DBNull.Value : schemaNameString);
 
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-                sqlCommand.Transaction = transaction;
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
 
-                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+            sqlCommand.Transaction = transaction;
 
-                if (!alreadyOpened)
-                    connection.Close();
+            await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-
-            }
+            if (!alreadyOpened)
+                connection.Close();
         }
 
 
-        public static string GetUnquotedSqlSchemaName(ParserName parser)
-        {
-            if (string.IsNullOrEmpty(parser.SchemaName))
-                return "dbo";
-
-            return parser.SchemaName;
-        }
-
-        public static async Task<bool> IsChangeTrackingEnabledAsync(SqlConnection connection, SqlTransaction transaction)
+         public static async Task<bool> IsChangeTrackingEnabledAsync(SqlConnection connection, SqlTransaction transaction)
         {
             bool flag;
             string commandText = @"if (exists(
@@ -559,6 +522,63 @@ namespace Dotmim.Sync.SqlServer
             return (dbName, dbVersion);
         }
 
+        public static async Task<List<string>> GetDatabasePermissionsAsync(SqlConnection connection, SqlTransaction transaction)
+        {
+            List<string> permissions = new List<string>();
+
+            using (DbCommand dbCommand = connection.CreateCommand())
+            {
+                dbCommand.CommandText = "SELECT * FROM fn_my_permissions (NULL, 'DATABASE');";
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                dbCommand.Transaction = transaction;
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                using (var reader = await dbCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                    if (reader.HasRows)
+                        while (reader.Read())
+                            permissions.Add(reader["permission_name"].ToString());
+
+                if (!alreadyOpened)
+                    connection.Close();
+
+                return permissions;
+            }
+
+        }
+
+
+        public static async Task<string> GetUserDefaultSchemaAsync(SqlConnection connection, SqlTransaction transaction)
+        {
+            string schemaName;
+
+            using (DbCommand dbCommand = connection.CreateCommand())
+            {
+                dbCommand.CommandText = "SELECT SCHEMA_NAME()";
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                dbCommand.Transaction = transaction;
+
+                var result = await dbCommand.ExecuteScalarAsync().ConfigureAwait(false);
+
+                schemaName = result != DBNull.Value ? (string)result : null;
+
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+            return schemaName;
+        }
+
         public static async Task<bool> DatabaseExistsAsync(SqlConnection connection, SqlTransaction transaction)
         {
             bool tableExist;
@@ -591,15 +611,21 @@ namespace Dotmim.Sync.SqlServer
             return tableExist;
         }
 
+
+
         public static async Task<bool> ProcedureExistsAsync(SqlConnection connection, SqlTransaction transaction, string quotedProcedureName)
         {
             bool flag;
             var procedureName = ParserName.Parse(quotedProcedureName).ToString();
 
-            using (var sqlCommand = new SqlCommand("IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0", connection))
+            var schemaName = ParserName.Parse(quotedProcedureName).SchemaName;
+            string schemaNameString = string.IsNullOrEmpty(schemaName) ? null : ParserName.Parse(schemaName).ToString();
+
+
+            using (var sqlCommand = new SqlCommand("IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND (s.name = @schemaName or @schemaName is null)) SELECT 1 ELSE SELECT 0", connection))
             {
                 sqlCommand.Parameters.AddWithValue("@procName", procedureName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedProcedureName)));
+                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString == null ? DBNull.Value : schemaNameString);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -615,7 +641,6 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     connection.Close();
 
-
             }
             return flag;
         }
@@ -623,12 +648,11 @@ namespace Dotmim.Sync.SqlServer
         public static async Task<bool> TableExistsAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
             var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
-            var pSchemaName = ParserName.Parse(schemaName).Unquoted().ToString();
-            pSchemaName = string.IsNullOrEmpty(schemaName) ? "dbo" : pSchemaName;
-
+            string schemaNameString = string.IsNullOrEmpty(schemaName) ? null : ParserName.Parse(schemaName).Unquoted().ToString();
+            
             using DbCommand dbCommand = connection.CreateCommand();
 
-            dbCommand.CommandText = "IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0";
+            dbCommand.CommandText = "IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND (s.name = @schemaName or @schemaName is null)) SELECT 1 ELSE SELECT 0";
 
             SqlParameter sqlParameter = new SqlParameter()
             {
@@ -640,7 +664,7 @@ namespace Dotmim.Sync.SqlServer
             sqlParameter = new SqlParameter()
             {
                 ParameterName = "@schemaName",
-                Value = pSchemaName
+                Value = schemaNameString == null ? DBNull.Value : schemaNameString
             };
             dbCommand.Parameters.Add(sqlParameter);
 
@@ -707,10 +731,13 @@ namespace Dotmim.Sync.SqlServer
             bool triggerExist;
             var triggerName = ParserName.Parse(quotedTriggerName).ToString();
 
-            using (var sqlCommand = new SqlCommand("IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and s.name = @schemaName) SELECT 1 ELSE SELECT 0", connection))
+            var schemaName = ParserName.Parse(quotedTriggerName).SchemaName;
+            string schemaNameString = string.IsNullOrEmpty(schemaName) ? null : ParserName.Parse(schemaName).ToString();
+
+            using (var sqlCommand = new SqlCommand("IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and (s.name = @schemaName or @schemaName is null)) SELECT 1 ELSE SELECT 0", connection))
             {
                 sqlCommand.Parameters.AddWithValue("@triggerName", triggerName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTriggerName)));
+                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString == null ? DBNull.Value : schemaNameString);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -737,10 +764,13 @@ namespace Dotmim.Sync.SqlServer
 
             var columnName = ParserName.Parse(quotedTypeName).ToString();
 
-            using (SqlCommand sqlCommand = new SqlCommand("IF EXISTS (SELECT * FROM sys.types t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @typeName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0", connection))
+            var schemaName = ParserName.Parse(quotedTypeName).SchemaName;
+            string schemaNameString = string.IsNullOrEmpty(schemaName) ? null : ParserName.Parse(schemaName).ToString();
+
+            using (SqlCommand sqlCommand = new SqlCommand("IF EXISTS (SELECT * FROM sys.types t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @typeName AND (s.name = @schemaName or @schemaName is null)) SELECT 1 ELSE SELECT 0", connection))
             {
                 sqlCommand.Parameters.AddWithValue("@typeName", columnName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTypeName)));
+                sqlCommand.Parameters.AddWithValue("@schemaName", schemaNameString == null ? DBNull.Value : schemaNameString);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 

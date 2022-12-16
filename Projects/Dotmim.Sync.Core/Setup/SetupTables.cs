@@ -129,7 +129,17 @@ namespace Dotmim.Sync
                     return string.Equals(innerTable.TableName, tableName, sc) && string.Equals(innerTableSchemaName, schemaName);
                 });
 
+                if (table != null)
+                    return table;
+
+                // trying a fallback on dbo schema
+                table = InnerCollection.FirstOrDefault(innerTable =>
+                {
+                    var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? "dbo" : innerTable.SchemaName;
+                    return string.Equals(innerTable.TableName, tableName, sc) && string.Equals(innerTableSchemaName, schemaName);
+                });
                 return table;
+
             }
         }
 

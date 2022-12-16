@@ -69,15 +69,15 @@ namespace Dotmim.Sync
                     return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName);
                 });
 
+                if (table != null)
+                    return table;
+
                 // trying a fallback on dbo schema
-                if (table == null)
+                table = InnerCollection.FirstOrDefault(innerTable =>
                 {
-                    table = InnerCollection.FirstOrDefault(innerTable =>
-                    {
-                        var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
-                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "dbo");
-                    });
-                }
+                    var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? "dbo" : innerTable.SchemaName;
+                    return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName);
+                });
                 return table;
             }
         }
@@ -91,7 +91,7 @@ namespace Dotmim.Sync
             {
                 if (string.IsNullOrEmpty(tableName))
                     throw new ArgumentNullException("tableName");
-                
+
                 var parser = ParserName.Parse(tableName);
                 var tblName = parser.ObjectName;
 
@@ -105,15 +105,15 @@ namespace Dotmim.Sync
                     return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName);
                 });
 
+                if (table != null)
+                    return table;
+
                 // trying a fallback on dbo schema
-                if (table == null)
+                table = InnerCollection.FirstOrDefault(innerTable =>
                 {
-                    table = InnerCollection.FirstOrDefault(innerTable =>
-                    {
-                        var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
-                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "dbo");
-                    });
-                }
+                    var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? "dbo" : innerTable.SchemaName;
+                    return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName);
+                });
                 return table;
             }
         }

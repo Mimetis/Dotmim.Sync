@@ -686,8 +686,8 @@ namespace Dotmim.Sync
             {
                 if (this.Provider.GetProviderTypeName().Contains("Dotmim.Sync.SqlServer.SqlSyncProvider"))
                 {
-                    var commandText = @$"ALTER TABLE dbo.{scopeClientInfoTableName} DROP CONSTRAINT PK_{scopeClientInfoTableName};
-                                        ALTER TABLE dbo.{scopeClientInfoTableName} ADD CONSTRAINT 
+                    var commandText = @$"ALTER TABLE {scopeClientInfoTableName} DROP CONSTRAINT PK_{scopeClientInfoTableName};
+                                        ALTER TABLE {scopeClientInfoTableName} ADD CONSTRAINT 
                                         PK_{scopeClientInfoTableName} PRIMARY KEY CLUSTERED (sync_scope_id, sync_scope_name);";
 
                     var command = runner.Connection.CreateCommand();

@@ -36,10 +36,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                               $"  from sys.change_tracking_tables tr " +
                               $"  Inner join sys.tables as tbl on tbl.object_id = tr.object_id " +
                               $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id " +
-                              $"  Where tbl.name = @tableName and sch.name = @schemaName) SELECT 1 ELSE SELECT 0;";
+                              $"  Where tbl.name = @tableName and (sch.name = @schemaName or @schemaName is null)) SELECT 1 ELSE SELECT 0;";
 
             var tbl = this.tableName.Unquoted().ToString();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(this.tableName);
+            var schemaNameString = string.IsNullOrEmpty(tableName.SchemaName) ? null : tableName.SchemaName;
 
             var command = connection.CreateCommand();
 
@@ -54,7 +54,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaName";
-            parameter.Value = schema;
+            parameter.Value = schemaNameString;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);

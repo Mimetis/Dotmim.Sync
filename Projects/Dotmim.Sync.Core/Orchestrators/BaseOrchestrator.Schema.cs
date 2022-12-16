@@ -177,18 +177,15 @@ namespace Dotmim.Sync
                 // ensure table is compliante with name / schema with provider
                 var syncTable = await this.Provider.GetDatabaseBuilder().EnsureTableAsync(setupTable.TableName, setupTable.SchemaName, connection, transaction);
 
+                if (syncTable == null)
+                    throw new MissingTableException(setupTable.TableName, setupTable.SchemaName);
+
                 // tmp scope info
                 var scopeInfo = this.InternalCreateScopeInfo(context.ScopeName);
                 scopeInfo.Setup = new SyncSetup();
                 scopeInfo.Setup.Tables.Add(setupTable);
 
                 var tableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
-
-                bool exists;
-                (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (!exists)
-                    throw new MissingTableException(setupTable.TableName, setupTable.SchemaName);
 
                 // get columns list
                 var lstColumns = await tableBuilder.GetColumnsAsync(connection, transaction).ConfigureAwait(false);

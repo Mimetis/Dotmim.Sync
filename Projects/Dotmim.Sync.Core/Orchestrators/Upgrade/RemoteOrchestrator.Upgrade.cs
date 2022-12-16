@@ -513,8 +513,8 @@ namespace Dotmim.Sync
             {
                 if (this.Provider.GetProviderTypeName().Contains("Dotmim.Sync.SqlServer.SqlSyncProvider"))
                 {
-                    var commandText = @$"ALTER TABLE dbo.{historyTableName} DROP CONSTRAINT PK_{historyTableName};
-                                        ALTER TABLE dbo.{historyTableName} ADD CONSTRAINT 
+                    var commandText = @$"ALTER TABLE {historyTableName} DROP CONSTRAINT PK_{historyTableName};
+                                        ALTER TABLE {historyTableName} ADD CONSTRAINT 
                                         PK_{historyTableName} PRIMARY KEY CLUSTERED (sync_scope_id, sync_scope_name);";
 
 

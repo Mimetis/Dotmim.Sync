@@ -34,13 +34,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
-
-
-
         private Dictionary<string, string> createdRelationNames = new Dictionary<string, string>();
 
-        private static string GetRandomString() =>
-            Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+        private static string GetRandomString() => Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
 
         /// <summary>
         /// Ensure the relation name is correct to be created in MySql
@@ -66,8 +62,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlCommand BuildCreateTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
-            var tbl = tableName.ToString();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            //var tbl = tableName.ToString();
+            //var schemaNameString = string.IsNullOrEmpty(tableName.SchemaName) ? null : tableName.SchemaName;
 
             stringBuilder.AppendLine($"CREATE TABLE {tableName.Schema().Quoted().ToString()} (");
             string empty = string.Empty;
@@ -153,28 +149,27 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var command = new SqlCommand(createTableCommandString, (SqlConnection)connection, (SqlTransaction)transaction);
 
-            SqlParameter sqlParameter = new SqlParameter()
-            {
-                ParameterName = "@tableName",
-                Value = tbl
-            };
-            command.Parameters.Add(sqlParameter);
+            //SqlParameter sqlParameter = new SqlParameter()
+            //{
+            //    ParameterName = "@tableName",
+            //    Value = tbl
+            //};
+            //command.Parameters.Add(sqlParameter);
 
-            sqlParameter = new SqlParameter()
-            {
-                ParameterName = "@schemaName",
-                Value = schema
-            };
-            command.Parameters.Add(sqlParameter);
+            //sqlParameter = new SqlParameter()
+            //{
+            //    ParameterName = "@schemaName",
+            //    Value = schema
+            //};
+            //command.Parameters.Add(sqlParameter);
 
             return command;
         }
 
         internal async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction)
         {
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
-            var syncTableKeys = await SqlManagementUtils.GetPrimaryKeysForTableAsync(this.tableName.ToString(), schema, (SqlConnection)connection, (SqlTransaction)transaction).ConfigureAwait(false);
-
+            var schemaNameString = string.IsNullOrEmpty(tableName.SchemaName) ? null : tableName.SchemaName;
+            var syncTableKeys = await SqlManagementUtils.GetPrimaryKeysForTableAsync(this.tableName.ToString(), schemaNameString, (SqlConnection)connection, (SqlTransaction)transaction).ConfigureAwait(false);
             var lstKeys = new List<SyncColumn>();
 
             foreach (var dmKey in syncTableKeys.Rows)
@@ -189,9 +184,9 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         internal async Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync(DbConnection connection, DbTransaction transaction)
         {
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var schemaNameString = string.IsNullOrEmpty(tableName.SchemaName) ? null : tableName.SchemaName;
             var relations = new List<DbRelationDefinition>();
-            var tableRelations = await SqlManagementUtils.GetRelationsForTableAsync((SqlConnection)connection, (SqlTransaction)transaction, this.tableName.ToString(), schema).ConfigureAwait(false);
+            var tableRelations = await SqlManagementUtils.GetRelationsForTableAsync((SqlConnection)connection, (SqlTransaction)transaction, this.tableName.ToString(), schemaNameString).ConfigureAwait(false);
 
             if (tableRelations != null && tableRelations.Rows.Count > 0)
             {
@@ -200,7 +195,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 {
                     Name = (string)row["ForeignKey"],
                     TableName = (string)row["TableName"],
-                    SchemaName = (string)row["SchemaName"] == "dbo" ? "" : (string)row["SchemaName"],
+                    SchemaName = (string)row["SchemaName"],
                     ReferenceTableName = (string)row["ReferenceTableName"],
                     ReferenceSchemaName = (string)row["ReferenceSchemaName"] == "dbo" ? "" : (string)row["ReferenceSchemaName"],
                 }))
@@ -231,22 +226,15 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         internal async Task<IEnumerable<SyncColumn>> GetColumnsAsync(DbConnection connection, DbTransaction transaction)
         {
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var schemaNameString = string.IsNullOrEmpty(tableName.SchemaName) ? null : tableName.SchemaName;
             var columns = new List<SyncColumn>();
-            // Get the columns definition
-            var syncTableColumnsList = await SqlManagementUtils.GetColumnsForTableAsync(this.tableName.ToString(), schema, (SqlConnection)connection, (SqlTransaction)transaction).ConfigureAwait(false);
+            var syncTableColumnsList = await SqlManagementUtils.GetColumnsForTableAsync(this.tableName.ToString(), schemaNameString, (SqlConnection)connection, (SqlTransaction)transaction).ConfigureAwait(false);
 
             foreach (var c in syncTableColumnsList.Rows.OrderBy(r => (int)r["column_id"]))
             {
                 var typeName = c["type"].ToString();
                 var name = c["name"].ToString();
                 var maxLengthLong = Convert.ToInt64(c["max_length"]);
-
-                //// Gets the datastore owner dbType 
-                //var datastoreDbType = (SqlDbType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, maxLengthLong);
-
-                //// once we have the datastore type, we can have the managed type
-                //var columnType = sqlDbMetadata.ValidateType(datastoreDbType);
 
                 var sColumn = new SyncColumn(name)
                 {
@@ -290,16 +278,16 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var schemaNameString = string.IsNullOrEmpty(tableName.SchemaName) ? null : tableName.SchemaName;
 
-            if (schema == "dbo")
+            if (string.IsNullOrEmpty(schemaNameString))
                 return null;
 
             var command = connection.CreateCommand();
 
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"Create Schema {schema}";
+            command.CommandText = $"Create Schema {schemaNameString}";
 
             return Task.FromResult(command);
         }
@@ -311,13 +299,13 @@ namespace Dotmim.Sync.SqlServer.Builders
         public Task<DbCommand> GetExistsTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var tbl = tableName.ToString();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var schemaNameString = string.IsNullOrEmpty(tableName.SchemaName) ? DBNull.Value : (object)tableName.SchemaName;
 
             var command = connection.CreateCommand();
 
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0;";
+            command.CommandText = $"IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND (s.name = @schemaName or @schemaName is null)) SELECT 1 ELSE SELECT 0;";
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
@@ -326,14 +314,17 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaName";
-            parameter.Value = schema;
+            parameter.Value = schemaNameString;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);
         }
         public Task<DbCommand> GetExistsSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            if (string.IsNullOrEmpty(tableName.SchemaName))
+                return null;
+
+            var schemaNameString = string.IsNullOrEmpty(tableName.SchemaName) ? DBNull.Value : (object)tableName.SchemaName;
 
             var command = connection.CreateCommand();
 
@@ -343,7 +334,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaName";
-            parameter.Value = schema;
+            parameter.Value = schemaNameString;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);
@@ -415,7 +406,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
             var tbl = tableName.ToString();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var schemaNameString = string.IsNullOrEmpty(tableName.SchemaName) ? DBNull.Value : (object)tableName.SchemaName;
 
             var command = connection.CreateCommand();
 
@@ -425,7 +416,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 $"SELECT col.* " +
                 $"FROM sys.columns as col " +
                 $"JOIN sys.tables as t on t.object_id = col.object_id " +
-                $"JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName and col.name=@columnName) SELECT 1 ELSE SELECT 0;";
+                $"JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND (s.name = @schemaName or @schemaName is null) and col.name=@columnName) SELECT 1 ELSE SELECT 0;";
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
@@ -434,7 +425,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaName";
-            parameter.Value = schema;
+            parameter.Value = schemaNameString;
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();

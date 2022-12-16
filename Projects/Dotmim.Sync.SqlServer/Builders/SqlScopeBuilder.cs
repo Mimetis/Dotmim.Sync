@@ -64,7 +64,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}";
 
             var commandText =
-                $@"CREATE TABLE [dbo].[{tableName}] (
+                $@"CREATE TABLE [{tableName}] (
                     [sync_scope_name] [nvarchar](100) NOT NULL,
                     [sync_scope_schema] [nvarchar](max) NULL,
                     [sync_scope_setup] [nvarchar](max) NULL,
@@ -85,7 +85,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
 
             var commandText =
-                $@"CREATE TABLE [dbo].[{tableName}](
+                $@"CREATE TABLE [{tableName}](
                     [sync_scope_id] [uniqueidentifier] NOT NULL,
                     [sync_scope_name] [nvarchar](100) NOT NULL,
                     [sync_scope_hash] [nvarchar](100) NOT NULL,
@@ -493,7 +493,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = $"DROP Table [dbo].[{tableName}]";
+            command.CommandText = $"DROP Table [{tableName}]";
             return command;
         }
 
@@ -502,7 +502,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = $"DROP Table [dbo].[{tableName}]";
+            command.CommandText = $"DROP Table [{tableName}]";
             return command;
         }
         // ------------------------------

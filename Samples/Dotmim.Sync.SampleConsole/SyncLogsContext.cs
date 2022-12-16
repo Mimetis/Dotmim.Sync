@@ -86,7 +86,7 @@ namespace Dotmim.Sync.Tests.Models
             if (!TableExists("scope_info_sync_logs"))
             {
                 this.Database.ExecuteSqlRaw($@"
-                        CREATE TABLE [dbo].[scope_info_sync_logs](
+                        CREATE TABLE[scope_info_sync_logs](
 	                        [SessionId] [uniqueidentifier] NOT NULL,
 	                        [ClientScopeId] [uniqueidentifier] NOT NULL,
 	                        [ScopeName] [nvarchar](100) NULL,
@@ -115,7 +115,7 @@ namespace Dotmim.Sync.Tests.Models
             if (!TableExists("scope_info_sync_tables_logs"))
             {
                 this.Database.ExecuteSqlRaw($@"
-                        CREATE TABLE [dbo].[scope_info_sync_tables_logs](
+                        CREATE TABLE [scope_info_sync_tables_logs](
 	                        [SessionId] [uniqueidentifier] NOT NULL,
 	                        [ClientScopeId] [uniqueidentifier] NOT NULL,
 	                        [TableName] [nvarchar](250) NOT NULL,

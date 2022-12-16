@@ -276,11 +276,13 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var commandTriggerName = this.sqlObjectNames.GetTriggerCommandName(triggerType);
             var triggerName = ParserName.Parse(commandTriggerName).ToString();
+            var schemaNameString = string.IsNullOrEmpty(ParserName.Parse(commandTriggerName).SchemaName) ? DBNull.Value : (object)ParserName.Parse(commandTriggerName).SchemaName;
+
 
             var commandText = $@"IF EXISTS (SELECT tr.name FROM sys.triggers tr  
                                             JOIN sys.tables t ON tr.parent_id = t.object_id 
                                             JOIN sys.schemas s ON t.schema_id = s.schema_id 
-                                            WHERE tr.name = @triggerName and s.name = @schemaName) SELECT 1 ELSE SELECT 0";
+                                            WHERE tr.name = @triggerName and (s.name = @schemaName or @schemaName is null)) SELECT 1 ELSE SELECT 0";
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -295,7 +297,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var p2 = command.CreateParameter();
             p2.ParameterName = "@schemaName";
-            p2.Value = SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(commandTriggerName));
+            p2.Value = schemaNameString;
             command.Parameters.Add(p2);
 
             return Task.FromResult(command);

@@ -36,13 +36,15 @@ namespace Dotmim.Sync.SqlServer.Builders
                 return Task.FromResult<DbCommand>(null);
 
             var quotedProcedureName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
-
+            
             var procedureName = ParserName.Parse(quotedProcedureName).ToString();
+            var schemaNameString = string.IsNullOrEmpty(ParserName.Parse(quotedProcedureName).SchemaName) ? DBNull.Value : (object)ParserName.Parse(quotedProcedureName).SchemaName;
 
-            var text = "IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0";
+
+            var text = "IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND (s.name = @schemaName or @schemaName is null)) SELECT 1 ELSE SELECT 0";
 
             if (storedProcedureType == DbStoredProcedureType.BulkTableType)
-                text = "IF EXISTS (SELECT * FROM sys.types t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @procName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0";
+                text = "IF EXISTS (SELECT * FROM sys.types t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @procName AND (s.name = @schemaName or @schemaName is null)) SELECT 1 ELSE SELECT 0";
 
             var sqlCommand = connection.CreateCommand();
 
@@ -57,7 +59,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             p = sqlCommand.CreateParameter();
             p.ParameterName = "@schemaName";
-            p.Value = SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedProcedureName));
+            p.Value = schemaNameString;
             sqlCommand.Parameters.Add(p);
 
             return Task.FromResult(sqlCommand);

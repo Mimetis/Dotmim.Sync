@@ -452,6 +452,16 @@ namespace Dotmim.Sync
         public MissingDatabaseException(string databaseName) : base(string.Format(message, databaseName)) { }
     }
 
+    /// <summary>
+    /// Occurs when we check database permissions 
+    /// </summary>
+    public class MissingDatabasePermissionException : Exception
+    {
+        const string message = "The user used to connect to database {0} has not the permission {1} required by Dotmim.Sync to run correctly.";
+
+        public MissingDatabasePermissionException(string databaseName, string permission) : base(string.Format(message, databaseName, permission)) { }
+    }
+
 
     /// <summary>
     /// Occurs when a column is not supported by the Dotmim.Sync framework
