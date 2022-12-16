@@ -38,6 +38,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HelloWebSyncClient", "Sampl
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HelloWebSyncServer", "Samples\HelloWebSync\HelloWebSyncServer\HelloWebSyncServer.csproj", "{D1381057-B290-44D1-BB88-26E3FD848ACC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScriptTesting", "ScriptTesting\ScriptTesting.csproj", "{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -257,6 +259,22 @@ Global
 		{D1381057-B290-44D1-BB88-26E3FD848ACC}.Release|x64.Build.0 = Release|Any CPU
 		{D1381057-B290-44D1-BB88-26E3FD848ACC}.Release|x86.ActiveCfg = Release|Any CPU
 		{D1381057-B290-44D1-BB88-26E3FD848ACC}.Release|x86.Build.0 = Release|Any CPU
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}.Debug|ARM.ActiveCfg = Debug|Any CPU
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}.Debug|ARM.Build.0 = Debug|Any CPU
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}.Debug|x64.Build.0 = Debug|Any CPU
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}.Debug|x86.Build.0 = Debug|Any CPU
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}.Release|ARM.ActiveCfg = Release|Any CPU
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}.Release|ARM.Build.0 = Release|Any CPU
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}.Release|x64.ActiveCfg = Release|Any CPU
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}.Release|x64.Build.0 = Release|Any CPU
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}.Release|x86.ActiveCfg = Release|Any CPU
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -266,10 +284,11 @@ Global
 		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5} = {2E7CD7E6-8D9F-47E0-B5E3-4CF58C85F273}
 		{92B6AA69-FC4C-49E7-8181-AAF3D561D581} = {2E7CD7E6-8D9F-47E0-B5E3-4CF58C85F273}
 		{D1381057-B290-44D1-BB88-26E3FD848ACC} = {2E7CD7E6-8D9F-47E0-B5E3-4CF58C85F273}
+		{F4C9DBA3-C13C-45A6-817E-C01D95B0732E} = {2E7CD7E6-8D9F-47E0-B5E3-4CF58C85F273}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		BuildVersion_StartDate = 2000/1/1
 		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
+		BuildVersion_StartDate = 2000/1/1
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true

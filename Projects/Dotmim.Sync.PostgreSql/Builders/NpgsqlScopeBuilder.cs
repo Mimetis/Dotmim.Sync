@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.PostgreSql.Builders;
 using System.Data;
 using System.Data.Common;
 
@@ -267,7 +268,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
             var command = connection.CreateCommand();
             command.Transaction = transaction;
 
-            command.CommandText = "select to_char(current_timestamp, 'YYYYDDDSSSSUS')::bigint as lastTimestamp";
+            command.CommandText = $"select {NpgsqlObjectNames.TimestampValue}";
 
             DbParameter p = command.CreateParameter();
             p.ParameterName = "@sync_new_timestamp";

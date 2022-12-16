@@ -149,13 +149,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
                                     values( {idColumnsSelects.ToString()}
                                         ,null
                                         ,{this.timestampValue}
-                                        ,0::bit
+                                        ,FALSE
                                         ,now()
                                         )
                                     on conflict({idColumns.ToString()}) do update
                                    SET
                                    ""timestamp"" = {this.timestampValue}
-                                    ,sync_row_is_tombstone = 0::bit
+                                    ,sync_row_is_tombstone = FALSE
                                     ,update_scope_id = null
                                     ,last_change_datetime = now();
                                 return NEW;
@@ -200,13 +200,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
                                     values( {idColumnsSelects.ToString()}
                                         ,null
                                         ,{this.timestampValue}
-                                        ,0::bit
+                                        ,FALSE
                                         ,now()
                                         )
                                     on conflict({idColumns.ToString()}) do update
                                    SET
                                    ""timestamp"" = {this.timestampValue}
-                                    ,sync_row_is_tombstone = 0::bit
+                                    ,sync_row_is_tombstone = FALSE
                                     ,update_scope_id = null
                                     ,last_change_datetime = now();
                                 return NEW;
@@ -251,13 +251,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
                                     values( {idColumnsSelects.ToString()}
                                         ,null
                                         ,{this.timestampValue}
-                                        ,0::bit
+                                        ,FALSE
                                         ,now()
                                         )
                                     on conflict({idColumns.ToString()}) do update
                                    SET
                                    ""timestamp"" = {this.timestampValue}
-                                    ,sync_row_is_tombstone = 0::bit
+                                    ,sync_row_is_tombstone = FALSE
                                     ,update_scope_id = null
                                     ,last_change_datetime = now();
                                 return OLD;

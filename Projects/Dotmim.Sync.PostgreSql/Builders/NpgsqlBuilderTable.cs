@@ -82,6 +82,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             foreach (var c in syncTableColumnsList.Rows.OrderBy(r => (int)r["ordinal_position"]))
             {
                 var typeName = c["data_type"].ToString();
+                var udt_name = c["udt_name"].ToString();
                 var name = c["column_name"].ToString();
                 var maxLengthLong = c["character_maximum_length"] != DBNull.Value ? (int)c["CHARACTER_MAXIMUM_LENGTH"] : 0;
                 byte precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"].ToString()) : byte.MinValue;
@@ -90,7 +91,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 {
                     OriginalDbType = typeName,
                     Ordinal = (int)c["ordinal_position"],
-                    OriginalTypeName = c["udt_name"].ToString(),
+                    OriginalTypeName = udt_name,
                     MaxLength = maxLengthLong,
                     Precision = precision,
                     Scale = numeric_scale,

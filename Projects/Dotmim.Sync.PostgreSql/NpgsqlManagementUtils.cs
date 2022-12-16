@@ -16,6 +16,7 @@ namespace Dotmim.Sync.PostgreSql
     {
         public static string ColumnsAndParameters(IEnumerable<string> columns, string fromPrefix)
         {
+            var prefix_parameter = NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER;
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string str1 = "";
@@ -28,13 +29,13 @@ namespace Dotmim.Sync.PostgreSql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"\"{NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER}{unquotedColumn}\"");
+                stringBuilder.Append($"\"{prefix_parameter}{unquotedColumn}\"");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
         }
 
-        public static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
+        public static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "", string sql_prefix = NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER)
         {
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
@@ -44,7 +45,7 @@ namespace Dotmim.Sync.PostgreSql
                 var quotedColumn = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
                 var unquotedColumn = ParserName.Parse(mutableColumn, "\"").Unquoted().Normalized().ToString();
 
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn} = \"{NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER}{unquotedColumn}\"");
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn} = \"{sql_prefix}{unquotedColumn}\"");
                 strSeparator = ", ";
             }
             return stringBuilder.ToString();
@@ -181,7 +182,7 @@ namespace Dotmim.Sync.PostgreSql
                     while (reader.Read())
                     {
                         var tableName = reader.GetString(0);
-                        var schemaName =  reader.GetString(1);
+                        var schemaName = reader.GetString(1);
                         var setupTable = new SetupTable(tableName, schemaName);
                         syncSetup.Tables.Add(setupTable);
                     }
@@ -797,6 +798,26 @@ namespace Dotmim.Sync.PostgreSql
         public static Task<bool> TypeExistsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string quotedTypeName)
         {
             throw new NotImplementedException();
+        }
+
+        public static string WhereColumnAndParameters(IEnumerable<SyncColumn> primaryKeys, string fromPrefix, string mysql_prefix = NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER)
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+            string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
+            string str1 = "";
+            foreach (var column in primaryKeys)
+            {
+                var unquotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
+                var paramUnquotedColumn = ParserName.Parse($"{mysql_prefix}{column.ColumnName}").Unquoted().Normalized().ToString();
+
+                stringBuilder.Append(str1);
+                stringBuilder.Append(strFromPrefix);
+                stringBuilder.Append(unquotedColumn);
+                stringBuilder.Append(" = ");
+                stringBuilder.Append($"{paramUnquotedColumn}");
+                str1 = " AND ";
+            }
+            return stringBuilder.ToString();
         }
     }
 }

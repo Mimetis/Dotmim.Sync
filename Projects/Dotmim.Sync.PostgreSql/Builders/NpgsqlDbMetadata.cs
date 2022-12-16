@@ -407,7 +407,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case DbType.String:
                 case DbType.StringFixedLength:
                 case DbType.Xml:
-                    return NpgsqlDbType.Varchar;
+                    return NpgsqlDbType.Text;
                 case DbType.Time:
                     return NpgsqlDbType.Time;
                 case DbType.Object:

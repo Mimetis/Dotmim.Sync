@@ -50,7 +50,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             // adding the tracking columns
             stringBuilder.AppendLine($"update_scope_id uuid NULL, ");
             stringBuilder.AppendLine($"timestamp bigint NULL, ");
-            stringBuilder.AppendLine($"sync_row_is_tombstone BIT(1) NOT NULL default '0'::\"bit\", ");
+            stringBuilder.AppendLine($"sync_row_is_tombstone boolean NOT NULL default FALSE, ");
             stringBuilder.AppendLine($"last_change_datetime timestamptz NULL ");
             stringBuilder.AppendLine(");");
 
@@ -141,12 +141,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
             command.CommandText = @"SELECT EXISTS (SELECT FROM PG_TABLES WHERE SCHEMANAME=@SCHEMANAME AND TABLENAME=@TABLENAME)";
             
             var parameter = command.CreateParameter();
-            parameter.ParameterName = "@tableName";
+            parameter.ParameterName = "@TABLENAME";
             parameter.Value = tbl;
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();
-            parameter.ParameterName = "@schemaName";
+            parameter.ParameterName = "@SCHEMANAME";
             parameter.Value = schema;
             command.Parameters.Add(parameter);
 
