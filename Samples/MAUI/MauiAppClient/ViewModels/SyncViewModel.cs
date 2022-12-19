@@ -76,7 +76,7 @@ namespace MauiAppClient.ViewModels
 
             try
             {
-
+                 
                 var progress = new Progress<ProgressArgs>(args =>
                 {
                     MainThread.BeginInvokeOnMainThread(() =>
@@ -84,6 +84,13 @@ namespace MauiAppClient.ViewModels
                         this.SyncProgress = args.ProgressPercentage;
                         this.SyncProgressionText = args.Message;
                     });
+                });
+
+                this.syncAgent.LocalOrchestrator.OnConflictingSetup(async args =>
+                {
+                    await this.syncAgent.LocalOrchestrator.DeprovisionAsync(connection: args.Connection, transaction: args.Transaction);
+                    await this.syncAgent.LocalOrchestrator.ProvisionAsync(args.ServerScopeInfo, connection: args.Connection, transaction: args.Transaction);
+                    args.Action = ConflictingSetupAction.Continue;
                 });
 
                 var r = await this.syncAgent.SynchronizeAsync(syncType, progress);

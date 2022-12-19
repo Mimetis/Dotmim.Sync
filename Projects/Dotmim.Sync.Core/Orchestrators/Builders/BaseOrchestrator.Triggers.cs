@@ -392,7 +392,7 @@ namespace Dotmim.Sync
                     bool hasBeenCreated;
                     (context, hasBeenCreated) = await InternalCreateTriggerAsync(scopeInfo, context, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    if (hasBeenCreated)
+                    if (hasBeenCreated && !hasCreatedAtLeastOneTrigger)
                         hasCreatedAtLeastOneTrigger = true;
                 }
 

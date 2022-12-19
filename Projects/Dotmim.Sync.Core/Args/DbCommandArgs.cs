@@ -31,8 +31,7 @@ namespace Dotmim.Sync
         public SyncFilter Filter { get; }
 
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Sql;
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Sql Statement:{Command.CommandText}.";
+        public override string Message => $"Sql Statement:{Command.CommandText}.";
 
     }
 
@@ -46,8 +45,7 @@ namespace Dotmim.Sync
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Sql;
 
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Sql Statement:{Command.CommandText}.";
+        public override string Message => $"Sql Statement:{Command.CommandText}.";
 
         public override int EventId => SyncEventsId.ConnectionOpen.Id;
 

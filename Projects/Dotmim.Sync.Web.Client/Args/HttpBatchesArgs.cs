@@ -43,7 +43,7 @@ namespace Dotmim.Sync
                 var batchCount = this.HttpSummary.BatchInfo?.BatchPartsInfo?.Count ?? 1;
                 var totalRows = this.HttpSummary.ServerChangesSelected?.TotalChangesSelected ?? 0;
 
-                return $"Snapshot Downloaded. Batches Count: {batchCount}. Total Rows: {totalRows}.";
+                return $"Downloaded batches count: {batchCount}. Total Rows: {totalRows}.";
             }
         }
 

@@ -24,8 +24,7 @@ namespace Dotmim.Sync
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
 
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Dropped.";
+        public override string Message => $"Scope Table [{ScopeType}] Dropped.";
 
         public override int EventId => SyncEventsId.ScopeInfoTableDropped.Id;
     }
@@ -42,8 +41,7 @@ namespace Dotmim.Sync
         public DbScopeType ScopeType { get; }
         public string ScopeName { get; }
         public override int EventId => SyncEventsId.ScopeInfoTableCreated.Id;
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Created.";
+        public override string Message => $"Scope Table [{ScopeType}] Created.";
     }
 
     public class ScopeInfoTableDroppingArgs : ProgressArgs
@@ -61,8 +59,7 @@ namespace Dotmim.Sync
             this.ScopeName = scopeName;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Dropping.";
+        public override string Message => $"Scope Table [{ScopeType}] Dropping.";
         public override int EventId => SyncEventsId.ScopeInfoTableDropping.Id;
 
     }
@@ -81,8 +78,7 @@ namespace Dotmim.Sync
             this.ScopeName = scopeName;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Scope Table [{ScopeType}] Creating.";
+        public override string Message => $"Scope Table [{ScopeType}] Creating.";
         public override int EventId => SyncEventsId.ScopeInfoTableCreating.Id;
     }
 
@@ -94,10 +90,8 @@ namespace Dotmim.Sync
             this.ScopeInfo = scopeInfo;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-        public override string Source => Connection.Database;
-
-        public override string Message => $"[{Connection.Database}] [{ScopeInfo?.Name}] [Version {ScopeInfo?.Version}].";
-        
+        public override string Message => $"[{ScopeInfo?.Name}] [Version {ScopeInfo?.Version}].";
+   
         public ScopeInfo ScopeInfo { get; set; }
 
         public override int EventId => SyncEventsId.ScopeInfoLoaded.Id;
@@ -116,8 +110,7 @@ namespace Dotmim.Sync
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override int EventId => SyncEventsId.ScopeInfoLoading.Id;
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Client Scope Loading.";
+        public override string Message => $"Client Scope Loading.";
     }
 
 
@@ -133,8 +126,7 @@ namespace Dotmim.Sync
             this.ScopeInfo = scopeInfo;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Scope Info Saving.";
+        public override string Message => $"Scope Info Saving.";
 
         public ScopeInfo ScopeInfo { get; }
         public override int EventId => SyncEventsId.ScopeInfoSaving.Id;
@@ -148,8 +140,7 @@ namespace Dotmim.Sync
             this.ScopeInfo = scopeInfo;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Scope Info Saved.";
+        public override string Message => $"Scope Info Saved.";
 
         public ScopeInfo ScopeInfo { get; }
         public override int EventId => SyncEventsId.ScopeInfoSaved.Id;

@@ -27,7 +27,7 @@ namespace Dotmim.Sync
             get
             {
                 if (this.BatchCount <= 1)
-                    return $"Getting Batch Changes.";
+                    return $"Getting Batch Changes. (1)";
                 else
                     return $"Getting Batch Changes. ({this.BatchIndexRequested + 1}/{this.BatchCount}).";
             }
@@ -59,7 +59,7 @@ namespace Dotmim.Sync
             this.BatchRowsCount = batchRowsCount;
             this.Host = host;
         }
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
 
         public override string Source => this.Host;
         public override string Message

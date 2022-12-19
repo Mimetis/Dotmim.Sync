@@ -22,7 +22,6 @@ namespace Dotmim.Sync
         /// Gets the Setup to be load.
         /// </summary>
         public SyncSetup Setup { get; }
-        public override string Source => Connection.Database;
         public override string Message => $"Loading Schema For {this.Setup.Tables.Count} Tables.";
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override int EventId => SyncEventsId.SchemaLoading.Id;
@@ -35,14 +34,13 @@ namespace Dotmim.Sync
         {
             this.Schema = schema;
         }
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
+        public override SyncProgressLevel ProgressLevel => this.Schema != null && this.Schema.HasTables ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
 
         /// <summary>
         /// Gets the schema loaded.
         /// </summary>
         public SyncSet Schema { get; }
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Schema Loaded For {this.Schema.Tables.Count} Tables.";
+        public override string Message => $"Schema Loaded For {this.Schema.Tables.Count} Tables.";
 
         public override int EventId => SyncEventsId.SchemaLoaded.Id;
     }

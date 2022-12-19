@@ -158,8 +158,6 @@ namespace Dotmim.Sync
                 return default;
 
             DbCommand selectIncrementalChangesCommand = null;
-            DbCommandType dbCommandType = DbCommandType.None;
-
             try
             {
                 var setupTable = scopeInfo.Setup.Tables[syncTable.TableName, syncTable.SchemaName];
@@ -179,8 +177,9 @@ namespace Dotmim.Sync
                 if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
                     return (context, default, default);
 
+                DbCommandType dbCommandType;
                 (selectIncrementalChangesCommand, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew,
-                    connection, transaction);
+                        connection, transaction);
 
                 if (selectIncrementalChangesCommand == null)
                     return (context, default, default);
@@ -244,7 +243,7 @@ namespace Dotmim.Sync
 
                             tableChangesSelected.Deletes++;
                             rowsCountInBatchDeleted++;
-                            
+
                             await localSerializerDeleted.WriteRowToFileAsync(syncRow, schemaChangesTable).ConfigureAwait(false);
 
                             var currentBatchSizeDeleted = await localSerializerDeleted.GetCurrentFileSizeAsync().ConfigureAwait(false);
@@ -469,10 +468,12 @@ namespace Dotmim.Sync
 
                 }, threadNumberLimits);
 
+
                 var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, fromLastTimestamp, toLastTimestamp,
                             default, changes, connection, transaction);
 
                 await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
+
 
                 return (context, changes);
             }

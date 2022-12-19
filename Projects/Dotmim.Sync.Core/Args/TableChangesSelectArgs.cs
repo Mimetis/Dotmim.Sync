@@ -47,10 +47,13 @@ namespace Dotmim.Sync
         /// </summary>
         public TableChangesSelected TableChangesSelected { get; }
 
-        public override SyncProgressLevel ProgressLevel => this.TableChangesSelected.TotalChanges > 0 ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
-
-        public override string Source => Connection.Database;
-        public override string Message => $"[{this.TableChangesSelected.TableName}] [Total] Upserts:{this.TableChangesSelected.Upserts}. Deletes:{this.TableChangesSelected.Deletes}. Total:{this.TableChangesSelected.TotalChanges}.";
+        public override SyncProgressLevel ProgressLevel => this.TableChangesSelected != null && this.TableChangesSelected.TotalChanges > 0 ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
+       
+        public override string Message => 
+            this.TableChangesSelected == null 
+            ? "TableChangesSelectedArgs progress." 
+            : $"[{this.TableChangesSelected.TableName}] [Total] Upserts:{this.TableChangesSelected.Upserts}. Deletes:{this.TableChangesSelected.Deletes}. Total:{this.TableChangesSelected.TotalChanges}.";
+        
         public override int EventId => SyncEventsId.TableChangesSelected.Id;
     }
 
@@ -72,7 +75,6 @@ namespace Dotmim.Sync
         /// Gets the table from where the changes are going to be selected.
         /// </summary>
         public SyncTable SchemaTable { get; }
-        public override string Source => Connection.Database;
         public override string Message => $"[{this.SchemaTable.GetFullName()}] Getting Changes.";
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public override int EventId => SyncEventsId.TableChangesSelecting.Id;

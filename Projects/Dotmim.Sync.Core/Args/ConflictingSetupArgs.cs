@@ -22,9 +22,8 @@ namespace Dotmim.Sync
         /// </summary>
         public ConflictingSetupAction Action { get; set; } = ConflictingSetupAction.Rollback;
 
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
-        public override string Source => Connection.Database;
         public override string Message => $"Client Setup is desynchronized.";
 
         /// <summary>

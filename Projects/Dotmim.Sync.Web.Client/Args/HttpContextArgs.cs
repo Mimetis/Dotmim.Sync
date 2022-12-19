@@ -3,6 +3,7 @@ using Dotmim.Sync.Web.Client;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
@@ -13,15 +14,32 @@ namespace Dotmim.Sync
     /// </summary>
     public class HttpGettingResponseMessageArgs : ProgressArgs
     {
-        public HttpGettingResponseMessageArgs(HttpResponseMessage response, SyncContext context)
+        public HttpGettingResponseMessageArgs(HttpResponseMessage response, string uri, HttpStep step, SyncContext context, string host)
             : base(context, null, null)
         {
             this.Response = response;
+            this.Uri = uri;
+            this.Step = step;
+            this.Host = host;
         }
+        public override string Source => this.Host;
+
         public override int EventId => HttpClientSyncEventsId.HttpGettingResponseMessage.Id;
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
+        public override string Message
+        {
+            get
+            {
+               return $"Received a message from {this.Uri}, Step:{this.Step}, StatusCode: {(int)Response.StatusCode}, ReasonPhrase: {Response.ReasonPhrase ?? "<null>"}, Version: {Response.Version}";
+            }
+        }
+
+
         public HttpResponseMessage Response { get; }
+        public string Uri { get; }
+        public HttpStep Step { get; }
+        public string Host { get; }
     }
 
     /// <summary>
@@ -29,15 +47,18 @@ namespace Dotmim.Sync
     /// </summary>
     public class HttpSendingRequestMessageArgs : ProgressArgs
     {
-        public HttpSendingRequestMessageArgs(HttpRequestMessage request, SyncContext context)
+        public HttpSendingRequestMessageArgs(HttpRequestMessage request, SyncContext context, string host)
             : base(context, null, null)
         {
             this.Request = request;
+            this.Host = host;
         }
         public override int EventId => HttpClientSyncEventsId.HttpSendingRequestMessage.Id;
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
+        public override string Source => this.Host;
 
         public HttpRequestMessage Request { get; }
+        public string Host { get; }
     }
 
     public static partial class HttpClientSyncEventsId

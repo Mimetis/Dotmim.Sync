@@ -17,6 +17,17 @@ namespace Dotmim.Sync.Web.Client
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
 
+        internal override async Task<SyncContext> InternalBeginSessionAsync(SyncContext context, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        {
+            // Progress & interceptor
+            var sessionBegin = new SessionBeginArgs(context, null) { Source = this.GetServiceHost() };
+            
+            await this.InterceptAsync(sessionBegin, progress, cancellationToken).ConfigureAwait(false);
+
+            return context;
+
+        }
+
         internal override async Task<SyncContext> InternalEndSessionAsync(SyncContext context, SyncResult result, ServerSyncChanges serverSyncChanges, SyncException syncException = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
@@ -44,7 +55,9 @@ namespace Dotmim.Sync.Web.Client
                      this.SerializerFactory, this.Converter, 0, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
 
                 // Progress & interceptor
-                await this.InterceptAsync(new SessionEndArgs(context, result, syncException, null), progress, cancellationToken).ConfigureAwait(false);
+                var sessionEnd = new SessionEndArgs(context, result, syncException, null) { Source = this.GetServiceHost() };
+
+                await this.InterceptAsync(sessionEnd, progress, cancellationToken).ConfigureAwait(false);
 
                 // Return scopes and new shema
                 return context;

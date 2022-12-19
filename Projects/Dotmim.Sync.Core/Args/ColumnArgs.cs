@@ -25,7 +25,6 @@ namespace Dotmim.Sync
             this.Table = table;
         }
 
-        public override string Source => Connection.Database;
         public override string Message => $"[{ColumnName}] Added.";
 
         public override int EventId => SyncEventsId.ColumnCreated.Id;
@@ -48,7 +47,6 @@ namespace Dotmim.Sync
             this.TableName = tableName;
             this.Command = command;
         }
-        public override string Source => Connection.Database;
         public override string Message => $"[{ColumnName}] Adding.";
         public override int EventId => SyncEventsId.ColumnCreating.Id;
 
@@ -69,7 +67,6 @@ namespace Dotmim.Sync
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
 
-        public override string Source => Connection.Database;
         public override string Message => $"[{ColumnName}] Dropped.";
         public override int EventId => SyncEventsId.ColumnDropped.Id;
     }
@@ -92,7 +89,6 @@ namespace Dotmim.Sync
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
 
-        public override string Source => Connection.Database;
         public override string Message => $"[{ColumnName}] Dropping.";
 
         public override int EventId => SyncEventsId.ColumnDropping.Id;

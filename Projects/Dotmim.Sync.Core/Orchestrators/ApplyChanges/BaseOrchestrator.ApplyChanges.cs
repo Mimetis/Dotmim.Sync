@@ -173,7 +173,8 @@ namespace Dotmim.Sync
                     if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal && !message.SnapshoteApplied)
                     {
                         foreach (var table in schemaTables.Reverse())
-                            context = await this.InternalResetTableAsync(scopeInfo, context, table, connection, transaction).ConfigureAwait(false);
+                            context = await this.InternalResetTableAsync(scopeInfo, context, table, connection, transaction,
+                                        cancellationToken, progress).ConfigureAwait(false);
                     }
 
                     // Trying to change order (from deletes-upserts to upserts-deletes)
@@ -660,6 +661,12 @@ namespace Dotmim.Sync
                     // we've got 0.25% to fill here 
                     var progresspct = appliedRows * 0.25d / tableChangesApplied.TotalRowsCount;
                     context.ProgressPercentage += progresspct;
+
+                    connection ??= this.Provider.CreateConnection();
+                    var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, tableChangesApplied, connection, transaction);
+                    // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
+                    await this.InterceptAsync(tableChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
+
                 }
 
                 schemaChangesTable.Dispose();
@@ -667,15 +674,6 @@ namespace Dotmim.Sync
                 changesSet.Dispose();
                 changesSet = null;
 
-                // Report the overall changes applied for the current table
-                if (tableChangesApplied != null)
-                {
-                    connection ??= this.Provider.CreateConnection();
-
-                    var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, tableChangesApplied, connection, transaction);
-                    // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
-                    await this.InterceptAsync(tableChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
-                }
 
                 if (command != null)
                     command.Dispose();

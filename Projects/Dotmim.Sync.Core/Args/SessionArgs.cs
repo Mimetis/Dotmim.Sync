@@ -21,8 +21,7 @@ namespace Dotmim.Sync
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
 
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Connection Opened.";
+        public override string Message => $"Connection Opened.";
 
         public override int EventId => SyncEventsId.ConnectionOpen.Id;
     }
@@ -42,8 +41,7 @@ namespace Dotmim.Sync
 
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
 
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Trying to Reconnect...";
+        public override string Message => $"Trying to Reconnect...";
 
         /// <summary>
         /// Gets the handled exception
@@ -72,9 +70,7 @@ namespace Dotmim.Sync
         {
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
-
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Connection Closed.";
+        public override string Message => $"Connection Closed.";
 
         public override int EventId => SyncEventsId.ConnectionClose.Id;
     }
@@ -88,9 +84,7 @@ namespace Dotmim.Sync
             : base(context, connection, transaction)
         {
         }
-
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Transaction Opened.";
+        public override string Message => $"Transaction Opened.";
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
         public override int EventId => SyncEventsId.TransactionOpen.Id;
     }
@@ -105,8 +99,7 @@ namespace Dotmim.Sync
         {
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection.Database}] Transaction Commited.";
+        public override string Message => $"Transaction Commited.";
 
         public override int EventId => SyncEventsId.TransactionCommit.Id;
     }
@@ -121,8 +114,7 @@ namespace Dotmim.Sync
         {
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
-        public override string Source => Connection.Database;
-        public override string Message => $"[{Connection?.Database}] Session Begins. Id:{Context.SessionId}. Scope name:{Context.ScopeName}.";
+        public override string Message => $"Session Begins. Id:{Context.SessionId}. Scope name:{Context.ScopeName}.";
 
         public override int EventId => SyncEventsId.SessionBegin.Id;
     }
@@ -149,8 +141,7 @@ namespace Dotmim.Sync
             this.SyncException = syncException;
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
-        public override string Source => Connection?.Database;
-        public override string Message => $"[{Connection?.Database}] Session Ends. Id:{Context.SessionId}. Scope name:{Context.ScopeName}.";
+        public override string Message => $"Session Ends. Id:{Context.SessionId}. Scope name:{Context.ScopeName}.";
         public override int EventId => SyncEventsId.SessionEnd.Id;
     }
 

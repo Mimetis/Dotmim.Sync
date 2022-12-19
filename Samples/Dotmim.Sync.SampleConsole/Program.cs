@@ -73,8 +73,8 @@ internal class Program
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        //var setup = new SyncSetup(allTables);
-        var setup = new SyncSetup(oneTable);
+        var setup = new SyncSetup(allTables);
+        //var setup = new SyncSetup(oneTable);
         //var setup = new SyncSetup("ProductCategory", "ProductDescription", "Product");
         //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
@@ -117,16 +117,20 @@ internal class Program
 
         //await GenerateErrorsAsync();
 
-        //await ChangeSetupInProgressAsync(clientProvider, serverProvider, setup, options);
-        await LoadLocalSchemaAsync();
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        //await LoadLocalSchemaAsync();
     }
 
     private static async Task LoadLocalSchemaAsync()
     {
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
         var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
-        var  setup = new SyncSetup("ProductCategory");
+        var setup = new SyncSetup("ProductCategory");
         var localOrchestrator = new LocalOrchestrator(clientProvider);
         var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
@@ -136,7 +140,7 @@ internal class Program
         // 
 
         // 2) Provision server database
-        var serverScope = await remoteOrchestrator.ProvisionAsync(setup);
+        var serverScope = await remoteOrchestrator.ProvisionAsync(setup, overwrite: true, progress: progress);
 
         // 3) Get the timestamp to use on the client
         var serverTimeStamp = await remoteOrchestrator.GetLocalTimestampAsync();
@@ -152,7 +156,7 @@ internal class Program
         //
 
         // 5) Provision client
-        await localOrchestrator.ProvisionAsync(serverScope);
+        await localOrchestrator.ProvisionAsync(serverScope, overwrite: true, progress: progress);
 
         // 6) Get the local timestamp
         var clientTimestamp = await localOrchestrator.GetLocalTimestampAsync();
@@ -172,7 +176,7 @@ internal class Program
         // We're done
         // We can sync safely now
         var agent = new SyncAgent(clientProvider, serverProvider, options);
-        var r = await agent.SynchronizeAsync(setup);
+        var r = await agent.SynchronizeAsync(setup, progress: progress);
 
         Console.Write(r.ToString());
 
@@ -204,7 +208,7 @@ internal class Program
             agent.LocalOrchestrator.OnConflictingSetup(async args =>
             {
                 await agent.LocalOrchestrator.DeprovisionAsync().ConfigureAwait(false);
-                await agent.LocalOrchestrator.ProvisionAsync(args.ServerScopeInfo, connection:args.Connection, transaction:args.Transaction).ConfigureAwait(false);
+                await agent.LocalOrchestrator.ProvisionAsync(args.ServerScopeInfo, connection: args.Connection, transaction: args.Transaction).ConfigureAwait(false);
             });
 
             s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
@@ -232,6 +236,7 @@ internal class Program
         var progress = new SynchronousProgress<ProgressArgs>(s =>
             Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
 
+        //options.ProgressLevel = SyncProgressLevel.Debug;
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
@@ -1781,14 +1786,7 @@ internal class Program
 
         var configureServices = new Action<IServiceCollection>(services =>
         {
-            var serverOptions = new SyncOptions
-            {
-                DbCommandTimeout = 1,
-                UseVerboseErrors = false,
-
-            };
-            services.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "DefaultScope", setup, serverOptions);
-            services.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "pc", setup, serverOptions);
+            services.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup: setup, options: options);
         });
 
         var serverHandler = new RequestDelegate(async context =>
@@ -1801,12 +1799,6 @@ internal class Program
                 var clientScopeId = context.GetClientScopeId();
 
                 var webServerAgent = webServerAgents.First(wsa => wsa.ScopeName == scopeName);
-
-                webServerAgent.RemoteOrchestrator.OnGettingOperation(operationArgs =>
-                {
-                    //var syncOperation = SyncOperation.Reinitialize;
-                    //operationArgs.Operation = syncOperation;
-                });
 
                 await webServerAgent.HandleRequestAsync(context);
 
@@ -1830,6 +1822,11 @@ internal class Program
                 {
                     var startTime = DateTime.Now;
 
+
+                    // Using the Progress pattern to handle progession during the synchronization
+                    var progress = new SynchronousProgress<ProgressArgs>(s =>
+                        Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
                     var localProgress = new SynchronousProgress<ProgressArgs>(s =>
                     {
                         var tsEnded = TimeSpan.FromTicks(DateTime.Now.Ticks);
@@ -1837,15 +1834,17 @@ internal class Program
                         var durationTs = tsEnded.Subtract(tsStarted);
 
                         Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine($"{durationTs:mm\\:ss\\.fff} {s.ProgressPercentage:p}:\t{s.Message}");
+                        Console.WriteLine($"{durationTs:mm\\:ss\\.fff} {s.ProgressPercentage:p}:\t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}");
                         Console.ResetColor();
                     });
-
+                    
+                    options.ProgressLevel = SyncProgressLevel.Debug;
+                    
                     // create the agent
                     var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
 
                     // make a synchronization to get all rows between backup and now
-                    var s = await agent.SynchronizeAsync("pc", progress: localProgress);
+                    var s = await agent.SynchronizeAsync(progress: localProgress);
 
                     Console.WriteLine(s);
 

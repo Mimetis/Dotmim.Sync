@@ -39,7 +39,6 @@ namespace Dotmim.Sync
         public SyncTable SchemaTable { get; }
 
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-        public override string Source => Connection.Database;
         public override string Message => $"Applying [{this.SchemaTable.GetFullName()}] batch rows. State:{this.State}. Count:{this.SyncRows.Count()}";
 
         public override int EventId => SyncEventsId.RowsChangesApplying.Id;
@@ -70,7 +69,6 @@ namespace Dotmim.Sync
         public SyncTable SchemaTable { get; }
 
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-        public override string Source => Connection.Database;
         public override string Message => $"Applying [{this.SchemaTable.GetFullName()}] batch rows. State:{this.State}. Count:{this.SyncRows.Count()}";
 
         public override int EventId => SyncEventsId.RowsChangesApplying.Id;

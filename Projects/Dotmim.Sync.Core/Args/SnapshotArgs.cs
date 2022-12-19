@@ -18,7 +18,6 @@ namespace Dotmim.Sync
         {
         }
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-        public override string Source => Connection.Database;
         public override string Message => $"Applying Snapshot.";
         public override int EventId => SyncEventsId.SnapshotApplying.Id;
     }
@@ -35,9 +34,12 @@ namespace Dotmim.Sync
         {
             this.ChangesApplied = changesApplied;
         }
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
+        public override SyncProgressLevel ProgressLevel => ChangesApplied != null && ChangesApplied.TotalAppliedChanges > 0 || ChangesApplied.TotalAppliedChangesFailed > 0 || ChangesApplied.TotalResolvedConflicts > 0 ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
         public override string Source => "Snapshot";
-        public override string Message => $"[Total] Applied:{ChangesApplied.TotalAppliedChanges}. Resolved Conflicts:{ChangesApplied.TotalResolvedConflicts}.";
+        public override string Message =>
+            ChangesApplied == null
+            ? $"DatabaseChangesApplied progress."
+            : $"[Total] Applied:{ChangesApplied.TotalAppliedChanges}. Resolved Conflicts:{ChangesApplied.TotalResolvedConflicts}.";
         public override int EventId => SyncEventsId.SnapshotApplied.Id;
     }
 
@@ -75,7 +77,6 @@ namespace Dotmim.Sync
         /// </summary>
         public long Timestamp { get; }
 
-        public override string Source => Connection.Database;
         public override string Message => $"Creating Snapshot.";
         public override int EventId => SyncEventsId.SnapshotCreating.Id;
     }
@@ -86,12 +87,13 @@ namespace Dotmim.Sync
     /// </summary>
     public class SnapshotCreatedArgs : ProgressArgs
     {
-        public SnapshotCreatedArgs(SyncContext context, BatchInfo batchInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction) 
+        public SnapshotCreatedArgs(SyncContext context, BatchInfo batchInfo, DbConnection connection = null, DbTransaction transaction = null) : base(context, connection, transaction)
             => this.BatchInfo = batchInfo;
 
-        public override string Source => Connection.Database;
-        public override string Message => $"Snapshot Created [{BatchInfo.GetDirectoryFullPath()}].";
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
+        public override SyncProgressLevel ProgressLevel => BatchInfo != null && BatchInfo.RowsCount > 0 ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
+
+        public override string Message => BatchInfo == null ? $"SnapshotCreatedArgs progress." : $"Snapshot Created [{BatchInfo.GetDirectoryFullPath()}].";
+
         /// <summary>
         /// Gets the batch info summarizing the snapshot created
         /// </summary>

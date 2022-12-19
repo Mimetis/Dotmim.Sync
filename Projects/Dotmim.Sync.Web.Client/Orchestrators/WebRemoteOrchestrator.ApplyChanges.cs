@@ -237,17 +237,6 @@ namespace Dotmim.Sync.Web.Client
                         {
                             var localSerializer = new LocalJsonSerializer(this, context);
 
-                            //var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
-                            //if (interceptorsWriting.Count > 0)
-                            //{
-                            //    localSerializer.OnWritingRow(async (syncTable, rowArray) =>
-                            //    {
-                            //        var args = new SerializingRowArgs(context, syncTable, rowArray);
-                            //        await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-                            //        return args.Result;
-                            //    });
-                            //}
-
                             // Should have only one table
                             var table = getMoreChanges.Changes.Tables[0];
                             var schemaTable = CreateChangesTable(schema.Tables[table.TableName, table.SchemaName]);
