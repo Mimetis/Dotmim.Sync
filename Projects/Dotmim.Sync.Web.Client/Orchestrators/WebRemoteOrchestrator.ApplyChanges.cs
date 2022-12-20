@@ -64,7 +64,7 @@ namespace Dotmim.Sync.Web.Client
                     await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, inMemoryRowsCount, inMemoryRowsCount, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                     // serialize message
-                    var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
+                    var serializer = this.SerializerFactory.GetSerializer();
                     var binaryData = await serializer.SerializeAsync(changesToSend);
 
                     response = await this.httpRequestHandler.ProcessRequestAsync
@@ -125,7 +125,7 @@ namespace Dotmim.Sync.Web.Client
                         await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, tmpRowsSendedCount, clientChanges.ClientBatchInfo.RowsCount, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                         // serialize message
-                        var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
+                        var serializer = this.SerializerFactory.GetSerializer();
                         var binaryData = await serializer.SerializeAsync(changesToSend);
 
                         response = await this.httpRequestHandler.ProcessRequestAsync
@@ -165,8 +165,8 @@ namespace Dotmim.Sync.Web.Client
                 // Deserialize response incoming from server
                 using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                 {
-                    var responseSerializer = this.SerializerFactory.GetSerializer<HttpMessageSummaryResponse>();
-                    summaryResponseContent = await responseSerializer.DeserializeAsync(streamResponse);
+                    var responseSerializer = this.SerializerFactory.GetSerializer();
+                    summaryResponseContent = await responseSerializer.DeserializeAsync<HttpMessageSummaryResponse>(streamResponse);
                 }
 
                 serverBatchInfo.RowsCount = summaryResponseContent.BatchInfo.RowsCount;
@@ -201,7 +201,7 @@ namespace Dotmim.Sync.Web.Client
 
                     var changesToSend3 = new HttpMessageGetMoreChangesRequest(context, bpi.Index);
 
-                    var serializer3 = this.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
+                    var serializer3 = this.SerializerFactory.GetSerializer();
                     var binaryData3 = await serializer3.SerializeAsync(changesToSend3).ConfigureAwait(false);
                     var step3 = HttpStep.GetMoreChanges;
 
@@ -216,9 +216,9 @@ namespace Dotmim.Sync.Web.Client
 
                     if (this.SerializerFactory.Key != "json")
                     {
-                        var webSerializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
+                        var webSerializer = this.SerializerFactory.GetSerializer();
                         using var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                        var getMoreChanges = await webSerializer.DeserializeAsync(responseStream);
+                        var getMoreChanges = await webSerializer.DeserializeAsync<HttpMessageSendChangesResponse>(responseStream);
 
                         context = getMoreChanges.SyncContext;
 
@@ -264,7 +264,7 @@ namespace Dotmim.Sync.Web.Client
                 {
                     var endOfDownloadChanges = new HttpMessageGetMoreChangesRequest(context, lastBpi.Index);
 
-                    var serializerEndOfDownloadChanges = this.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
+                    var serializerEndOfDownloadChanges = this.SerializerFactory.GetSerializer();
                     var binaryData3 = await serializerEndOfDownloadChanges.SerializeAsync(endOfDownloadChanges).ConfigureAwait(false);
 
                     var endResponse = await this.httpRequestHandler.ProcessRequestAsync(
@@ -275,8 +275,8 @@ namespace Dotmim.Sync.Web.Client
                     // This is the last response
                     // Should contains step HttpStep.SendEndDownloadChanges
                     using var streamResponse = await endResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                    var endResponseSerializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
-                    var endResponseContent = await endResponseSerializer.DeserializeAsync(streamResponse);
+                    var endResponseSerializer = this.SerializerFactory.GetSerializer();
+                    var endResponseContent = await endResponseSerializer.DeserializeAsync<HttpMessageSendChangesResponse>(streamResponse);
                     context = endResponseContent.SyncContext;
                 }
 

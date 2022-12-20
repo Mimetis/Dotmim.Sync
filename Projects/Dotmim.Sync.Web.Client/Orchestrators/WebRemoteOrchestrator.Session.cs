@@ -21,7 +21,7 @@ namespace Dotmim.Sync.Web.Client
         {
             // Progress & interceptor
             var sessionBegin = new SessionBeginArgs(context, null) { Source = this.GetServiceHost() };
-            
+
             await this.InterceptAsync(sessionBegin, progress, cancellationToken).ConfigureAwait(false);
 
             return context;
@@ -46,7 +46,7 @@ namespace Dotmim.Sync.Web.Client
                 };
 
                 // serialize message
-                var serializer = this.SerializerFactory.GetSerializer<HttpMessageEndSessionRequest>();
+                var serializer = this.SerializerFactory.GetSerializer();
                 var binaryData = await serializer.SerializeAsync(httpMessage);
 
                 // No batch size submitted here, because the schema will be generated in memory and send back to the user.
@@ -60,7 +60,7 @@ namespace Dotmim.Sync.Web.Client
                 using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                 {
                     if (streamResponse.CanRead)
-                        endSessionResponse = await this.SerializerFactory.GetSerializer<HttpMessageEndSessionResponse>().DeserializeAsync(streamResponse);
+                        endSessionResponse = await this.SerializerFactory.GetSerializer().DeserializeAsync<HttpMessageEndSessionResponse>(streamResponse);
                 }
 
                 if (endSessionResponse == null)

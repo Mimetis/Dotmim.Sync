@@ -14,35 +14,20 @@ namespace Dotmim.Sync.Serialization
     {
         string Key { get; }
 
-        ISerializer<T> GetSerializer<T>();
-        ISerializer GetSerializer(Type objectType);
+        ISerializer GetSerializer();
     }
 
-    /// <summary>
-    /// Represents a generic serializer for a defined type of T
-    /// </summary>
-    public interface ISerializer<T>
-    {
-        Task<T> DeserializeAsync(Stream ms);
-        Task<byte[]> SerializeAsync(T obj);
-    }
 
     /// <summary>
     /// Represents a generic serializer for a defined type
     /// </summary>
     public interface ISerializer
     {
-        Task<object> DeserializeAsync(Stream ms);
-        Task<byte[]> SerializeAsync(object obj);
-    }
+        Task<object> DeserializeAsync(Stream ms, Type type);
+        Task<T> DeserializeAsync<T>(Stream ms);
 
-    /// <summary>
-    /// Represents a generic serializer for a defined type
-    /// </summary>
-    public interface ISerializer2
-    {
-        Task<object> DeserializeAsync(Stream ms);
         Task<byte[]> SerializeAsync(object obj);
+        Task<byte[]> SerializeAsync<T>(T obj);
     }
 
 

@@ -28,7 +28,7 @@ namespace Dotmim.Sync.Web.Client
                 var httpMessage = new HttpMessageRemoteTimestampRequest(context);
 
                 // serialize message
-                var serializer = this.SerializerFactory.GetSerializer<HttpMessageRemoteTimestampRequest>();
+                var serializer = this.SerializerFactory.GetSerializer();
                 var binaryData = await serializer.SerializeAsync(httpMessage);
 
                 // No batch size submitted here, because the schema will be generated in memory and send back to the user.
@@ -41,7 +41,7 @@ namespace Dotmim.Sync.Web.Client
                 using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                 {
                     if (streamResponse.CanRead)
-                        responseTimestamp = await this.SerializerFactory.GetSerializer<HttpMessageRemoteTimestampResponse>().DeserializeAsync(streamResponse);
+                        responseTimestamp = await this.SerializerFactory.GetSerializer().DeserializeAsync<HttpMessageRemoteTimestampResponse>(streamResponse);
                 }
 
                 if (responseTimestamp == null)

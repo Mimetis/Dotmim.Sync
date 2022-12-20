@@ -37,7 +37,7 @@ namespace Dotmim.Sync.Web.Client
 
                 // Firstly, get the snapshot summary
                 var changesToSend = new HttpMessageSendChangesRequest(context, null);
-                var serializer = this.SerializerFactory.GetSerializer<HttpMessageSendChangesRequest>();
+                var serializer = this.SerializerFactory.GetSerializer();
                 var binaryData = await serializer.SerializeAsync(changesToSend);
 
                 var response0 = await this.httpRequestHandler.ProcessRequestAsync(
@@ -48,11 +48,11 @@ namespace Dotmim.Sync.Web.Client
 
                 using (var streamResponse = await response0.Content.ReadAsStreamAsync().ConfigureAwait(false))
                 {
-                    var responseSerializer = this.SerializerFactory.GetSerializer<HttpMessageSummaryResponse>();
+                    var responseSerializer = this.SerializerFactory.GetSerializer();
 
                     if (streamResponse.CanRead)
                     {
-                        summaryResponseContent = await responseSerializer.DeserializeAsync(streamResponse);
+                        summaryResponseContent = await responseSerializer.DeserializeAsync<HttpMessageSummaryResponse>(streamResponse);
 
                         serverBatchInfo.RowsCount = summaryResponseContent.BatchInfo?.RowsCount ?? 0;
 
@@ -78,7 +78,7 @@ namespace Dotmim.Sync.Web.Client
                 await serverBatchInfo.BatchPartsInfo.ForEachAsync(async bpi =>
                 {
                     var changesToSend3 = new HttpMessageGetMoreChangesRequest(context, bpi.Index);
-                    var serializer3 = this.SerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>();
+                    var serializer3 = this.SerializerFactory.GetSerializer();
                     var binaryData3 = await serializer3.SerializeAsync(changesToSend3);
 
                     await this.InterceptAsync(new HttpGettingServerChangesRequestArgs(bpi.Index, serverBatchInfo.BatchPartsInfo.Count, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
@@ -89,9 +89,9 @@ namespace Dotmim.Sync.Web.Client
 
                     if (this.SerializerFactory.Key != "json")
                     {
-                        var s = this.SerializerFactory.GetSerializer<HttpMessageSendChangesResponse>();
+                        var s = this.SerializerFactory.GetSerializer();
                         using var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                        var getMoreChanges = await s.DeserializeAsync(responseStream);
+                        var getMoreChanges = await s.DeserializeAsync<HttpMessageSendChangesResponse>(responseStream);
 
                         if (getMoreChanges != null && getMoreChanges.Changes != null && getMoreChanges.Changes.HasRows)
                         {

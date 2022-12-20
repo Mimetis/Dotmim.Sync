@@ -31,7 +31,7 @@ namespace Dotmim.Sync.Web.Client
                 var httpMessage = new HttpMessageOperationRequest(context, cScopeInfo, cScopeInfoClient);
 
                 // serialize message
-                var serializer = this.SerializerFactory.GetSerializer<HttpMessageOperationRequest>();
+                var serializer = this.SerializerFactory.GetSerializer();
                 var binaryData = await serializer.SerializeAsync(httpMessage);
 
                 // No batch size submitted here, because the schema will be generated in memory and send back to the user.
@@ -44,7 +44,7 @@ namespace Dotmim.Sync.Web.Client
                 using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                 {
                     if (streamResponse.CanRead)
-                        operationResponse = await this.SerializerFactory.GetSerializer<HttpMessageOperationResponse>().DeserializeAsync(streamResponse);
+                        operationResponse = await this.SerializerFactory.GetSerializer().DeserializeAsync<HttpMessageOperationResponse>(streamResponse);
                 }
 
                 if (operationResponse == null)

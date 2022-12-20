@@ -12,49 +12,28 @@ namespace ConverterWebSyncClient
     public class CustomMessagePackSerializerFactory : ISerializerFactory
     {
         public string Key => "mpack";
-        public ISerializer<T> GetSerializer<T>() => new CustomMessagePackSerializer<T>();
-        public ISerializer GetSerializer(Type objectType) => new CustomMessagePackSerializer(objectType);
+        public ISerializer GetSerializer() => new CustomMessagePackSerializer();
     }
 
-    public class CustomMessagePackSerializer<T> : ISerializer<T>
+    public class CustomMessagePackSerializer : ISerializer
     {
         public CustomMessagePackSerializer() { }
 
-        public async Task<T> DeserializeAsync(Stream ms)
-        {
-            var val = await MessagePackSerializer.DeserializeAsync<T>(ms, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
-            return val;
-        }
+        public async Task<T> DeserializeAsync<T>(Stream ms) => (T)await DeserializeAsync(ms, typeof(T)).ConfigureAwait(false);
 
-        public async Task<byte[]> SerializeAsync(T obj)
-        {
-            using (var ms = new MemoryStream())
-            {
-                await MessagePackSerializer.SerializeAsync<T>(ms, obj, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
+        public Task<byte[]> SerializeAsync<T>(T obj) => SerializeAsync((object)obj);
 
-                return ms.ToArray();
-            }
-        }
-    }
-    public class CustomMessagePackSerializer : ISerializer
-    {
-        public CustomMessagePackSerializer(Type objectType)
-        {
-            this.ObjectType = objectType;
-        }
 
-        public Type ObjectType { get; }
-
-        public async Task<object> DeserializeAsync(Stream ms)
+        public async Task<object> DeserializeAsync(Stream ms, Type type)
         {
-            var val = await MessagePackSerializer.DeserializeAsync(ObjectType, ms, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance)); ;
+            var val = await MessagePackSerializer.DeserializeAsync(type, ms, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
             return val;
         }
 
         public async Task<byte[]> SerializeAsync(object obj)
         {
             using var ms = new MemoryStream();
-            await MessagePackSerializer.SerializeAsync(ObjectType, ms, obj, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
+            await MessagePackSerializer.SerializeAsync(ms, obj, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
 
             return ms.ToArray();
         }

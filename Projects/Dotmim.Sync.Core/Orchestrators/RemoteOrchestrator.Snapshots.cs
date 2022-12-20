@@ -94,13 +94,13 @@ namespace Dotmim.Sync
                     if (Directory.Exists(directoryFullPath))
                     {
                         // Serialize on disk.
-                        var jsonConverter = new Serialization.JsonConverter<BatchInfo>();
+                        var jsonConverter = new Serialization.JsonObjectSerializer();
 
                         var summaryFileName = Path.Combine(directoryFullPath, "summary.json");
 
                         using (var fs = new FileStream(summaryFileName, FileMode.Open, FileAccess.Read))
                         {
-                            serverBatchInfo = await jsonConverter.DeserializeAsync(fs).ConfigureAwait(false);
+                            serverBatchInfo = await jsonConverter.DeserializeAsync<BatchInfo>(fs).ConfigureAwait(false);
                         }
 
                         // Create a Schema set without readonly columns, attached to memory changes
@@ -283,7 +283,7 @@ namespace Dotmim.Sync
             serverBatchInfo.Timestamp = remoteClientTimestamp;
 
             // Serialize on disk.
-            var jsonConverter = new Serialization.JsonConverter<BatchInfo>();
+            var jsonConverter = new JsonObjectSerializer();
 
             var summaryFileName = Path.Combine(directoryFullPath, "summary.json");
 

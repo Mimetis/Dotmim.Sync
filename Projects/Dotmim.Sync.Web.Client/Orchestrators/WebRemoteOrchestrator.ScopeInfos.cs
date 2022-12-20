@@ -36,7 +36,7 @@ namespace Dotmim.Sync.Web.Client
                 var httpMessage = new HttpMessageEnsureScopesRequest(context);
 
                 // serialize message
-                var serializer = this.SerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>();
+                var serializer = this.SerializerFactory.GetSerializer();
                 var binaryData = await serializer.SerializeAsync(httpMessage);
 
                 // Raise progress for sending request and waiting server response
@@ -52,7 +52,7 @@ namespace Dotmim.Sync.Web.Client
                 using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                 {
                     if (streamResponse.CanRead)
-                        ensureScopesResponse = await this.SerializerFactory.GetSerializer<HttpMessageEnsureScopesResponse>().DeserializeAsync(streamResponse);
+                        ensureScopesResponse = await this.SerializerFactory.GetSerializer().DeserializeAsync<HttpMessageEnsureScopesResponse>(streamResponse);
                 }
 
                 if (ensureScopesResponse == null)

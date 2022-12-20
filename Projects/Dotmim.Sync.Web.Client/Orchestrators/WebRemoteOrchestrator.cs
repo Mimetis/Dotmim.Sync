@@ -121,7 +121,7 @@ namespace Dotmim.Sync.Web.Client
                 this.httpRequestHandler.CustomHeaders.Add(key, value);
 
         }
-   
+
 
         public void BeforeSerializeRows(ContainerTable table, SyncTable schemaTable, IConverter converter)
         {
@@ -176,7 +176,7 @@ namespace Dotmim.Sync.Web.Client
         {
             if (!Directory.Exists(directoryFullPath))
                 Directory.CreateDirectory(directoryFullPath);
-            
+
             var fullPath = Path.Combine(directoryFullPath, fileName);
             using var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
             using var fileStream = new FileStream(fullPath, FileMode.CreateNew, FileAccess.ReadWrite);
@@ -188,7 +188,7 @@ namespace Dotmim.Sync.Web.Client
         {
             var fullPath = Path.Combine(directoryFullPath, fileName);
             using var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
-            var httpMessageContent = await serializerFactory.GetSerializer<HttpMessageSendChangesResponse>().DeserializeAsync(fileStream);
+            var httpMessageContent = await serializerFactory.GetSerializer().DeserializeAsync<HttpMessageSendChangesResponse>(fileStream);
             return httpMessageContent;
         }
 

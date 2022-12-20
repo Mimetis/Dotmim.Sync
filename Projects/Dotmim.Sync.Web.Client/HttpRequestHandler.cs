@@ -215,8 +215,8 @@ namespace Dotmim.Sync.Web.Client
                     if (streamResponse.CanRead)
                     {
                         // Error are always json formatted
-                        var webSyncErrorSerializer = new Serialization.JsonConverter<WebSyncException>();
-                        var webError = await webSyncErrorSerializer.DeserializeAsync(streamResponse);
+                        var webSyncErrorSerializer = new Serialization.JsonObjectSerializer();
+                        var webError = await webSyncErrorSerializer.DeserializeAsync<WebSyncException>(streamResponse);
 
                         if (webError != null)
                         {

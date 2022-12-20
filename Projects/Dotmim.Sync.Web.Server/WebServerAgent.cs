@@ -235,7 +235,7 @@ namespace Dotmim.Sync.Web.Server
                         break;
                 }
 
-                IScopeMessage messsageRequest = await clientSerializerFactory.GetSerializer(requestSerializerType).DeserializeAsync(readableStream) as IScopeMessage;
+                IScopeMessage messsageRequest = await clientSerializerFactory.GetSerializer().DeserializeAsync(readableStream, requestSerializerType) as IScopeMessage;
                 await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, messsageRequest.SyncContext, sessionCache, messsageRequest, responseSerializerType, step), progress, cancellationToken).ConfigureAwait(false);
 
                 switch (step)
@@ -319,7 +319,7 @@ namespace Dotmim.Sync.Web.Server
 
                 await this.RemoteOrchestrator.InterceptAsync(new HttpSendingResponseArgs(httpContext, messageResponse.SyncContext, sessionCache, messageResponse, responseSerializerType, step), progress, cancellationToken).ConfigureAwait(false);
 
-                binaryData = await clientSerializerFactory.GetSerializer(responseSerializerType).SerializeAsync(messageResponse);
+                binaryData = await clientSerializerFactory.GetSerializer().SerializeAsync(messageResponse);
 
                 // Adding the serialization format used and session id
                 httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
