@@ -38,11 +38,11 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var triggerName = ParserName.Parse(commandTriggerName).ToString();
 
             var commandText = $@"
-                                SELECT EXISTS
-	                                (SELECT
-		                                FROM INFORMATION_SCHEMA.TRIGGERS
-		                                WHERE TRIGGER_SCHEMA = @schemaName
-			                                AND TRIGGER_NAME = @triggerName )";
+                                select exists
+	                                (select
+		                                from information_schema.triggers
+		                                where trigger_schema = @schemaname
+			                                and trigger_name = @triggername )";
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -51,12 +51,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
             command.CommandText = commandText;
 
             var p1 = command.CreateParameter();
-            p1.ParameterName = "@triggerName";
+            p1.ParameterName = "@triggername";
             p1.Value = triggerName;
             command.Parameters.Add(p1);
 
             var p2 = command.CreateParameter();
-            p2.ParameterName = "@schemaName";
+            p2.ParameterName = "@schemaname";
             p2.Value = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(commandTriggerName));
             command.Parameters.Add(p2);
 
@@ -65,10 +65,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
         }
         public virtual Task<DbCommand> GetDropTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
-
             var commandTriggerName = this.objectNames.GetTriggerCommandName(triggerType);
+            var commandTriggerNameQuoted = ParserName.Parse(commandTriggerName, "\"").Quoted().ToString();
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var tableUnquoted = tableName.Unquoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
 
-            var commandText = $@"drop trigger IF EXISTS {commandTriggerName} on {tableName.Schema().Unquoted().ToString()}";
+            var commandText = $@"drop trigger if exists {commandTriggerNameQuoted} on {schema}.{tableQuoted}";
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -94,14 +97,19 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             var commandTriggerName = this.objectNames.GetTriggerCommandName(triggerType);
 
+            var commandTriggerNameQuoted = ParserName.Parse(commandTriggerName, "\"").Quoted().ToString();
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var tableUnquoted = tableName.Unquoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine(commandTriggerFunctionString);
             stringBuilder.AppendLine($@"
-                                  CREATE OR REPLACE TRIGGER {commandTriggerName}
+                                  create or replace trigger {commandTriggerNameQuoted}
                                   AFTER {triggerFor}
-                                  ON {tableName.Schema().Unquoted().ToString()}
+                                  ON {schema}.{tableQuoted}
                                   FOR EACH ROW
-                                  EXECUTE FUNCTION {tableName.Unquoted().SchemaName}.{commandTriggerName}_function()");
+                                  EXECUTE FUNCTION {schema}.{commandTriggerName}_function()");
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -112,10 +120,15 @@ namespace Dotmim.Sync.PostgreSql.Builders
             return Task.FromResult(command);
         }
 
-
         private string CreateInsertTriggerAsync()
         {
-            var tablename = tableName.Unquoted().ToString();
+            var trackingTableQuoted = ParserName.Parse(trackingName.ToString(), "\"").Quoted().ToString();
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var tableUnquoted = tableName.Unquoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+
+            var tablename = tableName.Quoted().ToString();
             var idColumnsSelects = new StringBuilder();
             var idColumns = new StringBuilder();
             //var stringPkAreNull = new StringBuilder();
@@ -125,26 +138,26 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
             {
-                var columnName = ParserName.Parse(mutableColumn).Unquoted().ToString();
+                var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
                 idColumns.AppendLine($"{argComma}{columnName}");
                 idColumnsSelects.AppendLine($"{argComma}NEW.{columnName}");
                 //stringPkAreNull.Append($"{argAnd}side.{columnName} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
-            string stringBuilder = @$"CREATE OR REPLACE FUNCTION {tableName.Schema().Unquoted().ToString()}_insert_trigger_function()
+            string stringBuilder = @$"CREATE OR REPLACE FUNCTION {schema}.{tableUnquoted}_insert_trigger_function()
                                     RETURNS trigger
                                     LANGUAGE 'plpgsql'
                                     COST 100
                                     VOLATILE NOT LEAKPROOF
                                 AS $new$
                                 BEGIN
-                                    insert into {trackingName.Schema().Unquoted().ToString()} 
+                                    insert into {schema}.{trackingTableQuoted} 
                                     ({idColumns.ToString()}
-                                        , update_scope_id
+                                        , ""update_scope_id""
                                         ,""timestamp""
-                                        ,sync_row_is_tombstone
-                                        ,last_change_datetime
+                                        ,""sync_row_is_tombstone""
+                                        ,""last_change_datetime""
                                         )
                                     values( {idColumnsSelects.ToString()}
                                         ,null
@@ -155,18 +168,23 @@ namespace Dotmim.Sync.PostgreSql.Builders
                                     on conflict({idColumns.ToString()}) do update
                                    SET
                                    ""timestamp"" = {this.timestampValue}
-                                    ,sync_row_is_tombstone = FALSE
-                                    ,update_scope_id = null
-                                    ,last_change_datetime = now();
+                                    ,""sync_row_is_tombstone"" = FALSE
+                                    ,""update_scope_id"" = null
+                                    ,""last_change_datetime"" = now();
                                 return NEW;
                                 end;
                                 $new$;";
-            
+            var query = stringBuilder.ToString();
             return stringBuilder;
         }
         private string CreateUpdateTriggerAsync()
         {
-            var tablename = tableName.Unquoted().ToString();
+            var trackingTableQuoted = ParserName.Parse(trackingName.ToString(), "\"").Quoted().ToString();
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var tableUnquoted = tableName.Unquoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            var tablename = tableName.Quoted().ToString();
             var idColumnsSelects = new StringBuilder();
             var idColumns = new StringBuilder();
             //var stringPkAreNull = new StringBuilder();
@@ -176,26 +194,26 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
             {
-                var columnName = ParserName.Parse(mutableColumn).Unquoted().ToString();
+                var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
                 idColumns.AppendLine($"{argComma}{columnName}");
                 idColumnsSelects.AppendLine($"{argComma}NEW.{columnName}");
                 //stringPkAreNull.Append($"{argAnd}side.{columnName} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
-            string stringBuilder = @$"CREATE OR REPLACE FUNCTION {tableName.Schema().Unquoted().ToString()}_update_trigger_function()
+            string stringBuilder = @$"CREATE OR REPLACE FUNCTION {schema}.{tableUnquoted}_update_trigger_function()
                                     RETURNS trigger
                                     LANGUAGE 'plpgsql'
                                     COST 100
                                     VOLATILE NOT LEAKPROOF
                                 AS $new$
                                 BEGIN
-                                    insert into {trackingName.Schema().Unquoted().ToString()} 
+                                    insert into {schema}.{trackingTableQuoted} 
                                     ({idColumns.ToString()}
-                                        , update_scope_id
+                                        , ""update_scope_id""
                                         ,""timestamp""
-                                        ,sync_row_is_tombstone
-                                        ,last_change_datetime
+                                        ,""sync_row_is_tombstone""
+                                        ,""last_change_datetime""
                                         )
                                     values( {idColumnsSelects.ToString()}
                                         ,null
@@ -206,18 +224,24 @@ namespace Dotmim.Sync.PostgreSql.Builders
                                     on conflict({idColumns.ToString()}) do update
                                    SET
                                    ""timestamp"" = {this.timestampValue}
-                                    ,sync_row_is_tombstone = FALSE
-                                    ,update_scope_id = null
-                                    ,last_change_datetime = now();
+                                    ,""sync_row_is_tombstone"" = FALSE
+                                    ,""update_scope_id"" = null
+                                    ,""last_change_datetime"" = now();
                                 return NEW;
                                 end;
                                 $new$;";
-
+            var query = stringBuilder.ToString();
             return stringBuilder;
         }
         private string CreateDeleteTriggerAsync()
         {
-            var tablename = tableName.Unquoted().ToString();
+            var trackingTableQuoted = ParserName.Parse(trackingName.ToString(), "\"").Quoted().ToString();
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var tableUnquoted = tableName.Unquoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+
+            var tablename = tableName.Quoted().ToString();
             var idColumnsSelects = new StringBuilder();
             var idColumns = new StringBuilder();
             //var stringPkAreNull = new StringBuilder();
@@ -227,26 +251,26 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
             {
-                var columnName = ParserName.Parse(mutableColumn).Unquoted().ToString();
+                var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
                 idColumns.AppendLine($"{argComma}{columnName}");
                 idColumnsSelects.AppendLine($"{argComma}OLD.{columnName}");
                 //stringPkAreNull.Append($"{argAnd}side.{columnName} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
-            string stringBuilder = @$"CREATE OR REPLACE FUNCTION {tableName.Schema().Unquoted().ToString()}_delete_trigger_function()
+            string stringBuilder = @$"CREATE OR REPLACE FUNCTION {schema}.{tableUnquoted}_delete_trigger_function()
                                     RETURNS trigger
                                     LANGUAGE 'plpgsql'
                                     COST 100
                                     VOLATILE NOT LEAKPROOF
                                 AS $new$
                                 BEGIN
-                                    insert into {trackingName.Schema().Unquoted().ToString()} 
+                                    insert into {schema}.{trackingTableQuoted} 
                                     ({idColumns.ToString()}
-                                        , update_scope_id
+                                        , ""update_scope_id""
                                         ,""timestamp""
-                                        ,sync_row_is_tombstone
-                                        ,last_change_datetime
+                                        ,""sync_row_is_tombstone""
+                                        ,""last_change_datetime""
                                         )
                                     values( {idColumnsSelects.ToString()}
                                         ,null
@@ -257,13 +281,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
                                     on conflict({idColumns.ToString()}) do update
                                    SET
                                    ""timestamp"" = {this.timestampValue}
-                                    ,sync_row_is_tombstone = FALSE
-                                    ,update_scope_id = null
-                                    ,last_change_datetime = now();
+                                    ,""sync_row_is_tombstone"" = FALSE
+                                    ,""update_scope_id"" = null
+                                    ,""last_change_datetime"" = now();
                                 return OLD;
                                 end;
                                 $new$;";
-
+            var query = stringBuilder.ToString();
             return stringBuilder;
         }
     }

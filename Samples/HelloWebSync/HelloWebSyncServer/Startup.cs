@@ -45,17 +45,22 @@ namespace HelloWebSyncServer
             var options = new SyncOptions
             {
                 SnapshotsDirectory = "C:\\Tmp\\Snapshots",
-                BatchSize = 2000,
+                BatchSize = 1000,
+                UseVerboseErrors = true
             };
 
             // [Required] Tables involved in the sync process:
             //var tables = new string[] { "ProductCategory", "ProductModel", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
             //var tables = new string[] { "humanresources.department", "humanresources.employeedepartmenthistory", "humanresources.employee", "humanresources.jobcandidate", "person.person", "person.address" };
-            var tables = new string[] { "public.Items", "public.SaleInvoices", "public.SaleInvoiceItem" };
+            //var tables = new string[] { "public.Branches", "public.Items", "public.SaleInvoices", "public.SaleInvoiceItem" };
+            var tables = new string[] { "Waseem" };
 
+            var setup = new SyncSetup("public.Waseem") { };
+
+            setup.Tables["public.Waseem"].Columns.AddRange(new string[] { "Id", "FName", "RollNo" });
             // [Required]: Add a SqlSyncProvider acting as the server hub.
             //services.AddSyncServer<SqlSyncProvider>(connectionString, tables, options);
-            services.AddSyncServer<NpgsqlSyncProvider>(connectionString, tables, options);
+            services.AddSyncServer<NpgsqlSyncProvider>(connectionString, setup, options);
             //services.AddSyncServer<MySqlSyncProvider>(connectionString, tables, options);
         }
 
@@ -64,7 +69,7 @@ namespace HelloWebSyncServer
         {
             if (env.IsDevelopment())
                 app.UseDeveloperExceptionPage();
-           
+
             app.UseHttpsRedirection();
             app.UseRouting();
             app.UseAuthorization();

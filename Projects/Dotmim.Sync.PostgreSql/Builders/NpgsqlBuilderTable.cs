@@ -37,7 +37,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             command.Connection = connection;
             command.Transaction = transaction;
 
-            var stringBuilder = new StringBuilder($"ALTER TABLE IF EXISTS {tableName.Schema().Quoted().ToString()}");
+            var stringBuilder = new StringBuilder($"alter table if exists {tableName.Schema().Quoted().ToString()}");
 
             var column = this.tableDescription.Columns[columnName];
             var columnNameString = ParserName.Parse(column).Quoted().ToString();
@@ -84,14 +84,14 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 var typeName = c["data_type"].ToString();
                 var udt_name = c["udt_name"].ToString();
                 var name = c["column_name"].ToString();
-                var maxLengthLong = c["character_maximum_length"] != DBNull.Value ? (int)c["CHARACTER_MAXIMUM_LENGTH"] : 0;
+                var maxLengthLong = c["character_maximum_length"] != DBNull.Value ? (int)c["character_maximum_length"] : 0;
                 byte precision = c["numeric_precision"] != DBNull.Value ? Convert.ToByte(c["numeric_precision"].ToString()) : byte.MinValue;
                 byte numeric_scale = c["numeric_scale"] != DBNull.Value ? Convert.ToByte(c["numeric_scale"].ToString()) : byte.MinValue;
                 var sColumn = new SyncColumn(name)
                 {
-                    OriginalDbType = typeName,
+                    OriginalDbType = udt_name,
                     Ordinal = (int)c["ordinal_position"],
-                    OriginalTypeName = udt_name,
+                    OriginalTypeName = typeName,
                     MaxLength = maxLengthLong,
                     Precision = precision,
                     Scale = numeric_scale,
@@ -152,20 +152,20 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"ALTER TABLE IF EXISTS {tableName.Schema().Unquoted().ToString()} DROP COLUMN {columnName};";
+            command.CommandText = $"alter table if exists {tableName.Schema().Quoted().ToString()} drop column {columnName};";
 
             return Task.FromResult(command);
         }
 
         public Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var table = tableName.Unquoted().ToString();
+            var table = tableName.Quoted().ToString();
             var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
 
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"DROP TABLE {schema}.{table};";
+            command.CommandText = $"drop table {schema}.{table};";
 
             return Task.FromResult(command);
         }
@@ -178,10 +178,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = @"SELECT EXISTS (SELECT FROM INFORMATION_SCHEMA.COLUMNS 
-                                        WHERE TABLE_SCHEMA=@schemaName 
-                                        AND TABLE_NAME=@tableName 
-                                        AND COLUMN_NAME =@columnName);";
+            command.CommandText = @"select exists (select from information_schema.columns 
+                                        where table_schema=@schemaname 
+                                        and table_name=@tablename 
+                                        and column_name =@columnname);";
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
@@ -189,12 +189,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();
-            parameter.ParameterName = "@schemaName";
+            parameter.ParameterName = "@schemaname";
             parameter.Value = schema;
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();
-            parameter.ParameterName = "@columnName";
+            parameter.ParameterName = "@columnname";
             parameter.Value = columnName;
             command.Parameters.Add(parameter);
 
@@ -206,7 +206,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             if (string.IsNullOrEmpty(tableName.SchemaName))
                 return null;
 
-            var schemaCommand = $"SELECT EXISTS (SELECT FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = @schemaName)";
+            var schemaCommand = $"select exists (select from information_schema.schemata where schema_name = @schemaname)";
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -214,7 +214,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             command.CommandText = schemaCommand;
 
             var parameter = command.CreateParameter();
-            parameter.ParameterName = "@schemaName";
+            parameter.ParameterName = "@schemaname";
             parameter.Value = tableName.SchemaName;
             command.Parameters.Add(parameter);
 
@@ -231,19 +231,19 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var dbCommand = connection.CreateCommand();
             dbCommand.Connection = connection;
             dbCommand.Transaction = transaction;
-            dbCommand.CommandText = @"SELECT EXISTS (SELECT FROM PG_TABLES 
-                                          WHERE SCHEMANAME=@schemaName 
-                                            AND TABLENAME=@tableName)";
+            dbCommand.CommandText = @"select exists (select from pg_tables 
+                                          where schemaname=@schemaname 
+                                            and tablename=@tablename)";
 
 
             var parameter = dbCommand.CreateParameter();
 
-            parameter.ParameterName = "@tableName";
+            parameter.ParameterName = "@tablename";
             parameter.Value = pTableName;
             dbCommand.Parameters.Add(parameter);
 
             parameter = dbCommand.CreateParameter();
-            parameter.ParameterName = "@schemaName";
+            parameter.ParameterName = "@schemaname";
             parameter.Value = pSchemaName;
             dbCommand.Parameters.Add(parameter);
 
@@ -318,12 +318,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var table = this.tableName.Unquoted().ToString();
             var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
 
-            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {schema}.{table} (");
+            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {schema}.\"{table}\" (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
             {
-                var columnName = ParserName.Parse(column).Unquoted().ToString();
+                var columnName = ParserName.Parse(column,"\"").Quoted().ToString();
 
                 var columnType = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.tableDescription.OriginalProvider);
 

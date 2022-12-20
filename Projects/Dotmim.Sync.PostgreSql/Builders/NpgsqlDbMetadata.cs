@@ -55,8 +55,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case NpgsqlDbType.Varbit:
                 case NpgsqlDbType.Varchar:
                 case NpgsqlDbType.Char:
-                //case NpgsqlDbType.Text:
-                        argument = $"({column.MaxLength})";
+                    //case NpgsqlDbType.Text:
+                    argument = $"({column.MaxLength})";
                     break;
                 case NpgsqlDbType.Numeric:
                     var (p, s) = this.GetPrecisionAndScale(column);
@@ -175,13 +175,17 @@ namespace Dotmim.Sync.PostgreSql.Builders
                     return DbType.Date;
 
                 case "timestamp":
+                case "timestamp without time zone":
                     return DbType.DateTime;
 
                 case "timestamptz":
+                case "timestamp with time zone":
                 case "timetz":
+                case "time with time zone":
                     return DbType.DateTimeOffset;
 
                 case "time":
+                case "time without time zone":
                     return DbType.Time;
 
 
@@ -212,6 +216,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
                 case "xml":
                     return DbType.String;
+                case "array":
+                    return DbType.Object;
 
             }
             throw new Exception($"this type {column.OriginalTypeName.ToLowerInvariant()} is not supported");
@@ -243,7 +249,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
                     return NpgsqlDbType.Array;
                 case "bigint":
                 case "int8":
-                    return NpgsqlDbType.Bigint;
                 case "bit":
                     return NpgsqlDbType.Bit;
                 case "boolean":
@@ -336,12 +341,16 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case "tid":
                     return NpgsqlDbType.Tid;
                 case "time":
+                case "time without time zone":
                     return NpgsqlDbType.Time;
                 case "timestamp":
+                case "timestamp without time zone":
                     return NpgsqlDbType.Timestamp;
                 case "timestamptz":
+                case "timestamp with time zone":
                     return NpgsqlDbType.TimestampTz;
                 case "timetz":
+                case "time with time zone":
                     return NpgsqlDbType.TimeTz;
                 case "tsquery":
                     return NpgsqlDbType.TsQuery;
@@ -411,7 +420,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case DbType.Time:
                     return NpgsqlDbType.Time;
                 case DbType.Object:
-                    return NpgsqlDbType.Bytea;
+                    return NpgsqlDbType.Array;
             }
             throw new Exception($"this type name {column.GetType().ToString()} is not supported");
         }
@@ -483,6 +492,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case NpgsqlDbType.Jsonb:
                 case NpgsqlDbType.Hstore:
                     return Type.GetType("System.String");
+                case NpgsqlDbType.Array:
+                    return Type.GetType("System.String");
             }
             throw new Exception($"this NpgsqlDbType {GetNpgsqlDbType(column).ToString()} is not supported");
 
@@ -531,6 +542,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
         {
             switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
             {
+                case "array":
                 case "smallint":
                 case "int2":
                 case "int2vector":
@@ -575,9 +587,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case "text":
                 case "date":
                 case "timestamp":
+                case "timestamp without time zone":
                 case "timestamptz":
+                case "timestamp with time zone":
                 case "timetz":
+                case "time with time zone":
                 case "time":
+                case "time without time zone":
                 case "double precision":
                 case "float8":
                 case "hstore":

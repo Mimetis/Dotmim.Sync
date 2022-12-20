@@ -15,24 +15,23 @@ namespace Dotmim.Sync.PostgreSql.Builders
         internal const string updateTriggerName = "{0}update_trigger";
         internal const string deleteTriggerName = "{0}delete_trigger";
 
-        internal const string selectChangesProcName = "{0}.{1}{2}changes";
-        internal const string selectChangesProcNameWithFilters = "{0}.{1}{2}{3}changes";
+        internal const string selectChangesProcName = @"{0}.""{1}{2}changes""";
+        internal const string selectChangesProcNameWithFilters = @"{0}.""{1}{2}{3}changes""";
 
-        internal const string initializeChangesProcName = "{0}.{1}{2}initialize";
-        internal const string initializeChangesProcNameWithFilters = "{0}.{1}{2}{3}initialize";
+        internal const string initializeChangesProcName = @"{0}.""{1}{2}initialize""";
+        internal const string initializeChangesProcNameWithFilters = @"{0}.""{1}{2}{3}initialize""";
 
-        internal const string selectRowProcName = "{0}.{1}{2}selectrow";
+        internal const string selectRowProcName = @"{0}.""{1}{2}selectrow""";
 
-        internal const string insertProcName = "{0}.{1}{2}insert";
-        internal const string updateProcName = "{0}.{1}{2}update";
-        internal const string deleteProcName = "{0}.{1}{2}delete";
+        internal const string insertProcName = @"{0}.""{1}{2}insert""";
+        internal const string updateProcName = @"{0}.""{1}{2}update""";
+        internal const string deleteProcName = @"{0}.""{1}{2}delete""";
 
-        internal const string deleteMetadataProcName = "{0}.{1}{2}deletemetadata";
+        internal const string deleteMetadataProcName = @"{0}.""{1}{2}deletemetadata""";
 
-        internal const string resetMetadataProcName = "{0}.{1}{2}reset";
+        internal const string resetMetadataProcName = @"{0}.""{1}{2}reset""";
 
         //internal const string bulkTableTypeName = "{0}.{1}{2}BulkType";
-
         //internal const string bulkInsertProcName = "{0}.{1}{2}bulkinsert";
         //internal const string bulkUpdateProcName = "{0}.{1}{2}bulkupdate";
         //internal const string bulkDeleteProcName = "{0}.{1}{2}bulkdelete";
@@ -59,7 +58,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             this.SetDefaultNames();
         }
 
-        
+
 
         public void AddCommandName(DbCommandType objectType, string name)
         {
@@ -129,6 +128,11 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         private string CreateSelectMetadataCommand()
         {
+            var trackingTableQuoted = ParserName.Parse(trackingName.ToString(), "\"").Quoted().ToString();
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var tableUnquoted = tableName.Unquoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
             var stringBuilder = new StringBuilder();
             var pkeysSelect = new StringBuilder();
             var pkeysWhere = new StringBuilder();
@@ -138,7 +142,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             string comma = string.Empty;
             foreach (var pkColumn in tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(pkColumn).Unquoted().ToString();
+                var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
                 pkeysSelect.Append($"{comma}side.{columnName}");
 
@@ -149,7 +153,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             }
 
             stringBuilder.AppendLine($"SELECT {pkeysSelect}, side.update_scope_id, side.timestamp_bigint as timestamp, side.sync_row_is_tombstone");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Unquoted().ToString()} side");
+            stringBuilder.AppendLine($"FROM {schema}.{trackingTableQuoted} side");
             stringBuilder.AppendLine($"WHERE {pkeysWhere}");
 
             return stringBuilder.ToString();
@@ -157,6 +161,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         private string CreateUpdateMetadataCommand()
         {
+            var trackingTableQuoted = ParserName.Parse(trackingName.ToString(), "\"").Quoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
             var stringBuilder = new StringBuilder();
             var pkeysForUpdate = new StringBuilder();
 
@@ -170,7 +177,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             string comma = string.Empty;
             foreach (var pkColumn in tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(pkColumn).Unquoted().ToString();
+                var columnName = ParserName.Parse(pkColumn,"\"").Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
 
                 pkeysForUpdate.Append($"{and}side.{columnName} = @{parameterName}");
@@ -186,24 +193,24 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
 
             stringBuilder.AppendLine($"UPDATE side SET ");
-            stringBuilder.AppendLine($" update_scope_id = @sync_scope_id, ");
-            stringBuilder.AppendLine($" sync_row_is_tombstone = @sync_row_is_tombstone, ");
-            stringBuilder.AppendLine($" last_change_datetime = GETUTCDATE() ");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Unquoted().ToString()} side ");
+            stringBuilder.AppendLine($@" ""update_scope_id"" = @sync_scope_id, ");
+            stringBuilder.AppendLine($@" ""sync_row_is_tombstone"" = @sync_row_is_tombstone, ");
+            stringBuilder.AppendLine($@" ""last_change_datetime"" = now() ");
+            stringBuilder.AppendLine($"FROM {schema}.{trackingTableQuoted} side ");
             stringBuilder.Append($"WHERE ");
             stringBuilder.Append(pkeysForUpdate.ToString());
             stringBuilder.AppendLine($";");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Unquoted().ToString()} (");
+            stringBuilder.AppendLine($"INSERT INTO {schema}.{trackingTableQuoted} (");
             stringBuilder.AppendLine(pkeySelectForInsert.ToString());
-            stringBuilder.AppendLine(",update_scope_id, sync_row_is_tombstone,last_change_datetime )");
+            stringBuilder.AppendLine(@",""update_scope_id"", ""sync_row_is_tombstone"",""last_change_datetime"" )");
             stringBuilder.AppendLine($"SELECT {pkeyISelectForInsert.ToString()} ");
-            stringBuilder.AppendLine($"   , i.sync_scope_id, i.sync_row_is_tombstone, i.UtcDate");
+            stringBuilder.AppendLine($@"   , i.""sync_scope_id"", i.""sync_row_is_tombstone"", i.""UtcDate""");
             stringBuilder.AppendLine("FROM (");
             stringBuilder.AppendLine($"  SELECT {pkeyAliasSelectForInsert}");
-            stringBuilder.AppendLine($"          ,@sync_scope_id as sync_scope_id, @sync_row_is_tombstone as sync_row_is_tombstone, GETUTCDATE() as UtcDate) as i");
-            stringBuilder.AppendLine($"LEFT JOIN  {trackingName.Schema().Unquoted().ToString()} side ON {pkeysLeftJoinForInsert.ToString()} ");
+            stringBuilder.AppendLine($"          ,@sync_scope_id as sync_scope_id, @sync_row_is_tombstone as sync_row_is_tombstone, now() as UtcDate) as i");
+            stringBuilder.AppendLine($"LEFT JOIN  {schema}.{trackingTableQuoted} side ON {pkeysLeftJoinForInsert.ToString()} ");
             stringBuilder.AppendLine($"WHERE {pkeysIsNullForInsert.ToString()};");
 
 
@@ -212,6 +219,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         private string CreateUpdateUntrackedRowsCommand()
         {
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var trackingTableQuoted = ParserName.Parse(trackingName.ToString(), "\"").Quoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
             var stringBuilder = new StringBuilder();
             var str1 = new StringBuilder();
             var str2 = new StringBuilder();
@@ -224,7 +235,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var comma = "";
             foreach (var pkeyColumn in tableDescription.GetPrimaryKeysColumns())
             {
-                var pkeyColumnName = ParserName.Parse(pkeyColumn).Unquoted().ToString();
+                var pkeyColumnName = ParserName.Parse(pkeyColumn,"\"").Quoted().ToString();
 
                 str1.Append($"{comma}{pkeyColumnName}");
                 str2.Append($"{comma}base.{pkeyColumnName}");
@@ -233,15 +244,15 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 comma = ", ";
             }
             stringBuilder.Append(str1.ToString());
-            stringBuilder.AppendLine($", update_scope_id, sync_row_is_tombstone, last_change_datetime");
+            stringBuilder.AppendLine($@", ""update_scope_id"", ""sync_row_is_tombstone"", ""last_change_datetime""");
             stringBuilder.AppendLine($")");
             stringBuilder.Append($"SELECT ");
             stringBuilder.Append(str2.ToString());
-            stringBuilder.AppendLine($", NULL, 0, GetUtcDate()");
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Unquoted().ToString()} as base WHERE NOT EXISTS");
+            stringBuilder.AppendLine($", NULL, 0, now()");
+            stringBuilder.AppendLine($"FROM {schema}.{tableQuoted} as base WHERE NOT EXISTS");
             stringBuilder.Append($"(SELECT ");
             stringBuilder.Append(str3.ToString());
-            stringBuilder.AppendLine($" FROM {trackingName.Schema().Unquoted().ToString()} as side ");
+            stringBuilder.AppendLine($" FROM {schema}.{trackingTableQuoted} as side ");
             stringBuilder.AppendLine($"WHERE {str4})");
 
             var r = stringBuilder.ToString();
@@ -261,9 +272,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             var scopeNameWithoutDefaultScope = scopeName == SyncOptions.DefaultScopeName ? "" : $"{scopeName}_";
 
-            var schema = string.IsNullOrEmpty(tableName.SchemaName) ? "public" : tableName.SchemaName;
-
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
             var storedProcedureName = $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}_";
+            //var storedProcedureName = ParserName.Parse(storedProcedure, "\"").Quoted().ToString();
+
             var triggerName = $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}_";
 
             this.AddStoredProcedureName(DbStoredProcedureType.SelectChanges, string.Format(selectChangesProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));

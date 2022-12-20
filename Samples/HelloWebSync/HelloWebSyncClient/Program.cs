@@ -15,7 +15,7 @@ namespace HelloWebSyncClient
     {
         //private static string clientConnectionString = $"Server=127.0.0.1;Port=3306;Database=Client;Uid=root;Pwd=Server123;";
         //private static string clientConnectionString = $"Host=localhost;Username=postgres;Password=postgres;Database=Offline;port=5433;Include Error Detail=true;";
-        private static string clientConnectionString = $"Host=localhost;Username=postgres;Password=03095165265JMMtech@;Database=client;Include Error Detail=true;";
+        private static string clientConnectionString = $"Host=localhost;Username=postgres;Password=03095165265JMMtech@;Database=offline;Include Error Detail=true;";
 
         static async Task Main(string[] args)
         {

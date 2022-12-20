@@ -42,8 +42,8 @@ namespace Dotmim.Sync.PostgreSql
             string strSeparator = "";
             foreach (var mutableColumn in table.GetMutableColumns(false))
             {
-                var quotedColumn = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
-                var unquotedColumn = ParserName.Parse(mutableColumn, "\"").Unquoted().Normalized().ToString();
+                var unquotedColumn = ParserName.Parse(mutableColumn).Unquoted().ToString();
+                var quotedColumn = ParserName.Parse(mutableColumn, "\"").Quoted().Normalized().ToString();
 
                 stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn} = \"{sql_prefix}{unquotedColumn}\"");
                 strSeparator = ", ";
@@ -160,10 +160,10 @@ namespace Dotmim.Sync.PostgreSql
         {
             var command = $@"
                             SELECT TABLE_NAME,
-	                            TABLE_SCHEMA
+	                               TABLE_SCHEMA
                             FROM INFORMATION_SCHEMA.TABLES
                             WHERE TABLE_TYPE = 'BASE TABLE'
-	                            AND TABLE_SCHEMA not in ('information_schema';
+	                              AND TABLE_SCHEMA not in ('information_schema','pg_catalog');
                            ";
 
             var syncSetup = new SyncSetup();
@@ -207,22 +207,22 @@ namespace Dotmim.Sync.PostgreSql
         public static async Task<SyncTable> GetColumnsForTableAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string tableName, string schemaName)
         {
             var commandColumn = @"
-                                SELECT COLUMN_NAME,
-	                                ORDINAL_POSITION,
-	                                DATA_TYPE,
-	                                UDT_NAME,
-	                                CHARACTER_MAXIMUM_LENGTH,
-	                                NUMERIC_PRECISION,
-	                                NUMERIC_SCALE,
-	                                IS_NULLABLE,
-	                                IS_GENERATED,
-	                                IS_IDENTITY,
-	                                COLUMN_DEFAULT,
-	                                IDENTITY_START,
-	                                IDENTITY_INCREMENT
-                                FROM INFORMATION_SCHEMA.COLUMNS
-                                WHERE TABLE_NAME = @TABLENAME
-	                                AND TABLE_SCHEMA = @SCHEMANAME;";
+                                select column_name,
+	                                ordinal_position,
+	                                data_type,
+	                                udt_name,
+	                                character_maximum_length,
+	                                numeric_precision,
+	                                numeric_scale,
+	                                is_nullable,
+	                                is_generated,
+	                                is_identity,
+	                                column_default,
+	                                identity_start,
+	                                identity_increment
+                                from information_schema.columns
+                                where table_name = @tablename
+	                                and table_schema = @schemaname;";
 
             var tableNameNormalized = ParserName.Parse(tableName, "\"").Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName, "\"").Unquoted().ToString();
@@ -323,7 +323,7 @@ namespace Dotmim.Sync.PostgreSql
 	                AND TC.TABLE_NAME = @TABLENAME
 	                AND TC.TABLE_SCHEMA = @SCHEMANAME;";
 
-            var tableNameNormalized = ParserName.Parse(tableName, "\"").Unquoted().Normalized().ToString();
+            var tableNameNormalized = ParserName.Parse(tableName, "\"").Quoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName, "\"").ToString();
 
             var schemaNameString = "public";
@@ -385,7 +385,7 @@ namespace Dotmim.Sync.PostgreSql
                 JOIN information_schema.constraint_column_usage AS ccu ON ccu.constraint_name = tc.constraint_name  AND ccu.table_schema = tc.table_schema
                 WHERE tc.constraint_type = 'FOREIGN KEY' and tc.table_name = @tableName AND tc.table_schema = @schemaName";
 
-            var tableNameNormalized = ParserName.Parse(tableName, "\"").Unquoted().Normalized().ToString();
+            var tableNameNormalized = ParserName.Parse(tableName, "\"").Quoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName, "\"").ToString();
 
             var schemaNameString = ParserName.Parse(schemaName, "\"").ToString();
@@ -438,7 +438,7 @@ namespace Dotmim.Sync.PostgreSql
 	                            TABLE_NAME
                             LIMIT 1";
 
-            var tableNameNormalized = ParserName.Parse(tableName, "\"").Unquoted().Normalized().ToString();
+            var tableNameNormalized = ParserName.Parse(tableName, "\"").Quoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName, "\"").ToString();
 
             var schemaNameString = "public";
@@ -489,7 +489,7 @@ namespace Dotmim.Sync.PostgreSql
                                 and table_name=@tableName and table_schema=@schemaName
 	                            AND TABLE_SCHEMA not in ('information_schema','pg_catalog');";
 
-            var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
+            var tableNameNormalized = ParserName.Parse(tableName).Quoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();
 
             var schemaNameString = "dbo";
@@ -538,7 +538,7 @@ namespace Dotmim.Sync.PostgreSql
 	                            AND TRIGGER_SCHEMA = @SCHEMANAME;";
 
 
-            var triggerNameNormalized = ParserName.Parse(triggerName, "\"").Unquoted().Normalized().ToString();
+            var triggerNameNormalized = ParserName.Parse(triggerName, "\"").Quoted().Normalized().ToString();
             var triggerNameString = ParserName.Parse(triggerName, "\"").ToString();
 
             var schemaNameString = "public";
@@ -598,7 +598,7 @@ namespace Dotmim.Sync.PostgreSql
             string str = "";
             foreach (var column in columns)
             {
-                var quotedColumn = ParserName.Parse(column, "\"").Unquoted().ToString();
+                var quotedColumn = ParserName.Parse(column, "\"").Quoted().ToString();
 
                 stringBuilder.Append(str);
                 stringBuilder.Append(strLeftName);
@@ -650,11 +650,11 @@ namespace Dotmim.Sync.PostgreSql
 
         public static async Task RenameTableAsync(string tableName, string schemaName, string newTableName, string newSchemaName, NpgsqlConnection connection, NpgsqlTransaction transaction)
         {
-            var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
-            var pSchemaName = ParserName.Parse(schemaName).Unquoted().ToString();
+            var pTableName = ParserName.Parse(tableName).Quoted().ToString();
+            var pSchemaName = ParserName.Parse(schemaName).Quoted().ToString();
 
-            var pNewTableName = ParserName.Parse(newTableName).Unquoted().ToString();
-            var pNewSchemaName = ParserName.Parse(newSchemaName).Unquoted().ToString();
+            var pNewTableName = ParserName.Parse(newTableName).Quoted().ToString();
+            var pNewSchemaName = ParserName.Parse(newSchemaName).Quoted().ToString();
 
             var quotedTableName = string.IsNullOrEmpty(pSchemaName) ? pTableName : $"{pSchemaName}.{pTableName}";
             var quotedNewTableName = string.IsNullOrEmpty(pNewSchemaName) ? pNewTableName : $"{pNewSchemaName}.{pNewTableName}";
@@ -807,8 +807,8 @@ namespace Dotmim.Sync.PostgreSql
             string str1 = "";
             foreach (var column in primaryKeys)
             {
-                var unquotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
-                var paramUnquotedColumn = ParserName.Parse($"{mysql_prefix}{column.ColumnName}").Unquoted().Normalized().ToString();
+                var unquotedColumn = ParserName.Parse(column,"\"").Quoted().Normalized().ToString();
+                var paramUnquotedColumn = ParserName.Parse($"{mysql_prefix}{column.ColumnName}","\"").Quoted().Normalized().ToString();
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);
