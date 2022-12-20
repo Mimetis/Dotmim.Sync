@@ -89,11 +89,11 @@ namespace Dotmim.Sync
                         cScopeInfoClient.Id = cScopeInfoClients[0].Id;
                 }
 
-                if (shouldSave)
-                    (context, cScopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(cScopeInfoClient, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
                 // affect correct value to current context
                 context.ClientId = cScopeInfoClient.Id;
+
+                if (shouldSave)
+                    (context, cScopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(cScopeInfoClient, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 return (context, cScopeInfoClient);
             }

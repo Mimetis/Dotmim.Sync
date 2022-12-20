@@ -35,6 +35,7 @@ using NLog.Web;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using Dotmim.Sync.SqlServer.Builders;
 using Microsoft.Extensions.Options;
+using System.Security.Cryptography.X509Certificates;
 
 #if NET5_0 || NET6_0 || NET7_0
 using MySqlConnector;
@@ -67,7 +68,8 @@ internal class Program
         //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
         //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqliteSyncProvider("dada.db");
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
 
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
@@ -117,7 +119,7 @@ internal class Program
 
         //await GenerateErrorsAsync();
 
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        await SynchronizeWithScopesAsync(clientProvider, serverProvider, setup, options);
         //await LoadLocalSchemaAsync();
     }
 
@@ -226,6 +228,49 @@ internal class Program
             Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
         }
         Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+
+    }
+
+    private static async Task SynchronizeWithScopesAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
+    {
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
+        //options.ProgressLevel = SyncProgressLevel.Debug;
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        do
+        {
+            try
+            {
+                Console.Clear();
+                Console.ForegroundColor = ConsoleColor.Green;
+                var s = await agent.SynchronizeAsync("vD", setup, progress: progress);
+                Console.WriteLine(s);
+                s = await agent.SynchronizeAsync("v0", setup, progress: progress);
+                Console.WriteLine(s);
+                s = await agent.SynchronizeAsync("v1", setup, progress: progress);
+                Console.WriteLine(s);
+                s = await agent.SynchronizeAsync("v0", setup, progress: progress);
+                Console.WriteLine(s);
+                s = await agent.SynchronizeAsync(setup, progress: progress);
+                Console.WriteLine(s);
+
+            }
+            catch (SyncException e)
+            {
+                Console.ResetColor();
+                Console.WriteLine(e.Message);
+            }
+            catch (Exception e)
+            {
+                Console.ResetColor();
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
     }
 

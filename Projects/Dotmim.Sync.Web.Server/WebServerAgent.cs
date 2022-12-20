@@ -143,8 +143,8 @@ namespace Dotmim.Sync.Web.Server
                 // HttpStep.EnsureSchema is the first call from client when client is new
                 // HttpStep.EnsureScopes is the first call from client when client is not new
                 // This is the only moment where we are initializing the sessionCache and store it in session
-                if (sessionCache == null
-                    && (step == HttpStep.EnsureSchema || step == HttpStep.EnsureScopes || step == HttpStep.GetRemoteClientTimestamp))
+                if (sessionCache == null && 
+                    (step == HttpStep.EnsureSchema || step == HttpStep.EnsureScopes || step == HttpStep.GetRemoteClientTimestamp))
                 {
                     sessionCache = new SessionCache();
                     httpContext.Session.Set(sessionId, sessionCache);
@@ -161,10 +161,6 @@ namespace Dotmim.Sync.Web.Server
 
                 if (string.IsNullOrEmpty(tempSessionId) || tempSessionId != sessionId)
                     throw new HttpSessionLostException(sessionId);
-
-
-                //// action from user if available
-                //action?.Invoke(this);
 
                 // Get the serializer and batchsize
                 (var clientBatchSize, var clientSerializerFactory) = this.GetClientSerializer(serAndsizeString);
@@ -247,7 +243,6 @@ namespace Dotmim.Sync.Web.Server
                         var s11 = await this.EnsureScopesAsync(httpContext, (HttpMessageEnsureScopesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false);
                         messageResponse = new HttpMessageEnsureSchemaResponse(s11.SyncContext, s11.ServerScopeInfo);
                         break;
-
                     case HttpStep.SendChangesInProgress:
                         var sendChangesRequest = (HttpMessageSendChangesRequest)messsageRequest;
                         await this.RemoteOrchestrator.InterceptAsync(new HttpGettingClientChangesArgs(sendChangesRequest, httpContext.Request.Host.Host, sessionCache), progress, cancellationToken).ConfigureAwait(false);
@@ -276,38 +271,28 @@ namespace Dotmim.Sync.Web.Server
 
                         messageResponse = await this.ApplyThenGetChangesAsync2(httpContext, sendChangesRequest, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
                         break;
-
                     case HttpStep.GetMoreChanges:
                         messageResponse = await this.GetMoreChangesAsync(httpContext, (HttpMessageGetMoreChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false); ;
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs((HttpMessageSendChangesResponse)messageResponse, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
                         break;
-
                     case HttpStep.GetSnapshot:
                         messageResponse = await this.GetSnapshotAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, sessionCache, cancellationToken, progress);
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs((HttpMessageSendChangesResponse)messageResponse, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
                         break;
-
                     // version >= 0.8    
                     case HttpStep.GetSummary:
                         messageResponse = await this.GetSnapshotSummaryAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false); ;
                         break;
                     case HttpStep.SendEndDownloadChanges:
                         messageResponse = await this.SendEndDownloadChangesAsync(httpContext, (HttpMessageGetMoreChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false); ;
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs((HttpMessageSendChangesResponse)messageResponse, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
                         break;
-
                     case HttpStep.GetEstimatedChangesCount:
                         messageResponse = await this.GetEstimatedChangesCountAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false); ;
                         break;
-
                     case HttpStep.GetRemoteClientTimestamp:
                         messageResponse = await this.GetRemoteClientTimestampAsync(httpContext, (HttpMessageRemoteTimestampRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false); ;
                         break;
-
                     case HttpStep.GetOperation:
                         messageResponse = await this.GetOperationAsync(httpContext, (HttpMessageOperationRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false); ;
                         break;
-
                     case HttpStep.EndSession:
                         messageResponse = await this.EndSessionAsync(httpContext, (HttpMessageEndSessionRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false); ;
                         break;
@@ -316,6 +301,9 @@ namespace Dotmim.Sync.Web.Server
                 httpContext.Session.Set(scopeName, schema);
                 httpContext.Session.Set(sessionId, sessionCache);
                 await httpContext.Session.CommitAsync(cancellationToken);
+
+                if (messageResponse is HttpMessageSendChangesResponse)
+                    await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs((HttpMessageSendChangesResponse)messageResponse, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
 
                 await this.RemoteOrchestrator.InterceptAsync(new HttpSendingResponseArgs(httpContext, messageResponse.SyncContext, sessionCache, messageResponse, responseSerializerType, step), progress, cancellationToken).ConfigureAwait(false);
 
