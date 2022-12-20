@@ -64,6 +64,8 @@ namespace Dotmim.Sync.Web.Client
                 // Re build schema relationships with all tables
                 ensureScopesResponse.ServerScopeInfo.Schema?.EnsureSchema();
 
+                context = ensureScopesResponse.SyncContext;
+
                 // Report Progress
                 await this.InterceptAsync(new HttpGettingScopeResponseArgs(ensureScopesResponse.ServerScopeInfo, ensureScopesResponse.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 

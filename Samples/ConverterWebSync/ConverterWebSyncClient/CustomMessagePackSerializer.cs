@@ -13,6 +13,7 @@ namespace ConverterWebSyncClient
     {
         public string Key => "mpack";
         public ISerializer<T> GetSerializer<T>() => new CustomMessagePackSerializer<T>();
+        public ISerializer GetSerializer(Type objectType) => new CustomMessagePackSerializer(objectType);
     }
 
     public class CustomMessagePackSerializer<T> : ISerializer<T>
@@ -33,6 +34,29 @@ namespace ConverterWebSyncClient
 
                 return ms.ToArray();
             }
+        }
+    }
+    public class CustomMessagePackSerializer : ISerializer
+    {
+        public CustomMessagePackSerializer(Type objectType)
+        {
+            this.ObjectType = objectType;
+        }
+
+        public Type ObjectType { get; }
+
+        public async Task<object> DeserializeAsync(Stream ms)
+        {
+            var val = await MessagePackSerializer.DeserializeAsync(ObjectType, ms, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance)); ;
+            return val;
+        }
+
+        public async Task<byte[]> SerializeAsync(object obj)
+        {
+            using var ms = new MemoryStream();
+            await MessagePackSerializer.SerializeAsync(ObjectType, ms, obj, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
+
+            return ms.ToArray();
         }
     }
 }

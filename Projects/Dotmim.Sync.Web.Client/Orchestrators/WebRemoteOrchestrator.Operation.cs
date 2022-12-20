@@ -50,6 +50,8 @@ namespace Dotmim.Sync.Web.Client
                 if (operationResponse == null)
                     throw new ArgumentException("Http Message content for Get Operation scope can't be null");
 
+                context = operationResponse.SyncContext;
+
                 // Return scopes and new shema
                 return (context, operationResponse.SyncOperation);
             }

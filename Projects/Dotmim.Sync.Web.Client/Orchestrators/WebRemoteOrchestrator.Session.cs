@@ -50,9 +50,23 @@ namespace Dotmim.Sync.Web.Client
                 var binaryData = await serializer.SerializeAsync(httpMessage);
 
                 // No batch size submitted here, because the schema will be generated in memory and send back to the user.
-                await this.httpRequestHandler.ProcessRequestAsync
+                var response = await this.httpRequestHandler.ProcessRequestAsync
                     (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.EndSession,
                      this.SerializerFactory, this.Converter, 0, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
+
+
+                HttpMessageEndSessionResponse endSessionResponse = null;
+
+                using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                {
+                    if (streamResponse.CanRead)
+                        endSessionResponse = await this.SerializerFactory.GetSerializer<HttpMessageEndSessionResponse>().DeserializeAsync(streamResponse);
+                }
+
+                if (endSessionResponse == null)
+                    throw new ArgumentException("Http Message content for End session can't be null");
+
+                context = endSessionResponse.SyncContext;
 
                 // Progress & interceptor
                 var sessionEnd = new SessionEndArgs(context, result, syncException, null) { Source = this.GetServiceHost() };

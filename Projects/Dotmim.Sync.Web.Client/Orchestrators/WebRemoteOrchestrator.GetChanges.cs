@@ -204,6 +204,8 @@ namespace Dotmim.Sync.Web.Client
                 if (summaryResponseContent == null)
                     throw new Exception("Summary can't be null");
 
+                context = summaryResponseContent.SyncContext;
+
                 // generate the new scope ite
                 this.CompleteTime = DateTime.UtcNow;
 

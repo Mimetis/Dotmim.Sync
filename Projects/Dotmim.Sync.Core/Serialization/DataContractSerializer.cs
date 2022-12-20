@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Serialization
         public static ContractSerializerFactory Current => instance ?? new ContractSerializerFactory();
 
         public ISerializer<T> GetSerializer<T>() => new ContractSerializer<T>();
-
+        public ISerializer GetSerializer(Type objectType) => throw new NotImplementedException();
     }
 
     public class ContractSerializer<T> : ISerializer<T>

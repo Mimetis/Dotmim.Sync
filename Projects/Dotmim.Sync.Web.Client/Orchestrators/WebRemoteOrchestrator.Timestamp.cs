@@ -47,8 +47,10 @@ namespace Dotmim.Sync.Web.Client
                 if (responseTimestamp == null)
                     throw new ArgumentException("Http Message content for Get Client Remote Timestamp can't be null");
 
+                context = responseTimestamp.SyncContext;
+
                 // Return scopes and new shema
-                return (responseTimestamp.SyncContext, responseTimestamp.RemoteClientTimestamp);
+                return (context, responseTimestamp.RemoteClientTimestamp);
             }
             catch (HttpSyncWebException) { throw; } // throw server error
             catch (Exception ex) { throw GetSyncError(context, ex); } // throw client error

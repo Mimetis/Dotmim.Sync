@@ -174,138 +174,152 @@ namespace Dotmim.Sync.Web.Server
                 var clientConverter = this.GetClientConverter(cliConverterKey);
                 this.clientConverter = clientConverter;
 
-                SyncContext context = null;
-
                 byte[] binaryData = null;
+                Type responseSerializerType = null;
+                Type requestSerializerType = null;
+                IScopeMessage messageResponse = null;
+
+                switch (step)
+                {
+                    case HttpStep.None:
+                        break;
+                    case HttpStep.EnsureSchema:
+                        requestSerializerType = typeof(HttpMessageEnsureScopesRequest);
+                        responseSerializerType = typeof(HttpMessageEnsureSchemaResponse);
+                        break;
+                    case HttpStep.EnsureScopes:
+                        requestSerializerType = typeof(HttpMessageEnsureScopesRequest);
+                        responseSerializerType = typeof(HttpMessageEnsureScopesResponse);
+                        break;
+                    case HttpStep.SendChanges:
+                        break;
+                    case HttpStep.SendChangesInProgress:
+                        requestSerializerType = typeof(HttpMessageSendChangesRequest);
+                        responseSerializerType = typeof(HttpMessageSummaryResponse);
+                        break;
+                    case HttpStep.GetChanges:
+                        break;
+                    case HttpStep.GetEstimatedChangesCount:
+                        requestSerializerType = typeof(HttpMessageSendChangesRequest);
+                        responseSerializerType = typeof(HttpMessageSendChangesResponse);
+                        break;
+                    case HttpStep.GetMoreChanges:
+                        requestSerializerType = typeof(HttpMessageGetMoreChangesRequest);
+                        responseSerializerType = typeof(HttpMessageSendChangesResponse);
+                        break;
+                    case HttpStep.GetChangesInProgress:
+                        break;
+                    case HttpStep.GetSnapshot:
+                        requestSerializerType = typeof(HttpMessageSendChangesRequest);
+                        responseSerializerType = typeof(HttpMessageSendChangesResponse);
+                        break;
+                    case HttpStep.GetSummary:
+                        requestSerializerType = typeof(HttpMessageSendChangesRequest);
+                        responseSerializerType = typeof(HttpMessageSummaryResponse);
+                        break;
+                    case HttpStep.SendEndDownloadChanges:
+                        requestSerializerType = typeof(HttpMessageGetMoreChangesRequest);
+                        responseSerializerType = typeof(HttpMessageSendChangesResponse);
+                        break;
+                    case HttpStep.GetRemoteClientTimestamp:
+                        requestSerializerType = typeof(HttpMessageRemoteTimestampRequest);
+                        responseSerializerType = typeof(HttpMessageRemoteTimestampResponse);
+                        break;
+                    case HttpStep.GetOperation:
+                        requestSerializerType = typeof(HttpMessageOperationRequest);
+                        responseSerializerType = typeof(HttpMessageOperationResponse);
+                        break;
+                    case HttpStep.EndSession:
+                        requestSerializerType = typeof(HttpMessageEndSessionRequest);
+                        responseSerializerType = typeof(HttpMessageEndSessionResponse);
+                        break;
+                }
+
+                IScopeMessage messsageRequest = await clientSerializerFactory.GetSerializer(requestSerializerType).DeserializeAsync(readableStream) as IScopeMessage;
+                await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, messsageRequest.SyncContext, sessionCache, messsageRequest, responseSerializerType, step), progress, cancellationToken).ConfigureAwait(false);
+
                 switch (step)
                 {
                     case HttpStep.EnsureScopes:
-                        var m1 = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().DeserializeAsync(readableStream);
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m1.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
-                        var s1 = await this.EnsureScopesAsync(httpContext, m1, sessionCache, cancellationToken, progress).ConfigureAwait(false);
-                        context = s1.SyncContext;
-                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesResponse>().SerializeAsync(s1);
+                        messageResponse = await this.EnsureScopesAsync(httpContext, (HttpMessageEnsureScopesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false);
                         break;
-
                     case HttpStep.EnsureSchema: // pre v 0.9.6
-                        var m11 = await clientSerializerFactory.GetSerializer<HttpMessageEnsureScopesRequest>().DeserializeAsync(readableStream);
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m11.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
-                        var s11 = await this.EnsureScopesAsync(httpContext, m11, sessionCache, cancellationToken, progress).ConfigureAwait(false);
-                        var message = new HttpMessageEnsureSchemaResponse(s11.SyncContext, s11.ServerScopeInfo);
-                        message.Schema = s11.ServerScopeInfo.Schema;
-                        context = s11.SyncContext;
-                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEnsureSchemaResponse>().SerializeAsync(message);
+                        var s11 = await this.EnsureScopesAsync(httpContext, (HttpMessageEnsureScopesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false);
+                        messageResponse = new HttpMessageEnsureSchemaResponse(s11.SyncContext, s11.ServerScopeInfo);
                         break;
 
                     case HttpStep.SendChangesInProgress:
-                        var m22 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m22.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingClientChangesArgs(m22, httpContext.Request.Host.Host, sessionCache), progress, cancellationToken).ConfigureAwait(false);
+                        var sendChangesRequest = (HttpMessageSendChangesRequest)messsageRequest;
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingClientChangesArgs(sendChangesRequest, httpContext.Request.Host.Host, sessionCache), progress, cancellationToken).ConfigureAwait(false);
 
                         //----------------------------------------------------------------------------------
                         // RETRO COMPATIBILITY PRE 0.9.6
                         //----------------------------------------------------------------------------------
-                        var oldVersion = m22.OldScopeInfo != null && m22.ScopeInfoClient == null;
+                        var oldVersion = sendChangesRequest.OldScopeInfo != null && sendChangesRequest.ScopeInfoClient == null;
 
                         if (oldVersion)
                         {
                             var cScopeInfoClient = new ScopeInfoClient
                             {
-                                Id = m22.OldScopeInfo.Id,
-                                IsNewScope = m22.OldScopeInfo.IsNewScope,
-                                LastServerSyncTimestamp = m22.OldScopeInfo.LastServerSyncTimestamp,
-                                LastSync = m22.OldScopeInfo.LastSync,
-                                LastSyncTimestamp = m22.OldScopeInfo.LastSyncTimestamp,
-                                Parameters = m22.SyncContext.Parameters,
-                                Hash = m22.SyncContext.Hash,
-                                Name = m22.SyncContext.ScopeName,
+                                Id = sendChangesRequest.OldScopeInfo.Id,
+                                IsNewScope = sendChangesRequest.OldScopeInfo.IsNewScope,
+                                LastServerSyncTimestamp = sendChangesRequest.OldScopeInfo.LastServerSyncTimestamp,
+                                LastSync = sendChangesRequest.OldScopeInfo.LastSync,
+                                LastSyncTimestamp = sendChangesRequest.OldScopeInfo.LastSyncTimestamp,
+                                Parameters = sendChangesRequest.SyncContext.Parameters,
+                                Hash = sendChangesRequest.SyncContext.Hash,
+                                Name = sendChangesRequest.SyncContext.ScopeName,
                             };
 
-                            m22.ScopeInfoClient = cScopeInfoClient;
+                            sendChangesRequest.ScopeInfoClient = cScopeInfoClient;
                         }
 
-                        var s22 = await this.ApplyThenGetChangesAsync2(httpContext, m22, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
-                        context = s22.SyncContext;
-
-                        //await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s22.HttpMessageSendChangesResponse, context.Request.Host.Host, sessionCache, false), cancellationToken).ConfigureAwait(false);
-                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSummaryResponse>().SerializeAsync(s22);
+                        messageResponse = await this.ApplyThenGetChangesAsync2(httpContext, sendChangesRequest, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
                         break;
 
                     case HttpStep.GetMoreChanges:
-                        var m4 = await clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().DeserializeAsync(readableStream);
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m4.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
-                        var s4 = await this.GetMoreChangesAsync(httpContext, m4, sessionCache, cancellationToken, progress);
-                        context = s4.SyncContext;
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s4, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
-                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s4);
+                        messageResponse = await this.GetMoreChangesAsync(httpContext, (HttpMessageGetMoreChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false); ;
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs((HttpMessageSendChangesResponse)messageResponse, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
                         break;
 
                     case HttpStep.GetSnapshot:
-                        var m5 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m5.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
-                        var s5 = await this.GetSnapshotAsync(httpContext, m5, sessionCache, cancellationToken, progress);
-                        context = s5.SyncContext;
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s5, httpContext.Request.Host.Host, sessionCache, true), progress, cancellationToken).ConfigureAwait(false);
-                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s5);
+                        messageResponse = await this.GetSnapshotAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, sessionCache, cancellationToken, progress);
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs((HttpMessageSendChangesResponse)messageResponse, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
                         break;
 
                     // version >= 0.8    
                     case HttpStep.GetSummary:
-                        var m55 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m55.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
-                        var s55 = await this.GetSnapshotSummaryAsync(httpContext, m55, sessionCache, cancellationToken, progress);
-                        context = s55.SyncContext;
-                        // todo : remove this one ?
-                        //await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s5.HttpMessageSendChangesResponse, context.Request.Host.Host, sessionCache, true), cancellationToken).ConfigureAwait(false);
-                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSummaryResponse>().SerializeAsync(s55);
-
+                        messageResponse = await this.GetSnapshotSummaryAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false); ;
                         break;
                     case HttpStep.SendEndDownloadChanges:
-                        var m56 = await clientSerializerFactory.GetSerializer<HttpMessageGetMoreChangesRequest>().DeserializeAsync(readableStream);
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m56.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
-                        var s56 = await this.SendEndDownloadChangesAsync(httpContext, m56, sessionCache, cancellationToken, progress);
-                        context = s56.SyncContext;
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s56, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
-                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s56);
+                        messageResponse = await this.SendEndDownloadChangesAsync(httpContext, (HttpMessageGetMoreChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false); ;
+                        await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs((HttpMessageSendChangesResponse)messageResponse, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
                         break;
 
                     case HttpStep.GetEstimatedChangesCount:
-                        var m6 = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesRequest>().DeserializeAsync(readableStream);
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m6.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
-                        var s6 = await this.GetEstimatedChangesCountAsync(httpContext, m6, cancellationToken, progress);
-                        context = s6.SyncContext;
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(s6, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
-                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageSendChangesResponse>().SerializeAsync(s6);
+                        messageResponse = await this.GetEstimatedChangesCountAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false); ;
                         break;
 
                     case HttpStep.GetRemoteClientTimestamp:
-                        var m7 = await clientSerializerFactory.GetSerializer<HttpMessageRemoteTimestampRequest>().DeserializeAsync(readableStream);
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m7.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
-                        var s7 = await this.GetRemoteClientTimestampAsync(httpContext, m7, cancellationToken, progress);
-                        context = s7.SyncContext;
-                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageRemoteTimestampResponse>().SerializeAsync(s7);
+                        messageResponse = await this.GetRemoteClientTimestampAsync(httpContext, (HttpMessageRemoteTimestampRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false); ;
                         break;
 
                     case HttpStep.GetOperation:
-                        var m8 = await clientSerializerFactory.GetSerializer<HttpMessageOperationRequest>().DeserializeAsync(readableStream);
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m8.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
-                        var s8 = await this.GetOperationAsync(httpContext, m8, cancellationToken, progress);
-                        context = s8.SyncContext;
-                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageOperationResponse>().SerializeAsync(s8);
+                        messageResponse = await this.GetOperationAsync(httpContext, (HttpMessageOperationRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false); ;
                         break;
 
                     case HttpStep.EndSession:
-                        var m9 = await clientSerializerFactory.GetSerializer<HttpMessageEndSessionRequest>().DeserializeAsync(readableStream);
-                        await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, m9.SyncContext, sessionCache, step), progress, cancellationToken).ConfigureAwait(false);
-                        var s9 = await this.EndSessionAsync(httpContext, m9, cancellationToken, progress);
-                        context = s9.SyncContext;
-                        binaryData = await clientSerializerFactory.GetSerializer<HttpMessageEndSessionResponse>().SerializeAsync(s9);
+                        messageResponse = await this.EndSessionAsync(httpContext, (HttpMessageEndSessionRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false); ;
                         break;
                 }
 
                 httpContext.Session.Set(scopeName, schema);
                 httpContext.Session.Set(sessionId, sessionCache);
                 await httpContext.Session.CommitAsync(cancellationToken);
+
+                await this.RemoteOrchestrator.InterceptAsync(new HttpSendingResponseArgs(httpContext, messageResponse.SyncContext, sessionCache, messageResponse, responseSerializerType, step), progress, cancellationToken).ConfigureAwait(false);
+
+                binaryData = await clientSerializerFactory.GetSerializer(responseSerializerType).SerializeAsync(messageResponse);
 
                 // Adding the serialization format used and session id
                 httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
@@ -319,11 +333,6 @@ namespace Dotmim.Sync.Web.Server
 
                 // data to send back, as the response
                 byte[] data = this.EnsureCompression(httpRequest, httpResponse, binaryData);
-
-                // save session
-                await httpContext.Session.CommitAsync(cancellationToken);
-
-                await this.RemoteOrchestrator.InterceptAsync(new HttpSendingResponseArgs(httpContext, context, sessionCache, data, step), progress, cancellationToken).ConfigureAwait(false);
 
                 await httpResponse.Body.WriteAsync(data, 0, data.Length, cancellationToken).ConfigureAwait(false);
             }
@@ -679,16 +688,6 @@ namespace Dotmim.Sync.Web.Server
                 if (this.clientConverter != null)
                     AfterDeserializedRows(containerTable, schemaTable, this.clientConverter);
 
-                //var interceptorsWriting = this.RemoteOrchestrator.interceptors.GetInterceptors<SerializingRowArgs>();
-                //if (interceptorsWriting.Count > 0)
-                //{
-                //    localSerializer.OnWritingRow(async (syncTable, rowArray) =>
-                //    {
-                //        var args = new SerializingRowArgs(httpMessage.SyncContext, syncTable, rowArray);
-                //        await this.RemoteOrchestrator.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-                //        return args.Result;
-                //    });
-                //}
                 // open the file and write table header
                 localSerializer.OpenFile(fullPath, schemaTable);
 
@@ -813,7 +812,6 @@ namespace Dotmim.Sync.Web.Server
 
             }
             //----------------------------------------------------------------------------------
-
 
             // Get the firt response to send back to client
             return summaryResponse;

@@ -86,17 +86,6 @@ namespace Dotmim.Sync.Web.Client
                     var initialPctProgress1 = context.ProgressPercentage;
                     var localSerializer = new LocalJsonSerializer(this, context);
 
-                    //var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
-                    //if (interceptorsReading.Count > 0)
-                    //{
-                    //    localSerializer.OnReadingRow(async (schemaTable, rowString) =>
-                    //    {
-                    //        var args = new DeserializingRowArgs(context, schemaTable, rowString);
-                    //        await this.InterceptAsync(args);
-                    //        return args.Result;
-                    //    });
-                    //}
-
                     foreach (var bpi in clientChanges.ClientBatchInfo.BatchPartsInfo.OrderBy(bpi => bpi.Index))
                     {
                         // Backward compatibility
