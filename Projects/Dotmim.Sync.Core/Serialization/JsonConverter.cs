@@ -19,10 +19,9 @@ namespace Dotmim.Sync.Serialization
         public ISerializer GetSerializer(Type objectType) => new JsonConverter(objectType);
 
     }
-
+  
     public class JsonConverter<T> : ISerializer<T>
     {
-
         public async Task<T> DeserializeAsync(Stream ms)
         {
             using var sr = new StreamReader(ms);

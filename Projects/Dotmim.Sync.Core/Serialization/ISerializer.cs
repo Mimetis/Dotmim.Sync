@@ -36,5 +36,15 @@ namespace Dotmim.Sync.Serialization
         Task<byte[]> SerializeAsync(object obj);
     }
 
+    /// <summary>
+    /// Represents a generic serializer for a defined type
+    /// </summary>
+    public interface ISerializer2
+    {
+        Task<object> DeserializeAsync(Stream ms);
+        Task<byte[]> SerializeAsync(object obj);
+    }
+
+
 
 }
