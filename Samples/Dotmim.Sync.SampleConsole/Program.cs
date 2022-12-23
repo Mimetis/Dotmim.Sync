@@ -68,8 +68,8 @@ internal class Program
         //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
         //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        var clientProvider = new SqliteSyncProvider("dada.db");
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider("dada.db");
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
 
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
@@ -121,67 +121,6 @@ internal class Program
 
         await SynchronizeWithScopesAsync(clientProvider, serverProvider, setup, options);
         //await LoadLocalSchemaAsync();
-    }
-
-    private static async Task LoadLocalSchemaAsync()
-    {
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
-
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        var setup = new SyncSetup("ProductCategory");
-        var localOrchestrator = new LocalOrchestrator(clientProvider);
-        var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
-
-        var options = new SyncOptions();
-        // 1) Make a backup of the server database
-        // ....
-        // 
-
-        // 2) Provision server database
-        var serverScope = await remoteOrchestrator.ProvisionAsync(setup, overwrite: true, progress: progress);
-
-        // 3) Get the timestamp to use on the client
-        var serverTimeStamp = await remoteOrchestrator.GetLocalTimestampAsync();
-
-        // Once you have done the first step (1), you need to make Provision (2) and get timestamp (3)
-        // really quickly to be SURE you don't have any new / modified or deleted rows in the server 
-        // database that are not in the backup and not tracked.
-        // Once (2) and (3) are done, you are safe and you have all the time for next steps...
-
-
-        // 4) Restore backup on client
-        // ...
-        //
-
-        // 5) Provision client
-        await localOrchestrator.ProvisionAsync(serverScope, overwrite: true, progress: progress);
-
-        // 6) Get the local timestamp
-        var clientTimestamp = await localOrchestrator.GetLocalTimestampAsync();
-
-        // 7) Get scopeinfoclient
-        // ScopeInfoClient table contains all information fro the "next" sync to do (timestamp, parameters and so on ...)
-        var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync();
-
-        // As we have some existing lines, we say it's not a new sync
-        scopeInfoClient.IsNewScope = false;
-
-        // Affecting the correct timestamp, the local one and the server one
-        scopeInfoClient.LastServerSyncTimestamp = serverTimeStamp;
-        scopeInfoClient.LastSyncTimestamp = clientTimestamp;
-        await localOrchestrator.SaveScopeInfoClientAsync(scopeInfoClient);
-
-        // We're done
-        // We can sync safely now
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-        var r = await agent.SynchronizeAsync(setup, progress: progress);
-
-        Console.Write(r.ToString());
-
     }
 
     private static async Task ChangeSetupInProgressAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
@@ -241,22 +180,49 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
+        setup = new SyncSetup("ProductCategory");
+        setup.Filters.Add("ProductCategory", "IsActive", null, true);
+
+        //SetupFilter filter = new SetupFilter("ProductCategory");
+        //filter.AddParameter("ProductCategoryId", DbType.Guid);
+        //filter.AddCustomWhere("([base].[ParentProductCategoryID] = @ProductCategoryId) " +
+        //                        "OR ([base].[ProductCategoryID] = @ProductCategoryId) " +
+        //                        "OR [side].[sync_row_is_tombstone] = 1");
+        //setup.Filters.Add(filter);
+
+        options.ErrorResolutionPolicy = ErrorResolution.RetryOneMoreTimeAndThrowOnError;
         do
         {
             try
             {
                 Console.Clear();
                 Console.ForegroundColor = ConsoleColor.Green;
-                var s = await agent.SynchronizeAsync("vD", setup, progress: progress);
+                var activeOnlyParameters = new SyncParameters(("IsActive", 1));
+
+                // FIRST SYNC ONLY, to init client database
+                var s = await agent.SynchronizeAsync(setup, activeOnlyParameters, progress: progress);
                 Console.WriteLine(s);
-                s = await agent.SynchronizeAsync("v0", setup, progress: progress);
+
+                // new parameters for new lines added
+                var allRowsParameters = new SyncParameters(("IsActive", null));
+                
+                // Create manually the new accessories scope client
+                var allRowsScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync(
+                    syncParameters: allRowsParameters);
+
+                // get the existing scope info client for Components categories
+                var activeOnlyScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync(
+                    syncParameters: activeOnlyParameters);
+
+                // copy all information about time from component scope client to accessories scope client
+                // and save
+                allRowsScopeInfoClient.ShadowScope(activeOnlyScopeInfoClient);
+                await agent.LocalOrchestrator.SaveScopeInfoClientAsync(allRowsScopeInfoClient);
+
+                // ALL SYNC NOW
+                s = await agent.SynchronizeAsync(setup, allRowsParameters, progress: progress);
                 Console.WriteLine(s);
-                s = await agent.SynchronizeAsync("v1", setup, progress: progress);
-                Console.WriteLine(s);
-                s = await agent.SynchronizeAsync("v0", setup, progress: progress);
-                Console.WriteLine(s);
-                s = await agent.SynchronizeAsync(setup, progress: progress);
-                Console.WriteLine(s);
+
 
             }
             catch (SyncException e)

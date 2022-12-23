@@ -37,36 +37,18 @@ namespace Dotmim.Sync.Web.Client
 
                 // Firstly, get the snapshot summary
                 var changesToSend = new HttpMessageSendChangesRequest(context, null);
-                var serializer = this.SerializerFactory.GetSerializer();
-                var binaryData = await serializer.SerializeAsync(changesToSend);
 
-                var response0 = await this.httpRequestHandler.ProcessRequestAsync(
-                  this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.GetSummary,
-                  this.SerializerFactory, this.Converter, 0, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
-
-                HttpMessageSummaryResponse summaryResponseContent = null;
-
-                using (var streamResponse = await response0.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                {
-                    var responseSerializer = this.SerializerFactory.GetSerializer();
-
-                    if (streamResponse.CanRead)
-                    {
-                        summaryResponseContent = await responseSerializer.DeserializeAsync<HttpMessageSummaryResponse>(streamResponse);
-
-                        serverBatchInfo.RowsCount = summaryResponseContent.BatchInfo?.RowsCount ?? 0;
-
-                        if (summaryResponseContent.BatchInfo?.BatchPartsInfo != null)
-                            foreach (var bpi in summaryResponseContent.BatchInfo.BatchPartsInfo)
-                                serverBatchInfo.BatchPartsInfo.Add(bpi);
-                    }
-
-                }
+                var summaryResponseContent = await this.ProcessRequestAsync<HttpMessageSummaryResponse>(context, changesToSend, HttpStep.GetSummary,
+                  0, cancellationToken, progress).ConfigureAwait(false);
 
                 if (summaryResponseContent == null)
                     throw new Exception("Summary can't be null");
 
-                context = summaryResponseContent.SyncContext;
+                serverBatchInfo.RowsCount = summaryResponseContent.BatchInfo?.RowsCount ?? 0;
+
+                if (summaryResponseContent.BatchInfo?.BatchPartsInfo != null)
+                    foreach (var bpi in summaryResponseContent.BatchInfo.BatchPartsInfo)
+                        serverBatchInfo.BatchPartsInfo.Add(bpi);
 
                 // no snapshot
                 if ((serverBatchInfo.BatchPartsInfo == null || serverBatchInfo.BatchPartsInfo.Count <= 0) && serverBatchInfo.RowsCount <= 0)
@@ -78,35 +60,24 @@ namespace Dotmim.Sync.Web.Client
                 await serverBatchInfo.BatchPartsInfo.ForEachAsync(async bpi =>
                 {
                     var changesToSend3 = new HttpMessageGetMoreChangesRequest(context, bpi.Index);
-                    var serializer3 = this.SerializerFactory.GetSerializer();
-                    var binaryData3 = await serializer3.SerializeAsync(changesToSend3);
 
                     await this.InterceptAsync(new HttpGettingServerChangesRequestArgs(bpi.Index, serverBatchInfo.BatchPartsInfo.Count, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
-                    var response = await this.httpRequestHandler.ProcessRequestAsync(
-                      this.HttpClient, context, this.ServiceUri, binaryData3, HttpStep.GetMoreChanges,
-                      this.SerializerFactory, this.Converter, 0, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
+                    var response = await this.ProcessRequestAsync(changesToSend3, HttpStep.GetMoreChanges, 0, cancellationToken, progress).ConfigureAwait(false);
 
-                    if (this.SerializerFactory.Key != "json")
+                    if (this.SerializerFactory.Key != "json" || this.interceptors.HasInterceptors<HttpGettingResponseMessageArgs>())
                     {
                         var s = this.SerializerFactory.GetSerializer();
                         using var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
                         var getMoreChanges = await s.DeserializeAsync<HttpMessageSendChangesResponse>(responseStream);
+                        context = getMoreChanges.SyncContext;
+
+                        await this.InterceptAsync(new HttpGettingResponseMessageArgs(response, this.ServiceUri.ToString(),
+                            HttpStep.GetMoreChanges, context, getMoreChanges, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                         if (getMoreChanges != null && getMoreChanges.Changes != null && getMoreChanges.Changes.HasRows)
                         {
                             var localSerializer = new LocalJsonSerializer(this, context);
-
-                            //var interceptorsWriting = this.interceptors.GetInterceptors<SerializingRowArgs>();
-                            //if (interceptorsWriting.Count > 0)
-                            //{
-                            //    localSerializer.OnWritingRow(async (syncTable, rowArray) =>
-                            //    {
-                            //        var args = new SerializingRowArgs(context, syncTable, rowArray);
-                            //        await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-                            //        return args.Result;
-                            //    });
-                            //}
 
                             // Should have only one table
                             var table = getMoreChanges.Changes.Tables[0];

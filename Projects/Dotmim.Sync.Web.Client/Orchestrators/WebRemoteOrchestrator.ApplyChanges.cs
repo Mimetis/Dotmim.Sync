@@ -63,13 +63,8 @@ namespace Dotmim.Sync.Web.Client
 
                     await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, inMemoryRowsCount, inMemoryRowsCount, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
-                    // serialize message
-                    var serializer = this.SerializerFactory.GetSerializer();
-                    var binaryData = await serializer.SerializeAsync(changesToSend);
-
-                    response = await this.httpRequestHandler.ProcessRequestAsync
-                        (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.SendChangesInProgress,
-                         this.SerializerFactory, this.Converter, this.Options.BatchSize, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
+                    response = await this.ProcessRequestAsync
+                        (changesToSend, HttpStep.SendChangesInProgress, this.Options.BatchSize, cancellationToken, progress).ConfigureAwait(false);
                 }
                 catch (HttpSyncWebException) { throw; } // throw server error
                 catch (Exception ex) { throw GetSyncError(context, ex); } // throw client error
@@ -124,13 +119,8 @@ namespace Dotmim.Sync.Web.Client
                         context.ProgressPercentage = initialPctProgress1 + ((changesToSend.BatchIndex + 1) * 0.2d / changesToSend.BatchCount);
                         await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, tmpRowsSendedCount, clientChanges.ClientBatchInfo.RowsCount, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
-                        // serialize message
-                        var serializer = this.SerializerFactory.GetSerializer();
-                        var binaryData = await serializer.SerializeAsync(changesToSend);
-
-                        response = await this.httpRequestHandler.ProcessRequestAsync
-                            (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.SendChangesInProgress,
-                             this.SerializerFactory, this.Converter, this.Options.BatchSize, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
+                        response = await this.ProcessRequestAsync
+                            (changesToSend, HttpStep.SendChangesInProgress,this.Options.BatchSize, cancellationToken, progress).ConfigureAwait(false);
 
                         // See #721 for issue and #721 for PR from slagtejn
                         if (!bpi.IsLastBatch)
@@ -162,16 +152,20 @@ namespace Dotmim.Sync.Web.Client
 
                 HttpMessageSummaryResponse summaryResponseContent = null;
 
-                // Deserialize response incoming from server
+                // Deserialize last response incoming from server after uploading changes
                 using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                 {
                     var responseSerializer = this.SerializerFactory.GetSerializer();
                     summaryResponseContent = await responseSerializer.DeserializeAsync<HttpMessageSummaryResponse>(streamResponse);
+                    context = summaryResponseContent.SyncContext;
+
+                    await this.InterceptAsync(new HttpGettingResponseMessageArgs(response, this.ServiceUri.ToString(),
+                        HttpStep.SendChangesInProgress, context, summaryResponseContent, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
+
                 }
 
                 serverBatchInfo.RowsCount = summaryResponseContent.BatchInfo.RowsCount;
                 serverBatchInfo.Timestamp = summaryResponseContent.RemoteClientTimestamp;
-                context = summaryResponseContent.SyncContext;
 
                 if (summaryResponseContent.BatchInfo.BatchPartsInfo != null)
                     foreach (var bpi in summaryResponseContent.BatchInfo.BatchPartsInfo)
@@ -187,9 +181,6 @@ namespace Dotmim.Sync.Web.Client
                 serverBatchInfo.DirectoryRoot = batchDirectoryRoot;
                 serverBatchInfo.DirectoryName = batchDirectoryName;
 
-                //if (!Directory.Exists(serverBatchInfo.GetDirectoryFullPath()))
-                //    Directory.CreateDirectory(serverBatchInfo.GetDirectoryFullPath());
-
                 // If we have a snapshot we are raising the batches downloading process that will occurs
                 await this.InterceptAsync(new HttpBatchesDownloadingArgs(context, serverBatchInfo, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
@@ -201,26 +192,24 @@ namespace Dotmim.Sync.Web.Client
 
                     var changesToSend3 = new HttpMessageGetMoreChangesRequest(context, bpi.Index);
 
-                    var serializer3 = this.SerializerFactory.GetSerializer();
-                    var binaryData3 = await serializer3.SerializeAsync(changesToSend3).ConfigureAwait(false);
-                    var step3 = HttpStep.GetMoreChanges;
-
                     await this.InterceptAsync(new HttpGettingServerChangesRequestArgs(bpi.Index, serverBatchInfo.BatchPartsInfo.Count, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                     // Raise get changes request
                     context.ProgressPercentage = initialPctProgress + ((bpi.Index + 1) * 0.2d / serverBatchInfo.BatchPartsInfo.Count);
 
-                    var response = await this.httpRequestHandler.ProcessRequestAsync(
-                    this.HttpClient, context, this.ServiceUri, binaryData3, step3,
-                    this.SerializerFactory, this.Converter, 0, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
+                    var response = await this.ProcessRequestAsync(changesToSend3, HttpStep.GetMoreChanges,0, cancellationToken, progress).ConfigureAwait(false);
 
-                    if (this.SerializerFactory.Key != "json")
+                    // If we are using a serializer that is not JSON, need to load in memory, then serialize to JSON
+                    // OR If we have an interceptor on getting response
+                    if (this.SerializerFactory.Key != "json" || this.interceptors.HasInterceptors<HttpGettingResponseMessageArgs>())
                     {
                         var webSerializer = this.SerializerFactory.GetSerializer();
                         using var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
                         var getMoreChanges = await webSerializer.DeserializeAsync<HttpMessageSendChangesResponse>(responseStream);
-
                         context = getMoreChanges.SyncContext;
+
+                        await this.InterceptAsync(new HttpGettingResponseMessageArgs(response, this.ServiceUri.ToString(),
+                            HttpStep.GetMoreChanges, context, getMoreChanges, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                         if (getMoreChanges != null && getMoreChanges.Changes != null && getMoreChanges.Changes.HasRows)
                         {
@@ -245,7 +234,6 @@ namespace Dotmim.Sync.Web.Client
                     }
                     else
                     {
-                        // Serialize
                         await SerializeAsync(response, bpi.FileName, serverBatchInfo.GetDirectoryFullPath(), this).ConfigureAwait(false);
                     }
 
@@ -256,7 +244,6 @@ namespace Dotmim.Sync.Web.Client
                 // Parrallel download of all bpis (which will launch the delete directory on the server side)
                 await serverBatchInfo.BatchPartsInfo.ForEachAsync(bpi => dl(bpi), this.MaxDownladingDegreeOfParallelism).ConfigureAwait(false);
 
-
                 // Send order of end of download
                 var lastBpi = serverBatchInfo.BatchPartsInfo.FirstOrDefault(bpi => bpi.IsLastBatch);
 
@@ -264,20 +251,11 @@ namespace Dotmim.Sync.Web.Client
                 {
                     var endOfDownloadChanges = new HttpMessageGetMoreChangesRequest(context, lastBpi.Index);
 
-                    var serializerEndOfDownloadChanges = this.SerializerFactory.GetSerializer();
-                    var binaryData3 = await serializerEndOfDownloadChanges.SerializeAsync(endOfDownloadChanges).ConfigureAwait(false);
-
-                    var endResponse = await this.httpRequestHandler.ProcessRequestAsync(
-                        this.HttpClient, context, this.ServiceUri, binaryData3, HttpStep.SendEndDownloadChanges,
-                        this.SerializerFactory, this.Converter, 0, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
-
                     // Deserialize response incoming from server
                     // This is the last response
                     // Should contains step HttpStep.SendEndDownloadChanges
-                    using var streamResponse = await endResponse.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                    var endResponseSerializer = this.SerializerFactory.GetSerializer();
-                    var endResponseContent = await endResponseSerializer.DeserializeAsync<HttpMessageSendChangesResponse>(streamResponse);
-                    context = endResponseContent.SyncContext;
+                    var endResponseContent = await this.ProcessRequestAsync<HttpMessageSendChangesResponse>(
+                        context, endOfDownloadChanges, HttpStep.SendEndDownloadChanges, 0, cancellationToken, progress).ConfigureAwait(false);
                 }
 
                 // generate the new scope item

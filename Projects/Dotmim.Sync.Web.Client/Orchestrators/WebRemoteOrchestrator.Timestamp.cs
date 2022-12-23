@@ -27,27 +27,12 @@ namespace Dotmim.Sync.Web.Client
                 // Create the message to be sent
                 var httpMessage = new HttpMessageRemoteTimestampRequest(context);
 
-                // serialize message
-                var serializer = this.SerializerFactory.GetSerializer();
-                var binaryData = await serializer.SerializeAsync(httpMessage);
-
                 // No batch size submitted here, because the schema will be generated in memory and send back to the user.
-                var response = await this.httpRequestHandler.ProcessRequestAsync
-                    (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.GetRemoteClientTimestamp,
-                     this.SerializerFactory, this.Converter, 0, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
-
-                HttpMessageRemoteTimestampResponse responseTimestamp = null;
-
-                using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                {
-                    if (streamResponse.CanRead)
-                        responseTimestamp = await this.SerializerFactory.GetSerializer().DeserializeAsync<HttpMessageRemoteTimestampResponse>(streamResponse);
-                }
+                var responseTimestamp = await this.ProcessRequestAsync<HttpMessageRemoteTimestampResponse>
+                    (context, httpMessage, HttpStep.GetRemoteClientTimestamp, 0, cancellationToken, progress).ConfigureAwait(false);
 
                 if (responseTimestamp == null)
                     throw new ArgumentException("Http Message content for Get Client Remote Timestamp can't be null");
-
-                context = responseTimestamp.SyncContext;
 
                 // Return scopes and new shema
                 return (context, responseTimestamp.RemoteClientTimestamp);

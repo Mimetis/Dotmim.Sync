@@ -44,14 +44,6 @@ namespace Dotmim.Sync.Web.Client
 
                 await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, 0, 0, this.GetServiceHost())).ConfigureAwait(false);
 
-                // serialize message
-                var serializer = this.SerializerFactory.GetSerializer();
-                var binaryData = await serializer.SerializeAsync(changesToSend);
-
-                var response = await this.httpRequestHandler.ProcessRequestAsync
-                    (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.SendChangesInProgress,
-                     this.SerializerFactory, this.Converter, this.Options.BatchSize, this.SyncPolicy).ConfigureAwait(false);
-
                 // --------------------------------------------------------------
                 // STEP 2 : Receive everything from the server side
                 // --------------------------------------------------------------
@@ -68,18 +60,11 @@ namespace Dotmim.Sync.Web.Client
                 // Create the BatchInfo
                 var serverBatchInfo = new BatchInfo();
 
-                HttpMessageSummaryResponse summaryResponseContent = null;
-
-                // Deserialize response incoming from server
-                using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                {
-                    var responseSerializer = this.SerializerFactory.GetSerializer();
-                    summaryResponseContent = await responseSerializer.DeserializeAsync<HttpMessageSummaryResponse>(streamResponse).ConfigureAwait(false);
-                }
+                var summaryResponseContent = await this.ProcessRequestAsync<HttpMessageSummaryResponse>
+                    (context, changesToSend, HttpStep.SendChangesInProgress, this.Options.BatchSize).ConfigureAwait(false);
 
                 serverBatchInfo.RowsCount = summaryResponseContent.BatchInfo.RowsCount;
                 serverBatchInfo.Timestamp = summaryResponseContent.RemoteClientTimestamp;
-                context = summaryResponseContent.SyncContext;
 
                 if (summaryResponseContent.BatchInfo.BatchPartsInfo != null)
                     foreach (var bpi in summaryResponseContent.BatchInfo.BatchPartsInfo)
@@ -108,9 +93,6 @@ namespace Dotmim.Sync.Web.Client
                 var dl = new Func<BatchPartInfo, Task>(async (bpi) =>
                 {
                     var changesToSend3 = new HttpMessageGetMoreChangesRequest(context, bpi.Index);
-                    var serializer3 = this.SerializerFactory.GetSerializer();
-                    var binaryData3 = await serializer3.SerializeAsync(changesToSend3).ConfigureAwait(false);
-                    var step3 = HttpStep.GetMoreChanges;
 
                     await this.InterceptAsync(new HttpGettingServerChangesRequestArgs(bpi.Index, serverBatchInfo.BatchPartsInfo.Count,
                         summaryResponseContent.SyncContext, this.GetServiceHost())).ConfigureAwait(false);
@@ -118,9 +100,7 @@ namespace Dotmim.Sync.Web.Client
                     // Raise get changes request
                     context.ProgressPercentage = initialPctProgress + ((bpi.Index + 1) * 0.2d / serverBatchInfo.BatchPartsInfo.Count);
 
-                    var response = await this.httpRequestHandler.ProcessRequestAsync(
-                    this.HttpClient, context, this.ServiceUri, binaryData3, step3,
-                    this.SerializerFactory, this.Converter, 0, this.SyncPolicy).ConfigureAwait(false);
+                    var response = await this.ProcessRequestAsync(changesToSend3, HttpStep.GetMoreChanges, 0).ConfigureAwait(false);
 
                     // Serialize
                     await SerializeAsync(response, bpi.FileName, serverBatchInfo.GetDirectoryFullPath(), this).ConfigureAwait(false);
@@ -159,14 +139,10 @@ namespace Dotmim.Sync.Web.Client
         /// 
         public override async Task<ServerSyncChanges> GetEstimatedChangesCountAsync(ScopeInfoClient cScopeInfoClient, DbConnection connection = null, DbTransaction transaction = null)
         {
-            var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name, cScopeInfoClient.Parameters)
-            {
-                ClientId = cScopeInfoClient.Id,
-            };
+            var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name, cScopeInfoClient.Parameters) { ClientId = cScopeInfoClient.Id };
 
             try
             {
-
                 // Get the server scope to start a new session
                 await this.InternalEnsureScopeInfoAsync(context, null, false, connection, transaction, default, default).ConfigureAwait(false);
 
@@ -179,32 +155,14 @@ namespace Dotmim.Sync.Web.Client
                     BatchCount = 0
                 };
 
-                var serializer = this.SerializerFactory.GetSerializer();
-                var binaryData = await serializer.SerializeAsync(changesToSend);
-
                 // Raise progress for sending request and waiting server response
                 await this.InterceptAsync(new HttpGettingServerChangesRequestArgs(0, 0, context, this.GetServiceHost())).ConfigureAwait(false);
 
                 // response
-                var response = await this.httpRequestHandler.ProcessRequestAsync
-                        (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.GetEstimatedChangesCount,
-                         this.SerializerFactory, this.Converter, this.Options.BatchSize, this.SyncPolicy).ConfigureAwait(false);
-
-                HttpMessageSendChangesResponse summaryResponseContent = null;
-
-                using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                {
-                    var responseSerializer = this.SerializerFactory.GetSerializer();
-
-                    if (streamResponse.CanRead)
-                        summaryResponseContent = await responseSerializer.DeserializeAsync<HttpMessageSendChangesResponse>(streamResponse);
-
-                }
+                var summaryResponseContent = await this.ProcessRequestAsync<HttpMessageSendChangesResponse>(context, changesToSend, HttpStep.GetEstimatedChangesCount, this.Options.BatchSize).ConfigureAwait(false);
 
                 if (summaryResponseContent == null)
                     throw new Exception("Summary can't be null");
-
-                context = summaryResponseContent.SyncContext;
 
                 // generate the new scope ite
                 this.CompleteTime = DateTime.UtcNow;

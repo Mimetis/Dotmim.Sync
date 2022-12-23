@@ -75,7 +75,14 @@ namespace HelloWebSyncServer
 
             // [Required] Tables involved in the sync process:
             var setup = new SyncSetup("ProductCategory", "Product");
-            setup.Filters.Add("ProductCategory", "ProductCategoryID");
+
+            var pcFilter = new SetupFilter("ProductCategory");
+            pcFilter.AddParameter("IsActive", "ProductCategory", true);
+            pcFilter.AddParameter("ProductCategoryID", "ProductCategory", true);
+            pcFilter.AddWhere("IsActive", "ProductCategory", "IsActive");
+            pcFilter.AddWhere("ProductCategoryID", "ProductCategory", "ProductCategoryID");
+            setup.Filters.Add(pcFilter);
+
             setup.Filters.Add("Product", "ProductCategoryID");
 
             // [Required]: Add a SqlSyncProvider acting as the server hub.

@@ -31,6 +31,12 @@ namespace Dotmim.Sync
         /// </summary>
         public void Add(SetupFilter item)
         {
+            if (string.IsNullOrEmpty(item.TableName))
+                throw new ArgumentNullException("A SetupFilter needs a table name on which the filter is applied.");
+
+            if (item.Parameters == null || item.Parameters.Count <= 0)
+                throw new ArgumentNullException("A SetupFilter needs at least one parameter.");
+
             if (InnerCollection.Any(st => item.EqualsByName(st)))
                 throw new FilterAlreadyExistsException(item.TableName);
 
@@ -48,7 +54,7 @@ namespace Dotmim.Sync
             // Add a column as parameter. This column will be automaticaly added in the tracking table
             item.AddParameter(columnName, tableName, schemaName, allowNull);
 
-            // add the side where expression, allowing to be null
+            // add the side where expression
             item.AddWhere(columnName, tableName, columnName, schemaName);
 
             this.Add(item);

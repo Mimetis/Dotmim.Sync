@@ -35,25 +35,12 @@ namespace Dotmim.Sync.Web.Client
                 // Create the message to be sent
                 var httpMessage = new HttpMessageEnsureScopesRequest(context);
 
-                // serialize message
-                var serializer = this.SerializerFactory.GetSerializer();
-                var binaryData = await serializer.SerializeAsync(httpMessage);
-
                 // Raise progress for sending request and waiting server response
                 await this.InterceptAsync(new HttpGettingScopeRequestArgs(context, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                 // No batch size submitted here, because the schema will be generated in memory and send back to the user.
-                var response = await this.httpRequestHandler.ProcessRequestAsync
-                    (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.EnsureScopes,
-                     this.SerializerFactory, this.Converter, 0, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
-
-                HttpMessageEnsureScopesResponse ensureScopesResponse = null;
-
-                using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                {
-                    if (streamResponse.CanRead)
-                        ensureScopesResponse = await this.SerializerFactory.GetSerializer().DeserializeAsync<HttpMessageEnsureScopesResponse>(streamResponse);
-                }
+                var ensureScopesResponse = await this.ProcessRequestAsync<HttpMessageEnsureScopesResponse>
+                    (context, httpMessage, HttpStep.EnsureScopes, 0, cancellationToken, progress).ConfigureAwait(false);
 
                 if (ensureScopesResponse == null)
                     throw new ArgumentException("Http Message content for Ensure scope can't be null");
@@ -63,8 +50,6 @@ namespace Dotmim.Sync.Web.Client
 
                 // Re build schema relationships with all tables
                 ensureScopesResponse.ServerScopeInfo.Schema?.EnsureSchema();
-
-                context = ensureScopesResponse.SyncContext;
 
                 // Report Progress
                 await this.InterceptAsync(new HttpGettingScopeResponseArgs(ensureScopesResponse.ServerScopeInfo, ensureScopesResponse.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
