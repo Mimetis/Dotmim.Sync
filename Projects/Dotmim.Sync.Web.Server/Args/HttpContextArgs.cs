@@ -17,11 +17,13 @@ namespace Dotmim.Sync
     /// </summary>
     public class HttpGettingRequestArgs : ProgressArgs
     {
-        public HttpGettingRequestArgs(HttpContext httpContext, SyncContext context, SessionCache sessionCache, HttpStep httpStep)
+        public HttpGettingRequestArgs(HttpContext httpContext, SyncContext context, SessionCache sessionCache, object data, Type objectType, HttpStep httpStep)
             : base(context, null, null)
         {
             this.HttpContext = httpContext;
             this.SessionCache = sessionCache;
+            this.Data = data;
+            this.ObjectType = objectType;
             this.HttpStep = httpStep;
         }
         public override int EventId => HttpServerSyncEventsId.HttpGettingRequest.Id;
@@ -29,6 +31,8 @@ namespace Dotmim.Sync
 
         public HttpContext HttpContext { get; }
         public SessionCache SessionCache { get; }
+        public object Data { get; }
+        public Type ObjectType { get; }
         public HttpStep HttpStep { get; }
     }
 
@@ -38,19 +42,21 @@ namespace Dotmim.Sync
     public class HttpSendingResponseArgs : ProgressArgs
     {
         public HttpSendingResponseArgs(HttpContext httpContext, SyncContext context, SessionCache sessionCache, 
-            byte[] data, HttpStep httpStep)
+            object data, Type objectType, HttpStep httpStep)
             : base(context, null, null)
         {
             this.HttpContext = httpContext;
             this.SessionCache = sessionCache;
             this.Data = data;
+            this.ObjectType = objectType;
             this.HttpStep = httpStep;
         }
         public override int EventId => HttpServerSyncEventsId.HttpSendingResponse.Id;
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
         public HttpContext HttpContext { get; }
         public SessionCache SessionCache { get; }
-        public byte[] Data { get; }
+        public object Data { get; }
+        public Type ObjectType { get; }
         public HttpStep HttpStep { get; }
     }
 

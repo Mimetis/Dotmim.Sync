@@ -30,22 +30,9 @@ namespace Dotmim.Sync.Web.Client
                 // Create the message to be sent
                 var httpMessage = new HttpMessageOperationRequest(context, cScopeInfo, cScopeInfoClient);
 
-                // serialize message
-                var serializer = this.SerializerFactory.GetSerializer<HttpMessageOperationRequest>();
-                var binaryData = await serializer.SerializeAsync(httpMessage);
-
                 // No batch size submitted here, because the schema will be generated in memory and send back to the user.
-                var response = await this.httpRequestHandler.ProcessRequestAsync
-                    (this.HttpClient, context, this.ServiceUri, binaryData, HttpStep.GetOperation,
-                     this.SerializerFactory, this.Converter, 0, this.SyncPolicy, cancellationToken, progress).ConfigureAwait(false);
-
-                HttpMessageOperationResponse operationResponse = null;
-
-                using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                {
-                    if (streamResponse.CanRead)
-                        operationResponse = await this.SerializerFactory.GetSerializer<HttpMessageOperationResponse>().DeserializeAsync(streamResponse);
-                }
+                var operationResponse = await this.ProcessRequestAsync<HttpMessageOperationResponse>
+                    (context, httpMessage, HttpStep.GetOperation, 0, cancellationToken, progress).ConfigureAwait(false);
 
                 if (operationResponse == null)
                     throw new ArgumentException("Http Message content for Get Operation scope can't be null");

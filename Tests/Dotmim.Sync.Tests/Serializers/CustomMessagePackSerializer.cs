@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Serialization;
 using MessagePack;
 using MessagePack.Formatters;
+using MessagePack.Resolvers;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -11,44 +12,34 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Tests.Serializers
 {
-
     public class CustomMessagePackSerializerFactory : ISerializerFactory
     {
         public string Key => "mpack";
-        public ISerializer<T> GetSerializer<T>() => new CustomMessagePackSerializer<T>();
+        public ISerializer GetSerializer() => new CustomMessagePackSerializer();
     }
 
-    public class CustomMessagePackSerializer<T> : ISerializer<T>
+    public class CustomMessagePackSerializer : ISerializer
     {
-        private MessagePackSerializerOptions options;
+        public CustomMessagePackSerializer() { }
 
-        public CustomMessagePackSerializer() => this.options = MessagePack.Resolvers.ContractlessStandardResolver.Options;
+        public async Task<T> DeserializeAsync<T>(Stream ms) => (T)await DeserializeAsync(ms, typeof(T)).ConfigureAwait(false);
 
-        public string Extension => "mpack";
+        public Task<byte[]> SerializeAsync<T>(T obj) => SerializeAsync((object)obj);
 
-        public Task CloseFileAsync(string path, SyncTable shemaTable) => throw new NotImplementedException();
 
-        public async Task<T> DeserializeAsync(Stream ms)
+        public async Task<object> DeserializeAsync(Stream ms, Type type)
         {
-            var t = await MessagePackSerializer.DeserializeAsync<T>(ms, options);
-
-            return t;
-
+            var val = await MessagePackSerializer.DeserializeAsync(type, ms, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
+            return val;
         }
 
-        public Task<long> GetCurrentFileSizeAsync() => throw new NotImplementedException();
-        public Task OpenFileAsync(string path, SyncTable shemaTable) => throw new NotImplementedException();
-
-        public async Task<byte[]> SerializeAsync(T obj)
+        public async Task<byte[]> SerializeAsync(object obj)
         {
-            using (var ms = new MemoryStream())
-            {
-                await MessagePackSerializer.SerializeAsync(ms, obj, options);
-                return ms.ToArray();
-            }
-        }
+            using var ms = new MemoryStream();
+            await MessagePackSerializer.SerializeAsync(ms, obj, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
 
-        public Task WriteRowToFileAsync(object[] row, SyncTable shemaTable) => throw new NotImplementedException();
+            return ms.ToArray();
+        }
     }
 }
 

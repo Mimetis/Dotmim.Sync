@@ -10,8 +10,14 @@ using Dotmim.Sync.Web.Client.BackwardCompatibility;
 
 namespace Dotmim.Sync.Web.Client
 {
+
+    public interface IScopeMessage
+    {
+        SyncContext SyncContext { get; set; }
+    }
+
     [DataContract(Name = "changesres"), Serializable]
-    public class HttpMessageSendChangesResponse
+    public class HttpMessageSendChangesResponse : IScopeMessage
     {
 
         public HttpMessageSendChangesResponse()
@@ -88,7 +94,7 @@ namespace Dotmim.Sync.Web.Client
     }
 
     [DataContract(Name = "morechangesreq"), Serializable]
-    public class HttpMessageGetMoreChangesRequest
+    public class HttpMessageGetMoreChangesRequest : IScopeMessage
     {
         public HttpMessageGetMoreChangesRequest() { }
 
@@ -106,7 +112,7 @@ namespace Dotmim.Sync.Web.Client
     }
 
     [DataContract(Name = "changesreq"), Serializable]
-    public class HttpMessageSendChangesRequest
+    public class HttpMessageSendChangesRequest : IScopeMessage
     {
         public HttpMessageSendChangesRequest()
         {
@@ -117,6 +123,10 @@ namespace Dotmim.Sync.Web.Client
         {
             this.SyncContext = context;
             this.ScopeInfoClient = cScopeInfoClient;
+            this.IsLastBatch = true;
+            this.BatchCount = 0;
+            this.BatchIndex = 0;
+            this.Changes = new ContainerSet();
         }
 
         [DataMember(Name = "sc", IsRequired = true, Order = 1)]
@@ -166,7 +176,7 @@ namespace Dotmim.Sync.Web.Client
     }
 
     [DataContract(Name = "ensureschemares"), Serializable]
-    public class HttpMessageEnsureSchemaResponse
+    public class HttpMessageEnsureSchemaResponse : IScopeMessage
     {
         public HttpMessageEnsureSchemaResponse()
         {
@@ -198,7 +208,7 @@ namespace Dotmim.Sync.Web.Client
 
 
     [DataContract(Name = "ensurescopesres"), Serializable]
-    public class HttpMessageEnsureScopesResponse
+    public class HttpMessageEnsureScopesResponse : IScopeMessage
     {
         public HttpMessageEnsureScopesResponse()
         {
@@ -222,7 +232,7 @@ namespace Dotmim.Sync.Web.Client
 
 
     [DataContract(Name = "ensurereq"), Serializable]
-    public class HttpMessageEnsureScopesRequest
+    public class HttpMessageEnsureScopesRequest : IScopeMessage
     {
         public HttpMessageEnsureScopesRequest() { }
 
@@ -243,7 +253,7 @@ namespace Dotmim.Sync.Web.Client
 
 
     [DataContract(Name = "opreq"), Serializable]
-    public class HttpMessageOperationRequest
+    public class HttpMessageOperationRequest : IScopeMessage
     {
         public HttpMessageOperationRequest() { }
 
@@ -273,7 +283,7 @@ namespace Dotmim.Sync.Web.Client
     }
 
     [DataContract(Name = "opres"), Serializable]
-    public class HttpMessageOperationResponse
+    public class HttpMessageOperationResponse : IScopeMessage
     {
         public HttpMessageOperationResponse() { }
 
@@ -292,7 +302,7 @@ namespace Dotmim.Sync.Web.Client
 
 
     [DataContract(Name = "remotetsres"), Serializable]
-    public class HttpMessageRemoteTimestampResponse
+    public class HttpMessageRemoteTimestampResponse : IScopeMessage
     {
         public HttpMessageRemoteTimestampResponse()
         {
@@ -316,7 +326,7 @@ namespace Dotmim.Sync.Web.Client
 
 
     [DataContract(Name = "remotetsreq"), Serializable]
-    public class HttpMessageRemoteTimestampRequest
+    public class HttpMessageRemoteTimestampRequest : IScopeMessage
     {
         public HttpMessageRemoteTimestampRequest() { }
 
@@ -334,7 +344,7 @@ namespace Dotmim.Sync.Web.Client
 
 
     [DataContract(Name = "summary"), Serializable]
-    public class HttpMessageSummaryResponse
+    public class HttpMessageSummaryResponse : IScopeMessage
     {
         public HttpMessageSummaryResponse()
         {
@@ -387,7 +397,7 @@ namespace Dotmim.Sync.Web.Client
 
 
     [DataContract(Name = "endsessionreq"), Serializable]
-    public class HttpMessageEndSessionRequest
+    public class HttpMessageEndSessionRequest : IScopeMessage
     {
         public HttpMessageEndSessionRequest()
         {
@@ -455,7 +465,7 @@ namespace Dotmim.Sync.Web.Client
 
 
     [DataContract(Name = "endsessionres"), Serializable]
-    public class HttpMessageEndSessionResponse
+    public class HttpMessageEndSessionResponse : IScopeMessage
     {
         public HttpMessageEndSessionResponse() { }
 

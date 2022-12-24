@@ -65,15 +65,11 @@ namespace Dotmim.Sync.Tests
         public string Run(RequestDelegate serverHandler = null)
         {
             // Create server web proxy
-            if (serverHandler == null)
-            {
-                serverHandler = new RequestDelegate(async context =>
+            serverHandler ??= new RequestDelegate(async context =>
                 {
                     var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
                     await webServerAgent.HandleRequestAsync(context);
                 });
-            }
-
 
             this.builder.Configure(app =>
             {

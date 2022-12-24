@@ -38,25 +38,25 @@ namespace HelloWebSyncServer.Controllers
                 // on each request coming from the client, just inject the User Id parameter
                 webServerAgent.OnHttpGettingRequest(args =>
                 {
-                    var pUserId = args.Context.Parameters["UserId"];
+                    //var pUserId = args.Context.Parameters["UserId"];
 
-                    if (pUserId == null)
-                    {
-                        var userId = this.HttpContext.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier);
-                        
-                        if (args.Context.AdditionalProperties == null)
-                            args.Context.AdditionalProperties = new Dictionary<string, string>();
+                    //if (pUserId == null)
+                    //{
+                    //    var userId = this.HttpContext.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier);
+                    //    args.Context.Parameters.Add("UserId", userId.Value);
+                    //}
 
-                        args.Context.AdditionalProperties.Add("UserId", userId.Value);
-                    }
-
+                    if (!args.Context.Parameters.Contains("IsActive"))
+                        args.Context.Parameters.Add(new SyncParameter("IsActive", null));
+                    else
+                        args.Context.Parameters["IsActive"].Value = null;
                 });
 
                 // Because we don't want to send back this value, remove it from the response 
                 webServerAgent.OnHttpSendingResponse(args =>
                 {
-                    if (args.Context.AdditionalProperties.ContainsKey("UserId"))
-                        args.Context.AdditionalProperties.Remove("UserId");
+                    //if (args.Context.AdditionalProperties.ContainsKey("UserId"))
+                    //    args.Context.AdditionalProperties.Remove("UserId");
                 });
 
                 await webServerAgent.HandleRequestAsync(this.HttpContext);

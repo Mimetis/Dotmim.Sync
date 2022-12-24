@@ -14,12 +14,13 @@ namespace Dotmim.Sync
     /// </summary>
     public class HttpGettingResponseMessageArgs : ProgressArgs
     {
-        public HttpGettingResponseMessageArgs(HttpResponseMessage response, string uri, HttpStep step, SyncContext context, string host)
+        public HttpGettingResponseMessageArgs(HttpResponseMessage response, string uri, HttpStep step, SyncContext context, object data, string host)
             : base(context, null, null)
         {
             this.Response = response;
             this.Uri = uri;
             this.Step = step;
+            this.Data = data;
             this.Host = host;
         }
         public override string Source => this.Host;
@@ -27,18 +28,13 @@ namespace Dotmim.Sync
         public override int EventId => HttpClientSyncEventsId.HttpGettingResponseMessage.Id;
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
-        public override string Message
-        {
-            get
-            {
-               return $"Received a message from {this.Uri}, Step:{this.Step}, StatusCode: {(int)Response.StatusCode}, ReasonPhrase: {Response.ReasonPhrase ?? "<null>"}, Version: {Response.Version}";
-            }
-        }
-
+        public override string Message 
+            => $"Received a message from {this.Uri}, Step:{this.Step}, StatusCode: {(int)Response.StatusCode}, ReasonPhrase: {Response.ReasonPhrase ?? "<null>"}, Version: {Response.Version}";
 
         public HttpResponseMessage Response { get; }
         public string Uri { get; }
         public HttpStep Step { get; }
+        public object Data { get; }
         public string Host { get; }
     }
 
@@ -47,10 +43,11 @@ namespace Dotmim.Sync
     /// </summary>
     public class HttpSendingRequestMessageArgs : ProgressArgs
     {
-        public HttpSendingRequestMessageArgs(HttpRequestMessage request, SyncContext context, string host)
+        public HttpSendingRequestMessageArgs(HttpRequestMessage request, SyncContext context, object data, string host)
             : base(context, null, null)
         {
             this.Request = request;
+            this.Data = data;
             this.Host = host;
         }
         public override int EventId => HttpClientSyncEventsId.HttpSendingRequestMessage.Id;
@@ -58,6 +55,7 @@ namespace Dotmim.Sync
         public override string Source => this.Host;
 
         public HttpRequestMessage Request { get; }
+        public object Data { get; }
         public string Host { get; }
     }
 

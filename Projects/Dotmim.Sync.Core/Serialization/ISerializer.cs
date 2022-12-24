@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Runtime.Serialization;
 using System.Threading.Tasks;
 
@@ -13,17 +14,22 @@ namespace Dotmim.Sync.Serialization
     {
         string Key { get; }
 
-        ISerializer<T> GetSerializer<T>();
+        ISerializer GetSerializer();
     }
 
+
     /// <summary>
-    /// Represents a generic serializer for a defined type of T
+    /// Represents a generic serializer for a defined type
     /// </summary>
-    public interface ISerializer<T>
+    public interface ISerializer
     {
-        Task<T> DeserializeAsync(Stream ms);
-        Task<byte[]> SerializeAsync(T obj);
+        Task<object> DeserializeAsync(Stream ms, Type type);
+        Task<T> DeserializeAsync<T>(Stream ms);
+
+        Task<byte[]> SerializeAsync(object obj);
+        Task<byte[]> SerializeAsync<T>(T obj);
     }
+
 
 
 }

@@ -366,6 +366,125 @@ namespace Dotmim.Sync.Tests
 
         }
 
+
+
+        /// <summary>
+        /// Insert one row on server, should be correctly sync on all clients
+        /// </summary>
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Check_AdditionalProperties_Are_Constant_Across_Http_Calls(SyncOptions options)
+        {
+            // create a server schema without seeding
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
+
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+
+            // configure server orchestrator
+            this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
+                new SyncSetup(Tables));
+
+
+            RequestDelegate serverHandler = new RequestDelegate(async context =>
+            {
+                var webServerAgent = context.RequestServices.GetService<WebServerAgent>();
+
+                // When Server Orchestrator send back the response, we will make an interruption
+                webServerAgent.OnHttpGettingRequest(args =>
+                {
+                    Assert.NotEmpty(args.Context.AdditionalProperties);
+                    Assert.Single(args.Context.AdditionalProperties);
+                });
+
+                webServerAgent.OnHttpSendingResponse(args =>
+                {
+                    Assert.NotEmpty(args.Context.AdditionalProperties);
+                    Assert.Single(args.Context.AdditionalProperties);
+                });
+
+                await webServerAgent.HandleRequestAsync(context);
+
+            });
+            var serviceUri = this.Kestrell.Run(serverHandler);
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var client in Clients)
+            {
+                var agent = new SyncAgent(client.Provider, new RemoteOrchestrator(this.Server.Provider), options);
+                var s = await agent.SynchronizeAsync(Tables);
+            }
+
+            // Insert one line on each client
+            foreach (var client in Clients)
+            {
+                var name = HelperDatabase.GetRandomName();
+                var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+                var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
+
+                using var serverDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                serverDbCtx.Product.Add(product);
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+
+            // Create a new product on server
+            var sName = HelperDatabase.GetRandomName();
+            var sProductNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+
+            var sProduct = new Product { ProductId = Guid.NewGuid(), Name = sName, ProductNumber = sProductNumber };
+
+            using (var serverDbCtx = new AdventureWorksContext(this.Server))
+            {
+                serverDbCtx.Product.Add(sProduct);
+                await serverDbCtx.SaveChangesAsync();
+            }
+
+            // Execute a sync on all clients and check results
+            foreach (var client in Clients)
+            {
+                var remoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+
+                var agent = new SyncAgent(client.Provider, remoteOrchestrator, options);
+
+                var apCreated = 0;
+
+                //agent.LocalOrchestrator.OnSessionBegin(args =>
+                //{
+                //    args.Context.AdditionalProperties = new Dictionary<string, string> { { "A", "1" } };
+                //    apCreated++;
+                //});
+
+                remoteOrchestrator.OnHttpSendingRequest(args =>
+                {
+
+                    if (args.Context.AdditionalProperties == null)
+                    {
+                        args.Context.AdditionalProperties = new Dictionary<string, string> { { "A", "1" } };
+                        apCreated++;
+
+                    }
+
+                    Assert.NotEmpty(args.Context.AdditionalProperties);
+                    Assert.Single(args.Context.AdditionalProperties);
+                });
+
+                remoteOrchestrator.OnHttpGettingResponse(args =>
+                {
+                    Assert.NotEmpty(args.Context.AdditionalProperties);
+                    Assert.Single(args.Context.AdditionalProperties);
+                });
+
+                var s = await agent.SynchronizeAsync();
+            }
+        }
+
+        /// <summary>
+
+
+
         /// <summary>
         /// Delete rows on server, should be correctly sync on all clients
         /// </summary>
@@ -1512,7 +1631,7 @@ namespace Dotmim.Sync.Tests
 
                     if (args.Request.Headers.TryGetValues("dotmim-sync-step", out var steps))
                         cStep = steps.ToList()[0];
-                    
+
                     Debug.WriteLine($"SEND    Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
                 });
 
@@ -1539,7 +1658,7 @@ namespace Dotmim.Sync.Tests
                 // Act 2: Ensure client can recover
                 var agent2 = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
 
-               
+
                 var s2 = await agent2.SynchronizeAsync();
 
                 Assert.Equal(rowsToSend, s2.TotalChangesUploadedToServer);
@@ -1594,7 +1713,7 @@ namespace Dotmim.Sync.Tests
             await this.Kestrell.StopAsync();
 
             // insert 1000 new products so batching is used
-            var rowsToReceive = 1000;
+            var rowsToReceive = 3000;
             var productNumber = "12345";
 
             var products = Enumerable.Range(1, rowsToReceive).Select(i =>
@@ -2164,7 +2283,7 @@ namespace Dotmim.Sync.Tests
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
-           // configure server orchestrator
+            // configure server orchestrator
             this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
                 new SyncSetup(Tables));
 
