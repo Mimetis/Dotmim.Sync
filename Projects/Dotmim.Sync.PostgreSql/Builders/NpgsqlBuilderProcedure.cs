@@ -849,7 +849,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
 
-                stringBuilder1.Append($@"{empty}side.{columnName} = ""{NPGSQL_PREFIX_PARAMETER}{parameterName}"";");
+                stringBuilder1.Append($@"{empty}side.{columnName} = ""{NPGSQL_PREFIX_PARAMETER}{parameterName}""");
                 empty = " AND ";
             }
             foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
@@ -873,10 +873,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
             {
                 var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
                 stringBuilder.Append($"{str2}base.{columnName} = side.{columnName} ");
-                str = " AND ";
+                str2 = " AND ";
             }
             //stringBuilder.AppendLine();
-            stringBuilder.Append(string.Concat("WHERE ", stringBuilder1.ToString()));
+            stringBuilder.Append(string.Concat("WHERE ", stringBuilder1.ToString(), ";"));
             stringBuilder.Append("END; $BODY$;");
             cmd.Parameters.Clear();
             cmd.CommandText = stringBuilder.ToString();
@@ -918,16 +918,23 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var listColumnsTmp2 = new StringBuilder();
             var listColumnsTmp3 = new StringBuilder();
 
-
+            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {schema}.{procNameQuoted} (");
+            string str = "\t";
+            foreach (NpgsqlParameter parameter in sqlCommand.Parameters)
+            {
+                stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
+                str = ",\n\t";
+            }
+            stringBuilder.AppendLine(") \n\t");
+            stringBuilder.AppendLine("AS $BODY$");
             var and = "";
-            var declar = "";
             foreach (var column in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var param = GetSqlParameter(column);
                 var parameterwithoutquotes = ParserName.Parse(column).Unquoted().ToString();
 
                 param.ParameterName = $"t_in_{parameterwithoutquotes}";
-                declar = CreateParameterDeclaration(param);
+                var declar = CreateParameterDeclaration(param);
                 var columnNameQuoted = ParserName.Parse(column, "\"").Quoted().ToString();
 
                 var parameterNameQuoted = ParserName.Parse(param.ParameterName).Unquoted().ToString();
@@ -939,7 +946,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 listColumnsTmp2.Append($"{parameterNameQuoted}, ");
 
                 // param name with type
-                //stringBuilder.AppendLine($"DECLARE {declar};");
+                stringBuilder.AppendLine($"DECLARE {declar};");
 
                 // Param equal IS NULL
                 listColumnsTmp3.Append($"{and}{parameterNameQuoted} IS NULL");
@@ -948,19 +955,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             }
 
-            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {schema}.{procNameQuoted} (");
-            string str = "\t";
-            foreach (NpgsqlParameter parameter in sqlCommand.Parameters)
-            {
-                stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
-                str = ",\n\t";
-            }
-            stringBuilder.AppendLine(") \n\t");
-            stringBuilder.AppendLine("AS $BODY$");
-            stringBuilder.AppendLine("DECLARE");
-            stringBuilder.AppendLine($"{declar};");
-            stringBuilder.AppendLine("ts bigint;");
-            stringBuilder.AppendLine("t_update_scope_id uuid;");
+
+
+            stringBuilder.AppendLine("DECLARE ts bigint;");
+            stringBuilder.AppendLine("DECLARE t_update_scope_id uuid;");
             stringBuilder.AppendLine("BEGIN");
             stringBuilder.AppendLine("ts := 0;");
             stringBuilder.AppendLine($"SELECT {listColumnsTmp.ToString()}");
