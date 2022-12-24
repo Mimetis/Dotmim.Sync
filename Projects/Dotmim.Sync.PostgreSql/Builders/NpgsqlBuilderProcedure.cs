@@ -50,7 +50,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             cmd.Connection = (NpgsqlConnection)connection;
             cmd.Transaction = (NpgsqlTransaction)transaction;
 
-            NpgsqlParameter sqlParameter2 = new NpgsqlParameter(@"""sync_row_count""", NpgsqlDbType.Integer)
+            NpgsqlParameter sqlParameter2 = new NpgsqlParameter(@"sync_row_count", NpgsqlDbType.Integer)
             {
                 Direction = ParameterDirection.Output
             };
@@ -353,16 +353,16 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             this.AddPkColumnParametersToCommand(sqlCommand);
 
-            var sqlParameter0 = new NpgsqlParameter(@"""sync_scope_id""", NpgsqlDbType.Uuid);
+            var sqlParameter0 = new NpgsqlParameter(@"sync_scope_id", NpgsqlDbType.Uuid);
             sqlCommand.Parameters.Add(sqlParameter0);
 
-            var sqlParameter = new NpgsqlParameter(@"""sync_force_write""", NpgsqlDbType.Bigint);
+            var sqlParameter = new NpgsqlParameter(@"sync_force_write", NpgsqlDbType.Bigint);
             sqlCommand.Parameters.Add(sqlParameter);
 
-            var sqlParameter1 = new NpgsqlParameter(@"""sync_min_timestamp""", NpgsqlDbType.Bigint);
+            var sqlParameter1 = new NpgsqlParameter(@"sync_min_timestamp", NpgsqlDbType.Bigint);
             sqlCommand.Parameters.Add(sqlParameter1);
 
-            var sqlParameter2 = new NpgsqlParameter(@"""sync_row_count""", NpgsqlDbType.Integer)
+            var sqlParameter2 = new NpgsqlParameter(@"sync_row_count", NpgsqlDbType.Integer)
             {
                 Direction = ParameterDirection.Output
             };
@@ -429,9 +429,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
             sqlCommand.Connection = (NpgsqlConnection)connection;
             sqlCommand.Transaction = (NpgsqlTransaction)transaction;
             this.AddPkColumnParametersToCommand(sqlCommand);
-            NpgsqlParameter sqlParameter1 = new NpgsqlParameter(@"""sync_row_timestamp""", NpgsqlDbType.Bigint);
+            NpgsqlParameter sqlParameter1 = new NpgsqlParameter(@"sync_row_timestamp", NpgsqlDbType.Bigint);
             sqlCommand.Parameters.Add(sqlParameter1);
-            NpgsqlParameter sqlParameter2 = new NpgsqlParameter(@"""sync_row_count""", NpgsqlDbType.Integer)
+            NpgsqlParameter sqlParameter2 = new NpgsqlParameter(@"sync_row_count", NpgsqlDbType.Integer)
             {
                 Direction = ParameterDirection.Output
             };
@@ -570,8 +570,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
             sqlCommand.Connection = (NpgsqlConnection)connection;
             sqlCommand.Transaction = (NpgsqlTransaction)transaction;
 
-            var pTimestamp = new NpgsqlParameter(@"""sync_min_timestamp""", NpgsqlDbType.Bigint) { Value = 0 };
-            var pScopeId = new NpgsqlParameter(@"""sync_scope_id""", NpgsqlDbType.Uuid) { Value = "NULL", IsNullable = true }; // <--- Ok THAT's Bad, but it's working :D
+            var pTimestamp = new NpgsqlParameter(@"sync_min_timestamp", NpgsqlDbType.Bigint) { Value = 0 };
+            var pScopeId = new NpgsqlParameter(@"sync_scope_id", NpgsqlDbType.Uuid) { Value = "NULL", IsNullable = true }; // <--- Ok THAT's Bad, but it's working :D
             sqlCommand.Parameters.Add(pTimestamp);
             sqlCommand.Parameters.Add(pScopeId);
 
@@ -694,8 +694,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
             command.Transaction = (NpgsqlTransaction)transaction;
 
 
-            var pTimestamp = new NpgsqlParameter(@"""sync_min_timestamp""", NpgsqlDbType.Bigint);
-            var pScopeId = new NpgsqlParameter(@"""sync_scope_id""", NpgsqlDbType.Uuid) { Value = "NULL", IsNullable = true };
+            var pTimestamp = new NpgsqlParameter(@"sync_min_timestamp", NpgsqlDbType.Bigint);
+            var pScopeId = new NpgsqlParameter(@"sync_scope_id", NpgsqlDbType.Uuid) { Value = "NULL", IsNullable = true };
             command.Parameters.Add(pTimestamp);
             command.Parameters.Add(pScopeId);
 
@@ -814,7 +814,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             cmd.Connection = (NpgsqlConnection)connection;
             cmd.Transaction = (NpgsqlTransaction)transaction;
             this.AddPkColumnParametersToCommand(cmd);
-            NpgsqlParameter sqlParameter = new NpgsqlParameter(@"""sync_scope_id""", NpgsqlDbType.Uuid);
+            NpgsqlParameter sqlParameter = new NpgsqlParameter(@"sync_scope_id", NpgsqlDbType.Uuid);
 
             cmd.Parameters.Add(sqlParameter);
 
@@ -964,7 +964,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine("BEGIN");
             stringBuilder.AppendLine("ts := 0;");
             stringBuilder.AppendLine($"SELECT {listColumnsTmp.ToString()}");
-            stringBuilder.AppendLine($@"""timestamp"", ""update_scope_id"" FROM {schema}.{trackingTableQuoted} ");
+            stringBuilder.AppendLine($@"timestamp, update_scope_id FROM {schema}.{trackingTableQuoted} ");
             stringBuilder.AppendLine($"WHERE {NpgsqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), trackingTableQuoted)} LIMIT 1 ");
             stringBuilder.AppendLine($@"INTO {listColumnsTmp2.ToString()} ts, t_update_scope_id;");
             stringBuilder.AppendLine();

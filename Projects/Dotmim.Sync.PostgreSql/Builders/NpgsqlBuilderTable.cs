@@ -131,13 +131,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
         public Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
-            if (schema == "public")
-                return null;
+            //if (schema == "public")
+            //    return null;
 
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"CREATE SCHEMA {schema};";
+            command.CommandText = $"CREATE SCHEMA IF NOT EXISTS {schema};";
             return Task.FromResult(command);
         }
         public Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
@@ -283,9 +283,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 {
                     Name = (string)row["ForeignKey"],
                     TableName = (string)row["TableName"],
-                    SchemaName = (string)row["SchemaName"] == "public" ? "" : (string)row["SchemaName"],
+                    SchemaName = (string)row["SchemaName"],
                     ReferenceTableName = (string)row["ReferenceTableName"],
-                    ReferenceSchemaName = (string)row["ReferenceSchemaName"] == "public" ? "" : (string)row["ReferenceSchemaName"],
+                    ReferenceSchemaName = (string)row["ReferenceSchemaName"],
                 }))
                 {
                     var relationDefinition = new DbRelationDefinition()

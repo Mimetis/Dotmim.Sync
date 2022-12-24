@@ -5,7 +5,6 @@ using Npgsql;
 using System;
 using Dotmim.Sync.PostgreSql.Scope;
 using Dotmim.Sync.PostgreSql.Builders;
-using Npgsql.NameTranslation;
 
 namespace Dotmim.Sync.PostgreSql
 {
@@ -64,12 +63,11 @@ namespace Dotmim.Sync.PostgreSql
             }
         }
 
-        public override DbConnection CreateConnection() {
+        public override DbConnection CreateConnection()
+        {
             var connection = new NpgsqlConnection(this.ConnectionString);
-
-            NpgsqlConnection.GlobalTypeMapper.MapComposite<Department>("address_BulkType", new NpgsqlNullNameTranslator());
             return connection;
-            }
+        }
 
         public override DbBuilder GetDatabaseBuilder() => new NpgsqlBuilder();
 
@@ -120,14 +118,6 @@ namespace Dotmim.Sync.PostgreSql
 
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
                     => new NpgsqlTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
-    }
 
-    internal class Department
-    {
-        public int Departmentid { get; set; }
-        public string Name { get; set; }
-
-        public string Mroupname { get; set; }
-        public DateTime Modifieddate { get; set; }
     }
 }

@@ -159,11 +159,11 @@ namespace Dotmim.Sync.PostgreSql
         public static async Task<SyncSetup> GetAllTablesAsync(NpgsqlConnection connection, NpgsqlTransaction transaction)
         {
             var command = $@"
-                            SELECT TABLE_NAME,
-	                               TABLE_SCHEMA
-                            FROM INFORMATION_SCHEMA.TABLES
-                            WHERE TABLE_TYPE = 'BASE TABLE'
-	                              AND TABLE_SCHEMA not in ('information_schema','pg_catalog');
+                            select table_name,
+	                               table_schema
+                            from information_schema.tables
+                            where lower(table_type) = 'base table'
+	                              and table_schema not in ('information_schema','pg_catalog');
                            ";
 
             var syncSetup = new SyncSetup();
@@ -239,12 +239,12 @@ namespace Dotmim.Sync.PostgreSql
             {
 
                 var parameter = sqlCommand.CreateParameter();
-                parameter.ParameterName = "@TABLENAME";
+                parameter.ParameterName = "@tablename";
                 parameter.Value = tableNameString;
                 sqlCommand.Parameters.Add(parameter);
 
                 parameter = sqlCommand.CreateParameter();
-                parameter.ParameterName = "@SCHEMANAME";
+                parameter.ParameterName = "@schemaname";
                 parameter.Value = schemaNameString;
                 sqlCommand.Parameters.Add(parameter);
 

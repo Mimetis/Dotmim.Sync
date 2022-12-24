@@ -176,13 +176,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
                 case "timestamp":
                 case "timestamp without time zone":
-                    return DbType.DateTime;
+                    return DbType.DateTime2;
 
                 case "timestamptz":
                 case "timestamp with time zone":
                 case "timetz":
                 case "time with time zone":
-                    return DbType.DateTimeOffset;
+                    return DbType.DateTime;
 
                 case "time":
                 case "time without time zone":
@@ -228,9 +228,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             var iMaxLength = column.MaxLength > 8000 ? 8000 : Convert.ToInt32(column.MaxLength);
 
-            // special length for nchar and nvarchar
-            if ((sqlDbType == NpgsqlDbType.Bytea || sqlDbType == NpgsqlDbType.Varchar || sqlDbType == NpgsqlDbType.Text) && iMaxLength > 0)
-                iMaxLength /= 2;
+            //// special length for nchar and nvarchar
+            //if ((sqlDbType == NpgsqlDbType.Bytea || sqlDbType == NpgsqlDbType.Varchar || sqlDbType == NpgsqlDbType.Text) && iMaxLength > 0)
+            //    iMaxLength /= 2;
 
             if (iMaxLength > 0 && sqlDbType != NpgsqlDbType.Varchar && sqlDbType != NpgsqlDbType.Text &&
                 sqlDbType != NpgsqlDbType.Char && sqlDbType != NpgsqlDbType.Bytea)
@@ -249,6 +249,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                     return NpgsqlDbType.Array;
                 case "bigint":
                 case "int8":
+                    return NpgsqlDbType.Bigint;
                 case "bit":
                     return NpgsqlDbType.Bit;
                 case "boolean":
@@ -383,42 +384,42 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case DbType.Boolean:
                     return NpgsqlDbType.Boolean;
                 case DbType.Byte:
+                case DbType.SByte:
                     return NpgsqlDbType.Smallint;
                 case DbType.Currency:
                     return NpgsqlDbType.Money;
                 case DbType.Date:
                     return NpgsqlDbType.Date;
-                case DbType.DateTime:
-                    return NpgsqlDbType.Timestamp;
+                case DbType.Time:
+                    return NpgsqlDbType.Time;
                 case DbType.DateTime2:
                     return NpgsqlDbType.Timestamp;
-                case DbType.DateTimeOffset:
+                // https://www.npgsql.org/doc/release-notes/6.0.html DbType.DateTime now maps to timestamptz, not timestamp. DbType.DateTime2 continues to map to timestamp, and DbType.DateTimeOffset continues to map to timestamptz, as before
+                case DbType.DateTime:
+                //case DbType.DateTimeOffset:
                     return NpgsqlDbType.TimestampTz;
                 case DbType.Single:
                     return NpgsqlDbType.Real;
                 case DbType.Decimal:
-                case DbType.Double:
                 case DbType.VarNumeric:
+                    return NpgsqlDbType.Numeric;
+                case DbType.Double:
                     return NpgsqlDbType.Double;
                 case DbType.Guid:
                     return NpgsqlDbType.Uuid;
                 case DbType.Int16:
+                case DbType.UInt16:
                     return NpgsqlDbType.Smallint;
                 case DbType.Int32:
-                case DbType.UInt16:
+                case DbType.UInt32:
                     return NpgsqlDbType.Integer;
                 case DbType.Int64:
-                case DbType.UInt32:
                 case DbType.UInt64:
                     return NpgsqlDbType.Bigint;
-                case DbType.SByte:
-                    return NpgsqlDbType.Smallint;
                 case DbType.String:
                 case DbType.StringFixedLength:
                 case DbType.Xml:
                     return NpgsqlDbType.Text;
-                case DbType.Time:
-                    return NpgsqlDbType.Time;
                 case DbType.Object:
                     return NpgsqlDbType.Array;
             }
@@ -475,7 +476,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                     return Type.GetType("System.TimeSpan");
                 case NpgsqlDbType.TimestampTz:
                 case NpgsqlDbType.TimeTz:
-                    return Type.GetType("System.DateTimeOffset");
+                    return typeof(DateTime);
                 case NpgsqlDbType.Inet:
                 case NpgsqlDbType.Cidr:
                 case NpgsqlDbType.MacAddr:
