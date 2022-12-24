@@ -123,6 +123,10 @@ namespace Dotmim.Sync.Web.Client
         {
             this.SyncContext = context;
             this.ScopeInfoClient = cScopeInfoClient;
+            this.IsLastBatch = true;
+            this.BatchCount = 0;
+            this.BatchIndex = 0;
+            this.Changes = new ContainerSet();
         }
 
         [DataMember(Name = "sc", IsRequired = true, Order = 1)]

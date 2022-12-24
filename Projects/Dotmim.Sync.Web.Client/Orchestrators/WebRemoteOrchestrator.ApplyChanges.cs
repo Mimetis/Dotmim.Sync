@@ -26,8 +26,6 @@ namespace Dotmim.Sync.Web.Client
             InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, ClientSyncChanges clientChanges,
             DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
             SyncSet schema = cScopeInfo.Schema;
             schema.EnsureSchema();
 
@@ -47,16 +45,7 @@ namespace Dotmim.Sync.Web.Client
             {
                 try
                 {
-                    HttpMessageSendChangesRequest changesToSend = null;
-                    changesToSend = new HttpMessageSendChangesRequest(context, cScopeInfoClient);
-
-                    var containerSet = new ContainerSet();
-
-                    changesToSend.ClientLastSyncTimestamp = clientChanges.ClientTimestamp;
-                    changesToSend.Changes = containerSet;
-                    changesToSend.IsLastBatch = true;
-                    changesToSend.BatchIndex = 0;
-                    changesToSend.BatchCount = 0;
+                    var changesToSend = new HttpMessageSendChangesRequest(context, cScopeInfoClient) { ClientLastSyncTimestamp = clientChanges.ClientTimestamp };
 
                     context.ProgressPercentage += 0.125;
 
@@ -89,13 +78,21 @@ namespace Dotmim.Sync.Web.Client
                         // Get the updatable schema for the only table contained in the batchpartinfo
                         var schemaTable = CreateChangesTable(schema.Tables[batchPartInfoTableName, batchPartInfoSchemaName]);
 
+                        // Create the send changes request
+                        var changesToSend = new HttpMessageSendChangesRequest(context, cScopeInfoClient)
+                        {
+                            IsLastBatch = bpi.IsLastBatch,
+                            BatchIndex = bpi.Index,
+                            BatchCount = clientChanges.ClientBatchInfo.BatchPartsInfo.Count,
+                            ClientLastSyncTimestamp = clientChanges.ClientTimestamp,
+                        };
+
                         // Generate the ContainerSet containing rows to send to the user
-                        var containerSet = new ContainerSet();
                         var containerTable = new ContainerTable(schemaTable);
-                        var fullPath = Path.Combine(clientChanges.ClientBatchInfo.GetDirectoryFullPath(), bpi.FileName);
-                        containerSet.Tables.Add(containerTable);
+                        changesToSend.Changes.Tables.Add(containerTable);
 
                         // read rows from file
+                        var fullPath = Path.Combine(clientChanges.ClientBatchInfo.GetDirectoryFullPath(), bpi.FileName);
                         foreach (var row in localSerializer.GetRowsFromFile(fullPath, schemaTable))
                             containerTable.Rows.Add(row.ToArray());
 
@@ -103,23 +100,12 @@ namespace Dotmim.Sync.Web.Client
                         if (this.Converter != null && containerTable.HasRows)
                             BeforeSerializeRows(containerTable, schemaTable, this.Converter);
 
-                        // Create the send changes request
-                        var changesToSend = new HttpMessageSendChangesRequest(context, cScopeInfoClient)
-                        {
-                            Changes = containerSet,
-                            IsLastBatch = bpi.IsLastBatch,
-                            BatchIndex = bpi.Index,
-                            BatchCount = clientChanges.ClientBatchInfo.BatchPartsInfo.Count,
-                            ClientLastSyncTimestamp = clientChanges.ClientTimestamp,
-                        };
-
                         tmpRowsSendedCount += containerTable.Rows.Count;
 
                         context.ProgressPercentage = initialPctProgress1 + ((changesToSend.BatchIndex + 1) * 0.2d / changesToSend.BatchCount);
                         await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, tmpRowsSendedCount, clientChanges.ClientBatchInfo.RowsCount, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
-                        response = await this.ProcessRequestAsync
-                            (changesToSend, HttpStep.SendChangesInProgress, this.Options.BatchSize, cancellationToken, progress).ConfigureAwait(false);
+                        response = await this.ProcessRequestAsync(changesToSend, HttpStep.SendChangesInProgress, this.Options.BatchSize, cancellationToken, progress).ConfigureAwait(false);
 
                         // See #721 for issue and #721 for PR from slagtejn
                         if (!bpi.IsLastBatch)
@@ -140,14 +126,14 @@ namespace Dotmim.Sync.Web.Client
             // 1) Could be the only one response 
             // 2) Could be the first response and we need to download all batchs
 
+            // Create the BatchInfo
+            var serverBatchInfo = new BatchInfo();
+
             try
             {
                 context.SyncStage = SyncStage.ChangesSelecting;
                 var initialPctProgress = 0.55;
                 context.ProgressPercentage = initialPctProgress;
-
-                // Create the BatchInfo
-                var serverBatchInfo = new BatchInfo();
 
                 HttpMessageSummaryResponse summaryResponseContent = null;
 
@@ -174,31 +160,16 @@ namespace Dotmim.Sync.Web.Client
 
                 // Generate the batch directory
                 var batchDirectoryRoot = this.Options.BatchDirectory;
-                var batchDirectoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
+                var batchDirectoryName = string.Concat("WEB_REMOTE_GETCHANGES_", DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
 
                 serverBatchInfo.DirectoryRoot = batchDirectoryRoot;
                 serverBatchInfo.DirectoryName = batchDirectoryName;
 
-                // If we have a snapshot we are raising the batches downloading process that will occurs
-                await this.InterceptAsync(new HttpBatchesDownloadingArgs(context, serverBatchInfo, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
-
-                // hook to get the last batch part info at the end
-                var bpis = serverBatchInfo.BatchPartsInfo.Where(bpi => !bpi.IsLastBatch);
-                var lstbpi = serverBatchInfo.BatchPartsInfo.FirstOrDefault(bpi => bpi.IsLastBatch);
-
-                if (lstbpi == null)
-                    lstbpi = serverBatchInfo.BatchPartsInfo.OrderByDescending(bpi => bpi.Index).FirstOrDefault();
-
-                // Parrallel download of all bpis except the last one (which will launch the delete directory on the server side)
-                await bpis.ForEachAsync(bpi => DownloadBatchPartInfoAsync(context, schema, serverBatchInfo, bpi, cancellationToken, progress), this.MaxDownladingDegreeOfParallelism).ConfigureAwait(false);
-
-                // Download last batch part that will launch the server deletion of the tmp dir
-                await DownloadBatchPartInfoAsync(context, schema, serverBatchInfo, lstbpi, cancellationToken, progress).ConfigureAwait(false);
+                await DownladBatchInfoAsync(context, schema, serverBatchInfo, summaryResponseContent, cancellationToken, progress).ConfigureAwait(false);
 
                 // generate the new scope item
                 this.CompleteTime = DateTime.UtcNow;
 
-                await this.InterceptAsync(new HttpBatchesDownloadedArgs(summaryResponseContent, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                 var serverSyncChanges = new ServerSyncChanges(
                     summaryResponseContent.RemoteClientTimestamp,
@@ -209,8 +180,20 @@ namespace Dotmim.Sync.Web.Client
 
                 return (context, serverSyncChanges, summaryResponseContent.ConflictResolutionPolicy);
             }
-            catch (HttpSyncWebException) { throw; } // throw server error
-            catch (Exception ex) { throw GetSyncError(context, ex); } // throw client error
+            catch (HttpSyncWebException)
+            {
+                // Try to delete the local folder where we download everything from server
+                await WebRemoteCleanFolderAsync(context, serverBatchInfo).ConfigureAwait(false);
+
+                throw;
+            } // throw server error
+            catch (Exception ex)
+            {
+                // Try to delete the local folder where we download everything from server
+                await WebRemoteCleanFolderAsync(context, serverBatchInfo).ConfigureAwait(false);
+
+                throw GetSyncError(context, ex);
+            } // throw client error
 
         }
     }

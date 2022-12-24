@@ -659,8 +659,7 @@ namespace Dotmim.Sync.Web.Server
             // BatchInfo containing all BatchPartInfo objects
             // Retrieve batchinfo instance if exists
             // Get batch info from session cache if exists, otherwise create it
-            if (sessionCache.ClientBatchInfo == null)
-                sessionCache.ClientBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: "REMOTEGETCHANGES");
+            sessionCache.ClientBatchInfo ??= new BatchInfo(this.Options.BatchDirectory, info: "REMOTEGETCHANGES");
 
             if (httpMessage.Changes != null && httpMessage.Changes.HasRows)
             {
@@ -714,17 +713,15 @@ namespace Dotmim.Sync.Web.Server
             // ------------------------------------------------------------
             ServerSyncChanges serverSyncChanges;
             context = httpMessage.SyncContext;
-            ConflictResolutionPolicy serverResolutionPolicy;
             var clientSyncChanges = new ClientSyncChanges(httpMessage.ClientLastSyncTimestamp, sessionCache.ClientBatchInfo, null, null);
 
             // get changes
-            (context, serverSyncChanges, serverResolutionPolicy) =
-                    await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(
-                           httpMessage.ScopeInfoClient,
-                           sScopeInfo,
-                           httpMessage.SyncContext,
-                           clientSyncChanges,
-                           default, default, cancellationToken, progress).ConfigureAwait(false);
+            (context, serverSyncChanges, _) = await this.RemoteOrchestrator.InternalApplyThenGetChangesAsync(
+                                               httpMessage.ScopeInfoClient,
+                                               sScopeInfo,
+                                               context,
+                                               clientSyncChanges,
+                                               default, default, cancellationToken, progress).ConfigureAwait(false);
 
             // Set session cache infos
             sessionCache.RemoteClientTimestamp = serverSyncChanges.RemoteClientTimestamp;

@@ -32,6 +32,8 @@ namespace Dotmim.Sync.Web.Client
         {
             try
             {
+                await WebRemoteCleanFolderAsync(context, serverSyncChanges?.ServerBatchInfo).ConfigureAwait(false);
+
                 // Create the message to be sent
                 var httpMessage = new HttpMessageEndSessionRequest(context)
                 {
@@ -63,6 +65,18 @@ namespace Dotmim.Sync.Web.Client
             catch (HttpSyncWebException) { throw; } // throw server error
             catch (Exception ex) { throw GetSyncError(context, ex); } // throw client error
 
+        }
+
+        private async Task WebRemoteCleanFolderAsync(SyncContext context, BatchInfo changes)
+        {
+            // Try to delete the local folder where we download everything from server
+            if (this.Options.CleanFolder && changes != null)
+            {
+                var cleanFolder = await this.InternalCanCleanFolderAsync(context.ScopeName, context.Parameters, changes).ConfigureAwait(false);
+
+                if (cleanFolder)
+                    changes.TryRemoveDirectory();
+            }
         }
     }
 }

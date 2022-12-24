@@ -43,9 +43,9 @@ namespace Dotmim.Sync.Serialization
             using var sw = new StreamWriter(ms);
             using var jtw = new JsonTextWriter(sw);
 
-#if DEBUG
-            jtw.Formatting = Formatting.Indented;
-#endif
+//#if DEBUG
+//            jtw.Formatting = Formatting.Indented;
+//#endif
             await jobject.WriteToAsync(jtw).ConfigureAwait(false);
 
             await jtw.FlushAsync().ConfigureAwait(false);

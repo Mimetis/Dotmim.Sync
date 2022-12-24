@@ -1713,7 +1713,7 @@ namespace Dotmim.Sync.Tests
             await this.Kestrell.StopAsync();
 
             // insert 1000 new products so batching is used
-            var rowsToReceive = 1000;
+            var rowsToReceive = 3000;
             var productNumber = "12345";
 
             var products = Enumerable.Range(1, rowsToReceive).Select(i =>
