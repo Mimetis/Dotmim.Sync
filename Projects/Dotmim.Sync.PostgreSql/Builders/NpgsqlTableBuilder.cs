@@ -1,85 +1,90 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Manager;
+using Dotmim.Sync.PostgreSql.Builders;
+using System.Collections.Generic;
 using System.Data.Common;
 using System.Text;
+using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Postgres.Builders
+namespace Dotmim.Sync.PostgreSql.Builders
 {
-
-    /// <summary>
-    /// The SqlBuilder class is the Sql implementation of DbBuilder class.
-    /// In charge of creating tracking table, stored proc, triggers and adapters.
-    /// </summary>
     public class NpgsqlTableBuilder : DbTableBuilder
     {
-
-        public NpgsqlObjectNames ObjectNames { get; private set; }
-
-        public NpgsqlTableBuilder(SyncTable tableDescription, SyncSetup setup) : base(tableDescription, setup)
-            => this.ObjectNames = new NpgsqlObjectNames(tableDescription, setup);
-
-        public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
+        public NpgsqlTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+            : base(tableDescription, tableName, trackingTableName, setup, scopeName)
         {
-            var originalTableName = ParserName.Parse(tableDescription, "\"");
+            this.objectNames = new NpgsqlObjectNames(tableDescription, tableName, trackingTableName, setup, scopeName);
+            this.dbMetadata = new NpgsqlDbMetadata();
 
-            var pref = setup.TrackingTablesPrefix;
-            var suf = setup.TrackingTablesSuffix;
-
-            // be sure, at least, we have a suffix if we have empty values. 
-            // othewise, we have the same name for both table and tracking table
-            if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
-                suf = "_tracking";
-
-            var trakingTableNameString = $"{pref}{originalTableName.ObjectName}{suf}";
-
-            if (!string.IsNullOrEmpty(originalTableName.SchemaName))
-                trakingTableNameString = $"{originalTableName.SchemaName}.{trakingTableNameString}";
-
-            var trackingTableName = ParserName.Parse(trakingTableNameString, "\"");
-
-            return (originalTableName, trackingTableName);
-        }
-        public static string WrapScriptTextWithComments(string commandText, string commentText, bool includeGo = true, int indentLevel = 0)
-        {
-            var stringBuilder = new StringBuilder();
-            var stringBuilder1 = new StringBuilder("\n");
-
-            for (int i = 0; i < indentLevel; i++)
-            {
-                stringBuilder.Append("\t");
-                stringBuilder1.Append("\t");
-            }
-
-            string str = stringBuilder1.ToString();
-            stringBuilder.Append(string.Concat("-- BEGIN ", commentText, str));
-            stringBuilder.Append(commandText);
-            stringBuilder.Append(string.Concat(str, (includeGo ? string.Concat("GO", str) : string.Empty)));
-            stringBuilder.Append(string.Concat("-- END ", commentText, str, "\n"));
-            return stringBuilder.ToString();
+            this.builderProcedure = new NpgsqlBuilderProcedure(tableDescription, tableName, trackingTableName, Setup, scopeName);
+            this.builderTable = new NpgsqlBuilderTable(tableDescription, tableName, trackingTableName, Setup);
+            this.builderTrackingTable = new NpgsqlBuilderTrackingTable(tableDescription, tableName, trackingTableName, Setup);
+            this.builderTrigger = new NpgsqlBuilderTrigger(tableDescription, tableName, trackingTableName, Setup, scopeName);
         }
 
-        public override IDbBuilderStoreProcedureCommands GetStoredProceduresCommands()
-        {
-            return new NpgsqlBuilderProcedure(TableDescription, this.TableName, this.TrackingTableName, Setup);
-        }
+        public NpgsqlBuilderProcedure builderProcedure { get; }
+        public NpgsqlBuilderTable builderTable { get; }
+        public NpgsqlBuilderTrackingTable builderTrackingTable { get; }
+        public NpgsqlBuilderTrigger builderTrigger { get; }
+        public NpgsqlDbMetadata dbMetadata { get; }
+        public NpgsqlObjectNames objectNames { get; }
+        public override Task<DbCommand> GetAddColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+           => this.builderTable.GetAddColumnCommandAsync(columnName, connection, transaction);
 
-        public override IDbBuilderTriggerCommands GetTriggerCommands()
-        {
-            return new SqlBuilderTrigger(TableDescription, this.TableName, this.TrackingTableName, Setup);
-        }
+        public override Task<IEnumerable<SyncColumn>> GetColumnsAsync(DbConnection connection, DbTransaction transaction)
+           => this.builderTable.GetColumnsAsync(connection, transaction);
 
-        public override IDbBuilderTableHelper GetTableCommands()
-        {
-            return new NpgsqlBuilderTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
-        }
+        public override Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
+                             => this.builderTable.GetCreateSchemaCommandAsync(connection, transaction);
+        public override Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
+            => this.builderProcedure.GetCreateStoredProcedureCommandAsync(storedProcedureType, filter, connection, transaction);
 
-        public override IDbBuilderTrackingTableHelper CreateTrackingTableBuilder()
-        {
-            return new SqlBuilderTrackingTable(TableDescription, this.TableName, this.TrackingTableName, Setup);
-        }
+        public override Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
+                    => this.builderTable.GetCreateTableCommandAsync(connection, transaction);
+        public override Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
+            => this.builderTrackingTable.GetCreateTrackingTableCommandAsync(connection, transaction);
 
-        public override SyncAdapter CreateSyncAdapter()
-        {
-            return new NpgsqlSyncAdapter(TableDescription, this.TableName, this.TrackingTableName, Setup);
-        }
+        public override Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
+            => this.builderTrigger.GetCreateTriggerCommandAsync(triggerType, connection, transaction);
+
+        public override Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+            => this.builderTable.GetDropColumnCommandAsync(columnName, connection, transaction);
+
+        public override Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
+            => this.builderProcedure.GetDropStoredProcedureCommandAsync(storedProcedureType, filter, connection, transaction);
+
+        public override Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
+           => this.builderTable.GetDropTableCommandAsync(connection, transaction);
+
+        public override Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
+           => this.builderTrackingTable.GetDropTrackingTableCommandAsync(connection, transaction);
+
+        public override Task<DbCommand> GetDropTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
+             => this.builderTrigger.GetDropTriggerCommandAsync(triggerType, connection, transaction);
+
+        public override Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
+           => this.builderTable.GetExistsColumnCommandAsync(columnName, connection, transaction);
+
+        public override Task<DbCommand> GetExistsSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
+            => this.builderTable.GetExistsSchemaCommandAsync(connection, transaction);
+
+        public override Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
+           => this.builderProcedure.GetExistsStoredProcedureCommandAsync(storedProcedureType, filter, connection, transaction);
+
+        public override Task<DbCommand> GetExistsTableCommandAsync(DbConnection connection, DbTransaction transaction)
+                                                                                            => this.builderTable.GetExistsTableCommandAsync(connection, transaction);
+        public override Task<DbCommand> GetExistsTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
+            => this.builderTrackingTable.GetExistsTrackingTableCommandAsync(connection, transaction);
+
+        public override Task<DbCommand> GetExistsTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
+            => this.builderTrigger.GetExistsTriggerCommandAsync(triggerType, connection, transaction);
+
+        public override Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction)
+            => this.builderTable.GetPrimaryKeysAsync(connection, transaction);
+
+        public override Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync(DbConnection connection, DbTransaction transaction)
+                                    => this.builderTable.GetRelationsAsync(connection, transaction);
+        public override Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
+             => this.builderTrackingTable.GetRenameTrackingTableCommandAsync(oldTableName, connection, transaction);
     }
 }
