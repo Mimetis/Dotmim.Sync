@@ -34,9 +34,6 @@ namespace Dotmim.Sync
             if (string.IsNullOrEmpty(item.TableName))
                 throw new ArgumentNullException("A SetupFilter needs a table name on which the filter is applied.");
 
-            if (item.Parameters == null || item.Parameters.Count <= 0)
-                throw new ArgumentNullException("A SetupFilter needs at least one parameter.");
-
             if (InnerCollection.Any(st => item.EqualsByName(st)))
                 throw new FilterAlreadyExistsException(item.TableName);
 

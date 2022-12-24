@@ -56,12 +56,11 @@ namespace Dotmim.Sync.Web.Client
                     changesToSend.Changes = containerSet;
                     changesToSend.IsLastBatch = true;
                     changesToSend.BatchIndex = 0;
-                    changesToSend.BatchCount = clientChanges.ClientBatchInfo.BatchPartsInfo == null ? 0 : clientChanges.ClientBatchInfo.BatchPartsInfo.Count;
-                    var inMemoryRowsCount = changesToSend.Changes.RowsCount();
+                    changesToSend.BatchCount = 0;
 
                     context.ProgressPercentage += 0.125;
 
-                    await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, inMemoryRowsCount, inMemoryRowsCount, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, 0, 0, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                     response = await this.ProcessRequestAsync
                         (changesToSend, HttpStep.SendChangesInProgress, this.Options.BatchSize, cancellationToken, progress).ConfigureAwait(false);
@@ -120,7 +119,7 @@ namespace Dotmim.Sync.Web.Client
                         await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, tmpRowsSendedCount, clientChanges.ClientBatchInfo.RowsCount, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                         response = await this.ProcessRequestAsync
-                            (changesToSend, HttpStep.SendChangesInProgress,this.Options.BatchSize, cancellationToken, progress).ConfigureAwait(false);
+                            (changesToSend, HttpStep.SendChangesInProgress, this.Options.BatchSize, cancellationToken, progress).ConfigureAwait(false);
 
                         // See #721 for issue and #721 for PR from slagtejn
                         if (!bpi.IsLastBatch)
@@ -171,7 +170,6 @@ namespace Dotmim.Sync.Web.Client
                     foreach (var bpi in summaryResponseContent.BatchInfo.BatchPartsInfo)
                         serverBatchInfo.BatchPartsInfo.Add(bpi);
 
-
                 // From here, we need to serialize everything on disk
 
                 // Generate the batch directory
@@ -184,79 +182,18 @@ namespace Dotmim.Sync.Web.Client
                 // If we have a snapshot we are raising the batches downloading process that will occurs
                 await this.InterceptAsync(new HttpBatchesDownloadingArgs(context, serverBatchInfo, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
-                // function used to download one part
-                var dl = new Func<BatchPartInfo, Task>(async (bpi) =>
-                {
-                    if (cancellationToken.IsCancellationRequested)
-                        return;
+                // hook to get the last batch part info at the end
+                var bpis = serverBatchInfo.BatchPartsInfo.Where(bpi => !bpi.IsLastBatch);
+                var lstbpi = serverBatchInfo.BatchPartsInfo.FirstOrDefault(bpi => bpi.IsLastBatch);
 
-                    var changesToSend3 = new HttpMessageGetMoreChangesRequest(context, bpi.Index);
+                if (lstbpi == null)
+                    lstbpi = serverBatchInfo.BatchPartsInfo.OrderByDescending(bpi => bpi.Index).FirstOrDefault();
 
-                    await this.InterceptAsync(new HttpGettingServerChangesRequestArgs(bpi.Index, serverBatchInfo.BatchPartsInfo.Count, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
+                // Parrallel download of all bpis except the last one (which will launch the delete directory on the server side)
+                await bpis.ForEachAsync(bpi => DownloadBatchPartInfoAsync(context, schema, serverBatchInfo, bpi, cancellationToken, progress), this.MaxDownladingDegreeOfParallelism).ConfigureAwait(false);
 
-                    // Raise get changes request
-                    context.ProgressPercentage = initialPctProgress + ((bpi.Index + 1) * 0.2d / serverBatchInfo.BatchPartsInfo.Count);
-
-                    var response = await this.ProcessRequestAsync(changesToSend3, HttpStep.GetMoreChanges,0, cancellationToken, progress).ConfigureAwait(false);
-
-                    // If we are using a serializer that is not JSON, need to load in memory, then serialize to JSON
-                    // OR If we have an interceptor on getting response
-                    if (this.SerializerFactory.Key != "json" || this.interceptors.HasInterceptors<HttpGettingResponseMessageArgs>())
-                    {
-                        var webSerializer = this.SerializerFactory.GetSerializer();
-                        using var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                        var getMoreChanges = await webSerializer.DeserializeAsync<HttpMessageSendChangesResponse>(responseStream);
-                        context = getMoreChanges.SyncContext;
-
-                        await this.InterceptAsync(new HttpGettingResponseMessageArgs(response, this.ServiceUri.ToString(),
-                            HttpStep.GetMoreChanges, context, getMoreChanges, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
-
-                        if (getMoreChanges != null && getMoreChanges.Changes != null && getMoreChanges.Changes.HasRows)
-                        {
-                            var localSerializer = new LocalJsonSerializer(this, context);
-
-                            // Should have only one table
-                            var table = getMoreChanges.Changes.Tables[0];
-                            var schemaTable = CreateChangesTable(schema.Tables[table.TableName, table.SchemaName]);
-
-                            var fullPath = Path.Combine(serverBatchInfo.GetDirectoryFullPath(), bpi.FileName);
-
-                            // open the file and write table header
-                            localSerializer.OpenFile(fullPath, schemaTable);
-
-                            foreach (var row in table.Rows)
-                                await localSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable).ConfigureAwait(false);
-
-                            // Close file
-                            localSerializer.CloseFile();
-                        }
-
-                    }
-                    else
-                    {
-                        await SerializeAsync(response, bpi.FileName, serverBatchInfo.GetDirectoryFullPath(), this).ConfigureAwait(false);
-                    }
-
-                    // Raise response from server containing a batch changes 
-                    await this.InterceptAsync(new HttpGettingServerChangesResponseArgs(serverBatchInfo, bpi.Index, bpi.RowsCount, summaryResponseContent.SyncContext, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
-                });
-
-                // Parrallel download of all bpis (which will launch the delete directory on the server side)
-                await serverBatchInfo.BatchPartsInfo.ForEachAsync(bpi => dl(bpi), this.MaxDownladingDegreeOfParallelism).ConfigureAwait(false);
-
-                // Send order of end of download
-                var lastBpi = serverBatchInfo.BatchPartsInfo.FirstOrDefault(bpi => bpi.IsLastBatch);
-
-                if (lastBpi != null)
-                {
-                    var endOfDownloadChanges = new HttpMessageGetMoreChangesRequest(context, lastBpi.Index);
-
-                    // Deserialize response incoming from server
-                    // This is the last response
-                    // Should contains step HttpStep.SendEndDownloadChanges
-                    var endResponseContent = await this.ProcessRequestAsync<HttpMessageSendChangesResponse>(
-                        context, endOfDownloadChanges, HttpStep.SendEndDownloadChanges, 0, cancellationToken, progress).ConfigureAwait(false);
-                }
+                // Download last batch part that will launch the server deletion of the tmp dir
+                await DownloadBatchPartInfoAsync(context, schema, serverBatchInfo, lstbpi, cancellationToken, progress).ConfigureAwait(false);
 
                 // generate the new scope item
                 this.CompleteTime = DateTime.UtcNow;
