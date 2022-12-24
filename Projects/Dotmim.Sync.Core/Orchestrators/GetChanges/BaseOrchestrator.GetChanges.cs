@@ -126,6 +126,7 @@ namespace Dotmim.Sync
                 if (batchInfo.RowsCount <= 0)
                 {
                     var cleanFolder = await this.InternalCanCleanFolderAsync(scopeInfo.Name, context.Parameters, batchInfo).ConfigureAwait(false);
+                    
                     if (cleanFolder)
                         batchInfo.TryRemoveDirectory();
                 }

@@ -143,7 +143,7 @@ namespace Dotmim.Sync.Web.Server
                 // HttpStep.EnsureSchema is the first call from client when client is new
                 // HttpStep.EnsureScopes is the first call from client when client is not new
                 // This is the only moment where we are initializing the sessionCache and store it in session
-                if (sessionCache == null && 
+                if (sessionCache == null &&
                     (step == HttpStep.EnsureSchema || step == HttpStep.EnsureScopes || step == HttpStep.GetRemoteClientTimestamp))
                 {
                     sessionCache = new SessionCache();
@@ -893,23 +893,17 @@ namespace Dotmim.Sync.Web.Server
             HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
             SessionCache sessionCache, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            var batchPartInfo = sessionCache.ServerBatchInfo.BatchPartsInfo.First(d => d.Index == httpMessage.BatchIndexRequested);
+            var batchPartInfo = sessionCache.ServerBatchInfo.BatchPartsInfo.FirstOrDefault(d => d.Index == httpMessage.BatchIndexRequested);
 
-            var context = httpMessage.SyncContext;
+            // we can try to clean if batchinfo is empty of if we found the last one AND we have the option.
+            var cleanFolder = (batchPartInfo == null || batchPartInfo.IsLastBatch) && this.Options.CleanFolder;
 
-            // If we have only one bpi, we can safely delete it
-            if (batchPartInfo.IsLastBatch)
-            {
-                // delete the folder (not the BatchPartInfo, because we have a reference on it)
-                var cleanFolder = this.Options.CleanFolder;
+            if (cleanFolder)
+                cleanFolder = await this.RemoteOrchestrator.InternalCanCleanFolderAsync(ScopeName, httpMessage.SyncContext.Parameters, sessionCache.ServerBatchInfo, default).ConfigureAwait(false);
 
-                if (cleanFolder)
-                    cleanFolder = await this.RemoteOrchestrator.InternalCanCleanFolderAsync(ScopeName, httpMessage.SyncContext.Parameters, sessionCache.ServerBatchInfo, default).ConfigureAwait(false);
-
-                if (cleanFolder)
-                    sessionCache.ServerBatchInfo.TryRemoveDirectory();
-            }
-            return new HttpMessageSendChangesResponse(context) { ServerStep = HttpStep.SendEndDownloadChanges };
+            if (cleanFolder)
+                sessionCache.ServerBatchInfo.TryRemoveDirectory();
+            return new HttpMessageSendChangesResponse(httpMessage.SyncContext) { ServerStep = HttpStep.SendEndDownloadChanges };
         }
 
 
