@@ -36,6 +36,7 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using Dotmim.Sync.SqlServer.Builders;
 using Microsoft.Extensions.Options;
 using System.Security.Cryptography.X509Certificates;
+using Dotmim.Sync.PostgreSql;
 
 #if NET5_0 || NET6_0 || NET7_0
 using MySqlConnector;
@@ -69,7 +70,8 @@ internal class Program
 
         //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
         //var clientProvider = new SqliteSyncProvider("dada.db");
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
 
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
@@ -119,7 +121,7 @@ internal class Program
 
         //await GenerateErrorsAsync();
 
-        await SynchronizeWithScopesAsync(clientProvider, serverProvider, setup, options);
+         await SynchronizeAsync(clientProvider, serverProvider, setup, options);
         //await LoadLocalSchemaAsync();
     }
 
