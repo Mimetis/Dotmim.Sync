@@ -4,114 +4,306 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
-namespace Dotmim.Sync.Postgres.Builders
+namespace Dotmim.Sync.PostgreSql.Builders
 {
     public class NpgsqlObjectNames
     {
-        internal const string insertTriggerName = "\"{0}\".\"{1}_insert_trigger\"";
-        internal const string updateTriggerName = "\"{0}\".\"{1}_update_trigger\"";
-        internal const string deleteTriggerName = "\"{0}\".\"{1}_delete_trigger\"";
+        public const string TimestampValue = "(extract(epoch from now())*1000)";
+        internal const string insertTriggerName = "{0}insert_trigger";
+        internal const string updateTriggerName = "{0}update_trigger";
+        internal const string deleteTriggerName = "{0}delete_trigger";
 
-        internal const string selectChangesProcName = "\"{0}\".\"{1}_changes\"";
-        internal const string selectChangesProcNameWithFilters = "\"{0}\".\"{1}_{2}_changes\"";
+        internal const string selectChangesProcName = @"{0}.""{1}{2}changes""";
+        internal const string selectChangesProcNameWithFilters = @"{0}.""{1}{2}{3}changes""";
 
-        internal const string initializeChangesProcName = "\"{0}\".\"{1}_initialize\"";
-        internal const string initializeChangesProcNameWithFilters = "\"{0}\".\"{1}_{2}_initialize\"";
+        internal const string initializeChangesProcName = @"{0}.""{1}{2}initialize""";
+        internal const string initializeChangesProcNameWithFilters = @"{0}.""{1}{2}{3}initialize""";
 
-        internal const string selectRowProcName = "\"{0}\".\"{1}_selectrow\"";
+        internal const string selectRowProcName = @"{0}.""{1}{2}selectrow""";
 
-        internal const string insertProcName = "\"{0}\".\"{1}_insert\"";
-        internal const string updateProcName = "\"{0}\".\"{1}_update\"";
-        internal const string deleteProcName = "\"{0}\".\"{1}_delete\"";
+        internal const string insertProcName = @"{0}.""{1}{2}insert""";
+        internal const string updateProcName = @"{0}.""{1}{2}update""";
+        internal const string deleteProcName = @"{0}.""{1}{2}delete""";
 
-        internal const string insertMetadataProcName = "\"{0}\".\"{1}_insertmetadata\"";
-        internal const string updateMetadataProcName = "\"{0}\".\"{1}_updatemetadata\"";
-        internal const string deleteMetadataProcName = "\"{0}\".\"{1}_deletemetadata\"";
+        internal const string deleteMetadataProcName = @"{0}.""{1}{2}deletemetadata""";
 
-        internal const string resetMetadataProcName = "\"{0}\".\"{1}_reset\"";
+        internal const string resetMetadataProcName = @"{0}.""{1}{2}reset""";
 
-        internal const string bulkTableTypeName = "\"{0}\".\"{1}_BulkType\"";
-        internal const string bulkInsertProcName = "\"{0}\".\"{1}_bulkinsert\"";
-        internal const string bulkUpdateProcName = "\"{0}\".\"{1}_bulkupdate\"";
-        internal const string bulkDeleteProcName = "\"{0}\".\"{1}_bulkdelete\"";
+        //internal const string bulkTableTypeName = "{0}.{1}{2}BulkType";
+        //internal const string bulkInsertProcName = "{0}.{1}{2}bulkinsert";
+        //internal const string bulkUpdateProcName = "{0}.{1}{2}bulkupdate";
+        //internal const string bulkDeleteProcName = "{0}.{1}{2}bulkdelete";
 
-        internal const string disableConstraintsText = "ALTER TABLE {0} NOCHECK CONSTRAINT ALL";
-        internal const string enableConstraintsText = "ALTER TABLE {0} CHECK CONSTRAINT ALL";
-        //internal const string disableConstraintsText = "sp_msforeachtable";
-        //internal const string enableConstraintsText = "sp_msforeachtable";
+        internal const string disableConstraintsText = "ALTER TABLE {0} DISABLE TRIGGER ALL";
+        internal const string enableConstraintsText = "ALTER TABLE {0} ENABLE TRIGGER ALL";
 
-        Dictionary<DbCommandType, (string name, bool isStoredProcedure)> names = new Dictionary<DbCommandType, (string name, bool isStoredProcedure)>();
-        
-        public SyncTable TableDescription { get; }
-        public SyncSetup Setup { get; }
+        Dictionary<DbCommandType, string> commandNames = new Dictionary<DbCommandType, string>();
+        private string scopeName;
+        private SyncSetup setup;
+        Dictionary<DbStoredProcedureType, string> storedProceduresNames = new Dictionary<DbStoredProcedureType, string>();
+        private SyncTable tableDescription;
+        private ParserName tableName;
+        private ParserName trackingName;
+        Dictionary<DbTriggerType, string> triggersNames = new Dictionary<DbTriggerType, string>();
 
-        public void AddName(DbCommandType objectType, string name, bool isStoredProcedure)
+        public NpgsqlObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
         {
-            if (names.ContainsKey(objectType))
+            this.tableDescription = tableDescription;
+            this.tableName = tableName;
+            this.trackingName = trackingName;
+            this.setup = setup;
+            this.scopeName = scopeName;
+            this.SetDefaultNames();
+        }
+
+
+
+        public void AddCommandName(DbCommandType objectType, string name)
+        {
+            if (commandNames.ContainsKey(objectType))
                 throw new Exception("Yous can't add an objectType multiple times");
 
-            names.Add(objectType, (name, isStoredProcedure));
+            commandNames.Add(objectType, name);
         }
-        public (string name, bool isStoredProcedure) GetCommandName(DbCommandType objectType, SyncFilter filter = null)
-        {
-            if (!names.ContainsKey(objectType))
-                throw new Exception("Yous should provide a value for all DbCommandName");
 
-            (var commandName, var isStoredProc) = names[objectType];
+        public void AddStoredProcedureName(DbStoredProcedureType objectType, string name)
+        {
+            if (storedProceduresNames.ContainsKey(objectType))
+                throw new Exception("You can't add an objectType multiple times");
+
+            storedProceduresNames.Add(objectType, name);
+        }
+
+        public void AddTriggerName(DbTriggerType objectType, string name)
+        {
+            if (triggersNames.ContainsKey(objectType))
+                throw new Exception("You can't add an objectType multiple times");
+
+            triggersNames.Add(objectType, name);
+        }
+
+        public string GetCommandName(DbCommandType objectType, SyncFilter filter)
+        {
+            if (!commandNames.ContainsKey(objectType))
+                throw new Exception("You should provide a value for all DbCommandName");
+
+            var commandName = commandNames[objectType];
 
             // concat filter name
             if (filter != null)
                 commandName = string.Format(commandName, filter.GetFilterName());
 
-            return (commandName, isStoredProc);
+            return commandName;
         }
 
-        public NpgsqlObjectNames(SyncTable tableDescription, SyncSetup setup)
+        public string GetStoredProcedureCommandName(DbStoredProcedureType storedProcedureType, SyncFilter filter = null)
         {
-            this.TableDescription = tableDescription;
-            this.Setup = setup;
-            SetDefaultNames();
+            if (!storedProceduresNames.ContainsKey(storedProcedureType))
+                throw new Exception("You should provide a value for all storedProcedureType");
+
+            var commandName = storedProceduresNames[storedProcedureType];
+
+            // concat filter name
+            if (filter != null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
+                commandName = string.Format(commandName, filter.GetFilterName());
+
+            return commandName;
         }
 
-        /// <summary>
-        /// Set the default stored procedures names
-        /// </summary>
+        public string GetTriggerCommandName(DbTriggerType objectType, SyncFilter filter = null)
+        {
+            if (!triggersNames.ContainsKey(objectType))
+                throw new Exception("Yous should provide a value for all DbCommandName");
+
+            var commandName = triggersNames[objectType];
+
+            // concat filter name
+            if (filter != null)
+                commandName = string.Format(commandName, filter.GetFilterName());
+
+            return commandName;
+        }
+
+        private string CreateSelectMetadataCommand()
+        {
+            var trackingTableQuoted = ParserName.Parse(trackingName.ToString(), "\"").Quoted().ToString();
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var tableUnquoted = tableName.Unquoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            var stringBuilder = new StringBuilder();
+            var pkeysSelect = new StringBuilder();
+            var pkeysWhere = new StringBuilder();
+
+
+            string and = string.Empty;
+            string comma = string.Empty;
+            foreach (var pkColumn in tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
+                var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
+                pkeysSelect.Append($"{comma}side.{columnName}");
+
+                pkeysWhere.Append($"{and}side.{columnName} = @{parameterName}");
+
+                and = " AND ";
+                comma = ", ";
+            }
+
+            stringBuilder.AppendLine($"SELECT {pkeysSelect}, side.update_scope_id, side.timestamp_bigint as timestamp, side.sync_row_is_tombstone");
+            stringBuilder.AppendLine($"FROM {schema}.{trackingTableQuoted} side");
+            stringBuilder.AppendLine($"WHERE {pkeysWhere}");
+
+            return stringBuilder.ToString();
+        }
+
+        private string CreateUpdateMetadataCommand()
+        {
+            var trackingTableQuoted = ParserName.Parse(trackingName.ToString(), "\"").Quoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            var stringBuilder = new StringBuilder();
+            var pkeysForUpdate = new StringBuilder();
+
+            var pkeySelectForInsert = new StringBuilder();
+            var pkeyISelectForInsert = new StringBuilder();
+            var pkeyAliasSelectForInsert = new StringBuilder();
+            var pkeysLeftJoinForInsert = new StringBuilder();
+            var pkeysIsNullForInsert = new StringBuilder();
+
+            string and = string.Empty;
+            string comma = string.Empty;
+            foreach (var pkColumn in tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn,"\"").Quoted().ToString();
+                var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
+
+                pkeysForUpdate.Append($"{and}side.{columnName} = @{parameterName}");
+
+                pkeySelectForInsert.Append($"{comma}{columnName}");
+                pkeyISelectForInsert.Append($"{comma}i.{columnName}");
+                pkeyAliasSelectForInsert.Append($"{comma}@{parameterName} as {columnName}");
+                pkeysLeftJoinForInsert.Append($"{and}side.{columnName} = i.{columnName}");
+                pkeysIsNullForInsert.Append($"{and}side.{columnName} IS NULL");
+                and = " AND ";
+                comma = ", ";
+            }
+
+
+            stringBuilder.AppendLine($"UPDATE side SET ");
+            stringBuilder.AppendLine($@" ""update_scope_id"" = @sync_scope_id, ");
+            stringBuilder.AppendLine($@" ""sync_row_is_tombstone"" = @sync_row_is_tombstone, ");
+            stringBuilder.AppendLine($@" ""last_change_datetime"" = now() ");
+            stringBuilder.AppendLine($"FROM {schema}.{trackingTableQuoted} side ");
+            stringBuilder.Append($"WHERE ");
+            stringBuilder.Append(pkeysForUpdate.ToString());
+            stringBuilder.AppendLine($";");
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine($"INSERT INTO {schema}.{trackingTableQuoted} (");
+            stringBuilder.AppendLine(pkeySelectForInsert.ToString());
+            stringBuilder.AppendLine(@",""update_scope_id"", ""sync_row_is_tombstone"",""last_change_datetime"" )");
+            stringBuilder.AppendLine($"SELECT {pkeyISelectForInsert.ToString()} ");
+            stringBuilder.AppendLine($@"   , i.""sync_scope_id"", i.""sync_row_is_tombstone"", i.""UtcDate""");
+            stringBuilder.AppendLine("FROM (");
+            stringBuilder.AppendLine($"  SELECT {pkeyAliasSelectForInsert}");
+            stringBuilder.AppendLine($"          ,@sync_scope_id as sync_scope_id, @sync_row_is_tombstone as sync_row_is_tombstone, now() as UtcDate) as i");
+            stringBuilder.AppendLine($"LEFT JOIN  {schema}.{trackingTableQuoted} side ON {pkeysLeftJoinForInsert.ToString()} ");
+            stringBuilder.AppendLine($"WHERE {pkeysIsNullForInsert.ToString()};");
+
+
+            return stringBuilder.ToString();
+        }
+
+        private string CreateUpdateUntrackedRowsCommand()
+        {
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var trackingTableQuoted = ParserName.Parse(trackingName.ToString(), "\"").Quoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            var stringBuilder = new StringBuilder();
+            var str1 = new StringBuilder();
+            var str2 = new StringBuilder();
+            var str3 = new StringBuilder();
+            var str4 = NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "side", "base");
+
+            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Unquoted().ToString()} (");
+
+
+            var comma = "";
+            foreach (var pkeyColumn in tableDescription.GetPrimaryKeysColumns())
+            {
+                var pkeyColumnName = ParserName.Parse(pkeyColumn,"\"").Quoted().ToString();
+
+                str1.Append($"{comma}{pkeyColumnName}");
+                str2.Append($"{comma}base.{pkeyColumnName}");
+                str3.Append($"{comma}side.{pkeyColumnName}");
+
+                comma = ", ";
+            }
+            stringBuilder.Append(str1.ToString());
+            stringBuilder.AppendLine($@", ""update_scope_id"", ""sync_row_is_tombstone"", ""last_change_datetime""");
+            stringBuilder.AppendLine($")");
+            stringBuilder.Append($"SELECT ");
+            stringBuilder.Append(str2.ToString());
+            stringBuilder.AppendLine($", NULL, 0, now()");
+            stringBuilder.AppendLine($"FROM {schema}.{tableQuoted} as base WHERE NOT EXISTS");
+            stringBuilder.Append($"(SELECT ");
+            stringBuilder.Append(str3.ToString());
+            stringBuilder.AppendLine($" FROM {schema}.{trackingTableQuoted} as side ");
+            stringBuilder.AppendLine($"WHERE {str4})");
+
+            var r = stringBuilder.ToString();
+
+            return r;
+
+        }
+
         private void SetDefaultNames()
         {
-            var pref = this.Setup.StoredProceduresPrefix;
-            var suf = this.Setup.StoredProceduresSuffix;
-            var tpref = this.Setup.TriggersPrefix;
-            var tsuf = this.Setup.TriggersSuffix;
+            var pref = this.setup?.StoredProceduresPrefix;
+            var suf = this.setup?.StoredProceduresSuffix;
+            var tpref = this.setup?.TriggersPrefix;
+            var tsuf = this.setup?.TriggersSuffix;
 
-            var tableName = ParserName.Parse(TableDescription);
+            var tableName = ParserName.Parse(tableDescription);
 
-            var schema = string.IsNullOrEmpty(tableName.SchemaName) ? "public" : tableName.SchemaName;
+            var scopeNameWithoutDefaultScope = scopeName == SyncOptions.DefaultScopeName ? "" : $"{scopeName}_";
 
-            this.AddName(DbCommandType.SelectChanges, string.Format(selectChangesProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.SelectChangesWithFilters, string.Format(selectChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var storedProcedureName = $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}_";
+            //var storedProcedureName = ParserName.Parse(storedProcedure, "\"").Quoted().ToString();
 
-            this.AddName(DbCommandType.SelectInitializedChanges, string.Format(initializeChangesProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.SelectInitializedChangesWithFilters, string.Format(initializeChangesProcNameWithFilters, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}", "{0}"), true);
+            var triggerName = $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}_";
 
-            this.AddName(DbCommandType.SelectRow, string.Format(selectRowProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.UpdateRow, string.Format(updateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.DeleteRow, string.Format(deleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.Reset, string.Format(resetMetadataProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectChanges, string.Format(selectChangesProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectChangesWithFilters, string.Format(selectChangesProcNameWithFilters, schema, storedProcedureName, scopeNameWithoutDefaultScope, "{0}_"));
 
-            this.AddName(DbCommandType.InsertTrigger, string.Format(insertTriggerName, schema, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"), true);
-            this.AddName(DbCommandType.UpdateTrigger, string.Format(updateTriggerName, schema, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"), true);
-            this.AddName(DbCommandType.DeleteTrigger, string.Format(deleteTriggerName, schema, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"), true);
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectInitializedChanges, string.Format(initializeChangesProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectInitializedChangesWithFilters, string.Format(initializeChangesProcNameWithFilters, schema, storedProcedureName, scopeNameWithoutDefaultScope, "{0}_"));
 
-            this.AddName(DbCommandType.BulkTableType, string.Format(bulkTableTypeName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectRow, string.Format(selectRowProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.UpdateRow, string.Format(updateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.DeleteRow, string.Format(deleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.Reset, string.Format(resetMetadataProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
 
-            this.AddName(DbCommandType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
-            this.AddName(DbCommandType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}"), true);
+            this.AddTriggerName(DbTriggerType.Insert, string.Format(insertTriggerName, triggerName));
+            this.AddTriggerName(DbTriggerType.Update, string.Format(updateTriggerName, triggerName));
+            this.AddTriggerName(DbTriggerType.Delete, string.Format(deleteTriggerName, triggerName));
 
-            this.AddName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()), false);
-            this.AddName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()), false);
+            //this.AddStoredProcedureName(DbStoredProcedureType.BulkTableType, string.Format(bulkTableTypeName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            //this.AddStoredProcedureName(DbStoredProcedureType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            //this.AddStoredProcedureName(DbStoredProcedureType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+
+            this.AddCommandName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(tableDescription).Schema().Unquoted().ToString()));
+            this.AddCommandName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(tableDescription).Schema().Unquoted().ToString()));
+
+            this.AddCommandName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand());
+            this.AddCommandName(DbCommandType.SelectMetadata, CreateSelectMetadataCommand());
+            this.AddCommandName(DbCommandType.UpdateMetadata, CreateUpdateMetadataCommand());
         }
-
     }
 }
