@@ -492,11 +492,11 @@ namespace Dotmim.Sync.PostgreSql
             var tableNameNormalized = ParserName.Parse(tableName).Quoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();
 
-            var schemaNameString = "dbo";
+            var schemaNameString = "public";
             if (!string.IsNullOrEmpty(schemaName))
             {
                 schemaNameString = ParserName.Parse(schemaName).ToString();
-                schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "dbo" : schemaNameString;
+                schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "public" : schemaNameString;
             }
 
             var syncTable = new SyncTable(tableNameNormalized, schemaNameString);

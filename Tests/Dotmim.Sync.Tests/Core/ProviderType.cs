@@ -7,10 +7,11 @@ namespace Dotmim.Sync.Tests.Core
     [Flags]
     public enum ProviderType
     {
-        Sql = 0x1,
-        MySql = 0x2,
-        Sqlite = 0x40,
-        MariaDB = 0x80,
+        Sql = 1,
+        MySql = 2,
+        Sqlite = 4,
+        MariaDB = 8,
+        Postgres = 16,
 
     }
 

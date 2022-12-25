@@ -78,10 +78,9 @@ internal class Program
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
         var setup = new SyncSetup(allTables);
-        //var setup = new SyncSetup(oneTable);
+        // var setup = new SyncSetup(oneTable);
         //var setup = new SyncSetup("ProductCategory", "ProductDescription", "Product");
-        //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
-
+        
         var options = new SyncOptions();
         //options.Logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Information);
         //options.UseVerboseErrors = true;
@@ -121,7 +120,7 @@ internal class Program
 
         //await GenerateErrorsAsync();
 
-         await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+         await SynchronizeAsync(clientProvider, serverProvider, setup, options, "n");
         //await LoadLocalSchemaAsync();
     }
 

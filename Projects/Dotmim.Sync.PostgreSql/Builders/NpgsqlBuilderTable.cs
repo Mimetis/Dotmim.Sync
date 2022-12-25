@@ -225,7 +225,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
         {
             var pTableName = tableName.ToString();
             var pSchemaName = tableName.SchemaName;
-            pSchemaName = string.IsNullOrEmpty(tableName.ToString()) ? "public" : pSchemaName;
+            pSchemaName = string.IsNullOrEmpty(pSchemaName) ? "public" : pSchemaName;
 
             //Todo: update command text for postgresql
             var dbCommand = connection.CreateCommand();
@@ -283,9 +283,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 {
                     Name = (string)row["ForeignKey"],
                     TableName = (string)row["TableName"],
-                    SchemaName = (string)row["SchemaName"],
+                    SchemaName = (string)row["SchemaName"] == "public" ? "" : (string)row["SchemaName"],
                     ReferenceTableName = (string)row["ReferenceTableName"],
-                    ReferenceSchemaName = (string)row["ReferenceSchemaName"],
+                    ReferenceSchemaName = (string)row["ReferenceSchemaName"] == "public" ? "" : (string)row["ReferenceSchemaName"],
                 }))
                 {
                     var relationDefinition = new DbRelationDefinition()

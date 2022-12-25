@@ -1,6 +1,10 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.MariaDB;
+using Dotmim.Sync.MySql;
+using Dotmim.Sync.PostgreSql;
 using Dotmim.Sync.Serialization;
+using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.SqlServer.Manager;
 using Dotmim.Sync.Tests.Core;
@@ -63,8 +67,18 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Create a provider
         /// </summary>
-        public abstract CoreProvider CreateProvider(ProviderType providerType, string dbName);
-
+        public CoreProvider CreateProvider(ProviderType providerType, string dbName)
+        {
+            var cs = HelperDatabase.GetConnectionString(providerType, dbName);
+            return providerType switch
+            {
+                ProviderType.MySql => new MySqlSyncProvider(cs),
+                ProviderType.MariaDB => new MariaDBSyncProvider(cs),
+                ProviderType.Sqlite => new SqliteSyncProvider(cs),
+                ProviderType.Postgres => new NpgsqlSyncProvider(cs),
+                _ => new SqlSyncProvider(cs),
+            };
+        }
         /// <summary>
         /// Create database, seed it, with or without schema
         /// </summary>
@@ -188,8 +202,8 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
             {
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                var setup = new SyncSetup(this.Tables)
-                { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" };
+                var setup = new SyncSetup(this.Tables);
+                //{ StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" };
 
                 client.Provider.OnConnectionOpened(connection => Debug.WriteLine("Connection opened"));
                 client.Provider.OnConnectionClosed(connection => Debug.WriteLine("Connection closed"));

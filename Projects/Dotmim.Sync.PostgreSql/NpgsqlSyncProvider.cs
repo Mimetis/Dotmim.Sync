@@ -15,6 +15,7 @@ namespace Dotmim.Sync.PostgreSql
         private NpgsqlConnectionStringBuilder builder;
         private NpgsqlDbMetadata dbMetadata;
 
+        
         public NpgsqlSyncProvider() : base() { }
         public NpgsqlSyncProvider(string connectionString) : base()
         {
@@ -48,6 +49,8 @@ namespace Dotmim.Sync.PostgreSql
         }
 
         public override bool CanBeServerProvider => true;
+
+        public override string DefaultSchemaName => "public";
 
         public string ShortProviderType
         {

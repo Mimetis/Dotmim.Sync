@@ -228,21 +228,21 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 if (columnFilter == null)
                     throw new FilterParamColumnNotExistsException(whereFilter.ColumnName, whereFilter.TableName);
 
-                var tableName = ParserName.Parse(tableFilter).Quoted().ToString();
+                var tableName = ParserName.Parse(tableFilter).Unquoted().ToString();
                 if (string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison))
                     tableName = "base";
                 else
-                    tableName = ParserName.Parse(tableFilter).Quoted().Schema().ToString();
+                    tableName = ParserName.Parse(tableFilter, "\"").Quoted().Schema().ToString();
 
-                var columnName = ParserName.Parse(columnFilter).Quoted().ToString();
-                var parameterName = ParserName.Parse(whereFilter.ParameterName).Quoted().Normalized().ToString();
+                var columnName = ParserName.Parse(columnFilter, "\"").Quoted().ToString();
+                var parameterName = ParserName.Parse(whereFilter.ParameterName, "\"").Unquoted().Normalized().ToString();
 
                 var param = filter.Parameters[parameterName];
 
                 if (param == null)
                     throw new FilterParamColumnNotExistsException(columnName, whereFilter.TableName);
 
-                stringBuilder.Append($"{and2}({tableName}.{columnName} = {parameterName}");
+                stringBuilder.Append($"{and2}({tableName}.{columnName} = {NPGSQL_PREFIX_PARAMETER}{parameterName}");
 
                 if (param.AllowNull)
                     stringBuilder.Append($" OR {parameterName} IS NULL");
@@ -489,20 +489,20 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 }
 
                 var fullTableName = string.IsNullOrEmpty(filter.SchemaName) ? filter.TableName : $"{filter.SchemaName}.{filter.TableName}";
-                var filterTableName = ParserName.Parse(fullTableName).Quoted().Schema().ToString();
+                var filterTableName = ParserName.Parse(fullTableName, "\"").Quoted().Schema().ToString();
 
-                var joinTableName = ParserName.Parse(customJoin.TableName).Quoted().Schema().ToString();
+                var joinTableName = ParserName.Parse(customJoin.TableName, "\"").Quoted().Schema().ToString();
 
-                var leftTableName = ParserName.Parse(customJoin.LeftTableName).Quoted().Schema().ToString();
+                var leftTableName = ParserName.Parse(customJoin.LeftTableName, "\"").Quoted().Schema().ToString();
                 if (string.Equals(filterTableName, leftTableName, SyncGlobalization.DataSourceStringComparison))
                     leftTableName = "[base]";
 
-                var rightTableName = ParserName.Parse(customJoin.RightTableName).Quoted().Schema().ToString();
+                var rightTableName = ParserName.Parse(customJoin.RightTableName, "\"").Quoted().Schema().ToString();
                 if (string.Equals(filterTableName, rightTableName, SyncGlobalization.DataSourceStringComparison))
                     rightTableName = "[base]";
 
-                var leftColumName = ParserName.Parse(customJoin.LeftColumnName).Quoted().ToString();
-                var rightColumName = ParserName.Parse(customJoin.RightColumnName).Quoted().ToString();
+                var leftColumName = ParserName.Parse(customJoin.LeftColumnName, "\"").Quoted().ToString();
+                var rightColumName = ParserName.Parse(customJoin.RightColumnName, "\"").Quoted().ToString();
 
                 stringBuilder.AppendLine($"{joinTableName} ON {leftTableName}.{leftColumName} = {rightTableName}.{rightColumName}");
             }
@@ -522,10 +522,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 if (param.DbType.HasValue)
                 {
                     // Get column name and type
-                    var columnName = ParserName.Parse(param.Name, "\"").Quoted().Normalized().ToString();
+                    var columnName = ParserName.Parse(param.Name, "\"").Unquoted().Normalized().ToString();
                     var sqlDbType = this.NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(new SyncColumn(columnName) { DbType = (int)param.DbType });
 
-                    var customParameterFilter = new NpgsqlParameter($"{columnName}", sqlDbType);
+                    var customParameterFilter = new NpgsqlParameter($"{NPGSQL_PREFIX_PARAMETER}{columnName}", sqlDbType);
                     customParameterFilter.Size = param.MaxLength;
                     customParameterFilter.IsNullable = param.AllowNull;
                     customParameterFilter.Value = param.DefaultValue;
@@ -542,12 +542,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
                         throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
 
                     // Get column name and type
-                    var columnName = ParserName.Parse(columnFilter, "\"").Quoted().Normalized().ToString();
+                    var columnName = ParserName.Parse(columnFilter, "\"").Unquoted().Normalized().ToString();
                     //var sqlDbType = (NpgsqlDbType)this.NpgsqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, NpgsqlSyncProvider.ProviderType);
                     var sqlDbType = tableFilter.OriginalProvider == NpgsqlSyncProvider.ProviderType ? this.NpgsqlDbMetadata.GetNpgsqlDbType(columnFilter) : this.NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(columnFilter);
 
                     // Add it as parameter
-                    var sqlParamFilter = new NpgsqlParameter($"{columnName}", sqlDbType);
+                    var sqlParamFilter = new NpgsqlParameter($"{NPGSQL_PREFIX_PARAMETER}{columnName}", sqlDbType);
                     sqlParamFilter.Size = columnFilter.MaxLength;
                     sqlParamFilter.IsNullable = param.AllowNull;
                     sqlParamFilter.Value = param.DefaultValue;

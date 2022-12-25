@@ -14,6 +14,7 @@ using Xunit.Abstractions;
 using Microsoft.Data.SqlClient;
 using Dotmim.Sync.MariaDB;
 using System.Diagnostics;
+using Dotmim.Sync.PostgreSql;
 
 namespace Dotmim.Sync.Tests.IntegrationTests
 {
@@ -36,23 +37,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
         public override ProviderType ServerType => ProviderType.Sql;
 
-
-        public override CoreProvider CreateProvider(ProviderType providerType, string dbName)
-        {
-            var cs = HelperDatabase.GetConnectionString(providerType, dbName);
-            switch (providerType)
-            {
-                case ProviderType.MySql:
-                    return new MySqlSyncProvider(cs);
-                case ProviderType.MariaDB:
-                    return new MariaDBSyncProvider(cs);
-                case ProviderType.Sqlite:
-                    return new SqliteSyncProvider(cs);
-                case ProviderType.Sql:
-                default:
-                    return new SqlSyncProvider(cs);
-            }
-        }
 
         public override Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
         {

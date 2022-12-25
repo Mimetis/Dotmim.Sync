@@ -41,6 +41,7 @@ namespace Dotmim.Sync.SqlServer
         }
 
         public override string GetProviderTypeName() => ProviderType;
+        public override string DefaultSchemaName => "dbo";
 
         public static string ProviderType
         {

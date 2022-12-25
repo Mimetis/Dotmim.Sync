@@ -1,6 +1,9 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-
+using Dotmim.Sync.MariaDB;
+using Dotmim.Sync.MySql;
+using Dotmim.Sync.PostgreSql;
+using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Misc;
@@ -63,8 +66,18 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Create a provider
         /// </summary>
-        public abstract CoreProvider CreateProvider(ProviderType providerType, string dbName);
-
+        public CoreProvider CreateProvider(ProviderType providerType, string dbName)
+        {
+            var cs = HelperDatabase.GetConnectionString(providerType, dbName);
+            return providerType switch
+            {
+                ProviderType.MySql => new MySqlSyncProvider(cs),
+                ProviderType.MariaDB => new MariaDBSyncProvider(cs),
+                ProviderType.Sqlite => new SqliteSyncProvider(cs),
+                ProviderType.Postgres => new NpgsqlSyncProvider(cs),
+                _ => new SqlSyncProvider(cs),
+            };
+        }
         /// <summary>
         /// Create database, seed it, with or without schema
         /// </summary>

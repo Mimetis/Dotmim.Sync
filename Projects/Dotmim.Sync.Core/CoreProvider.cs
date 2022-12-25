@@ -117,6 +117,11 @@ namespace Dotmim.Sync
         public virtual bool UseBulkOperations { get; set; } = true;
 
         /// <summary>
+        /// Gets or Sets the default schema name ("dbo" for sql server, "public" for postgres or null for mysql)
+        /// </summary>
+        public virtual string DefaultSchemaName { get; } = null;
+
+        /// <summary>
         /// Get naming tables
         /// </summary>
         public abstract (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup = null);

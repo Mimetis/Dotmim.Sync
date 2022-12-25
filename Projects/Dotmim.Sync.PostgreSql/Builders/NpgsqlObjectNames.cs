@@ -273,6 +273,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var scopeNameWithoutDefaultScope = scopeName == SyncOptions.DefaultScopeName ? "" : $"{scopeName}_";
 
             var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
             var storedProcedureName = $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}_";
             //var storedProcedureName = ParserName.Parse(storedProcedure, "\"").Quoted().ToString();
 
