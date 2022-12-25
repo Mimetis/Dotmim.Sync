@@ -182,7 +182,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case "timestamp with time zone":
                 case "timetz":
                 case "time with time zone":
-                    return DbType.DateTime;
+                    return DbType.DateTimeOffset;
 
                 case "time":
                 case "time without time zone":
@@ -396,7 +396,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                     return NpgsqlDbType.Timestamp;
                 // https://www.npgsql.org/doc/release-notes/6.0.html DbType.DateTime now maps to timestamptz, not timestamp. DbType.DateTime2 continues to map to timestamp, and DbType.DateTimeOffset continues to map to timestamptz, as before
                 case DbType.DateTime:
-                //case DbType.DateTimeOffset:
+                case DbType.DateTimeOffset:
                     return NpgsqlDbType.TimestampTz;
                 case DbType.Single:
                     return NpgsqlDbType.Real;
