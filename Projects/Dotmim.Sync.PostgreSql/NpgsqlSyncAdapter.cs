@@ -1,198 +1,370 @@
 ﻿using Dotmim.Sync.Builders;
 using Npgsql;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.Postgres.Builders
+namespace Dotmim.Sync.PostgreSql.Builders
 {
-    public class NpgsqlSyncAdapter : SyncAdapter
+    public class NpgsqlSyncAdapter : DbSyncAdapter
     {
-        private NpgsqlObjectNames sqlObjectNames;
-        private NpgsqlDbMetadata sqlMetadata;
-
-        // Derive Parameters cache
-        // Be careful, we can have collision between databasesNpgsqlParameter
-        // this static class could be shared accross databases with same command name
-        // but different table schema
-        // So the string should contains the connection string as well
-        private static ConcurrentDictionary<string, List<NpgsqlParameter>> derivingParameters
-            = new ConcurrentDictionary<string, List<NpgsqlParameter>>();
-
-        public NpgsqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup) : base(tableDescription, setup)
+        public NpgsqlDbMetadata sqlMetadata { get; private set; }
+        public NpgsqlObjectNames sqlobjectNames { get; private set; }
+        public NpgsqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName, bool useBulkOperations) : base(tableDescription, setup, scopeName, useBulkOperations)
         {
-            this.sqlObjectNames = new NpgsqlObjectNames(tableDescription, setup);
+            this.sqlobjectNames = new NpgsqlObjectNames(tableDescription, tableName, trackingTableName, setup, scopeName);
             this.sqlMetadata = new NpgsqlDbMetadata();
         }
-
-
-        /// <summary>
-        /// Executing a batch command
-        /// </summary>
-        public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long lastTimestamp, DbConnection connection, DbTransaction transaction = null)
-        {
-
-            var applyRowsCount = applyRows.Count();
-
-            if (applyRowsCount <= 0)
-                return;
-
-            var dataRowState = DataRowState.Unchanged;
-
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-            try
-            {
-                foreach (var row in applyRows)
-                {
-
-                }
-            }
-            catch (DbException ex)
-            {
-                Debug.WriteLine(ex.Message);
-                throw;
-            }
-            finally
-            {
-
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
-
-            }
-        }
-
-
-        private static TypeConverter Int16Converter = TypeDescriptor.GetConverter(typeof(short));
-        private static TypeConverter Int32Converter = TypeDescriptor.GetConverter(typeof(int));
-        private static TypeConverter Int64Converter = TypeDescriptor.GetConverter(typeof(long));
-        private static TypeConverter UInt16Converter = TypeDescriptor.GetConverter(typeof(ushort));
-        private static TypeConverter UInt32Converter = TypeDescriptor.GetConverter(typeof(uint));
-        private static TypeConverter UInt64Converter = TypeDescriptor.GetConverter(typeof(ulong));
-        private static TypeConverter DateTimeConverter = TypeDescriptor.GetConverter(typeof(DateTime));
-        private static TypeConverter StringConverter = TypeDescriptor.GetConverter(typeof(string));
-        private static TypeConverter ByteConverter = TypeDescriptor.GetConverter(typeof(byte));
-        private static TypeConverter BoolConverter = TypeDescriptor.GetConverter(typeof(bool));
-        private static TypeConverter GuidConverter = TypeDescriptor.GetConverter(typeof(Guid));
-        private static TypeConverter CharConverter = TypeDescriptor.GetConverter(typeof(char));
-        private static TypeConverter DecimalConverter = TypeDescriptor.GetConverter(typeof(decimal));
-        private static TypeConverter DoubleConverter = TypeDescriptor.GetConverter(typeof(double));
-        private static TypeConverter FloatConverter = TypeDescriptor.GetConverter(typeof(float));
-        private static TypeConverter SByteConverter = TypeDescriptor.GetConverter(typeof(sbyte));
-        private static TypeConverter TimeSpanConverter = TypeDescriptor.GetConverter(typeof(TimeSpan));
-
-
-        /// <summary>
-        /// Check if an exception is a primary key exception
-        /// </summary>
-        public override bool IsPrimaryKeyViolation(Exception exception)
-        {
-
-            return false;
-        }
-
-
-        public override bool IsUniqueKeyViolation(Exception exception)
-        {
-            return false;
-        }
-
-        public override DbCommand GetStoredProcedureCommand(DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter = null)
         {
             var command = new NpgsqlCommand();
+            var isBatch = false;
+            switch (nameType)
+            {
+                case DbCommandType.SelectChanges:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlobjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges, filter);
+                    break;
+                case DbCommandType.SelectInitializedChanges:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlobjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges, filter);
+                    break;
+                case DbCommandType.SelectInitializedChangesWithFilters:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlobjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
+                    break;
+                case DbCommandType.SelectChangesWithFilters:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlobjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
+                    break;
+                case DbCommandType.SelectRow:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlobjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow, filter);
+                    break;
+                case DbCommandType.UpdateRow:
+                case DbCommandType.InsertRow:
+                case DbCommandType.UpdateRows:
+                case DbCommandType.InsertRows:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlobjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow, filter);
+                    break;
+                case DbCommandType.DeleteRow:
+                case DbCommandType.DeleteRows:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlobjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow, filter);
+                    break;
+                case DbCommandType.DisableConstraints:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.sqlobjectNames.GetCommandName(DbCommandType.DisableConstraints, filter);
+                    break;
+                case DbCommandType.EnableConstraints:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.sqlobjectNames.GetCommandName(DbCommandType.EnableConstraints, filter);
+                    break;
+                case DbCommandType.DeleteMetadata:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlobjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata, filter);
+                    break;
+                case DbCommandType.UpdateMetadata:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.sqlobjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
+                    break;
+                case DbCommandType.SelectMetadata:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.sqlobjectNames.GetCommandName(DbCommandType.SelectMetadata, filter);
+                    break;
+                case DbCommandType.InsertTrigger:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.sqlobjectNames.GetTriggerCommandName(DbTriggerType.Insert, filter);
+                    break;
+                case DbCommandType.UpdateTrigger:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.sqlobjectNames.GetTriggerCommandName(DbTriggerType.Update, filter);
+                    break;
+                case DbCommandType.DeleteTrigger:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.sqlobjectNames.GetTriggerCommandName(DbTriggerType.Delete, filter);
+                    break;
+                case DbCommandType.UpdateUntrackedRows:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.sqlobjectNames.GetCommandName(DbCommandType.UpdateUntrackedRows, filter);
+                    break;
+                case DbCommandType.Reset:
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = this.sqlobjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
+                    break;
+                default:
+                    throw new NotImplementedException($"This command type {nameType} is not implemented");
+            }
 
-            string text;
-            bool isStoredProc;
-
-            (text, isStoredProc) = this.sqlObjectNames.GetCommandName(nameType, filter);
-
-            command.CommandType = isStoredProc ? CommandType.StoredProcedure : CommandType.Text;
-            command.CommandText = text;
-
-            return command;
+            return (command, isBatch);
         }
-
-        /// <summary>
-        /// Set a stored procedure parameters
-        /// </summary>
-        public override async Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction = null, SyncFilter filter = null)
+        public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction = null, SyncFilter filter = null)
         {
+
             if (command == null)
-                return;
+                return Task.CompletedTask;
 
             if (command.Parameters != null && command.Parameters.Count > 0)
-                return;
+                return Task.CompletedTask;
 
-            // special case for constraint
-            if (commandType == DbCommandType.DisableConstraints || commandType == DbCommandType.EnableConstraints)
-                return;
-
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            try
+            switch (commandType)
             {
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+                case DbCommandType.SelectChanges:
+                case DbCommandType.SelectChangesWithFilters:
+                case DbCommandType.SelectInitializedChanges:
+                case DbCommandType.SelectInitializedChangesWithFilters:
+                    this.SetSelectChangesParameters(command, filter);
+                    break;
+                case DbCommandType.SelectRow:
+                    this.SetSelectRowParameters(command);
+                    break;
+                case DbCommandType.DeleteMetadata:
+                    this.SetDeleteMetadataParameters(command);
+                    break;
+                case DbCommandType.SelectMetadata:
+                    this.SetSelectMetadataParameters(command);
+                    break;
+                case DbCommandType.DeleteRow:
+                case DbCommandType.DeleteRows:
+                    this.SetDeleteRowParameters(command);
+                    break;
+                case DbCommandType.UpdateRow:
+                case DbCommandType.InsertRow:
+                case DbCommandType.UpdateRows:
+                case DbCommandType.InsertRows:
+                    this.SetUpdateRowParameters(command);
+                    break;
+                case DbCommandType.UpdateMetadata:
+                    this.SetUpdateMetadataParameters(command);
+                    break;
+                default:
+                    break;
+            }
 
-                if (transaction != null)
-                    command.Transaction = transaction;
+            return Task.CompletedTask;
+        }
+        private void SetUpdateMetadataParameters(DbCommand command)
+        {
+            DbParameter p;
 
-                var textParser = ParserName.Parse(command.CommandText).Unquoted().Normalized().ToString();
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(column).Unquoted().Normalized().ToString();
 
-                var source = connection.Database;
+                p = command.CreateParameter();
+                p.ParameterName = $"{columnName}";
+                p.DbType = column.GetDbType();
+                p.SourceColumn = column.ColumnName;
+                command.Parameters.Add(p);
+            }
 
-                textParser = $"{source}-{textParser}";
+            p = command.CreateParameter();
+            p.ParameterName = "sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
 
-                if (derivingParameters.ContainsKey(textParser))
+            p = command.CreateParameter();
+            p.ParameterName = "sync_row_is_tombstone";
+            p.DbType = DbType.Boolean;
+            command.Parameters.Add(p);
+
+        }
+        private void SetSelectMetadataParameters(DbCommand command)
+        {
+            DbParameter p;
+
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(column).Unquoted().Normalized().ToString();
+
+                p = command.CreateParameter();
+                p.ParameterName = $"{columnName}";
+                p.DbType = column.GetDbType();
+                p.SourceColumn = column.ColumnName;
+                command.Parameters.Add(p);
+            }
+        }
+        private void SetUpdateRowParameters(DbCommand command)
+        {
+            DbParameter p;
+
+            var prefix_parameter = NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER;
+
+            foreach (var column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(column).Unquoted().Normalized().ToString();
+
+                p = command.CreateParameter();
+                p.ParameterName = $"{prefix_parameter}{columnName}";
+                p.DbType = column.GetDbType();
+                p.SourceColumn = column.ColumnName;
+                command.Parameters.Add(p);
+            }
+
+            p = command.CreateParameter();
+            p.ParameterName = "sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "sync_force_write";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "sync_min_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "sync_row_count";
+            p.DbType = DbType.Int32;
+            p.Direction = ParameterDirection.Output;
+            command.Parameters.Add(p);
+
+        }
+        private void SetDeleteRowParameters(DbCommand command)
+        {
+            DbParameter p;
+            var prefix_parameter = NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER;
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var quotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
+
+                p = command.CreateParameter();
+                p.ParameterName = $"{prefix_parameter}{quotedColumn}";
+                p.DbType = column.GetDbType();
+                p.SourceColumn = column.ColumnName;
+                command.Parameters.Add(p);
+            }
+
+            p = command.CreateParameter();
+            p.ParameterName = "sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "sync_force_write";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "sync_min_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "sync_row_count";
+            p.DbType = DbType.Int32;
+            p.Direction = ParameterDirection.Output;
+            command.Parameters.Add(p);
+        }
+        private void SetSelectRowParameters(DbCommand command)
+        {
+            DbParameter p;
+            var prefix_parameter = NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER;
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
+            {
+                var quotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
+
+                p = command.CreateParameter();
+                p.ParameterName = $"{prefix_parameter}{quotedColumn}";
+                p.DbType = column.GetDbType();
+                p.SourceColumn = column.ColumnName;
+                command.Parameters.Add(p);
+            }
+
+            p = command.CreateParameter();
+            p.ParameterName = "sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+        }
+        private void SetDeleteMetadataParameters(DbCommand command)
+        {
+            var p = command.CreateParameter();
+            p.ParameterName = "sync_row_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+        }
+        private void SetSelectChangesParameters(DbCommand command, SyncFilter filter = null)
+        {
+            var originalProvider = NpgsqlSyncProvider.ProviderType;
+
+            var p = command.CreateParameter();
+            p.ParameterName = "sync_min_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+            if (filter == null)
+                return;
+
+            var parameters = filter.Parameters;
+
+            if (parameters.Count == 0)
+                return;
+
+            foreach (var param in parameters)
+            {
+                if (param.DbType.HasValue)
                 {
-                    foreach (var p in derivingParameters[textParser])
-                        command.Parameters.Add(p.Clone());
+                    // Get column name and type
+                    var columnName = ParserName.Parse(param.Name).Unquoted().Normalized().ToString();
+                    var syncColumn = new SyncColumn(columnName)
+                    {
+                        DbType = (int)param.DbType.Value,
+                        MaxLength = param.MaxLength,
+                    };
+                    var sqlDbType = this.sqlMetadata.GetOwnerDbTypeFromDbType(syncColumn);
+
+                    var customParameterFilter = new NpgsqlParameter($"in_{columnName}", sqlDbType)
+                    {
+                        Size = param.MaxLength,
+                        IsNullable = param.AllowNull,
+                        Value = param.DefaultValue
+                    };
+                    command.Parameters.Add(customParameterFilter);
                 }
                 else
                 {
-                    NpgsqlCommandBuilder.DeriveParameters((NpgsqlCommand)command);
+                    var tableFilter = this.TableDescription.Schema.Tables[param.TableName, param.SchemaName];
+                    if (tableFilter == null)
+                        throw new FilterParamTableNotExistsException(param.TableName);
 
-                    var arrayParameters = new List<NpgsqlParameter>();
-                    foreach (var p in command.Parameters)
-                        arrayParameters.Add(((NpgsqlParameter)p).Clone());
+                    var columnFilter = tableFilter.Columns[param.Name];
+                    if (columnFilter == null)
+                        throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
 
-                    derivingParameters.TryAdd(textParser, arrayParameters);
+                    // Get column name and type
+                    var columnName = ParserName.Parse(columnFilter).Unquoted().Normalized().ToString();
+
+
+                    var sqlDbType = tableFilter.OriginalProvider == originalProvider ?
+                        this.sqlMetadata.GetNpgsqlDbType(columnFilter) : this.sqlMetadata.GetOwnerDbTypeFromDbType(columnFilter);
+
+                    // Add it as parameter
+                    var sqlParamFilter = new NpgsqlParameter($"in_{columnName}", sqlDbType)
+                    {
+                        Size = columnFilter.MaxLength,
+                        IsNullable = param.AllowNull,
+                        Value = param.DefaultValue
+                    };
+                    command.Parameters.Add(sqlParamFilter);
                 }
 
-                if (command.Parameters.Count > 0 && command.Parameters[0].ParameterName == "@RETURN_VALUE")
-                    command.Parameters.RemoveAt(0);
-
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"DeriveParameters failed : {ex}");
-                throw;
-            }
-            finally
-            {
-                if (!alreadyOpened && connection.State != ConnectionState.Closed)
-                    connection.Close();
             }
 
-
-            foreach (var parameter in command.Parameters)
-            {
-                var sqlParameter = (NpgsqlParameter)parameter;
-
-                // try to get the source column (from the SchemaTable)
-                var sqlParameterName = sqlParameter.ParameterName.Replace("@", "");
-                var colDesc = TableDescription.Columns.FirstOrDefault(c => c.ColumnName.Equals(sqlParameterName, SyncGlobalization.DataSourceStringComparison));
-
-                if (colDesc != null && !string.IsNullOrEmpty(colDesc.ColumnName))
-                    sqlParameter.SourceColumn = colDesc.ColumnName;
-            }
         }
-
+        public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction) 
+            => throw new NotImplementedException();
     }
 }

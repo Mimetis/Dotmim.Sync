@@ -1,63 +1,321 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Postgres.Scope;
+using Dotmim.Sync.PostgreSql.Scope;
+using Dotmim.Sync.PostgreSql.Builders;
 using Npgsql;
 using NpgsqlTypes;
 using System;
-using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Data;
 
-namespace Dotmim.Sync.Postgres.Builders
+namespace Dotmim.Sync.PostgreSql.Builders
 {
-    public class NpgsqlBuilderProcedure : IDbBuilderStoreProcedureCommands
+    public class NpgsqlBuilderProcedure
     {
-        private ParserName tableName;
-        private ParserName trackingName;
-        private readonly SyncTable tableDescription;
-        private readonly SyncSetup setup;
-        private readonly NpgsqlObjectNames sqlObjectNames;
-        private readonly NpgsqlDbMetadata sqlDbMetadata;
         internal const string NPGSQL_PREFIX_PARAMETER = "in_";
-
-        public NpgsqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        private string scopeName;
+        private SyncSetup setup;
+        private SyncTable tableDescription;
+        private ParserName tableName;
+        private ParserName trackingTableName;
+        public NpgsqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
         {
             this.tableDescription = tableDescription;
-            this.setup = setup;
             this.tableName = tableName;
-            this.trackingName = trackingName;
-            this.sqlObjectNames = new NpgsqlObjectNames(this.tableDescription, setup);
-            this.sqlDbMetadata = new NpgsqlDbMetadata();
+            this.trackingTableName = trackingTableName;
+            this.setup = setup;
+            this.scopeName = scopeName;
+            this.NpgsqlObjectNames = new NpgsqlObjectNames(this.tableDescription, tableName, trackingTableName, setup, scopeName);
+            this.NpgsqlDbMetadata = new NpgsqlDbMetadata();
         }
 
+        public NpgsqlDbMetadata NpgsqlDbMetadata { get; set; }
+        public NpgsqlObjectNames NpgsqlObjectNames { get; set; }
+
+
+        public DbCommand CreateResetCommand(DbConnection connection, DbTransaction transaction)
+        {
+
+            var procName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset);
+            var procNameQuoted = ParserName.Parse(procName, "\"").Quoted().ToString();
+
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var tableUnquoted = tableName.Unquoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+
+            NpgsqlCommand cmd = new NpgsqlCommand();
+            cmd.Connection = (NpgsqlConnection)connection;
+            cmd.Transaction = (NpgsqlTransaction)transaction;
+
+            NpgsqlParameter sqlParameter2 = new NpgsqlParameter(@"sync_row_count", NpgsqlDbType.Integer)
+            {
+                Direction = ParameterDirection.Output
+            };
+            cmd.Parameters.Add(sqlParameter2);
+
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {schema}.{procNameQuoted} (");
+            string str = "\t";
+            foreach (NpgsqlParameter parameter in cmd.Parameters)
+            {
+                stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
+                str = ",\n\t";
+            }
+            stringBuilder.AppendLine("\n) ");
+            stringBuilder.AppendLine("AS $BODY$ ");
+            stringBuilder.AppendLine("BEGIN");
+            stringBuilder.AppendLine($"ALTER TABLE {schema}.{tableQuoted} DISABLE TRIGGER ALL;");
+            stringBuilder.AppendLine($"DELETE FROM {schema}.{tableQuoted};");
+            stringBuilder.AppendLine($"DELETE FROM {schema}.{tableQuoted};");
+            stringBuilder.AppendLine($"ALTER TABLE {schema}.{tableQuoted} ENABLE TRIGGER ALL;");
+            stringBuilder.AppendLine(string.Concat(@"GET DIAGNOSTICS ""sync_row_count"" = ROW_COUNT;"));
+            stringBuilder.AppendLine("END;");
+            stringBuilder.AppendLine("$BODY$ LANGUAGE 'plpgsql';");
+            cmd.Parameters.Clear();
+            cmd.CommandText = stringBuilder.ToString();
+            return cmd;
+        }
+
+        public Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
+        {
+            var command = storedProcedureType switch
+            {
+                DbStoredProcedureType.SelectChanges => this.CreateSelectIncrementalChangesCommand(connection, transaction),
+                DbStoredProcedureType.SelectChangesWithFilters => this.CreateSelectIncrementalChangesCommand(connection, transaction, filter),
+                DbStoredProcedureType.SelectInitializedChanges => this.CreateSelectInitializedChangesCommand(connection, transaction),
+                DbStoredProcedureType.SelectInitializedChangesWithFilters => this.CreateSelectInitializedChangesCommand(connection, transaction, filter),
+                DbStoredProcedureType.SelectRow => this.CreateSelectRowCommand(connection, transaction),
+                DbStoredProcedureType.UpdateRow => this.CreateUpdateCommand(connection, transaction),
+                DbStoredProcedureType.DeleteRow => this.CreateDeleteCommand(connection, transaction),
+                DbStoredProcedureType.DeleteMetadata => this.CreateDeleteMetadataCommand(connection, transaction),
+                DbStoredProcedureType.Reset => this.CreateResetCommand(connection, transaction),
+                _ => null,
+            };
+
+            return Task.FromResult(command);
+        }
+
+        public Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
+        {
+
+            if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
+                return Task.FromResult<DbCommand>(null);
+
+            if (storedProcedureType == DbStoredProcedureType.BulkDeleteRows ||
+                storedProcedureType == DbStoredProcedureType.BulkUpdateRows || storedProcedureType == DbStoredProcedureType.BulkTableType)
+                return Task.FromResult<DbCommand>(null);
+
+            var commandName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
+
+            if (string.IsNullOrEmpty(commandName))
+                return Task.FromResult<DbCommand>(null);
+
+            var text = $"DROP FUNCTION {commandName};";
+
+            //if (storedProcedureType == DbStoredProcedureType.BulkTableType)
+            //    text = $"DROP TYPE {commandName};";
+
+            var sqlCommand = connection.CreateCommand();
+
+            sqlCommand.Transaction = transaction;
+
+            sqlCommand.CommandText = text;
+
+            return Task.FromResult(sqlCommand);
+        }
+
+        public Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
+        {
+            if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
+                return Task.FromResult<DbCommand>(null);
+
+
+            // Todo: will check it later
+            if (storedProcedureType == DbStoredProcedureType.BulkDeleteRows ||
+                storedProcedureType == DbStoredProcedureType.BulkUpdateRows || storedProcedureType == DbStoredProcedureType.BulkTableType)
+                return Task.FromResult<DbCommand>(null);
+
+            var quotedProcedureName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
+            // Todo: will check it later
+            if (string.IsNullOrEmpty(quotedProcedureName))
+                return Task.FromResult<DbCommand>(null);
+
+            var procedureName = ParserName.Parse(quotedProcedureName).ToString();
+
+            var text = @"
+                        SELECT
+	                        (SELECT EXISTS
+			                        (SELECT
+				                        FROM PG_PROC
+				                        WHERE PRONAME = @PRONAME))::int";
+
+
+            var sqlCommand = connection.CreateCommand();
+
+            sqlCommand.Transaction = transaction;
+
+            sqlCommand.CommandText = text;
+
+            var p = sqlCommand.CreateParameter();
+            p.ParameterName = "@PRONAME";
+            p.Value = procedureName;
+            sqlCommand.Parameters.Add(p);
+
+            //p = sqlCommand.CreateParameter();
+            //p.ParameterName = "@schemaName";
+            ////p.Value = NpgsqlObjectNames.GetUnquotedSqlSchemaName(ParserName.Parse(quotedProcedureName));
+            //p.Value = ParserName.Parse(quotedProcedureName);
+            //sqlCommand.Parameters.Add(p);
+
+            return Task.FromResult(sqlCommand);
+        }
         protected void AddPkColumnParametersToCommand(NpgsqlCommand sqlCommand)
         {
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-                sqlCommand.Parameters.Add(GetNpgsqlParameter(pkColumn));
-        }
-        protected void AddColumnParametersToCommand(NpgsqlCommand sqlCommand)
-        {
-            foreach (var column in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
-                sqlCommand.Parameters.Add(GetNpgsqlParameter(column));
+                sqlCommand.Parameters.Add(GetSqlParameter(pkColumn));
         }
 
-        protected NpgsqlParameter GetNpgsqlParameter(SyncColumn column)
+        protected string CreateFilterCustomWheres(SyncFilter filter)
         {
-            var parameterName = ParserName.Parse(column).Unquoted().Normalized().ToString();
-            var sqlParameter = new NpgsqlParameter
+            var customWheres = filter.CustomWheres;
+
+            if (customWheres.Count == 0)
+                return string.Empty;
+
+            var stringBuilder = new StringBuilder();
+            var and2 = "  ";
+            stringBuilder.AppendLine($"(");
+
+            foreach (var customWhere in customWheres)
             {
-                ParameterName = $"\"{NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER}{parameterName}\"",
+                stringBuilder.Append($"{and2}{customWhere}");
+                and2 = " AND ";
+            }
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($")");
+
+            return stringBuilder.ToString();
+        }
+
+        protected string CreateFilterWhereSide(SyncFilter filter, bool checkTombstoneRows = false)
+        {
+            var sideWhereFilters = filter.Wheres;
+
+            if (sideWhereFilters.Count == 0)
+                return string.Empty;
+
+            var stringBuilder = new StringBuilder();
+
+            // Managing when state is tombstone
+            if (checkTombstoneRows)
+                stringBuilder.AppendLine($"(");
+
+            stringBuilder.AppendLine($" (");
+
+
+            var and2 = "   ";
+
+            foreach (var whereFilter in sideWhereFilters)
+            {
+                var tableFilter = this.tableDescription.Schema.Tables[whereFilter.TableName, whereFilter.SchemaName];
+                if (tableFilter == null)
+                    throw new FilterParamTableNotExistsException(whereFilter.TableName);
+
+                var columnFilter = tableFilter.Columns[whereFilter.ColumnName];
+                if (columnFilter == null)
+                    throw new FilterParamColumnNotExistsException(whereFilter.ColumnName, whereFilter.TableName);
+
+                var tableName = ParserName.Parse(tableFilter, "\"").Unquoted().ToString();
+                if (string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison))
+                    tableName = @"""base""";
+                else
+                    tableName = ParserName.Parse(tableFilter, "\"").Quoted().ToString();
+
+                var columnName = ParserName.Parse(columnFilter, "\"").Quoted().ToString();
+                var parameterName = ParserName.Parse(whereFilter.ParameterName, "\"").Unquoted().Normalized().ToString();
+
+                var param = filter.Parameters[parameterName];
+
+                if (param == null)
+                    throw new FilterParamColumnNotExistsException(columnName, whereFilter.TableName);
+
+                stringBuilder.Append($"{and2}({tableName}.{columnName} = \"in_{parameterName}\"");
+
+                if (param.AllowNull)
+                    stringBuilder.Append($" OR \"in_{parameterName}\" IS NULL");
+
+                stringBuilder.Append($")");
+
+                and2 = " AND ";
+
+            }
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine($"  )");
+
+            if (checkTombstoneRows)
+            {
+                stringBuilder.AppendLine($" OR side.sync_row_is_tombstone = TRUE");
+                stringBuilder.AppendLine($")");
+            }
+            // Managing when state is tombstone
+
+
+            return stringBuilder.ToString();
+        }
+
+        protected string CreateParameterDeclaration(NpgsqlParameter param)
+        {
+            var stringBuilder = new StringBuilder();
+
+            var tmpColumn = new SyncColumn(param.ParameterName)
+            {
+                OriginalDbType = param.NpgsqlDbType.ToString(),
+                OriginalTypeName = param.NpgsqlDbType.ToString().ToLowerInvariant(),
+                MaxLength = param.Size,
+                Precision = param.Precision,
+                Scale = param.Scale,
+                DbType = (int)param.DbType,
+                ExtraProperty1 = string.IsNullOrEmpty(param.SourceColumn) ? null : param.SourceColumn
             };
 
-            // Get the good NpgsqlDbType (even if we are not from Sql Server def)
-            var npgsqlDbType = (NpgsqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, NpgsqlSyncProvider.ProviderType);
+            var columnDeclarationString = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(tmpColumn, this.tableDescription.OriginalProvider);
 
-            sqlParameter.NpgsqlDbType = npgsqlDbType;
+            stringBuilder.Append($"{param.ParameterName} {columnDeclarationString}");
+            if (param.Value != null)
+                stringBuilder.Append($" = {param.Value}");
+            else if (param.Direction == ParameterDirection.Input)
+                stringBuilder.Append(" = NULL");
+
+            var outstr = new StringBuilder("out ");
+            if (param.Direction == ParameterDirection.Output || param.Direction == ParameterDirection.InputOutput)
+                stringBuilder = outstr.Append(stringBuilder);
+
+            return stringBuilder.ToString();
+        }
+
+        protected NpgsqlParameter GetSqlParameter(SyncColumn column)
+        {
+            var paramName = $"{NPGSQL_PREFIX_PARAMETER}{ParserName.Parse(column).Unquoted().Normalized().ToString()}";
+            var paramNameQuoted = ParserName.Parse(paramName, "\"").Quoted().ToString();
+            var sqlParameter = new NpgsqlParameter
+            {
+                ParameterName = paramNameQuoted
+            };
+
+            // Get the good SqlDbType (even if we are not from Sql Server def)
+            var sqlDbType = this.tableDescription.OriginalProvider == NpgsqlSyncProvider.ProviderType ?
+                this.NpgsqlDbMetadata.GetNpgsqlDbType(column) : this.NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(column);
+
+
+            sqlParameter.NpgsqlDbType = sqlDbType;
             sqlParameter.IsNullable = column.AllowDBNull;
 
-            var (p, s) = this.sqlDbMetadata.TryGetOwnerPrecisionAndScale(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, column.Precision, column.Scale, this.tableDescription.OriginalProvider, NpgsqlSyncProvider.ProviderType);
+            var (p, s) = this.NpgsqlDbMetadata.GetCompatibleColumnPrecisionAndScale(column, this.tableDescription.OriginalProvider);
 
             if (p > 0)
             {
@@ -66,7 +324,7 @@ namespace Dotmim.Sync.Postgres.Builders
                     sqlParameter.Scale = s;
             }
 
-            var m = this.sqlDbMetadata.TryGetOwnerMaxLength(column.OriginalDbType, column.GetDbType(), false, false, column.MaxLength, this.tableDescription.OriginalProvider, NpgsqlSyncProvider.ProviderType);
+            var m = this.NpgsqlDbMetadata.GetCompatibleMaxLength(column, this.tableDescription.OriginalProvider);
 
             if (m > 0)
                 sqlParameter.Size = m;
@@ -74,620 +332,135 @@ namespace Dotmim.Sync.Postgres.Builders
             return sqlParameter;
         }
 
-        /// <summary>
-        /// From a NpgsqlParameter, create the declaration
-        /// </summary>
-        protected string CreateParameterDeclaration(NpgsqlParameter param)
+        private void AddColumnParametersToCommand(NpgsqlCommand sqlCommand)
         {
-            var stringBuilder3 = new StringBuilder();
-            var sqlDbType = param.NpgsqlDbType;
-
-            string empty = this.sqlDbMetadata.GetPrecisionStringFromOwnerDbType(sqlDbType, param.Size, param.Precision, param.Scale);
-
-
-            var sqlDbTypeString = this.sqlDbMetadata.GetStringFromOwnerDbType(sqlDbType);
-
-            stringBuilder3.Append(string.Concat(param.ParameterName, " ", sqlDbTypeString, empty));
-
-            if (param.Value != null)
-                stringBuilder3.Append($" = {param.Value}");
-            else if (param.IsNullable)
-                stringBuilder3.Append(" = NULL");
-
-            //if (param.Direction == ParameterDirection.Output || param.Direction == ParameterDirection.InputOutput)
-            //    stringBuilder3.Append(" OUTPUT");
-
-
-            return stringBuilder3.ToString();
+            foreach (var column in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
+                sqlCommand.Parameters.Add(GetSqlParameter(column));
         }
 
-        /// <summary>
-        /// From a NpgsqlCommand, create a stored procedure string
-        /// </summary>
-        private string CreateProcedureCommandText(NpgsqlCommand cmd, string procName)
+
+        private DbCommand CreateDeleteCommand(DbConnection connection, DbTransaction transaction)
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {procName}(");
-            string str = "\n\t";
-            foreach (NpgsqlParameter parameter in cmd.Parameters)
+            var procName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow);
+            var procNameQuoted = ParserName.Parse(procName, "\"").Quoted().ToString();
+
+            var trackingTableQuoted = ParserName.Parse(trackingTableName.ToString(), "\"").Quoted().ToString();
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            var sqlCommand = new NpgsqlCommand();
+            sqlCommand.Connection = (NpgsqlConnection)connection;
+            sqlCommand.Transaction = (NpgsqlTransaction)transaction;
+
+            this.AddPkColumnParametersToCommand(sqlCommand);
+
+            var sqlParameter0 = new NpgsqlParameter(@"sync_scope_id", NpgsqlDbType.Uuid);
+            sqlCommand.Parameters.Add(sqlParameter0);
+
+            var sqlParameter = new NpgsqlParameter(@"sync_force_write", NpgsqlDbType.Bigint);
+            sqlCommand.Parameters.Add(sqlParameter);
+
+            var sqlParameter1 = new NpgsqlParameter(@"sync_min_timestamp", NpgsqlDbType.Bigint);
+            sqlCommand.Parameters.Add(sqlParameter1);
+
+            var sqlParameter2 = new NpgsqlParameter(@"sync_row_count", NpgsqlDbType.Integer)
+            {
+                Direction = ParameterDirection.Output
+            };
+            sqlCommand.Parameters.Add(sqlParameter2);
+
+            string str6 = NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "t", "side");
+
+            var stringBuilder = new StringBuilder();
+
+            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {schema}.{procNameQuoted}(");
+            string str = "\t";
+            foreach (NpgsqlParameter parameter in sqlCommand.Parameters)
             {
                 stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
                 str = ",\n\t";
             }
-            stringBuilder.AppendLine("\n\t)");
-            stringBuilder.AppendLine("\n\tRETURNS void");
-            stringBuilder.AppendLine("\n\tLANGUAGE 'plpgsql'");
-            stringBuilder.AppendLine("AS $BODY$");
+            stringBuilder.AppendLine(") ");
+
+            stringBuilder.AppendLine("AS $BODY$ ");
             stringBuilder.AppendLine("BEGIN");
-            stringBuilder.AppendLine(cmd.CommandText);
-            stringBuilder.AppendLine("END;");
-            stringBuilder.AppendLine("$BODY$;");
-            return stringBuilder.ToString();
-        }
-
-        /// <summary>
-        /// Create a stored procedure
-        /// </summary>
-        protected async Task CreateProcedureCommandAsync(Func<NpgsqlCommand> BuildCommand, string procName, DbConnection connection, DbTransaction transaction)
-        {
-            var str = CreateProcedureCommandText(BuildCommand(), procName);
-
-            using (var command = new NpgsqlCommand(str, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-
-        private async Task CreateProcedureCommandAsync<T>(Func<T, NpgsqlCommand> BuildCommand, string procName, T t, DbConnection connection, DbTransaction transaction)
-        {
-
-            var str = CreateProcedureCommandText(BuildCommand(t), procName);
-
-            using (var command = new NpgsqlCommand(str, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-
-        }
-
-
-        /// <summary>
-        /// Check if we need to create the stored procedure
-        /// </summary>
-        public async Task<bool> NeedToCreateProcedureAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(commandType).name;
-
-            return !await NpgsqlManagementUtils.ProcedureExistsAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, commandName).ConfigureAwait(false);
-        }
-
-        /// <summary>
-        /// Check if we need to create the TVP Type
-        /// </summary>
-        public async Task<bool> NeedToCreateTypeAsync(DbCommandType commandType, DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(commandType).name;
-
-            return !await NpgsqlManagementUtils.TypeExistsAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, commandName).ConfigureAwait(false);
-        }
-
-        protected string BulkSelectUnsuccessfulRows()
-        {
-            var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine("--Select all ids not inserted / deleted / updated as conflict");
-            stringBuilder.Append("SELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
-            {
-                var cc = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-
-                stringBuilder.Append($"{cc}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
-                else
-                    stringBuilder.AppendLine();
-            }
-
-            stringBuilder.AppendLine($"FROM @changeTable [t]");
-            stringBuilder.AppendLine("WHERE NOT EXISTS (");
-            stringBuilder.Append("\t SELECT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
-            {
-                var cc = ParserName.Parse(this.tableDescription.PrimaryKeys[i])
-                                   .Quoted().ToString();
-
-                stringBuilder.Append($"{cc}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
-                else
-                    stringBuilder.AppendLine();
-            }
-            stringBuilder.AppendLine("\t FROM @dms_changed [i]");
-            stringBuilder.Append("\t WHERE ");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
-            {
-                var cc = ParserName.Parse(this.tableDescription.PrimaryKeys[i])
-                                .Quoted().ToString();
-                stringBuilder.Append($"[t].{cc} = [i].{cc}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append("AND ");
-                else
-                    stringBuilder.AppendLine();
-            }
-            stringBuilder.AppendLine("\t)");
-            return stringBuilder.ToString();
-        }
-
-
-        //------------------------------------------------------------------
-        // Reset command
-        //------------------------------------------------------------------
-        protected virtual NpgsqlCommand BuildResetCommand()
-        {
-            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger).name;
-            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger).name;
-            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger).name;
-
-            NpgsqlCommand sqlCommand = new NpgsqlCommand();
-            NpgsqlParameter sqlParameter2 = new NpgsqlParameter("@sync_row_count", NpgsqlDbType.Integer)
-            {
-                Direction = ParameterDirection.Output
-            };
-            sqlCommand.Parameters.Add(sqlParameter2);
-
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
-            stringBuilder.AppendLine();
-
-            stringBuilder.AppendLine($"DISABLE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()};");
-            stringBuilder.AppendLine($"DISABLE TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()};");
-            stringBuilder.AppendLine($"DISABLE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()};");
-
-            stringBuilder.AppendLine($"DELETE FROM {tableName.Schema().Quoted().ToString()};");
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.Schema().Quoted().ToString()};");
-
-            stringBuilder.AppendLine($"ENABLE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()};");
-            stringBuilder.AppendLine($"ENABLE TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()};");
-            stringBuilder.AppendLine($"ENABLE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()};");
-
 
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
-        public Task CreateResetAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
-            return CreateProcedureCommandAsync(BuildResetCommand, commandName, connection, transaction);
-        }
-        public async Task DropResetAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.Reset).name;
-            var commandText = $"DROP FUNCTION \"{commandName};\"";
-
-            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        //------------------------------------------------------------------
-        // Delete command
-        //------------------------------------------------------------------
-        protected virtual NpgsqlCommand BuildDeleteCommand()
-        {
-            var sqlCommand = new NpgsqlCommand();
-            this.AddPkColumnParametersToCommand(sqlCommand);
-
-            var sqlParameter0 = new NpgsqlParameter("sync_scope_id", NpgsqlDbType.Uuid);
-            sqlCommand.Parameters.Add(sqlParameter0);
-
-            var sqlParameter = new NpgsqlParameter("sync_force_write", NpgsqlDbType.Boolean);
-            sqlCommand.Parameters.Add(sqlParameter);
-
-            var sqlParameter1 = new NpgsqlParameter("sync_min_timestamp", NpgsqlDbType.Bigint);
-            sqlCommand.Parameters.Add(sqlParameter1);
-
-            var sqlParameter2 = new NpgsqlParameter("sync_row_count", NpgsqlDbType.Integer)
-            {
-                Direction = ParameterDirection.Output
-            };
-            sqlCommand.Parameters.Add(sqlParameter2);
-
-            string str6 = NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[t]", "[side]");
-
-            var stringBuilder = new StringBuilder();
-
-            stringBuilder.AppendLine($"WITH \"DEL\" AS (");
-            stringBuilder.AppendLine($" DELETE FROM {tableName.Schema().Quoted().ToString()} as base");
-            stringBuilder.AppendLine($" WHERE ({NpgsqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "base")})");
-            stringBuilder.AppendLine($" AND EXISTS (");
-            stringBuilder.AppendLine($"  SELECT * FROM {trackingName.Schema().Quoted().ToString()} as side");
-            stringBuilder.AppendLine($"  WHERE ({NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "base", "side")})");
-            stringBuilder.AppendLine($"  AND (side.timestamp <= {NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER}sync_min_timestamp");
-            stringBuilder.AppendLine($"       OR side.timestamp IS NULL");
-            stringBuilder.AppendLine($"       OR side.update_scope_id = {NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER}sync_scope_id");
-            stringBuilder.AppendLine($"       OR {NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER}sync_force_write = true)");
-            stringBuilder.AppendLine($"  )");
-            stringBuilder.AppendLine($" RETURNING *");
-            stringBuilder.AppendLine($")");
-            stringBuilder.AppendLine($"UPDATE {trackingName.Schema().Quoted().ToString()} SET");
-            stringBuilder.AppendLine($"\tupdate_scope_id = {NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER}sync_scope_id,");
-            stringBuilder.AppendLine($"\tsync_row_is_tombstone = true,");
-            stringBuilder.AppendLine($"\ttimestamp = {NpgsqlScopeInfoBuilder.TimestampValue},");
-            stringBuilder.AppendLine($"\tlast_change_datetime = now()");
-            stringBuilder.AppendLine($"FROM \"DEL\"");
-            stringBuilder.AppendLine($"WHERE ({NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, trackingName.Schema().Quoted().ToString(), "\"DEL\"")});");
-            stringBuilder.AppendLine();
-
-            sqlCommand.CommandText = stringBuilder.ToString();
-
-            return sqlCommand;
-        }
-        public Task CreateDeleteAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
-            return CreateProcedureCommandAsync(BuildDeleteCommand, commandName, connection, transaction);
-        }
-        public async Task DropDeleteAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteRow).name;
-            var commandText = $"DROP PROCEDURE {commandName};";
-
-            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        //------------------------------------------------------------------
-        // Delete Metadata command
-        //------------------------------------------------------------------
-        protected virtual NpgsqlCommand BuildDeleteMetadataCommand()
-        {
-            NpgsqlCommand sqlCommand = new NpgsqlCommand();
-            this.AddPkColumnParametersToCommand(sqlCommand);
-            NpgsqlParameter sqlParameter1 = new NpgsqlParameter("sync_row_timestamp", NpgsqlDbType.Bigint);
-            sqlCommand.Parameters.Add(sqlParameter1);
-            NpgsqlParameter sqlParameter2 = new NpgsqlParameter("@sync_row_count", NpgsqlDbType.Integer)
-            {
-                Direction = ParameterDirection.Output
-            };
-            sqlCommand.Parameters.Add(sqlParameter2);
-            StringBuilder stringBuilder = new StringBuilder();
-            //stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.Schema().Quoted().ToString()} ");
-            stringBuilder.AppendLine($"WHERE timestamp < {NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER}sync_row_timestamp");
-            stringBuilder.AppendLine();
-            //stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
-        public Task CreateDeleteMetadataAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
-            return CreateProcedureCommandAsync(BuildDeleteMetadataCommand, commandName, connection, transaction);
-        }
-        public async Task DropDeleteMetadataAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata).name;
-            var commandText = $"DROP PROCEDURE {commandName};";
-
-            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        //------------------------------------------------------------------
-        // Select Row command
-        //------------------------------------------------------------------
-        protected virtual NpgsqlCommand BuildSelectRowCommand()
-        {
-            var sqlCommand = new NpgsqlCommand();
-            this.AddPkColumnParametersToCommand(sqlCommand);
-            var sqlParameter = new NpgsqlParameter($"{NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER}sync_scope_id", NpgsqlDbType.Uuid);
-            sqlCommand.Parameters.Add(sqlParameter);
-
-            var stringBuilder = new StringBuilder("SELECT ");
-            stringBuilder.AppendLine();
-            var stringBuilder1 = new StringBuilder();
-            string empty = string.Empty;
-            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
-            {
-                var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
-                var parameterName = ParserName.Parse(pkColumn, "\"").Unquoted().Normalized().ToString();
-
-                stringBuilder.AppendLine($"\tside.{columnName}, ");
-                stringBuilder1.Append($"{empty}side.{columnName} = \"{NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER}{parameterName}\"");
-                empty = " AND ";
-            }
-            foreach (var mutableColumn in this.tableDescription.GetMutableColumns())
-            {
-                var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
-                stringBuilder.AppendLine($"\tbase.{columnName}, ");
-            }
-            stringBuilder.AppendLine("\tside.sync_row_is_tombstone, ");
-            stringBuilder.AppendLine("\tside.update_scope_id");
-
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} base");
-            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Schema().Quoted().ToString()} side ON");
-
-            string str = string.Empty;
-            foreach (var pkColumn in this.tableDescription.PrimaryKeys)
-            {
-                var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
-                stringBuilder.Append($"{str}base.{columnName} = side.{columnName}");
-                str = " AND ";
-            }
-            stringBuilder.AppendLine();
-            stringBuilder.Append($"WHERE {stringBuilder1.ToString()};");
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
-        public Task CreateSelectRowAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
-            return CreateProcedureCommandAsync(BuildSelectRowCommand, commandName, connection, transaction);
-        }
-
-
-        public async Task DropSelectRowAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectRow).name;
-            var commandText = $"DROP PROCEDURE {commandName};";
-
-            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        //------------------------------------------------------------------
-        // Update command
-        //------------------------------------------------------------------
-        protected virtual NpgsqlCommand BuildUpdateCommand(bool hasMutableColumns)
-        {
-
-            var sqlCommand = new NpgsqlCommand();
-            var stringBuilderArguments = new StringBuilder();
-            var stringBuilderParameters = new StringBuilder();
-            string empty = string.Empty;
-
-            this.AddColumnParametersToCommand(sqlCommand);
-
-            var sqlParameter1 = new NpgsqlParameter("sync_min_timestamp", NpgsqlDbType.Bigint);
-            sqlCommand.Parameters.Add(sqlParameter1);
-
-            var sqlParameter2 = new NpgsqlParameter("sync_scope_id", NpgsqlDbType.Uuid);
-            sqlCommand.Parameters.Add(sqlParameter2);
-
-            var sqlParameter3 = new NpgsqlParameter("sync_force_write", NpgsqlDbType.Boolean);
-            sqlCommand.Parameters.Add(sqlParameter3);
-
-            var sqlParameter4 = new NpgsqlParameter("sync_row_count", NpgsqlDbType.Integer)
-            {
-                Direction = ParameterDirection.Output
-            };
-            sqlCommand.Parameters.Add(sqlParameter4);
-
-            var stringBuilder = new StringBuilder();
-
-            string str4 = NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[p]", "[t]");
-            string str5 = NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[changes]", "[base]");
-            string str6 = NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[t]", "[side]");
-            string str7 = NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[p]", "[side]");
-
-            stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
-            stringBuilder.Append("declare @dms_changed TABLE (");
-            foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
-            {
-                var columnName = ParserName.Parse(c, "\"").Quoted().ToString();
-
-                // Get the good NpgsqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.tableDescription.OriginalProvider, NpgsqlSyncProvider.ProviderType);
-                var quotedColumnType = ParserName.Parse(sqlDbTypeString, "\"").Quoted().ToString();
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, NpgsqlSyncProvider.ProviderType);
-
-                stringBuilder.Append($"{columnName} {quotedColumnType}, ");
-            }
-            stringBuilder.Append(" PRIMARY KEY (");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
-            {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i], "\"").Quoted().ToString();
-                stringBuilder.Append($"{columnName}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
-            }
-            stringBuilder.AppendLine("));");
-            stringBuilder.AppendLine();
-
-            // Check if we have auto inc column
-            if (this.tableDescription.HasAutoIncrementColumns)
-            {
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
-                stringBuilder.AppendLine();
-            }
-
-            stringBuilder.AppendLine(";WITH [changes] AS (");
-            stringBuilder.Append("\tSELECT ");
-            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
-            {
-                var columnName = ParserName.Parse(c, "\"").Quoted().ToString();
-                stringBuilder.Append($"[p].{columnName}, ");
-            }
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\t[side].[update_scope_id], [side].[timestamp], [side].[sync_row_is_tombstone]");
-            stringBuilder.AppendLine($"\tFROM (SELECT ");
-            stringBuilder.Append($"\t\t ");
+            stringBuilder.AppendLine("WITH dms_changed as ( ");
+            stringBuilder.AppendLine($"DELETE from {schema}.{tableQuoted} base");
+            stringBuilder.Append($"USING {schema}.{trackingTableQuoted} side ");
+            stringBuilder.AppendLine(@$"WHERE {NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "base", "side")} ");
+            stringBuilder.AppendLine("AND (side.timestamp <= sync_min_timestamp OR side.timestamp IS NULL OR side.update_scope_id = sync_scope_id OR sync_force_write = 1)");
+            stringBuilder.Append("AND ");
+            stringBuilder.AppendLine(string.Concat("(", NpgsqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "base"), ") returning "));
             string comma = "";
-            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(c, "\"").Quoted().ToString();
-                var columnParameterName = ParserName.Parse(c, "\"").Unquoted().Normalized().ToString();
-
-                stringBuilder.Append($"{comma}@{columnParameterName} as {columnName}");
+                var columnName = ParserName.Parse(primaryKeyColumn, "\"").Quoted().ToString();
+                stringBuilder.Append($"{comma}{columnName}");
                 comma = ", ";
             }
-            stringBuilder.AppendLine($") AS [p]");
-            stringBuilder.Append($"\tLEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
-            stringBuilder.AppendLine($"\t{str7}");
-            stringBuilder.AppendLine($"\t)");
 
-            stringBuilder.AppendLine($"MERGE {tableName.Schema().Quoted().ToString()} AS [base]");
-            stringBuilder.AppendLine($"USING [changes] on {str5}");
-            if (hasMutableColumns)
-            {
-                stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR [changes].[update_scope_id] = @sync_scope_id OR @sync_force_write = 1) THEN");
-                foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
-                {
-                    var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
-                    stringBuilderArguments.Append(string.Concat(empty, columnName));
-                    stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName}"));
-                    empty = ", ";
-                }
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"\tUPDATE SET");
-
-                string strSeparator = "";
-                foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false))
-                {
-                    var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
-                    stringBuilder.AppendLine($"\t{strSeparator}{columnName} = [changes].{columnName}");
-                    strSeparator = ", ";
-                }
-            }
-
-            stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[timestamp] <= @sync_min_timestamp OR [changes].[timestamp] IS NULL OR @sync_force_write = 1) THEN");
-
-
-            stringBuilderArguments = new StringBuilder();
-            stringBuilderParameters = new StringBuilder();
-            empty = string.Empty;
-
-            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
-            {
-                var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
-
-                stringBuilderArguments.Append(string.Concat(empty, columnName));
-                stringBuilderParameters.Append(string.Concat(empty, $"[changes].{columnName}"));
-                empty = ", ";
-            }
+            stringBuilder.AppendLine(" ) ");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"\tINSERT");
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()})");
-
+            stringBuilder.AppendLine("UPDATE side SET");
+            stringBuilder.AppendLine("\t\"update_scope_id\" = \"sync_scope_id\",");
+            stringBuilder.AppendLine("\t\"sync_row_is_tombstone\" = TRUE,");
+            stringBuilder.AppendLine(@$"    ""timestamp"" = {NpgsqlObjectNames.TimestampValue}, ");
+            stringBuilder.AppendLine("\t\"last_change_datetime\" = GETUTCDATE()");
+            stringBuilder.AppendLine($"FROM {schema}.{trackingTableQuoted} side");
+            stringBuilder.AppendLine($"JOIN dms_changed t on {str6};");
             stringBuilder.AppendLine();
-            stringBuilder.Append($"OUTPUT ");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
-            {
-                var columnName = ParserName.Parse(this.tableDescription.PrimaryKeys[i], "\"").Quoted().ToString();
-                stringBuilder.Append($"INSERTED.{columnName}");
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
-                    stringBuilder.Append(", ");
-                else
-                    stringBuilder.AppendLine();
-            }
-            stringBuilder.AppendLine($"INTO @dms_changed; -- populates the temp table with successful PKs");
-            stringBuilder.AppendLine();
-
-            // Check if we have auto inc column
-            if (this.tableDescription.HasAutoIncrementColumns)
-            {
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
-                stringBuilder.AppendLine();
-            }
-
-            stringBuilder.AppendLine($"SET {sqlParameter4.ParameterName} = 0;");
-            stringBuilder.AppendLine();
-
-            stringBuilder.AppendLine("-- Since the update trigger is passed, we update the tracking table to reflect the real scope updater");
-            stringBuilder.AppendLine("UPDATE [side] SET");
-            stringBuilder.AppendLine("\t[update_scope_id] = @sync_scope_id,");
-            stringBuilder.AppendLine("\t[sync_row_is_tombstone] = 0,");
-            stringBuilder.AppendLine("\t[last_change_datetime] = GETUTCDATE()");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
-            stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"SET {sqlParameter4.ParameterName} = @@ROWCOUNT;");
-
+            stringBuilder.AppendLine(string.Concat("GET DIAGNOSTICS ", sqlParameter2.ParameterName, " = ROW_COUNT;"));
+            stringBuilder.AppendLine("END; $BODY$ LANGUAGE 'plpgsql';");
+            sqlCommand.Parameters.Clear();
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        public Task CreateUpdateAsync(bool hasMutableColumns, DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
-            return this.CreateProcedureCommandAsync(BuildUpdateCommand, commandName, hasMutableColumns, connection, transaction);
-        }
-        public async Task DropUpdateAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateRow).name;
-            var commandText = $"DROP PROCEDURE {commandName};";
 
-            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
+        private DbCommand CreateDeleteMetadataCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var procName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata);
+            var procNameQuoted = ParserName.Parse(procName, "\"").Quoted().ToString();
+
+            var trackingTableQuoted = ParserName.Parse(trackingTableName.ToString(), "\"").Quoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            NpgsqlCommand sqlCommand = new NpgsqlCommand();
+            sqlCommand.Connection = (NpgsqlConnection)connection;
+            sqlCommand.Transaction = (NpgsqlTransaction)transaction;
+            this.AddPkColumnParametersToCommand(sqlCommand);
+            NpgsqlParameter sqlParameter1 = new NpgsqlParameter(@"sync_row_timestamp", NpgsqlDbType.Bigint);
+            sqlCommand.Parameters.Add(sqlParameter1);
+            NpgsqlParameter sqlParameter2 = new NpgsqlParameter(@"sync_row_count", NpgsqlDbType.Integer)
             {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
-
-        /// <summary>
-        /// Add all sql parameters
-        /// </summary>
-        protected void CreateFilterParameters(NpgsqlCommand sqlCommand, SyncFilter filter)
-        {
-            var parameters = filter.Parameters;
-
-            if (parameters.Count == 0)
-                return;
-
-            foreach (var param in parameters)
+                Direction = ParameterDirection.Output
+            };
+            sqlCommand.Parameters.Add(sqlParameter2);
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"create or replace function {schema}.{procNameQuoted}(");
+            string str = "\t";
+            foreach (NpgsqlParameter parameter in sqlCommand.Parameters)
             {
-                if (param.DbType.HasValue)
-                {
-                    // Get column name and type
-                    var columnName = ParserName.Parse(param.Name, "\"").Unquoted().Normalized().ToString();
-                    var sqlDbType = (NpgsqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(null, param.DbType.Value, false, false, param.MaxLength, NpgsqlSyncProvider.ProviderType, NpgsqlSyncProvider.ProviderType);
-
-                    var customParameterFilter = new NpgsqlParameter($"@{columnName}", sqlDbType);
-                    customParameterFilter.Size = param.MaxLength;
-                    customParameterFilter.IsNullable = param.AllowNull;
-                    customParameterFilter.Value = param.DefaultValue;
-                    sqlCommand.Parameters.Add(customParameterFilter);
-                }
-                else
-                {
-                    var tableFilter = this.tableDescription.Schema.Tables[param.TableName, param.SchemaName];
-                    if (tableFilter == null)
-                        throw new FilterParamTableNotExistsException(param.TableName);
-
-                    var columnFilter = tableFilter.Columns[param.Name];
-                    if (columnFilter == null)
-                        throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
-
-                    // Get column name and type
-                    var columnName = ParserName.Parse(columnFilter, "\"").Unquoted().Normalized().ToString();
-                    var sqlDbType = (NpgsqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, NpgsqlSyncProvider.ProviderType);
-
-                    // Add it as parameter
-                    var sqlParamFilter = new NpgsqlParameter($"@{columnName}", sqlDbType);
-                    sqlParamFilter.Size = columnFilter.MaxLength;
-                    sqlParamFilter.IsNullable = param.AllowNull;
-                    sqlParamFilter.Value = param.DefaultValue;
-                    sqlCommand.Parameters.Add(sqlParamFilter);
-                }
-
+                stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
+                str = ",\n\t";
             }
-        }
+            stringBuilder.AppendLine(") ");
 
-        /// <summary>
-        /// Create all custom joins from within a filter 
-        /// </summary>
-        protected string CreateFilterCustomJoins(SyncFilter filter)
+            stringBuilder.AppendLine("AS $BODY$ ");
+            stringBuilder.AppendLine("BEGIN");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"DELETE FROM {schema}.{trackingTableQuoted} side");
+            stringBuilder.AppendLine(@$"WHERE side.""timestamp"" < {sqlParameter1.ParameterName};");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine(string.Concat("GET DIAGNOSTICS ", sqlParameter2.ParameterName, " = ROW_COUNT;"));
+            stringBuilder.AppendLine("END;");
+            stringBuilder.AppendLine("$BODY$ LANGUAGE 'plpgsql';");
+            sqlCommand.Parameters.Clear();
+            sqlCommand.CommandText = stringBuilder.ToString();
+            return sqlCommand;
+        }
+        private string CreateFilterCustomJoins(SyncFilter filter)
         {
             var customJoins = filter.Joins;
 
@@ -723,11 +496,11 @@ namespace Dotmim.Sync.Postgres.Builders
 
                 var leftTableName = ParserName.Parse(customJoin.LeftTableName, "\"").Quoted().Schema().ToString();
                 if (string.Equals(filterTableName, leftTableName, SyncGlobalization.DataSourceStringComparison))
-                    leftTableName = "[base]";
+                    leftTableName = "base";
 
                 var rightTableName = ParserName.Parse(customJoin.RightTableName, "\"").Quoted().Schema().ToString();
                 if (string.Equals(filterTableName, rightTableName, SyncGlobalization.DataSourceStringComparison))
-                    rightTableName = "[base]";
+                    rightTableName = "base";
 
                 var leftColumName = ParserName.Parse(customJoin.LeftColumnName, "\"").Quoted().ToString();
                 var rightColumName = ParserName.Parse(customJoin.RightColumnName, "\"").Quoted().ToString();
@@ -738,150 +511,140 @@ namespace Dotmim.Sync.Postgres.Builders
             return stringBuilder.ToString();
         }
 
-        /// <summary>
-        /// Create all side where criteria from within a filter
-        /// </summary>
-        protected string CreateFilterWhereSide(SyncFilter filter, bool checkTombstoneRows = false)
+        private void CreateFilterParameters(NpgsqlCommand sqlCommand, SyncFilter filter)
         {
-            var sideWhereFilters = filter.Wheres;
+            var parameters = filter.Parameters;
 
-            if (sideWhereFilters.Count == 0)
-                return string.Empty;
+            if (parameters.Count == 0)
+                return;
 
-            var stringBuilder = new StringBuilder();
-            // Managing when state is tombstone
-            if (checkTombstoneRows)
-                stringBuilder.AppendLine($"(");
-
-            stringBuilder.AppendLine($" (");
-
-
-            var and2 = "   ";
-
-            foreach (var whereFilter in sideWhereFilters)
+            foreach (var param in parameters)
             {
-                var tableFilter = this.tableDescription.Schema.Tables[whereFilter.TableName, whereFilter.SchemaName];
-                if (tableFilter == null)
-                    throw new FilterParamTableNotExistsException(whereFilter.TableName);
+                if (param.DbType.HasValue)
+                {
+                    // Get column name and type
+                    var columnName = ParserName.Parse(param.Name, "\"").Quoted().Normalized().ToString();
+                    var sqlDbType = this.NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(new SyncColumn(columnName) { DbType = (int)param.DbType });
 
-                var columnFilter = tableFilter.Columns[whereFilter.ColumnName];
-                if (columnFilter == null)
-                    throw new FilterParamColumnNotExistsException(whereFilter.ColumnName, whereFilter.TableName);
-
-                var tableName = ParserName.Parse(tableFilter, "\"").Unquoted().ToString();
-                if (string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison))
-                    tableName = "[base]";
+                    var customParameterFilter = new NpgsqlParameter($"{columnName}", sqlDbType);
+                    customParameterFilter.Size = param.MaxLength;
+                    customParameterFilter.IsNullable = param.AllowNull;
+                    customParameterFilter.Value = param.DefaultValue;
+                    sqlCommand.Parameters.Add(customParameterFilter);
+                }
                 else
-                    tableName = ParserName.Parse(tableFilter, "\"").Quoted().Schema().ToString();
+                {
+                    var tableFilter = this.tableDescription.Schema.Tables[param.TableName, param.SchemaName];
+                    if (tableFilter == null)
+                        throw new FilterParamTableNotExistsException(param.TableName);
 
-                var columnName = ParserName.Parse(columnFilter, "\"").Quoted().ToString();
-                var parameterName = ParserName.Parse(whereFilter.ParameterName, "\"").Unquoted().Normalized().ToString();
-                var sqlDbType = (NpgsqlDbType)this.sqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, NpgsqlSyncProvider.ProviderType);
+                    var columnFilter = tableFilter.Columns[param.Name];
+                    if (columnFilter == null)
+                        throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
 
-                var param = filter.Parameters[parameterName];
+                    // Get column name and type
+                    var columnName = ParserName.Parse(columnFilter, "\"").Quoted().Normalized().ToString();
+                    //var sqlDbType = (NpgsqlDbType)this.NpgsqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, NpgsqlSyncProvider.ProviderType);
+                    var sqlDbType = tableFilter.OriginalProvider == NpgsqlSyncProvider.ProviderType ? this.NpgsqlDbMetadata.GetNpgsqlDbType(columnFilter) : this.NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(columnFilter);
 
-                if (param == null)
-                    throw new FilterParamColumnNotExistsException(columnName, whereFilter.TableName);
-
-                stringBuilder.Append($"{and2}({tableName}.{columnName} = @{parameterName}");
-
-                if (param.AllowNull)
-                    stringBuilder.Append($" OR @{parameterName} IS NULL");
-
-                stringBuilder.Append($")");
-
-                and2 = " AND ";
+                    // Add it as parameter
+                    var sqlParamFilter = new NpgsqlParameter($"{columnName}", sqlDbType);
+                    sqlParamFilter.Size = columnFilter.MaxLength;
+                    sqlParamFilter.IsNullable = param.AllowNull;
+                    sqlParamFilter.Value = param.DefaultValue;
+                    sqlCommand.Parameters.Add(sqlParamFilter);
+                }
 
             }
-            stringBuilder.AppendLine();
-
-            stringBuilder.AppendLine($"  )");
-
-            if (checkTombstoneRows)
-            {
-                stringBuilder.AppendLine($" OR [side].[sync_row_is_tombstone] = 1");
-                stringBuilder.AppendLine($")");
-            }
-            // Managing when state is tombstone
-
-
-            return stringBuilder.ToString();
         }
 
-        /// <summary>
-        /// Create all custom wheres from witing a filter
-        /// </summary>
-        protected string CreateFilterCustomWheres(SyncFilter filter)
+        private DbCommand CreateSelectIncrementalChangesCommand(DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
-            var customWheres = filter.CustomWheres;
 
-            if (customWheres.Count == 0)
-                return string.Empty;
+            string procName = string.Empty;
+            if (filter != null)
+                procName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
+            else
+                procName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges);
 
-            var stringBuilder = new StringBuilder();
-            var and2 = "  ";
-            stringBuilder.AppendLine($"(");
+            var procNameQuoted = ParserName.Parse(procName, "\"").Quoted().ToString();
 
-            foreach (var customWhere in customWheres)
-            {
-                stringBuilder.Append($"{and2}{customWhere}");
-                and2 = " AND ";
-            }
+            var trackingTableQuoted = ParserName.Parse(trackingTableName.ToString(), "\"").Quoted().ToString();
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
 
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($")");
-
-            return stringBuilder.ToString();
-        }
-
-
-        //------------------------------------------------------------------
-        // Select changes command
-        //------------------------------------------------------------------
-        protected virtual NpgsqlCommand BuildSelectIncrementalChangesCommand(SyncFilter filter = null)
-        {
             var sqlCommand = new NpgsqlCommand();
-            var pTimestamp = new NpgsqlParameter("@sync_min_timestamp", NpgsqlDbType.Bigint) { Value = 0 };
-            var pScopeId = new NpgsqlParameter("@sync_scope_id", NpgsqlDbType.Uuid) { Value = "NULL", IsNullable = true }; // <--- Ok THAT's Bad, but it's working :D
+            sqlCommand.Connection = (NpgsqlConnection)connection;
+            sqlCommand.Transaction = (NpgsqlTransaction)transaction;
 
-            sqlCommand.Parameters.Add(pTimestamp);
-            sqlCommand.Parameters.Add(pScopeId);
+           
 
             // Add filter parameters
             if (filter != null)
                 CreateFilterParameters(sqlCommand, filter);
 
-            var stringBuilder = new StringBuilder("SELECT DISTINCT");
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {schema}.{procNameQuoted} (");
+            string str = "\t,";
+            stringBuilder.AppendLine("sync_min_timestamp bigint = NULL, ");
+            stringBuilder.AppendLine("sync_scope_id uuid = NULL ");
+            foreach (NpgsqlParameter parameter in sqlCommand.Parameters)
+            {
+                parameter.ParameterName = $@"""in_{ParserName.Parse(parameter.ParameterName, "\"").Unquoted().ToString()}""";
+                stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
+                str = ",\n\t";
+            }
+            stringBuilder.AppendLine("\n) ");
 
+            var pTimestamp = new NpgsqlParameter(@"sync_min_timestamp", NpgsqlDbType.Bigint) { Value = 0 };
+            var pScopeId = new NpgsqlParameter(@"sync_scope_id", NpgsqlDbType.Uuid) { Value = "NULL", IsNullable = true }; // <--- Ok THAT's Bad, but it's working :D
+            sqlCommand.Parameters.Add(pTimestamp);
+            sqlCommand.Parameters.Add(pScopeId);
+
+            stringBuilder.AppendLine("RETURNS TABLE ( ");
+            foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
+            {
+                var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
+                var dataType = NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(mutableColumn).ToString().ToLowerInvariant();
+                stringBuilder.AppendLine($"\t{columnName} {dataType}, ");
+            }
+            stringBuilder.AppendLine($"\t\"sync_row_is_tombstone\" boolean, ");
+            stringBuilder.AppendLine($"\t\"sync_update_scope_id\" uuid");
+            stringBuilder.AppendLine($") ");
+            stringBuilder.AppendLine("AS $BODY$ ");
+            stringBuilder.AppendLine("BEGIN");
+            if (filter != null)
+                stringBuilder.AppendLine("RETURN QUERY SELECT DISTINCT");
+            else
+                stringBuilder.AppendLine("RETURN QUERY SELECT");
             // ----------------------------------
             // Add all columns
             // ----------------------------------
             foreach (var pkColumn in this.tableDescription.PrimaryKeys)
             {
                 var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
-                stringBuilder.AppendLine($"\t[side].{columnName}, ");
+                stringBuilder.AppendLine($"\tside.{columnName}, ");
             }
             foreach (var mutableColumn in this.tableDescription.GetMutableColumns())
             {
                 var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
-                stringBuilder.AppendLine($"\t[base].{columnName}, ");
+                stringBuilder.AppendLine($"\tbase.{columnName}, ");
             }
-            stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone], ");
-            stringBuilder.AppendLine($"\t[side].[update_scope_id] ");
+            stringBuilder.AppendLine($"\tside.\"sync_row_is_tombstone\", ");
+            stringBuilder.AppendLine($"\tside.\"update_scope_id\" ");
             // ----------------------------------
-
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
+            stringBuilder.AppendLine($"FROM {schema}.{tableQuoted} base");
 
             // ----------------------------------
             // Make Right Join
             // ----------------------------------
-            stringBuilder.Append($"RIGHT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.Append($"RIGHT JOIN {schema}.{trackingTableQuoted} side ON ");
 
             string empty = "";
             foreach (var pkColumn in this.tableDescription.PrimaryKeys)
             {
                 var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
-                stringBuilder.Append($"{empty}[base].{columnName} = [side].{columnName}");
+                stringBuilder.Append($"{empty}base.{columnName} = side.{columnName}");
                 empty = " AND ";
             }
 
@@ -914,210 +677,550 @@ namespace Dotmim.Sync.Postgres.Builders
             // ----------------------------------
 
 
-            stringBuilder.AppendLine("\t[side].[timestamp] > @sync_min_timestamp");
-            stringBuilder.AppendLine("\tAND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL)");
-            stringBuilder.AppendLine(")");
+            stringBuilder.AppendLine("\tside.\"timestamp\" > \"sync_min_timestamp\"");
+            stringBuilder.AppendLine("\tAND (side.\"update_scope_id\" <> \"sync_scope_id\" OR side.\"update_scope_id\" IS NULL)");
+            stringBuilder.AppendLine(");");
+            stringBuilder.AppendLine("END; $BODY$ LANGUAGE 'plpgsql';");
+            sqlCommand.Parameters.Clear();
 
             sqlCommand.CommandText = stringBuilder.ToString();
 
             return sqlCommand;
         }
-        public async Task CreateSelectIncrementalChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
-            NpgsqlCommand cmdWithoutFilter() => BuildSelectIncrementalChangesCommand(null);
-            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName, connection, transaction).ConfigureAwait(false);
 
+
+        private DbCommand CreateSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
+        {
+            string procName = string.Empty;
             if (filter != null)
+                procName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
+            else
+                procName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges);
+
+            var procNameQuoted = ParserName.Parse(procName, "\"").Quoted().ToString();
+
+            var trackingTableQuoted = ParserName.Parse(trackingTableName.ToString(), "\"").Quoted().ToString();
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            var command = new NpgsqlCommand
             {
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
-                NpgsqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(filter);
-                await CreateProcedureCommandAsync(cmdWithFilter, commandName, connection, transaction).ConfigureAwait(false);
-            }
-        }
+                CommandTimeout = 0
+            };
+            command.Connection = (NpgsqlConnection)connection;
+            command.Transaction = (NpgsqlTransaction)transaction;
 
-        public async Task DropSelectIncrementalChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChanges).name;
-            var commandText = $"DROP PROCEDURE {commandName};";
 
-            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-
-            if (filter != null)
-            {
-                var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectChangesWithFilters, filter).name;
-                var commandTextWithFilter = $"DROP PROCEDURE {commandNameWithFilter};";
-
-                using (var command = new NpgsqlCommand(commandTextWithFilter, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
-                {
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
-            }
-
-        }
-
-        //------------------------------------------------------------------
-        // Select initialized changes command
-        //------------------------------------------------------------------
-        protected virtual NpgsqlCommand BuildSelectInitializedChangesCommand(SyncFilter filter = null)
-        {
-            var sqlCommand = new NpgsqlCommand();
+            
 
             // Add filter parameters
             if (filter != null)
-                CreateFilterParameters(sqlCommand, filter);
+                this.CreateFilterParameters(command, filter);
 
-            var stringBuilder = new StringBuilder("SELECT DISTINCT");
             var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {schema}.{procNameQuoted} (");
+            string str = "\t,";
+            stringBuilder.AppendLine("sync_min_timestamp bigint = NULL, ");
+            stringBuilder.AppendLine("sync_scope_id uuid = NULL ");
+
+
+            foreach (NpgsqlParameter parameter in command.Parameters)
+            {
+                parameter.ParameterName = $@"""in_{ParserName.Parse(parameter.ParameterName, "\"").Unquoted().ToString()}""";
+                stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
+                str = ",\n\t";
+            }
+            stringBuilder.AppendLine(") ");
+
+
+            var pTimestamp = new NpgsqlParameter(@"sync_min_timestamp", NpgsqlDbType.Bigint);
+            var pScopeId = new NpgsqlParameter(@"sync_scope_id", NpgsqlDbType.Uuid) { Value = "NULL", IsNullable = true };
+            command.Parameters.Add(pTimestamp);
+            command.Parameters.Add(pScopeId);
+
+            stringBuilder.AppendLine("RETURNS TABLE ( ");
+            string str2 = "";
+            foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
+            {
+                var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
+                var dataType = NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(mutableColumn).ToString().ToLowerInvariant();
+                stringBuilder.AppendLine($"\t{str2}{columnName} {dataType} ");
+                str2 = ",";
+            }
+            stringBuilder.AppendLine($") ");
+            stringBuilder.AppendLine("AS $BODY$ ");
+            stringBuilder.AppendLine("BEGIN");
+
+
+
+            // if we have a filter we may have joins that will duplicate lines
+            if (filter != null)
+                stringBuilder.AppendLine("RETURN QUERY SELECT DISTINCT");
+            else
+                stringBuilder.AppendLine("RETURN QUERY SELECT");
+
+
             for (var i = 0; i < columns.Count; i++)
             {
                 var mutableColumn = columns[i];
                 var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
-                stringBuilder.Append($"\t[base].{columnName}");
+                stringBuilder.Append($"\tbase.{columnName}");
 
                 if (i < columns.Count - 1)
                     stringBuilder.AppendLine(", ");
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
+            stringBuilder.AppendLine($"FROM {schema}.{tableQuoted} base");
 
-            if (filter != null)
+            // ----------------------------------
+            // Make Left Join
+            // ----------------------------------
+            stringBuilder.Append($"LEFT JOIN {schema}.{trackingTableQuoted} side ON ");
+
+            string empty = "";
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                // ----------------------------------
-                // Custom Joins
-                // ----------------------------------
+                var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
+                stringBuilder.Append($"{empty}base.{columnName} = side.{columnName}");
+                empty = " AND ";
+            }
+
+            // ----------------------------------
+            // Custom Joins
+            // ----------------------------------
+            if (filter != null)
                 stringBuilder.Append(CreateFilterCustomJoins(filter));
 
-                // ----------------------------------
-                // Where filters on [side]
-                // ----------------------------------
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("WHERE (");
 
-                var whereString = CreateFilterWhereSide(filter);
-                var customWhereString = CreateFilterCustomWheres(filter);
+            // ----------------------------------
+            // Where filters and Custom Where string
+            // ----------------------------------
+            if (filter != null)
+            {
+                var createFilterWhereSide = CreateFilterWhereSide(filter);
+                stringBuilder.Append(createFilterWhereSide);
 
-                if (!string.IsNullOrEmpty(whereString) || !string.IsNullOrEmpty(customWhereString))
-                {
-                    stringBuilder.AppendLine("WHERE");
+                if (!string.IsNullOrEmpty(createFilterWhereSide))
+                    stringBuilder.AppendLine($"AND ");
 
-                    if (!string.IsNullOrEmpty(whereString))
-                        stringBuilder.AppendLine(whereString);
+                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
+                stringBuilder.Append(createFilterCustomWheres);
 
-                    if (!string.IsNullOrEmpty(whereString) && !string.IsNullOrEmpty(customWhereString))
-                        stringBuilder.AppendLine("AND");
-
-                    if (!string.IsNullOrEmpty(customWhereString))
-                        stringBuilder.AppendLine(customWhereString);
-                }
+                if (!string.IsNullOrEmpty(createFilterCustomWheres))
+                    stringBuilder.AppendLine($"AND ");
             }
             // ----------------------------------
 
 
-            sqlCommand.CommandText = stringBuilder.ToString();
+            stringBuilder.AppendLine("\t(side.\"timestamp\" > \"sync_min_timestamp\" OR  \"sync_min_timestamp\" IS NULL)");
+            stringBuilder.AppendLine(");");
+            stringBuilder.AppendLine("END;");
+            stringBuilder.AppendLine("$BODY$ LANGUAGE 'plpgsql';");
+            command.Parameters.Clear();
+            command.CommandText = stringBuilder.ToString();
 
+            return command;
+        }
+
+        private DbCommand CreateSelectRowCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var procName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow);
+            var procNameQuoted = ParserName.Parse(procName, "\"").Quoted().ToString();
+
+            var trackingTableQuoted = ParserName.Parse(trackingTableName.ToString(), "\"").Quoted().ToString();
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            var cmd = new NpgsqlCommand();
+            cmd.Connection = (NpgsqlConnection)connection;
+            cmd.Transaction = (NpgsqlTransaction)transaction;
+            this.AddPkColumnParametersToCommand(cmd);
+            NpgsqlParameter sqlParameter = new NpgsqlParameter(@"sync_scope_id", NpgsqlDbType.Uuid);
+
+            cmd.Parameters.Add(sqlParameter);
+
+            var stringBuilder = new StringBuilder();
+
+            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {schema}.{procNameQuoted} (");
+            string str = "\t";
+            foreach (NpgsqlParameter parameter in cmd.Parameters)
+            {
+                stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
+                str = ",\n\t";
+            }
+            stringBuilder.AppendLine("\n) ");
+
+            stringBuilder.AppendLine("RETURNS TABLE ( ");
+            foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
+            {
+                var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
+                var dataType = NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(mutableColumn).ToString().ToLowerInvariant();
+                stringBuilder.AppendLine($"\t{columnName} {dataType}, ");
+            }
+            stringBuilder.AppendLine($"\t\"sync_row_is_tombstone\" boolean, ");
+            stringBuilder.AppendLine($"\t\"update_scope_id\" uuid");
+            stringBuilder.AppendLine($") ");
+            stringBuilder.AppendLine($"LANGUAGE plpgsql AS $BODY$");
+            stringBuilder.AppendLine($"BEGIN");
+            stringBuilder.AppendLine("RETURN QUERY SELECT ");
+            var stringBuilder1 = new StringBuilder();
+            string empty = string.Empty;
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
+                var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
+
+                stringBuilder1.Append($@"{empty}side.{columnName} = ""{NPGSQL_PREFIX_PARAMETER}{parameterName}""");
+                empty = " AND ";
+            }
+            foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
+            {
+
+                var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
+                var isPrimaryKey = this.tableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
+
+                if (isPrimaryKey)
+                    stringBuilder.AppendLine($"\tside.{columnName}, ");
+                else
+                    stringBuilder.AppendLine($"\tbase.{columnName}, ");
+            }
+            stringBuilder.AppendLine($"\tside.\"sync_row_is_tombstone\" as sync_row_is_tombstone, ");
+            stringBuilder.AppendLine($"\tside.\"update_scope_id\" as sync_update_scope_id");
+            stringBuilder.AppendLine($"FROM {schema}.{tableQuoted} base");
+            stringBuilder.AppendLine($"RIGHT JOIN {schema}.{trackingTableQuoted} side ON");
+
+            string str2 = string.Empty;
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
+                stringBuilder.Append($"{str2}base.{columnName} = side.{columnName} ");
+                str2 = " AND ";
+            }
+            //stringBuilder.AppendLine();
+            stringBuilder.Append(string.Concat("WHERE ", stringBuilder1.ToString(), ";"));
+            stringBuilder.Append("END; $BODY$;");
+            cmd.Parameters.Clear();
+            cmd.CommandText = stringBuilder.ToString();
+            return cmd;
+        }
+        private DbCommand CreateUpdateCommand(DbConnection connection, DbTransaction transaction)
+        {
+            var hasMutableColumns = this.tableDescription.GetMutableColumns(false).Any();
+            var procName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow);
+            var procNameQuoted = ParserName.Parse(procName, "\"").Quoted().ToString();
+
+            var trackingTableQuoted = ParserName.Parse(trackingTableName.ToString(), "\"").Quoted().ToString();
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            var sqlCommand = new NpgsqlCommand();
+            sqlCommand.Connection = (NpgsqlConnection)connection;
+            sqlCommand.Transaction = (NpgsqlTransaction)transaction;
+            var stringBuilder = new StringBuilder();
+
+            this.AddColumnParametersToCommand(sqlCommand);
+
+            var sqlParameter2 = new NpgsqlParameter("sync_scope_id", NpgsqlDbType.Uuid);
+            sqlCommand.Parameters.Add(sqlParameter2);
+
+            var sqlParameter3 = new NpgsqlParameter("sync_force_write", NpgsqlDbType.Bigint);
+            sqlCommand.Parameters.Add(sqlParameter3);
+
+            var sqlParameter1 = new NpgsqlParameter("sync_min_timestamp", NpgsqlDbType.Bigint);
+            sqlCommand.Parameters.Add(sqlParameter1);
+
+            var sqlParameter4 = new NpgsqlParameter("sync_row_count", NpgsqlDbType.Integer)
+            {
+                Direction = ParameterDirection.Output
+            };
+            sqlCommand.Parameters.Add(sqlParameter4);
+
+            var listColumnsTmp = new StringBuilder();
+            var listColumnsTmp2 = new StringBuilder();
+            var listColumnsTmp3 = new StringBuilder();
+
+            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {schema}.{procNameQuoted} (");
+            string str = "\t";
+            foreach (NpgsqlParameter parameter in sqlCommand.Parameters)
+            {
+                stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
+                str = ",\n\t";
+            }
+            stringBuilder.AppendLine(") \n\t");
+            stringBuilder.AppendLine("AS $BODY$");
+            var and = "";
+            foreach (var column in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var param = GetSqlParameter(column);
+                var parameterwithoutquotes = ParserName.Parse(column).Unquoted().ToString();
+
+                param.ParameterName = $"t_in_{parameterwithoutquotes}";
+                var declar = CreateParameterDeclaration(param);
+                var columnNameQuoted = ParserName.Parse(column, "\"").Quoted().ToString();
+
+                var parameterNameQuoted = ParserName.Parse(param.ParameterName).Unquoted().ToString();
+
+                // Primary keys column name, with quote
+                listColumnsTmp.Append($"{columnNameQuoted}, ");
+
+                // param name without type
+                listColumnsTmp2.Append($"{parameterNameQuoted}, ");
+
+                // param name with type
+                stringBuilder.AppendLine($"DECLARE {declar};");
+
+                // Param equal IS NULL
+                listColumnsTmp3.Append($"{and}{parameterNameQuoted} IS NULL");
+
+                and = " AND ";
+
+            }
+
+
+
+            stringBuilder.AppendLine("DECLARE ts bigint;");
+            stringBuilder.AppendLine("DECLARE t_update_scope_id uuid;");
+            stringBuilder.AppendLine("BEGIN");
+            stringBuilder.AppendLine("ts := 0;");
+            stringBuilder.AppendLine($"SELECT {listColumnsTmp.ToString()}");
+            stringBuilder.AppendLine($@"timestamp, update_scope_id FROM {schema}.{trackingTableQuoted} ");
+            stringBuilder.AppendLine($"WHERE {NpgsqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), trackingTableQuoted)} LIMIT 1 ");
+            stringBuilder.AppendLine($@"INTO {listColumnsTmp2.ToString()} ts, t_update_scope_id;");
+            stringBuilder.AppendLine();
+
+            if (hasMutableColumns)
+            {
+                stringBuilder.AppendLine($"UPDATE {schema}.{tableQuoted}");
+                stringBuilder.Append($"SET {NpgsqlManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
+                stringBuilder.Append($"WHERE {NpgsqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), "")}");
+                stringBuilder.AppendLine($" AND (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id  = sync_scope_id OR sync_force_write = 1);");
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($@"GET DIAGNOSTICS ""sync_row_count"" = ROW_COUNT;"); //[AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
+                stringBuilder.AppendLine($"IF (sync_row_count = 0) THEN");
+
+            }
+
+            string empty = string.Empty;
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderParameters = new StringBuilder();
+            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
+                var parameterName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
+
+                var paramQuotedColumn = ParserName.Parse($"{NPGSQL_PREFIX_PARAMETER}{mutableColumn.ColumnName}", "\"").Quoted().ToString();
+
+                stringBuilderArguments.Append(string.Concat(empty, columnName));
+                stringBuilderParameters.Append(string.Concat(empty, paramQuotedColumn));
+                empty = ", ";
+            }
+
+            stringBuilder.AppendLine($"\tINSERT INTO {schema}.{tableQuoted}");
+            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
+            stringBuilder.AppendLine($"\tSELECT * FROM ( SELECT {stringBuilderParameters.ToString()}) as TMP ");
+            stringBuilder.AppendLine($"\tWHERE ( {listColumnsTmp3.ToString()} )");
+            stringBuilder.AppendLine($"\tOR (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id = sync_scope_id OR sync_force_write = 1)");
+            stringBuilder.AppendLine($"\tLIMIT 1;");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($@"GET DIAGNOSTICS ""sync_row_count"" = ROW_COUNT;"); //[AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
+            stringBuilder.AppendLine();
+
+            if (hasMutableColumns)
+                stringBuilder.AppendLine("END IF;");
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"IF (sync_row_count > 0) THEN");
+            stringBuilder.AppendLine($"\tUPDATE {schema}.{trackingTableQuoted}");
+            stringBuilder.AppendLine($"\tSET \"update_scope_id\" = sync_scope_id, ");
+            stringBuilder.AppendLine($"\t\t \"sync_row_is_tombstone\" = FALSE, ");
+            stringBuilder.AppendLine($"\t\t \"timestamp\" = {NpgsqlObjectNames.TimestampValue}, ");
+            stringBuilder.AppendLine($"\t\t \"last_change_datetime\" = now() ");
+            stringBuilder.AppendLine($"\tWHERE {NpgsqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), "")};");
+            stringBuilder.AppendLine($"END IF;");
+            stringBuilder.AppendLine("END; ");
+            stringBuilder.AppendLine("$BODY$ LANGUAGE 'plpgsql';");
+            sqlCommand.Parameters.Clear();
+            sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
 
-        public async Task CreateSelectInitializedChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
-            NpgsqlCommand cmdWithoutFilter() => BuildSelectInitializedChangesCommand(null);
-            await CreateProcedureCommandAsync(cmdWithoutFilter, commandName, connection, transaction).ConfigureAwait(false);
+        //private DbCommand CreateUpdateCommand(DbConnection connection, DbTransaction transaction)
+        //{
+        //    var procName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow);
+        //    var sqlCommand = new NpgsqlCommand();
+        //    sqlCommand.Connection = (NpgsqlConnection)connection;
+        //    sqlCommand.Transaction = (NpgsqlTransaction)transaction;
+        //    // Check if we have mutables columns
+        //    this.AddColumnParametersToCommand(sqlCommand);
 
-            if (filter != null)
-            {
-                commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
-                NpgsqlCommand cmdWithFilter() => BuildSelectInitializedChangesCommand(filter);
-                await CreateProcedureCommandAsync(cmdWithFilter, commandName, connection, transaction).ConfigureAwait(false);
-            }
-        }
-        public async Task DropSelectInitializedChangesAsync(SyncFilter filter, DbConnection connection, DbTransaction transaction)
-        {
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChanges).name;
-            var commandText = $"DROP PROCEDURE {commandName};";
-            using (var command = new NpgsqlCommand(commandText, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
-            {
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+        //    var sqlParameter2 = new NpgsqlParameter("sync_scope_id", NpgsqlDbType.Uuid);
+        //    sqlCommand.Parameters.Add(sqlParameter2);
 
-            if (filter != null)
-            {
+        //    var sqlParameter3 = new NpgsqlParameter("sync_force_write", NpgsqlDbType.Bigint);
+        //    sqlCommand.Parameters.Add(sqlParameter3);
 
-                var commandNameWithFilter = this.sqlObjectNames.GetCommandName(DbCommandType.SelectInitializedChangesWithFilters, filter).name;
-                var commandTextWithFilter = $"DROP PROCEDURE {commandNameWithFilter};";
+        //    var sqlParameter1 = new NpgsqlParameter("sync_min_timestamp", NpgsqlDbType.Bigint);
+        //    sqlCommand.Parameters.Add(sqlParameter1);
 
-                using (var command = new NpgsqlCommand(commandTextWithFilter, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
-                {
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                }
-            }
-        }
+        //    var sqlParameter4 = new NpgsqlParameter("sync_row_count", NpgsqlDbType.Integer)
+        //    {
+        //        Direction = ParameterDirection.Output
+        //    };
+        //    sqlCommand.Parameters.Add(sqlParameter4);
 
-        public Task CreateBulkUpdateAsync(bool hasMutableColumns, DbConnection connection, DbTransaction transaction)
-        {
-            throw new NotImplementedException();
-        }
+        //    var hasMutableColumns = this.tableDescription.GetMutableColumns(false).Any();
 
-        public Task CreateBulkDeleteAsync(DbConnection connection, DbTransaction transaction)
-        {
-            throw new NotImplementedException();
-        }
+        //    StringBuilder stringBuilder = new StringBuilder();
+        //    stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {procName} (");
+        //    string str = "\t";
+        //    foreach (NpgsqlParameter parameter in sqlCommand.Parameters)
+        //    {
+        //        stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
+        //        str = ",\n\t";
+        //    }
+        //    stringBuilder.AppendLine(") \n\t");
+        //    stringBuilder.AppendLine("AS $BODY$");
+        //    stringBuilder.AppendLine("DECLARE");
+        //    stringBuilder.AppendLine("t_in_id integer;");
+        //    stringBuilder.AppendLine("ts bigint;");
+        //    stringBuilder.AppendLine("t_update_scope_id uuid;");
+        //    stringBuilder.AppendLine("BEGIN");
+        //    stringBuilder.AppendLine("ts := 0;");
+        //    stringBuilder.AppendLine("sync_row_count :=0;");
 
-        public Task DropBulkUpdateAsync(DbConnection connection, DbTransaction transaction)
-        {
-            throw new NotImplementedException();
-        }
+        //    var stringBuilderArguments = new StringBuilder();
+        //    var stringBuilderParameters = new StringBuilder();
+        //    string empty = string.Empty;
 
-        public Task DropBulkDeleteAsync(DbConnection connection, DbTransaction transaction)
-        {
-            throw new NotImplementedException();
-        }
+        //    string str4 = NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "p", "t");
+        //    string str5 = NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "changes", "base");
+        //    string str6 = NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "t", "side");
+        //    string str7 = NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "p", "side");
 
-        private string CreateTVPTypeCommandText()
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            var commandName = this.sqlObjectNames.GetCommandName(DbCommandType.BulkTableType).name;
-            stringBuilder.AppendLine($"CREATE TYPE {commandName} AS (");
-            string str = "";
-            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
-            {
-                var isPrimaryKey = this.tableDescription.IsPrimaryKey(c.ColumnName);
+        //    //stringBuilder.Append("CREATE TABLE IF NOT EXISTS dms_changed (");
+        //    //foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
+        //    //{
+        //    //    var columnName = ParserName.Parse(c).Quoted().ToString();
 
-                var columnName = ParserName.Parse(c, "\"").Quoted().ToString();
+        //    //    var columnType = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(c, this.tableDescription.OriginalProvider);
 
-                // Get the good SqlDbType (even if we are not from Sql Server def)
-                var sqlDbTypeString = this.sqlDbMetadata.TryGetOwnerDbTypeString(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, this.tableDescription.OriginalProvider, NpgsqlSyncProvider.ProviderType);
-                var quotedColumnType = ParserName.Parse(sqlDbTypeString, "\"").Quoted().ToString();
-                quotedColumnType += this.sqlDbMetadata.TryGetOwnerDbTypePrecision(c.OriginalDbType, c.GetDbType(), false, false, c.MaxLength, c.Precision, c.Scale, this.tableDescription.OriginalProvider, NpgsqlSyncProvider.ProviderType);
+        //    //    stringBuilder.Append($"{columnName} {columnType}, ");
+        //    //}
+        //    //stringBuilder.Append(" PRIMARY KEY (");
 
-                stringBuilder.AppendLine($"{str}{columnName} {quotedColumnType} ");
-                str = ", ";
-            }
+        //    //var pkeyComma = " ";
+        //    //foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
+        //    //{
+        //    //    var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+        //    //    stringBuilder.Append($"{pkeyComma}{columnName}");
+        //    //    pkeyComma = ", ";
+        //    //}
 
-            stringBuilder.Append(");");
-            return stringBuilder.ToString();
-        }
+        //    //stringBuilder.AppendLine("));");
+        //    //stringBuilder.AppendLine();
 
-        public async Task CreateTVPTypeAsync(DbConnection connection, DbTransaction transaction)
-        {
-            using (NpgsqlCommand sqlCommand = new NpgsqlCommand(this.CreateTVPTypeCommandText(), (NpgsqlConnection)connection, (NpgsqlTransaction)transaction))
-            {
+        //    stringBuilder.Append("\tSELECT ");
+        //    foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
+        //    {
+        //        var columnName = ParserName.Parse(c).Quoted().ToString();
+        //        stringBuilder.Append($"{columnName}, ");
+        //    }
 
-                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-        }
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.AppendLine($"\ttimestamp, update_scope_id from {trackingTableName.Quoted().Normalized().ToString()}");
+        //    var idColumn = this.tableDescription.GetPrimaryKeysColumns().FirstOrDefault();
+        //    var idColumnName = ParserName.Parse(idColumn).Quoted().ToString();
+        //    stringBuilder.AppendLine($"\twhere {idColumnName} = {NPGSQL_PREFIX_PARAMETER}{idColumnName} limit 1 INTO t_in_id, ts, t_update_scope_id;");
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.AppendLine($"UPDATE {tableName.Quoted().Normalized().ToString()} AND (changes.sync_timestamp <= sync_min_timestamp OR changes.sync_timestamp IS NULL OR changes.sync_update_scope_id = sync_scope_id OR sync_force_write = 1);");
+        //    stringBuilder.AppendLine("GET DIAGNOSTICS sync_row_count = ROW_COUNT;");
 
-        public Task DropTVPTypeAsync(DbConnection connection, DbTransaction transaction)
-        {
-            throw new NotImplementedException();
-        }
+        //    stringBuilder.AppendLine($"IF (sync_row_count = 0) THEN");
 
-        public Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
-        public Task<DbCommand> GetExistsBulkTypeCommandAsync(DbBulkType bulkType, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
-        public Task<DbCommand> GetCreateBulkTypeCommandAsync(DbBulkType bulkType, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
-        public Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, bool overwrite, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
-        public Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction) => throw new NotImplementedException();
+
+
+
+        //    string strSeparator = "";
+        //    foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false))
+        //    {
+        //        var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+        //        stringBuilder.AppendLine($"\t{strSeparator}{columnName} = {NPGSQL_PREFIX_PARAMETER}{columnName}");
+        //        strSeparator = ", ";
+        //    }
+        //    stringBuilder.AppendLine($"\twhere {idColumnName} = {NPGSQL_PREFIX_PARAMETER}{idColumnName}");
+
+
+        //    stringBuilder.AppendLine($"MERGE into {tableName.Schema().Quoted().ToString()} AS base");
+        //    stringBuilder.AppendLine($"USING changes on {str5}");
+        //    if (hasMutableColumns)
+        //    {
+        //        stringBuilder.AppendLine("WHEN MATCHED AND (changes.sync_timestamp <= sync_min_timestamp OR changes.sync_timestamp IS NULL OR changes.sync_update_scope_id = sync_scope_id OR sync_force_write = 1) THEN");
+        //        foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
+        //        {
+        //            var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+        //            stringBuilderArguments.Append(string.Concat(empty, columnName));
+        //            stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName}"));
+        //            empty = ", ";
+        //        }
+        //        stringBuilder.AppendLine();
+        //        stringBuilder.AppendLine($"\tUPDATE SET");
+
+        //        //string strSeparator = "";
+        //        //foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false))
+        //        //{
+        //        //    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+        //        //    stringBuilder.AppendLine($"\t{strSeparator}{columnName} = changes.{columnName}");
+        //        //    strSeparator = ", ";
+        //        //}
+        //    }
+        //    stringBuilder.AppendLine("WHEN NOT MATCHED AND (changes.sync_timestamp <= sync_min_timestamp OR changes.sync_timestamp IS NULL OR sync_force_write = 1) THEN");
+        //    stringBuilderArguments = new StringBuilder();
+        //    stringBuilderParameters = new StringBuilder();
+        //    empty = string.Empty;
+        //    foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
+        //    {
+        //        var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+
+        //        stringBuilderArguments.Append(string.Concat(empty, columnName));
+        //        stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName}"));
+        //        empty = ", ";
+        //    }
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.AppendLine($"\tINSERT");
+        //    stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
+        //    stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()});");
+
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.Append($"insert into dms_changed values(");
+
+        //    pkeyComma = " ";
+        //    foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
+        //    {
+        //        var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
+        //        stringBuilder.Append($"{pkeyComma}INSERTED.{columnName}");
+        //        pkeyComma = ", ";
+        //    }
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.AppendLine($");");
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.AppendLine("UPDATE side SET");
+        //    stringBuilder.AppendLine("\tupdate_scope_id = sync_scope_id,");
+        //    stringBuilder.AppendLine("\tsync_row_is_tombstone = FALSE,");
+        //    stringBuilder.AppendLine(@$"    ""timestamp"" = {NpgsqlObjectNames.TimestampValue}, ");
+        //    stringBuilder.AppendLine("\tlast_change_datetime = GETUTCDATE()");
+        //    stringBuilder.AppendLine($"FROM {trackingTableName.Schema().Quoted().ToString()} side");
+        //    stringBuilder.AppendLine($"JOIN dms_changed t on {str6};");
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.AppendLine($"GET DIAGNOSTICS  {sqlParameter4.ParameterName} = ROW_COUNT;");
+        //    stringBuilder.AppendLine("END;");
+        //    stringBuilder.AppendLine("$BODY$ LANGUAGE 'plpgsql';");
+        //    sqlCommand.Parameters.Clear();
+        //    sqlCommand.CommandText = stringBuilder.ToString();
+        //    return sqlCommand;
+
+        //}
     }
 }
