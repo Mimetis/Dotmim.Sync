@@ -44,7 +44,7 @@
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNetStandard)' OR '$(TargetFramework)' == '$(TargetFrameworkNetCore)'">
-		<PackageReference Include="Npgsql" Version="5.0.1" />
+		<PackageReference Include="Npgsql" Version="5.0.15" />
 	</ItemGroup>
 
 
