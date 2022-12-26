@@ -229,7 +229,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var str3 = new StringBuilder();
             var str4 = NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "side", "base");
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Unquoted().ToString()} (");
+            stringBuilder.AppendLine($"INSERT INTO {schema}.{trackingTableQuoted} (");
 
 
             var comma = "";
@@ -244,11 +244,11 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 comma = ", ";
             }
             stringBuilder.Append(str1.ToString());
-            stringBuilder.AppendLine($@", ""update_scope_id"", ""sync_row_is_tombstone"", ""last_change_datetime""");
+            stringBuilder.AppendLine($@", ""update_scope_id"", ""timestamp"", ""sync_row_is_tombstone"", ""last_change_datetime""");
             stringBuilder.AppendLine($")");
             stringBuilder.Append($"SELECT ");
             stringBuilder.Append(str2.ToString());
-            stringBuilder.AppendLine($", NULL, 0, now()");
+            stringBuilder.AppendLine($", NULL, {TimestampValue}, False, now()");
             stringBuilder.AppendLine($"FROM {schema}.{tableQuoted} as base WHERE NOT EXISTS");
             stringBuilder.Append($"(SELECT ");
             stringBuilder.Append(str3.ToString());
