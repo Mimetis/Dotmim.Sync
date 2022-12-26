@@ -209,6 +209,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 return string.Empty;
 
             var stringBuilder = new StringBuilder();
+
             // Managing when state is tombstone
             if (checkTombstoneRows)
                 stringBuilder.AppendLine($"(");
@@ -228,11 +229,11 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 if (columnFilter == null)
                     throw new FilterParamColumnNotExistsException(whereFilter.ColumnName, whereFilter.TableName);
 
-                var tableName = ParserName.Parse(tableFilter).Unquoted().ToString();
+                var tableName = ParserName.Parse(tableFilter, "\"").Unquoted().ToString();
                 if (string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison))
-                    tableName = "base";
+                    tableName = @"""base""";
                 else
-                    tableName = ParserName.Parse(tableFilter, "\"").Quoted().Schema().ToString();
+                    tableName = ParserName.Parse(tableFilter, "\"").Quoted().ToString();
 
                 var columnName = ParserName.Parse(columnFilter, "\"").Quoted().ToString();
                 var parameterName = ParserName.Parse(whereFilter.ParameterName, "\"").Unquoted().Normalized().ToString();
@@ -245,7 +246,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 stringBuilder.Append($"{and2}({tableName}.{columnName} = {NPGSQL_PREFIX_PARAMETER}{parameterName}");
 
                 if (param.AllowNull)
-                    stringBuilder.Append($" OR {parameterName} IS NULL");
+                    stringBuilder.Append($" OR \"in_{parameterName}\" IS NULL");
 
                 stringBuilder.Append($")");
 
@@ -495,11 +496,11 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
                 var leftTableName = ParserName.Parse(customJoin.LeftTableName, "\"").Quoted().Schema().ToString();
                 if (string.Equals(filterTableName, leftTableName, SyncGlobalization.DataSourceStringComparison))
-                    leftTableName = "[base]";
+                    leftTableName = "base";
 
                 var rightTableName = ParserName.Parse(customJoin.RightTableName, "\"").Quoted().Schema().ToString();
                 if (string.Equals(filterTableName, rightTableName, SyncGlobalization.DataSourceStringComparison))
-                    rightTableName = "[base]";
+                    rightTableName = "base";
 
                 var leftColumName = ParserName.Parse(customJoin.LeftColumnName, "\"").Quoted().ToString();
                 var rightColumName = ParserName.Parse(customJoin.RightColumnName, "\"").Quoted().ToString();
@@ -559,7 +560,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         private DbCommand CreateSelectIncrementalChangesCommand(DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
-            var procName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges, filter);
+
+            string procName = string.Empty;
+            if (filter != null)
+                procName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
+            else
+                procName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges);
+
             var procNameQuoted = ParserName.Parse(procName, "\"").Quoted().ToString();
 
             var trackingTableQuoted = ParserName.Parse(trackingTableName.ToString(), "\"").Quoted().ToString();
@@ -570,10 +577,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             sqlCommand.Connection = (NpgsqlConnection)connection;
             sqlCommand.Transaction = (NpgsqlTransaction)transaction;
 
-            var pTimestamp = new NpgsqlParameter(@"sync_min_timestamp", NpgsqlDbType.Bigint) { Value = 0 };
-            var pScopeId = new NpgsqlParameter(@"sync_scope_id", NpgsqlDbType.Uuid) { Value = "NULL", IsNullable = true }; // <--- Ok THAT's Bad, but it's working :D
-            sqlCommand.Parameters.Add(pTimestamp);
-            sqlCommand.Parameters.Add(pScopeId);
+           
 
             // Add filter parameters
             if (filter != null)
@@ -581,13 +585,21 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {schema}.{procNameQuoted} (");
-            string str = "";
+            string str = "\t,";
+            stringBuilder.AppendLine("sync_min_timestamp bigint = NULL, ");
+            stringBuilder.AppendLine("sync_scope_id uuid = NULL ");
             foreach (NpgsqlParameter parameter in sqlCommand.Parameters)
             {
+                parameter.ParameterName = $@"""in_{ParserName.Parse(parameter.ParameterName, "\"").Unquoted().ToString()}""";
                 stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
                 str = ",\n\t";
             }
             stringBuilder.AppendLine("\n) ");
+
+            var pTimestamp = new NpgsqlParameter(@"sync_min_timestamp", NpgsqlDbType.Bigint) { Value = 0 };
+            var pScopeId = new NpgsqlParameter(@"sync_scope_id", NpgsqlDbType.Uuid) { Value = "NULL", IsNullable = true }; // <--- Ok THAT's Bad, but it's working :D
+            sqlCommand.Parameters.Add(pTimestamp);
+            sqlCommand.Parameters.Add(pScopeId);
 
             stringBuilder.AppendLine("RETURNS TABLE ( ");
             foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
@@ -679,7 +691,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         private DbCommand CreateSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
-            var procName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges);
+            string procName = string.Empty;
+            if (filter != null)
+                procName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
+            else
+                procName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges);
+
             var procNameQuoted = ParserName.Parse(procName, "\"").Quoted().ToString();
 
             var trackingTableQuoted = ParserName.Parse(trackingTableName.ToString(), "\"").Quoted().ToString();
@@ -694,10 +711,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             command.Transaction = (NpgsqlTransaction)transaction;
 
 
-            var pTimestamp = new NpgsqlParameter(@"sync_min_timestamp", NpgsqlDbType.Bigint);
-            var pScopeId = new NpgsqlParameter(@"sync_scope_id", NpgsqlDbType.Uuid) { Value = "NULL", IsNullable = true };
-            command.Parameters.Add(pTimestamp);
-            command.Parameters.Add(pScopeId);
+            
 
             // Add filter parameters
             if (filter != null)
@@ -706,14 +720,24 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {schema}.{procNameQuoted} (");
-            string str = "\t";
+            string str = "\t,";
+            stringBuilder.AppendLine("sync_min_timestamp bigint = NULL, ");
+            stringBuilder.AppendLine("sync_scope_id uuid = NULL ");
+
+
             foreach (NpgsqlParameter parameter in command.Parameters)
             {
+                parameter.ParameterName = $@"""in_{ParserName.Parse(parameter.ParameterName, "\"").Unquoted().ToString()}""";
                 stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
                 str = ",\n\t";
             }
             stringBuilder.AppendLine(") ");
 
+
+            var pTimestamp = new NpgsqlParameter(@"sync_min_timestamp", NpgsqlDbType.Bigint);
+            var pScopeId = new NpgsqlParameter(@"sync_scope_id", NpgsqlDbType.Uuid) { Value = "NULL", IsNullable = true };
+            command.Parameters.Add(pTimestamp);
+            command.Parameters.Add(pScopeId);
 
             stringBuilder.AppendLine("RETURNS TABLE ( ");
             string str2 = "";
