@@ -243,7 +243,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 if (param == null)
                     throw new FilterParamColumnNotExistsException(columnName, whereFilter.TableName);
 
-                stringBuilder.Append($"{and2}({tableName}.{columnName} = {NPGSQL_PREFIX_PARAMETER}{parameterName}");
+                stringBuilder.Append($"{and2}({tableName}.{columnName} = \"{NPGSQL_PREFIX_PARAMETER}{parameterName}\"");
 
                 if (param.AllowNull)
                     stringBuilder.Append($" OR \"in_{parameterName}\" IS NULL");
@@ -523,10 +523,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 if (param.DbType.HasValue)
                 {
                     // Get column name and type
-                    var columnName = ParserName.Parse(param.Name, "\"").Unquoted().Normalized().ToString();
+                    var columnName = ParserName.Parse(param.Name, "\"").Quoted().Normalized().ToString();
                     var sqlDbType = this.NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(new SyncColumn(columnName) { DbType = (int)param.DbType });
 
-                    var customParameterFilter = new NpgsqlParameter($"{NPGSQL_PREFIX_PARAMETER}{columnName}", sqlDbType);
+                    var customParameterFilter = new NpgsqlParameter($"{columnName}", sqlDbType);
                     customParameterFilter.Size = param.MaxLength;
                     customParameterFilter.IsNullable = param.AllowNull;
                     customParameterFilter.Value = param.DefaultValue;
@@ -543,12 +543,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
                         throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
 
                     // Get column name and type
-                    var columnName = ParserName.Parse(columnFilter, "\"").Unquoted().Normalized().ToString();
+                    var columnName = ParserName.Parse(columnFilter, "\"").Quoted().Normalized().ToString();
                     //var sqlDbType = (NpgsqlDbType)this.NpgsqlDbMetadata.TryGetOwnerDbType(columnFilter.OriginalDbType, columnFilter.GetDbType(), false, false, columnFilter.MaxLength, tableFilter.OriginalProvider, NpgsqlSyncProvider.ProviderType);
                     var sqlDbType = tableFilter.OriginalProvider == NpgsqlSyncProvider.ProviderType ? this.NpgsqlDbMetadata.GetNpgsqlDbType(columnFilter) : this.NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(columnFilter);
 
                     // Add it as parameter
-                    var sqlParamFilter = new NpgsqlParameter($"{NPGSQL_PREFIX_PARAMETER}{columnName}", sqlDbType);
+                    var sqlParamFilter = new NpgsqlParameter($"{columnName}", sqlDbType);
                     sqlParamFilter.Size = columnFilter.MaxLength;
                     sqlParamFilter.IsNullable = param.AllowNull;
                     sqlParamFilter.Value = param.DefaultValue;
@@ -588,7 +588,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine("sync_scope_id uuid = NULL ");
             foreach (NpgsqlParameter parameter in sqlCommand.Parameters)
             {
-                parameter.ParameterName = $@"""{ParserName.Parse(parameter.ParameterName, "\"").Unquoted().ToString()}""";
+                parameter.ParameterName = $@"""{NPGSQL_PREFIX_PARAMETER}{ParserName.Parse(parameter.ParameterName, "\"").Unquoted().ToString()}""";
                 stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
                 str = ",\n\t";
             }
