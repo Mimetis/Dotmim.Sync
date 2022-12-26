@@ -201,7 +201,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 // Creating a column with space in it
                 entity.Property(e => e.AttributeWithSpace)
-                    .HasColumnName("Attribute With Space");
+                    .HasColumnName("Attribute With Space").HasMaxLength(250);
 
                 entity.Property(e => e.MiddleName).HasMaxLength(50);
 
@@ -493,7 +493,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 // Creating a column with space in it, and a schema on the table
                 entity.Property(e => e.AttributeWithSpace)
-                    .HasColumnName("Attribute With Space");
+                    .HasColumnName("Attribute With Space").HasMaxLength(250);
 
                 // Foreign Key
                 entity.HasOne(e => e.ParentProductCategory)
