@@ -77,8 +77,8 @@ internal class Program
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        var setup = new SyncSetup(allTables);
-        // var setup = new SyncSetup(oneTable);
+       // var setup = new SyncSetup(allTables);
+         var setup = new SyncSetup(oneTable);
         //var setup = new SyncSetup("ProductCategory", "ProductDescription", "Product");
         
         var options = new SyncOptions();
@@ -88,7 +88,7 @@ internal class Program
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
-        //setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
+        // setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
 
         //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitserver"));
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitclient"));
@@ -120,7 +120,7 @@ internal class Program
 
         //await GenerateErrorsAsync();
 
-         await SynchronizeAsync(clientProvider, serverProvider, setup, options, "n");
+         await SynchronizeAsync(clientProvider, serverProvider, setup, options);
         //await LoadLocalSchemaAsync();
     }
 

@@ -577,8 +577,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
             sqlCommand.Connection = (NpgsqlConnection)connection;
             sqlCommand.Transaction = (NpgsqlTransaction)transaction;
 
-           
-
             // Add filter parameters
             if (filter != null)
                 CreateFilterParameters(sqlCommand, filter);
@@ -590,7 +588,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine("sync_scope_id uuid = NULL ");
             foreach (NpgsqlParameter parameter in sqlCommand.Parameters)
             {
-                parameter.ParameterName = $@"""in_{ParserName.Parse(parameter.ParameterName, "\"").Unquoted().ToString()}""";
+                parameter.ParameterName = $@"""{ParserName.Parse(parameter.ParameterName, "\"").Unquoted().ToString()}""";
                 stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
                 str = ",\n\t";
             }
