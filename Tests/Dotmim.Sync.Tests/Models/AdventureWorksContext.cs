@@ -783,8 +783,7 @@ namespace Dotmim.Sync.Tests.Models
                     d.PriceListDettailId,
                 });
 
-                entity.HasOne(d => d.Category)
-                    .WithMany(c => c.Details);
+                entity.HasOne(d => d.Category).WithMany(c => c.Details);
 
                 // Adding a compute column
                 if (this.ProviderType == ProviderType.Sql || this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
@@ -808,6 +807,8 @@ namespace Dotmim.Sync.Tests.Models
             modelBuilder.Entity<PriceListCategory>(entity =>
             {
                 entity.HasKey(c => new { c.PriceListId, c.PriceCategoryId });
+
+                entity.Property(e => e.PriceCategoryId).HasMaxLength(12);
 
                 entity.HasOne(c => c.PriceList)
                     .WithMany(p => p.Categories);

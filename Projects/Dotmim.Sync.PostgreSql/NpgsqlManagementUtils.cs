@@ -22,8 +22,8 @@ namespace Dotmim.Sync.PostgreSql
             string str1 = "";
             foreach (var column in columns)
             {
-                var quotedColumn = ParserName.Parse(column, "\"").Quoted().ToString();
                 var unquotedColumn = ParserName.Parse(column, "\"").Unquoted().Normalized().ToString();
+                var quotedColumn = ParserName.Parse(column, "\"").Quoted().ToString();
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);
@@ -42,8 +42,8 @@ namespace Dotmim.Sync.PostgreSql
             string strSeparator = "";
             foreach (var mutableColumn in table.GetMutableColumns(false))
             {
-                var unquotedColumn = ParserName.Parse(mutableColumn).Unquoted().ToString();
-                var quotedColumn = ParserName.Parse(mutableColumn, "\"").Quoted().Normalized().ToString();
+                var unquotedColumn = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
+                var quotedColumn = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
 
                 stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn} = \"{sql_prefix}{unquotedColumn}\"");
                 strSeparator = ", ";
@@ -371,19 +371,20 @@ namespace Dotmim.Sync.PostgreSql
             // Todo: get from metadata
 
             var commandRelations = @"
-                SELECT 
-                    0 AS ForeignKeyOrder, 
-                    tc.constraint_name AS ForeignKey,
-                    tc.table_schema  AS SchemaName,
-                    tc.table_name AS TableName,
-                    kcu.column_name AS ColumnName,
-                    ccu.table_schema AS ReferenceSchemaName,
-                    ccu.table_name  AS ReferenceTableName,
-                    ccu.column_name AS ReferenceColumnName
-                FROM information_schema.table_constraints AS tc 
-                JOIN information_schema.key_column_usage AS kcu ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
-                JOIN information_schema.constraint_column_usage AS ccu ON ccu.constraint_name = tc.constraint_name  AND ccu.table_schema = tc.table_schema
-                WHERE tc.constraint_type = 'FOREIGN KEY' and tc.table_name = @tableName AND tc.table_schema = @schemaName";
+            Select 	kcu.ordinal_position as ForeignKeyOrder, 
+		            kcu.constraint_name as ForeignKey,
+		            kcu.table_name as TableName,
+		            kcu.table_schema as SchemaName,
+		            kcu.column_name as ColumnName,
+		            rel_kcu.table_name as ReferenceTableName,
+		            rel_kcu.table_schema as ReferenceSchemaName,
+		            rel_kcu.column_name as ReferenceColumnName
+            from information_schema.table_constraints AS tc
+            Join information_schema.key_column_usage AS kcu on kcu.constraint_name = tc.constraint_name and tc.constraint_schema = kcu.constraint_schema
+            join information_schema.referential_constraints rco on tc.constraint_schema = rco.constraint_schema and tc.constraint_name = rco.constraint_name
+            join information_schema.table_constraints rel_tco on rco.unique_constraint_schema = rel_tco.constraint_schema and rco.unique_constraint_name = rel_tco.constraint_name
+            Join information_schema.key_column_usage AS rel_kcu on rel_kcu.constraint_name = rel_tco.constraint_name and rel_kcu.constraint_schema = rel_tco.constraint_schema and rel_kcu.ordinal_position = kcu.ordinal_position
+            Where tc.constraint_type='FOREIGN KEY' and tc.table_name = @tableName AND tc.table_schema = @schemaName";
 
             var tableNameNormalized = ParserName.Parse(tableName, "\"").Quoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName, "\"").ToString();

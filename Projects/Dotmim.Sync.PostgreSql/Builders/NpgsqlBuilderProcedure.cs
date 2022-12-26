@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Data;
+using static Npgsql.Replication.PgOutput.Messages.RelationMessage;
 
 namespace Dotmim.Sync.PostgreSql.Builders
 {
@@ -603,8 +604,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
             foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
             {
                 var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
-                var dataType = NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(mutableColumn).ToString().ToLowerInvariant();
-                stringBuilder.AppendLine($"\t{columnName} {dataType}, ");
+                //var dataType = NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(mutableColumn).ToString().ToLowerInvariant();
+                var columnType = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(mutableColumn, this.tableDescription.OriginalProvider);
+                stringBuilder.AppendLine($"\t{columnName} {columnType}, ");
             }
             stringBuilder.AppendLine($"\t\"sync_row_is_tombstone\" boolean, ");
             stringBuilder.AppendLine($"\t\"sync_update_scope_id\" uuid");
@@ -742,8 +744,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
             foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
             {
                 var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
-                var dataType = NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(mutableColumn).ToString().ToLowerInvariant();
-                stringBuilder.AppendLine($"\t{str2}{columnName} {dataType} ");
+                //var dataType = NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(mutableColumn).ToString().ToLowerInvariant();
+                var columnType = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(mutableColumn, this.tableDescription.OriginalProvider);
+
+                stringBuilder.AppendLine($"\t{str2}{columnName} {columnType} ");
                 str2 = ",";
             }
             stringBuilder.AppendLine($") ");
@@ -855,8 +859,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
             foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
             {
                 var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
-                var dataType = NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(mutableColumn).ToString().ToLowerInvariant();
-                stringBuilder.AppendLine($"\t{columnName} {dataType}, ");
+                //var dataType = NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(mutableColumn).ToString().ToLowerInvariant();
+                var columnType = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(mutableColumn, this.tableDescription.OriginalProvider);
+
+                stringBuilder.AppendLine($"\t{columnName} {columnType}, ");
             }
             stringBuilder.AppendLine($"\t\"sync_row_is_tombstone\" boolean, ");
             stringBuilder.AppendLine($"\t\"update_scope_id\" uuid");
@@ -1009,7 +1015,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
                 var parameterName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
 
-                var paramQuotedColumn = ParserName.Parse($"{NPGSQL_PREFIX_PARAMETER}{mutableColumn.ColumnName}", "\"").Quoted().ToString();
+                var unquotedParameterName= ParserName.Parse(mutableColumn, "\"").Unquoted().Normalized().ToString();
+                var paramQuotedColumn = ParserName.Parse($"{NPGSQL_PREFIX_PARAMETER}{unquotedParameterName}", "\"").Quoted().ToString();
 
                 stringBuilderArguments.Append(string.Concat(empty, columnName));
                 stringBuilderParameters.Append(string.Concat(empty, paramQuotedColumn));

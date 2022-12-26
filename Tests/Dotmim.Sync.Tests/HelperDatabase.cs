@@ -280,7 +280,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         private static void DropPostgresDatabase(string dbName)
         {
-            using var sysConnection = new NpgsqlConnection(Setup.GetPostgresDatabaseConnectionString("information_schema"));
+            using var sysConnection = new NpgsqlConnection(Setup.GetPostgresDatabaseConnectionString("postgres"));
             sysConnection.Open();
 
             using (var cmdDb = new NpgsqlCommand($"drop database if exists {dbName};", sysConnection))
