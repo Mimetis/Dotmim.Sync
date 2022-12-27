@@ -19,16 +19,11 @@ namespace Dotmim.Sync.PostgreSql
         public NpgsqlSyncProvider() : base() { }
         public NpgsqlSyncProvider(string connectionString) : base()
         {
-            //https://www.npgsql.org/doc/release-notes/7.0.html#a-namecommandtypestoredprocedure-commandtypestoredprocedure-now-invokes-procedures-instead-of-functions.
-            AppContext.SetSwitch("Npgsql.EnableStoredProcedureCompatMode", true);
-            //https://www.npgsql.org/doc/release-notes/6.0.html#opting-out-of-the-new-timestamp-mapping-logic
             AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
             this.ConnectionString = connectionString;
 
             if (!string.IsNullOrEmpty(this.ConnectionString))
-            {
                 this.builder = new NpgsqlConnectionStringBuilder(this.ConnectionString);
-            }
         }
         public NpgsqlSyncProvider(NpgsqlConnectionStringBuilder builder) : base()
         {
