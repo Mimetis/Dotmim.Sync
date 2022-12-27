@@ -245,8 +245,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
         {
             switch (column.OriginalTypeName.ToLowerInvariant())
             {
-                case "array":
-                    return NpgsqlDbType.Array;
+                //case "array":
+                //    return NpgsqlDbType.Array;
                 case "bigint":
                 case "int8":
                     return NpgsqlDbType.Bigint;
@@ -420,8 +420,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case DbType.StringFixedLength:
                 case DbType.Xml:
                     return NpgsqlDbType.Text;
-                case DbType.Object:
-                    return NpgsqlDbType.Array;
+                //case DbType.Object:
+                //    return NpgsqlDbType.Array;
             }
             throw new Exception($"this type name {column.GetType().ToString()} is not supported");
         }
@@ -445,38 +445,38 @@ namespace Dotmim.Sync.PostgreSql.Builders
             switch (GetNpgsqlDbType(column))
             {
                 case NpgsqlDbType.Bigint:
-                    return Type.GetType("System.Int64");
+                    return typeof(long);
                 case NpgsqlDbType.Double:
-                    return Type.GetType("System.Double");
+                    return typeof(double);
                 case NpgsqlDbType.Int2Vector:
                 case NpgsqlDbType.Integer:
-                    return Type.GetType("System.Int32");
+                    return typeof(int);
                 case NpgsqlDbType.Real:
-                    return Type.GetType("System.Single");
+                    return typeof(float);
                 case NpgsqlDbType.Numeric:
                 case NpgsqlDbType.Money:
-                    return Type.GetType("System.Decimal");
+                    return typeof(decimal);
                 case NpgsqlDbType.Smallint:
-                    return Type.GetType("System.Int16");
+                    return typeof(short);
                 case NpgsqlDbType.Boolean:
-                    return Type.GetType("System.Boolean");
+                    return typeof(bool);
                 case NpgsqlDbType.Char:
-                    return Type.GetType("System.Char");
+                    return typeof(char);
                 case NpgsqlDbType.Text:
                 case NpgsqlDbType.Varchar:
                 case NpgsqlDbType.Name:
                 case NpgsqlDbType.Citext:
-                    return Type.GetType("System.String");
+                    return typeof(string);
                 case NpgsqlDbType.Bytea:
-                    return Type.GetType("System.Byte[]");
+                    return typeof(byte[]);
                 case NpgsqlDbType.Date:
                 case NpgsqlDbType.Timestamp:
-                    return Type.GetType("System.DateTime");
+                    return typeof(DateTime);
                 case NpgsqlDbType.Time:
-                    return Type.GetType("System.TimeSpan");
+                    return typeof(TimeSpan);
                 case NpgsqlDbType.TimestampTz:
                 case NpgsqlDbType.TimeTz:
-                    return typeof(DateTime);
+                    return typeof(DateTimeOffset);
                 case NpgsqlDbType.Inet:
                 case NpgsqlDbType.Cidr:
                 case NpgsqlDbType.MacAddr:
@@ -485,16 +485,16 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case NpgsqlDbType.Varbit:
                 case NpgsqlDbType.TsVector:
                 case NpgsqlDbType.TsQuery:
-                    return Type.GetType("System.String");
+                    return typeof(string);
                 case NpgsqlDbType.Uuid:
-                    return Type.GetType("System.Guid");
+                    return typeof(Guid);
                 case NpgsqlDbType.Xml:
                 case NpgsqlDbType.Json:
                 case NpgsqlDbType.Jsonb:
                 case NpgsqlDbType.Hstore:
-                    return Type.GetType("System.String");
-                case NpgsqlDbType.Array:
-                    return Type.GetType("System.String");
+                    return typeof(string);
+                //case NpgsqlDbType.Array:
+                //    return typeof(string);
             }
             throw new Exception($"this NpgsqlDbType {GetNpgsqlDbType(column).ToString()} is not supported");
 
