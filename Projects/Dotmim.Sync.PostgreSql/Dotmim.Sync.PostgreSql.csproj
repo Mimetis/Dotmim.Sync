@@ -10,10 +10,10 @@
 
 		<Authors>Sébastien Pertus</Authors>
 		<Company>Microsoft</Company>
-		<Title>Dotmim.Sync.MySql</Title>
-		<Summary>MySql Sync Provider. Client or Server provider .Net Standard 2.0</Summary>
-		<Description>MySql Sync Provider. Manage a sync process beetween two relational databases provider. This provider works with SQL Server and can be used as Client or Server provider .Net Standard 2.0</Description>
-		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
+		<Title>Dotmim.Sync.PostgreSql</Title>
+		<Summary>PostgreSql Sync Provider. Client or Server provider .Net Standard 2.0</Summary>
+		<Description>PostgreSql Sync Provider. Manage a sync process beetween two relational databases provider. This provider works with SQL Server and can be used as Client or Server provider .Net Standard 2.0</Description>
+		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, PostgreSql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
 		<PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
@@ -38,7 +38,7 @@
 	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNet7)'">
 		<PackageReference Include="Npgsql" Version="7.0.1" />
 	</ItemGroup>
-	
+
 	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNet6)'">
 		<PackageReference Include="Npgsql" Version="6.0.8" />
 	</ItemGroup>
