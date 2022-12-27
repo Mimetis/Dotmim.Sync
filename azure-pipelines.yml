@@ -158,7 +158,7 @@ jobs:
           testRunner: VSTest
           testResultsFiles: "**/*.trx"
 
- - job: testssqlservertcp7
+  - job: testssqlservertcp7
     displayName: "Sql TCP .Net 7"
 
     pool:
@@ -1057,6 +1057,11 @@ jobs:
         displayName: "beta nuget Dotmim.Sync.Sqlite"
         continueOnError: true
       - script: |
+          dotnet build Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
+          dotnet pack Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.PostgreSql --version-suffix $(buildBetaId) 
+        displayName: "beta nuget Dotmim.Sync.PostgreSql"
+        continueOnError: true
+      - script: |
           dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
           dotnet pack Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client --version-suffix $(buildBetaId)
         displayName: "beta nuget Dotmim.Sync.Web.Client"
@@ -1136,6 +1141,11 @@ jobs:
           dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) 
           dotnet pack Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite  
         displayName: "release nuget Dotmim.Sync.Sqlite"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration)
+          dotnet pack Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.PostgreSql
+        displayName: "beta nuget Dotmim.Sync.PostgreSql"
         continueOnError: true
       - script: |
           dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) 
