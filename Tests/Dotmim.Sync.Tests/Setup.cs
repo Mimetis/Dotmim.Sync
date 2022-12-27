@@ -107,6 +107,7 @@ namespace Dotmim.Sync.Tests
 
             if (IsOnAzureDev)
             {
+                builder.Port = 5432;
                 builder.Username = "postgres";
                 builder.Password = "Password12!";
             }
