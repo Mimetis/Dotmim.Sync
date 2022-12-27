@@ -133,25 +133,23 @@ namespace Dotmim.Sync.PostgreSql.Builders
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
                 return Task.FromResult<DbCommand>(null);
 
-
             // Todo: will check it later
             if (storedProcedureType == DbStoredProcedureType.BulkDeleteRows ||
                 storedProcedureType == DbStoredProcedureType.BulkUpdateRows || storedProcedureType == DbStoredProcedureType.BulkTableType)
                 return Task.FromResult<DbCommand>(null);
 
             var quotedProcedureName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
+            
             // Todo: will check it later
             if (string.IsNullOrEmpty(quotedProcedureName))
                 return Task.FromResult<DbCommand>(null);
 
-            var procedureName = ParserName.Parse(quotedProcedureName).ToString();
+            var procedureName = ParserName.Parse(quotedProcedureName, "\"").ToString();
 
-            var text = @"
-                        SELECT
-	                        (SELECT EXISTS
-			                        (SELECT
-				                        FROM PG_PROC
-				                        WHERE PRONAME = @PRONAME))::int";
+            var text = @"SELECT count(*)
+                          FROM pg_catalog.pg_proc as pc
+                          JOIN pg_namespace as n on pc.pronamespace = n.oid
+                          WHERE nspname = @schemaName and proname = @name";
 
 
             var sqlCommand = connection.CreateCommand();
@@ -161,15 +159,14 @@ namespace Dotmim.Sync.PostgreSql.Builders
             sqlCommand.CommandText = text;
 
             var p = sqlCommand.CreateParameter();
-            p.ParameterName = "@PRONAME";
+            p.ParameterName = "@name";
             p.Value = procedureName;
             sqlCommand.Parameters.Add(p);
 
-            //p = sqlCommand.CreateParameter();
-            //p.ParameterName = "@schemaName";
-            ////p.Value = NpgsqlObjectNames.GetUnquotedSqlSchemaName(ParserName.Parse(quotedProcedureName));
-            //p.Value = ParserName.Parse(quotedProcedureName);
-            //sqlCommand.Parameters.Add(p);
+            p = sqlCommand.CreateParameter();
+            p.ParameterName = "@schemaName";
+            p.Value = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedProcedureName));
+            sqlCommand.Parameters.Add(p);
 
             return Task.FromResult(sqlCommand);
         }
@@ -1028,7 +1025,17 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine($"\tSELECT * FROM ( SELECT {stringBuilderParameters.ToString()}) as TMP ");
             stringBuilder.AppendLine($"\tWHERE ( {listColumnsTmp3.ToString()} )");
             stringBuilder.AppendLine($"\tOR (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id = sync_scope_id OR sync_force_write = 1)");
-            stringBuilder.AppendLine($"\tLIMIT 1;");
+            stringBuilder.AppendLine($"\tLIMIT 1");
+
+            //var comma = "";
+            //var strPkeys = "";
+            //foreach (var column in this.tableDescription.GetPrimaryKeysColumns())
+            //{
+            //    strPkeys += $"{comma}{ParserName.Parse(column, "\"").Quoted().ToString()}";
+            //    comma = ",";
+            //}
+            //stringBuilder.AppendLine($"\tON CONFLICT ({strPkeys}) DO NOTHING;");
+            stringBuilder.AppendLine($"\tON CONFLICT DO NOTHING;");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($@"GET DIAGNOSTICS ""sync_row_count"" = ROW_COUNT;"); //[AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
             stringBuilder.AppendLine();

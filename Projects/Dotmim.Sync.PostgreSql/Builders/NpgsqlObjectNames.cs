@@ -36,8 +36,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
         //internal const string bulkUpdateProcName = "{0}.{1}{2}bulkupdate";
         //internal const string bulkDeleteProcName = "{0}.{1}{2}bulkdelete";
 
-        internal const string disableConstraintsText = "ALTER TABLE {0} DISABLE TRIGGER ALL";
-        internal const string enableConstraintsText = "ALTER TABLE {0} ENABLE TRIGGER ALL";
+        internal const string disableConstraintsText = "ALTER TABLE {0}.{1} DISABLE TRIGGER ALL";
+        internal const string enableConstraintsText = "ALTER TABLE {0}.{1} ENABLE TRIGGER ALL";
 
         Dictionary<DbCommandType, string> commandNames = new Dictionary<DbCommandType, string>();
         private string scopeName;
@@ -268,7 +268,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var tpref = this.setup?.TriggersPrefix;
             var tsuf = this.setup?.TriggersSuffix;
 
-            var tableName = ParserName.Parse(tableDescription);
+            var tableName = ParserName.Parse(tableDescription, "\"");
 
             var scopeNameWithoutDefaultScope = scopeName == SyncOptions.DefaultScopeName ? "" : $"{scopeName}_";
 
@@ -299,8 +299,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
             //this.AddStoredProcedureName(DbStoredProcedureType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
             //this.AddStoredProcedureName(DbStoredProcedureType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
 
-            this.AddCommandName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(tableDescription).Schema().Unquoted().ToString()));
-            this.AddCommandName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(tableDescription).Schema().Unquoted().ToString()));
+
+            this.AddCommandName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, schema, tableName.Quoted()));
+            this.AddCommandName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, schema, tableName.Quoted()));
 
             this.AddCommandName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand());
             this.AddCommandName(DbCommandType.SelectMetadata, CreateSelectMetadataCommand());
