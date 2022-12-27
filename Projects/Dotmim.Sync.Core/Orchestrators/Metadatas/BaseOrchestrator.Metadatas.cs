@@ -56,9 +56,7 @@ namespace Dotmim.Sync
                         if (isDone)
                             continue;
 
-                        // create a fake syncTable
-                        // Don't need anything else than table name to make a delete metadata clean up
-                        var syncTable = new SyncTable(setupTable.TableName, setupTable.SchemaName);
+                        var syncTable = scopeInfo.Schema.Tables[setupTable.TableName, setupTable.SchemaName];
                         var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
 
                         var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DeleteMetadata, null,

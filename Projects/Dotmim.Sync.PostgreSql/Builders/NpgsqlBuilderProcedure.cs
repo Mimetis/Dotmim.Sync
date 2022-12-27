@@ -582,8 +582,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {schema}.{procNameQuoted} (");
             string str = "\t,";
-            stringBuilder.AppendLine("sync_min_timestamp bigint = NULL, ");
-            stringBuilder.AppendLine("sync_scope_id uuid = NULL ");
+            stringBuilder.AppendLine("\"sync_min_timestamp\" bigint = NULL, ");
+            stringBuilder.AppendLine("\"sync_scope_id\" uuid = NULL ");
             foreach (NpgsqlParameter parameter in sqlCommand.Parameters)
             {
                 parameter.ParameterName = $@"""{NPGSQL_PREFIX_PARAMETER}{ParserName.Parse(parameter.ParameterName, "\"").Unquoted().ToString()}""";
