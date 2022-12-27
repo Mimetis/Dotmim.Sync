@@ -8,7 +8,7 @@
 
 		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet6);$(TargetFrameworkNet7);$(TargetFrameworkNetCore)</TargetFrameworks>
 
-		<Authors>Sébastien Pertus</Authors>
+		<Authors>Sébastien Pertus, Waseem Ahmad Mughal</Authors>
 		<Company>Microsoft</Company>
 		<Title>Dotmim.Sync.PostgreSql</Title>
 		<Summary>PostgreSql Sync Provider. Client or Server provider .Net Standard 2.0</Summary>
