@@ -496,7 +496,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                     };
                     var sqlDbType = this.sqlMetadata.GetOwnerDbTypeFromDbType(syncColumn);
 
-                    var customParameterFilter = new NpgsqlParameter($"in_{columnName}", sqlDbType)
+                    var customParameterFilter = new NpgsqlParameter($"@{columnName}", sqlDbType)
                     {
                         Size = param.MaxLength,
                         IsNullable = param.AllowNull,
@@ -522,7 +522,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                         this.sqlMetadata.GetNpgsqlDbType(columnFilter) : this.sqlMetadata.GetOwnerDbTypeFromDbType(columnFilter);
 
                     // Add it as parameter
-                    var sqlParamFilter = new NpgsqlParameter($"in_{columnName}", sqlDbType)
+                    var sqlParamFilter = new NpgsqlParameter($"@{columnName}", sqlDbType)
                     {
                         Size = columnFilter.MaxLength,
                         IsNullable = param.AllowNull,
