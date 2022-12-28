@@ -266,22 +266,22 @@ namespace Dotmim.Sync.PostgreSql.Builders
             }
 
             p = command.CreateParameter();
-            p.ParameterName = "sync_scope_id";
+            p.ParameterName = "@sync_scope_id";
             p.DbType = DbType.Guid;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.ParameterName = "sync_force_write";
+            p.ParameterName = "@sync_force_write";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.ParameterName = "sync_min_timestamp";
+            p.ParameterName = "@sync_min_timestamp";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.ParameterName = "sync_row_count";
+            p.ParameterName = "@sync_row_count";
             p.DbType = DbType.Int32;
             p.Direction = ParameterDirection.Output;
             command.Parameters.Add(p);
@@ -362,7 +362,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             }
 
             p = command.CreateParameter();
-            p.ParameterName = "sync_row_timestamp";
+            p.ParameterName = "@sync_row_timestamp";
             p.DbType = DbType.Int64;
             command.Parameters.Add(p);
         }

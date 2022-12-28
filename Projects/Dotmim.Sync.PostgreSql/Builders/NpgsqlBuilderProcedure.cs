@@ -283,6 +283,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             var columnDeclarationString = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(tmpColumn, this.tableDescription.OriginalProvider);
 
+
             stringBuilder.Append($"{param.ParameterName} {columnDeclarationString}");
             if (param.Value != null)
                 stringBuilder.Append($" = {param.Value}");
@@ -298,7 +299,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         protected NpgsqlParameter GetSqlParameter(SyncColumn column)
         {
-            var paramName = $"{NPGSQL_PREFIX_PARAMETER}{ParserName.Parse(column).Unquoted().Normalized().ToString()}";
+            var paramName = $"{NPGSQL_PREFIX_PARAMETER}{ParserName.Parse(column).Unquoted().Normalized()}";
             var paramNameQuoted = ParserName.Parse(paramName, "\"").Quoted().ToString();
             var sqlParameter = new NpgsqlParameter
             {
@@ -384,33 +385,25 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine("BEGIN");
 
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine("WITH dms_changed as ( ");
             stringBuilder.AppendLine($"DELETE from {schema}.{tableQuoted} base");
-            stringBuilder.Append($"USING {schema}.{trackingTableQuoted} side ");
-            stringBuilder.AppendLine(@$"WHERE {NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "base", "side")} ");
-            stringBuilder.AppendLine("AND (side.timestamp <= sync_min_timestamp OR side.timestamp IS NULL OR side.update_scope_id = sync_scope_id OR sync_force_write = 1)");
-            stringBuilder.Append("AND ");
-            stringBuilder.AppendLine(string.Concat("(", NpgsqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "base"), ") returning "));
-            string comma = "";
-            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
-            {
-                var columnName = ParserName.Parse(primaryKeyColumn, "\"").Quoted().ToString();
-                stringBuilder.Append($"{comma} base.{columnName}");
-                comma = ", ";
-            }
-
-            stringBuilder.AppendLine(" ) ");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"UPDATE {schema}.{trackingTableQuoted} SET");
+            stringBuilder.AppendLine($"USING {schema}.{trackingTableQuoted} side ");
+            stringBuilder.AppendLine($"WHERE {NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "base", "side")} ");
+            stringBuilder.AppendLine($"AND (side.timestamp <= sync_min_timestamp OR side.timestamp IS NULL OR side.update_scope_id = sync_scope_id OR sync_force_write = 1)");
+            stringBuilder.AppendLine($"AND ({NpgsqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "base")});");
+            stringBuilder.AppendLine($"");
+            stringBuilder.AppendLine($"GET DIAGNOSTICS {sqlParameter2.ParameterName} = ROW_COUNT;");
+            stringBuilder.AppendLine($"IF (sync_row_count > 0) THEN");
+            stringBuilder.AppendLine($"\tUPDATE {schema}.{trackingTableQuoted} SET");
             stringBuilder.AppendLine($"\t\"update_scope_id\" = \"sync_scope_id\",");
             stringBuilder.AppendLine($"\t\"sync_row_is_tombstone\" = TRUE,");
-            stringBuilder.AppendLine($"    \"timestamp\" = {NpgsqlObjectNames.TimestampValue}, ");
+            stringBuilder.AppendLine($"\t\"timestamp\" = {NpgsqlObjectNames.TimestampValue}, ");
             stringBuilder.AppendLine($"\t\"last_change_datetime\" = now()");
-            stringBuilder.AppendLine($"FROM {schema}.{trackingTableQuoted} side");
-            stringBuilder.AppendLine($"JOIN dms_changed t on {str6};");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine(string.Concat("GET DIAGNOSTICS ", sqlParameter2.ParameterName, " = ROW_COUNT;"));
-            stringBuilder.AppendLine("END; $BODY$ LANGUAGE 'plpgsql';");
+            stringBuilder.AppendLine($"\tWHERE ({NpgsqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "")}); ");
+            stringBuilder.AppendLine($"");
+            stringBuilder.AppendLine($"\tGET DIAGNOSTICS {sqlParameter2.ParameterName} = ROW_COUNT;");
+            stringBuilder.AppendLine($"END IF;");
+            stringBuilder.AppendLine($"END;");
+            stringBuilder.AppendLine("$BODY$ LANGUAGE 'plpgsql';");
             sqlCommand.Parameters.Clear();
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;

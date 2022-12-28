@@ -76,7 +76,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
             string typeName = fromProviderType == NpgsqlSyncProvider.ProviderType ? column.OriginalTypeName.ToLowerInvariant() : sqlDbType.ToString().ToLowerInvariant();
 
             return string.IsNullOrEmpty(argument) ? typeName : $"{typeName} {argument}";
-
         }
 
         public int GetCompatibleMaxLength(SyncColumn column, string fromProviderType)
