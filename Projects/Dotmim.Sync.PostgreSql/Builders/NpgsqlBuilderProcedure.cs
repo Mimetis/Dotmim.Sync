@@ -368,8 +368,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
-            string str6 = NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "t", "side");
-
             var stringBuilder = new StringBuilder();
 
             stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {schema}.{procNameQuoted}(");
@@ -381,10 +379,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
             }
             stringBuilder.AppendLine(") ");
 
-            stringBuilder.AppendLine("AS $BODY$ ");
-            stringBuilder.AppendLine("BEGIN");
-
-            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"AS $BODY$ ");
+            stringBuilder.AppendLine($"BEGIN");
+            stringBuilder.AppendLine($"");
             stringBuilder.AppendLine($"DELETE from {schema}.{tableQuoted} base");
             stringBuilder.AppendLine($"USING {schema}.{trackingTableQuoted} side ");
             stringBuilder.AppendLine($"WHERE {NpgsqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "base", "side")} ");
@@ -393,14 +390,14 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine($"");
             stringBuilder.AppendLine($"GET DIAGNOSTICS {sqlParameter2.ParameterName} = ROW_COUNT;");
             stringBuilder.AppendLine($"IF (sync_row_count > 0) THEN");
-            stringBuilder.AppendLine($"\tUPDATE {schema}.{trackingTableQuoted} SET");
-            stringBuilder.AppendLine($"\t\"update_scope_id\" = \"sync_scope_id\",");
-            stringBuilder.AppendLine($"\t\"sync_row_is_tombstone\" = TRUE,");
-            stringBuilder.AppendLine($"\t\"timestamp\" = {NpgsqlObjectNames.TimestampValue}, ");
-            stringBuilder.AppendLine($"\t\"last_change_datetime\" = now()");
-            stringBuilder.AppendLine($"\tWHERE ({NpgsqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "")}); ");
+            stringBuilder.AppendLine($"     UPDATE {schema}.{trackingTableQuoted} SET");
+            stringBuilder.AppendLine($"     \"update_scope_id\" = \"sync_scope_id\",");
+            stringBuilder.AppendLine($"     \"sync_row_is_tombstone\" = TRUE,");
+            stringBuilder.AppendLine($"     \"timestamp\" = {NpgsqlObjectNames.TimestampValue}, ");
+            stringBuilder.AppendLine($"     \"last_change_datetime\" = now()");
+            stringBuilder.AppendLine($"     WHERE ({NpgsqlManagementUtils.ColumnsAndParameters(this.tableDescription.PrimaryKeys, "")}); ");
             stringBuilder.AppendLine($"");
-            stringBuilder.AppendLine($"\tGET DIAGNOSTICS {sqlParameter2.ParameterName} = ROW_COUNT;");
+            stringBuilder.AppendLine($"     GET DIAGNOSTICS {sqlParameter2.ParameterName} = ROW_COUNT;");
             stringBuilder.AppendLine($"END IF;");
             stringBuilder.AppendLine($"END;");
             stringBuilder.AppendLine("$BODY$ LANGUAGE 'plpgsql';");

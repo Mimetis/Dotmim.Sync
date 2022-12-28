@@ -146,7 +146,7 @@ jobs:
       - script: docker run --name postgres -e POSTGRES_PASSWORD=Password12! -p 5432:5432 -d postgres:latest
         displayName: "Run PostgreSQL on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.PostgresTcpTests -f netcoreapp3.1 --logger trx
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.PostgresTcp -f netcoreapp3.1 --logger trx
         name: postgrestcptests
         displayName: "PostgreSQL Tcp Integration Tests"
         continueOnError: true
@@ -196,7 +196,7 @@ jobs:
       - script: docker run --name postgres -e POSTGRES_PASSWORD=Password12! -p 5432:5432 -d postgres:latest
         displayName: "Run PostgreSQL on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.PostgresTcpTests -f net7.0 --logger trx
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.PostgresTcp -f net7.0 --logger trx
         name: postgrestcptests
         displayName: "PostgreSQL Tcp Integration Tests"
         continueOnError: true
