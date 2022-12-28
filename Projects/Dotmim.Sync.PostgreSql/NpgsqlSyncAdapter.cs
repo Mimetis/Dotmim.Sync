@@ -322,6 +322,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_id";
             p.DbType = DbType.Guid;
+            p.Value = DBNull.Value; // Intentionaly set to Null as it's not used in the function
             command.Parameters.Add(p);
 
         }
