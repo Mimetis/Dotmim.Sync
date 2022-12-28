@@ -861,7 +861,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 stringBuilder.AppendLine($"\t{columnName} {columnType}, ");
             }
             stringBuilder.AppendLine($"\t\"sync_row_is_tombstone\" boolean, ");
-            stringBuilder.AppendLine($"\t\"update_scope_id\" uuid");
+            stringBuilder.AppendLine($"\t\"sync_update_scope_id\" uuid");
             stringBuilder.AppendLine($") ");
             stringBuilder.AppendLine($"LANGUAGE plpgsql AS $BODY$");
             stringBuilder.AppendLine($"BEGIN");
