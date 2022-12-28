@@ -154,7 +154,7 @@ namespace Dotmim.Sync.Tests.Models
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
                 else if (this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
@@ -210,7 +210,7 @@ namespace Dotmim.Sync.Tests.Models
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
                 else if (this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
@@ -260,7 +260,7 @@ namespace Dotmim.Sync.Tests.Models
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
                 else if (this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
@@ -292,7 +292,7 @@ namespace Dotmim.Sync.Tests.Models
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
                 else if (this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
@@ -331,7 +331,7 @@ namespace Dotmim.Sync.Tests.Models
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
                 else if (this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
@@ -405,7 +405,7 @@ namespace Dotmim.Sync.Tests.Models
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
                 else if (this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
@@ -479,7 +479,7 @@ namespace Dotmim.Sync.Tests.Models
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
                 else if (this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
@@ -524,7 +524,7 @@ namespace Dotmim.Sync.Tests.Models
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
                 else if (this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
@@ -564,7 +564,7 @@ namespace Dotmim.Sync.Tests.Models
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
                 else if (this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
@@ -632,7 +632,7 @@ namespace Dotmim.Sync.Tests.Models
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
                 else if (this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
@@ -656,7 +656,7 @@ namespace Dotmim.Sync.Tests.Models
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.OrderDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
                 else if (this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
