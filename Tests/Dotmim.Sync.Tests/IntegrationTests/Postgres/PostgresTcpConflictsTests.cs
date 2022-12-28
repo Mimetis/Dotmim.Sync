@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
     public class PostgresTcpConflictsTests : TcpConflictsTests
     {
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MySql,  ProviderType.Sql};
+            { ProviderType.Postgres,  ProviderType.Sql};
 
         public PostgresTcpConflictsTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
