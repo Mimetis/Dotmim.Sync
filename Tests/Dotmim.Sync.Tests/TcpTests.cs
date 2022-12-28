@@ -389,7 +389,7 @@ namespace Dotmim.Sync.Tests
         [Fact]
         public async Task Bad_TableWithoutPrimaryKeys_ShouldRaiseError()
         {
-            string tableTestCreationScript = "Create Table TableTest (TestId int, TestName varchar(50))";
+            string tableTestCreationScript = "create table tabletest (testid int, testname varchar(50))";
 
             // Create an empty server database
             await this.CreateDatabaseAsync(this.ServerType, this.Server.DatabaseName, true);
@@ -408,7 +408,7 @@ namespace Dotmim.Sync.Tests
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
-                    var s = await agent.SynchronizeAsync(new string[] { "TableTest" });
+                    var s = await agent.SynchronizeAsync(new string[] { "tabletest" });
                 });
 
                 Assert.Equal("MissingPrimaryKeyException", se.TypeName);
