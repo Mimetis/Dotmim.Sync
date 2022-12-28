@@ -231,6 +231,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
             p.Direction = ParameterDirection.Output;
             command.Parameters.Add(p);
 
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_error_text";
+            p.DbType = DbType.String;
+            p.Direction = ParameterDirection.Output;
+            command.Parameters.Add(p);
+
         }
 
         private (DbCommand, bool) GetDeleteRowCommand()
@@ -283,6 +289,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
             p = command.CreateParameter();
             p.ParameterName = "@sync_row_count";
             p.DbType = DbType.Int32;
+            p.Direction = ParameterDirection.Output;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_error_text";
+            p.DbType = DbType.String;
             p.Direction = ParameterDirection.Output;
             command.Parameters.Add(p);
         }

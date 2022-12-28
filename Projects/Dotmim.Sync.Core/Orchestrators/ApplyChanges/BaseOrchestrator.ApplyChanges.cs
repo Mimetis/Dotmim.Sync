@@ -722,8 +722,14 @@ namespace Dotmim.Sync
                 // Check if we have a return value instead
                 var syncRowCountParam = InternalGetParameter(command, "sync_row_count");
 
+                // Check if we have an handled error
+                var syncErrorText = InternalGetParameter(command, "sync_error_text");
+
                 if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
                     rowAppliedCount = (int)syncRowCountParam.Value;
+
+                if (syncErrorText != null && syncErrorText.Value != null && syncErrorText.Value != DBNull.Value)
+                    throw new Exception(syncErrorText.Value.ToString());
             }
             catch (Exception ex)
             {

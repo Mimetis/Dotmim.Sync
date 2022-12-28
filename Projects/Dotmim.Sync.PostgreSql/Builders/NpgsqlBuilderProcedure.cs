@@ -929,6 +929,11 @@ namespace Dotmim.Sync.PostgreSql.Builders
             };
             sqlCommand.Parameters.Add(sqlParameter4);
 
+            var sqlParameter5 = new NpgsqlParameter("sync_error_text", NpgsqlDbType.Text)
+            {
+                Direction = ParameterDirection.Output
+            };
+            sqlCommand.Parameters.Add(sqlParameter4);
             var listColumnsTmp = new StringBuilder();
             var listColumnsTmp2 = new StringBuilder();
             var listColumnsTmp3 = new StringBuilder();
@@ -970,10 +975,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             }
 
-
-
             stringBuilder.AppendLine("DECLARE ts bigint;");
             stringBuilder.AppendLine("DECLARE t_update_scope_id uuid;");
+            stringBuilder.AppendLine("DECLARE error_text text;");
             stringBuilder.AppendLine("BEGIN");
             stringBuilder.AppendLine("ts := 0;");
             stringBuilder.AppendLine($"SELECT {listColumnsTmp.ToString()}");
@@ -1033,6 +1037,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine($"\t\t \"last_change_datetime\" = now() ");
             stringBuilder.AppendLine($"\tWHERE {NpgsqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), "")};");
             stringBuilder.AppendLine($"END IF;");
+            stringBuilder.AppendLine($"EXCEPTION WHEN OTHERS THEN");
+            stringBuilder.AppendLine($"\tGET STACKED DIAGNOSTICS sync_error_text = MESSAGE_TEXT;");
+            stringBuilder.AppendLine($"\t\"sync_row_count\"=-1;");
             stringBuilder.AppendLine("END; ");
             stringBuilder.AppendLine("$BODY$ LANGUAGE 'plpgsql';");
             sqlCommand.Parameters.Clear();
