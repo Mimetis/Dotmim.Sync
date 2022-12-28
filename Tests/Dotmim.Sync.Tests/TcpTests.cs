@@ -1941,8 +1941,12 @@ namespace Dotmim.Sync.Tests
                     // Insert on same connection as current sync.
                     // Using same connection to avoid lock, especially on SQlite
                     var command = changes.Connection.CreateCommand();
-                    command.CommandText = "INSERT INTO PricesList (PriceListId, Description) Values (@PriceListId, @Description);";
 
+                    // As Column names are case-sensitive in postgresql
+                    if (client.ProviderType == ProviderType.Postgres)
+                        command.CommandText = "INSERT INTO \"PricesList\" (\"PriceListId\", \"Description\") Values (@PriceListId, @Description);";
+                    else
+                        command.CommandText = "INSERT INTO PricesList (PriceListId, Description) Values (@PriceListId, @Description);";
                     var p = command.CreateParameter();
                     p.ParameterName = "@PriceListId";
                     p.Value = Guid.NewGuid();
@@ -4270,7 +4274,13 @@ namespace Dotmim.Sync.Tests
                 // checking if there is no rows in tracking table for address
                 var connection = client.Provider.CreateConnection();
                 var command = connection.CreateCommand();
-                command.CommandText = "SELECT COUNT(*) FROM Address_tracking";
+
+                // As Column names are case-sensitive in postgresql
+                if (client.ProviderType == ProviderType.Postgres)
+                    command.CommandText = "SELECT COUNT(*) FROM \"Address_tracking\"";
+                else
+                    command.CommandText = "SELECT COUNT(*) FROM Address_tracking";
+
                 command.Connection = connection;
                 await connection.OpenAsync();
                 var count = await command.ExecuteScalarAsync();

@@ -369,6 +369,8 @@ namespace Dotmim.Sync.Tests
                     return ExecuteMariaDBScriptAsync(dbName, script);
                 case ProviderType.Sqlite:
                     return ExecuteSqliteScriptAsync(dbName, script);
+                case ProviderType.Postgres:
+                    return ExecutePostgreSqlScriptAsync(dbName, script);
                 case ProviderType.Sql:
                 default:
                     return ExecuteSqlScriptAsync(dbName, script);
@@ -416,6 +418,16 @@ namespace Dotmim.Sync.Tests
             using var connection = new SqliteConnection(GetSqliteDatabaseConnectionString(dbName));
             connection.Open();
             using (var cmdDb = new SqliteCommand(script, connection))
+            {
+                await cmdDb.ExecuteNonQueryAsync();
+            }
+            connection.Close();
+        }
+        private static async Task ExecutePostgreSqlScriptAsync(string dbName, string script)
+        {
+            using var connection = new NpgsqlConnection(Setup.GetPostgresDatabaseConnectionString(dbName));
+            connection.Open();
+            using (var cmdDb = new NpgsqlCommand(script, connection))
             {
                 await cmdDb.ExecuteNonQueryAsync();
             }
