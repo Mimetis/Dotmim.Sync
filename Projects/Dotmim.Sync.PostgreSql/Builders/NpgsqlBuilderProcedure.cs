@@ -1015,17 +1015,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine($"\tSELECT * FROM ( SELECT {stringBuilderParameters.ToString()}) as TMP ");
             stringBuilder.AppendLine($"\tWHERE ( {listColumnsTmp3.ToString()} )");
             stringBuilder.AppendLine($"\tOR (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id = sync_scope_id OR sync_force_write = 1)");
-            stringBuilder.AppendLine($"\tLIMIT 1");
+            stringBuilder.AppendLine($"\tLIMIT 1;");
 
-            //var comma = "";
-            //var strPkeys = "";
-            //foreach (var column in this.tableDescription.GetPrimaryKeysColumns())
-            //{
-            //    strPkeys += $"{comma}{ParserName.Parse(column, "\"").Quoted().ToString()}";
-            //    comma = ",";
-            //}
-            //stringBuilder.AppendLine($"\tON CONFLICT ({strPkeys}) DO NOTHING;");
-            stringBuilder.AppendLine($"\tON CONFLICT DO NOTHING;");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($@"GET DIAGNOSTICS ""sync_row_count"" = ROW_COUNT;"); //[AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
             stringBuilder.AppendLine();
