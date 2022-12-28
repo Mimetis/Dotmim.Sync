@@ -32,12 +32,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             "PricesList", "PricesListCategory", "PricesListDetail", "Log"
         };
 
-        public override ProviderType ServerType =>
-            ProviderType.MySql;
-
-
-
-
+        public override ProviderType ServerType => ProviderType.Postgres;
 
         /// <summary>
         /// Get the server database rows count
