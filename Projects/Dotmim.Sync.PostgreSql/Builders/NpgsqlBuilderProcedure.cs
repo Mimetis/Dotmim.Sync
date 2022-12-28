@@ -368,6 +368,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
+            var sqlParameter3 = new NpgsqlParameter("sync_error_text", NpgsqlDbType.Text)
+            {
+                Direction = ParameterDirection.Output
+            };
+            sqlCommand.Parameters.Add(sqlParameter3);
+
             var stringBuilder = new StringBuilder();
 
             stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {schema}.{procNameQuoted}(");
@@ -399,6 +405,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine($"");
             stringBuilder.AppendLine($"     GET DIAGNOSTICS {sqlParameter2.ParameterName} = ROW_COUNT;");
             stringBuilder.AppendLine($"END IF;");
+            stringBuilder.AppendLine($"EXCEPTION WHEN OTHERS THEN");
+            stringBuilder.AppendLine($"    GET STACKED DIAGNOSTICS sync_error_text = MESSAGE_TEXT;");
+            stringBuilder.AppendLine($"    \"sync_row_count\"=-1;");
             stringBuilder.AppendLine($"END;");
             stringBuilder.AppendLine("$BODY$ LANGUAGE 'plpgsql';");
             sqlCommand.Parameters.Clear();
@@ -933,7 +942,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             {
                 Direction = ParameterDirection.Output
             };
-            sqlCommand.Parameters.Add(sqlParameter4);
+            sqlCommand.Parameters.Add(sqlParameter5);
             var listColumnsTmp = new StringBuilder();
             var listColumnsTmp2 = new StringBuilder();
             var listColumnsTmp3 = new StringBuilder();
@@ -977,7 +986,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             stringBuilder.AppendLine("DECLARE ts bigint;");
             stringBuilder.AppendLine("DECLARE t_update_scope_id uuid;");
-            stringBuilder.AppendLine("DECLARE error_text text;");
             stringBuilder.AppendLine("BEGIN");
             stringBuilder.AppendLine("ts := 0;");
             stringBuilder.AppendLine($"SELECT {listColumnsTmp.ToString()}");
