@@ -31,14 +31,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         internal const string resetMetadataProcName = @"{0}.""{1}{2}reset""";
 
-        //internal const string bulkTableTypeName = "{0}.{1}{2}BulkType";
-        //internal const string bulkInsertProcName = "{0}.{1}{2}bulkinsert";
-        //internal const string bulkUpdateProcName = "{0}.{1}{2}bulkupdate";
-        //internal const string bulkDeleteProcName = "{0}.{1}{2}bulkdelete";
-
-        internal const string disableConstraintsText = "ALTER TABLE {0}.{1} DISABLE TRIGGER ALL";
-        internal const string enableConstraintsText = "ALTER TABLE {0}.{1} ENABLE TRIGGER ALL";
-
         Dictionary<DbCommandType, string> commandNames = new Dictionary<DbCommandType, string>();
         private string scopeName;
         private SyncSetup setup;
@@ -159,6 +151,67 @@ namespace Dotmim.Sync.PostgreSql.Builders
             return stringBuilder.ToString();
         }
 
+
+        private string CreateDisableConstraintsCommand()
+        {
+            var tableUnquoted = ParserName.Parse(tableName.ToString(), "\"").Unquoted().ToString();
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            var strCommand = new StringBuilder();
+            strCommand.AppendLine($"DO $$");
+            strCommand.AppendLine($"Declare tgname character varying(250);");
+            strCommand.AppendLine($"Declare cur_trg cursor For ");
+            strCommand.AppendLine($"Select tr.tgname");
+            strCommand.AppendLine($"from pg_catalog.pg_trigger tr ");
+            strCommand.AppendLine($"join pg_catalog.pg_class  cl on  cl.oid =  tr.tgrelid");
+            strCommand.AppendLine($"join pg_constraint ct on ct.oid = tr.tgconstraint");
+            strCommand.AppendLine($"join pg_catalog.pg_namespace nsp on nsp.oid = ct.connamespace");
+            strCommand.AppendLine($"where relname = '{tableUnquoted}' and tgconstraint != 0 and nspname='{schema}';");
+            strCommand.AppendLine($"BEGIN");
+            strCommand.AppendLine($"open cur_trg;");
+            strCommand.AppendLine($"loop");
+            strCommand.AppendLine($"fetch cur_trg into tgname;");
+            strCommand.AppendLine($"exit when not found;");
+            strCommand.AppendLine($"Execute 'ALTER TABLE {schema}.{tableQuoted} DISABLE TRIGGER \"' || tgname || '\";';");
+            strCommand.AppendLine($"end loop;");
+            strCommand.AppendLine($"close cur_trg;");
+            strCommand.AppendLine($"END $$;");
+
+            return strCommand.ToString();
+        }
+
+
+        private string CreateEnableConstraintsCommand()
+        {
+            var tableUnquoted = ParserName.Parse(tableName.ToString(), "\"").Unquoted().ToString();
+            var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            var strCommand = new StringBuilder();
+            strCommand.AppendLine($"DO $$");
+            strCommand.AppendLine($"Declare tgname character varying(250);");
+            strCommand.AppendLine($"Declare cur_trg cursor For ");
+            strCommand.AppendLine($"Select tr.tgname");
+            strCommand.AppendLine($"from pg_catalog.pg_trigger tr ");
+            strCommand.AppendLine($"join pg_catalog.pg_class  cl on  cl.oid =  tr.tgrelid");
+            strCommand.AppendLine($"join pg_constraint ct on ct.oid = tr.tgconstraint");
+            strCommand.AppendLine($"join pg_catalog.pg_namespace nsp on nsp.oid = ct.connamespace");
+            strCommand.AppendLine($"where relname = '{tableUnquoted}' and tgconstraint != 0 and nspname='{schema}';");
+            strCommand.AppendLine($"BEGIN");
+            strCommand.AppendLine($"open cur_trg;");
+            strCommand.AppendLine($"loop");
+            strCommand.AppendLine($"fetch cur_trg into tgname;");
+            strCommand.AppendLine($"exit when not found;");
+            strCommand.AppendLine($"Execute 'ALTER TABLE {schema}.{tableQuoted} ENABLE TRIGGER \"' || tgname || '\";';");
+            strCommand.AppendLine($"end loop;");
+            strCommand.AppendLine($"close cur_trg;");
+            strCommand.AppendLine($"END $$;");
+
+            return strCommand.ToString();
+        }
+
+
         private string CreateUpdateMetadataCommand()
         {
             var trackingTableQuoted = ParserName.Parse(trackingName.ToString(), "\"").Quoted().ToString();
@@ -177,7 +230,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             string comma = string.Empty;
             foreach (var pkColumn in tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(pkColumn,"\"").Quoted().ToString();
+                var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
 
                 pkeysForUpdate.Append($"{and}side.{columnName} = @{parameterName}");
@@ -236,7 +289,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var comma = "";
             foreach (var pkeyColumn in tableDescription.GetPrimaryKeysColumns())
             {
-                var pkeyColumnName = ParserName.Parse(pkeyColumn,"\"").Quoted().ToString();
+                var pkeyColumnName = ParserName.Parse(pkeyColumn, "\"").Quoted().ToString();
 
                 str1.Append($"{comma}{pkeyColumnName}");
                 str2.Append($"{comma}base.{pkeyColumnName}");
@@ -301,8 +354,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
             //this.AddStoredProcedureName(DbStoredProcedureType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
 
 
-            this.AddCommandName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, schema, tableName.Quoted()));
-            this.AddCommandName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, schema, tableName.Quoted()));
+            this.AddCommandName(DbCommandType.DisableConstraints, CreateDisableConstraintsCommand());
+            this.AddCommandName(DbCommandType.EnableConstraints, CreateEnableConstraintsCommand());
 
             this.AddCommandName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand());
             this.AddCommandName(DbCommandType.SelectMetadata, CreateSelectMetadataCommand());

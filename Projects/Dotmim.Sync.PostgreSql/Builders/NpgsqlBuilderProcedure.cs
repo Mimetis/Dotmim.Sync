@@ -43,7 +43,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var procNameQuoted = ParserName.Parse(procName, "\"").Quoted().ToString();
 
             var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
-            var tableUnquoted = tableName.Unquoted().ToString();
+            var trackingTableNameQuoted = ParserName.Parse(trackingTableName.ToString(), "\"").Quoted().ToString();
             var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
 
 
@@ -70,7 +70,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine("BEGIN");
             stringBuilder.AppendLine($"ALTER TABLE {schema}.{tableQuoted} DISABLE TRIGGER ALL;");
             stringBuilder.AppendLine($"DELETE FROM {schema}.{tableQuoted};");
-            stringBuilder.AppendLine($"DELETE FROM {schema}.{tableQuoted};");
+            stringBuilder.AppendLine($"DELETE FROM {schema}.{trackingTableNameQuoted};");
             stringBuilder.AppendLine($"ALTER TABLE {schema}.{tableQuoted} ENABLE TRIGGER ALL;");
             stringBuilder.AppendLine(string.Concat(@"GET DIAGNOSTICS ""sync_row_count"" = ROW_COUNT;"));
             stringBuilder.AppendLine("END;");
