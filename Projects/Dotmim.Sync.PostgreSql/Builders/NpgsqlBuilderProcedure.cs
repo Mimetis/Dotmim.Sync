@@ -395,17 +395,17 @@ namespace Dotmim.Sync.PostgreSql.Builders
             foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(primaryKeyColumn, "\"").Quoted().ToString();
-                stringBuilder.Append($"{comma}{columnName}");
+                stringBuilder.Append($"{comma} base.{columnName}");
                 comma = ", ";
             }
 
             stringBuilder.AppendLine(" ) ");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine("UPDATE side SET");
-            stringBuilder.AppendLine("\t\"update_scope_id\" = \"sync_scope_id\",");
-            stringBuilder.AppendLine("\t\"sync_row_is_tombstone\" = TRUE,");
-            stringBuilder.AppendLine(@$"    ""timestamp"" = {NpgsqlObjectNames.TimestampValue}, ");
-            stringBuilder.AppendLine("\t\"last_change_datetime\" = GETUTCDATE()");
+            stringBuilder.AppendLine($"UPDATE {schema}.{trackingTableQuoted} SET");
+            stringBuilder.AppendLine($"\t\"update_scope_id\" = \"sync_scope_id\",");
+            stringBuilder.AppendLine($"\t\"sync_row_is_tombstone\" = TRUE,");
+            stringBuilder.AppendLine($"    \"timestamp\" = {NpgsqlObjectNames.TimestampValue}, ");
+            stringBuilder.AppendLine($"\t\"last_change_datetime\" = now()");
             stringBuilder.AppendLine($"FROM {schema}.{trackingTableQuoted} side");
             stringBuilder.AppendLine($"JOIN dms_changed t on {str6};");
             stringBuilder.AppendLine();

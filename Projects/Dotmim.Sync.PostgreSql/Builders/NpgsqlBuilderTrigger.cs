@@ -275,13 +275,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
                                     values( {idColumnsSelects.ToString()}
                                         ,null
                                         ,{this.timestampValue}
-                                        ,FALSE
+                                        ,TRUE
                                         ,now()
                                         )
                                     on conflict({idColumns.ToString()}) do update
                                    SET
                                    ""timestamp"" = {this.timestampValue}
-                                    ,""sync_row_is_tombstone"" = FALSE
+                                    ,""sync_row_is_tombstone"" = TRUE
                                     ,""update_scope_id"" = null
                                     ,""last_change_datetime"" = now();
                                 return OLD;

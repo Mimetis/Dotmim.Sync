@@ -192,9 +192,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
             }
 
 
-            stringBuilder.AppendLine($"UPDATE side SET ");
+            stringBuilder.AppendLine($"UPDATE {schema}.{trackingTableQuoted} SET ");
             stringBuilder.AppendLine($@" ""update_scope_id"" = @sync_scope_id, ");
             stringBuilder.AppendLine($@" ""sync_row_is_tombstone"" = @sync_row_is_tombstone, ");
+            stringBuilder.AppendLine($@" ""timestamp"" = {TimestampValue}, ");
             stringBuilder.AppendLine($@" ""last_change_datetime"" = now() ");
             stringBuilder.AppendLine($"FROM {schema}.{trackingTableQuoted} side ");
             stringBuilder.Append($"WHERE ");
@@ -204,12 +205,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             stringBuilder.AppendLine($"INSERT INTO {schema}.{trackingTableQuoted} (");
             stringBuilder.AppendLine(pkeySelectForInsert.ToString());
-            stringBuilder.AppendLine(@",""update_scope_id"", ""sync_row_is_tombstone"",""last_change_datetime"" )");
+            stringBuilder.AppendLine(@",""update_scope_id"", ""sync_row_is_tombstone"", ""timestamp"", ""last_change_datetime"" )");
             stringBuilder.AppendLine($"SELECT {pkeyISelectForInsert.ToString()} ");
-            stringBuilder.AppendLine($@"   , i.""sync_scope_id"", i.""sync_row_is_tombstone"", i.""UtcDate""");
+            stringBuilder.AppendLine($@"   , i.""sync_scope_id"", i.""sync_row_is_tombstone"", {TimestampValue}, now()");
             stringBuilder.AppendLine("FROM (");
             stringBuilder.AppendLine($"  SELECT {pkeyAliasSelectForInsert}");
-            stringBuilder.AppendLine($"          ,@sync_scope_id as sync_scope_id, @sync_row_is_tombstone as sync_row_is_tombstone, now() as UtcDate) as i");
+            stringBuilder.AppendLine($"          ,@sync_scope_id as sync_scope_id, @sync_row_is_tombstone as sync_row_is_tombstone) as i");
             stringBuilder.AppendLine($"LEFT JOIN  {schema}.{trackingTableQuoted} side ON {pkeysLeftJoinForInsert.ToString()} ");
             stringBuilder.AppendLine($"WHERE {pkeysIsNullForInsert.ToString()};");
 
