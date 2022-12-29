@@ -267,14 +267,21 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 Assert.NotNull(args.SyncRows);
                 Assert.Single(args.SyncRows);
-                Assert.Equal("ZZZZ", args.SyncRows[0]["ProductCategoryId"].ToString());
+                if (args.Exception != null)
+                {
+                    Assert.Equal("AAAA", args.SyncRows[0]["ProductCategoryId"].ToString());
+                }
+                else
+                {
+                    Assert.Equal("ZZZZ", args.SyncRows[0]["ProductCategoryId"].ToString());
+                }
                 onRowsChangesAppliedHappened++;
             });
 
             // Making a first sync, will initialize everything we need
             var s = await agent.SynchronizeAsync(scopeName, this.Tables);
 
-            Assert.Equal(1, onRowsChangesAppliedHappened);
+            Assert.Equal(2, onRowsChangesAppliedHappened);
             Assert.Equal(1, onRowsErrorOccuredHappened);
         }
 
@@ -417,7 +424,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Making a first sync, will initialize everything we need
             var s = await agent.SynchronizeAsync(scopeName, this.Tables);
 
-            Assert.Equal(2, onRowsChangesAppliedHappened);
+            Assert.Equal(3, onRowsChangesAppliedHappened);
             Assert.Equal(1, onRowsErrorOccuredHappened);
         }
 
