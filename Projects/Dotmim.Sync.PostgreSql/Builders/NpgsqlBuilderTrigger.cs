@@ -83,21 +83,21 @@ namespace Dotmim.Sync.PostgreSql.Builders
         }
         public virtual Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
+            var commandTriggerName = this.objectNames.GetTriggerCommandName(triggerType);
+            var commandTriggerNameQuoted = ParserName.Parse(commandTriggerName, "\"").Quoted().ToString();
+
             var commandTriggerFunctionString = triggerType switch
 
             {
-                DbTriggerType.Delete => CreateDeleteTriggerAsync(),
-                DbTriggerType.Insert => CreateInsertTriggerAsync(),
-                DbTriggerType.Update => CreateUpdateTriggerAsync(),
+                DbTriggerType.Insert => CreateInsertTriggerAsync(commandTriggerName),
+                DbTriggerType.Update => CreateUpdateTriggerAsync(commandTriggerName),
+                DbTriggerType.Delete => CreateDeleteTriggerAsync(commandTriggerName),
                 _ => throw new NotImplementedException()
             };
             string triggerFor = triggerType == DbTriggerType.Delete ? "DELETE"
                               : triggerType == DbTriggerType.Update ? "UPDATE"
                               : "INSERT";
 
-            var commandTriggerName = this.objectNames.GetTriggerCommandName(triggerType);
-
-            var commandTriggerNameQuoted = ParserName.Parse(commandTriggerName, "\"").Quoted().ToString();
             var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
             var tableUnquoted = tableName.Unquoted().ToString();
             var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
@@ -120,7 +120,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             return Task.FromResult(command);
         }
 
-        private string CreateInsertTriggerAsync()
+        private string CreateInsertTriggerAsync(string triggerName)
         {
             var trackingTableQuoted = ParserName.Parse(trackingName.ToString(), "\"").Quoted().ToString();
             var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
@@ -145,7 +145,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 argComma = ",";
                 argAnd = " AND ";
             }
-            string stringBuilder = @$"CREATE OR REPLACE FUNCTION {schema}.{tableUnquoted}_insert_trigger_function()
+            string stringBuilder = @$"CREATE OR REPLACE FUNCTION  {schema}.{triggerName.ToLower()}_function()
                                     RETURNS trigger
                                     LANGUAGE 'plpgsql'
                                     COST 100
@@ -177,7 +177,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var query = stringBuilder.ToString();
             return stringBuilder;
         }
-        private string CreateUpdateTriggerAsync()
+        private string CreateUpdateTriggerAsync(string triggerName)
         {
             var trackingTableQuoted = ParserName.Parse(trackingName.ToString(), "\"").Quoted().ToString();
             var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
@@ -201,7 +201,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 argComma = ",";
                 argAnd = " AND ";
             }
-            string stringBuilder = @$"CREATE OR REPLACE FUNCTION {schema}.{tableUnquoted}_update_trigger_function()
+            string stringBuilder = @$"CREATE OR REPLACE FUNCTION {schema}.{triggerName.ToLower()}_function()
                                     RETURNS trigger
                                     LANGUAGE 'plpgsql'
                                     COST 100
@@ -233,7 +233,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var query = stringBuilder.ToString();
             return stringBuilder;
         }
-        private string CreateDeleteTriggerAsync()
+        private string CreateDeleteTriggerAsync(string triggerName)
         {
             var trackingTableQuoted = ParserName.Parse(trackingName.ToString(), "\"").Quoted().ToString();
             var tableQuoted = ParserName.Parse(tableName.ToString(), "\"").Quoted().ToString();
@@ -258,7 +258,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 argComma = ",";
                 argAnd = " AND ";
             }
-            string stringBuilder = @$"CREATE OR REPLACE FUNCTION {schema}.{tableUnquoted}_delete_trigger_function()
+            string stringBuilder = @$"CREATE OR REPLACE FUNCTION {schema}.{triggerName.ToLower()}_function()
                                     RETURNS trigger
                                     LANGUAGE 'plpgsql'
                                     COST 100

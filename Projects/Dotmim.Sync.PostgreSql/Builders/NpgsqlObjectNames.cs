@@ -323,9 +323,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var tsuf = this.setup?.TriggersSuffix;
 
             var tableName = ParserName.Parse(tableDescription, "\"");
-
             var scopeNameWithoutDefaultScope = scopeName == SyncOptions.DefaultScopeName ? "" : $"{scopeName}_";
-
             var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
 
             var storedProcedureName = $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}_";

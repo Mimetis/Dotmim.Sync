@@ -1,29 +1,26 @@
-﻿
-using Dotmim.Sync.MariaDB;
+﻿using Dotmim.Sync.MariaDB;
 using Dotmim.Sync.MySql;
 using Dotmim.Sync.PostgreSql;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
-using Microsoft.EntityFrameworkCore.Storage;
+using Dotmim.Sync.Web.Server;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Xunit;
 using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.IntegrationTests
 {
-    public class PostgresTcpFilterTests : TcpFilterTests
+    public class PostgresHttpFilterTests : HttpFilterTests
     {
-
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.Postgres, ProviderType.Sql };
+            { ProviderType.Postgres,  ProviderType.Sqlite};
 
-        public PostgresTcpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
+        public PostgresHttpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
 
@@ -76,36 +73,17 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-        public override SyncParameters FilterParameters => new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId1ForFilter));
+        public override SyncParameters FilterParameters => new SyncParameters
+        {
+                new SyncParameter("CustomerID", AdventureWorksContext.CustomerId1ForFilter),
+        };
+
 
         public override ProviderType ServerType => ProviderType.Postgres;
 
 
+        public override bool UseFiddler => false;
 
-
-        /// <summary>
-        /// Get the server database rows count
-        /// </summary>
-        /// <returns></returns>
-        public override int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, Guid? customerId = null)
-        {
-            int totalCountRows = 0;
-
-            if (!customerId.HasValue)
-                customerId = AdventureWorksContext.CustomerId1ForFilter;
-
-            using (var serverDbCtx = new AdventureWorksContext(t, false))
-            {
-                totalCountRows += serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == customerId)).Count();
-                totalCountRows += serverDbCtx.Customer.Where(c => c.CustomerId == customerId).Count();
-                totalCountRows += serverDbCtx.CustomerAddress.Where(c => c.CustomerId == customerId).Count();
-                totalCountRows += serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == customerId).Count();
-                totalCountRows += serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == customerId).Count();
-                totalCountRows += serverDbCtx.Product.Where(p => !String.IsNullOrEmpty(p.ProductCategoryId)).Count();
-            }
-
-            return totalCountRows;
-        }
 
         public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false)
         {
@@ -130,6 +108,34 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         {
             return HelperDatabase.CreateDatabaseAsync(providerType, dbName, recreateDb);
         }
+
+        /// <summary>
+        /// Get the server database rows count
+        /// </summary>
+        /// <returns></returns>
+        public override int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, Guid? customerId = null)
+        {
+            int totalCountRows = 0;
+
+            if (!customerId.HasValue)
+                customerId = AdventureWorksContext.CustomerId1ForFilter;
+
+            using (var serverDbCtx = new AdventureWorksContext(t, false))
+            {
+
+                var addressesCount = serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == customerId)).Count();
+                var customersCount = serverDbCtx.Customer.Where(c => c.CustomerId == customerId).Count();
+                var customerAddressesCount = serverDbCtx.CustomerAddress.Where(c => c.CustomerId == customerId).Count();
+                var salesOrdersDetailsCount = serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == customerId).Count();
+                var salesOrdersHeadersCount = serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == customerId).Count();
+                var productsCount = serverDbCtx.Product.Where(p => !String.IsNullOrEmpty(p.ProductCategoryId)).Count();
+
+                totalCountRows = addressesCount + customersCount + customerAddressesCount + salesOrdersDetailsCount + salesOrdersHeadersCount + productsCount;
+            }
+
+            return totalCountRows;
+        }
+
 
     }
 }

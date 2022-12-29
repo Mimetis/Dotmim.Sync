@@ -913,6 +913,7 @@ namespace Dotmim.Sync.Tests
                     ProviderType.Sqlite => @"ALTER TABLE Customer ADD EmailAddress text NULL;",
                     ProviderType.MySql => @"ALTER TABLE `Customer` ADD `EmailAddress` nvarchar(250) NULL;",
                     ProviderType.MariaDB => @"ALTER TABLE `Customer` ADD `EmailAddress` nvarchar(250) NULL;",
+                    ProviderType.Postgres => @"ALTER TABLE ""Customer"" ADD ""EmailAddress"" varchar(250) NULL;",
                     _ => throw new NotImplementedException()
                 };
 
