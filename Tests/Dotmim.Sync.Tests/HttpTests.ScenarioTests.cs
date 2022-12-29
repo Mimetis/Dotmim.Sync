@@ -137,6 +137,7 @@ namespace Dotmim.Sync.Tests
                     ProviderType.Sqlite => @"ALTER TABLE ProductCategory ADD [Attribute With Space] text NULL;",
                     ProviderType.MySql => @"ALTER TABLE `ProductCategory` ADD `Attribute With Space` nvarchar(250) NULL;",
                     ProviderType.MariaDB => @"ALTER TABLE `ProductCategory` ADD `Attribute With Space` nvarchar(250) NULL;",
+                    ProviderType.Postgres => @"ALTER TABLE ""ProductCategory"" ADD ""Attribute With Space"" varchar(250) NULL;",
                     _ => throw new NotImplementedException()
                 };
 
