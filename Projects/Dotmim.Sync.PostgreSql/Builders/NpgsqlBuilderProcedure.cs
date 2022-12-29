@@ -984,26 +984,25 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             }
 
-            stringBuilder.AppendLine("DECLARE ts bigint;");
-            stringBuilder.AppendLine("DECLARE t_update_scope_id uuid;");
-            stringBuilder.AppendLine("BEGIN");
-            stringBuilder.AppendLine("ts := 0;");
-            stringBuilder.AppendLine($"SELECT {listColumnsTmp.ToString()}");
-            stringBuilder.AppendLine($@"timestamp, update_scope_id FROM {schema}.{trackingTableQuoted} ");
+            stringBuilder.AppendLine($"DECLARE ts bigint;");
+            stringBuilder.AppendLine($"DECLARE t_update_scope_id uuid;");
+            stringBuilder.AppendLine($"BEGIN");
+            stringBuilder.AppendLine($"ts := 0;");
+            stringBuilder.AppendLine($"SELECT {listColumnsTmp}");
+            stringBuilder.AppendLine($"timestamp, update_scope_id FROM {schema}.{trackingTableQuoted} ");
             stringBuilder.AppendLine($"WHERE {NpgsqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), trackingTableQuoted)} LIMIT 1 ");
-            stringBuilder.AppendLine($@"INTO {listColumnsTmp2.ToString()} ts, t_update_scope_id;");
-            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"INTO {listColumnsTmp2} ts, t_update_scope_id;");
+            stringBuilder.AppendLine($"");
 
             if (hasMutableColumns)
             {
                 stringBuilder.AppendLine($"UPDATE {schema}.{tableQuoted}");
                 stringBuilder.Append($"SET {NpgsqlManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
-                stringBuilder.Append($"WHERE {NpgsqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), "")}");
-                stringBuilder.AppendLine($" AND (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id  = sync_scope_id OR sync_force_write = 1);");
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine($@"GET DIAGNOSTICS ""sync_row_count"" = ROW_COUNT;"); //[AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
+                stringBuilder.AppendLine($"WHERE {NpgsqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), "")}");
+                stringBuilder.AppendLine($"AND (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id  = sync_scope_id OR sync_force_write = 1);");
+                stringBuilder.AppendLine($"");
+                stringBuilder.AppendLine($"GET DIAGNOSTICS \"sync_row_count\" = ROW_COUNT;"); //[AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
                 stringBuilder.AppendLine($"IF (sync_row_count = 0) THEN");
-
             }
 
             string empty = string.Empty;
@@ -1023,14 +1022,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
             }
 
             stringBuilder.AppendLine($"\tINSERT INTO {schema}.{tableQuoted}");
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
-            stringBuilder.AppendLine($"\tSELECT * FROM ( SELECT {stringBuilderParameters.ToString()}) as TMP ");
-            stringBuilder.AppendLine($"\tWHERE ( {listColumnsTmp3.ToString()} )");
-            stringBuilder.AppendLine($"\tOR (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id = sync_scope_id OR sync_force_write = 1)");
+            stringBuilder.AppendLine($"\t({stringBuilderArguments})");
+            stringBuilder.AppendLine($"\tSELECT * FROM ( SELECT {stringBuilderParameters}) as TMP ");
+            stringBuilder.AppendLine($"\tWHERE ( {listColumnsTmp3} )");
+            stringBuilder.AppendLine($"\tAND (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id = sync_scope_id OR sync_force_write = 1)");
             stringBuilder.AppendLine($"\tLIMIT 1;");
-
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($@"GET DIAGNOSTICS ""sync_row_count"" = ROW_COUNT;"); //[AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
+            stringBuilder.AppendLine($"GET DIAGNOSTICS \"sync_row_count\" = ROW_COUNT;"); //[AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
             stringBuilder.AppendLine();
 
             if (hasMutableColumns)
