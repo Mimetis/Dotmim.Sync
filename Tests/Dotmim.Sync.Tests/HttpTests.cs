@@ -141,7 +141,7 @@ namespace Dotmim.Sync.Tests
         [Fact]
         public async Task Bad_TableWithoutPrimaryKeys_ShouldRaiseError()
         {
-            string tableTestCreationScript = "Create Table TableTest (TestId int, TestName varchar(50))";
+            string tableTestCreationScript = "create table tabletest (testid int, testname varchar(50))";
 
             // Create an empty server database
             await this.CreateDatabaseAsync(this.ServerType, this.Server.DatabaseName, true);
@@ -155,7 +155,7 @@ namespace Dotmim.Sync.Tests
 
             // configure server orchestrator
             this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-                new SyncSetup("TableTest"));
+                new SyncSetup("tabletest"));
 
             var serviceUri = this.Kestrell.Run();
 
