@@ -550,16 +550,12 @@ namespace Dotmim.Sync.MySql.Builders
 
             // If we don't have any mutable column, we can't update, and the Insert
             // will fail if we don't ignore the insert (on Reinitialize for example)
-            // 2022-12-29 : Changing with AND (ts <= sync_min_timestamp ...) should prevent using ignore
-            // and then can now throw any error (foreign key errors etc...) handled by DMS.
-            // var ignoreKeyWord = hasMutableColumns ? "" : "IGNORE";
-            // stringBuilder.AppendLine($"\tINSERT {ignoreKeyWord} INTO {tableName.Quoted()}");
-
-            stringBuilder.AppendLine($"\tINSERT INTO {tableName.Quoted()}");
+            var ignoreKeyWord = hasMutableColumns ? "" : "IGNORE";
+            stringBuilder.AppendLine($"\tINSERT {ignoreKeyWord} INTO {tableName.Quoted()}");
             stringBuilder.AppendLine($"\t({stringBuilderArguments})");
             stringBuilder.AppendLine($"\tSELECT * FROM ( SELECT {stringBuilderParameters}) as TMP ");
             stringBuilder.AppendLine($"\tWHERE ( {listColumnsTmp3} )");
-            stringBuilder.AppendLine($"\tAND (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id = sync_scope_id OR sync_force_write = 1)");
+            stringBuilder.AppendLine($"\tOR (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id = sync_scope_id OR sync_force_write = 1)");
             stringBuilder.AppendLine($"\tLIMIT 1;");
             stringBuilder.AppendLine($"");
             stringBuilder.AppendLine($"SELECT ROW_COUNT() INTO sync_row_count;"); // [AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
@@ -570,7 +566,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"IF (sync_row_count > 0) THEN");
-            stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted().ToString()}");
+            stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted()}");
             stringBuilder.AppendLine($"\tSET `update_scope_id` = sync_scope_id, ");
             stringBuilder.AppendLine($"\t\t `sync_row_is_tombstone` = 0, ");
             stringBuilder.AppendLine($"\t\t `timestamp` = {MySqlObjectNames.TimestampValue}, ");

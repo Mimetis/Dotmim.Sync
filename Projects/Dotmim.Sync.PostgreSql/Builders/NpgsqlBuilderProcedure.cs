@@ -139,7 +139,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 return Task.FromResult<DbCommand>(null);
 
             var quotedProcedureName = this.NpgsqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
-            
+
             // Todo: will check it later
             if (string.IsNullOrEmpty(quotedProcedureName))
                 return Task.FromResult<DbCommand>(null);
@@ -707,7 +707,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             command.Transaction = (NpgsqlTransaction)transaction;
 
 
-            
+
 
             // Add filter parameters
             if (filter != null)
@@ -1013,7 +1013,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
                 var parameterName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
 
-                var unquotedParameterName= ParserName.Parse(mutableColumn, "\"").Unquoted().Normalized().ToString();
+                var unquotedParameterName = ParserName.Parse(mutableColumn, "\"").Unquoted().Normalized().ToString();
                 var paramQuotedColumn = ParserName.Parse($"{NPGSQL_PREFIX_PARAMETER}{unquotedParameterName}", "\"").Quoted().ToString();
 
                 stringBuilderArguments.Append(string.Concat(empty, columnName));
@@ -1025,11 +1025,16 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine($"\t({stringBuilderArguments})");
             stringBuilder.AppendLine($"\tSELECT * FROM ( SELECT {stringBuilderParameters}) as TMP ");
             stringBuilder.AppendLine($"\tWHERE ( {listColumnsTmp3} )");
-            stringBuilder.AppendLine($"\tAND (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id = sync_scope_id OR sync_force_write = 1)");
-            stringBuilder.AppendLine($"\tLIMIT 1;");
-            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"\tOR (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id = sync_scope_id OR sync_force_write = 1)");
+            stringBuilder.Append($"\tLIMIT 1");
+            if (!hasMutableColumns)
+            {
+                stringBuilder.AppendLine($"");
+                stringBuilder.Append($"\tON CONFLICT DO NOTHING");
+            }
+            stringBuilder.AppendLine($";");
             stringBuilder.AppendLine($"GET DIAGNOSTICS \"sync_row_count\" = ROW_COUNT;"); //[AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
-            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"");
 
             if (hasMutableColumns)
                 stringBuilder.AppendLine("END IF;");
@@ -1052,6 +1057,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        
+
     }
 }
