@@ -528,7 +528,7 @@ namespace Dotmim.Sync.Tests
             {
                 // create agent with filtered tables and parameter
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
+                var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
             }
 
 
@@ -537,8 +537,13 @@ namespace Dotmim.Sync.Tests
             foreach (var client in Clients)
             {
                 using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
-                ctx.SalesOrderDetail.RemoveRange(ctx.SalesOrderDetail.ToList());
-                ctx.SalesOrderHeader.RemoveRange(ctx.SalesOrderHeader.ToList());
+
+                var sods = ctx.SalesOrderDetail.ToList();
+                ctx.SalesOrderDetail.RemoveRange(sods);
+
+                var sohs = ctx.SalesOrderHeader.ToList();
+                ctx.SalesOrderHeader.RemoveRange(sohs);
+
                 await ctx.SaveChangesAsync();
             }
 

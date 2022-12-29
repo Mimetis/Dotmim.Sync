@@ -859,7 +859,7 @@ namespace Dotmim.Sync.Tests
                 await Resolve_Client_UniqueKeyError_WithUpdate(client.Provider as SqlSyncProvider);
 
                 var s = await agent.SynchronizeAsync(Tables);
-                
+
                 batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
 
                 Assert.Empty(batchInfos);
@@ -1162,6 +1162,16 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
+                // Generate error on foreign key on second row
+                agent.LocalOrchestrator.OnRowsChangesApplying(args =>
+                {
+                    if (args.SyncRows == null || args.SyncRows.Count <= 0)
+                        return;
+                    var row = args.SyncRows[0];
+                    if (row["ParentProductCategoryId"] != null && row["ParentProductCategoryId"].ToString() == "ZZZZ")
+                        row["ParentProductCategoryId"] = "BBBBB";
+                });
+
                 agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
                 {
                     // Continue On Error
@@ -1258,6 +1268,16 @@ namespace Dotmim.Sync.Tests
                 client.Provider.UseBulkOperations = false;
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
+
+                // Generate error on foreign key on second row
+                agent.LocalOrchestrator.OnRowsChangesApplying(args =>
+                {
+                    if (args.SyncRows == null || args.SyncRows.Count <= 0)
+                        return;
+                    var row = args.SyncRows[0];
+                    if (row["ParentProductCategoryId"] != null && row["ParentProductCategoryId"].ToString() == "ZZZZ")
+                        row["ParentProductCategoryId"] = "BBBBB";
+                });
 
                 var s = await agent.SynchronizeAsync(Tables);
 
