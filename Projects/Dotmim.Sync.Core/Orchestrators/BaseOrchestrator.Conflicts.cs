@@ -25,7 +25,7 @@ namespace Dotmim.Sync
         /// The int returned is the conflict count I need 
         /// </summary>
         private async Task<(bool applied, bool conflictResolved, Exception ex)> HandleConflictAsync(ScopeInfo scopeInfo, SyncContext context,
-                                Guid localScopeId, Guid senderScopeId, SyncRow conflictRow,
+                                BatchInfo batchInfo, Guid localScopeId, Guid senderScopeId, SyncRow conflictRow,
                                 SyncTable schemaChangesTable,
                                 ConflictResolutionPolicy policy, long? lastTimestamp,
                                 DbConnection connection, DbTransaction transaction,
@@ -56,8 +56,8 @@ namespace Dotmim.Sync
                         case ConflictType.RemoteExistsLocalNotExists:
                         case ConflictType.RemoteExistsLocalIsDeleted:
                         case ConflictType.UniqueKeyConstraint:
-                            (_, operationComplete, exception) = await this.InternalApplyUpdateAsync(scopeInfo, context,
-                                conflictRow, schemaChangesTable, lastTimestamp, nullableSenderScopeId, true, connection, transaction).ConfigureAwait(false);
+                            (_, operationComplete, exception) = await this.InternalApplyUpdateAsync(scopeInfo, context, batchInfo,
+                                conflictRow, schemaChangesTable, lastTimestamp, nullableSenderScopeId, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                             applied = operationComplete;
                             conflictResolved = operationComplete && exception == null;
@@ -81,8 +81,8 @@ namespace Dotmim.Sync
                         // The remote has delete the row, and local has insert or update it
                         // So delete the local row
                         case ConflictType.RemoteIsDeletedLocalExists:
-                            (context, operationComplete, exception) = await this.InternalApplyDeleteAsync(scopeInfo, context,
-                                conflictRow, schemaChangesTable, lastTimestamp, nullableSenderScopeId, true, connection, transaction);
+                            (context, operationComplete, exception) = await this.InternalApplyDeleteAsync(scopeInfo, context, batchInfo,
+                                conflictRow, schemaChangesTable, lastTimestamp, nullableSenderScopeId, true, connection, transaction, cancellationToken, progress);
 
                             // Conflict, but both have delete the row, so just update the metadata to the right winner
                             if (!operationComplete && exception == null)
@@ -108,8 +108,8 @@ namespace Dotmim.Sync
                     // We don't update metadatas so the row is updated locally and is marked as updated by the trigger
                     // and will be returned back to client if occurs on server
                     // and will be returned to the server on next sync if occurs on client
-                    (_, operationComplete, exception) = await this.InternalApplyUpdateAsync(scopeInfo, context,
-                        finalRow, schemaChangesTable, lastTimestamp, null, true, connection, transaction).ConfigureAwait(false);
+                    (_, operationComplete, exception) = await this.InternalApplyUpdateAsync(scopeInfo, context, batchInfo,
+                        finalRow, schemaChangesTable, lastTimestamp, null, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     if (!operationComplete && exception == null)
                         exception = new Exception("Can't update the merged row locally.");

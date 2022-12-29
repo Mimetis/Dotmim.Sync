@@ -1129,6 +1129,16 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
+                // Generate the foreignkey error
+                agent.LocalOrchestrator.OnRowsChangesApplying(args =>
+                {
+                    if (args.SyncRows == null || args.SyncRows.Count <= 0)
+                        return;
+                    var row = args.SyncRows[0];
+                    if (row["ParentProductCategoryId"] != null && row["ParentProductCategoryId"].ToString() == "ZZZZ")
+                        row["ParentProductCategoryId"] = "BBBBB";
+                });
+
                 var exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(Tables));
 
                 Assert.NotNull(exc);
@@ -1366,6 +1376,45 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
+                // As OnRowsChangesApplying will be called 2 times, we only apply tricky change one time
+                var rowChanged = false;
+
+                // Generate the foreignkey error
+                agent.LocalOrchestrator.OnRowsChangesApplying(args =>
+                {
+
+                    if (args.SyncRows == null || args.SyncRows.Count <= 0)
+                        return;
+
+                    var row = args.SyncRows[0];
+
+                    if (row["ParentProductCategoryId"] != null && row["ParentProductCategoryId"].ToString() == "ZZZZ")
+                    {
+                        // We need to change the row only one time
+                        if (rowChanged)
+                            return;
+
+                        row["ParentProductCategoryId"] = "BBBBB";
+                        rowChanged = true;
+                    }
+                });
+
+                // Once error has been raised, we change back the row to the initial value
+                // to let a chance to apply again at the end
+                agent.LocalOrchestrator.OnRowsChangesApplied(args =>
+                {
+                    if (args.SyncRows == null || args.SyncRows.Count <= 0)
+                        return;
+
+                    var row = args.SyncRows[0];
+
+                    if (row["ParentProductCategoryId"] != null && row["ParentProductCategoryId"].ToString() == "BBBBB")
+                    {
+                        row["ParentProductCategoryId"] = "ZZZZ";
+                        rowChanged = true;
+                    }
+                });
+
                 agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
                 {
                     // Continue On Error
@@ -1416,6 +1465,16 @@ namespace Dotmim.Sync.Tests
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
+                // Generate the foreignkey error
+                agent.LocalOrchestrator.OnRowsChangesApplying(args =>
+                {
+                    if (args.SyncRows == null || args.SyncRows.Count <= 0)
+                        return;
+                    var row = args.SyncRows[0];
+                    if (row["ParentProductCategoryId"] != null && row["ParentProductCategoryId"].ToString() == "ZZZZ")
+                        row["ParentProductCategoryId"] = "BBBBB";
+                });
+
                 agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
                 {
                     // Continue On Error
@@ -1456,6 +1515,21 @@ namespace Dotmim.Sync.Tests
 
                     Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
                 }
+
+                // clear interceptors
+                agent.LocalOrchestrator.ClearInterceptors();
+
+                // Resolve the conflict
+                agent.LocalOrchestrator.OnRowsChangesApplying(args =>
+                {
+                    if (args.SyncRows == null || args.SyncRows.Count <= 0)
+                        return;
+                    var row = args.SyncRows[0];
+
+                    if (row["ParentProductCategoryId"] != null && row["ParentProductCategoryId"].ToString() == "BBBBB")
+                        row["ParentProductCategoryId"] = "ZZZZ";
+
+                });
 
                 s = await agent.SynchronizeAsync(Tables);
 

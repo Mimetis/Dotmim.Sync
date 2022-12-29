@@ -530,7 +530,7 @@ namespace Dotmim.Sync
                         this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. Handle {{conflictsCount}} conflitcts", conflictRows.Count);
 
                         var (applied, conflictResolved, exception) =
-                            await this.HandleConflictAsync(scopeInfo, context, message.LocalScopeId, message.SenderScopeId, conflictRow, schemaChangesTable,
+                            await this.HandleConflictAsync(scopeInfo, context, message.Changes, message.LocalScopeId, message.SenderScopeId, conflictRow, schemaChangesTable,
                                                            message.Policy, message.LastTimestamp,
                                                            runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
 
@@ -542,12 +542,6 @@ namespace Dotmim.Sync
                         {
                             conflictsResolvedCount += conflictResolved ? 1 : 0;
                             appliedRows += applied ? 1 : 0;
-
-                            if (applied && this.HasInterceptors<RowsChangesAppliedArgs>())
-                            {
-                                var rowAppliedArgs = new RowsChangesAppliedArgs(context, message.Changes, new List<SyncRow> { conflictRow }, schemaChangesTable, applyType, connection, transaction);
-                                await this.InterceptAsync(rowAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
-                            }
                         }
                     }
 
@@ -567,7 +561,7 @@ namespace Dotmim.Sync
 
                         ErrorAction errorAction;
                         (errorAction, failureException) = await this.HandleErrorAsync(
-                                            scopeInfo, context, errorRow.SyncRow, applyType, schemaChangesTable,
+                                            scopeInfo, context, message.Changes, errorRow.SyncRow, applyType, schemaChangesTable,
                                             errorRow.Exception, message.SenderScopeId, message.LastTimestamp,
                                             runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
 
@@ -596,12 +590,6 @@ namespace Dotmim.Sync
                             {
                                 failedRows += errorAction == ErrorAction.Log ? 1 : 0;
                                 appliedRows += errorAction == ErrorAction.Resolved ? 1 : 0;
-
-                                if (errorAction == ErrorAction.Resolved && this.HasInterceptors<RowsChangesAppliedArgs>())
-                                {
-                                    var rowAppliedArgs = new RowsChangesAppliedArgs(context, message.Changes, new List<SyncRow> { errorRow.SyncRow }, schemaChangesTable, applyType, connection, transaction);
-                                    await this.InterceptAsync(rowAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
-                                }
                             }
 
                         }
@@ -736,12 +724,8 @@ namespace Dotmim.Sync
                 errorException = ex;
             }
 
-
-            if (rowAppliedCount > 0 && errorException == null && this.HasInterceptors<RowsChangesAppliedArgs>())
-            {
-                var rowAppliedArgs = new RowsChangesAppliedArgs(context, message.Changes, new List<SyncRow> { syncRow }, schemaChangesTable, applyType, connection, transaction);
-                await this.InterceptAsync(rowAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
-            }
+            var rowAppliedArgs = new RowsChangesAppliedArgs(context, message.Changes, new List<SyncRow> { syncRow }, schemaChangesTable, applyType, rowAppliedCount, errorException, connection, transaction);
+            await this.InterceptAsync(rowAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             return (rowAppliedCount, errorException);
         }
@@ -778,12 +762,8 @@ namespace Dotmim.Sync
 
             var rowAppliedCount = errorException != null ? 0 : batchRows.Count - conflictRowsTable.Rows.Count;
 
-
-            if (rowAppliedCount > 0 && errorException == null && this.HasInterceptors<RowsChangesAppliedArgs>())
-            {
-                var rowAppliedArgs = new RowsChangesAppliedArgs(context, message.Changes, batchRows, schemaChangesTable, applyType, connection, transaction);
-                await this.InterceptAsync(rowAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
-            }
+            var rowAppliedArgs = new RowsChangesAppliedArgs(context, message.Changes, batchRows, schemaChangesTable, applyType, rowAppliedCount, errorException, connection, transaction);
+            await this.InterceptAsync(rowAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             return (rowAppliedCount, conflictRowsTable.Rows, errorException);
         }
