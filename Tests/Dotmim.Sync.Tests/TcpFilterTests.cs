@@ -13,6 +13,7 @@ using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 #if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
 using MySqlConnector;
 #elif NETCOREAPP2_1
@@ -475,43 +476,81 @@ namespace Dotmim.Sync.Tests
                 Assert.Equal(0, s.TotalResolvedConflicts);
             }
 
+
             // Insert 4 lines on each client
             foreach (var client in Clients)
             {
-                var soh = new SalesOrderHeader
+                using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
                 {
-                    SalesOrderNumber = $"SO-99099",
-                    RevisionNumber = 1,
-                    Status = 5,
-                    OnlineOrderFlag = true,
-                    PurchaseOrderNumber = "PO348186287",
-                    AccountNumber = "10-4020-000609",
-                    CustomerId = AdventureWorksContext.CustomerId1ForFilter,
-                    ShipToAddressId = 4,
-                    BillToAddressId = 5,
-                    ShipMethod = "CAR TRANSPORTATION",
-                    SubTotal = 6530.35M,
-                    TaxAmt = 70.4279M,
-                    Freight = 22.0087M,
-                    TotalDue = 6530.35M + 70.4279M + 22.0087M
-                };
+                    ctx.Database.OpenConnection();
 
-                using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
+                    var soh = new SalesOrderHeader
+                    {
+                        SalesOrderId = 50000,
+                        SalesOrderNumber = $"SO-99099",
+                        RevisionNumber = 1,
+                        Status = 5,
+                        OnlineOrderFlag = true,
+                        PurchaseOrderNumber = "PO348186287",
+                        AccountNumber = "10-4020-000609",
+                        CustomerId = AdventureWorksContext.CustomerId1ForFilter,
+                        ShipToAddressId = 4,
+                        BillToAddressId = 5,
+                        ShipMethod = "CAR TRANSPORTATION",
+                        SubTotal = 6530.35M,
+                        TaxAmt = 70.4279M,
+                        Freight = 22.0087M,
+                        TotalDue = 6530.35M + 70.4279M + 22.0087M
+                    };
 
-                var productId = ctx.Product.First().ProductId;
+                    ctx.Add(soh);
 
-                var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
-                var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 44.5400M };
-                var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 1431.5000M };
+                    var salesOrderHeaderTableName = "SalesOrderHeader";
+                    if (UseFallbackSchema && client.ProviderType == ProviderType.Sql)
+                        salesOrderHeaderTableName = $"SalesLT.{salesOrderHeaderTableName}";
 
-                soh.SalesOrderDetail.Add(sod1);
-                soh.SalesOrderDetail.Add(sod2);
-                soh.SalesOrderDetail.Add(sod3);
+                    if (client.ProviderType == ProviderType.Sql)
+                        ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT {salesOrderHeaderTableName} ON;");
 
-                ctx.SalesOrderHeader.Add(soh);
-                await ctx.SaveChangesAsync();
+                    ctx.SaveChanges();
 
+                    if (client.ProviderType == ProviderType.Sql)
+                        ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT {salesOrderHeaderTableName} OFF;");
+
+                    ctx.Database.CloseConnection();
+                }
+
+                using (var ctx2 = new AdventureWorksContext(client, this.UseFallbackSchema))
+                {
+                    ctx2.Database.OpenConnection();
+
+                    var salesOrderDetailTableName = "SalesOrderDetail";
+
+                    if (UseFallbackSchema && client.ProviderType == ProviderType.Sql)
+                        salesOrderDetailTableName = $"SalesLT.{salesOrderDetailTableName}";
+
+                    var productId = ctx2.Product.First().ProductId;
+
+                    var sod1 = new SalesOrderDetail { SalesOrderDetailId = 50001, SalesOrderId = 50000, OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
+                    var sod2 = new SalesOrderDetail { SalesOrderDetailId = 50002, SalesOrderId = 50000, OrderQty = 2, ProductId = productId, UnitPrice = 44.5400M };
+                    var sod3 = new SalesOrderDetail { SalesOrderDetailId = 50003, SalesOrderId = 50000, OrderQty = 2, ProductId = productId, UnitPrice = 1431.5000M };
+
+                    ctx2.Add(sod1);
+                    ctx2.Add(sod2);
+                    ctx2.Add(sod3);
+
+                    if (client.ProviderType == ProviderType.Sql)
+                        ctx2.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT {salesOrderDetailTableName} ON;");
+
+                    ctx2.SaveChanges();
+
+                    if (client.ProviderType == ProviderType.Sql)
+                        ctx2.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT {salesOrderDetailTableName} OFF;");
+
+                    ctx2.Database.CloseConnection();
+                }
             }
+
             foreach (var client in Clients)
             {
                 // create agent with filtered tables and parameter
@@ -532,6 +571,8 @@ namespace Dotmim.Sync.Tests
             }
 
 
+            var linesDeleted = 0;
+
             // Delete lines from client
             // Now sync again to be sure all clients have all lines
             foreach (var client in Clients)
@@ -539,9 +580,11 @@ namespace Dotmim.Sync.Tests
                 using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
 
                 var sods = ctx.SalesOrderDetail.ToList();
+                linesDeleted += sods.Count;
                 ctx.SalesOrderDetail.RemoveRange(sods);
 
                 var sohs = ctx.SalesOrderHeader.ToList();
+                linesDeleted += sohs.Count;
                 ctx.SalesOrderHeader.RemoveRange(sohs);
 
                 await ctx.SaveChangesAsync();
@@ -817,7 +860,7 @@ namespace Dotmim.Sync.Tests
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var client in Clients)
             {
-                
+
                 var parameters = new SyncParameters(("EmployeeID", 1));
                 // Create the table on local database
                 var localOrchestrator = new LocalOrchestrator(client.Provider);
