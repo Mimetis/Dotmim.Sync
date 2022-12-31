@@ -32,8 +32,7 @@ namespace Dotmim.Sync
                 if (orchestrator.Provider == null)
                     return new DbConnectionRunner(null, context, null, null, true, true, cancellationToken, progress);
 
-                if (connection == null)
-                    connection = orchestrator.Provider.CreateConnection();
+                connection ??= orchestrator.Provider.CreateConnection();
 
                 var alreadyOpened = connection.State == ConnectionState.Open;
                 var alreadyInTransaction = transaction != null && transaction.Connection == connection;

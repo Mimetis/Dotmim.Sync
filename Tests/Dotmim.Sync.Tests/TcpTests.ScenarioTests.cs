@@ -51,21 +51,21 @@ namespace Dotmim.Sync.Tests
 
             var setup = new SyncSetup(productCategoryTableName, productTableName, "Employee");
 
-            setup.Tables[productCategoryTableName].Columns.AddRange("ProductCategoryId", "Name", "rowguid", "ModifiedDate");
+            setup.Tables[productCategoryTableName].Columns.AddRange("ProductCategoryID", "Name", "rowguid", "ModifiedDate");
 
             if (this.Server.ProviderType == ProviderType.Sql)
             {
-                setup.Filters.Add("ProductCategory", "ProductCategoryId", "SalesLT");
-                setup.Filters.Add("Product", "ProductCategoryId", "SalesLT");
+                setup.Filters.Add("ProductCategory", "ProductCategoryID", "SalesLT");
+                setup.Filters.Add("Product", "ProductCategoryID", "SalesLT");
             }
             else
             {
-                setup.Filters.Add("ProductCategory", "ProductCategoryId");
-                setup.Filters.Add("Product", "ProductCategoryId");
+                setup.Filters.Add("ProductCategory", "ProductCategoryID");
+                setup.Filters.Add("Product", "ProductCategoryID");
             }
 
-            var pMount = new SyncParameters(("ProductCategoryId", "MOUNTB"));
-            var pRoad = new SyncParameters(("ProductCategoryId", "ROADFR"));
+            var pMount = new SyncParameters(("ProductCategoryID", "MOUNTB"));
+            var pRoad = new SyncParameters(("ProductCategoryID", "ROADFR"));
 
             // First sync to initialiaze client database, create table and fill product categories
             foreach (var client in this.Clients)
@@ -163,6 +163,7 @@ namespace Dotmim.Sync.Tests
                     ProviderType.Sqlite => @"ALTER TABLE ProductCategory ADD [Attribute With Space] text NULL;",
                     ProviderType.MySql => @"ALTER TABLE `ProductCategory` ADD `Attribute With Space` nvarchar(250) NULL;",
                     ProviderType.MariaDB => @"ALTER TABLE `ProductCategory` ADD `Attribute With Space` nvarchar(250) NULL;",
+                    ProviderType.Postgres => @"ALTER TABLE public.""ProductCategory"" ADD ""Attribute With Space"" character varying(250) NULL;",
                     _ => throw new NotImplementedException()
                 };
 
@@ -471,6 +472,7 @@ namespace Dotmim.Sync.Tests
                     ProviderType.Sqlite => @"ALTER TABLE ProductCategory ADD [Attribute With Space] text NULL;",
                     ProviderType.MySql => @"ALTER TABLE `ProductCategory` ADD `Attribute With Space` nvarchar(250) NULL;",
                     ProviderType.MariaDB => @"ALTER TABLE `ProductCategory` ADD `Attribute With Space` nvarchar(250) NULL;",
+                    ProviderType.Postgres => @"ALTER TABLE public.""ProductCategory"" ADD ""Attribute With Space"" character varying(250) NULL;",
                     _ => throw new NotImplementedException()
                 };
 
@@ -535,7 +537,7 @@ namespace Dotmim.Sync.Tests
 
             var setup = new SyncSetup(new string[] { productCategoryTableName });
             setup.Tables[productCategoryTableName].Columns.AddRange(
-                new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
+                new string[] { "ProductCategoryID", "Name", "rowguid", "ModifiedDate" });
 
             int productCategoryRowsCount = 0;
             using (var readCtx = new AdventureWorksContext(Server, this.UseFallbackSchema))
@@ -557,7 +559,7 @@ namespace Dotmim.Sync.Tests
             // Editing the current scope on the server with this new column and a new table
             setup.Tables.Add(productTableName);
             setup.Tables[productCategoryTableName].Columns.Clear();
-            setup.Tables[productCategoryTableName].Columns.AddRange("ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space");
+            setup.Tables[productCategoryTableName].Columns.AddRange("ProductCategoryID", "Name", "rowguid", "ModifiedDate", "Attribute With Space");
 
             // overwrite the setup
             var serverScope = await remoteOrchestrator.ProvisionAsync("v1", setup, overwrite: true);
@@ -603,6 +605,7 @@ namespace Dotmim.Sync.Tests
                     ProviderType.Sqlite => @"ALTER TABLE ProductCategory ADD [Attribute With Space] text NULL;",
                     ProviderType.MySql => @"ALTER TABLE `ProductCategory` ADD `Attribute With Space` nvarchar(250) NULL;",
                     ProviderType.MariaDB => @"ALTER TABLE `ProductCategory` ADD `Attribute With Space` nvarchar(250) NULL;",
+                    ProviderType.Postgres => @"ALTER TABLE public.""ProductCategory"" ADD ""Attribute With Space"" character varying(250) NULL;",
                     _ => throw new NotImplementedException()
                 };
 
@@ -743,7 +746,7 @@ namespace Dotmim.Sync.Tests
 
                 ScopeInfo cScopeInfo = new ScopeInfo
                 {
-                    Name = "All",
+                    Name = "ALL",
                     Schema = syncSetAll,
                     Setup = setupAll,
                     Version = SyncVersion.Current.ToString()
@@ -760,7 +763,7 @@ namespace Dotmim.Sync.Tests
 
                 // Get (and create) the scope info client for scope ALL
                 // --------------------------------------
-                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync("All");
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync("ALL");
 
                 if (cScopeInfoClient.IsNewScope)
                 {
@@ -771,7 +774,7 @@ namespace Dotmim.Sync.Tests
                     await agent.LocalOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
                 }
 
-                var rAll = await agent.SynchronizeAsync("All");
+                var rAll = await agent.SynchronizeAsync("ALL");
 
                 Assert.Equal(2, rAll.TotalChangesDownloadedFromServer);
             }
@@ -856,7 +859,7 @@ namespace Dotmim.Sync.Tests
 
                 // Get (and create) the scope info client for scope ALL
                 // --------------------------------------
-                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync("All");
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync("ALL");
 
                 if (cScopeInfoClient.IsNewScope)
                 {
@@ -867,7 +870,7 @@ namespace Dotmim.Sync.Tests
                     await agent.LocalOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
                 }
 
-                var rAll = await agent.SynchronizeAsync("All");
+                var rAll = await agent.SynchronizeAsync("ALL");
 
                 Assert.Equal(2, rAll.TotalChangesDownloadedFromServer);
             }

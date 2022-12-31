@@ -454,6 +454,19 @@ namespace Dotmim.Sync
 
 
     /// <summary>
+    /// Occurs when we check database existence
+    /// </summary>
+    public class InvalidDatabaseVersionException : Exception
+    {
+
+        const string message = "Engine {1} version {0} is not supported. Please upgrade your server to the last version.";
+
+        public InvalidDatabaseVersionException(string version, string engine) : base(string.Format(message, version, engine)) { }
+    }
+
+
+
+    /// <summary>
     /// Occurs when a column is not supported by the Dotmim.Sync framework
     /// </summary>
     public class UnsupportedColumnTypeException : Exception

@@ -512,10 +512,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             }
 
-
-
             stringBuilder.AppendLine("DECLARE ts BIGINT;");
-
             stringBuilder.AppendLine("DECLARE t_update_scope_id VARCHAR(36);");
             stringBuilder.AppendLine("SET ts = 0;");
             stringBuilder.AppendLine($"SELECT {listColumnsTmp.ToString()}");
@@ -554,23 +551,22 @@ namespace Dotmim.Sync.MySql.Builders
             // If we don't have any mutable column, we can't update, and the Insert
             // will fail if we don't ignore the insert (on Reinitialize for example)
             var ignoreKeyWord = hasMutableColumns ? "" : "IGNORE";
-
-            stringBuilder.AppendLine($"\tINSERT {ignoreKeyWord} INTO {tableName.Quoted().ToString()}");
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
-            stringBuilder.AppendLine($"\tSELECT * FROM ( SELECT {stringBuilderParameters.ToString()}) as TMP ");
-            stringBuilder.AppendLine($"\tWHERE ( {listColumnsTmp3.ToString()} )");
+            stringBuilder.AppendLine($"\tINSERT {ignoreKeyWord} INTO {tableName.Quoted()}");
+            stringBuilder.AppendLine($"\t({stringBuilderArguments})");
+            stringBuilder.AppendLine($"\tSELECT * FROM ( SELECT {stringBuilderParameters}) as TMP ");
+            stringBuilder.AppendLine($"\tWHERE ( {listColumnsTmp3} )");
             stringBuilder.AppendLine($"\tOR (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id = sync_scope_id OR sync_force_write = 1)");
             stringBuilder.AppendLine($"\tLIMIT 1;");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"SELECT ROW_COUNT() INTO sync_row_count;"); //[AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
-            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"");
+            stringBuilder.AppendLine($"SELECT ROW_COUNT() INTO sync_row_count;"); // [AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
+            stringBuilder.AppendLine($"");
 
             if (hasMutableColumns)
                 stringBuilder.AppendLine("END IF;");
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"IF (sync_row_count > 0) THEN");
-            stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted().ToString()}");
+            stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted()}");
             stringBuilder.AppendLine($"\tSET `update_scope_id` = sync_scope_id, ");
             stringBuilder.AppendLine($"\t\t `sync_row_is_tombstone` = 0, ");
             stringBuilder.AppendLine($"\t\t `timestamp` = {MySqlObjectNames.TimestampValue}, ");

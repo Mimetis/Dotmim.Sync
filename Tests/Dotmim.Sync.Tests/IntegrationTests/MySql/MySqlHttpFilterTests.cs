@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.MariaDB;
 using Dotmim.Sync.MySql;
+using Dotmim.Sync.PostgreSql;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
@@ -17,7 +18,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
     public class MySqlHttpFilterTests : HttpFilterTests
     {
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MySql,  ProviderType.Sql};
+            { ProviderType.MySql,  ProviderType.Sqlite};
 
         public MySqlHttpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
@@ -91,22 +92,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
         public override bool UseFiddler => false;
 
-        public override CoreProvider CreateProvider(ProviderType providerType, string dbName)
-        {
-            var cs = HelperDatabase.GetConnectionString(providerType, dbName);
-            switch (providerType)
-            {
-                case ProviderType.MySql:
-                    return new MySqlSyncProvider(cs);
-                case ProviderType.MariaDB:
-                    return new MariaDBSyncProvider(cs);
-                case ProviderType.Sqlite:
-                    return new SqliteSyncProvider(cs);
-                case ProviderType.Sql:
-                default:
-                    return new SqlSyncProvider(cs);
-            }
-        }
 
         public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false)
         {

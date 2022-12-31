@@ -9,6 +9,7 @@ using System;
 using Microsoft.Data.SqlClient;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Configuration;
+using Npgsql;
 
 namespace Dotmim.Sync.Tests
 {
@@ -88,6 +89,26 @@ namespace Dotmim.Sync.Tests
             {
                 builder.Port = 3308;
                 builder.UserID = "root";
+                builder.Password = "Password12!";
+            }
+
+            var cn = builder.ToString();
+            return cn;
+        }
+
+        /// <summary>
+        /// Returns the database connection string for MySql
+        /// </summary>
+        internal static string GetPostgresDatabaseConnectionString(string dbName)
+        {
+            var cstring = string.Format(configuration.GetSection("ConnectionStrings")["NpgsqlConnection"], dbName);
+
+            var builder = new NpgsqlConnectionStringBuilder(cstring);
+
+            if (IsOnAzureDev)
+            {
+                builder.Port = 5432;
+                builder.Username = "postgres";
                 builder.Password = "Password12!";
             }
 

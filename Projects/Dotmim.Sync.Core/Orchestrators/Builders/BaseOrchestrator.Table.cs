@@ -631,8 +631,8 @@ namespace Dotmim.Sync
         {
             try
             {
-
-                if (string.IsNullOrEmpty(tableBuilder.TableDescription.SchemaName) || tableBuilder.TableDescription.SchemaName == "dbo")
+                
+                if (string.IsNullOrEmpty(tableBuilder.TableDescription.SchemaName) || tableBuilder.TableDescription.SchemaName == this.Provider.DefaultSchemaName)
                     return (context, true);
 
                 // Get exists command

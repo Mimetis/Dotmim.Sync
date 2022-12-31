@@ -1,6 +1,7 @@
 ﻿
 using Dotmim.Sync.MariaDB;
 using Dotmim.Sync.MySql;
+using Dotmim.Sync.PostgreSql;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
@@ -36,24 +37,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         public override ProviderType ServerType =>
             ProviderType.Sql;
 
-        public override CoreProvider CreateProvider(ProviderType providerType, string dbName)
-        {
-            var cs = HelperDatabase.GetConnectionString(providerType, dbName);
-            switch (providerType)
-            {
-                case ProviderType.MySql:
-                    return new MySqlSyncProvider(cs);
-                case ProviderType.MariaDB:
-                    return new MariaDBSyncProvider(cs);
-                case ProviderType.Sqlite:
-                    return new SqliteSyncProvider(cs);
-                case ProviderType.Sql:
-                default:
-                    return new SqlSyncChangeTrackingProvider(cs);
-            }
-        }
 
-  
+
         public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t
             , bool useSeeding = false, bool useFallbackSchema = false)
         {

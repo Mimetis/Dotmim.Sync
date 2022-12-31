@@ -69,7 +69,7 @@ namespace Dotmim.Sync
                     return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName);
                 });
 
-                // trying a fallback on dbo schema
+                // trying a fallback on default schema name
                 if (table == null)
                 {
                     table = InnerCollection.FirstOrDefault(innerTable =>
@@ -78,6 +78,15 @@ namespace Dotmim.Sync
                         return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "dbo");
                     });
                 }
+                if (table == null)
+                {
+                    table = InnerCollection.FirstOrDefault(innerTable =>
+                    {
+                        var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
+                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "public");
+                    });
+                }
+
                 return table;
             }
         }
@@ -105,7 +114,7 @@ namespace Dotmim.Sync
                     return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName);
                 });
 
-                // trying a fallback on dbo schema
+                // trying a fallback on default schema name
                 if (table == null)
                 {
                     table = InnerCollection.FirstOrDefault(innerTable =>
@@ -114,6 +123,15 @@ namespace Dotmim.Sync
                         return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "dbo");
                     });
                 }
+                if (table == null)
+                {
+                    table = InnerCollection.FirstOrDefault(innerTable =>
+                    {
+                        var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
+                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "public");
+                    });
+                }
+
                 return table;
             }
         }

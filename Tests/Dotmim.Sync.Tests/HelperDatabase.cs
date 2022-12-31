@@ -16,6 +16,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using System.Xml.Linq;
+using Npgsql;
 
 namespace Dotmim.Sync.Tests
 {
@@ -74,6 +75,9 @@ namespace Dotmim.Sync.Tests
                 case ProviderType.Sqlite:
                     con = GetSqliteDatabaseConnectionString(dbName);
                     break;
+                case ProviderType.Postgres:
+                    con = Setup.GetPostgresDatabaseConnectionString(dbName);
+                    break;
             }
 
             // default 
@@ -93,6 +97,8 @@ namespace Dotmim.Sync.Tests
                     return CreateMySqlDatabaseAsync(dbName, recreateDb);
                 case ProviderType.MariaDB:
                     return CreateMariaDBDatabaseAsync(dbName, recreateDb);
+                case ProviderType.Postgres:
+                    return CreatePostgresDatabaseAsync(dbName, recreateDb);
                 case ProviderType.Sqlite:
                     return Task.CompletedTask;
             }
@@ -164,10 +170,10 @@ namespace Dotmim.Sync.Tests
         private static async Task CreateMariaDBDatabaseAsync(string dbName, bool recreateDb = true)
         {
             var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
-             {
-                 Console.WriteLine($"Creating MariaDB database failed when connecting to information_schema ({ex.Message}). Wating {ts.Milliseconds}. Try number {cpt}");
-                 return Task.CompletedTask;
-             });
+            {
+                Console.WriteLine($"Creating MariaDB database failed when connecting to information_schema ({ex.Message}). Wating {ts.Milliseconds}. Try number {cpt}");
+                return Task.CompletedTask;
+            });
 
             SyncPolicy policy = SyncPolicy.WaitAndRetry(3, TimeSpan.FromMilliseconds(500), null, onRetry);
 
@@ -183,6 +189,37 @@ namespace Dotmim.Sync.Tests
                 }
 
                 using (var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection))
+                    cmdDb.ExecuteNonQuery();
+
+                sysConnection.Close();
+            });
+        }
+
+        /// <summary>
+        /// Create a new Postgres database
+        /// </summary>
+        private static async Task CreatePostgresDatabaseAsync(string dbName, bool recreateDb = true)
+        {
+            var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
+            {
+                Console.WriteLine($"Creating Postgres database failed when connecting to information_schema ({ex.Message}). Wating {ts.Milliseconds}. Try number {cpt}");
+                return Task.CompletedTask;
+            });
+
+            SyncPolicy policy = SyncPolicy.WaitAndRetry(3, TimeSpan.FromMilliseconds(500), null, onRetry);
+
+            await policy.ExecuteAsync(async () =>
+            {
+                using var sysConnection = new NpgsqlConnection(Setup.GetPostgresDatabaseConnectionString("postgres"));
+                sysConnection.Open();
+
+                if (recreateDb)
+                {
+                    using var cmdDrop = new NpgsqlCommand($"Drop database if exists  {dbName};", sysConnection);
+                    await cmdDrop.ExecuteNonQueryAsync();
+                }
+
+                using (var cmdDb = new NpgsqlCommand($"create database {dbName};", sysConnection))
                     cmdDb.ExecuteNonQuery();
 
                 sysConnection.Close();
@@ -211,6 +248,9 @@ namespace Dotmim.Sync.Tests
                     case ProviderType.Sqlite:
                         DropSqliteDatabase(dbName);
                         break;
+                    case ProviderType.Postgres:
+                        DropPostgresDatabase(dbName);
+                        break;
                 }
             }
             catch (Exception) { }
@@ -229,6 +269,26 @@ namespace Dotmim.Sync.Tests
             sysConnection.Open();
 
             using (var cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection))
+                cmdDb.ExecuteNonQuery();
+
+            sysConnection.Close();
+        }
+
+
+        /// <summary>
+        /// Drop a Postgres database
+        /// </summary>
+        private static void DropPostgresDatabase(string dbName)
+        {
+            using var sysConnection = new NpgsqlConnection(Setup.GetPostgresDatabaseConnectionString("postgres"));
+            sysConnection.Open();
+
+            using (var cmdDb = new NpgsqlCommand($"" +
+                $"SELECT pg_terminate_backend(pg_stat_activity.pid) " +
+                $"FROM pg_stat_activity " +
+                $"WHERE pg_stat_activity.datname = '{dbName}' " +
+                $"AND pid <> pg_backend_pid();" +
+                $"DROP DATABASE IF EXISTS {dbName};", sysConnection))
                 cmdDb.ExecuteNonQuery();
 
             sysConnection.Close();
@@ -309,6 +369,8 @@ namespace Dotmim.Sync.Tests
                     return ExecuteMariaDBScriptAsync(dbName, script);
                 case ProviderType.Sqlite:
                     return ExecuteSqliteScriptAsync(dbName, script);
+                case ProviderType.Postgres:
+                    return ExecutePostgreSqlScriptAsync(dbName, script);
                 case ProviderType.Sql:
                 default:
                     return ExecuteSqlScriptAsync(dbName, script);
@@ -356,6 +418,16 @@ namespace Dotmim.Sync.Tests
             using var connection = new SqliteConnection(GetSqliteDatabaseConnectionString(dbName));
             connection.Open();
             using (var cmdDb = new SqliteCommand(script, connection))
+            {
+                await cmdDb.ExecuteNonQueryAsync();
+            }
+            connection.Close();
+        }
+        private static async Task ExecutePostgreSqlScriptAsync(string dbName, string script)
+        {
+            using var connection = new NpgsqlConnection(Setup.GetPostgresDatabaseConnectionString(dbName));
+            connection.Open();
+            using (var cmdDb = new NpgsqlCommand(script, connection))
             {
                 await cmdDb.ExecuteNonQueryAsync();
             }

@@ -11,11 +11,11 @@ namespace Dotmim.Sync.Tests.Models
         }
 
         public int SalesOrderId { get; set; }
-        public byte RevisionNumber { get; set; }
+        public short RevisionNumber { get; set; }
         public DateTime? OrderDate { get; set; }
         public DateTime? DueDate { get; set; }
         public DateTime? ShipDate { get; set; }
-        public byte Status { get; set; }
+        public short Status { get; set; }
         public bool? OnlineOrderFlag { get; set; }
         public string SalesOrderNumber { get; set; }
         public string PurchaseOrderNumber { get; set; }

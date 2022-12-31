@@ -14,16 +14,17 @@ namespace Dotmim.Sync.PostgreSql
         static string shortProviderType;
         private NpgsqlConnectionStringBuilder builder;
         private NpgsqlDbMetadata dbMetadata;
+        internal const string NPGSQL_PREFIX_PARAMETER = "in_";
+
 
         public NpgsqlSyncProvider() : base() { }
         public NpgsqlSyncProvider(string connectionString) : base()
         {
+            AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
             this.ConnectionString = connectionString;
 
             if (!string.IsNullOrEmpty(this.ConnectionString))
-            {
                 this.builder = new NpgsqlConnectionStringBuilder(this.ConnectionString);
-            }
         }
         public NpgsqlSyncProvider(NpgsqlConnectionStringBuilder builder) : base()
         {
@@ -48,6 +49,8 @@ namespace Dotmim.Sync.PostgreSql
         }
 
         public override bool CanBeServerProvider => true;
+
+        public override string DefaultSchemaName => "public";
 
         public string ShortProviderType
         {
@@ -89,7 +92,7 @@ namespace Dotmim.Sync.PostgreSql
 
         public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup = null)
         {
-            var originalTableName = ParserName.Parse(tableDescription);
+            var originalTableName = ParserName.Parse(tableDescription, "\"");
 
             var pref = setup?.TrackingTablesPrefix;
             var suf = setup?.TrackingTablesSuffix;
@@ -104,7 +107,7 @@ namespace Dotmim.Sync.PostgreSql
             if (!string.IsNullOrEmpty(originalTableName.SchemaName))
                 trakingTableNameString = $"{originalTableName.SchemaName}.{trakingTableNameString}";
 
-            var trackingTableName = ParserName.Parse(trakingTableNameString);
+            var trackingTableName = ParserName.Parse(trakingTableNameString, "\"");
 
             return (originalTableName, trackingTableName);
         }

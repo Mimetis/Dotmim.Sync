@@ -1,6 +1,10 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.MariaDB;
+using Dotmim.Sync.MySql;
+using Dotmim.Sync.PostgreSql;
 using Dotmim.Sync.Serialization;
+using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.SqlServer.Manager;
 using Dotmim.Sync.Tests.Core;
@@ -63,8 +67,18 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Create a provider
         /// </summary>
-        public abstract CoreProvider CreateProvider(ProviderType providerType, string dbName);
-
+        public CoreProvider CreateProvider(ProviderType providerType, string dbName)
+        {
+            var cs = HelperDatabase.GetConnectionString(providerType, dbName);
+            return providerType switch
+            {
+                ProviderType.MySql => new MySqlSyncProvider(cs),
+                ProviderType.MariaDB => new MariaDBSyncProvider(cs),
+                ProviderType.Sqlite => new SqliteSyncProvider(cs),
+                ProviderType.Postgres => new NpgsqlSyncProvider(cs),
+                _ => new SqlSyncProvider(cs),
+            };
+        }
         /// <summary>
         /// Create database, seed it, with or without schema
         /// </summary>
@@ -188,8 +202,8 @@ namespace Dotmim.Sync.Tests
             foreach (var client in this.Clients)
             {
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
-                var setup = new SyncSetup(this.Tables)
-                { StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" };
+                var setup = new SyncSetup(this.Tables);
+                //{ StoredProceduresPrefix = "cli", StoredProceduresSuffix = "", TrackingTablesPrefix = "tr" };
 
                 client.Provider.OnConnectionOpened(connection => Debug.WriteLine("Connection opened"));
                 client.Provider.OnConnectionClosed(connection => Debug.WriteLine("Connection closed"));
@@ -375,7 +389,7 @@ namespace Dotmim.Sync.Tests
         [Fact]
         public async Task Bad_TableWithoutPrimaryKeys_ShouldRaiseError()
         {
-            string tableTestCreationScript = "Create Table TableTest (TestId int, TestName varchar(50))";
+            string tableTestCreationScript = "create table tabletest (testid int, testname varchar(50))";
 
             // Create an empty server database
             await this.CreateDatabaseAsync(this.ServerType, this.Server.DatabaseName, true);
@@ -394,7 +408,7 @@ namespace Dotmim.Sync.Tests
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
-                    var s = await agent.SynchronizeAsync(new string[] { "TableTest" });
+                    var s = await agent.SynchronizeAsync(new string[] { "tabletest" });
                 });
 
                 Assert.Equal("MissingPrimaryKeyException", se.TypeName);
@@ -1927,8 +1941,12 @@ namespace Dotmim.Sync.Tests
                     // Insert on same connection as current sync.
                     // Using same connection to avoid lock, especially on SQlite
                     var command = changes.Connection.CreateCommand();
-                    command.CommandText = "INSERT INTO PricesList (PriceListId, Description) Values (@PriceListId, @Description);";
 
+                    // As Column names are case-sensitive in postgresql
+                    if (client.ProviderType == ProviderType.Postgres)
+                        command.CommandText = "INSERT INTO \"PricesList\" (\"PriceListId\", \"Description\") Values (@PriceListId, @Description);";
+                    else
+                        command.CommandText = "INSERT INTO PricesList (PriceListId, Description) Values (@PriceListId, @Description);";
                     var p = command.CreateParameter();
                     p.ParameterName = "@PriceListId";
                     p.Value = Guid.NewGuid();
@@ -4256,7 +4274,13 @@ namespace Dotmim.Sync.Tests
                 // checking if there is no rows in tracking table for address
                 var connection = client.Provider.CreateConnection();
                 var command = connection.CreateCommand();
-                command.CommandText = "SELECT COUNT(*) FROM Address_tracking";
+
+                // As Column names are case-sensitive in postgresql
+                if (client.ProviderType == ProviderType.Postgres)
+                    command.CommandText = "SELECT COUNT(*) FROM \"Address_tracking\"";
+                else
+                    command.CommandText = "SELECT COUNT(*) FROM Address_tracking";
+
                 command.Connection = connection;
                 await connection.OpenAsync();
                 var count = await command.ExecuteScalarAsync();

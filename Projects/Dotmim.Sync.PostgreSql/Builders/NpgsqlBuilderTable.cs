@@ -20,6 +20,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
         private SyncTable tableDescription;
         private ParserName tableName;
         private ParserName trackingTableName;
+
+        private Dictionary<string, string> createdRelationNames = new Dictionary<string, string>();
+
+
         public NpgsqlBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
         {
             this.tableDescription = tableDescription;
@@ -46,10 +50,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var identity = string.Empty;
 
             if (column.IsAutoIncrement)
-            {
-                //var s = column.GetAutoIncrementSeedAndStep();
                 identity = $"SERIAL";
-            }
+
             var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
             // if we have a computed column, we should allow null
@@ -58,12 +60,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             string defaultValue = string.Empty;
             if (this.tableDescription.OriginalProvider == NpgsqlSyncProvider.ProviderType)
-            {
                 if (!string.IsNullOrEmpty(column.DefaultValue))
-                {
                     defaultValue = "DEFAULT " + column.DefaultValue;
-                }
-            }
 
             stringBuilder.AppendLine($"ADD {columnNameString} {columnType} {identity} {nullString} {defaultValue}");
 
@@ -181,7 +179,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             command.CommandText = @"select exists (select from information_schema.columns 
                                         where table_schema=@schemaname 
                                         and table_name=@tablename 
-                                        and column_name =@columnname);";
+                                        and column_name=@columnname);";
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
@@ -225,7 +223,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
         {
             var pTableName = tableName.ToString();
             var pSchemaName = tableName.SchemaName;
-            pSchemaName = string.IsNullOrEmpty(tableName.ToString()) ? "public" : pSchemaName;
+            pSchemaName = string.IsNullOrEmpty(pSchemaName) ? "public" : pSchemaName;
 
             //Todo: update command text for postgresql
             var dbCommand = connection.CreateCommand();
@@ -283,9 +281,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 {
                     Name = (string)row["ForeignKey"],
                     TableName = (string)row["TableName"],
-                    SchemaName = (string)row["SchemaName"],
+                    SchemaName = (string)row["SchemaName"] == "public" ? "" : (string)row["SchemaName"],
                     ReferenceTableName = (string)row["ReferenceTableName"],
-                    ReferenceSchemaName = (string)row["ReferenceSchemaName"],
+                    ReferenceSchemaName = (string)row["ReferenceSchemaName"] == "public" ? "" : (string)row["ReferenceSchemaName"],
                 }))
                 {
                     var relationDefinition = new DbRelationDefinition()
@@ -355,10 +353,88 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 empty = ",";
             }
             stringBuilder.Append(");");
+
+            // Primary Keys
+            var primaryKeyNameString = tableName.Unquoted().Normalized().ToString();
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"ALTER TABLE {schema}.\"{table}\" ADD CONSTRAINT \"PK_{primaryKeyNameString}\" PRIMARY KEY(");
+            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+            {
+                var pkColumn = this.tableDescription.PrimaryKeys[i];
+                var quotedColumnName = ParserName.Parse(pkColumn).Unquoted().ToString();
+                stringBuilder.Append($"\"{quotedColumnName}\"");
+
+                if (i < this.tableDescription.PrimaryKeys.Count - 1)
+                    stringBuilder.Append(", ");
+            }
+            stringBuilder.AppendLine(");");
+            stringBuilder.AppendLine();
+
+            // Foreign Keys
+            foreach (var constraint in this.tableDescription.GetRelations())
+            {
+                var parsedTableName = ParserName.Parse(constraint.GetTable());
+                var tableName = parsedTableName.Unquoted().ToString();
+                var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(parsedTableName);
+
+                var parsedParentTableName = ParserName.Parse(constraint.GetParentTable());
+                var parentTableName = parsedParentTableName.Unquoted().ToString();
+                var parentSchemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(parsedParentTableName);
+                var relationName = NormalizeRelationName(constraint.RelationName);
+                stringBuilder.AppendLine();
+                stringBuilder.Append($"ALTER TABLE {schemaName}.\"{tableName}\" ");
+                stringBuilder.Append("ADD CONSTRAINT ");
+                stringBuilder.AppendLine($"\"{relationName}\"");
+                stringBuilder.Append("FOREIGN KEY (");
+                empty = string.Empty;
+                foreach (var column in constraint.Keys)
+                {
+                    var childColumnName = ParserName.Parse(column.ColumnName, "\"").Quoted().ToString();
+                    stringBuilder.Append($"{empty} {childColumnName}");
+                    empty = ", ";
+                }
+                stringBuilder.AppendLine(" )");
+                stringBuilder.Append("REFERENCES ");
+                stringBuilder.Append($"{parentSchemaName}.\"{parentTableName}\"").Append(" (");
+                empty = string.Empty;
+                foreach (var parentdColumn in constraint.ParentKeys)
+                {
+                    var parentColumnName = ParserName.Parse(parentdColumn.ColumnName, "\"").Quoted().ToString();
+                    stringBuilder.Append($"{empty} {parentColumnName}");
+                    empty = ", ";
+                }
+                stringBuilder.Append(" ); ");
+            }
             string createTableCommandString = stringBuilder.ToString();
+
             var command = new NpgsqlCommand(createTableCommandString, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
 
             return command;
         }
+
+        private static string GetRandomString() => Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+
+        /// <summary>
+        /// Ensure the relation name is correct to be created in MySql
+        /// </summary>
+        public string NormalizeRelationName(string relation)
+        {
+            if (createdRelationNames.ContainsKey(relation))
+                return createdRelationNames[relation];
+
+            var name = relation;
+
+            if (relation.Length > 128)
+                name = $"{relation.Substring(0, 110)}_{GetRandomString()}";
+
+            // MySql could have a special character in its relation names
+            name = name.Replace("~", "").Replace("#", "");
+
+            createdRelationNames.Add(relation, name);
+
+            return name;
+        }
+
     }
 }

@@ -95,6 +95,12 @@ namespace Dotmim.Sync.Tests.Models
                         else
                             optionsBuilder.UseSqlite(this.ConnectionString);
                         break;
+                    case ProviderType.Postgres:
+                        if (this.Connection != null)
+                            optionsBuilder.UseNpgsql(this.Connection);
+                        else
+                            optionsBuilder.UseNpgsql(this.ConnectionString);
+                        break;
                 }
             }
 
@@ -143,14 +149,15 @@ namespace Dotmim.Sync.Tests.Models
                 entity.Property(e => e.CountryRegion)
                     .HasMaxLength(50);
 
-                entity.Property(e => e.ModifiedDate)
-                    .HasColumnType("datetime")
-                    .ValueGeneratedOnAdd();
+                //entity.Property(e => e.ModifiedDate).HasColumnType("datetime").ValueGeneratedOnAdd();
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
+                else if (this.ProviderType == ProviderType.Postgres)
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
+
 
                 entity.Property(e => e.PostalCode)
                     .IsUnicode()
@@ -194,17 +201,18 @@ namespace Dotmim.Sync.Tests.Models
 
                 // Creating a column with space in it
                 entity.Property(e => e.AttributeWithSpace)
-                    .HasColumnName("Attribute With Space");
+                    .HasColumnName("Attribute With Space").HasMaxLength(250);
 
                 entity.Property(e => e.MiddleName).HasMaxLength(50);
 
-                entity.Property(e => e.ModifiedDate)
-                    .HasColumnType("datetime");
+                //entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
+                else if (this.ProviderType == ProviderType.Postgres)
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
 
                 entity.Property(e => e.PasswordHash)
@@ -247,13 +255,14 @@ namespace Dotmim.Sync.Tests.Models
                     .IsRequired()
                     .HasMaxLength(50);
 
-                entity.Property(e => e.ModifiedDate)
-                    .HasColumnType("datetime");
+                //entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
+                else if (this.ProviderType == ProviderType.Postgres)
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
                 entity.Property(e => e.Rowguid)
                     .HasColumnName("rowguid")
@@ -278,13 +287,14 @@ namespace Dotmim.Sync.Tests.Models
                     .IsRequired()
                     .HasMaxLength(50);
 
-                entity.Property(e => e.ModifiedDate)
-                    .HasColumnType("datetime");
+                //entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
+                else if (this.ProviderType == ProviderType.Postgres)
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
                 entity.Property(e => e.Rowguid)
                     .HasColumnName("rowguid");
@@ -316,13 +326,14 @@ namespace Dotmim.Sync.Tests.Models
                     .IsRequired()
                     .HasMaxLength(50);
 
-                entity.Property(e => e.ModifiedDate)
-                    .HasColumnType("datetime");
+                //entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
+                else if (this.ProviderType == ProviderType.Postgres)
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
                 entity.Property(e => e.Rowguid)
                     .HasColumnName("rowguid");
@@ -353,7 +364,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.Property(e => e.Operation).HasMaxLength(50);
 
-                entity.Property(e => e.TimeStampDate).HasColumnType("datetime");
+                //entity.Property(e => e.TimeStampDate).HasColumnType("datetime");
             });
 
             modelBuilder.Entity<Product>(entity =>
@@ -384,18 +395,19 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.Property(e => e.Color).HasMaxLength(15);
 
-                entity.Property(e => e.DiscontinuedDate).HasColumnType("datetime");
+                //entity.Property(e => e.DiscontinuedDate).HasColumnType("datetime");
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ListPrice).HasColumnType("money");
 
-                entity.Property(e => e.ModifiedDate)
-                    .HasColumnType("datetime");
+                //entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
+                else if (this.ProviderType == ProviderType.Postgres)
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
 
                 entity.Property(e => e.Name)
@@ -417,9 +429,9 @@ namespace Dotmim.Sync.Tests.Models
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.Rowguid).HasDefaultValueSql("(newid())");
 
-                entity.Property(e => e.SellEndDate).HasColumnType("datetime");
+                //entity.Property(e => e.SellEndDate).HasColumnType("datetime");
 
-                entity.Property(e => e.SellStartDate).HasColumnType("datetime");
+                //entity.Property(e => e.SellStartDate).HasColumnType("datetime");
 
                 entity.Property(e => e.Size).HasMaxLength(5);
 
@@ -462,13 +474,14 @@ namespace Dotmim.Sync.Tests.Models
                     .HasMaxLength(12)
                     .ValueGeneratedNever();
 
-                entity.Property(e => e.ModifiedDate)
-                    .HasColumnType("datetime");
+                //entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
+                else if (this.ProviderType == ProviderType.Postgres)
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
                 entity.Property(e => e.Name)
                     .IsRequired()
@@ -480,7 +493,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 // Creating a column with space in it, and a schema on the table
                 entity.Property(e => e.AttributeWithSpace)
-                    .HasColumnName("Attribute With Space");
+                    .HasColumnName("Attribute With Space").HasMaxLength(250);
 
                 // Foreign Key
                 entity.HasOne(e => e.ParentProductCategory)
@@ -506,16 +519,14 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.Property(e => e.ProductModelId).HasColumnName("ProductModelID");
 
-                //if (this.ProviderType == ProviderType.Sql)
-                //    entity.Property(e => e.CatalogDescription).HasColumnType("xml");
-
-                entity.Property(e => e.ModifiedDate)
-                    .HasColumnType("datetime");
+                //entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
+                else if (this.ProviderType == ProviderType.Postgres)
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
                 entity.Property(e => e.Name)
                     .IsRequired()
@@ -548,13 +559,14 @@ namespace Dotmim.Sync.Tests.Models
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.LineTotal).HasColumnType("numeric(38, 6)");
 
-                entity.Property(e => e.ModifiedDate)
-                    .HasColumnType("datetime");
+                //entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
+                else if (this.ProviderType == ProviderType.Postgres)
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
                 entity.Property(e => e.ProductId)
                     .HasColumnName("ProductID")
@@ -605,40 +617,48 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.Property(e => e.CustomerId).HasColumnName("CustomerID");
 
-                entity.Property(e => e.DueDate).HasColumnType("datetime");
+                //entity.Property(e => e.DueDate).HasColumnType("datetime");
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.Freight).HasColumnType("money");
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.Freight).HasDefaultValueSql("((0.00))");
-                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB || this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.Freight).HasDefaultValueSql("0");
 
-                entity.Property(e => e.ModifiedDate)
-                    .HasColumnType("datetime");
+                //entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
+                else if (this.ProviderType == ProviderType.Postgres)
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
-                entity.Property(e => e.OnlineOrderFlag)
-                    .IsRequired()
-                    .HasColumnType("bit");
+                if (this.ProviderType == ProviderType.Sql || this.ProviderType == ProviderType.MySql 
+                    || this.ProviderType == ProviderType.MariaDB|| this.ProviderType == ProviderType.Sqlite)
+                {
+                    entity.Property(e => e.OnlineOrderFlag)
+                        .IsRequired()
+                        .HasColumnType("bit");
+                }
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.OnlineOrderFlag).HasDefaultValueSql("((1))");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                     entity.Property(e => e.OnlineOrderFlag).HasDefaultValueSql("1");
+                else if (this.ProviderType == ProviderType.Postgres)
+                    entity.Property(e => e.OnlineOrderFlag).HasDefaultValueSql("True");
 
-                entity.Property(e => e.OrderDate)
-                    .HasColumnType("datetime");
+                //entity.Property(e => e.OrderDate).HasColumnType("datetime");
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.OrderDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
-                    entity.Property(e => e.OrderDate).HasDefaultValueSql("CURRENT_TIMESTAMP()");
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(CURRENT_TIMESTAMP())");
+                else if (this.ProviderType == ProviderType.Postgres)
+                    entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
                 entity.Property(e => e.PurchaseOrderNumber)
                     .HasMaxLength(25);
@@ -655,11 +675,11 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.SalesOrderNumber).HasDefaultValueSql("(('SO-XXXX'))");
-                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB || this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.SalesOrderNumber).HasDefaultValueSql("'SO-XXXX'");
 
 
-                entity.Property(e => e.ShipDate).HasColumnType("datetime");
+                //entity.Property(e => e.ShipDate).HasColumnType("datetime");
 
                 entity.Property(e => e.ShipMethod)
                     .IsRequired()
@@ -669,7 +689,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.Status).HasDefaultValueSql("((1))");
-                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB || this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.Status).HasDefaultValueSql("1");
 
                 if (this.ProviderType == ProviderType.Sql)
@@ -677,7 +697,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.SubTotal).HasDefaultValueSql("((0.00))");
-                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB || this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.SubTotal).HasDefaultValueSql("0");
 
                 if (this.ProviderType == ProviderType.Sql)
@@ -685,7 +705,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.TaxAmt).HasDefaultValueSql("((0.00))");
-                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB || this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.TaxAmt).HasDefaultValueSql("0");
 
                 if (this.ProviderType == ProviderType.Sql)
@@ -693,7 +713,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.TotalDue).HasDefaultValueSql("((0.00))");
-                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
+                else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB || this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.TotalDue).HasDefaultValueSql("0");
 
                 entity.HasOne(d => d.BillToAddress)
@@ -763,14 +783,16 @@ namespace Dotmim.Sync.Tests.Models
                     d.PriceListDettailId,
                 });
 
-                entity.HasOne(d => d.Category)
-                    .WithMany(c => c.Details);
+                entity.HasOne(d => d.Category).WithMany(c => c.Details);
 
                 // Adding a compute column
-                if (this.ProviderType != ProviderType.Sqlite)
+                if (this.ProviderType == ProviderType.Sql || this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                 {
-                    entity.Property(d => d.Total)
-                        .HasComputedColumnSql("Amount - Discount");
+                    entity.Property(d => d.Total).HasComputedColumnSql("Amount - Discount");
+                }
+                else if (this.ProviderType == ProviderType.Postgres)
+                {
+                    entity.Property(d => d.Total).HasComputedColumnSql(@"""Amount"" - ""Discount""", stored: true);
                 }
 
                 entity.Property(d => d.ProductId)
@@ -785,6 +807,8 @@ namespace Dotmim.Sync.Tests.Models
             modelBuilder.Entity<PriceListCategory>(entity =>
             {
                 entity.HasKey(c => new { c.PriceListId, c.PriceCategoryId });
+
+                entity.Property(e => e.PriceCategoryId).HasMaxLength(12);
 
                 entity.HasOne(c => c.PriceList)
                     .WithMany(p => p.Categories);

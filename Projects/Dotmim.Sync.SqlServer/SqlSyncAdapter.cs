@@ -448,7 +448,13 @@ namespace Dotmim.Sync.SqlServer.Builders
                     command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
                     isBatch = false;
                     break;
-
+                case DbCommandType.PreDeleteRow:
+                case DbCommandType.PreDeleteRows:
+                case DbCommandType.PreInsertRow:
+                case DbCommandType.PreInsertRows:
+                case DbCommandType.PreUpdateRow:
+                case DbCommandType.PreUpdateRows:
+                    return (default, false);
                 default:
                     throw new NotImplementedException($"This command type {nameType} is not implemented");
             }

@@ -1,29 +1,26 @@
-﻿
-using Dotmim.Sync.MariaDB;
+﻿using Dotmim.Sync.MariaDB;
 using Dotmim.Sync.MySql;
 using Dotmim.Sync.PostgreSql;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
-using Microsoft.EntityFrameworkCore.Storage;
+using Dotmim.Sync.Web.Server;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Xunit;
 using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.IntegrationTests
 {
-    public class MySqlTcpFilterTests : TcpFilterTests
+    public class PostgresHttpFilterTests : HttpFilterTests
     {
-
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MySql, ProviderType.Sql };
+            { ProviderType.Postgres,  ProviderType.Sqlite};
 
-        public MySqlTcpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
+        public PostgresHttpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
 
@@ -31,7 +28,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         {
             get
             {
-                var setup = new SyncSetup(new string[] {"Product", "Customer", "Address", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
+                var setup = new SyncSetup(new string[] { "Product", "Customer", "Address", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" });
 
                 // Filter columns
                 setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
@@ -53,7 +50,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 // Create a filter on table Address
                 var addressFilter = new SetupFilter("Address");
                 addressFilter.AddParameter("CustomerID", "Customer");
-                addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
+                addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressID", "Address", "AddressID");
                 addressFilter.AddWhere("CustomerID", "CustomerAddress", "CustomerID");
                 setup.Filters.Add(addressFilter);
                 // ----------------------------------------------------
@@ -61,7 +58,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 // Create a filter on table SalesOrderDetail
                 var salesOrderDetailFilter = new SetupFilter("SalesOrderDetail");
                 salesOrderDetailFilter.AddParameter("CustomerID", "Customer");
-                salesOrderDetailFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderHeader", "SalesOrderId", "SalesOrderDetail", "SalesOrderId");
+                salesOrderDetailFilter.AddJoin(Join.Left, "SalesOrderHeader").On("SalesOrderHeader", "SalesOrderID", "SalesOrderDetail", "SalesOrderID");
                 salesOrderDetailFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerID", "SalesOrderHeader", "CustomerID");
                 salesOrderDetailFilter.AddWhere("CustomerID", "CustomerAddress", "CustomerID");
                 setup.Filters.Add(salesOrderDetailFilter);
@@ -69,44 +66,24 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 // 4) Custom Wheres on Product.
                 var productFilter = new SetupFilter("Product");
-                productFilter.AddCustomWhere("ProductCategoryID IS NOT NULL");
+                productFilter.AddCustomWhere("base.\"ProductCategoryID\" IS NOT NULL");
                 setup.Filters.Add(productFilter);
 
                 return setup;
             }
         }
 
-        public override SyncParameters FilterParameters => new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId1ForFilter));
-
-        public override ProviderType ServerType =>
-            ProviderType.MySql;
-
-
-
-
-        /// <summary>
-        /// Get the server database rows count
-        /// </summary>
-        /// <returns></returns>
-        public override int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, Guid? customerId = null)
+        public override SyncParameters FilterParameters => new SyncParameters
         {
-            int totalCountRows = 0;
+                new SyncParameter("CustomerID", AdventureWorksContext.CustomerId1ForFilter),
+        };
 
-            if (!customerId.HasValue)
-                customerId = AdventureWorksContext.CustomerId1ForFilter;
 
-            using (var serverDbCtx = new AdventureWorksContext(t, false))
-            {
-                totalCountRows += serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == customerId)).Count();
-                totalCountRows += serverDbCtx.Customer.Where(c => c.CustomerId == customerId).Count();
-                totalCountRows += serverDbCtx.CustomerAddress.Where(c => c.CustomerId == customerId).Count();
-                totalCountRows += serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == customerId).Count();
-                totalCountRows += serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == customerId).Count();
-                totalCountRows += serverDbCtx.Product.Where(p => !String.IsNullOrEmpty(p.ProductCategoryId)).Count();
-            }
+        public override ProviderType ServerType => ProviderType.Postgres;
 
-            return totalCountRows;
-        }
+
+        public override bool UseFiddler => false;
+
 
         public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false)
         {
@@ -131,6 +108,34 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         {
             return HelperDatabase.CreateDatabaseAsync(providerType, dbName, recreateDb);
         }
+
+        /// <summary>
+        /// Get the server database rows count
+        /// </summary>
+        /// <returns></returns>
+        public override int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, Guid? customerId = null)
+        {
+            int totalCountRows = 0;
+
+            if (!customerId.HasValue)
+                customerId = AdventureWorksContext.CustomerId1ForFilter;
+
+            using (var serverDbCtx = new AdventureWorksContext(t, false))
+            {
+
+                var addressesCount = serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == customerId)).Count();
+                var customersCount = serverDbCtx.Customer.Where(c => c.CustomerId == customerId).Count();
+                var customerAddressesCount = serverDbCtx.CustomerAddress.Where(c => c.CustomerId == customerId).Count();
+                var salesOrdersDetailsCount = serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == customerId).Count();
+                var salesOrdersHeadersCount = serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == customerId).Count();
+                var productsCount = serverDbCtx.Product.Where(p => !String.IsNullOrEmpty(p.ProductCategoryId)).Count();
+
+                totalCountRows = addressesCount + customersCount + customerAddressesCount + salesOrdersDetailsCount + salesOrdersHeadersCount + productsCount;
+            }
+
+            return totalCountRows;
+        }
+
 
     }
 }

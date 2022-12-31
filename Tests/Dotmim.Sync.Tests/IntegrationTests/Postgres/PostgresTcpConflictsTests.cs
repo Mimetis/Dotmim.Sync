@@ -16,26 +16,23 @@ using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.IntegrationTests
 {
-    public class MariaDBTcpTests : TcpTests
+    public class PostgresTcpConflictsTests : TcpConflictsTests
     {
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MariaDB,  ProviderType.Sqlite};
+            { ProviderType.Postgres,  ProviderType.Sql};
 
-        public MariaDBTcpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
+        public PostgresTcpConflictsTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
 
         public override string[] Tables => new string[]
         {
             "ProductCategory", "ProductModel", "Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-            "SalesOrderHeader", "SalesOrderDetail",  "Posts", "Tags", "PostTag",
+            "SalesOrderHeader", "SalesOrderDetail", "Posts", "Tags", "PostTag",
             "PricesList", "PricesListCategory", "PricesListDetail", "Log"
         };
 
-        public override ProviderType ServerType => ProviderType.MariaDB;
-
-
-
+        public override ProviderType ServerType => ProviderType.Postgres;
 
         /// <summary>
         /// Get the server database rows count

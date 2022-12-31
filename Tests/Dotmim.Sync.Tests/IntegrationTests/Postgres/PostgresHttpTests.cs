@@ -5,37 +5,37 @@ using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
-using Microsoft.EntityFrameworkCore.Storage;
+using Dotmim.Sync.Web.Server;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Xunit;
 using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.IntegrationTests
 {
-    public class MariaDBTcpTests : TcpTests
+    public class PostgresHttpTests : HttpTests
     {
-        public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.MariaDB,  ProviderType.Sqlite};
 
-        public MariaDBTcpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
+        public override List<ProviderType> ClientsType => new List<ProviderType>
+            { ProviderType.Postgres,  ProviderType.Sql};
+
+        public PostgresHttpTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
         }
 
         public override string[] Tables => new string[]
         {
             "ProductCategory", "ProductModel", "Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-            "SalesOrderHeader", "SalesOrderDetail",  "Posts", "Tags", "PostTag",
+            "SalesOrderHeader", "SalesOrderDetail", "Posts", "Tags", "PostTag",
             "PricesList", "PricesListCategory", "PricesListDetail", "Log"
         };
 
-        public override ProviderType ServerType => ProviderType.MariaDB;
+        public override ProviderType ServerType => ProviderType.Postgres;
 
 
-
+        public override bool UseFiddler => false;
 
         /// <summary>
         /// Get the server database rows count
@@ -70,7 +70,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             return totalCountRows;
         }
 
-        public override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false)
+
+        protected override async Task EnsureDatabaseSchemaAndSeedAsync((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, bool useSeeding = false, bool useFallbackSchema = false)
         {
             AdventureWorksContext ctx = null;
             try
@@ -89,7 +90,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-        public override Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
+        protected override Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
         {
             return HelperDatabase.CreateDatabaseAsync(providerType, dbName, recreateDb);
         }

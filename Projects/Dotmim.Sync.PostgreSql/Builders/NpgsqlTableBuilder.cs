@@ -13,21 +13,18 @@ namespace Dotmim.Sync.PostgreSql.Builders
         public NpgsqlTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
             : base(tableDescription, tableName, trackingTableName, setup, scopeName)
         {
-            this.objectNames = new NpgsqlObjectNames(tableDescription, tableName, trackingTableName, setup, scopeName);
             this.dbMetadata = new NpgsqlDbMetadata();
 
-            this.builderProcedure = new NpgsqlBuilderProcedure(tableDescription, tableName, trackingTableName, Setup, scopeName);
             this.builderTable = new NpgsqlBuilderTable(tableDescription, tableName, trackingTableName, Setup);
             this.builderTrackingTable = new NpgsqlBuilderTrackingTable(tableDescription, tableName, trackingTableName, Setup);
             this.builderTrigger = new NpgsqlBuilderTrigger(tableDescription, tableName, trackingTableName, Setup, scopeName);
         }
 
-        public NpgsqlBuilderProcedure builderProcedure { get; }
         public NpgsqlBuilderTable builderTable { get; }
         public NpgsqlBuilderTrackingTable builderTrackingTable { get; }
         public NpgsqlBuilderTrigger builderTrigger { get; }
         public NpgsqlDbMetadata dbMetadata { get; }
-        public NpgsqlObjectNames objectNames { get; }
+
         public override Task<DbCommand> GetAddColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
            => this.builderTable.GetAddColumnCommandAsync(columnName, connection, transaction);
 
@@ -36,9 +33,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         public override Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
                              => this.builderTable.GetCreateSchemaCommandAsync(connection, transaction);
-        public override Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
-            => this.builderProcedure.GetCreateStoredProcedureCommandAsync(storedProcedureType, filter, connection, transaction);
-
         public override Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
                     => this.builderTable.GetCreateTableCommandAsync(connection, transaction);
         public override Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
@@ -50,8 +44,16 @@ namespace Dotmim.Sync.PostgreSql.Builders
         public override Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
             => this.builderTable.GetDropColumnCommandAsync(columnName, connection, transaction);
 
+        // ---------------------------------
+        // No stored procedures
+        // ---------------------------------
         public override Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
-            => this.builderProcedure.GetDropStoredProcedureCommandAsync(storedProcedureType, filter, connection, transaction);
+            => Task.FromResult<DbCommand>(null);
+        public override Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
+           => Task.FromResult<DbCommand>(null);
+        public override Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
+            => Task.FromResult<DbCommand>(null);
+        // ---------------------------------
 
         public override Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
            => this.builderTable.GetDropTableCommandAsync(connection, transaction);
@@ -67,9 +69,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         public override Task<DbCommand> GetExistsSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
             => this.builderTable.GetExistsSchemaCommandAsync(connection, transaction);
-
-        public override Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
-           => this.builderProcedure.GetExistsStoredProcedureCommandAsync(storedProcedureType, filter, connection, transaction);
 
         public override Task<DbCommand> GetExistsTableCommandAsync(DbConnection connection, DbTransaction transaction)
                                                                                             => this.builderTable.GetExistsTableCommandAsync(connection, transaction);

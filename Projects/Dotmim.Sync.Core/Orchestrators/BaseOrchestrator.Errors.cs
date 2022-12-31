@@ -24,7 +24,8 @@ namespace Dotmim.Sync
         /// Handle a conflict
         /// The int returned is the conflict count I need 
         /// </summary>
-        private async Task<(ErrorAction errorAction, ApplyChangesException applyChangesException)> HandleErrorAsync(ScopeInfo scopeInfo, SyncContext context, SyncRow errorRow, SyncRowState applyType,
+        private async Task<(ErrorAction errorAction, ApplyChangesException applyChangesException)> HandleErrorAsync(ScopeInfo scopeInfo, SyncContext context, 
+                                BatchInfo batchInfo, SyncRow errorRow, SyncRowState applyType,
                                 SyncTable schemaChangesTable, Exception exception, Guid senderScopeId, long? lastTimestamp,
                                 DbConnection connection, DbTransaction transaction,
                                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
@@ -57,11 +58,11 @@ namespace Dotmim.Sync
                     bool operationComplete;
 
                     if (applyType == SyncRowState.Deleted)
-                        (_, operationComplete, operationException) = await this.InternalApplyDeleteAsync(scopeInfo, context, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
-                            connection, transaction).ConfigureAwait(false);
+                        (_, operationComplete, operationException) = await this.InternalApplyDeleteAsync(scopeInfo, context, batchInfo, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
+                            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     else
-                        (_, operationComplete, operationException) = await this.InternalApplyUpdateAsync(scopeInfo, context, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
-                            connection, transaction).ConfigureAwait(false);
+                        (_, operationComplete, operationException) = await this.InternalApplyUpdateAsync(scopeInfo, context, batchInfo, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
+                            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
 
                     if (operationComplete)

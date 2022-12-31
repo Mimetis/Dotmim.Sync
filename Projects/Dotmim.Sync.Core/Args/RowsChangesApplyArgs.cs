@@ -50,10 +50,13 @@ namespace Dotmim.Sync
     /// </summary>
     public class RowsChangesAppliedArgs : ProgressArgs
     {
-        public RowsChangesAppliedArgs(SyncContext context, BatchInfo batchInfo, List<SyncRow> syncRows, SyncTable schemaTable, SyncRowState state, DbConnection connection, DbTransaction transaction)
+        public RowsChangesAppliedArgs(SyncContext context, BatchInfo batchInfo, List<SyncRow> syncRows, SyncTable schemaTable, SyncRowState state,
+            int appliedCount, Exception exception, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             this.State = state;
+            this.AppliedCount = appliedCount;
+            this.Exception = exception;
             this.BatchInfo = batchInfo;
             this.SyncRows = syncRows;
             this.SchemaTable = schemaTable;
@@ -63,9 +66,30 @@ namespace Dotmim.Sync
         /// Gets the RowState of the applied rows
         /// </summary>
         public SyncRowState State { get; }
+
+        /// <summary>
+        /// Get result of sql statement (if AppliedCount == 1, it means row has been applied)
+        /// </summary>
+        public int AppliedCount { get; }
+
+        /// <summary>
+        /// If not null, an execption has been raised
+        /// </summary>
+        public Exception Exception { get; }
+
+        /// <summary>
+        /// Batchinfo from where SyncRows are coming
+        /// </summary>
         public BatchInfo BatchInfo { get; }
+
+        /// <summary>
+        /// SyncRows applied (or not if Exception is not null)
+        /// </summary>
         public List<SyncRow> SyncRows { get; }
 
+        /// <summary>
+        /// SyncRow schema
+        /// </summary>
         public SyncTable SchemaTable { get; }
 
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;

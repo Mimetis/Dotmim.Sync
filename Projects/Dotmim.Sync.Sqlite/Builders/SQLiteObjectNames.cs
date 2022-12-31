@@ -112,6 +112,13 @@ namespace Dotmim.Sync.Sqlite
             this.AddCommandName(DbCommandType.DisableConstraints, "Select 0"); // PRAGMA foreign_keys = OFF
             this.AddCommandName(DbCommandType.EnableConstraints, "Select 0");
 
+            this.AddCommandName(DbCommandType.PreDeleteRow, "Select 0");
+            this.AddCommandName(DbCommandType.PreDeleteRows, "Select 0");
+            this.AddCommandName(DbCommandType.PreInsertRow, "Select 0");
+            this.AddCommandName(DbCommandType.PreInsertRows, "Select 0");
+            this.AddCommandName(DbCommandType.PreUpdateRow, "Select 0");
+            this.AddCommandName(DbCommandType.PreUpdateRows, "Select 0");
+
         }
 
         private void CreateResetCommandText()
@@ -183,7 +190,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"INSERT OR REPLACE INTO {trackingName.Quoted().ToString()} (");
             stringBuilder.AppendLine(pkeySelectForInsert.ToString());
             stringBuilder.AppendLine(",[update_scope_id], [sync_row_is_tombstone], [timestamp], [last_change_datetime] )");
-            stringBuilder.AppendLine($"SELECT {pkeyISelectForInsert.ToString()} ");
+            stringBuilder.AppendLine($"SELECT {pkeyISelectForInsert} ");
             stringBuilder.AppendLine($"   , i.sync_scope_id, i.sync_row_is_tombstone, i.sync_timestamp, i.UtcDate");
             stringBuilder.AppendLine("FROM (");
             stringBuilder.AppendLine($"  SELECT {pkeyAliasSelectForInsert}");
@@ -203,10 +210,6 @@ namespace Dotmim.Sync.Sqlite
             var stringBuilderParametersValues2 = new StringBuilder();
             string empty = string.Empty;
 
-            string str1 = SqliteManagementUtils.JoinOneTablesOnParametersValues(this.TableDescription.PrimaryKeys, "[side]");
-            string str2 = SqliteManagementUtils.JoinOneTablesOnParametersValues(this.TableDescription.PrimaryKeys, "[base]");
-            string str7 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[p]", "[side]");
-
             // Generate Update command
             var stringBuilder = new StringBuilder();
 
@@ -221,12 +224,12 @@ namespace Dotmim.Sync.Sqlite
                 empty = ", ";
             }
 
-            stringBuilder.AppendLine($"INSERT OR IGNORE INTO {tableName.Quoted().ToString()}");
-            stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
-            stringBuilder.Append($"VALUES ({stringBuilderParametersValues2.ToString()}) ");
+            stringBuilder.AppendLine($"INSERT OR IGNORE INTO {tableName.Quoted()}");
+            stringBuilder.AppendLine($"({stringBuilderArguments})");
+            stringBuilder.Append($"VALUES ({stringBuilderParametersValues2}) ");
             stringBuilder.AppendLine($";");
 
-            stringBuilder.AppendLine($"UPDATE OR IGNORE {trackingName.Quoted().ToString()} SET ");
+            stringBuilder.AppendLine($"UPDATE OR IGNORE {trackingName.Quoted()} SET ");
             stringBuilder.AppendLine("[update_scope_id] = @sync_scope_id,");
             stringBuilder.AppendLine("[sync_row_is_tombstone] = 0,");
             stringBuilder.AppendLine("[last_change_datetime] = datetime('now')");
@@ -280,11 +283,10 @@ namespace Dotmim.Sync.Sqlite
                 this.TableDescription.PrimaryKeys.Select(name => ParserName.Parse(name).Quoted().ToString()));
 
             // add CTE
-            stringBuilder.AppendLine($"WITH CHANGESET as (SELECT {stringBuilderParameters.ToString()} ");
-            stringBuilder.AppendLine($"FROM (SELECT {stringBuilderParametersValues.ToString()}) as [c]");
+            stringBuilder.AppendLine($"WITH CHANGESET as (SELECT {stringBuilderParameters} ");
+            stringBuilder.AppendLine($"FROM (SELECT {stringBuilderParametersValues}) as [c]");
             stringBuilder.AppendLine($"LEFT JOIN {trackingName.Quoted().ToString()} AS [side] ON {str1}");
             stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} AS [base] ON {str2}");
-            //stringBuilder.AppendLine($"WHERE ({SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[base]")} ");
             stringBuilder.AppendLine($"WHERE ([side].[timestamp] < @sync_min_timestamp OR [side].[update_scope_id] = @sync_scope_id) ");
             stringBuilder.Append($"OR ({SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[base]")} ");
             stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[timestamp] IS NULL)) ");
@@ -292,7 +294,7 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($")");
 
             stringBuilder.AppendLine($"INSERT INTO {tableName.Quoted().ToString()}");
-            stringBuilder.AppendLine($"({stringBuilderArguments.ToString()})");
+            stringBuilder.AppendLine($"({stringBuilderArguments})");
             // use CTE here. The CTE is required in order to make the "ON CONFLICT" statement work. Otherwise SQLite cannot parse it
             // Note, that we have to add the pseudo WHERE TRUE clause here, as otherwise the SQLite parser may confuse the following ON
             // with a join clause, thus, throwing a parsing error

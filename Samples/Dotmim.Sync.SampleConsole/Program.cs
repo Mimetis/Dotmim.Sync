@@ -36,6 +36,8 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using Dotmim.Sync.SqlServer.Builders;
 using Microsoft.Extensions.Options;
 using System.Security.Cryptography.X509Certificates;
+using Dotmim.Sync.PostgreSql;
+using Npgsql;
 
 #if NET5_0 || NET6_0 || NET7_0
 using MySqlConnector;
@@ -69,16 +71,16 @@ internal class Program
 
         //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
         //var clientProvider = new SqliteSyncProvider("dada.db");
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
 
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        var setup = new SyncSetup(allTables);
-        //var setup = new SyncSetup(oneTable);
+        // var setup = new SyncSetup(allTables);
+        var setup = new SyncSetup(oneTable);
         //var setup = new SyncSetup("ProductCategory", "ProductDescription", "Product");
-        //setup.Tables["Address"].Columns.AddRange("AddressID", "CreatedDate", "ModifiedDate");
 
         var options = new SyncOptions();
         //options.Logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Information);
@@ -87,7 +89,7 @@ internal class Program
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
-        //setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
+        // setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
 
         //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitserver"));
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitclient"));
@@ -119,8 +121,7 @@ internal class Program
 
         //await GenerateErrorsAsync();
 
-        await SynchronizeWithScopesAsync(clientProvider, serverProvider, setup, options);
-        //await LoadLocalSchemaAsync();
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
     }
 
     private static async Task ChangeSetupInProgressAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
@@ -205,7 +206,7 @@ internal class Program
 
                 // new parameters for new lines added
                 var allRowsParameters = new SyncParameters(("IsActive", null));
-                
+
                 // Create manually the new accessories scope client
                 var allRowsScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync(
                     syncParameters: allRowsParameters);
@@ -249,6 +250,7 @@ internal class Program
 
         //options.ProgressLevel = SyncProgressLevel.Debug;
         // Creating an agent that will handle all the process
+        options.DisableConstraintsOnApplyChanges = true;
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
         do
@@ -1848,9 +1850,9 @@ internal class Program
                         Console.WriteLine($"{durationTs:mm\\:ss\\.fff} {s.ProgressPercentage:p}:\t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}");
                         Console.ResetColor();
                     });
-                    
+
                     options.ProgressLevel = SyncProgressLevel.Debug;
-                    
+
                     // create the agent
                     var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
 
