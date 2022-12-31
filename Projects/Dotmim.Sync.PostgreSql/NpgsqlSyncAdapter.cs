@@ -85,7 +85,7 @@ namespace Dotmim.Sync.PostgreSql
                     this.SetSelectChangesParameters(command, filter);
                     break;
                 case DbCommandType.SelectRow:
-                    this.SetSelectRowParameters(command);
+                    this.SetSelectRowParameter(command);
                     break;
                 case DbCommandType.DeleteMetadata:
                     this.SetDeleteMetadataParameters(command);

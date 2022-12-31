@@ -33,7 +33,7 @@ namespace Dotmim.Sync.PostgreSql
                 var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn, "\"").Unquoted().Normalized().ToString();
 
-                stringBuilderWhere.Append($@"{empty}side.{columnName} = ""@{parameterName}""");
+                stringBuilderWhere.Append($@"{empty}side.{columnName} = @{parameterName}");
                 empty = " AND ";
             }
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
@@ -72,7 +72,7 @@ namespace Dotmim.Sync.PostgreSql
         }
 
 
-        private void SetSelectRowParameters(DbCommand command)
+        private void SetSelectRowParameter(DbCommand command)
         {
             DbParameter p;
             foreach (var column in this.TableDescription.GetPrimaryKeysColumns())
