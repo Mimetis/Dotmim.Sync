@@ -268,7 +268,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
             var command = connection.CreateCommand();
             command.Transaction = transaction;
 
-            command.CommandText = $"select {NpgsqlObjectNames.TimestampValue}";
+            command.CommandText = $"select {NpgsqlSyncAdapter.TimestampValue}";
 
             DbParameter p = command.CreateParameter();
             p.ParameterName = "@sync_new_timestamp";

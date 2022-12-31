@@ -13,6 +13,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.ComTypes;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
@@ -283,6 +284,7 @@ namespace Dotmim.Sync
             // what kind of command to execute
             var init = message.IsNew || context.SyncType != SyncType.Normal;
             DbCommandType dbCommandType = applyType == SyncRowState.Deleted ? DbCommandType.DeleteRows : (init ? DbCommandType.InsertRows : DbCommandType.UpdateRows);
+            DbCommandType dbPreCommandType = applyType == SyncRowState.Deleted ? DbCommandType.PreDeleteRows : (init ? DbCommandType.PreInsertRows : DbCommandType.PreUpdateRows);
 
             this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. table {{tableName}}. init {{init}} command type {{dbCommandType}}", schemaTable.GetFullName(), init, dbCommandType);
 
@@ -293,32 +295,6 @@ namespace Dotmim.Sync
             // get executioning adapter
             var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaChangesTable, scopeInfo.Setup);
 
-            IEnumerable<BatchPartInfo> bpiTables;
-            // Get command
-            DbCommand command;
-            bool isBatch;
-            string cmdText;
-
-            await using (var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
-            {
-                (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType, null,
-                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
-
-                if (command == null)
-                    return default;
-
-                bpiTables = message.Changes.GetBatchPartsInfo(schemaTable);
-
-                // launch interceptor if any
-                var args = new TableChangesApplyingArgs(context, message.Changes, bpiTables, schemaTable, applyType, command, connection, transaction);
-                await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-
-                if (args.Cancel || args.Command == null)
-                    return default;
-
-                command = args.Command;
-                cmdText = command.CommandText;
-            }
 
             TableChangesApplied tableChangesApplied = null;
 
@@ -344,8 +320,22 @@ namespace Dotmim.Sync
 
             string batchPartInfoFileName = null;
 
+            IEnumerable<BatchPartInfo> bpiTables;
+            // Get command
+            DbCommand command = null;
+            bool isBatch = false;
+            string cmdText;
+
             try
             {
+
+                bpiTables = message.Changes.GetBatchPartsInfo(schemaTable);
+
+                // launch interceptor if any
+                var args = new TableChangesApplyingArgs(context, message.Changes, bpiTables, schemaTable, applyType, command, connection, transaction);
+                await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+
+
                 foreach (var batchPartInfo in bpiTables)
                 {
                     var batchChangesApplyingArgs = new BatchChangesApplyingArgs(context, message.Changes, batchPartInfo, schemaTable, applyType, command, connection, transaction);
@@ -367,6 +357,23 @@ namespace Dotmim.Sync
                     var batchRows = new List<SyncRow>();
 
                     await using var runner = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.PerBatch ? SyncMode.WithTransaction : SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    // Pre command if exists
+                    var (preCommand, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbPreCommandType, null,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    if (preCommand != null)
+                    {
+                        await this.InterceptAsync(new ExecuteCommandArgs(context, preCommand, dbPreCommandType, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                        await preCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+                        preCommand.Dispose();
+                    }
+
+                    (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType, null,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+
+                    if (command == null)
+                        return default;
 
                     if (isBatch)
                     {
@@ -390,7 +397,6 @@ namespace Dotmim.Sync
                             if (batchRows.Count <= 0)
                                 continue;
 
-                            command.CommandText = cmdText;
                             command.Connection = runner.Connection;
                             command.Transaction = runner.Transaction;
 
@@ -472,7 +478,6 @@ namespace Dotmim.Sync
                             if (applyType == SyncRowState.Deleted && syncRow.RowState != SyncRowState.RetryDeletedOnNextSync && syncRow.RowState != SyncRowState.Deleted)
                                 continue;
 
-                            command.CommandText = cmdText;
                             command.Connection = runner.Connection;
                             command.Transaction = runner.Transaction;
 
@@ -523,6 +528,7 @@ namespace Dotmim.Sync
                 if ((conflictRows != null && conflictRows.Count > 0) || (errorsRows != null && errorsRows.Count > 0))
                 {
                     await using var runnerError = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.None ? SyncMode.NoTransaction : SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
 
                     // If conflicts occured
                     foreach (var conflictRow in conflictRows)

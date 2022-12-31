@@ -50,10 +50,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var identity = string.Empty;
 
             if (column.IsAutoIncrement)
-            {
-                //var s = column.GetAutoIncrementSeedAndStep();
                 identity = $"SERIAL";
-            }
+
             var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
             // if we have a computed column, we should allow null
@@ -62,12 +60,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             string defaultValue = string.Empty;
             if (this.tableDescription.OriginalProvider == NpgsqlSyncProvider.ProviderType)
-            {
                 if (!string.IsNullOrEmpty(column.DefaultValue))
-                {
                     defaultValue = "DEFAULT " + column.DefaultValue;
-                }
-            }
 
             stringBuilder.AppendLine($"ADD {columnNameString} {columnType} {identity} {nullString} {defaultValue}");
 
@@ -185,7 +179,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             command.CommandText = @"select exists (select from information_schema.columns 
                                         where table_schema=@schemaname 
                                         and table_name=@tablename 
-                                        and column_name =@columnname);";
+                                        and column_name=@columnname);";
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";

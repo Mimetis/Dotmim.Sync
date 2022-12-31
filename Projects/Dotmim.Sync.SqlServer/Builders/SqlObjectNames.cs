@@ -41,12 +41,9 @@ namespace Dotmim.Sync.SqlServer.Builders
         private readonly ParserName tableName;
         private readonly ParserName trackingName;
 
-        //internal const string disableConstraintsText = "sp_msforeachtable";
-        //internal const string enableConstraintsText = "sp_msforeachtable";
-
-        Dictionary<DbStoredProcedureType, string> storedProceduresNames = new Dictionary<DbStoredProcedureType, string>();
-        Dictionary<DbTriggerType, string> triggersNames = new Dictionary<DbTriggerType, string>();
-        Dictionary<DbCommandType, string> commandNames = new Dictionary<DbCommandType, string>();
+        Dictionary<DbStoredProcedureType, string> storedProceduresNames = new();
+        Dictionary<DbTriggerType, string> triggersNames = new();
+        Dictionary<DbCommandType, string> commandNames = new();
 
         public SyncTable TableDescription { get; }
         public SyncSetup Setup { get; }

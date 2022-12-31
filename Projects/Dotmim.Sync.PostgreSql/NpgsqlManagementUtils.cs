@@ -14,9 +14,8 @@ namespace Dotmim.Sync.PostgreSql
 {
     public static class NpgsqlManagementUtils
     {
-        public static string ColumnsAndParameters(IEnumerable<string> columns, string fromPrefix)
+        public static string ColumnsAndParameters(IEnumerable<string> columns, string fromPrefix, string sql_prefix)
         {
-            var prefix_parameter = NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER;
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
             string str1 = "";
@@ -29,27 +28,10 @@ namespace Dotmim.Sync.PostgreSql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"\"{prefix_parameter}{unquotedColumn}\"");
+                stringBuilder.Append($"\"{sql_prefix}{unquotedColumn}\"");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
-        }
-
-        public static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "", string sql_prefix = NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER)
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
-            string strSeparator = "";
-            foreach (var mutableColumn in table.GetMutableColumns(false))
-            {
-                var unquotedColumn = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
-                var quotedColumn = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
-
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn} = \"{sql_prefix}{unquotedColumn}\"");
-                strSeparator = ", ";
-            }
-            return stringBuilder.ToString();
-
         }
 
         public static async Task<bool> DatabaseExistsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction)
@@ -83,6 +65,35 @@ namespace Dotmim.Sync.PostgreSql
                     connection.Close();
             }
             return tableExist;
+        }
+
+
+        public static async Task<int> DatabaseVersionAsync(NpgsqlConnection connection, NpgsqlTransaction transaction)
+        {
+            int v = 0;
+
+            using (DbCommand dbCommand = connection.CreateCommand())
+            {
+                dbCommand.CommandText = "SHOW server_version_num;";
+
+                bool alreadyOpened = connection.State == ConnectionState.Open;
+
+                if (!alreadyOpened)
+                    await connection.OpenAsync().ConfigureAwait(false);
+
+                if (transaction != null)
+                    dbCommand.Transaction = transaction;
+
+                var result = await dbCommand.ExecuteScalarAsync().ConfigureAwait(false);
+
+                if (result != DBNull.Value)
+                    if (!int.TryParse(result.ToString(), out v))
+                        v = -1;
+
+                if (!alreadyOpened)
+                    connection.Close();
+            }
+            return v;
         }
 
         public static async Task DropProcedureIfExistsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, int commandTimout, string quotedProcedureName)
@@ -801,7 +812,7 @@ namespace Dotmim.Sync.PostgreSql
             throw new NotImplementedException();
         }
 
-        public static string WhereColumnAndParameters(IEnumerable<SyncColumn> primaryKeys, string fromPrefix, string mysql_prefix = NpgsqlBuilderProcedure.NPGSQL_PREFIX_PARAMETER)
+        public static string WhereColumnAndParameters(IEnumerable<SyncColumn> primaryKeys, string fromPrefix, string mysql_prefix)
         {
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");

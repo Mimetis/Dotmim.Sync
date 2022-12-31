@@ -29,6 +29,16 @@ namespace Dotmim.Sync
             // get executioning adapter
             var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
 
+            // Pre command if exists
+            var (preCommand, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.PreDeleteRow, null, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            if (preCommand != null)
+            {
+                await this.InterceptAsync(new ExecuteCommandArgs(context, preCommand, DbCommandType.PreDeleteRow, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await preCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+                preCommand.Dispose();
+            }
+
             var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DeleteRow, null,
                 connection, transaction, default, default).ConfigureAwait(false);
 
@@ -94,6 +104,16 @@ namespace Dotmim.Sync
         {
 
             var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+
+            // Pre command if exists
+            var (preCommand, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.PreUpdateRow, null, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            if (preCommand != null)
+            {
+                await this.InterceptAsync(new ExecuteCommandArgs(context, preCommand, DbCommandType.PreUpdateRow, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await preCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+                preCommand.Dispose();
+            }
 
             var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.UpdateRow, null,
                 connection, transaction, default, default).ConfigureAwait(false);

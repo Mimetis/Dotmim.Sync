@@ -22,6 +22,14 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             if (!exists)
                 throw new MissingDatabaseException(connection.Database);
+
+            var version = await NpgsqlManagementUtils.DatabaseVersionAsync(connection as NpgsqlConnection, transaction as NpgsqlTransaction).ConfigureAwait(false);
+
+            // PostgreSQL version 15.1 supported only
+            if (version < 150000)
+                throw new InvalidDatabaseVersionException(version.ToString(), "PostgreSQL");
+
+
         }
         public override Task<SyncTable> EnsureTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
             => Task.FromResult(new SyncTable(tableName, schemaName));

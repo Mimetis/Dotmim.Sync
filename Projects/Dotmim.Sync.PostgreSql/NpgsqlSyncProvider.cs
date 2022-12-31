@@ -14,6 +14,7 @@ namespace Dotmim.Sync.PostgreSql
         static string shortProviderType;
         private NpgsqlConnectionStringBuilder builder;
         private NpgsqlDbMetadata dbMetadata;
+        internal const string NPGSQL_PREFIX_PARAMETER = "in_";
 
 
         public NpgsqlSyncProvider() : base() { }
@@ -91,7 +92,7 @@ namespace Dotmim.Sync.PostgreSql
 
         public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup = null)
         {
-            var originalTableName = ParserName.Parse(tableDescription);
+            var originalTableName = ParserName.Parse(tableDescription, "\"");
 
             var pref = setup?.TrackingTablesPrefix;
             var suf = setup?.TrackingTablesSuffix;
@@ -106,7 +107,7 @@ namespace Dotmim.Sync.PostgreSql
             if (!string.IsNullOrEmpty(originalTableName.SchemaName))
                 trakingTableNameString = $"{originalTableName.SchemaName}.{trakingTableNameString}";
 
-            var trackingTableName = ParserName.Parse(trakingTableNameString);
+            var trackingTableName = ParserName.Parse(trakingTableNameString, "\"");
 
             return (originalTableName, trackingTableName);
         }
