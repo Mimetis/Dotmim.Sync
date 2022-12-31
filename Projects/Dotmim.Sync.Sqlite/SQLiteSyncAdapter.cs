@@ -79,13 +79,6 @@ namespace Dotmim.Sync.Sqlite
                 case DbCommandType.UpdateMetadata:
                     this.SetUpdateMetadataParameters(command);
                     break;
-                case DbCommandType.PreDeleteRow:
-                case DbCommandType.PreDeleteRows:
-                case DbCommandType.PreInsertRow:
-                case DbCommandType.PreInsertRows:
-                case DbCommandType.PreUpdateRow:
-                case DbCommandType.PreUpdateRows:
-                    return (default, false);
                 default:
                     break;
             }
