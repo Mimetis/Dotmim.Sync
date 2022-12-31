@@ -17,12 +17,9 @@ namespace Dotmim.Sync.Sqlite
 
         public SqliteSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName) : base(tableDescription, setup, scopeName)
         {
-
             this.sqliteObjectNames = new SqliteObjectNames(this.TableDescription, tableName, trackingName, this.Setup, scopeName);
             this.sqliteDbMetadata = new SqliteDbMetadata();
         }
-
-       
 
         public override (DbCommand, bool) GetCommand(DbCommandType commandType, SyncFilter filter = null)
         {
@@ -74,7 +71,6 @@ namespace Dotmim.Sync.Sqlite
                     this.SetInitializeRowParameters(command);
                     break;
                 case DbCommandType.Reset:
-                    this.SetResetParameters(command);
                     break;
                 case DbCommandType.UpdateMetadata:
                     this.SetUpdateMetadataParameters(command);
@@ -84,11 +80,6 @@ namespace Dotmim.Sync.Sqlite
             }
 
             return Task.CompletedTask;
-        }
-
-        private void SetResetParameters(DbCommand command)
-        {
-            // nothing to set here
         }
 
         private DbType GetValidDbType(DbType dbType)

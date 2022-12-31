@@ -367,7 +367,7 @@ namespace Dotmim.Sync.PostgreSql
 
                 var tableName = ParserName.Parse(tableFilter, "\"").Unquoted().ToString();
                 if (string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison))
-                    tableName = @"""base""";
+                    tableName = "\"base\"";
                 else
                     tableName = ParserName.Parse(tableFilter, "\"").Quoted().ToString();
 
@@ -379,10 +379,10 @@ namespace Dotmim.Sync.PostgreSql
                 if (param == null)
                     throw new FilterParamColumnNotExistsException(columnName, whereFilter.TableName);
 
-                stringBuilder.Append($"{and2}({tableName}.{columnName} = \"@{parameterName}\"");
+                stringBuilder.Append($"{and2}({tableName}.{columnName} = @{parameterName}");
 
                 if (param.AllowNull)
-                    stringBuilder.Append($" OR \"@{parameterName}\" IS NULL");
+                    stringBuilder.Append($" OR @{parameterName} IS NULL");
 
                 stringBuilder.Append($")");
 

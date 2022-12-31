@@ -5,9 +5,7 @@
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
 		<TargetFrameworkNet7>net7.0</TargetFrameworkNet7>
 		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
-
 		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet6);$(TargetFrameworkNet7);$(TargetFrameworkNetCore)</TargetFrameworks>
-
 		<Authors>Sébastien Pertus, Waseem Ahmad Mughal</Authors>
 		<Company>Microsoft</Company>
 		<Title>Dotmim.Sync.PostgreSql</Title>
