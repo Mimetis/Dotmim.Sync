@@ -112,6 +112,13 @@ namespace Dotmim.Sync.Sqlite
             this.AddCommandName(DbCommandType.DisableConstraints, "Select 0"); // PRAGMA foreign_keys = OFF
             this.AddCommandName(DbCommandType.EnableConstraints, "Select 0");
 
+            this.AddCommandName(DbCommandType.PreDeleteRow, "Select 0");
+            this.AddCommandName(DbCommandType.PreDeleteRows, "Select 0");
+            this.AddCommandName(DbCommandType.PreInsertRow, "Select 0");
+            this.AddCommandName(DbCommandType.PreInsertRows, "Select 0");
+            this.AddCommandName(DbCommandType.PreUpdateRow, "Select 0");
+            this.AddCommandName(DbCommandType.PreUpdateRows, "Select 0");
+
         }
 
         private void CreateResetCommandText()

@@ -115,6 +115,14 @@ namespace Dotmim.Sync.MySql
                     command.CommandType = CommandType.StoredProcedure;
                     command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
                     break;
+                case DbCommandType.BulkTableType:
+                case DbCommandType.PreUpdateRows:
+                case DbCommandType.PreInsertRows:
+                case DbCommandType.PreDeleteRows:
+                case DbCommandType.PreUpdateRow:
+                case DbCommandType.PreInsertRow:
+                case DbCommandType.PreDeleteRow:
+                    return (default, false);
                 default:
                     throw new NotImplementedException($"This command type {nameType} is not implemented");
             }
