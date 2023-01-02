@@ -6,6 +6,7 @@ using Dotmim.Sync.Serialization;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
@@ -13,6 +14,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Transactions;
 
 namespace Dotmim.Sync
 {
@@ -126,7 +128,7 @@ namespace Dotmim.Sync
                 if (batchInfo.RowsCount <= 0)
                 {
                     var cleanFolder = await this.InternalCanCleanFolderAsync(scopeInfo.Name, context.Parameters, batchInfo).ConfigureAwait(false);
-                    
+
                     if (cleanFolder)
                         batchInfo.TryRemoveDirectory();
                 }
@@ -190,21 +192,25 @@ namespace Dotmim.Sync
                 var schemaChangesTable = CreateChangesTable(syncTable);
 
                 // numbers of batch files generated
-                var batchIndex = -1;
+                //var batchIndex = -1;
 
                 var localSerializerModified = new LocalJsonSerializer(this, context);
                 var localSerializerDeleted = new LocalJsonSerializer(this, context);
 
-                string batchPartInfoFullPathModified = null, batchPartFileNameModified = null;
-                string batchPartInfoFullPathDeleted = null, batchPartFileNameDeleted = null;
+                //string batchPartInfoFullPathModified = null, batchPartFileNameModified = null;
+                //string batchPartInfoFullPathDeleted = null, batchPartFileNameDeleted = null;
 
                 // Statistics
                 var tableChangesSelected = new TableChangesSelected(schemaChangesTable.TableName, schemaChangesTable.SchemaName);
 
-                var rowsCountInBatchModified = 0;
-                var rowsCountInBatchDeleted = 0;
+                //var rowsCountInBatchModified = 0;
+                //var rowsCountInBatchDeleted = 0;
 
-                var syncTableBatchPartInfos = new List<BatchPartInfo>();
+                var batchPartInfos = new List<BatchPartInfo>();
+
+                BatchPartInfo batchPartInfoUpserts = null;
+                BatchPartInfo batchPartInfoDeleted = null;
+
 
                 // launch interceptor if any
                 var args = await this.InterceptAsync(new TableChangesSelectingArgs(context, schemaChangesTable, selectIncrementalChangesCommand, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
@@ -223,7 +229,7 @@ namespace Dotmim.Sync
                     while (dataReader.Read())
                     {
                         // Create a row from dataReader
-                        var syncRow = CreateSyncRowFromReader2(context, dataReader, schemaChangesTable);
+                        var syncRow = CreateSyncRowFromReader(context, dataReader, schemaChangesTable);
 
                         var tableChangesSelectedSyncRowArgs = await this.InterceptAsync(new RowsChangesSelectedArgs(context, syncRow, schemaChangesTable, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                         syncRow = tableChangesSelectedSyncRowArgs.SyncRow;
@@ -231,119 +237,180 @@ namespace Dotmim.Sync
                         if (syncRow == null)
                             continue;
 
-                        // Set the correct state to be applied
                         if (syncRow.RowState == SyncRowState.Deleted)
-                        {
-                            // open the file and write table header for all deleted rows
-                            if (!localSerializerDeleted.IsOpen)
-                            {
-                                batchIndex++;
-                                (batchPartInfoFullPathDeleted, batchPartFileNameDeleted) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerDeleted.Extension, "DELETED");
-                                localSerializerDeleted.OpenFile(batchPartInfoFullPathDeleted, schemaChangesTable);
-                            }
+                            batchPartInfoDeleted = await this.InternalAddRowToBatchPartInfoAsync(context, localSerializerDeleted, syncRow, batchInfo, batchPartInfoDeleted, batchPartInfos, schemaChangesTable, tableChangesSelected, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        else
+                            batchPartInfoUpserts = await this.InternalAddRowToBatchPartInfoAsync(context, localSerializerModified, syncRow, batchInfo, batchPartInfoUpserts, batchPartInfos, schemaChangesTable, tableChangesSelected, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                            tableChangesSelected.Deletes++;
-                            rowsCountInBatchDeleted++;
+                        //// Set the correct state to be applied
+                        //if (syncRow.RowState == SyncRowState.Deleted)
+                        //{
+                        //    // open the file and write table header for all deleted rows
+                        //    if (!localSerializerDeleted.IsOpen)
+                        //    {
+                        //        batchIndex++;
+                        //        (batchPartInfoFullPathDeleted, batchPartFileNameDeleted) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerDeleted.Extension, "DELETED");
+                        //        localSerializerDeleted.OpenFile(batchPartInfoFullPathDeleted, schemaChangesTable);
+                        //    }
 
-                            await localSerializerDeleted.WriteRowToFileAsync(syncRow, schemaChangesTable).ConfigureAwait(false);
+                        //    tableChangesSelected.Deletes++;
+                        //    rowsCountInBatchDeleted++;
 
-                            var currentBatchSizeDeleted = await localSerializerDeleted.GetCurrentFileSizeAsync().ConfigureAwait(false);
+                        //    await localSerializerDeleted.WriteRowToFileAsync(syncRow, schemaChangesTable).ConfigureAwait(false);
 
-                            if (currentBatchSizeDeleted > this.Options.BatchSize)
-                            {
-                                //Add a new batch part info with deleted rows
-                                batchIndex++;
-                                var bpiDeleted = new BatchPartInfo(batchPartFileNameDeleted, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchDeleted, batchIndex);
-                                syncTableBatchPartInfos.Add(bpiDeleted);
+                        //    var currentBatchSizeDeleted = await localSerializerDeleted.GetCurrentFileSizeAsync().ConfigureAwait(false);
 
-                                // Close file
-                                if (localSerializerDeleted.IsOpen)
-                                    localSerializerDeleted.CloseFile();
+                        //    if (currentBatchSizeDeleted > this.Options.BatchSize)
+                        //    {
+                        //        //Add a new batch part info with deleted rows
+                        //        var bpiDeleted = new BatchPartInfo(batchPartFileNameDeleted, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchDeleted, batchIndex);
+                        //        batchPartInfos.Add(bpiDeleted);
 
-                                rowsCountInBatchDeleted = 0;
+                        //        // Close file
+                        //        if (localSerializerDeleted.IsOpen)
+                        //        {
+                        //            localSerializerDeleted.CloseFile();
+                        //            await this.InterceptAsync(new BatchChangesCreatedArgs(context, bpiDeleted, syncTable, tableChangesSelected, SyncRowState.Deleted, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                        //        }
 
-                                (batchPartInfoFullPathDeleted, batchPartFileNameDeleted) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerDeleted.Extension, "DELETED");
-                            }
+                        //        batchIndex++;
+                        //        rowsCountInBatchDeleted = 0;
+                        //        (batchPartInfoFullPathDeleted, batchPartFileNameDeleted) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerDeleted.Extension, "DELETED");
+                        //    }
 
-                        }
-                        else if (syncRow.RowState == SyncRowState.Modified)
-                        {
-                            // open the file and write table header for all Inserted / Modified rows
-                            if (!localSerializerModified.IsOpen)
-                            {
-                                batchIndex++;
-                                (batchPartInfoFullPathModified, batchPartFileNameModified) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerModified.Extension, "UPSERTS");
-                                localSerializerModified.OpenFile(batchPartInfoFullPathModified, schemaChangesTable);
-                            }
+                        //}
+                        //else if (syncRow.RowState == SyncRowState.Modified)
+                        //{
+                        //    // open the file and write table header for all Inserted / Modified rows
+                        //    if (!localSerializerModified.IsOpen)
+                        //    {
+                        //        batchIndex++;
+                        //        (batchPartInfoFullPathModified, batchPartFileNameModified) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerModified.Extension, "UPSERTS");
+                        //        localSerializerModified.OpenFile(batchPartInfoFullPathModified, schemaChangesTable);
+                        //    }
 
-                            rowsCountInBatchModified++;
-                            tableChangesSelected.Upserts++;
-                            await localSerializerModified.WriteRowToFileAsync(syncRow, schemaChangesTable).ConfigureAwait(false);
-                            var currentBatchSizeModified = await localSerializerModified.GetCurrentFileSizeAsync().ConfigureAwait(false);
+                        //    rowsCountInBatchModified++;
+                        //    tableChangesSelected.Upserts++;
+                        //    await localSerializerModified.WriteRowToFileAsync(syncRow, schemaChangesTable).ConfigureAwait(false);
+                        //    var currentBatchSizeModified = await localSerializerModified.GetCurrentFileSizeAsync().ConfigureAwait(false);
 
-                            if (currentBatchSizeModified > this.Options.BatchSize)
-                            {
-                                //Add a new batch part info with modified rows
-                                batchIndex++;
-                                var bpiModified = new BatchPartInfo(batchPartFileNameModified, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchModified, batchIndex);
-                                syncTableBatchPartInfos.Add(bpiModified);
+                        //    if (currentBatchSizeModified > this.Options.BatchSize)
+                        //    {
+                        //        //Add a new batch part info with modified rows
+                        //        var bpiModified = new BatchPartInfo(batchPartFileNameModified, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchModified, batchIndex);
+                        //        batchPartInfos.Add(bpiModified);
 
-                                // Close file
-                                if (localSerializerModified.IsOpen)
-                                    localSerializerModified.CloseFile();
+                        //        // Close file
+                        //        if (localSerializerModified.IsOpen)
+                        //        {
+                        //            localSerializerModified.CloseFile();
+                        //            await this.InterceptAsync(new BatchChangesCreatedArgs(context, bpiModified, syncTable, tableChangesSelected, SyncRowState.Modified, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                        //        }
 
-                                rowsCountInBatchModified = 0;
+                        //        rowsCountInBatchModified = 0;
+                        //        batchIndex++;
 
-                                (batchPartInfoFullPathModified, batchPartFileNameModified) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerModified.Extension, "UPSERTS");
-                            }
-                        }
+                        //        (batchPartInfoFullPathModified, batchPartFileNameModified) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, batchIndex, localSerializerModified.Extension, "UPSERTS");
+                        //    }
+                        //}
                     }
 
                     dataReader.Close();
 
+
+                    var CloseSerializer = new Func<LocalJsonSerializer, BatchChangesCreatedArgs, Task>((localJsonSerializer, args) =>
+                    {
+                        // Close file
+                        if (localJsonSerializer != null && localJsonSerializer.IsOpen)
+                        {
+                            localJsonSerializer.CloseFile();
+                            return this.InterceptAsync(args, progress, cancellationToken);
+                        }
+                        return Task.CompletedTask;
+                    });
+
+                    if (batchPartInfoUpserts != null || batchPartInfoDeleted != null)
+                    {
+                        if (batchPartInfoUpserts?.Index > batchPartInfoDeleted?.Index)
+                        {
+                            await CloseSerializer(localSerializerDeleted, new BatchChangesCreatedArgs(context, batchPartInfoDeleted, schemaChangesTable, tableChangesSelected, SyncRowState.Deleted, connection, transaction)).ConfigureAwait(false);
+                            await CloseSerializer(localSerializerModified, new BatchChangesCreatedArgs(context, batchPartInfoUpserts, schemaChangesTable, tableChangesSelected, SyncRowState.Modified, connection, transaction)).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await CloseSerializer(localSerializerModified, new BatchChangesCreatedArgs(context, batchPartInfoUpserts, schemaChangesTable, tableChangesSelected, SyncRowState.Modified, connection, transaction)).ConfigureAwait(false);
+                            await CloseSerializer(localSerializerDeleted, new BatchChangesCreatedArgs(context, batchPartInfoDeleted, schemaChangesTable, tableChangesSelected, SyncRowState.Deleted, connection, transaction)).ConfigureAwait(false);
+                        }
+
+                    }
+
+
                     // Close file
                     if (localSerializerModified.IsOpen)
+                    {
                         localSerializerModified.CloseFile();
+                        await this.InterceptAsync(new BatchChangesCreatedArgs(context, batchPartInfoUpserts, schemaChangesTable, tableChangesSelected, SyncRowState.Modified, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+                    }
 
                     if (localSerializerDeleted.IsOpen)
-                        localSerializerDeleted.CloseFile();
-                }
-
-                // Check if we have ..something.
-                // Delete folder if nothing
-                // Add the BPI to BI if something
-                if (rowsCountInBatchModified == 0)
-                {
-                    if (!string.IsNullOrEmpty(batchPartInfoFullPathModified) && File.Exists(batchPartInfoFullPathModified))
-                        File.Delete(batchPartInfoFullPathModified);
-                }
-                else
-                {
-                    var bpi2 = new BatchPartInfo(batchPartFileNameModified, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchModified, batchIndex);
-                    bpi2.IsLastBatch = true;
-                    syncTableBatchPartInfos.Add(bpi2);
-                }
-
-                if (rowsCountInBatchDeleted == 0)
-                {
-                    if (!string.IsNullOrEmpty(batchPartInfoFullPathDeleted) && File.Exists(batchPartInfoFullPathDeleted))
-                        File.Delete(batchPartInfoFullPathDeleted);
-                }
-                else
-                {
-                    var bpi2 = new BatchPartInfo(batchPartFileNameDeleted, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchDeleted, batchIndex)
                     {
-                        IsLastBatch = true
-                    };
-
-                    syncTableBatchPartInfos.Add(bpi2);
+                        localSerializerDeleted.CloseFile();
+                        await this.InterceptAsync(new BatchChangesCreatedArgs(context, batchPartInfoDeleted, schemaChangesTable, tableChangesSelected, SyncRowState.Deleted, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                    }
                 }
 
-                // even if no rows raise the interceptor
-                var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, batchInfo, syncTableBatchPartInfos, syncTable, tableChangesSelected, connection, transaction);
+                foreach (var bpi in batchPartInfos.ToArray())
+                {
+                    string fullPath = batchInfo.GetBatchPartInfoPath(bpi).FullPath;
+
+                    if (fullPath != null && bpi.RowsCount == 0 && File.Exists(fullPath))
+                    {
+                        File.Delete(fullPath);
+                        batchPartInfos.Remove(bpi);
+                    }
+                }
+
+                //// Check if we have ..something.
+                //// Delete folder if nothing
+                //// Add the BPI to BI if something
+                //if (rowsCountInBatchModified == 0)
+                //{
+                //    if (!string.IsNullOrEmpty(batchPartInfoFullPathModified) && File.Exists(batchPartInfoFullPathModified))
+                //        File.Delete(batchPartInfoFullPathModified);
+                //}
+                //else
+                //{
+                //    var bpi2 = new BatchPartInfo(batchPartFileNameModified, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchModified, batchIndex)
+                //    {
+                //        IsLastBatch = true
+                //    };
+                //    batchPartInfos.Add(bpi2);
+                //    await this.InterceptAsync(new BatchChangesCreatedArgs(context, bpi2, syncTable, tableChangesSelected, SyncRowState.Modified, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                //    batchIndex++;
+                //}
+
+                //if (rowsCountInBatchDeleted == 0)
+                //{
+                //    if (!string.IsNullOrEmpty(batchPartInfoFullPathDeleted) && File.Exists(batchPartInfoFullPathDeleted))
+                //        File.Delete(batchPartInfoFullPathDeleted);
+                //}
+                //else
+                //{
+                //    var bpi2 = new BatchPartInfo(batchPartFileNameDeleted, tableChangesSelected.TableName, tableChangesSelected.SchemaName, rowsCountInBatchDeleted, batchIndex)
+                //    {
+                //        IsLastBatch = true
+                //    };
+
+                //    batchPartInfos.Add(bpi2);
+                //    await this.InterceptAsync(new BatchChangesCreatedArgs(context, bpi2, syncTable, tableChangesSelected, SyncRowState.Deleted, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+                //}
+
+                var tableChangesSelectedArgs = new TableChangesSelectedArgs(context, batchInfo, batchPartInfos, syncTable, tableChangesSelected, connection, transaction);
                 await this.InterceptAsync(tableChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
 
-                return (context, syncTableBatchPartInfos, tableChangesSelected);
+                return (context, batchPartInfos, tableChangesSelected);
             }
             catch (Exception ex)
             {
@@ -361,6 +428,45 @@ namespace Dotmim.Sync
 
                 throw GetSyncError(context, ex, message);
             }
+        }
+
+
+        internal async Task<BatchPartInfo> InternalAddRowToBatchPartInfoAsync(SyncContext context, LocalJsonSerializer localJsonSerializer, SyncRow syncRow, BatchInfo batchInfo,
+            BatchPartInfo batchPartInfo, List<BatchPartInfo> batchPartInfos, SyncTable schemaChangesTable, TableChangesSelected tableChangesSelected,
+            DbConnection connection, DbTransaction transaction,
+            CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            // open the file and write table header for all deleted rows
+
+            var ext = syncRow.RowState == SyncRowState.Deleted ? "DELETED" : "UPSERTS";
+            var index = batchPartInfos != null ? batchPartInfos.Count : 0;
+
+            if (!localJsonSerializer.IsOpen)
+            {
+                var (batchPartInfoFullPath, batchPartFileName) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, index, localJsonSerializer.Extension, ext);
+                localJsonSerializer.OpenFile(batchPartInfoFullPath, schemaChangesTable, syncRow.RowState);
+
+                batchPartInfo = new BatchPartInfo(batchPartFileName, schemaChangesTable.TableName, schemaChangesTable.SchemaName, syncRow.RowState,  0, index);
+                batchPartInfos.Add(batchPartInfo);
+            }
+
+            if (syncRow.RowState == SyncRowState.Deleted)
+                tableChangesSelected.Deletes++;
+            else
+                tableChangesSelected.Upserts++;
+
+            await localJsonSerializer.WriteRowToFileAsync(syncRow, schemaChangesTable).ConfigureAwait(false);
+            batchPartInfo.RowsCount++;
+
+            var currentBatchSize = await localJsonSerializer.GetCurrentFileSizeAsync().ConfigureAwait(false);
+
+            if (currentBatchSize > this.Options.BatchSize && localJsonSerializer.IsOpen)
+            {
+                localJsonSerializer.CloseFile();
+                await this.InterceptAsync(new BatchChangesCreatedArgs(context, batchPartInfo, schemaChangesTable, tableChangesSelected, syncRow.RowState, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            }
+
+            return batchPartInfo;
         }
 
         /// <summary>
@@ -600,7 +706,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a new SyncRow from a dataReader.
         /// </summary>
-        internal SyncRow CreateSyncRowFromReader2(SyncContext context, IDataReader dataReader, SyncTable schemaTable)
+        internal SyncRow CreateSyncRowFromReader(SyncContext context, IDataReader dataReader, SyncTable schemaTable)
         {
             // Create a new row, based on table structure
             SyncRow syncRow = null;

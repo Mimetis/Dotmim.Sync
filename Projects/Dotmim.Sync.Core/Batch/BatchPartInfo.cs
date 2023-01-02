@@ -68,6 +68,12 @@ namespace Dotmim.Sync.Batch
         public string SchemaName { get; set; }
 
         /// <summary>
+        /// Get or Set the schema used for the DmTableSurrogate
+        /// </summary>
+        [DataMember(Name = "state", IsRequired = false, EmitDefaultValue = false, Order = 8)]
+        public SyncRowState State { get; set; } = SyncRowState.None;
+
+        /// <summary>
         /// ctor for serialization purpose
         /// </summary>
         public BatchPartInfo()
@@ -77,13 +83,14 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// ctor for serialization purpose
         /// </summary>
-        public BatchPartInfo(string fileName, string tableName, string schemaName, int rowsCount = 0, int index = 0)
+        public BatchPartInfo(string fileName, string tableName, string schemaName, SyncRowState state, int rowsCount = 0, int index = 0)
         {
             this.FileName = fileName;
             this.TableName = tableName;
             this.SchemaName = schemaName;
             this.RowsCount = rowsCount;
             this.Index = index;
+            this.State = state;
         }
 
         /// <summary>

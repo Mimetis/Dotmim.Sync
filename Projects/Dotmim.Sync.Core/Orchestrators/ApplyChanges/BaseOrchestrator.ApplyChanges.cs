@@ -78,7 +78,7 @@ namespace Dotmim.Sync
                         failedRows.Add(syncRow);
 
                     // Open again the same file
-                    localSerializerWriter.OpenFile(lastSyncErrorsBpiFullPath, schemaChangesTable);
+                    localSerializerWriter.OpenFile(lastSyncErrorsBpiFullPath, schemaChangesTable, SyncRowState.None);
 
                     foreach (var batchPartInfo in bpiTables)
                     {
@@ -280,7 +280,6 @@ namespace Dotmim.Sync
             if (!hasChanges)
                 return default;
 
-
             // what kind of command to execute
             var init = message.IsNew || context.SyncType != SyncType.Normal;
             DbCommandType dbCommandType = applyType == SyncRowState.Deleted ? DbCommandType.DeleteRows : (init ? DbCommandType.InsertRows : DbCommandType.UpdateRows);
@@ -294,7 +293,6 @@ namespace Dotmim.Sync
 
             // get executioning adapter
             var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaChangesTable, scopeInfo.Setup);
-
 
             TableChangesApplied tableChangesApplied = null;
 
@@ -335,9 +333,14 @@ namespace Dotmim.Sync
                 var args = new TableChangesApplyingArgs(context, message.Changes, bpiTables, schemaTable, applyType, command, connection, transaction);
                 await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
 
-
                 foreach (var batchPartInfo in bpiTables)
                 {
+                    // Get full path of my batchpartinfo
+                    var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo).FullPath;
+
+                    if (batchPartInfo.State != SyncRowState.None && batchPartInfo.State != applyType)
+                        continue;
+
                     var batchChangesApplyingArgs = new BatchChangesApplyingArgs(context, message.Changes, batchPartInfo, schemaTable, applyType, command, connection, transaction);
                     // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
                     await this.InterceptAsync(batchChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
@@ -348,8 +351,6 @@ namespace Dotmim.Sync
                     // Rows fetch (either of the good state or not) from the BPI
                     var rowsFetched = 0;
 
-                    // Get full path of my batchpartinfo
-                    var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo).FullPath;
 
                     this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. Directory name {{directoryName}}. BatchParts count {{BatchPartsInfoCount}}", message.Changes.DirectoryName, message.Changes.BatchPartsInfo.Count);
 

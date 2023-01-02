@@ -1,3 +1,4 @@
+using Dotmim.Sync.Enumerations;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
@@ -84,7 +85,7 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Open the file and write header
         /// </summary>
-        public void OpenFile(string path, SyncTable shemaTable, bool append = false)
+        public void OpenFile(string path, SyncTable shemaTable, SyncRowState state, bool append = false)
         {
             if (this.writer != null)
             {
@@ -116,6 +117,8 @@ namespace Dotmim.Sync.Serialization
             this.writer.WriteValue(shemaTable.TableName);
             this.writer.WritePropertyName("s");
             this.writer.WriteValue(shemaTable.SchemaName);
+            this.writer.WritePropertyName("st");
+            this.writer.WriteValue((int)state);
 
             this.writer.WritePropertyName("c");
             this.writer.WriteStartArray();
@@ -186,7 +189,7 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Get the table contained in a serialized file
         /// </summary>
-        public (SyncTable schemaTable, int rowsCount) GetSchemaTableFromFile(string path)
+        public (SyncTable schemaTable, int rowsCount, SyncRowState state) GetSchemaTableFromFile(string path)
         {
             if (!File.Exists(path))
                 return default;
@@ -195,13 +198,13 @@ namespace Dotmim.Sync.Serialization
             int rowsCount = 0;
 
             SyncTable schemaTable = null;
+            SyncRowState state = SyncRowState.None;
 
             var serializer = new JsonSerializer { DateParseHandling = DateParseHandling.DateTimeOffset };
             using var reader = new JsonTextReader(new StreamReader(path));
 
             while (reader.Read())
             {
-
                 if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "n")
                 {
                     tableName = reader.ReadAsString();
@@ -211,6 +214,11 @@ namespace Dotmim.Sync.Serialization
                 if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "s")
                 {
                     schemaName = reader.ReadAsString();
+                    continue;
+                }
+                if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "st")
+                {
+                    state = (SyncRowState)reader.ReadAsInt32();
                     continue;
                 }
 
@@ -258,7 +266,7 @@ namespace Dotmim.Sync.Serialization
             }
 
 
-            return (schemaTable, rowsCount);
+            return (schemaTable, rowsCount, state);
         }
 
         /// <summary>
@@ -273,6 +281,7 @@ namespace Dotmim.Sync.Serialization
 
             using var reader = new JsonTextReader(new StreamReader(path));
             reader.DateParseHandling = DateParseHandling.DateTimeOffset;
+            SyncRowState state = SyncRowState.None;
 
             string tableName = null, schemaName = null;
 
@@ -287,6 +296,11 @@ namespace Dotmim.Sync.Serialization
                 if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "s")
                 {
                     schemaName = reader.ReadAsString();
+                    continue;
+                }
+                if (reader.TokenType == JsonToken.PropertyName && reader.ValueType == typeof(string) && reader.Value != null && (string)reader.Value == "st")
+                {
+                    state = (SyncRowState)reader.ReadAsInt32();
                     continue;
                 }
 
