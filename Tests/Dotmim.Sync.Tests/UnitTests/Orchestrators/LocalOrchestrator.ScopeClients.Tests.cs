@@ -50,5 +50,25 @@ namespace Dotmim.Sync.Tests.UnitTests
             HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
+        [Fact]
+        public async Task LocalOrchestrator_GetAllScopeClients_ShouldReturnsEmptyList_IfNotExists()
+        {
+            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
+            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+
+            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
+            var sqlProvider = new SqlSyncProvider(cs);
+
+            var options = new SyncOptions();
+
+            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+
+            var localScopeInfoClients = await localOrchestrator.GetAllScopeInfoClientsAsync();
+
+            Assert.Empty(localScopeInfoClients);
+
+            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
+        }
+
     }
 }
