@@ -132,7 +132,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Gets if the tests are running on Azure Dev
         /// </summary>
-        internal static bool IsOnAzureDev
+        public static bool IsOnAzureDev
         {
             get
             {

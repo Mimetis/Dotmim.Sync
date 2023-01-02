@@ -21,6 +21,7 @@ using MySql.Data.MySqlClient;
 #endif
 
 using Newtonsoft.Json;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -134,7 +135,7 @@ namespace Dotmim.Sync.Tests
             // So clear the pools on every start of a new test
             SqlConnection.ClearAllPools();
             MySqlConnection.ClearAllPools();
-
+            NpgsqlConnection.ClearAllPools();
 
             // get the server provider (and db created) without seed
             var serverDatabaseName = HelperDatabase.GetRandomName("tcp_sv_");

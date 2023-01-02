@@ -232,6 +232,10 @@ namespace Dotmim.Sync.Tests
         [DebuggerStepThrough]
         public static void DropDatabase(ProviderType providerType, string dbName)
         {
+            // We don't care to drop the database on Azure, as the test itself will destroy the instance at the end
+            if (Setup.IsOnAzureDev)
+                return;
+
             try
             {
                 switch (providerType)
