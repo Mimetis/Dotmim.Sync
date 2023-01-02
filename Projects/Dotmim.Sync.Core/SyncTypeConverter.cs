@@ -180,9 +180,10 @@ namespace Dotmim.Sync
                 return TryConvertTo<byte>(value, provider);
             else if (typeOfT == DbType.Currency || typeOfT == DbType.Decimal)
                 return TryConvertTo<decimal>(value, provider);
-            else if (typeOfT == DbType.Date || typeOfT == DbType.DateTime
-                    || typeOfT == DbType.DateTime2 || typeOfT == DbType.DateTimeOffset)
+            else if (typeOfT == DbType.Date || typeOfT == DbType.DateTime || typeOfT == DbType.DateTime2)
                 return TryConvertTo<DateTime>(value, provider);
+            else if (typeOfT == DbType.DateTimeOffset)
+                return TryConvertTo<DateTimeOffset>(value, provider);
             else if (typeOfT == DbType.Double)
                 return TryConvertTo<double>(value, provider);
             else if (typeOfT == DbType.Guid)

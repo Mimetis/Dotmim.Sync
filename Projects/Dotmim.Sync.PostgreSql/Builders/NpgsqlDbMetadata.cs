@@ -393,8 +393,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
                     return NpgsqlDbType.Time;
                 case DbType.DateTime2:
                     return NpgsqlDbType.Timestamp;
-                // https://www.npgsql.org/doc/release-notes/6.0.html DbType.DateTime now maps to timestamptz, not timestamp. DbType.DateTime2 continues to map to timestamp, and DbType.DateTimeOffset continues to map to timestamptz, as before
                 case DbType.DateTime:
+                    return NpgsqlDbType.Timestamp;
                 case DbType.DateTimeOffset:
                     return NpgsqlDbType.TimestampTz;
                 case DbType.Single:

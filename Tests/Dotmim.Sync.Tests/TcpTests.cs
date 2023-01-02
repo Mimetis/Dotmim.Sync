@@ -3325,49 +3325,52 @@ namespace Dotmim.Sync.Tests
 
                 Assert.Equal(GetServerDatabaseRowsCount(this.Server), result.TotalChangesDownloadedFromServer);
 
-                //// Client side : Create a product category and a product
-                //// Create a productcategory item
-                //// Create a new product on server
-                //var productId = Guid.NewGuid();
-                //var productName = HelperDatabase.GetRandomName();
-                //var productNumber = productName.ToUpperInvariant().Substring(0, 10);
 
-                //var productCategoryName = HelperDatabase.GetRandomName();
-                //var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
 
-                //using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-                //{
-                //    var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                //    ctx.Add(pc);
+            }
+        }
 
-                //    var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-                //    ctx.Add(product);
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public virtual async Task Check_DateTimeOffset(SyncOptions options)
+        {
+            // create a server db and seed it
+            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
-                //    await ctx.SaveChangesAsync();
-                //}
+            // create empty client databases
+            foreach (var client in this.Clients)
+                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
 
-                //writringRowsTables.Clear();
-                //readingRowsTables.Clear();
+            // Get count of rows
+            var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
 
-                //// Making a first sync, will initialize everything we need
-                //var r = await agent.SynchronizeAsync(scopeName);
+            // Execute a sync on all clients and check results
+            foreach (var client in this.Clients)
+            {
+                var agent = new SyncAgent(client.Provider, Server.Provider, options);
+                var setup = new SyncSetup(this.Tables);
 
-                //Assert.Equal(2, r.TotalChangesUploaded);
+                var s = await agent.SynchronizeAsync(setup);
 
-                //foreach (var table in result.ClientChangesSelected.TableChangesSelected)
-                //{
-                //    var fullName = string.IsNullOrEmpty(table.SchemaName) ? table.TableName : $"{table.SchemaName}.{table.TableName}";
-                //    var writedRows = readingRowsTables[fullName];
-                //    Assert.Equal(table.TotalChanges, writedRows);
-                //}
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
 
-                //foreach (var table in result.ChangesAppliedOnServer.TableChangesApplied)
-                //{
-                //    var fullName = string.IsNullOrEmpty(table.SchemaName) ? table.TableName : $"{table.SchemaName}.{table.TableName}";
-                //    var writedRows = writringRowsTables[fullName];
-                //    Assert.Equal(table.Applied, writedRows);
+                using var ctxServer = new AdventureWorksContext(this.Server);
+                using var ctxClient = new AdventureWorksContext(client, this.UseFallbackSchema);
 
-                //}
+                var serverSaleHeaders = ctxServer.SalesOrderHeader.AsNoTracking().ToList();
+                var clientSaleHeaders = ctxClient.SalesOrderHeader.AsNoTracking().ToList();
+
+                foreach(var clientSaleHeader in clientSaleHeaders)
+                {
+                    var serverSaleHeader = serverSaleHeaders.First(h => h.SalesOrderId == clientSaleHeader.SalesOrderId);
+
+                    Assert.Equal(clientSaleHeader.ShipDate, serverSaleHeader.ShipDate);
+                    Assert.Equal(clientSaleHeader.OrderDate, serverSaleHeader.OrderDate);
+                    Assert.Equal(clientSaleHeader.DueDate, serverSaleHeader.DueDate);
+                    Assert.Equal(clientSaleHeader.ModifiedDate, serverSaleHeader.ModifiedDate);
+                }
 
             }
         }

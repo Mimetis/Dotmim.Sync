@@ -636,8 +636,8 @@ namespace Dotmim.Sync.Tests.Models
                 else if (this.ProviderType == ProviderType.Postgres)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("now()");
 
-                if (this.ProviderType == ProviderType.Sql || this.ProviderType == ProviderType.MySql 
-                    || this.ProviderType == ProviderType.MariaDB|| this.ProviderType == ProviderType.Sqlite)
+                if (this.ProviderType == ProviderType.Sql || this.ProviderType == ProviderType.MySql
+                    || this.ProviderType == ProviderType.MariaDB || this.ProviderType == ProviderType.Sqlite)
                 {
                     entity.Property(e => e.OnlineOrderFlag)
                         .IsRequired()
@@ -980,7 +980,11 @@ namespace Dotmim.Sync.Tests.Models
                     SubTotal = 6530.35M,
                     TaxAmt = 70.4279M,
                     Freight = 22.0087M,
-                    TotalDue = (6530.35M + 70.4279M + 22.0087M)
+                    TotalDue = (6530.35M + 70.4279M + 22.0087M),
+                    DueDate = new DateTime(2008, 02, 20),
+                    OrderDate = new DateTime(2008, 02, 20),
+                    ShipDate = new DateTimeOffset(2008, 03, 05, 10, 40, 30, TimeSpan.FromHours(2.5)),
+                    ModifiedDate = new DateTime(2008, 10, 10)
                 }
             );
 
