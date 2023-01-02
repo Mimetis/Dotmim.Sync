@@ -3,6 +3,8 @@ using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
 using Microsoft.Data.SqlClient;
+using MySqlConnector;
+using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -46,6 +48,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Droping database will not clear the pool associated
             // So clear the pools on every start of a new test
             SqlConnection.ClearAllPools();
+            MySqlConnection.ClearAllPools();
+            NpgsqlConnection.ClearAllPools();
 
             this.stopwatch = Stopwatch.StartNew();
         }

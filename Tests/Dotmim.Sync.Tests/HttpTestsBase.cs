@@ -13,6 +13,7 @@ using Dotmim.Sync.Web.Server;
 using Microsoft.Data.SqlClient;
 #if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
 using MySqlConnector;
+using Npgsql;
 #elif NETCOREAPP2_1
 using MySql.Data.MySqlClient;
 #endif
@@ -131,6 +132,7 @@ namespace Dotmim.Sync.Tests
             // So clear the pools on every start of a new test
             SqlConnection.ClearAllPools();
             MySqlConnection.ClearAllPools();
+            NpgsqlConnection.ClearAllPools();
 
             // get the server provider (and db created) without seed
             var serverDatabaseName = HelperDatabase.GetRandomName("http_sv_");

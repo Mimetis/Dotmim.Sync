@@ -55,8 +55,8 @@ namespace Dotmim.Sync
 
                 foreach (var file in directory.GetFiles())
                 {
-                    var (schemaTable, rowsCount) = localSerializer.GetSchemaTableFromFile(file.FullName);
-                    batchInfo.BatchPartsInfo.Add(new BatchPartInfo(file.Name, schemaTable.TableName, schemaTable.SchemaName, rowsCount));
+                    var (schemaTable, rowsCount, state) = localSerializer.GetSchemaTableFromFile(file.FullName);
+                    batchInfo.BatchPartsInfo.Add(new BatchPartInfo(file.Name, schemaTable.TableName, schemaTable.SchemaName, state, rowsCount));
                 }
                 batchInfos.Add(batchInfo);
             }
@@ -96,16 +96,6 @@ namespace Dotmim.Sync
 
             var localSerializer = new LocalJsonSerializer(this, context);
 
-            //if (this.HasInterceptors<DeserializingRowArgs>())
-            //{
-            //    localSerializer.OnReadingRow(async (schemaTable, rowString) =>
-            //    {
-            //        var args = new DeserializingRowArgs(context, schemaTable, rowString);
-            //        await this.InterceptAsync(args).ConfigureAwait(false);
-            //        return args.Result;
-            //    });
-            //}
-
             SyncTable currentTable = null;
 
             foreach (var bpiGroupedTable in bpiGroupedTables)
@@ -126,7 +116,7 @@ namespace Dotmim.Sync
                         if (!File.Exists(fullPath))
                             continue;
 
-                        var (syncTable, _) = localSerializer.GetSchemaTableFromFile(fullPath);
+                        var (syncTable, _, _) = localSerializer.GetSchemaTableFromFile(fullPath);
 
                         // on first iteration, creating the return table
                         currentTable ??= syncTable.Clone();
@@ -195,17 +185,6 @@ namespace Dotmim.Sync
         internal SyncTable InternalLoadTableFromBatchInfo(SyncContext context, BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default)
         {
             var localSerializer = new LocalJsonSerializer(this, context);
-
-            //var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
-            //if (interceptorsReading.Count > 0)
-            //{
-            //    localSerializer.OnReadingRow(async (schemaTable, rowString) =>
-            //    {
-            //        var args = new DeserializingRowArgs(context, schemaTable, rowString);
-            //        await this.InterceptAsync(args).ConfigureAwait(false);
-            //        return args.Result;
-            //    });
-            //}
             SyncTable syncTable = null;
 
             // Gets all BPI containing this table
@@ -219,7 +198,7 @@ namespace Dotmim.Sync
 
                 // Get table from file
                 if (syncTable == null)
-                    (syncTable, _) = localSerializer.GetSchemaTableFromFile(fullPath);
+                    (syncTable, _, _) = localSerializer.GetSchemaTableFromFile(fullPath);
 
                 foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, syncTable))
                     if (!syncRowState.HasValue || syncRowState == default || (syncRowState.HasValue && syncRowState.Value.HasFlag(syncRow.RowState)))
@@ -265,19 +244,8 @@ namespace Dotmim.Sync
 
             var localSerializer = new LocalJsonSerializer(this, context);
 
-            //var interceptorsReading = this.interceptors.GetInterceptors<DeserializingRowArgs>();
-            //if (interceptorsReading.Count > 0)
-            //{
-            //    localSerializer.OnReadingRow(async (schemaTable, rowString) =>
-            //    {
-            //        var args = new DeserializingRowArgs(context, schemaTable, rowString);
-            //        await this.InterceptAsync(args).ConfigureAwait(false);
-            //        return args.Result;
-            //    });
-            //}
-
             // Get table from file
-            var (syncTable, rowsCount) = localSerializer.GetSchemaTableFromFile(fullPath);
+            var (syncTable, _, _) = localSerializer.GetSchemaTableFromFile(fullPath);
 
             foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, syncTable))
                 if (!syncRowState.HasValue || syncRowState == default || (syncRowState.HasValue && syncRowState.Value.HasFlag(syncRow.RowState)))
@@ -327,7 +295,7 @@ namespace Dotmim.Sync
             if (syncTable?.Rows != null && syncTable.Rows.Count <= 0)
             {
                 // open the file and write table header
-                localSerializer.OpenFile(fullPath, syncTable);
+                localSerializer.OpenFile(fullPath, syncTable, batchPartInfo.State);
 
                 foreach (var row in syncTable.Rows)
                     await localSerializer.WriteRowToFileAsync(row, syncTable).ConfigureAwait(false);

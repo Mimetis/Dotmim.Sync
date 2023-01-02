@@ -205,8 +205,15 @@ namespace Dotmim.Sync.Web.Client
 
                     var fullPath = Path.Combine(serverBatchInfo.GetDirectoryFullPath(), bpi.FileName);
 
+                    SyncRowState syncRowState = SyncRowState.None;
+                    if (table.Rows!= null && table.Rows.Count > 0)
+                    {
+                        var sr = new SyncRow(schemaTable, table.Rows[0]);
+                        syncRowState = sr.RowState;
+                    }
+
                     // open the file and write table header
-                    localSerializer.OpenFile(fullPath, schemaTable);
+                    localSerializer.OpenFile(fullPath, schemaTable, syncRowState);
 
                     foreach (var row in table.Rows)
                         await localSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable).ConfigureAwait(false);

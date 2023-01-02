@@ -149,10 +149,10 @@ namespace Dotmim.Sync
                             var localSerializer = new LocalJsonSerializer(this, context);
 
                             var (filePath, fileName) = errorsBatchInfo.GetNewBatchPartInfoPath(table, batchIndex, "json", info);
-                            var batchPartInfo = new BatchPartInfo(fileName, table.TableName, table.SchemaName, table.Rows.Count, batchIndex);
+                            var batchPartInfo = new BatchPartInfo(fileName, table.TableName, table.SchemaName, SyncRowState.None, table.Rows.Count, batchIndex);
                             errorsBatchInfo.BatchPartsInfo.Add(batchPartInfo);
 
-                            localSerializer.OpenFile(filePath, table);
+                            localSerializer.OpenFile(filePath, table, SyncRowState.None);
 
                             foreach (var row in table.Rows)
                                 await localSerializer.WriteRowToFileAsync(row, table).ConfigureAwait(false);

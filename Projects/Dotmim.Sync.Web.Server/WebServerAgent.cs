@@ -675,8 +675,15 @@ namespace Dotmim.Sync.Web.Server
                 if (this.clientConverter != null)
                     AfterDeserializedRows(containerTable, schemaTable, this.clientConverter);
 
+                SyncRowState syncRowState = SyncRowState.None;
+                if (containerTable.Rows != null && containerTable.Rows.Count > 0)
+                {
+                    var sr = new SyncRow(schemaTable, containerTable.Rows[0]);
+                    syncRowState = sr.RowState;
+                }
+
                 // open the file and write table header
-                localSerializer.OpenFile(fullPath, schemaTable);
+                localSerializer.OpenFile(fullPath, schemaTable, syncRowState);
 
                 foreach (var row in containerTable.Rows)
                     await localSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable).ConfigureAwait(false);
