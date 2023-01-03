@@ -981,8 +981,8 @@ namespace Dotmim.Sync.Tests.Models
                     TaxAmt = 70.4279M,
                     Freight = 22.0087M,
                     TotalDue = (6530.35M + 70.4279M + 22.0087M),
-                    DueDate = new DateTime(2008, 02, 20),
-                    OrderDate = new DateTime(2008, 02, 20),
+                    DueDate = new DateTime(2008, 02, 20, 13, 20, 10),
+                    OrderDate = new DateTime(2008, 02, 20, 13, 20, 10),
                     ShipDate = new DateTimeOffset(2008, 03, 05, 10, 40, 30, TimeSpan.FromHours(2.5)),
                     ModifiedDate = new DateTime(2008, 10, 10)
                 }

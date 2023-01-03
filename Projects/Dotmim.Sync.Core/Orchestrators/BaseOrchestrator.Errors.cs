@@ -35,7 +35,7 @@ namespace Dotmim.Sync
             if (errorRow.RowState == SyncRowState.ApplyModifiedFailed || errorRow.RowState == SyncRowState.ApplyDeletedFailed)
                 return (ErrorAction.Ignore, null);
 
-            var errorRowArgs = new ApplyChangesErrorOccuredArgs(context, errorRow, schemaChangesTable, errorRow.RowState, exception, this.Options.ErrorResolutionPolicy,
+            var errorRowArgs = new ApplyChangesErrorOccuredArgs(context, errorRow, schemaChangesTable, applyType, exception, this.Options.ErrorResolutionPolicy,
                 connection, transaction);
 
             var errorOccuredArgs = await this.InterceptAsync(errorRowArgs, progress, cancellationToken).ConfigureAwait(false);

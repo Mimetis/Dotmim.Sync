@@ -3337,9 +3337,9 @@ namespace Dotmim.Sync.Tests
             // create a server db and seed it
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
-            // create empty client databases
+            // create empty client databases, with schema
             foreach (var client in this.Clients)
-                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
 
             // Get count of rows
             var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
