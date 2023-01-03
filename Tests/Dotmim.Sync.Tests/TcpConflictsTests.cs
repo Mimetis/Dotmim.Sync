@@ -396,9 +396,6 @@ namespace Dotmim.Sync.Tests
 
                 s = await agent.SynchronizeAsync(Tables);
 
-                // Download 2 rows
-                // But applied only 1
-                // The other one is a failed inserted row
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalChangesAppliedOnClient);

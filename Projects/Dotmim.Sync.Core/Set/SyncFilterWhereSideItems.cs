@@ -60,10 +60,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Clear
         /// </summary>
-        public void Clear()
-        {
-            InnerCollection.Clear();
-        }
+        public void Clear() => InnerCollection.Clear();
 
         public SyncFilterWhereSideItem this[int index] => InnerCollection[index];
         public int Count => InnerCollection.Count;

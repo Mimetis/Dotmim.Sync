@@ -38,6 +38,10 @@ using Microsoft.Extensions.Options;
 using System.Security.Cryptography.X509Certificates;
 using Dotmim.Sync.PostgreSql;
 using Npgsql;
+using MessagePack.Resolvers;
+using MessagePack;
+using System.Runtime.Serialization;
+using System.Reflection.Metadata;
 
 #if NET5_0 || NET6_0 || NET7_0
 using MySqlConnector;
@@ -46,6 +50,123 @@ using MySql.Data.MySqlClient;
 #endif
 
 using System.Diagnostics;
+
+
+[DataContract(Name = "cust"), Serializable]
+public class Customer
+{
+
+    [IgnoreDataMember()]
+    public string Schema { get; set; }
+
+    [DataMember(Name = "id", IsRequired = true, Order = 1)]
+    public int CustomerID { get; set; }
+
+    [DataMember(Name = "n", IsRequired = true, Order = 2)]
+    public string Name { get; set; }
+
+    [DataMember(Name = "cd", IsRequired = true, Order = 3)]
+    public DateTimeOffset CreatedDate { get; set; }
+
+    [DataMember(Name = "cd", IsRequired = true, Order = 4)]
+    public object[] Rows { get; set; }
+
+
+    public Customer(int id, string name) : this()
+    {
+        this.CustomerID = id;
+        this.Name = name;
+        this.CreatedDate = DateTimeOffset.UtcNow;
+
+    }
+    public Customer()
+    {
+        
+    }
+    public override string ToString() => $"{this.CustomerID}-{this.Name}-{this.CreatedDate}-{this.Schema}";
+
+}
+
+/// <summary>
+/// Represents a filter parameters
+/// For example : @CustomerID int NULL = 12
+/// </summary>
+[DataContract(Name = "sfp"), Serializable]
+public class SyncFilterParameter2
+{
+
+
+    //[SerializationConstructor]
+    public SyncFilterParameter2()
+    {
+
+    }
+
+    /// <summary>
+    /// Create a new filter parameter with the given name
+    /// </summary>
+    public SyncFilterParameter2(string name, string tableName) : this(name, tableName, string.Empty) { }
+
+    /// <summary>
+    /// Create a new filter parameter with the given name
+    /// </summary>
+    public SyncFilterParameter2(string name, string tableName, string schemaName) : this()
+    {
+        this.Name = name;
+        this.TableName = tableName;
+        this.SchemaName = schemaName;
+    }
+
+
+    /// <summary>
+    /// Gets or sets the name of the parameter.
+    /// for SQL, will be named @{ParamterName}
+    /// for MySql, will be named in_{ParameterName}
+    /// </summary>
+    [DataMember(Name = "n", IsRequired = true, EmitDefaultValue = false, Order = 1)]
+    public string Name { get; set; }
+
+    /// <summary>
+    /// Gets or Sets table name, if parameter is linked to a table
+    /// </summary>
+    [DataMember(Name = "t", IsRequired = true, EmitDefaultValue = false, Order = 2)]
+    public string TableName { get; set; }
+
+    /// <summary>
+    /// Gets or sets schema name, if parameter is linked to a table
+    /// </summary>
+    [DataMember(Name = "s", IsRequired = false, EmitDefaultValue = false, Order = 3)]
+    public string SchemaName { get; set; }
+
+    /// <summary>
+    /// Gets or Sets the parameter db type
+    /// </summary>
+    [DataMember(Name = "dt", IsRequired = false, EmitDefaultValue = false, Order = 4)]
+    public DbType? DbType { get; set; }
+
+    /// <summary>
+    /// Gets or Sets the parameter default value expression.
+    /// Be careful, must be expresse in data source language
+    /// </summary>
+    [DataMember(Name = "dv", IsRequired = false, EmitDefaultValue = false, Order = 5)]
+    public string DefaultValue { get; set; }
+
+    /// <summary>
+    /// Gets or Sets if the parameter is default null
+    /// </summary>
+    [DataMember(Name = "an", IsRequired = false, EmitDefaultValue = false, Order = 6)]
+    public bool AllowNull { get; set; } = false;
+
+    /// <summary>
+    /// Gets or Sets the parameter max length (if needed)
+    /// </summary>
+    [DataMember(Name = "ml", IsRequired = false, EmitDefaultValue = false, Order = 7)]
+    public int MaxLength { get; set; }
+
+
+
+
+}
 
 internal class Program
 {
@@ -59,6 +180,63 @@ internal class Program
 
     public static string[] oneTable = new string[] { "ProductCategory" };
 
+    private static SyncSet CreateSchema()
+    {
+        var set = new SyncSet();
+
+        var tbl = new SyncTable("ServiceTickets", null);
+        tbl.OriginalProvider = "SqlServerProvider";
+        set.Tables.Add(tbl);
+
+        var c = SyncColumn.Create<int>("ServiceTicketID");
+        c.DbType = 8;
+        c.AllowDBNull = true;
+        c.IsAutoIncrement = true;
+        c.AutoIncrementStep = 1;
+        c.AutoIncrementSeed = 10;
+        c.IsCompute = false;
+        c.IsReadOnly = true;
+        tbl.Columns.Add(c);
+
+        tbl.Columns.Add(SyncColumn.Create<string>("Title"));
+        tbl.Columns.Add(SyncColumn.Create<string>("Description"));
+        tbl.Columns.Add(SyncColumn.Create<int>("StatusValue"));
+        tbl.Columns.Add(SyncColumn.Create<int>("EscalationLevel"));
+        tbl.Columns.Add(SyncColumn.Create<DateTime>("Opened"));
+        tbl.Columns.Add(SyncColumn.Create<DateTime>("Closed"));
+        tbl.Columns.Add(SyncColumn.Create<int>("CustomerID"));
+
+        tbl.PrimaryKeys.Add("ServiceTicketID");
+
+        // Add Second tables
+        var tbl2 = new SyncTable("Product", "SalesLT");
+        //tbl2.SyncDirection = SyncDirection.UploadOnly;
+
+        tbl2.Columns.Add(SyncColumn.Create<int>("Id"));
+        tbl2.Columns.Add(SyncColumn.Create<string>("Title"));
+        tbl2.PrimaryKeys.Add("Id");
+
+        set.Tables.Add(tbl2);
+
+
+        // Add Filters
+        var sf = new SyncFilter("Product", "SalesLT");
+        sf.Parameters.Add(new SyncFilterParameter { Name = "Title", DbType = DbType.String, MaxLength = 20, DefaultValue = "'Bikes'" });
+        sf.Parameters.Add(new SyncFilterParameter { Name = "LastName", TableName = "Customer", SchemaName = "SalesLT", AllowNull = true });
+        sf.Wheres.Add(new SyncFilterWhereSideItem { ColumnName = "Title", ParameterName = "Title", SchemaName = "SalesLT", TableName = "Product" });
+        sf.Joins.Add(new SyncFilterJoin { JoinEnum = Join.Right, TableName = "SalesLT.ProductCategory", LeftColumnName = "LCN", LeftTableName = "SalesLT.Product", RightColumnName = "RCN", RightTableName = "SalesLT.ProductCategory" });
+        sf.CustomWheres.Add("1 = 1");
+        set.Filters.Add(sf);
+
+        // Add Relations
+        var keys = new[] { new SyncColumnIdentifier("ProductId", "ServiceTickets") };
+        var parentKeys = new[] { new SyncColumnIdentifier("ProductId", "Product", "SalesLT") };
+        var rel = new SyncRelation("AdventureWorks_Product_ServiceTickets", keys, parentKeys);
+
+        set.Relations.Add(rel);
+
+        return set;
+    }
 
     private static async Task Main(string[] args)
     {
@@ -126,71 +304,45 @@ internal class Program
 
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("CliProduct"));
         //clientProvider.UseBulkOperations = false;
-        // await FileTestAsync();
 
         //await EditEntityOnceUploadedAsync(clientProvider, serverProvider, setup, options);
-
-        await SynchronizeAndGenerateSqliteForeignKeyConstraintErrorAsync(clientProvider, serverProvider, setup, options);
+        await TestMessagePackSerializerAsync();
     }
 
-    private static async Task SynchronizeAndGenerateSqliteForeignKeyConstraintErrorAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
+
+
+    private static async Task TestMessagePackSerializerAsync()
     {
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
 
-        //options.ProgressLevel = SyncProgressLevel.Debug;
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        // FAKE generating a CastInvalid Exeception that will be saved in the batch
-        agent.RemoteOrchestrator.OnRowsChangesSelected(args =>
+        var c = new Customer(1, "Sebastien Pertus");
+        c.Rows = new object[]
         {
-            args.SyncRow["ParentProductCategoryID"] = "AAA";
-        });
+            DateTime.Now,
+            "Test",
+            DateTimeOffset.Now
+        };
 
-        agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
-        {
-            Console.WriteLine($"{nameof(args.ApplyType)}: {args.ApplyType}");
-            Console.WriteLine($"{nameof(args.Message)}: {args.Message}");
-            args.Resolution = ErrorResolution.ContinueOnError;
+        c.Schema = "TEST";
 
-            //if (args.ApplyType == SyncRowState.Modified || args.ApplyType == SyncRowState.Deleted)
-            //{
-            //    args.Resolution = ErrorResolution.ContinueOnError;
-            //}
-            //else
-            //{
-            //    args.Resolution = ErrorResolution.Resolved;
-            //}
+        var array = MessagePackSerializer.Typeless.Serialize(c);
+        var json = MessagePackSerializer.ConvertToJson(array);
+        Console.WriteLine(json);
 
-        });
+        var c2 = MessagePackSerializer.Typeless.Deserialize(array) as Customer;
+
+        Console.WriteLine(c2);
+
+        var p = new SyncFilterParameter2 { Name = "Title", TableName= "Book", DbType = DbType.String, MaxLength = 20, DefaultValue = "'Bikes'" };
+
+        var arraySchema = MessagePackSerializer.Typeless.Serialize(p);
+        var jsonSchema = MessagePackSerializer.ConvertToJson(arraySchema);
+        Console.WriteLine(jsonSchema);
+
+        var outSchema = MessagePackSerializer.Typeless.Deserialize(arraySchema) as SyncFilterParameter2;
+
+        Console.WriteLine(outSchema);
 
 
-        // options.DisableConstraintsOnApplyChanges = true;
-        do
-        {
-            try
-            {
-                Console.Clear();
-                Console.ForegroundColor = ConsoleColor.Green;
-                var s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
-                Console.ResetColor();
-                Console.WriteLine(s);
-
-            }
-            catch (SyncException e)
-            {
-                Console.ResetColor();
-                Console.WriteLine(e.Message);
-            }
-            catch (Exception e)
-            {
-                Console.ResetColor();
-                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-            }
-            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
     }
 

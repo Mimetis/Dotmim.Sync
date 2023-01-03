@@ -18,19 +18,19 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the sync set tables
         /// </summary>
-        [DataMember(Name = "t", IsRequired = false, EmitDefaultValue = false, Order = 8)]
+        [DataMember(Name = "t", IsRequired = false, EmitDefaultValue = false, Order = 1)]
         public SyncTables Tables { get; set; }
 
         /// <summary>
         /// Gets or Sets an array of every SchemaRelation belong to this Schema
         /// </summary>
-        [DataMember(Name = "r", IsRequired = false, EmitDefaultValue = false, Order = 9)]
+        [DataMember(Name = "r", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public SyncRelations Relations { get; set; }
 
         /// <summary>
         /// Filters applied on tables
         /// </summary>
-        [DataMember(Name = "f", IsRequired = false, EmitDefaultValue = false, Order = 10)]
+        [DataMember(Name = "f", IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public SyncFilters Filters { get; set; }
 
         /// <summary>

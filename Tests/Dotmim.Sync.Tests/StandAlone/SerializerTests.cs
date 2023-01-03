@@ -21,26 +21,8 @@ namespace Dotmim.Sync.Tests.StandAlone
         public void Test_Schema_MessagePackSerializer()
         {
             var inSchema = CreateSchema();
-            byte[] bin = null;
-            SyncSet outSchema;
-
-            var options = MessagePack.Resolvers.ContractlessStandardResolver.Options;
-
-            using (var ms = new MemoryStream())
-            {
-                MessagePackSerializer.Serialize(ms, inSchema, options);
-                bin = ms.ToArray();
-            }
-
-            using (var fs = new FileStream("MsgPach_Schema.json", FileMode.Create))
-            {
-                fs.Write(bin, 0, bin.Length);
-            }
-
-            using (var ms = new MemoryStream(bin))
-            {
-                outSchema = MessagePackSerializer.Deserialize<SyncSet>(ms, options);
-            }
+            var bin = MessagePackSerializer.Typeless.Serialize(inSchema);
+            var outSchema = MessagePackSerializer.Typeless.Deserialize(bin) as SyncSet;
 
             Assertions(outSchema);
         }
@@ -147,7 +129,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assertions(outSchema);
         }
 
-   
+
 
         private void Assertions(SyncSet outSchema)
         {
@@ -300,8 +282,8 @@ namespace Dotmim.Sync.Tests.StandAlone
 
             // Add Filters
             var sf = new SyncFilter("Product", "SalesLT");
-            sf.Parameters.Add(new SyncFilterParameter { Name = "Title", DbType = DbType.String, MaxLength=20, DefaultValue="'Bikes'"});
-            sf.Parameters.Add(new SyncFilterParameter { Name = "LastName", TableName="Customer", SchemaName= "SalesLT", AllowNull=true});
+            sf.Parameters.Add(new SyncFilterParameter { Name = "Title", DbType = DbType.String, MaxLength = 20, DefaultValue = "'Bikes'" });
+            sf.Parameters.Add(new SyncFilterParameter { Name = "LastName", TableName = "Customer", SchemaName = "SalesLT", AllowNull = true });
             sf.Wheres.Add(new SyncFilterWhereSideItem { ColumnName = "Title", ParameterName = "Title", SchemaName = "SalesLT", TableName = "Product" });
             sf.Joins.Add(new SyncFilterJoin { JoinEnum = Join.Right, TableName = "SalesLT.ProductCategory", LeftColumnName = "LCN", LeftTableName = "SalesLT.Product", RightColumnName = "RCN", RightTableName = "SalesLT.ProductCategory" });
             sf.CustomWheres.Add("1 = 1");

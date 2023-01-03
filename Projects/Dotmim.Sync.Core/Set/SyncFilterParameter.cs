@@ -29,13 +29,14 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a new filter parameter with the given name
         /// </summary>
-        public SyncFilterParameter(string tableName) : this(tableName, string.Empty) { }
+        public SyncFilterParameter(string name, string tableName) : this(name, tableName, string.Empty) { }
 
         /// <summary>
         /// Create a new filter parameter with the given name
         /// </summary>
-        public SyncFilterParameter(string tableName, string schemaName) : this()
+        public SyncFilterParameter(string name, string tableName, string schemaName) : this()
         {
+            this.Name = name;
             this.TableName = tableName;
             this.SchemaName = schemaName;
         }
@@ -43,10 +44,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Ensure filter parameter as the correct schema (since the property is not serialized)
         /// </summary>
-        public void EnsureFilterParameter(SyncSet schema)
-        {
-            this.Schema = schema;
-        }
+        public void EnsureFilterParameter(SyncSet schema) => this.Schema = schema;
 
         /// <summary>
         /// Gets or sets the name of the parameter.

@@ -11,7 +11,7 @@
 	  <None Remove="C:\Users\spertus\.nuget\packages\nlog.config\4.7.15\contentFiles\any\any\NLog.config" />
 	</ItemGroup>
 	<ItemGroup>
-		<PackageReference Include="MessagePack" Version="2.1.90" />
+		<PackageReference Include="MessagePack" Version="2.4.59" />
 		<PackageReference Include="Microsoft.AspNetCore" Version="2.2.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Server.Kestrel" Version="2.2.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Session" Version="2.2.0" />

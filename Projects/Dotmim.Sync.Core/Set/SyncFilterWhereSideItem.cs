@@ -19,7 +19,7 @@ namespace Dotmim.Sync
         public string SchemaName { get; set; }
 
         [DataMember(Name = "p", IsRequired = true, Order = 4)]
-        public String ParameterName { get; set; }
+        public string ParameterName { get; set; }
 
 
         /// <summary>
@@ -32,10 +32,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Ensure filter parameter as the correct schema (since the property is not serialized)
         /// </summary>
-        public void EnsureFilterWhereSideItem(SyncSet schema)
-        {
-            this.Schema = schema;
-        }
+        public void EnsureFilterWhereSideItem(SyncSet schema) => this.Schema = schema;
 
         /// <summary>
         /// Get all comparable fields to determine if two instances are identifed as same by name
