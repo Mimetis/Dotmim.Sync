@@ -232,9 +232,9 @@ namespace Dotmim.Sync.Tests
         [DebuggerStepThrough]
         public static void DropDatabase(ProviderType providerType, string dbName)
         {
-            //// We don't care to drop the database on Azure, as the test itself will destroy the instance at the end
-            //if (Setup.IsOnAzureDev)
-            //    return;
+            // We don't care to drop the database on Azure, as the test itself will destroy the instance at the end
+            if (Setup.IsOnAzureDev)
+                return;
 
             try
             {
@@ -256,12 +256,58 @@ namespace Dotmim.Sync.Tests
                         DropPostgresDatabase(dbName);
                         break;
                 }
-            }
-            catch (Exception) { }
-            finally
-            {
 
+                Debug.WriteLine($"DB {dbName} dropped. ");
             }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+            }
+
+            //var task = Task.Run(() =>
+            //{
+            //    try
+            //    {
+            //        switch (providerType)
+            //        {
+            //            case ProviderType.Sql:
+            //                DropSqlDatabase(dbName);
+            //                break;
+            //            case ProviderType.MySql:
+            //                DropMySqlDatabase(dbName);
+            //                break;
+            //            case ProviderType.MariaDB:
+            //                DropMariaDBDatabase(dbName);
+            //                break;
+            //            case ProviderType.Sqlite:
+            //                DropSqliteDatabase(dbName);
+            //                break;
+            //            case ProviderType.Postgres:
+            //                DropPostgresDatabase(dbName);
+            //                break;
+            //        }
+
+            //        Debug.WriteLine($"DB {dbName} dropped. ");
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        Debug.WriteLine(ex.Message);
+            //    }
+            //});
+
+            //if (!task.IsCompleted || task.IsFaulted)
+            //{
+            //    try
+            //    {
+            //        // No need to resume on the original SynchronizationContext, so use ConfigureAwait(false)
+            //        task.ConfigureAwait(false);
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        Debug.WriteLine(ex.Message);
+            //        // Nothing to do here
+            //    }
+            //}
         }
 
         /// <summary>

@@ -21,7 +21,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
     {
 
         public override List<ProviderType> ClientsType => new List<ProviderType>
-            { ProviderType.Postgres, ProviderType.Sql };
+            { ProviderType.Postgres,  ProviderType.Sqlite};
 
         public PostgresTcpFilterTests(HelperProvider fixture, ITestOutputHelper output) : base(fixture, output)
         {
