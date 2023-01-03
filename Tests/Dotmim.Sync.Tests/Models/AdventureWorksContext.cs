@@ -732,21 +732,6 @@ namespace Dotmim.Sync.Tests.Models
                     .HasConstraintName("FK_SalesOrderHeader_Address_ShipTo_AddressID");
             });
 
-            //modelBuilder.Entity<Sql>(entity =>
-            //{
-            //    entity.Property(e => e.SqlId).ValueGeneratedNever();
-
-            //    entity.Property(e => e.File).IsRequired();
-
-            //    // since mysql ef provider does not support Object as type in a property
-            //    // just ignore it for this provider
-            //    if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB || this.ProviderType == ProviderType.Sqlite)
-            //        //entity.Ignore(e => e.Value);
-            //        entity.Property(e => e.Value).HasColumnType("TEXT");
-            //    else
-            //        entity.Property(e => e.Value).HasColumnType("sql_variant");
-            //});
-
             modelBuilder.Entity<Posts>(entity =>
             {
                 entity.HasKey(e => e.PostId);
@@ -793,6 +778,10 @@ namespace Dotmim.Sync.Tests.Models
                 else if (this.ProviderType == ProviderType.Postgres)
                 {
                     entity.Property(d => d.Total).HasComputedColumnSql(@"""Amount"" - ""Discount""", stored: true);
+                }
+                else if (this.ProviderType == ProviderType.Sqlite)
+                {
+                    entity.Property(d => d.Total).HasComputedColumnSql("(Amount - Discount)", stored: true);
                 }
 
                 entity.Property(d => d.ProductId)
