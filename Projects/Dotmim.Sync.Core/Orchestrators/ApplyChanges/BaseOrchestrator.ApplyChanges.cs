@@ -696,22 +696,24 @@ namespace Dotmim.Sync
             if (batchArgs.Cancel || batchArgs.Command == null || batchArgs.SyncRows == null || batchArgs.SyncRows.Count() <= 0)
                 return (-1, null);
 
-            // get the correct pointer to the command from the interceptor in case user change the whole instance
-            command = batchArgs.Command;
-
-            // Set the parameters value from row 
-            this.SetColumnParametersValues(command, batchArgs.SyncRows.First());
-
-            // Set the special parameters for update
-            this.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, applyType == SyncRowState.Deleted, false);
-
-            await this.InterceptAsync(new ExecuteCommandArgs(context, command, dbCommandType, connection, transaction),
-                progress, cancellationToken).ConfigureAwait(false);
-
-            int rowAppliedCount = 0;
             Exception errorException = null;
+            int rowAppliedCount = 0;
+
             try
             {
+                // get the correct pointer to the command from the interceptor in case user change the whole instance
+                command = batchArgs.Command;
+
+                // Set the parameters value from row 
+                this.SetColumnParametersValues(command, batchArgs.SyncRows.First());
+
+                // Set the special parameters for update
+                this.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, applyType == SyncRowState.Deleted, false);
+
+                await this.InterceptAsync(new ExecuteCommandArgs(context, command, dbCommandType, connection, transaction),
+                    progress, cancellationToken).ConfigureAwait(false);
+
+
                 rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead

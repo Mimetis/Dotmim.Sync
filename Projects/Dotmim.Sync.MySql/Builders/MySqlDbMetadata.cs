@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Data;
+using System.Data.Common;
 #if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
 using MySqlConnector;
 #elif NETSTANDARD
@@ -102,7 +103,7 @@ namespace Dotmim.Sync.MySql.Builders
             "tinytext" => MySqlDbType.TinyText,
             "binary" => MySqlDbType.Binary,
             "varbinary" => MySqlDbType.VarBinary,
-            _ => throw new Exception("Unhandled type encountered"),
+            _ => throw new Exception($"Type '{columnDefinition.OriginalTypeName.ToLowerInvariant()}' (column {columnDefinition.ColumnName}) is not supported"),
         };
 
         public MySqlDbType GetMySqlDbType(SyncColumn column) => (MySqlDbType)this.GetOwnerDbType(column);

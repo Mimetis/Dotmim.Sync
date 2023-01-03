@@ -188,7 +188,7 @@ namespace Dotmim.Sync
                 (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 if (!exists)
-                    throw new MissingTableException(setupTable.TableName, setupTable.SchemaName);
+                    throw new MissingTableException(setupTable.TableName, setupTable.SchemaName, connection.Database);
 
                 // get columns list
                 var lstColumns = await tableBuilder.GetColumnsAsync(connection, transaction).ConfigureAwait(false);

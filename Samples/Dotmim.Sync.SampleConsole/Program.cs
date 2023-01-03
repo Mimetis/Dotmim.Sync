@@ -70,20 +70,28 @@ internal class Program
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
-        //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+        var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
+        //var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
 
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
         // var setup = new SyncSetup(allTables);
-        //var setup = new SyncSetup(oneTable);
+        var setup = new SyncSetup(oneTable);
         //var setup = new SyncSetup("SaleInvoices");
-        //setup.Tables["SaleInvoices"].Columns.AddRange("Id", "IssuedDate", "CustomerId", "Total", "DiscountAmount", "VatRate");
+        //setup.Tables["SaleInvoices"].Columns.AddRange("Id", "Uuid", "IssuedDate", "CustomerId", 
+        //    "PaymentCompletionDate", "Total", "GrossTotal", "NetTotal", "AmountPaid", "ReturnAmount", "DiscountAmount", 
+        //    "DiscountPercentage", "TotalVAT", "TotalCost", "PaymentMethod", "PaymentType", "SaleInvoiceType", 
+        //    "VatPercentage", "TaxTreatmentNarration", "CustomerName", "CustomerAddress", "CustomerVATNumber", 
+        //    "CustomerGroupVATNumber", "SellerNameEnglish", "SellerNameArabic", "SellerAddress", "SellerVATNumber", 
+        //    "SellerGroupVATNumber", "QrCode", "Status", "ProjectId", "TaxId", "VatRate", "VatCategoryCode", 
+        //    "TaxExemptionReason", "ReceiveAs", "ReceiveType",  "InvoiceCounter", "InvoiceHash", 
+        //    "SupplyDate", "InvoiceType", "SaleInvoiceClearenceStatus", "SaleInvoiceSpecialBillingAgreement", "SaleInvoiceSpecialTransactionType", 
+        //    "IsScheduled", "CreatedBy", "CreatedAt", "LastUpdatedBy", "LastUpdatedAt", "IsDeleted", "DeletedAt", "BranchId");
 
-        var setup = new SyncSetup("SalesOrderHeader");
+        //var setup = new SyncSetup("SalesOrderHeader");
 
         var options = new SyncOptions();
         //options.Logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Information);
@@ -122,59 +130,10 @@ internal class Program
 
         //await EditEntityOnceUploadedAsync(clientProvider, serverProvider, setup, options);
 
-        //await GenerateErrorsAsync();
-
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        await SynchronizeAndGenerateSqliteForeignKeyConstraintErrorAsync(clientProvider, serverProvider, setup, options);
     }
 
-    private static async Task ChangeSetupInProgressAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
-    {
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        try
-        {
-            Console.Clear();
-
-            setup = new SyncSetup("ProductCategory");
-
-            var s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
-            Console.WriteLine(s);
-
-            setup = new SyncSetup("ProductCategory", "ProductDescription", "Product");
-
-            await agent.RemoteOrchestrator.DeprovisionAsync();
-            await agent.RemoteOrchestrator.ProvisionAsync(setup);
-
-            agent.LocalOrchestrator.OnConflictingSetup(async args =>
-            {
-                await agent.LocalOrchestrator.DeprovisionAsync().ConfigureAwait(false);
-                await agent.LocalOrchestrator.ProvisionAsync(args.ServerScopeInfo, connection: args.Connection, transaction: args.Transaction).ConfigureAwait(false);
-            });
-
-            s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
-            Console.WriteLine(s);
-
-        }
-        catch (SyncException e)
-        {
-            Console.ResetColor();
-            Console.WriteLine(e.Message);
-        }
-        catch (Exception e)
-        {
-            Console.ResetColor();
-            Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-        }
-        Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-
-    }
-
-    private static async Task SynchronizeWithScopesAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
+    private static async Task SynchronizeAndGenerateSqliteForeignKeyConstraintErrorAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
         // Using the Progress pattern to handle progession during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -184,49 +143,40 @@ internal class Program
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-        setup = new SyncSetup("ProductCategory");
-        setup.Filters.Add("ProductCategory", "IsActive", null, true);
+        // FAKE generating a CastInvalid Exeception that will be saved in the batch
+        agent.RemoteOrchestrator.OnRowsChangesSelected(args =>
+        {
+            args.SyncRow["ParentProductCategoryID"] = "AAA";
+        });
 
-        //SetupFilter filter = new SetupFilter("ProductCategory");
-        //filter.AddParameter("ProductCategoryId", DbType.Guid);
-        //filter.AddCustomWhere("([base].[ParentProductCategoryID] = @ProductCategoryId) " +
-        //                        "OR ([base].[ProductCategoryID] = @ProductCategoryId) " +
-        //                        "OR [side].[sync_row_is_tombstone] = 1");
-        //setup.Filters.Add(filter);
+        agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+        {
+            Console.WriteLine($"{nameof(args.ApplyType)}: {args.ApplyType}");
+            Console.WriteLine($"{nameof(args.Message)}: {args.Message}");
+            args.Resolution = ErrorResolution.ContinueOnError;
 
-        options.ErrorResolutionPolicy = ErrorResolution.RetryOneMoreTimeAndThrowOnError;
+            //if (args.ApplyType == SyncRowState.Modified || args.ApplyType == SyncRowState.Deleted)
+            //{
+            //    args.Resolution = ErrorResolution.ContinueOnError;
+            //}
+            //else
+            //{
+            //    args.Resolution = ErrorResolution.Resolved;
+            //}
+
+        });
+
+
+        // options.DisableConstraintsOnApplyChanges = true;
         do
         {
             try
             {
                 Console.Clear();
                 Console.ForegroundColor = ConsoleColor.Green;
-                var activeOnlyParameters = new SyncParameters(("IsActive", 1));
-
-                // FIRST SYNC ONLY, to init client database
-                var s = await agent.SynchronizeAsync(setup, activeOnlyParameters, progress: progress);
+                var s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
+                Console.ResetColor();
                 Console.WriteLine(s);
-
-                // new parameters for new lines added
-                var allRowsParameters = new SyncParameters(("IsActive", null));
-
-                // Create manually the new accessories scope client
-                var allRowsScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync(
-                    syncParameters: allRowsParameters);
-
-                // get the existing scope info client for Components categories
-                var activeOnlyScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync(
-                    syncParameters: activeOnlyParameters);
-
-                // copy all information about time from component scope client to accessories scope client
-                // and save
-                allRowsScopeInfoClient.ShadowScope(activeOnlyScopeInfoClient);
-                await agent.LocalOrchestrator.SaveScopeInfoClientAsync(allRowsScopeInfoClient);
-
-                // ALL SYNC NOW
-                s = await agent.SynchronizeAsync(setup, allRowsParameters, progress: progress);
-                Console.WriteLine(s);
-
 
             }
             catch (SyncException e)
@@ -244,7 +194,6 @@ internal class Program
 
     }
 
-
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
         // Using the Progress pattern to handle progession during the synchronization
@@ -255,7 +204,6 @@ internal class Program
         // Creating an agent that will handle all the process
         options.DisableConstraintsOnApplyChanges = true;
         var agent = new SyncAgent(clientProvider, serverProvider, options);
-
         do
         {
             try

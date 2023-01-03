@@ -31,15 +31,15 @@ namespace Dotmim.Sync
                                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
-            var errorRowArgs = new ApplyChangesErrorOccuredArgs(context, errorRow, schemaChangesTable, applyType, exception, this.Options.ErrorResolutionPolicy,
+            var errorRowArgs = new ApplyChangesErrorOccuredArgs(context, errorRow, schemaChangesTable, errorRow.RowState, exception, this.Options.ErrorResolutionPolicy,
                 connection, transaction);
 
             var errorOccuredArgs = await this.InterceptAsync(errorRowArgs, progress, cancellationToken).ConfigureAwait(false);
             Exception operationException = null;
 
-            // We are handling a previous error already in the batch info
-            if (errorRow.RowState == SyncRowState.ApplyModifiedFailed || applyType == SyncRowState.ApplyDeletedFailed)
-                return (ErrorAction.Ignore, null);
+            //// We are handling a previous error already in the batch info
+            //if (errorRow.RowState == SyncRowState.ApplyModifiedFailed || errorRow.RowState == SyncRowState.ApplyDeletedFailed)
+            //    return (ErrorAction.Ignore, null);
             
             var errorAction = ErrorAction.Throw;
             switch (errorOccuredArgs.Resolution)

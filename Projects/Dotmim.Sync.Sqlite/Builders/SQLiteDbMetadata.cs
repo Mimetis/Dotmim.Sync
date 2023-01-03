@@ -45,7 +45,7 @@ namespace Dotmim.Sync.Sqlite
                 "numeric" or "decimal" or "real" or "float" => SqliteType.Real,
                 "blob" or "image" => SqliteType.Blob,
                 "datetime" or "time" or "varchar" or "text" => SqliteType.Text,
-                _ => throw new Exception($"this type {columnDefinition.OriginalTypeName} for column {columnDefinition.ColumnName} is not supported")
+                _ => throw new Exception($"Type '{columnDefinition.OriginalTypeName.ToLowerInvariant()}' (column {columnDefinition.ColumnName}) is not supported"),
             };
         }
 

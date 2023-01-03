@@ -368,7 +368,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case "xml":
                     return NpgsqlDbType.Xml;
             }
-            throw new Exception($"this type name {column.OriginalTypeName.ToLowerInvariant()} is not supported");
+            throw new Exception($"Type '{column.OriginalTypeName.ToLowerInvariant()}' (column {column.ColumnName}) is not supported");
         }
         public NpgsqlDbType GetOwnerDbTypeFromDbType(SyncColumn column)
         {

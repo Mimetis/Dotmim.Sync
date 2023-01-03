@@ -88,7 +88,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             "varbinary" => SqlDbType.VarBinary,
             "varchar" => SqlDbType.VarChar,
             "xml" => SqlDbType.Xml,
-            _ => throw new Exception($"this type {column.OriginalTypeName} for column {column.ColumnName} is not supported")
+            _ => throw new Exception($"Type '{column.OriginalTypeName.ToLowerInvariant()}' (column {column.ColumnName}) is not supported"),
         };
 
         /// <summary>

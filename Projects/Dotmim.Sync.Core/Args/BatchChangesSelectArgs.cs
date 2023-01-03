@@ -76,11 +76,11 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </summary>
-        public static Guid OnBatchChangesCreated(this BaseOrchestrator orchestrator, Action<BatchChangesAppliedArgs> action)
+        public static Guid OnBatchChangesCreated(this BaseOrchestrator orchestrator, Action<BatchChangesCreatedArgs> action)
             => orchestrator.AddInterceptor(action);
 
-        /// <inheritdoc cref="OnBatchChangesCreated(BaseOrchestrator, Action{BatchChangesAppliedArgs})"/>
-        public static Guid OnBatchChangesCreated(this BaseOrchestrator orchestrator, Func<BatchChangesAppliedArgs, Task> action)
+        /// <inheritdoc cref="OnBatchChangesCreated(BaseOrchestrator, Action{BatchChangesCreatedArgs})"/>
+        public static Guid OnBatchChangesCreated(this BaseOrchestrator orchestrator, Func<BatchChangesCreatedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
     }

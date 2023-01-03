@@ -95,8 +95,8 @@ namespace Dotmim.Sync.Sqlite
             {
                 // Don't want foreign key on same table since it could be a problem on first 
                 // sync. We are not sure that parent row will be inserted in first position
-                if (constraint.GetParentTable().EqualsByName(constraint.GetTable()))
-                    continue;
+                //if (constraint.GetParentTable().EqualsByName(constraint.GetTable()))
+                //    continue;
 
                 var parentTable = constraint.GetParentTable();
                 var parentTableName = ParserName.Parse(parentTable.TableName).Quoted().ToString();
