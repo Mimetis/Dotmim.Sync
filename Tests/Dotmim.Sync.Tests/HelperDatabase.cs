@@ -256,8 +256,6 @@ namespace Dotmim.Sync.Tests
                         DropPostgresDatabase(dbName);
                         break;
                 }
-
-                Debug.WriteLine($"DB {dbName} dropped. ");
             }
             catch (Exception ex)
             {

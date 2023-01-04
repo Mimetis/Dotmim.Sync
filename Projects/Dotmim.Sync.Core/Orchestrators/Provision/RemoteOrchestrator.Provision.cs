@@ -308,10 +308,9 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // fallback to "try to drop an hypothetical default scope"
-                if (serverScopeInfos == null)
-                    serverScopeInfos = new List<ScopeInfo>();
+                serverScopeInfos ??= new List<ScopeInfo>();
 
-                var existingFilters = serverScopeInfos?.SelectMany(si => si.Setup.Filters).ToList();
+                var existingFilters = serverScopeInfos?.SelectMany(si => si.Setup == null ? new SetupFilters() : si.Setup.Filters).ToList();
 
                 var defaultServerScopeInfo = this.InternalCreateScopeInfo(SyncOptions.DefaultScopeName);
 

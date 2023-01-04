@@ -42,6 +42,7 @@ using MessagePack.Resolvers;
 using MessagePack;
 using System.Runtime.Serialization;
 using System.Reflection.Metadata;
+using Microsoft.AspNetCore.Hosting.Server;
 
 #if NET5_0 || NET6_0 || NET7_0
 using MySqlConnector;
@@ -51,122 +52,6 @@ using MySql.Data.MySqlClient;
 
 using System.Diagnostics;
 
-
-[DataContract(Name = "cust"), Serializable]
-public class Customer
-{
-
-    [IgnoreDataMember()]
-    public string Schema { get; set; }
-
-    [DataMember(Name = "id", IsRequired = true, Order = 1)]
-    public int CustomerID { get; set; }
-
-    [DataMember(Name = "n", IsRequired = true, Order = 2)]
-    public string Name { get; set; }
-
-    [DataMember(Name = "cd", IsRequired = true, Order = 3)]
-    public DateTimeOffset CreatedDate { get; set; }
-
-    [DataMember(Name = "cd", IsRequired = true, Order = 4)]
-    public object[] Rows { get; set; }
-
-
-    public Customer(int id, string name) : this()
-    {
-        this.CustomerID = id;
-        this.Name = name;
-        this.CreatedDate = DateTimeOffset.UtcNow;
-
-    }
-    public Customer()
-    {
-        
-    }
-    public override string ToString() => $"{this.CustomerID}-{this.Name}-{this.CreatedDate}-{this.Schema}";
-
-}
-
-/// <summary>
-/// Represents a filter parameters
-/// For example : @CustomerID int NULL = 12
-/// </summary>
-[DataContract(Name = "sfp"), Serializable]
-public class SyncFilterParameter2
-{
-
-
-    //[SerializationConstructor]
-    public SyncFilterParameter2()
-    {
-
-    }
-
-    /// <summary>
-    /// Create a new filter parameter with the given name
-    /// </summary>
-    public SyncFilterParameter2(string name, string tableName) : this(name, tableName, string.Empty) { }
-
-    /// <summary>
-    /// Create a new filter parameter with the given name
-    /// </summary>
-    public SyncFilterParameter2(string name, string tableName, string schemaName) : this()
-    {
-        this.Name = name;
-        this.TableName = tableName;
-        this.SchemaName = schemaName;
-    }
-
-
-    /// <summary>
-    /// Gets or sets the name of the parameter.
-    /// for SQL, will be named @{ParamterName}
-    /// for MySql, will be named in_{ParameterName}
-    /// </summary>
-    [DataMember(Name = "n", IsRequired = true, EmitDefaultValue = false, Order = 1)]
-    public string Name { get; set; }
-
-    /// <summary>
-    /// Gets or Sets table name, if parameter is linked to a table
-    /// </summary>
-    [DataMember(Name = "t", IsRequired = true, EmitDefaultValue = false, Order = 2)]
-    public string TableName { get; set; }
-
-    /// <summary>
-    /// Gets or sets schema name, if parameter is linked to a table
-    /// </summary>
-    [DataMember(Name = "s", IsRequired = false, EmitDefaultValue = false, Order = 3)]
-    public string SchemaName { get; set; }
-
-    /// <summary>
-    /// Gets or Sets the parameter db type
-    /// </summary>
-    [DataMember(Name = "dt", IsRequired = false, EmitDefaultValue = false, Order = 4)]
-    public DbType? DbType { get; set; }
-
-    /// <summary>
-    /// Gets or Sets the parameter default value expression.
-    /// Be careful, must be expresse in data source language
-    /// </summary>
-    [DataMember(Name = "dv", IsRequired = false, EmitDefaultValue = false, Order = 5)]
-    public string DefaultValue { get; set; }
-
-    /// <summary>
-    /// Gets or Sets if the parameter is default null
-    /// </summary>
-    [DataMember(Name = "an", IsRequired = false, EmitDefaultValue = false, Order = 6)]
-    public bool AllowNull { get; set; } = false;
-
-    /// <summary>
-    /// Gets or Sets the parameter max length (if needed)
-    /// </summary>
-    [DataMember(Name = "ml", IsRequired = false, EmitDefaultValue = false, Order = 7)]
-    public int MaxLength { get; set; }
-
-
-
-
-}
 
 internal class Program
 {
@@ -248,16 +133,17 @@ internal class Program
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
-        var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
 
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        // var setup = new SyncSetup(allTables);
-        var setup = new SyncSetup(oneTable);
+        var setup = new SyncSetup(allTables);
+        // var setup = new SyncSetup(oneTable);
+
         //var setup = new SyncSetup("SaleInvoices");
         //setup.Tables["SaleInvoices"].Columns.AddRange("Id", "Uuid", "IssuedDate", "CustomerId", 
         //    "PaymentCompletionDate", "Total", "GrossTotal", "NetTotal", "AmountPaid", "ReturnAmount", "DiscountAmount", 
@@ -305,46 +191,11 @@ internal class Program
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("CliProduct"));
         //clientProvider.UseBulkOperations = false;
 
-        //await EditEntityOnceUploadedAsync(clientProvider, serverProvider, setup, options);
-        await TestMessagePackSerializerAsync();
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
     }
 
 
 
-    private static async Task TestMessagePackSerializerAsync()
-    {
-
-        var c = new Customer(1, "Sebastien Pertus");
-        c.Rows = new object[]
-        {
-            DateTime.Now,
-            "Test",
-            DateTimeOffset.Now
-        };
-
-        c.Schema = "TEST";
-
-        var array = MessagePackSerializer.Typeless.Serialize(c);
-        var json = MessagePackSerializer.ConvertToJson(array);
-        Console.WriteLine(json);
-
-        var c2 = MessagePackSerializer.Typeless.Deserialize(array) as Customer;
-
-        Console.WriteLine(c2);
-
-        var p = new SyncFilterParameter2 { Name = "Title", TableName= "Book", DbType = DbType.String, MaxLength = 20, DefaultValue = "'Bikes'" };
-
-        var arraySchema = MessagePackSerializer.Typeless.Serialize(p);
-        var jsonSchema = MessagePackSerializer.ConvertToJson(arraySchema);
-        Console.WriteLine(jsonSchema);
-
-        var outSchema = MessagePackSerializer.Typeless.Deserialize(arraySchema) as SyncFilterParameter2;
-
-        Console.WriteLine(outSchema);
-
-
-
-    }
 
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
@@ -353,8 +204,8 @@ internal class Program
             Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
 
         //options.ProgressLevel = SyncProgressLevel.Debug;
-        // Creating an agent that will handle all the process
-        options.DisableConstraintsOnApplyChanges = true;
+        //options.DisableConstraintsOnApplyChanges = true;
+
         var agent = new SyncAgent(clientProvider, serverProvider, options);
         do
         {
@@ -363,9 +214,7 @@ internal class Program
                 Console.Clear();
                 Console.ForegroundColor = ConsoleColor.Green;
                 var s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
-                Console.ResetColor();
                 Console.WriteLine(s);
-
             }
             catch (SyncException e)
             {
@@ -381,7 +230,6 @@ internal class Program
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
     }
-
 
     private static async Task SynchronizeBigTablesAsync()
     {
