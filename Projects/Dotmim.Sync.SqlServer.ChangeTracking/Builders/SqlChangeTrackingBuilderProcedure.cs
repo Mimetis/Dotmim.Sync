@@ -2,6 +2,7 @@
 using Dotmim.Sync.SqlServer.Builders;
 using Dotmim.Sync.SqlServer.Manager;
 using Microsoft.Data.SqlClient;
+using System;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
@@ -598,6 +599,14 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             if (filter != null)
                 CreateFilterParameters(sqlCommand, filter);
 
+            //Determine if table contains any non-comparable columns (xml, text, ntext)
+            var mutableColumns = this.tableDescription.GetMutableColumns(false, true).ToArray();
+
+            //The below types cannot be used in a SELECT DISTICT query unless first converted to an NVARCHAR(MAX)
+            var nonComparableTypes = new[] { "Xml", "Text", "NText" };
+            var nonComparableColumns = mutableColumns.Where(mc => nonComparableTypes.Contains(mc.OriginalDbType, StringComparer.InvariantCultureIgnoreCase)).ToArray();
+            var hasNoncomparableColumns = nonComparableColumns.Length > 0;
+
             var stringBuilder = new StringBuilder("");
             stringBuilder.AppendLine(";WITH ");
             stringBuilder.AppendLine($"  {trackingName.Quoted().ToString()} AS (");
@@ -612,8 +621,11 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine("\t[CT].[SYS_CHANGE_VERSION] as [sync_timestamp],");
             stringBuilder.AppendLine("\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT]");
-            stringBuilder.AppendLine("\t)");
-
+            stringBuilder.AppendLine("\t)"+ (hasNoncomparableColumns?", ":""));
+            if (hasNoncomparableColumns)
+            {
+                stringBuilder.AppendLine("  DistinctHack AS (");
+            }
             stringBuilder.AppendLine("SELECT DISTINCT");
 
             var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
@@ -621,7 +633,13 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             {
                 var mutableColumn = columns[i];
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilder.Append($"\t[base].{columnName}");
+                var isNoncomparable = nonComparableColumns.Contains(mutableColumn);
+                stringBuilder.Append($"\t");
+                if (isNoncomparable)
+                    stringBuilder.Append("CAST(");
+                stringBuilder.Append("[base].{columnName}");
+                if (isNoncomparable)
+                    stringBuilder.Append($" AS NVARCHAR(MAX)) AS {columnName}");
 
                 if (i < columns.Count - 1)
                     stringBuilder.AppendLine(", ");
@@ -677,6 +695,26 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             stringBuilder.AppendLine("\t([side].[sync_timestamp] > @sync_min_timestamp OR @sync_min_timestamp IS NULL)");
             stringBuilder.AppendLine(")");
+            
+            if (hasNoncomparableColumns)
+            {
+                stringBuilder.AppendLine(")");
+                stringBuilder.Append("SELECT ");
+                //Select the distinct values and return them to their original datatype
+                foreach(var mutableColumn in mutableColumns)
+                {
+                    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                    var isNoncomparable = nonComparableColumns.Contains(mutableColumn);
+                    stringBuilder.Append("\t");
+                    if (isNoncomparable)
+                        stringBuilder.Append("CAST(");
+                    stringBuilder.Append(columnName);
+                    if (isNoncomparable)
+                        stringBuilder.Append($" AS {mutableColumn.OriginalDbType}) AS {columnName}");
+                    stringBuilder.AppendLine(mutableColumn != mutableColumns.Last()?", ":"");
+                }
+                stringBuilder.AppendLine("FROM DistinctHack");
+            }
             sqlCommand.CommandText = stringBuilder.ToString();
 
             return sqlCommand;
@@ -699,6 +737,13 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             if (filter != null)
                 CreateFilterParameters(sqlCommand, filter);
 
+            //Determine if table contains any non-comparable columns (xml, text, ntext)
+            var mutableColumns = this.tableDescription.GetMutableColumns(false, true).ToArray();
+
+            //The below types cannot be used in a SELECT DISTICT query unless first converted to an NVARCHAR(MAX)
+            var nonComparableTypes = new[] { "Xml", "Text", "NText" };
+            var nonComparableColumns = mutableColumns.Where(mc => nonComparableTypes.Contains(mc.OriginalDbType, StringComparer.InvariantCultureIgnoreCase)).ToArray();
+            var hasNoncomparableColumns = nonComparableColumns.Length > 0;
             var stringBuilder = new StringBuilder("");
             stringBuilder.AppendLine(";WITH ");
             stringBuilder.AppendLine($"  {trackingName.Quoted().ToString()} AS (");
@@ -718,24 +763,24 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             }
 
             stringBuilder.AppendLine($"\n\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT]");
-            stringBuilder.AppendLine("\t)");
+            stringBuilder.AppendLine("\t)" + (hasNoncomparableColumns?",":""));
 
-            stringBuilder.AppendLine("SELECT DISTINCT");
-            //foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-            //{
-            //    var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-            //    stringBuilder.AppendLine($"\t[side].{columnName},");
-            //}
-            foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
+            stringBuilder.AppendLine((hasNoncomparableColumns ? "  DistinctHack AS (" : "") + "SELECT DISTINCT");
+            foreach (var mutableColumn in mutableColumns)
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-
+                var isNoncomparable = nonComparableColumns.Contains(mutableColumn);
                 var isPrimaryKey = this.tableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
+                if (isNoncomparable)
+                    stringBuilder.Append("CAST(");
                 if (isPrimaryKey)
-                    stringBuilder.AppendLine($"\t[side].{columnName}, ");
+                    stringBuilder.Append($"\t[side].{columnName}, ");
                 else
-                    stringBuilder.AppendLine($"\t[base].{columnName}, ");
+                    stringBuilder.Append($"\t[base].{columnName}, ");
+                if (isNoncomparable)
+                    stringBuilder.Append($" AS NVARCHAR(MAX)) AS {columnName}");
+                stringBuilder.AppendLine(", ");
             }
             stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone],");
             stringBuilder.AppendLine("\t[side].[sync_update_scope_id]");
@@ -789,24 +834,28 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine("\t[side].[sync_timestamp] > @sync_min_timestamp");
             stringBuilder.AppendLine("\tAND ([side].[sync_update_scope_id] <> @sync_scope_id OR [side].[sync_update_scope_id] IS NULL)");
 
-            //if (setupHasTableWithColumns)
-            //{
-            //    stringBuilder.AppendLine("\tAND (");
-            //    string or = string.Empty;
-            //    foreach (var column in this.tableDescription.GetMutableColumns())
-            //    {
-            //        var unquotedColumn = ParserName.Parse(column).Unquoted().ToString();
-            //        stringBuilder.Append("\t\t");
-            //        stringBuilder.Append(or);
-            //        stringBuilder.Append("CHANGE_TRACKING_IS_COLUMN_IN_MASK(");
-            //        stringBuilder.Append($"COLUMNPROPERTY(OBJECT_ID('{tableName.Schema().Quoted().ToString()}'), '{unquotedColumn}', 'ColumnId')");
-            //        stringBuilder.AppendLine(", [side].[sync_change_columns]) = 1");
-            //        or = " OR ";
-            //    }
-            //    stringBuilder.AppendLine("\t)");
-            //}
-
             stringBuilder.AppendLine(")");
+
+            if (hasNoncomparableColumns)
+            {
+            stringBuilder.AppendLine(")");
+                stringBuilder.Append("SELECT ");
+                //Select the distinct values and return them to their original datatype
+                foreach(var mutableColumn in mutableColumns)
+                {
+                    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                    var isNoncomparable = nonComparableColumns.Contains(mutableColumn);
+                    stringBuilder.Append("\t");
+                    if (isNoncomparable)
+                        stringBuilder.Append("CAST(");
+                    stringBuilder.Append(columnName);
+                    if (isNoncomparable)
+                        stringBuilder.Append($" AS {mutableColumn.OriginalDbType}) AS {columnName}");
+                    stringBuilder.AppendLine(mutableColumn != mutableColumns.Last()?", ":"");
+                }
+                stringBuilder.AppendLine("FROM DistinctHack");
+            }
+
             sqlCommand.CommandText = stringBuilder.ToString();
 
             return sqlCommand;
