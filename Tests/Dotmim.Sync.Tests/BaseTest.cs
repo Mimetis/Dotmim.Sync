@@ -20,18 +20,6 @@ namespace Dotmim.Sync.Tests
         public ITestOutputHelper Output { get; }
         public XunitTest Test { get; }
         public Stopwatch Stopwatch { get; }
-
-        //private TestContext testContextInstance;
-
-        ///// <summary>
-        ///// Gets or sets the test context which provides
-        ///// information about and functionality for the current test run.
-        ///// </summary>
-        //public TestContext TestContext
-        //{
-        //    get { return testContextInstance; }
-        //    set { testContextInstance = value; }
-        //}
         
         public BaseTest(ITestOutputHelper output, DatabaseServerFixture<T> fixture)
         {
@@ -45,6 +33,9 @@ namespace Dotmim.Sync.Tests
             SqlConnection.ClearAllPools();
             MySqlConnection.ClearAllPools();
             NpgsqlConnection.ClearAllPools();
+
+            foreach (var clientProvider in Fixture.GetClientProviders())
+                Fixture.DropAllTablesAsync(clientProvider, true).GetAwaiter().GetResult();
 
             this.Stopwatch = Stopwatch.StartNew();
         }

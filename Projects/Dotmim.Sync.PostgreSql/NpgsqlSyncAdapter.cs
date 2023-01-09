@@ -82,54 +82,6 @@ namespace Dotmim.Sync.PostgreSql
             _ => throw new NotImplementedException($"This command type {nameType} is not implemented"),
         };
 
-        //public Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction = null, SyncFilter filter = null)
-        //{
-        //    if (command == null)
-        //        return Task.CompletedTask;
-
-        //    if (command.Parameters != null && command.Parameters.Count > 0)
-        //        return Task.CompletedTask;
-
-        //    switch (commandType)
-        //    {
-        //        case DbCommandType.SelectChanges:
-        //        case DbCommandType.SelectChangesWithFilters:
-        //        case DbCommandType.SelectInitializedChanges:
-        //        case DbCommandType.SelectInitializedChangesWithFilters:
-        //            this.SetSelectChangesParameters(command, filter);
-        //            break;
-        //        case DbCommandType.SelectRow:
-        //            this.SetSelectRowParameter(command);
-        //            break;
-        //        case DbCommandType.DeleteMetadata:
-        //            this.SetDeleteMetadataParameters(command);
-        //            break;
-        //        case DbCommandType.SelectMetadata:
-        //            this.SetSelectMetadataParameters(command);
-        //            break;
-        //        case DbCommandType.DeleteRow:
-        //        case DbCommandType.DeleteRows:
-        //            this.SetDeleteRowParameters(command);
-        //            break;
-        //        case DbCommandType.UpdateRow:
-        //        case DbCommandType.InsertRow:
-        //        case DbCommandType.UpdateRows:
-        //        case DbCommandType.InsertRows:
-        //            this.AddUpdateRowParameters(command);
-        //            break;
-        //        case DbCommandType.UpdateMetadata:
-        //            this.SetUpdateMetadataParameters(command);
-        //            break;
-        //        default:
-        //            break;
-        //    }
-
-        //    return Task.CompletedTask;
-
-        //}
-
-
-
         /// <summary>
         /// Check that parameters set from DMS core are correct.
         /// We need to add the missing parameters, and check that the existing ones are correct
@@ -141,9 +93,7 @@ namespace Dotmim.Sync.PostgreSql
             if (commandType == DbCommandType.InsertRows || commandType == DbCommandType.UpdateRows || commandType == DbCommandType.DeleteRows
                 || commandType == DbCommandType.InsertRow || commandType == DbCommandType.UpdateRow || commandType == DbCommandType.DeleteRow)
             {
-
                 string errorOutputParameterName = $"{ParameterPrefix}sync_error_text";
-
                 var parameter = GetParameter(command, errorOutputParameterName);
                 if (parameter == null)
                 {
@@ -153,9 +103,27 @@ namespace Dotmim.Sync.PostgreSql
                     parameter.Direction = ParameterDirection.Output;
                     command.Parameters.Add(parameter);
                 }
-
             }
 
+            // Remove unecessary parameters
+            if (commandType == DbCommandType.DeleteMetadata)
+            {
+                foreach (var column in this.TableDescription.GetPrimaryKeysColumns())
+                {
+                    var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
+                    var parameter = GetParameter(command, unquotedColumn);
+                    if (parameter != null)
+                        command.Parameters.Remove(parameter);
+                }
+            }
+
+            if (commandType == DbCommandType.Reset)
+            {
+                var parameter = GetParameter(command, $"{ParameterPrefix}sync_row_count");
+                if (parameter != null)
+                    command.Parameters.Remove(parameter);
+
+            }
             return command;
         }
 
@@ -163,12 +131,10 @@ namespace Dotmim.Sync.PostgreSql
         /// Due to new mechanisme to handle DateTime and DateTimeOffset in Postgres, we need to convert all datetime
         /// to UTC if column in database is "timestamp with time zone"
         /// </summary>
-        public override DbCommand EnsureCommandParametersValues(DbCommand command, DbCommandType commandType,
-            DbConnection connection, DbTransaction transaction)
+        public override DbCommand EnsureCommandParametersValues(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
         {
             foreach (NpgsqlParameter parameter in command.Parameters)
             {
-
                 if (parameter.Value == null || parameter.Value == DBNull.Value)
                     continue;
 

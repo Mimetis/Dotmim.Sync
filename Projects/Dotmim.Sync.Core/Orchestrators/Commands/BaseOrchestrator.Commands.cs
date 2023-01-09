@@ -50,6 +50,7 @@ namespace Dotmim.Sync
                     DbCommandType.DeleteMetadata => InternalSetDeleteMetadataParameters(command, syncAdapter),
                     DbCommandType.UpdateMetadata => InternalSetUpdateMetadataParameters(command, syncAdapter),
                     DbCommandType.SelectMetadata => InternalSetSelectMetadataParameters(command, syncAdapter),
+                    DbCommandType.Reset => InternalSetResetParameters(command, syncAdapter),
                     _ => command,
                 };
 

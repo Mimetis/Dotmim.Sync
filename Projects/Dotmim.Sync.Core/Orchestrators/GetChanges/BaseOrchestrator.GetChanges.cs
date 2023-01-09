@@ -153,7 +153,7 @@ namespace Dotmim.Sync
         internal virtual async Task<(SyncContext context, List<BatchPartInfo> batchPartInfos, TableChangesSelected tableChangesSelected)>
             InternalReadSyncTableChangesAsync(
             ScopeInfo scopeInfo, SyncContext context, Guid? excludintScopeId, SyncTable syncTable,
-            BatchInfo batchInfo, bool isNew, long? lastTimestamp,
+            BatchInfo batchInfo, bool isNew, long? lastTimestamp, 
             DbConnection connection, DbTransaction transaction,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -189,9 +189,6 @@ namespace Dotmim.Sync
 
                 // Get correct adapter
                 var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
-
-                //await this.InternalSetSelectChangesCommonParametersAsync(context, syncTable, excludintScopeId, isNew, lastTimestamp,
-                //        dbCommandType, selectIncrementalChangesCommand, syncAdapter, connection, transaction).ConfigureAwait(false);
 
                 this.InternalSetCommandParametersValues(context, selectIncrementalChangesCommand, dbCommandType, syncAdapter, connection, transaction, cancellationToken, progress,
                     sync_scope_id:excludintScopeId, sync_min_timestamp:lastTimestamp);
@@ -624,7 +621,8 @@ namespace Dotmim.Sync
                     // if we have the tombstone value, do not add it to the table
                     if (columnName == "sync_row_is_tombstone")
                     {
-                        isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
+                        var objIsTombstone = dataReader.GetValue(i);
+                        isTombstone = objIsTombstone == DBNull.Value ? false : Convert.ToInt64(objIsTombstone) > 0;
                         continue;
                     }
                     if (columnName == "sync_update_scope_id")

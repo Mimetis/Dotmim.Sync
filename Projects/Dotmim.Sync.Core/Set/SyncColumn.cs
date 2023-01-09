@@ -286,7 +286,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Compress string representation of the DataType to be more concise in the serialized stream
         /// </summary>
-        private static string GetAssemblyQualifiedName(Type valueType)
+        public static string GetAssemblyQualifiedName(Type valueType)
         {
             if (valueType == typeof(bool))
                 return "1";

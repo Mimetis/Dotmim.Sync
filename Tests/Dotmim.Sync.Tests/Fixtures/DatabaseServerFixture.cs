@@ -6,25 +6,25 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using System.Transactions;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace Dotmim.Sync.Tests.Fixtures
 {
     public class DatabaseServerFixture<T> : IDisposable where T : RelationalFixture
     {
-
-        // Two clients : First one is always same type as server. Second one is Sqlite
-        //public virtual List<ProviderType> ClientsType => new List<ProviderType> { HelperDatabase.GetProviderType<T>(), ProviderType.Postgres};
-        public virtual List<ProviderType> ClientsType => new List<ProviderType> { ProviderType.Postgres};
+        public virtual List<ProviderType> ClientsType => new List<ProviderType> { ProviderType.Sqlite, ProviderType.MySql, ProviderType.Postgres, ProviderType.Sql };
 
         // One Server type of T
         public virtual ProviderType ServerProviderType => HelperDatabase.GetProviderType<T>();
 
         // SQL Server has schema on server database
-        private string salesSchema = typeof(T) == typeof(SqlServerFixtureType) ? "SalesLT." : "";
+        private string salesSchema = typeof(T) == typeof(SqlServerFixtureType) || typeof(T) == typeof(PostgresFixtureType) ? "SalesLT." : "";
 
         public virtual string[] Tables => new string[]
         {
@@ -37,7 +37,7 @@ namespace Dotmim.Sync.Tests.Fixtures
 
         public virtual SyncSetup GetSyncSetup() => new SyncSetup(Tables);
 
-        public virtual bool UseFallbackSchema => typeof(T) == typeof(SqlServerFixtureType);
+        public virtual bool UseFallbackSchema => typeof(T) == typeof(SqlServerFixtureType) || typeof(T) == typeof(PostgresFixtureType);
 
         public string ServerDatabaseName { get; set; }
 
@@ -53,6 +53,7 @@ namespace Dotmim.Sync.Tests.Fixtures
             {
                 var dbName = HelperDatabase.GetRandomName("tcp_cli");
                 new AdventureWorksContext(dbName, type, UseFallbackSchema, false).Database.EnsureCreated();
+                //HelperDatabase.CreateDatabaseAsync(type, dbName, true).GetAwaiter().GetResult();
                 ClientDatabaseNames.Add(type, dbName);
             }
         }
@@ -102,9 +103,16 @@ namespace Dotmim.Sync.Tests.Fixtures
         /// Add a ProductCategory row to the database
         /// </summary>
         public async Task<ProductCategory> AddProductCategoryAsync(CoreProvider provider,
-            string productCategoryId = default, string parentProductCategoryId = default, string name = default, Guid? rowguid = default, DateTime? modifiedDate = default, string attributeWithSpace = default)
+            string productCategoryId = default, string parentProductCategoryId = default, string name = default, Guid? rowguid = default, 
+            DateTime? modifiedDate = default, string attributeWithSpace = default, DbConnection connection = null, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider);
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
 
             name = string.IsNullOrEmpty(name) ? HelperDatabase.GetRandomName() : name;
             productCategoryId = string.IsNullOrEmpty(productCategoryId) ? name.ToUpperInvariant()[..11] : productCategoryId;
@@ -117,7 +125,7 @@ namespace Dotmim.Sync.Tests.Fixtures
                 Rowguid = rowguid,
                 ModifiedDate = modifiedDate != null ? modifiedDate.Value.ToUniversalTime() : (DateTime?)null,
                 AttributeWithSpace = attributeWithSpace
-                
+
             };
             ctx.Add(pc);
 
@@ -130,13 +138,19 @@ namespace Dotmim.Sync.Tests.Fixtures
         /// <summary>
         /// Add a ProductCategory row to the database
         /// </summary>
-        public async Task<ProductCategory> UpdateProductCategoryAsync(CoreProvider provider, ProductCategory productCategory)
+        public async Task<ProductCategory> UpdateProductCategoryAsync(CoreProvider provider, ProductCategory productCategory, DbConnection connection = null, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider);
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
 
             ctx.ProductCategory.Add(productCategory);
             ctx.Entry(productCategory).State = EntityState.Modified;
-            
+
             await ctx.SaveChangesAsync();
 
             return productCategory;
@@ -145,9 +159,15 @@ namespace Dotmim.Sync.Tests.Fixtures
         /// <summary>
         /// Delete a ProductCategory row to the database
         /// </summary>
-        public async Task DeleteProductCategoryAsync(CoreProvider provider, string productCategoryId)
+        public async Task DeleteProductCategoryAsync(CoreProvider provider, string productCategoryId, DbConnection connection = null, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider);
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
 
             var pc = ctx.ProductCategory.FirstOrDefault(pc => pc.ProductCategoryId == productCategoryId);
             ctx.ProductCategory.Remove(pc);
@@ -158,9 +178,16 @@ namespace Dotmim.Sync.Tests.Fixtures
         /// <summary>
         /// Get a ProductCategory row from the database
         /// </summary>
-        public async Task<ProductCategory> GetProductCategoryAsync(CoreProvider provider, string productCategoryId)
+        public async Task<ProductCategory> GetProductCategoryAsync(CoreProvider provider, string productCategoryId, DbConnection connection = null, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider);
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
             return await ctx.ProductCategory.FindAsync(productCategoryId);
         }
 
@@ -171,9 +198,15 @@ namespace Dotmim.Sync.Tests.Fixtures
             Guid? productId = default,
             string productNumber = default, string name = default, string productCategoryId = default,
             string color = default, decimal? standardCost = default, decimal? listPrice = default, string size = default, decimal? weight = default, Guid? rowguid = default,
-            DateTime? modifiedDate = default, byte[] thumbNailPhoto = default, string thumbnailPhotoFileName = default)
+            DateTime? modifiedDate = default, byte[] thumbNailPhoto = default, string thumbnailPhotoFileName = default, DbConnection connection = null, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider);
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
 
             productId ??= Guid.NewGuid();
             name = string.IsNullOrEmpty(name) ? HelperDatabase.GetRandomName() : name;
@@ -207,25 +240,129 @@ namespace Dotmim.Sync.Tests.Fixtures
         /// <summary>
         /// Get a Product row from the database
         /// </summary>
-        public async Task<Product> GetProductAsync(CoreProvider provider, Guid productId)
+        public async Task<Product> GetProductAsync(CoreProvider provider, Guid productId, DbConnection connection = null, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider);
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
             return await ctx.Product.FindAsync(productId);
         }
 
 
         /// <summary>
+        /// Update a Product row to the database
+        /// </summary>
+        public async Task<Product> UpdateProductAsync(CoreProvider provider, Product product, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            ctx.Product.Add(product);
+            ctx.Entry(product).State = EntityState.Modified;
+
+            await ctx.SaveChangesAsync();
+
+            return product;
+        }
+
+        /// <summary>
+        /// Delete a Product row to the database
+        /// </summary>
+        public async Task DeleteProductAsync(CoreProvider provider, Guid productId, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            var pc = ctx.Product.FirstOrDefault(pc => pc.ProductId == productId);
+            ctx.Product.Remove(pc);
+
+            await ctx.SaveChangesAsync();
+        }
+
+
+        /// <summary>
+        /// Add a price list
+        /// </summary>
+        public async Task<PriceList> AddPriceListAsync(CoreProvider provider, Guid? priceListId = default, string description = default, DateTime? from = default, 
+            DateTime? to = default, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            priceListId = priceListId.HasValue ?  priceListId : Guid.NewGuid();
+            description = string.IsNullOrEmpty(description) ? HelperDatabase.GetRandomName() : description;
+
+            var pl = new PriceList
+            {
+                PriceListId = priceListId.Value,
+                Description = description,
+                From = from != null ? from.Value.ToUniversalTime() : (DateTime?)null,
+                To = to != null ? to.Value.ToUniversalTime() : (DateTime?)null
+            };
+            ctx.Add(pl);
+
+            await ctx.SaveChangesAsync();
+
+            return pl;
+        }
+
+
+
+        /// <summary>
+        /// Get a PriceList row from the database
+        /// </summary>
+        public async Task<PriceList> GetPriceListAsync(CoreProvider provider, Guid priceListId, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            return await ctx.PricesList.FindAsync(priceListId);
+        }
+
+        /// <summary>
         /// Add a Customer item to the database identified by its name and its provider type.
         /// </summary>
-        public async Task<Customer> AddCustomerAsync(string dbName, ProviderType providerType, Guid? customerId = default, string firstName = default, string lastName = default, string companyName = default)
+        public async Task<Customer> AddCustomerAsync(CoreProvider provider, Guid? customerId = default, string firstName = default, 
+            string lastName = default, string companyName = default, DbConnection connection = null, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(dbName, providerType);
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+      
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
 
             var customer = new Customer
             {
                 CustomerId = customerId == default ? Guid.NewGuid() : customerId.Value,
-                FirstName = firstName,
-                LastName = lastName,
+                FirstName = firstName == default ? HelperDatabase.GetRandomName() : firstName,
+                LastName = lastName == default ? HelperDatabase.GetRandomName() : lastName,
                 CompanyName = companyName,
             };
 

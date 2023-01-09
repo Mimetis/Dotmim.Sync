@@ -247,29 +247,32 @@ namespace Dotmim.Sync
                 var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
                 var scopeInfoTableName = scopeBuilder.ScopeInfoTableName.Unquoted().ToString();
                 var scopeInfoClientTableName = $"{scopeBuilder.ScopeInfoTableName.Unquoted()}_client";
+
                 var tables = setup.Tables.Where(setupTable => !setupTable.TableName.EndsWith("_tracking") && setupTable.TableName != scopeInfoTableName && setupTable.TableName != scopeInfoClientTableName).ToList();
                 setup.Tables.Clear();
                 setup.Tables.AddRange(tables);
                 defaultClientScopeInfo.Setup = setup;
 
-                var (_, defaultSchema) = await this.InternalGetSchemaAsync(context, defaultClientScopeInfo.Setup,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                defaultClientScopeInfo.Schema = defaultSchema;
-
-
-                // add any random filters, to try to delete them
-                if (existingFilters != null && existingFilters.Count > 0)
+                if (defaultClientScopeInfo.Setup != null && defaultClientScopeInfo.Setup.Tables.Count > 0)
                 {
-                    var filters = new SetupFilters();
-                    foreach (var filter in existingFilters)
-                        filters.Add(filter);
+                    var (_, defaultSchema) = await this.InternalGetSchemaAsync(context, defaultClientScopeInfo.Setup,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                    defaultClientScopeInfo.Setup.Filters = filters;
+                    defaultClientScopeInfo.Schema = defaultSchema;
+
+                    // add any random filters, to try to delete them
+                    if (existingFilters != null && existingFilters.Count > 0)
+                    {
+                        var filters = new SetupFilters();
+                        foreach (var filter in existingFilters)
+                            filters.Add(filter);
+
+                        defaultClientScopeInfo.Setup.Filters = filters;
+                    }
+
+                    cScopeInfos.Add(defaultClientScopeInfo);
+
                 }
-
-                cScopeInfos.Add(defaultClientScopeInfo);
-
                 var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable | SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient;
 
                 if (dropTables)
@@ -278,7 +281,7 @@ namespace Dotmim.Sync
                     await this.InterceptAsync(dropAllArgs, progress, cancellationToken).ConfigureAwait(false);
 
                     var confirm = dropAllArgs.Confirm();
-                    
+
                     if (confirm)
                         provision |= SyncProvision.Table;
                 }

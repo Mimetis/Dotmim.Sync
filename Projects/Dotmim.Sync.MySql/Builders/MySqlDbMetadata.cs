@@ -19,6 +19,11 @@ namespace Dotmim.Sync.MySql.Builders
 {
     public class MySqlDbMetadata : DbMetadata
     {
+        public const byte PRECISION_MAX = 65;
+        public const byte PRECISION_DEFAULT = 22;
+        public const byte SCALE_DEFAULT = 8;
+        public const byte SCALE_MAX = 30;
+
         public override DbType GetDbType(SyncColumn columnDefinition)
         {
             DbType stringDbType;
@@ -39,7 +44,7 @@ namespace Dotmim.Sync.MySql.Builders
                 "bit" => DbType.Boolean,
                 "numeric" => DbType.VarNumeric,
                 "decimal" or "dec" or "fixed" or "real" or "double" or "float" => DbType.Decimal,
-                "tinyint" => columnDefinition.IsUnsigned ? DbType.Byte : DbType.SByte,
+                "tinyint" => DbType.Byte,
                 "bigint" => columnDefinition.IsUnsigned ? DbType.UInt64 : DbType.Int64,
                 "serial" => DbType.UInt64,
                 "smallint" => columnDefinition.IsUnsigned ? DbType.UInt16 : DbType.Int16,
@@ -75,7 +80,7 @@ namespace Dotmim.Sync.MySql.Builders
             "bit" => MySqlDbType.Bit,
             "byte" => MySqlDbType.Byte,
             "ubyte" => MySqlDbType.UByte,
-            "tinyint" => columnDefinition.IsUnsigned ? MySqlDbType.UByte : MySqlDbType.Byte,
+            "tinyint" => MySqlDbType.Byte,
             "bool" or "boolean" => MySqlDbType.Byte,
             "smallint" => columnDefinition.IsUnsigned ? MySqlDbType.UInt16 : MySqlDbType.Int16,
             "mediumint" => columnDefinition.IsUnsigned ? MySqlDbType.UInt24 : MySqlDbType.Int24,
@@ -114,7 +119,7 @@ namespace Dotmim.Sync.MySql.Builders
             DbType.StringFixedLength or DbType.AnsiStringFixedLength => MySqlDbType.VarChar,
             DbType.Binary => columnDefinition.MaxLength <= 0 || columnDefinition.MaxLength > 8000 ? MySqlDbType.LongBlob : MySqlDbType.VarBinary,
             DbType.Boolean => MySqlDbType.Bit,
-            DbType.Byte => MySqlDbType.UByte,
+            DbType.Byte => MySqlDbType.Byte,
             DbType.Currency => MySqlDbType.Decimal,
             DbType.Date => MySqlDbType.Date,
             DbType.DateTime or DbType.DateTime2 or DbType.DateTimeOffset => MySqlDbType.DateTime,
@@ -138,7 +143,7 @@ namespace Dotmim.Sync.MySql.Builders
         public override Type GetType(SyncColumn column) => GetMySqlDbType(column) switch
         {
             MySqlDbType.Decimal or MySqlDbType.NewDecimal => typeof(decimal),
-            MySqlDbType.Byte => typeof(sbyte),
+            MySqlDbType.Byte => typeof(byte),
             MySqlDbType.UByte => typeof(byte),
             MySqlDbType.Int16 or MySqlDbType.Year => typeof(short),
             MySqlDbType.Int24 or MySqlDbType.Int32 => typeof(int),
@@ -178,15 +183,17 @@ namespace Dotmim.Sync.MySql.Builders
         {
             var precision = columnDefinition.Precision;
             var scale = columnDefinition.Scale;
+
+            if ((columnDefinition.DbType == (int)DbType.Single || columnDefinition.DbType == (int)DbType.Decimal || columnDefinition.DbType == (int)DbType.VarNumeric) && columnDefinition.Precision == 0 && columnDefinition.Scale == 0)
+                return (PRECISION_DEFAULT, SCALE_DEFAULT);
+
             if (IsNumericType(columnDefinition) && precision == 0)
-            {
-                precision = 10;
-                scale = 0;
-            }
+                return (PRECISION_DEFAULT, 0);
+         
             if (!IsSupportingScale(columnDefinition) || scale == 0)
                 return (0, 0);
-
-            return (precision, scale);
+            
+            return CoercePrecisionAndScale(precision, scale);
         }
 
         public override byte GetPrecision(SyncColumn columnDefinition)
@@ -380,9 +387,9 @@ namespace Dotmim.Sync.MySql.Builders
             var mySqlDbType = fromProviderType == originalProvider ?
                 this.GetMySqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
 
-            var precision = column.Precision;
-            var scale = column.Scale;
+            var (precision, scale) = GetPrecisionAndScale(column);
 
+            
             return mySqlDbType switch
             {
                 MySqlDbType.Float or
@@ -394,6 +401,26 @@ namespace Dotmim.Sync.MySql.Builders
                 _ => string.Empty
             };
 
+        }
+
+        /// <summary>
+        /// Check precision and scale
+        /// </summary>
+        public static (byte p, byte s) CoercePrecisionAndScale(int precision, int scale)
+        {
+            byte p = Convert.ToByte(precision);
+            byte s = Convert.ToByte(scale);
+            if (p > PRECISION_MAX)
+                p = PRECISION_MAX;
+
+            if (s > SCALE_MAX)
+                s = SCALE_MAX;
+
+            // scale should always be lesser than precision
+            if (s >= p && p > 1)
+                s = (byte)(p - 1);
+
+            return (p, s);
         }
     }
 }

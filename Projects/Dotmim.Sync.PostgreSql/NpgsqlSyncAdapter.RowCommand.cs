@@ -34,7 +34,6 @@ namespace Dotmim.Sync.PostgreSql
             }
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
             {
-
                 var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
                 var isPrimaryKey = this.TableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
@@ -176,7 +175,6 @@ namespace Dotmim.Sync.PostgreSql
             stringBuilder.AppendLine($"END; ");
             stringBuilder.AppendLine($"$BODY$ LANGUAGE 'plpgsql';");
 
-            sqlCommand.Parameters.Clear();
             sqlCommand.CommandType = CommandType.Text;
             sqlCommand.CommandText = stringBuilder.ToString();
             return (sqlCommand, false);
@@ -200,27 +198,21 @@ namespace Dotmim.Sync.PostgreSql
             var procNameQuoted = ParserName.Parse(procName, "\"").Quoted().ToString();
 
             var sqlCommand = new NpgsqlCommand();
-
-            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
-                sqlCommand.Parameters.Add(GetSqlParameter(pkColumn, NpgsqlSyncProvider.NPGSQL_PREFIX_PARAMETER));
-
-            sqlCommand.Parameters.Add(new NpgsqlParameter($"sync_scope_id", NpgsqlDbType.Uuid));
-            sqlCommand.Parameters.Add(new NpgsqlParameter($"sync_force_write", NpgsqlDbType.Bigint));
-            sqlCommand.Parameters.Add(new NpgsqlParameter($"sync_min_timestamp", NpgsqlDbType.Bigint));
-            sqlCommand.Parameters.Add(new NpgsqlParameter($"sync_row_count", NpgsqlDbType.Integer) { Direction = ParameterDirection.Output });
-            sqlCommand.Parameters.Add(new NpgsqlParameter($"sync_error_text", NpgsqlDbType.Text) { Direction = ParameterDirection.Output });
-
             var stringBuilder = new StringBuilder();
 
             stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION pg_temp.{procNameQuoted}(");
-            string str = "\t";
-            foreach (NpgsqlParameter parameter in sqlCommand.Parameters)
-            {
-                stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
-                str = ",\n\t";
-            }
-            stringBuilder.AppendLine(") ");
 
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(column, "\"").Unquoted().Normalized().ToString();
+                var columnType = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.TableDescription.OriginalProvider);
+                stringBuilder.AppendLine($"\t\"in_{columnName}\" {columnType} = NULL,");
+            }
+            stringBuilder.AppendLine($"\tsync_scope_id Uuid = NULL,");
+            stringBuilder.AppendLine($"\tsync_force_write Bigint = NULL,");
+            stringBuilder.AppendLine($"\tsync_min_timestamp Bigint = NULL,");
+            stringBuilder.AppendLine($"\tout sync_row_count Integer,");
+            stringBuilder.AppendLine($"\tout sync_error_text Text)");
             stringBuilder.AppendLine($"AS $BODY$ ");
             stringBuilder.AppendLine($"BEGIN");
             stringBuilder.AppendLine($"");
@@ -247,7 +239,6 @@ namespace Dotmim.Sync.PostgreSql
             stringBuilder.AppendLine($"END;");
             stringBuilder.AppendLine("$BODY$ LANGUAGE 'plpgsql';");
 
-            sqlCommand.Parameters.Clear();
             sqlCommand.CommandType = CommandType.Text;
             sqlCommand.CommandText = stringBuilder.ToString();
             return (sqlCommand, false);

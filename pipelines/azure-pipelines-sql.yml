@@ -90,14 +90,16 @@ jobs:
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
  
-        # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
       - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
         displayName: "Run MySql on Linux container"
 
       - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
         displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerTcp -f net7.0 --logger trx
+      - script: docker run --name postgres -e POSTGRES_PASSWORD=Password12! -p 5432:5432 -d postgres:latest
+        displayName: "Run PostgreSQL on Linux container"
+
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests2.SqlServerTcp -f net7.0 --logger trx
         name: sqlservertcptests
         displayName: "SQL Server Tcp Integration Tests"
         continueOnError: true
@@ -144,14 +146,16 @@ jobs:
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
  
-        # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
       - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
         displayName: "Run MySql on Linux container"
 
       - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
         displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerTcp -f net6.0 --logger trx
+      - script: docker run --name postgres -e POSTGRES_PASSWORD=Password12! -p 5432:5432 -d postgres:latest
+        displayName: "Run PostgreSQL on Linux container"
+
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests2.SqlServerTcp -f net6.0 --logger trx
         name: sqlservertcptests
         displayName: "SQL Server Tcp Integration Tests"
         continueOnError: true
@@ -198,14 +202,16 @@ jobs:
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
  
-        # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
       - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
         displayName: "Run MySql on Linux container"
 
       - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
         displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerTcp -f netcoreapp3.1 --logger trx
+      - script: docker run --name postgres -e POSTGRES_PASSWORD=Password12! -p 5432:5432 -d postgres:latest
+        displayName: "Run PostgreSQL on Linux container"
+
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests2.SqlServerTcp -f netcoreapp3.1 --logger trx
         name: sqlservertcptests
         displayName: "SQL Server Tcp Integration Tests"
         continueOnError: true
@@ -217,223 +223,61 @@ jobs:
           testRunner: VSTest
           testResultsFiles: "**/*.trx"
 
-  - job: testssqlserverhttp6
-    displayName: "Sql HTTP .Net 6"
+  # - job: testssqlserverhttp6
+  #   displayName: "Sql HTTP .Net 6"
 
-    pool:
-      # get an Ubuntu image to be able to get the light SQL container
-      vmImage: "ubuntu-latest" # "Ubuntu 16.04" # "ubuntu-latest" # 'VS2017-Win2016'
+  #   pool:
+  #     # get an Ubuntu image to be able to get the light SQL container
+  #     vmImage: "ubuntu-latest" # "Ubuntu 16.04" # "ubuntu-latest" # 'VS2017-Win2016'
 
-    variables:
-      solution: "**/*.sln"
-      buildPlatform: "Any CPU"
-      buildConfiguration: "Release"
+  #   variables:
+  #     solution: "**/*.sln"
+  #     buildPlatform: "Any CPU"
+  #     buildConfiguration: "Release"
 
-    steps:
+  #   steps:
 
-      - task: UseDotNet@2
-        displayName: 'Use .Net Core sdk'
-        inputs:
-          version: 3.x
+  #     - task: UseDotNet@2
+  #       displayName: 'Use .Net Core sdk'
+  #       inputs:
+  #         version: 3.x
 
-      - task: UseDotNet@2
-        displayName: 'Use .Net Sdk 6.x'
-        inputs:
-          packageType: 'sdk'
-          version: 6.0.x
-          includePreviewVersions: true
+  #     - task: UseDotNet@2
+  #       displayName: 'Use .Net Sdk 6.x'
+  #       inputs:
+  #         packageType: 'sdk'
+  #         version: 6.0.x
+  #         includePreviewVersions: true
           
-      - task: UseDotNet@2
-        displayName: 'Use .Net Sdk 7.x'
-        inputs:
-          packageType: 'sdk'
-          version: 7.0.x
-          includePreviewVersions: true   
+  #     - task: UseDotNet@2
+  #       displayName: 'Use .Net Sdk 7.x'
+  #       inputs:
+  #         packageType: 'sdk'
+  #         version: 7.0.x
+  #         includePreviewVersions: true   
 
-      - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
-        displayName: "Run SQL Server latest on Linux container"
+  #     - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
+  #       displayName: "Run SQL Server latest on Linux container"
  
-        # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-        displayName: "Run MySql on Linux container"
+  #       # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
+  #     - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
+  #       displayName: "Run MySql on Linux container"
 
-      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
-        displayName: "Run MariaDB on Linux container"
+  #     - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
+  #       displayName: "Run MariaDB on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerHttp  -f net6.0 --logger trx
-        name: sqlservertcptests
-        displayName: "SQL Server Http Integration Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
+  #     - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerHttp  -f net6.0 --logger trx
+  #       name: sqlservertcptests
+  #       displayName: "SQL Server Http Integration Tests"
+  #       continueOnError: true
+  #       env:
+  #         "AZUREDEV": "true"
 
-      - task: PublishTestResults@2
-        inputs:
-          testRunner: VSTest
-          testResultsFiles: "**/*.trx"
+  #     - task: PublishTestResults@2
+  #       inputs:
+  #         testRunner: VSTest
+  #         testResultsFiles: "**/*.trx"
 
-  - job: testssqlserverhttp31
-    displayName: "Sql HTTP .Net Core 3.1"
-
-    pool:
-      # get an Ubuntu image to be able to get the light SQL container
-      vmImage: "ubuntu-latest" # "Ubuntu 16.04" # "ubuntu-latest" # 'VS2017-Win2016'
-
-    variables:
-      solution: "**/*.sln"
-      buildPlatform: "Any CPU"
-      buildConfiguration: "Release"
-
-    steps:
-      - task: UseDotNet@2
-        displayName: 'Use .Net Core sdk'
-        inputs:
-          version: 3.x
-
-      - task: UseDotNet@2
-        displayName: 'Use .Net Sdk 6.x'
-        inputs:
-          packageType: 'sdk'
-          version: 6.0.x
-          includePreviewVersions: true
-          
-      - task: UseDotNet@2
-        displayName: 'Use .Net Sdk 7.x'
-        inputs:
-          packageType: 'sdk'
-          version: 7.0.x
-          includePreviewVersions: true   
-
-      - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
-        displayName: "Run SQL Server latest on Linux container"
- 
-        # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-        displayName: "Run MySql on Linux container"
-
-      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
-        displayName: "Run MariaDB on Linux container"
-
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerHttp -f netcoreapp3.1 --logger trx
-        name: sqlservertcptests
-        displayName: "SQL Server Http Integration Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
-
-      - task: PublishTestResults@2
-        inputs:
-          testRunner: VSTest
-          testResultsFiles: "**/*.trx"
-
-  - job: testssqlserverct31
-    displayName: "Sql CT .Net Core 3.1"
-
-    pool:
-      # get an Ubuntu image to be able to get the light SQL container
-      vmImage: "ubuntu-latest" # "Ubuntu 16.04" # "ubuntu-latest" # 'VS2017-Win2016'
-
-    variables:
-      solution: "**/*.sln"
-      buildPlatform: "Any CPU"
-      buildConfiguration: "Release"
-
-    steps:
-      - task: UseDotNet@2
-        displayName: 'Use .Net Core sdk'
-        inputs:
-          version: 3.x
-
-      - task: UseDotNet@2
-        displayName: 'Use .Net Sdk 6.x'
-        inputs:
-          packageType: 'sdk'
-          version: 6.0.x
-          includePreviewVersions: true
-          
-      - task: UseDotNet@2
-        displayName: 'Use .Net Sdk 7.x'
-        inputs:
-          packageType: 'sdk'
-          version: 7.0.x
-          includePreviewVersions: true   
-
-      - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
-        displayName: "Run SQL Server latest on Linux container"
- 
-        # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-        displayName: "Run MySql on Linux container"
-
-      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
-        displayName: "Run MariaDB on Linux container"
-
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerChangeTracking -f netcoreapp3.1 --logger trx
-        name: sqlservertcptests
-        displayName: "SQL Server Change Tracking Integration Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
-
-      - task: PublishTestResults@2
-        inputs:
-          testRunner: VSTest
-          testResultsFiles: "**/*.trx"
-
-  - job: testssqlserverct6
-    displayName: "Sql CT .Net 6"
-
-    pool:
-      # get an Ubuntu image to be able to get the light SQL container
-      vmImage: "ubuntu-latest" # "Ubuntu 16.04" # "ubuntu-latest" # 'VS2017-Win2016'
-
-    variables:
-      solution: "**/*.sln"
-      buildPlatform: "Any CPU"
-      buildConfiguration: "Release"
-
-    steps:
-
-      - task: UseDotNet@2
-        displayName: 'Use .Net Core sdk'
-        inputs:
-          version: 3.x
-
-      - task: UseDotNet@2
-        displayName: 'Use .Net Sdk 6.x'
-        inputs:
-          packageType: 'sdk'
-          version: 6.0.x
-          includePreviewVersions: true
-          
-      - task: UseDotNet@2
-        displayName: 'Use .Net Sdk 7.x'
-        inputs:
-          packageType: 'sdk'
-          version: 7.0.x
-          includePreviewVersions: true   
-          
-      - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
-        displayName: "Run SQL Server latest on Linux container"
- 
-        # Seems the 3306 is already in use on the machine used by Azure Devops, so redirect to 3307
-      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-        displayName: "Run MySql on Linux container"
-
-      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
-        displayName: "Run MariaDB on Linux container"
-
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.SqlServerChangeTracking -f net6.0 --logger trx
-        name: sqlservertcptests
-        displayName: "SQL Server Change Tracking Integration Tests"
-        continueOnError: true
-        env:
-          "AZUREDEV": "true"
-
-      - task: PublishTestResults@2
-        inputs:
-          testRunner: VSTest
-          testResultsFiles: "**/*.trx"
 
   - job: Beta
     displayName: "Beta Nuget Packages"

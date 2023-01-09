@@ -390,7 +390,7 @@ namespace Dotmim.Sync
                 context.ProgressPercentage = 0.1;
 
                 // On local orchestrator, get local changes
-                (context, clientSyncChanges) = await this.LocalOrchestrator.InternalGetChangesAsync(cScopeInfo, context, cScopeInfoClient,
+                (context, clientSyncChanges) = await this.LocalOrchestrator.InternalGetChangesAsync(cScopeInfo, context, cScopeInfoClient, 
                     default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)

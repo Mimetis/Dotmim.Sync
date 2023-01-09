@@ -1055,19 +1055,14 @@ namespace Dotmim.Sync.MySql.Builders
             else
                 stringBuilder.AppendLine("SELECT");
 
-
-            var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
-
-            for (var i = 0; i < columns.Count; i++)
+            var comma = "  ";
+            foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
             {
-                var mutableColumn = columns[i];
-                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
-                stringBuilder.AppendLine($"\t`base`.{columnName}");
-
-                if (i < columns.Count - 1)
-                    stringBuilder.Append(", ");
+                stringBuilder.AppendLine($"\t{comma}`base`.{ParserName.Parse(mutableColumn, "`").Quoted()}");
+                comma = ", ";
             }
-            stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} `base`");
+            stringBuilder.AppendLine($"\t, `side`.`sync_row_is_tombstone` as `sync_row_is_tombstone`");
+            stringBuilder.AppendLine($"FROM {tableName.Quoted()} `base`");
 
             // ----------------------------------
             // Make Left Join
@@ -1111,7 +1106,41 @@ namespace Dotmim.Sync.MySql.Builders
             }
             // ----------------------------------
 
-            stringBuilder.AppendLine("\t(`side`.`timestamp` > sync_min_timestamp or sync_min_timestamp IS NULL));");
+            stringBuilder.AppendLine("\t(`side`.`timestamp` > sync_min_timestamp or sync_min_timestamp IS NULL)");
+            stringBuilder.AppendLine(")");
+            stringBuilder.AppendLine("UNION");
+            stringBuilder.AppendLine("SELECT");
+            comma = "  ";
+            foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
+            {
+                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+                var isPrimaryKey = this.tableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
+
+                if (isPrimaryKey)
+                    stringBuilder.AppendLine($"\t{comma}`side`.{columnName}");
+                else
+                    stringBuilder.AppendLine($"\t{comma}`base`.{columnName}");
+
+                comma = ", ";
+            }
+            stringBuilder.AppendLine($"\t, `side`.`sync_row_is_tombstone` as `sync_row_is_tombstone`");
+            stringBuilder.AppendLine($"FROM {tableName.Quoted()} `base`");
+
+            // ----------------------------------
+            // Make Left Join
+            // ----------------------------------
+            stringBuilder.Append($"RIGHT JOIN {trackingName.Quoted()} `side` ON ");
+
+            empty = "";
+            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
+                stringBuilder.Append($"{empty}`base`.{columnName} = `side`.{columnName}");
+                empty = " AND ";
+            }
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("WHERE (`side`.`timestamp` > sync_min_timestamp AND `side`.`sync_row_is_tombstone` = 1);");
+            
             sqlCommand.CommandText = stringBuilder.ToString();
 
             return sqlCommand;

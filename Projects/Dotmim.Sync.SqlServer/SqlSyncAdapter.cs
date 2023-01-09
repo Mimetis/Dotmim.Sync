@@ -280,7 +280,6 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             if (commandType == DbCommandType.DeleteMetadata)
             {
-
                 // For some reason, we still have pkey as parameter of delete metadata stored proc ...
                 // just set DBNull.Value
                 foreach (var column in this.TableDescription.GetPrimaryKeysColumns())
@@ -290,7 +289,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                     if (parameter != null)
                         parameter.Value = DBNull.Value;
                 }
-
             }
 
             return command;

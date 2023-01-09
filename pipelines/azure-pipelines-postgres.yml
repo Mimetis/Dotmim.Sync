@@ -84,10 +84,16 @@ jobs:
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
  
+      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
+        displayName: "Run MySql on Linux container"
+
+      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
+        displayName: "Run MariaDB on Linux container"
+
       - script: docker run --name postgres -e POSTGRES_PASSWORD=Password12! -p 5432:5432 -d postgres:latest
         displayName: "Run PostgreSQL on Linux container"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests.PostgresTcp -f net7.0 --logger trx
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests2.PostgresTcp -f net7.0 --logger trx
         name: postgrestcptests
         displayName: "PostgreSQL Tcp Integration Tests"
         continueOnError: true
@@ -99,7 +105,7 @@ jobs:
           testRunner: VSTest
           testResultsFiles: "**/*.trx"
 
-  - job: testpostgreshttp7
+ 
     displayName: "PostgreSQL HTTP .Net 7"
 
     pool:

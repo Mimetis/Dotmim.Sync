@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Data;
 using System.Linq;
+using System.Data.Common;
 
 
 namespace Dotmim.Sync.SqlServer.Manager
@@ -14,7 +15,8 @@ namespace Dotmim.Sync.SqlServer.Manager
         // public const Byte PRECISION_MAX = 28;
         // 2021/02/16 : Trying to resverse back to 38
         public const byte PRECISION_MAX = 38;
-
+        public const byte PRECISION_DEFAULT = 22;
+        public const byte SCALE_DEFAULT = 8;
         public const byte SCALE_MAX = 18;
 
         public SqlDbMetadata() { }
@@ -190,8 +192,8 @@ namespace Dotmim.Sync.SqlServer.Manager
 
         public override (byte precision, byte scale) GetPrecisionAndScale(SyncColumn columnDefinition)
         {
-            if (columnDefinition.DbType == (int)DbType.Single && columnDefinition.Precision == 0 && columnDefinition.Scale == 0)
-                return (PRECISION_MAX, 8);
+            if ((columnDefinition.DbType == (int)DbType.Single || columnDefinition.DbType == (int)DbType.Decimal || columnDefinition.DbType == (int)DbType.VarNumeric) && columnDefinition.Precision == 0 && columnDefinition.Scale == 0)
+                return (PRECISION_DEFAULT, SCALE_DEFAULT);
 
             return CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
 
@@ -261,10 +263,8 @@ namespace Dotmim.Sync.SqlServer.Manager
                     break;
                 case SqlDbType.Decimal:
                     var (p, s) = this.GetPrecisionAndScale(column);
-
-                    if (column.DbType == (int)DbType.Single && column.Precision == 0 && column.Scale == 0)
-                        argument = $"({PRECISION_MAX}, 8)";
-                    else if (p > 0 && s <= 0)
+                    
+                    if (p > 0 && s <= 0)
                         argument = $"({p})";
                     else if (p > 0 && s > 0)
                         argument = $"({p}, {s})";

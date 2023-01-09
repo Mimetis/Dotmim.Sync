@@ -36,19 +36,37 @@ namespace Dotmim.Sync.Sqlite
 
         public override DbCommand EnsureCommandParameters(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
+            //if (commandType == DbCommandType.InsertRow || commandType == DbCommandType.InsertRows)
+            //{
+            //    var p = GetParameter(command, "sync_force_write");
+            //    if (p != null)
+            //        command.Parameters.Remove(p);
+            //    p = GetParameter(command, "sync_min_timestamp");
+            //    if (p != null)
+            //        command.Parameters.Remove(p);
+            //}
             return command;
         }
 
         public override DbCommand EnsureCommandParametersValues(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
         {
-            var p = GetParameter(command, "sync_row_count");
-            if (p != null)
-                command.Parameters.Remove(p);
 
             return command;
         }
 
-        public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null) 
+        public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
             => throw new NotImplementedException();
+
+
+        private DbType GetValidDbType(DbType dbType)
+        {
+            if (dbType == DbType.Time)
+                return DbType.String;
+
+            if (dbType == DbType.Object)
+                return DbType.String;
+
+            return dbType;
+        }
     }
 }

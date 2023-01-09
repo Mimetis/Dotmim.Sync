@@ -80,7 +80,8 @@ namespace Dotmim.Sync
                 customParameterFilter.Size = size;
                 if (defaultValue != null)
                     customParameterFilter.Value = defaultValue;
-                command.Parameters.Add(p);
+
+                command.Parameters.Add(customParameterFilter);
             }
             return command;
         }
@@ -147,7 +148,7 @@ namespace Dotmim.Sync
                 customParameterFilter.Size = size;
                 if (defaultValue != null)
                     customParameterFilter.Value = defaultValue;
-                command.Parameters.Add(p);
+                command.Parameters.Add(customParameterFilter);
             }
             return command;
         }
@@ -167,6 +168,7 @@ namespace Dotmim.Sync
                 p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
+                p.Size = column.MaxLength > 0 ? column.MaxLength : -1;
                 command.Parameters.Add(p);
             }
 
@@ -212,6 +214,7 @@ namespace Dotmim.Sync
                 p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
+                p.Size = column.MaxLength;
                 command.Parameters.Add(p);
             }
 
@@ -246,6 +249,7 @@ namespace Dotmim.Sync
                 p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
+                p.Size = column.MaxLength;
                 command.Parameters.Add(p);
             }
 
@@ -290,6 +294,7 @@ namespace Dotmim.Sync
                 p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
+                p.Size = column.MaxLength;
                 command.Parameters.Add(p);
             }
 
@@ -326,8 +331,14 @@ namespace Dotmim.Sync
                 p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
+                p.Size = column.MaxLength;
                 command.Parameters.Add(p);
             }
+
+            p = command.CreateParameter();
+            p.ParameterName = $"{syncAdapter.ParameterPrefix}sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
 
             p = command.CreateParameter();
             p.ParameterName = $"{syncAdapter.ParameterPrefix}sync_min_timestamp";
@@ -366,9 +377,29 @@ namespace Dotmim.Sync
                 p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
+                p.Size = column.MaxLength;
                 command.Parameters.Add(p);
             }
 
+
+            if (syncAdapter.SupportsOutputParameters)
+            {
+                p = command.CreateParameter();
+                p.ParameterName = $"{syncAdapter.ParameterPrefix}sync_row_count";
+                p.DbType = DbType.Int32;
+                p.Direction = ParameterDirection.Output;
+                command.Parameters.Add(p);
+            }
+
+            return command;
+        }
+
+        /// <summary>
+        /// Set the SelectMetadata stored procedure parameters
+        /// </summary>
+        internal DbCommand InternalSetResetParameters(DbCommand command, DbSyncAdapter syncAdapter)
+        {
+            DbParameter p;
 
             if (syncAdapter.SupportsOutputParameters)
             {

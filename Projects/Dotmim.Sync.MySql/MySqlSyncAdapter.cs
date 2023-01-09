@@ -7,6 +7,7 @@ using System.Data;
 using Dotmim.Sync.Builders;
 #if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
 using MySqlConnector;
+using System.Reflection.Metadata;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;
 #endif
@@ -38,6 +39,22 @@ namespace Dotmim.Sync.MySql
         }
         public override DbCommand EnsureCommandParameters(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
+            // Remove in_ for all sync parameters... (historical)
+            foreach(DbParameter parameter in command.Parameters)
+            {
+                parameter.ParameterName = parameter.ParameterName switch
+                {
+                    "in_sync_scope_id" => "sync_scope_id",
+                    "in_sync_min_timestamp" => "sync_min_timestamp",
+                    "in_sync_row_is_tombstone" => "sync_row_is_tombstone",
+                    "in_sync_row_count" => "sync_row_count",
+                    "in_sync_row_timestamp" => "sync_row_timestamp",
+                    "in_sync_force_write" => "sync_force_write",
+                    _ => parameter.ParameterName
+                };
+            
+            }
+
             return command;
         }
 
@@ -45,6 +62,11 @@ namespace Dotmim.Sync.MySql
         {
             return command;
         }
+
+        public override string ParameterPrefix => "in_";
+        public override string QuotePrefix => "`";
+        public override string QuoteSuffix => "`";
+        public override bool SupportsOutputParameters => true;
 
         public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter = null)
         {

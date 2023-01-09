@@ -127,8 +127,7 @@ namespace Dotmim.Sync
                     if (clientChanges.ClientBatchInfo != null && clientChanges.ClientBatchInfo.HasData())
                     {
                         // Call provider to apply changes
-                        failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges,
-                            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     }
 
                     if (failureException != null)
@@ -222,7 +221,7 @@ namespace Dotmim.Sync
                     // When we get the chnages from server, we create the batches if it's requested by the client
                     // the batch decision comes from batchsize from client
                     serverChangesSelected = await this.InternalGetChangesAsync(cScopeInfo, context, fromScratch, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp, cScopeInfoClient.Id,
-                        this.Provider.SupportsMultipleActiveResultSets, serverBatchInfo,
+                        this.Provider.SupportsMultipleActiveResultSets, serverBatchInfo, 
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     if (runner.CancellationToken.IsCancellationRequested)

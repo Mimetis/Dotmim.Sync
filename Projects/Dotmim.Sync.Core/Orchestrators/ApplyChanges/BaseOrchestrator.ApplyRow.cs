@@ -56,7 +56,7 @@ namespace Dotmim.Sync
 
             // Set the parameters
             this.InternalSetCommandParametersValues(context, command, DbCommandType.DeleteRow, syncAdapter, connection, transaction, cancellationToken, progress,
-            sync_scope_id: senderScopeId, sync_min_timestamp: lastTimestamp, sync_row_is_tombstone: true, sync_force_write: forceWrite);
+            row: row, sync_scope_id: senderScopeId, sync_min_timestamp: lastTimestamp, sync_row_is_tombstone: true, sync_force_write: forceWrite);
 
             await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DeleteRow, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 

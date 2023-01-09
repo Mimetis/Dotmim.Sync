@@ -84,7 +84,7 @@ namespace Dotmim.Sync
                             // Check if we have a return value instead
                             var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
 
-                            if (syncRowCountParam != null)
+                            if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
                                 rowsCleanedCount = (int)syncRowCountParam.Value;
 
                             // Only add a new table metadata stats object, if we have, at least, purged 1 or more rows
@@ -165,7 +165,7 @@ namespace Dotmim.Sync
                 // Check if we have a return value instead
                 var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
 
-                if (syncRowCountParam != null)
+                if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
                     metadataUpdatedRowsCount = (int)syncRowCountParam.Value;
 
                 command.Dispose();

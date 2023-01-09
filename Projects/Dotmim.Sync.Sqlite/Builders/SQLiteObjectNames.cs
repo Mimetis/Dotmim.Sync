@@ -224,12 +224,12 @@ namespace Dotmim.Sync.Sqlite
                 empty = ", ";
             }
 
-            stringBuilder.AppendLine($"INSERT OR IGNORE INTO {tableName.Quoted()}");
+            stringBuilder.AppendLine($"INSERT INTO {tableName.Quoted()}");
             stringBuilder.AppendLine($"({stringBuilderArguments})");
             stringBuilder.Append($"VALUES ({stringBuilderParametersValues2}) ");
             stringBuilder.AppendLine($";");
 
-            stringBuilder.AppendLine($"UPDATE OR IGNORE {trackingName.Quoted()} SET ");
+            stringBuilder.AppendLine($"UPDATE {trackingName.Quoted()} SET ");
             stringBuilder.AppendLine("[update_scope_id] = @sync_scope_id,");
             stringBuilder.AppendLine("[sync_row_is_tombstone] = 0,");
             stringBuilder.AppendLine("[last_change_datetime] = datetime('now')");

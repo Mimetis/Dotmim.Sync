@@ -44,52 +44,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
             };
         }
 
-        //public string GetCompatibleNpgsqlParameterTypeDeclarationString(NpgsqlParameter npgsqlParameter)
-        //{
-        //    string argument= null;
-        //    string typeName = npgsqlParameter.NpgsqlDbType.ToString();
-
-
-        //    // Getting EnableLegacyTimestampBehavior behavior
-        //    AppContext.TryGetSwitch("Npgsql.EnableLegacyTimestampBehavior", out bool legacy);
-
-        //    switch (npgsqlParameter.NpgsqlDbType)
-        //    {
-        //        case NpgsqlDbType.Varbit:
-        //        case NpgsqlDbType.Varchar:
-        //        case NpgsqlDbType.Char:
-        //            argument = $"({npgsqlParameter.Size})";
-        //            break;
-        //        case NpgsqlDbType.Text:
-        //            if (npgsqlParameter.Size > 0)
-        //            {
-        //                typeName = "character varying";
-        //                argument = $"({npgsqlParameter.Size})";
-        //            }
-        //            break;
-        //        case NpgsqlDbType.Numeric:
-
-        //            byte precision, scale;
-
-        //            if (npgsqlParameter.DbType == DbType.Single && npgsqlParameter.Precision == 0 && npgsqlParameter.Scale == 0)
-        //                (precision, scale) = (PRECISION_MAX, 8);
-        //            else
-        //                (precision, scale) = CoercePrecisionAndScale(npgsqlParameter.Precision, npgsqlParameter.Scale);
-
-        //            if (precision > 0 && scale <= 0)
-        //                argument = $"({precision})";
-        //            else if (precision > 0 && scale > 0)
-        //                argument = $"({precision}, {scale})";
-        //            break;
-        //        default:
-        //            argument = string.Empty;
-        //            break;
-        //    }
-
-        //    return string.IsNullOrEmpty(argument) ? typeName : $"{typeName} {argument}";
-        //}
-
-
         public string GetCompatibleColumnTypeDeclarationString(SyncColumn column, string fromProviderType)
         {
             string argument = string.Empty;
