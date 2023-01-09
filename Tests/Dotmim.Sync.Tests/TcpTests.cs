@@ -3353,37 +3353,6 @@ namespace Dotmim.Sync.Tests
 
 
         /// <summary>
-        /// Create a snapshot, then remove a row from server, then sync
-        /// </summary>
-        [Fact]
-        public async Task Snapshot_Initialize_ThenDeleteServerRows_ThenSync()
-        {
-            // create a server schema with seeding
-            await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-            // create empty client databases
-            foreach (var client in this.Clients)
-                await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-            var setup = new SyncSetup(Tables);
-
-            // snapshot directory
-            var snapshotDirctory = HelperDatabase.GetRandomName();
-            var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
-
-            var options = new SyncOptions
-            {
-                SnapshotsDirectory = directory,
-                BatchSize = 3000
-            };
-
-            var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
-
-
-        }
-
-
-        /// <summary>
         /// Insert one row on server, should be correctly sync on all clients
         /// </summary>
         [Theory]

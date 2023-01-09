@@ -34,6 +34,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
+using Xunit.Sdk;
 
 namespace Dotmim.Sync.Tests
 {
@@ -96,7 +97,7 @@ namespace Dotmim.Sync.Tests
         protected readonly HelperProvider fixture;
 
         // Current test running
-        private ITest test;
+        private XunitTest test;
 
         /// <summary>
         /// Gets the remote orchestrator and its database name
@@ -116,6 +117,16 @@ namespace Dotmim.Sync.Tests
         public ITestOutputHelper Output { get; }
 
         /// <summary>
+        /// Output to console and debug the current state
+        /// </summary>
+        public void OutputCurrentState(string subCategory = null)
+        {
+            var t = string.IsNullOrEmpty(subCategory) ? "" : $" - {subCategory}";
+            t = $"{this.test.TestCase.Method.Name}{t}: {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
+            Console.WriteLine(t);
+            Debug.WriteLine(t);
+        }
+        /// <summary>
         /// For each test, Create a server database and some clients databases, depending on ProviderType provided in concrete class
         /// </summary>
         public TcpConflictsTests(HelperProvider fixture, ITestOutputHelper output)
@@ -124,7 +135,7 @@ namespace Dotmim.Sync.Tests
             this.Output = output;
             var type = output.GetType();
             var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
-            this.test = (ITest)testMember.GetValue(output);
+            this.test = (XunitTest)testMember.GetValue(output);
             this.stopwatch = Stopwatch.StartNew();
 
             this.fixture = fixture;
@@ -172,9 +183,7 @@ namespace Dotmim.Sync.Tests
 
             this.stopwatch.Stop();
 
-            var str = $"{test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
-            Console.WriteLine(str);
-            Debug.WriteLine(str);
+            OutputCurrentState();
 
         }
 

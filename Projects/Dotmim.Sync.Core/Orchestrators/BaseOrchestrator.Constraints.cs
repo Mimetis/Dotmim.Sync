@@ -29,7 +29,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Reset a table, deleting rows from table and tracking_table
         /// </summary>
-        public virtual async Task ResetTableAsync(ScopeInfo scopeInfo, SyncContext context, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null,
+        internal virtual async Task ResetTableAsync(ScopeInfo scopeInfo, SyncContext context, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null,
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             try
@@ -60,6 +60,20 @@ namespace Dotmim.Sync
             }
         }
 
+
+        public virtual async Task ResetTablesAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null,
+            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        {
+            var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
+            var schemaTables = scopeInfo.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
+
+            foreach (var schemaTable in schemaTables.Reverse())
+            {
+                context = await this.InternalResetTableAsync(scopeInfo, context, schemaTable, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            }
+        }
+
+
         /// <summary>
         /// Disable a table's constraints
         /// <para>
@@ -89,7 +103,8 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </summary>
-        public virtual async Task DisableConstraintsAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
+        public virtual async Task DisableConstraintsAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null,
+            DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -102,10 +117,10 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 context = await this.InternalDisableConstraintsAsync(scopeInfo, context, schemaTable,
-                    runner.Connection, runner.Transaction).ConfigureAwait(false);
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 return;
             }
@@ -149,7 +164,8 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </summary>
-        public virtual async Task EnableConstraintsAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null)
+        public virtual async Task EnableConstraintsAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null,
+            DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
@@ -162,10 +178,10 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 context = await this.InternalEnableConstraintsAsync(scopeInfo, context, schemaTable,
-                    runner.Connection, runner.Transaction).ConfigureAwait(false);
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 return;
             }
@@ -184,16 +200,16 @@ namespace Dotmim.Sync
         /// Disabling all constraints on synced tables
         /// </summary>
         internal async Task<SyncContext> InternalDisableConstraintsAsync(ScopeInfo scopeInfo, SyncContext context,
-            SyncTable schemaTable, DbConnection connection, DbTransaction transaction = null)
+            SyncTable schemaTable, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
 
-                var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DisableConstraints, null,
-                runner.Connection, runner.Transaction, default, default).ConfigureAwait(false);
+                var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DisableConstraints,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (command == null) return context;
 
@@ -222,16 +238,16 @@ namespace Dotmim.Sync
         /// Enabling all constraints on synced tables
         /// </summary>
         internal async Task<SyncContext> InternalEnableConstraintsAsync(ScopeInfo scopeInfo, SyncContext context,
-            SyncTable schemaTable, DbConnection connection, DbTransaction transaction)
+            SyncTable schemaTable, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
 
-                var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.EnableConstraints, null,
-                    runner.Connection, runner.Transaction, default, default).ConfigureAwait(false);
+                var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.EnableConstraints,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (command == null) return context;
 
@@ -266,12 +282,12 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction).ConfigureAwait(false);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
 
-                var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.Reset, null,
-                    runner.Connection, runner.Transaction, default, default).ConfigureAwait(false);
+                var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.Reset,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (command != null)
                 {

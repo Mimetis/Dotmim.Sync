@@ -58,10 +58,10 @@ namespace Dotmim.Sync
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 ScopeInfo clientScopeInfo;
-                (context, clientScopeInfo) = await InternalEnsureScopeInfoAsync(context, 
+                (context, clientScopeInfo) = await InternalEnsureScopeInfoAsync(context,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                (context, clientScopeInfo) = await InternalProvisionClientAsync(sScopeInfo, clientScopeInfo, context, provision, overwrite, 
+                (context, clientScopeInfo) = await InternalProvisionClientAsync(sScopeInfo, clientScopeInfo, context, provision, overwrite,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -99,12 +99,12 @@ namespace Dotmim.Sync
         /// <param name="cancellationToken">optional cancellation token</param>
         /// <param name="progress">option IProgress{ProgressArgs}</param>
         /// <returns></returns>
-        public Task<bool> DeprovisionAsync(SyncProvision provision = default, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null) 
+        public Task<bool> DeprovisionAsync(SyncProvision provision = default, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => DeprovisionAsync(SyncOptions.DefaultScopeName, provision, connection, transaction, cancellationToken, progress);
 
 
         /// <inheritdoc cref="DeprovisionAsync(SyncProvision, DbConnection, DbTransaction, CancellationToken, IProgress{ProgressArgs})" />
-        public virtual async Task<bool> DeprovisionAsync(string scopeName, SyncProvision provision = default, 
+        public virtual async Task<bool> DeprovisionAsync(string scopeName, SyncProvision provision = default,
             DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -121,11 +121,11 @@ namespace Dotmim.Sync
                 (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (exists)
-                    (context, cScopeInfo) = await this.InternalLoadScopeInfoAsync(context, 
+                    (context, cScopeInfo) = await this.InternalLoadScopeInfoAsync(context,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 bool isDeprovisioned;
-                (context, isDeprovisioned) = await InternalDeprovisionAsync(cScopeInfo, context, provision, 
+                (context, isDeprovisioned) = await InternalDeprovisionAsync(cScopeInfo, context, provision,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
@@ -143,8 +143,8 @@ namespace Dotmim.Sync
         }
 
         /// <inheritdoc cref="DeprovisionAsync(string, SyncSetup, SyncProvision, DbConnection, DbTransaction, CancellationToken, IProgress{ProgressArgs})" />
-        public virtual Task<bool> DeprovisionAsync(SyncSetup setup, SyncProvision provision = default, 
-            DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null) 
+        public virtual Task<bool> DeprovisionAsync(SyncSetup setup, SyncProvision provision = default,
+            DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
             => DeprovisionAsync(SyncOptions.DefaultScopeName, setup, provision, connection, transaction, cancellationToken, progress);
 
         /// <summary>
@@ -169,7 +169,7 @@ namespace Dotmim.Sync
         /// <param name="cancellationToken">optional cancellation token</param>
         /// <param name="progress">option IProgress{ProgressArgs}</param>
         /// <returns></returns>
-        public virtual async Task<bool> DeprovisionAsync(string scopeName, SyncSetup setup, SyncProvision provision = default, 
+        public virtual async Task<bool> DeprovisionAsync(string scopeName, SyncSetup setup, SyncProvision provision = default,
             DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -213,7 +213,7 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </summary>
-        public virtual async Task DropAllAsync(DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual async Task DropAllAsync(bool dropTables = false, DbConnection connection = null, DbTransaction transaction = null, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
@@ -228,7 +228,7 @@ namespace Dotmim.Sync
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (exists)
-                    (context, cScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, 
+                    (context, cScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection,
                         runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // fallback to "try to drop an hypothetical default scope"
@@ -240,16 +240,23 @@ namespace Dotmim.Sync
 
                 var defaultClientScopeInfo = this.InternalCreateScopeInfo(SyncOptions.DefaultScopeName);
                 SyncSetup setup;
-                (context, setup) = await this.InternalGetAllTablesAsync(context, 
+                (context, setup) = await this.InternalGetAllTablesAsync(context,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 // Considering removing tables with "_tracking" at the end
                 var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
                 var scopeInfoTableName = scopeBuilder.ScopeInfoTableName.Unquoted().ToString();
-                var tables = setup.Tables.Where(setupTable => !setupTable.TableName.EndsWith("_tracking") && setupTable.TableName != scopeInfoTableName).ToList();
+                var scopeInfoClientTableName = $"{scopeBuilder.ScopeInfoTableName.Unquoted()}_client";
+                var tables = setup.Tables.Where(setupTable => !setupTable.TableName.EndsWith("_tracking") && setupTable.TableName != scopeInfoTableName && setupTable.TableName != scopeInfoClientTableName).ToList();
                 setup.Tables.Clear();
                 setup.Tables.AddRange(tables);
                 defaultClientScopeInfo.Setup = setup;
+
+                var (_, defaultSchema) = await this.InternalGetSchemaAsync(context, defaultClientScopeInfo.Setup,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                defaultClientScopeInfo.Schema = defaultSchema;
+
 
                 // add any random filters, to try to delete them
                 if (existingFilters != null && existingFilters.Count > 0)
@@ -265,12 +272,23 @@ namespace Dotmim.Sync
 
                 var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable | SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient;
 
+                if (dropTables)
+                {
+                    var dropAllArgs = new DropAllArgs(context, connection, transaction);
+                    await this.InterceptAsync(dropAllArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                    var confirm = dropAllArgs.Confirm();
+                    
+                    if (confirm)
+                        provision |= SyncProvision.Table;
+                }
+
                 foreach (var clientScopeInfo in cScopeInfos)
                 {
                     if (clientScopeInfo == null || clientScopeInfo.Setup == null || clientScopeInfo.Setup.Tables == null || clientScopeInfo.Setup.Tables.Count <= 0)
                         continue;
 
-                    (context, _) = await InternalDeprovisionAsync(clientScopeInfo, context, provision, 
+                    (context, _) = await InternalDeprovisionAsync(clientScopeInfo, context, provision,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                 }
 
@@ -287,7 +305,7 @@ namespace Dotmim.Sync
         /// Scope info parameter should contains Schema and Setup properties
         /// </summary>
         internal virtual async Task<(SyncContext context, ScopeInfo cScopeInfo)>
-                    InternalProvisionClientAsync(ScopeInfo serverScopeInfo, ScopeInfo clientScopeInfo, SyncContext context, SyncProvision provision, bool overwrite, 
+                    InternalProvisionClientAsync(ScopeInfo serverScopeInfo, ScopeInfo clientScopeInfo, SyncContext context, SyncProvision provision, bool overwrite,
                             DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             try

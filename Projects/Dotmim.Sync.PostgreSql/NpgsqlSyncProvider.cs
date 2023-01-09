@@ -20,7 +20,6 @@ namespace Dotmim.Sync.PostgreSql
         public NpgsqlSyncProvider() : base() { }
         public NpgsqlSyncProvider(string connectionString) : base()
         {
-            AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
             this.ConnectionString = connectionString;
 
             if (!string.IsNullOrEmpty(this.ConnectionString))

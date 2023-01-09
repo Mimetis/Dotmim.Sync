@@ -35,9 +35,25 @@ namespace Dotmim.Sync.Tests.Models
             this.ProviderType = t.ProviderType;
             this.ConnectionString = HelperDatabase.GetConnectionString(t.ProviderType, t.DatabaseName);
             this.useSeeding = useSeeding;
-            this.useSchema = this.ProviderType == ProviderType.Sql && fallbackUseSchema;
-
+            this.useSchema = (this.ProviderType == ProviderType.Sql || this.ProviderType == ProviderType.Postgres) && fallbackUseSchema;
         }
+        public AdventureWorksContext(CoreProvider provider, bool fallbackUseSchema = true, bool useSeeding = false) : this()
+        {
+            var db = HelperDatabase.GetDatabaseType(provider);
+            this.ProviderType = db.ProviderType;
+            this.ConnectionString = HelperDatabase.GetConnectionString(db.ProviderType, db.DatabaseName);
+            this.useSeeding = useSeeding;
+            this.useSchema = (this.ProviderType == ProviderType.Sql || this.ProviderType == ProviderType.Postgres) && fallbackUseSchema;
+        }
+
+        public AdventureWorksContext(string databaseName, ProviderType providerType, bool fallbackUseSchema = true, bool useSeeding = false) : this()
+        {
+            this.ProviderType = providerType;
+            this.ConnectionString = HelperDatabase.GetConnectionString(providerType, databaseName);
+            this.useSeeding = useSeeding;
+            this.useSchema = (this.ProviderType == ProviderType.Sql || this.ProviderType == ProviderType.Postgres) && fallbackUseSchema;
+        }
+
 
         public AdventureWorksContext(DbContextOptions<AdventureWorksContext> options)
             : base(options)
@@ -970,10 +986,10 @@ namespace Dotmim.Sync.Tests.Models
                     TaxAmt = 70.4279M,
                     Freight = 22.0087M,
                     TotalDue = (6530.35M + 70.4279M + 22.0087M),
-                    DueDate = new DateTime(2008, 02, 20, 13, 20, 10),
-                    OrderDate = new DateTime(2008, 02, 20, 13, 20, 10),
-                    ShipDate = new DateTimeOffset(2008, 03, 05, 10, 40, 30, TimeSpan.FromHours(2.5)),
-                    ModifiedDate = new DateTime(2008, 10, 10)
+                    DueDate = new DateTime(2008, 02, 20, 13, 20, 10).ToUniversalTime(),
+                    OrderDate = new DateTime(2008, 02, 20, 13, 20, 10).ToUniversalTime(),
+                    ShipDate = new DateTimeOffset(2008, 03, 05, 10, 40, 30, TimeSpan.FromHours(2.5)).ToUniversalTime(),
+                    ModifiedDate = new DateTime(2008, 10, 10).ToUniversalTime()
                 }
             );
 

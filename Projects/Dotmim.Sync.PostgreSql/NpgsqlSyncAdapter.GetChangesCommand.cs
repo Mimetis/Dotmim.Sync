@@ -46,12 +46,12 @@ namespace Dotmim.Sync.PostgreSql
             stringBuilder.AppendLine($"\tside.\"sync_row_is_tombstone\", ");
             stringBuilder.AppendLine($"\tside.\"update_scope_id\" as \"sync_update_scope_id\" ");
             // ----------------------------------
-            stringBuilder.AppendLine($"FROM {schema}.{TableName.Quoted()} base");
+            stringBuilder.AppendLine($"FROM \"{schema}\".{TableName.Quoted()} base");
 
             // ----------------------------------
             // Make Right Join
             // ----------------------------------
-            stringBuilder.Append($"RIGHT JOIN {schema}.{TrackingTableName.Quoted()} side ON ");
+            stringBuilder.Append($"RIGHT JOIN \"{schema}\".{TrackingTableName.Quoted()} side ON ");
 
             string empty = "";
             foreach (var pkColumn in this.TableDescription.PrimaryKeys)
@@ -103,81 +103,6 @@ namespace Dotmim.Sync.PostgreSql
             return (sqlCommand, false);
         }
 
-        private void SetSelectChangesParameters(DbCommand command, SyncFilter filter = null)
-        {
-            var originalProvider = NpgsqlSyncProvider.ProviderType;
-
-            var p = command.CreateParameter();
-            p.ParameterName = "@sync_min_timestamp";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_id";
-            p.DbType = DbType.Guid;
-            command.Parameters.Add(p);
-
-            if (filter == null)
-                return;
-
-            var parameters = filter.Parameters;
-
-            if (parameters.Count == 0)
-                return;
-
-            foreach (var param in parameters)
-            {
-                if (param.DbType.HasValue)
-                {
-                    // Get column name and type
-                    var columnName = ParserName.Parse(param.Name).Unquoted().Normalized().ToString();
-                    var syncColumn = new SyncColumn(columnName)
-                    {
-                        DbType = (int)param.DbType.Value,
-                        MaxLength = param.MaxLength,
-                    };
-                    var sqlDbType = this.NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(syncColumn);
-
-                    var customParameterFilter = new NpgsqlParameter($"@{columnName}", sqlDbType)
-                    {
-                        Size = param.MaxLength,
-                        IsNullable = param.AllowNull,
-                        Value = param.DefaultValue
-                    };
-                    command.Parameters.Add(customParameterFilter);
-                }
-                else
-                {
-                    var tableFilter = this.TableDescription.Schema.Tables[param.TableName, param.SchemaName];
-                    if (tableFilter == null)
-                        throw new FilterParamTableNotExistsException(param.TableName);
-
-                    var columnFilter = tableFilter.Columns[param.Name];
-                    if (columnFilter == null)
-                        throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
-
-                    // Get column name and type
-                    var columnName = ParserName.Parse(columnFilter).Unquoted().Normalized().ToString();
-
-
-                    var sqlDbType = tableFilter.OriginalProvider == originalProvider ?
-                        this.NpgsqlDbMetadata.GetNpgsqlDbType(columnFilter) : this.NpgsqlDbMetadata.GetOwnerDbTypeFromDbType(columnFilter);
-
-                    // Add it as parameter
-                    var sqlParamFilter = new NpgsqlParameter($"@{columnName}", sqlDbType)
-                    {
-                        Size = columnFilter.MaxLength,
-                        IsNullable = param.AllowNull,
-                        Value = param.DefaultValue
-                    };
-                    command.Parameters.Add(sqlParamFilter);
-                }
-
-            }
-
-        }
-
-
         // ---------------------------------------------------
         // Select Initialize Changes Command
         // ---------------------------------------------------
@@ -205,12 +130,12 @@ namespace Dotmim.Sync.PostgreSql
                     stringBuilder.AppendLine(", ");
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"FROM {schema}.{TableName.Quoted()} base");
+            stringBuilder.AppendLine($"FROM \"{schema}\".{TableName.Quoted()} base");
 
             // ----------------------------------
             // Make Left Join
             // ----------------------------------
-            stringBuilder.Append($"LEFT JOIN {schema}.{TrackingTableName.Quoted()} side ON ");
+            stringBuilder.Append($"LEFT JOIN \"{schema}\".{TrackingTableName.Quoted()} side ON ");
 
             string empty = "";
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())

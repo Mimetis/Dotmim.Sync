@@ -324,6 +324,11 @@ namespace Dotmim.Sync
                 setup.Tables.AddRange(tables);
                 defaultServerScopeInfo.Setup = setup;
 
+                var (_, defaultSchema) = await this.InternalGetSchemaAsync(context, defaultServerScopeInfo.Setup,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                defaultServerScopeInfo.Schema = defaultSchema;
+
                 // add any random filters, to try to delete them
                 if (existingFilters != null && existingFilters.Count > 0)
                 {

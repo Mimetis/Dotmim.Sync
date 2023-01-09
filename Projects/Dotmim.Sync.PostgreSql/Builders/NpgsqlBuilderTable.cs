@@ -135,13 +135,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"CREATE SCHEMA IF NOT EXISTS {schema};";
+            command.CommandText = $"CREATE SCHEMA IF NOT EXISTS \"{schema}\";";
             return Task.FromResult(command);
         }
         public Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var command = BuildCreateTableCommand(connection, transaction);
-           
+
             return Task.FromResult((DbCommand)command);
         }
 
@@ -163,7 +163,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"drop table {schema}.{table};";
+            command.CommandText = $"drop table \"{schema}\".{table};";
 
             return Task.FromResult(command);
         }
@@ -316,37 +316,33 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var table = this.tableName.Unquoted().ToString();
             var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
 
-            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {schema}.\"{table}\" (");
+
+            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS \"{schema}\".\"{table}\" (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
             {
-                var columnName = ParserName.Parse(column,"\"").Quoted().ToString();
+                var columnName = ParserName.Parse(column, "\"").Quoted().ToString();
 
                 var columnType = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.tableDescription.OriginalProvider);
 
                 if (column.IsAutoIncrement)
-                {
                     columnType = $"SERIAL";
-                }
+
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
                 // if we have a computed column, we should allow null
                 if (column.IsReadOnly)
                     nullString = "NULL";
+
                 //&& !column.DefaultValue.StartsWith("nextval")
                 string defaultValue = string.Empty;
-                if (this.tableDescription.OriginalProvider == NpgsqlSyncProvider.ProviderType)
+                if (this.tableDescription.OriginalProvider == NpgsqlSyncProvider.ProviderType && !string.IsNullOrEmpty(column.DefaultValue))
                 {
-                    if (!string.IsNullOrEmpty(column.DefaultValue))
-                    {
-                        if (column.DefaultValue.StartsWith("nextval"))
-                        { columnType = $"SERIAL"; }
-                        else
-                        {
-                            defaultValue = "DEFAULT " + column.DefaultValue;
-                        }
-                    }
+                    if (column.DefaultValue.StartsWith("nextval"))
+                        columnType = $"SERIAL";
+                    else
+                        defaultValue = "DEFAULT " + column.DefaultValue;
                 }
 
                 stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {nullString} {defaultValue}");
@@ -358,7 +354,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var primaryKeyNameString = tableName.Unquoted().Normalized().ToString();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"ALTER TABLE {schema}.\"{table}\" ADD CONSTRAINT \"PK_{primaryKeyNameString}\" PRIMARY KEY(");
+            stringBuilder.AppendLine($"ALTER TABLE \"{schema}\".\"{table}\" ADD CONSTRAINT \"PK_{primaryKeyNameString}\" PRIMARY KEY(");
             for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
                 var pkColumn = this.tableDescription.PrimaryKeys[i];
@@ -383,7 +379,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 var parentSchemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(parsedParentTableName);
                 var relationName = NormalizeRelationName(constraint.RelationName);
                 stringBuilder.AppendLine();
-                stringBuilder.Append($"ALTER TABLE {schemaName}.\"{tableName}\" ");
+                stringBuilder.Append($"ALTER TABLE \"{schemaName}\".\"{tableName}\" ");
                 stringBuilder.Append("ADD CONSTRAINT ");
                 stringBuilder.AppendLine($"\"{relationName}\"");
                 stringBuilder.Append("FOREIGN KEY (");
@@ -396,7 +392,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 }
                 stringBuilder.AppendLine(" )");
                 stringBuilder.Append("REFERENCES ");
-                stringBuilder.Append($"{parentSchemaName}.\"{parentTableName}\"").Append(" (");
+                stringBuilder.Append($"\"{parentSchemaName}\".\"{parentTableName}\"").Append(" (");
                 empty = string.Empty;
                 foreach (var parentdColumn in constraint.ParentKeys)
                 {

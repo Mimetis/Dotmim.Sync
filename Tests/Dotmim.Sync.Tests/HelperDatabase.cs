@@ -17,6 +17,12 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using System.Xml.Linq;
 using Npgsql;
+using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.MySql;
+using Dotmim.Sync.MariaDB;
+using Dotmim.Sync.Sqlite;
+using Dotmim.Sync.PostgreSql;
+using Dotmim.Sync.Tests.Fixtures;
 
 namespace Dotmim.Sync.Tests
 {
@@ -82,6 +88,70 @@ namespace Dotmim.Sync.Tests
 
             // default 
             return con;
+        }
+
+
+        public static (ProviderType ProviderType, string DatabaseName) GetDatabaseType(CoreProvider coreProvider)
+        {
+            var dbName = coreProvider.GetDatabaseName();
+
+            return coreProvider switch
+            {
+                SqlSyncProvider _ => (ProviderType.Sql, dbName),
+                MySqlSyncProvider _ => (ProviderType.MySql, dbName),
+                MariaDBSyncProvider _ => (ProviderType.MariaDB, dbName),
+                SqliteSyncProvider _ => (ProviderType.Sqlite, dbName),
+                NpgsqlSyncProvider _ => (ProviderType.Postgres, dbName),
+                _ => (ProviderType.Sql, dbName),
+            };
+        }
+
+        public static CoreProvider GetSyncProvider(ProviderType providerType, string dbName)
+        {
+            return providerType switch
+            {
+                ProviderType.Sql => new SqlSyncProvider(Setup.GetSqlDatabaseConnectionString(dbName)),
+                ProviderType.MySql => new MySqlSyncProvider(Setup.GetMySqlDatabaseConnectionString(dbName)),
+                ProviderType.MariaDB => new MariaDBSyncProvider(Setup.GetMariaDBDatabaseConnectionString(dbName)),
+                ProviderType.Sqlite => new SqliteSyncProvider(GetSqliteDatabaseConnectionString(dbName)),
+                ProviderType.Postgres => new NpgsqlSyncProvider(Setup.GetPostgresDatabaseConnectionString(dbName)),
+                _ => null,
+            };
+        }
+
+        public static ProviderType GetProviderType<T>() where T : RelationalFixture => typeof(T) switch
+        {
+            _ when typeof(T) == typeof(SqlServerFixtureType) => ProviderType.Sql,
+            _ when typeof(T) == typeof(MySqlFixtureType) => ProviderType.MySql,
+            _ when typeof(T) == typeof(MariaDBFixtureType) => ProviderType.MariaDB,
+            _ when typeof(T) == typeof(SqliteFixtureType) => ProviderType.Sqlite,
+            _ when typeof(T) == typeof(PostgresFixtureType) => ProviderType.Postgres,
+            _ => ProviderType.Sql,
+        };
+
+
+        public static void ClearPool(ProviderType providerType)
+        {
+            switch (providerType)
+            {
+                case ProviderType.Sql:
+                    SqlConnection.ClearAllPools();
+                    break;
+                case ProviderType.MySql:
+                    MySqlConnection.ClearAllPools();
+                    break;
+                case ProviderType.MariaDB:
+                    MySqlConnection.ClearAllPools();
+                    break;
+                case ProviderType.Sqlite:
+                    SqliteConnection.ClearAllPools();
+                    break;
+                case ProviderType.Postgres:
+                    NpgsqlConnection.ClearAllPools();
+                    break;
+                default:
+                    break;
+            }
         }
 
         /// <summary>
@@ -256,57 +326,57 @@ namespace Dotmim.Sync.Tests
                         DropPostgresDatabase(dbName);
                         break;
                 }
+                Debug.WriteLine($"- Database {providerType} {dbName} dropped");
             }
             catch (Exception ex)
             {
                 Debug.WriteLine(ex.Message);
             }
 
-            //var task = Task.Run(() =>
-            //{
-            //    try
-            //    {
-            //        switch (providerType)
-            //        {
-            //            case ProviderType.Sql:
-            //                DropSqlDatabase(dbName);
-            //                break;
-            //            case ProviderType.MySql:
-            //                DropMySqlDatabase(dbName);
-            //                break;
-            //            case ProviderType.MariaDB:
-            //                DropMariaDBDatabase(dbName);
-            //                break;
-            //            case ProviderType.Sqlite:
-            //                DropSqliteDatabase(dbName);
-            //                break;
-            //            case ProviderType.Postgres:
-            //                DropPostgresDatabase(dbName);
-            //                break;
-            //        }
-
-            //        Debug.WriteLine($"DB {dbName} dropped. ");
-            //    }
-            //    catch (Exception ex)
-            //    {
-            //        Debug.WriteLine(ex.Message);
-            //    }
-            //});
-
-            //if (!task.IsCompleted || task.IsFaulted)
-            //{
-            //    try
-            //    {
-            //        // No need to resume on the original SynchronizationContext, so use ConfigureAwait(false)
-            //        task.ConfigureAwait(false);
-            //    }
-            //    catch (Exception ex)
-            //    {
-            //        Debug.WriteLine(ex.Message);
-            //        // Nothing to do here
-            //    }
-            //}
+  
         }
+
+
+        /// <summary>
+        /// Drop a database, depending the Provider type
+        /// </summary>
+        [DebuggerStepThrough]
+        public static void TruncateTable(ProviderType providerType, string dbName, string tableName, string schemaName)
+        {
+            // We don't care to drop the database on Azure, as the test itself will destroy the instance at the end
+            if (Setup.IsOnAzureDev)
+                return;
+
+            try
+            {
+                switch (providerType)
+                {
+                    case ProviderType.Sql:
+                        TruncateSqlTable(dbName, tableName, schemaName);
+                        break;
+                    case ProviderType.MySql:
+                        TruncateMySqlTable(dbName, tableName);
+                        break;
+                    case ProviderType.MariaDB:
+                        TruncateMariaDbTable(dbName, tableName);
+                        break;
+                    case ProviderType.Sqlite:
+                        TruncateSqliteTable(dbName, tableName);
+                        break;
+                    case ProviderType.Postgres:
+                        TruncatePostgresTable(dbName, tableName, schemaName);
+                        break;
+                }
+                Debug.WriteLine($"- Database {providerType} {dbName} dropped");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message);
+            }
+
+
+        }
+
 
         /// <summary>
         /// Drop a mysql database
@@ -322,6 +392,16 @@ namespace Dotmim.Sync.Tests
             sysConnection.Close();
         }
 
+        private static void TruncateMySqlTable(string dbName, string tableName)
+        {
+            using var connection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString(dbName));
+            connection.Open();
+
+            using (var cmdDb = new MySqlCommand($"DELETE FROM `{tableName}`;", connection))
+                cmdDb.ExecuteNonQuery();
+
+            connection.Close();
+        }
 
         /// <summary>
         /// Drop a Postgres database
@@ -342,6 +422,20 @@ namespace Dotmim.Sync.Tests
             sysConnection.Close();
         }
 
+        private static void TruncatePostgresTable(string dbName, string tableName, string schemaName)
+        {
+
+            schemaName = string.IsNullOrEmpty(schemaName) ? "public" : schemaName;
+            
+            using var connection = new NpgsqlConnection(Setup.GetPostgresDatabaseConnectionString(dbName));
+            connection.Open();
+
+            using (var cmdDb = new NpgsqlCommand($"DELETE FROM \"{schemaName}\".\"{tableName}\";", connection))
+                cmdDb.ExecuteNonQuery();
+
+            connection.Close();
+        }
+
 
         /// <summary>
         /// Drop a MariaDB database
@@ -355,6 +449,17 @@ namespace Dotmim.Sync.Tests
                 cmdDb.ExecuteNonQuery();
 
             sysConnection.Close();
+        }
+
+        private static void TruncateMariaDbTable(string dbName, string tableName)
+        {
+            using var connection = new MySqlConnection(Setup.GetMariaDBDatabaseConnectionString(dbName));
+            connection.Open();
+
+            using (var cmdDb = new MySqlCommand($"DELETE FROM `{tableName}`;", connection))
+                cmdDb.ExecuteNonQuery();
+
+            connection.Close();
         }
 
         /// <summary>
@@ -383,6 +488,17 @@ namespace Dotmim.Sync.Tests
 
         }
 
+        private static void TruncateSqliteTable(string dbName, string tableName)
+        {
+            using var connection = new SqliteConnection(GetSqliteDatabaseConnectionString(dbName));
+            connection.Open();
+
+            using (var cmdDb = new SqliteCommand($"DELETE FROM [{tableName}];", connection))
+                cmdDb.ExecuteNonQuery();
+
+            connection.Close();
+        }
+
         /// <summary>
         /// Delete a database
         /// </summary>
@@ -405,6 +521,19 @@ namespace Dotmim.Sync.Tests
                 throw;
             }
         }
+        private static void TruncateSqlTable(string dbName, string tableName, string schemaName)
+        {
+            using var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString(dbName));
+            connection.Open();
+
+            schemaName = string.IsNullOrEmpty(schemaName) ? "dbo" : schemaName;
+            
+            using (var cmdDb = new SqlCommand($"DELETE FROM [{schemaName}].[{tableName}];", connection))
+                cmdDb.ExecuteNonQuery();
+
+            connection.Close();
+        }
+
 
 
         public static Task ExecuteScriptAsync(ProviderType providerType, string dbName, string script)

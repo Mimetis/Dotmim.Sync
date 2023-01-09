@@ -49,7 +49,8 @@ namespace Dotmim.Sync
         /// </summary>
         public async Task<SyncConflict> GetSyncConflictAsync()
         {
-            var (_, localRow) = await orchestrator.InternalGetConflictRowAsync(scopeInfo, Context, schemaChangesTable, conflictRow, this.Connection, this.Transaction).ConfigureAwait(false);
+            var (_, localRow) = await orchestrator.InternalGetConflictRowAsync(scopeInfo, Context, schemaChangesTable, conflictRow, 
+                this.Connection, this.Transaction, default, default).ConfigureAwait(false);
             this.conflict = orchestrator.InternalGetConflict(Context, conflictRow, localRow);
             return conflict;
         }

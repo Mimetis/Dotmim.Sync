@@ -17,4 +17,6 @@ namespace Dotmim.Sync.Tests
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
+    
+    
 }

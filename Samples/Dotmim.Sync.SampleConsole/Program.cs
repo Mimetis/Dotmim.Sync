@@ -65,64 +65,7 @@ internal class Program
 
     public static string[] oneTable = new string[] { "ProductCategory" };
 
-    private static SyncSet CreateSchema()
-    {
-        var set = new SyncSet();
-
-        var tbl = new SyncTable("ServiceTickets", null);
-        tbl.OriginalProvider = "SqlServerProvider";
-        set.Tables.Add(tbl);
-
-        var c = SyncColumn.Create<int>("ServiceTicketID");
-        c.DbType = 8;
-        c.AllowDBNull = true;
-        c.IsAutoIncrement = true;
-        c.AutoIncrementStep = 1;
-        c.AutoIncrementSeed = 10;
-        c.IsCompute = false;
-        c.IsReadOnly = true;
-        tbl.Columns.Add(c);
-
-        tbl.Columns.Add(SyncColumn.Create<string>("Title"));
-        tbl.Columns.Add(SyncColumn.Create<string>("Description"));
-        tbl.Columns.Add(SyncColumn.Create<int>("StatusValue"));
-        tbl.Columns.Add(SyncColumn.Create<int>("EscalationLevel"));
-        tbl.Columns.Add(SyncColumn.Create<DateTime>("Opened"));
-        tbl.Columns.Add(SyncColumn.Create<DateTime>("Closed"));
-        tbl.Columns.Add(SyncColumn.Create<int>("CustomerID"));
-
-        tbl.PrimaryKeys.Add("ServiceTicketID");
-
-        // Add Second tables
-        var tbl2 = new SyncTable("Product", "SalesLT");
-        //tbl2.SyncDirection = SyncDirection.UploadOnly;
-
-        tbl2.Columns.Add(SyncColumn.Create<int>("Id"));
-        tbl2.Columns.Add(SyncColumn.Create<string>("Title"));
-        tbl2.PrimaryKeys.Add("Id");
-
-        set.Tables.Add(tbl2);
-
-
-        // Add Filters
-        var sf = new SyncFilter("Product", "SalesLT");
-        sf.Parameters.Add(new SyncFilterParameter { Name = "Title", DbType = DbType.String, MaxLength = 20, DefaultValue = "'Bikes'" });
-        sf.Parameters.Add(new SyncFilterParameter { Name = "LastName", TableName = "Customer", SchemaName = "SalesLT", AllowNull = true });
-        sf.Wheres.Add(new SyncFilterWhereSideItem { ColumnName = "Title", ParameterName = "Title", SchemaName = "SalesLT", TableName = "Product" });
-        sf.Joins.Add(new SyncFilterJoin { JoinEnum = Join.Right, TableName = "SalesLT.ProductCategory", LeftColumnName = "LCN", LeftTableName = "SalesLT.Product", RightColumnName = "RCN", RightTableName = "SalesLT.ProductCategory" });
-        sf.CustomWheres.Add("1 = 1");
-        set.Filters.Add(sf);
-
-        // Add Relations
-        var keys = new[] { new SyncColumnIdentifier("ProductId", "ServiceTickets") };
-        var parentKeys = new[] { new SyncColumnIdentifier("ProductId", "Product", "SalesLT") };
-        var rel = new SyncRelation("AdventureWorks_Product_ServiceTickets", keys, parentKeys);
-
-        set.Relations.Add(rel);
-
-        return set;
-    }
-
+  
     private static async Task Main(string[] args)
     {
 
@@ -134,8 +77,8 @@ internal class Program
         //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
         //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        //var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
 
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
@@ -204,7 +147,7 @@ internal class Program
             Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
 
         //options.ProgressLevel = SyncProgressLevel.Debug;
-        //options.DisableConstraintsOnApplyChanges = true;
+        options.DisableConstraintsOnApplyChanges = true;
 
         var agent = new SyncAgent(clientProvider, serverProvider, options);
         do

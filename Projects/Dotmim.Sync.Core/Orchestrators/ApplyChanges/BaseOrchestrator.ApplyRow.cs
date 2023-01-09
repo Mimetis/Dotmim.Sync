@@ -23,14 +23,15 @@ namespace Dotmim.Sync
         /// Apply a delete on a row. if forceWrite, force the delete
         /// </summary>
         internal virtual async Task<(SyncContext context, bool applied, Exception exception)> InternalApplyDeleteAsync(
-            ScopeInfo scopeInfo, SyncContext context, BatchInfo batchInfo, SyncRow row, SyncTable schemaTable, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, 
+            ScopeInfo scopeInfo, SyncContext context, BatchInfo batchInfo, SyncRow row, SyncTable schemaTable, long? lastTimestamp, Guid? senderScopeId, bool forceWrite,
             DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             // get executioning adapter
             var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
 
             // Pre command if exists
-            var (preCommand, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.PreDeleteRow, null, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var (preCommand, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.PreDeleteRow,
+                connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (preCommand != null)
             {
@@ -39,7 +40,7 @@ namespace Dotmim.Sync
                 preCommand.Dispose();
             }
 
-            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DeleteRow, null,
+            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DeleteRow,
                 connection, transaction, default, default).ConfigureAwait(false);
 
             if (command == null) return (context, false, null);
@@ -53,11 +54,9 @@ namespace Dotmim.Sync
             // get the correct pointer to the command from the interceptor in case user change the whole instance
             command = batchArgs.Command;
 
-            // Set the parameters value from row 
-            this.SetColumnParametersValues(command, batchArgs.SyncRows.First());
-
-            // Set the special parameters for update
-            this.AddScopeParametersValues(command, senderScopeId, lastTimestamp, true, forceWrite);
+            // Set the parameters
+            this.InternalSetCommandParametersValues(context, command, DbCommandType.DeleteRow, syncAdapter, connection, transaction, cancellationToken, progress,
+            sync_scope_id: senderScopeId, sync_min_timestamp: lastTimestamp, sync_row_is_tombstone: true, sync_force_write: forceWrite);
 
             await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DeleteRow, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
@@ -69,10 +68,10 @@ namespace Dotmim.Sync
                 rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead
-                var syncRowCountParam = InternalGetParameter(command, "sync_row_count");
+                var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
 
                 // Check if we have an handled error
-                var syncErrorText = InternalGetParameter(command, "sync_error_text");
+                var syncErrorText = syncAdapter.GetParameter(command, "sync_error_text");
 
                 if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
                     rowDeletedCount = (int)syncRowCountParam.Value;
@@ -99,14 +98,15 @@ namespace Dotmim.Sync
         /// Apply a single update in the current datasource. if forceWrite, force the update
         /// </summary>
         internal virtual async Task<(SyncContext context, bool applied, Exception exception)> InternalApplyUpdateAsync(
-            ScopeInfo scopeInfo, SyncContext context, BatchInfo batchInfo, SyncRow row, SyncTable schemaTable, long? lastTimestamp, Guid? senderScopeId, bool forceWrite, 
+            ScopeInfo scopeInfo, SyncContext context, BatchInfo batchInfo, SyncRow row, SyncTable schemaTable, long? lastTimestamp, Guid? senderScopeId, bool forceWrite,
             DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
             var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
 
             // Pre command if exists
-            var (preCommand, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.PreUpdateRow, null, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var (preCommand, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.PreUpdateRow,
+                connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             if (preCommand != null)
             {
@@ -115,7 +115,7 @@ namespace Dotmim.Sync
                 preCommand.Dispose();
             }
 
-            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.UpdateRow, null,
+            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.UpdateRow,
                 connection, transaction, default, default).ConfigureAwait(false);
 
             if (command == null) return (context, false, null);
@@ -130,10 +130,9 @@ namespace Dotmim.Sync
             command = batchArgs.Command;
 
             // Set the parameters value from row 
-            this.SetColumnParametersValues(command, batchArgs.SyncRows.First());
+            this.InternalSetCommandParametersValues(context, command, DbCommandType.UpdateRow, syncAdapter, connection, transaction, cancellationToken, progress,
+                 row: batchArgs.SyncRows.First(), sync_scope_id: senderScopeId, sync_min_timestamp: lastTimestamp, sync_row_is_tombstone: false, sync_force_write: forceWrite);
 
-            // Set the special parameters for update
-            this.AddScopeParametersValues(command, senderScopeId, lastTimestamp, false, forceWrite);
 
             await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.UpdateRow, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
@@ -144,10 +143,10 @@ namespace Dotmim.Sync
                 rowUpdatedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead
-                var syncRowCountParam = InternalGetParameter(command, "sync_row_count");
+                var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
 
                 // Check if we have an handled error
-                var syncErrorText = InternalGetParameter(command, "sync_error_text");
+                var syncErrorText = syncAdapter.GetParameter(command, "sync_error_text");
 
                 if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
                     rowUpdatedCount = (int)syncRowCountParam.Value;

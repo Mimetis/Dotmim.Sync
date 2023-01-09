@@ -7,15 +7,11 @@ using System.Text;
 using Dotmim.Sync.Builders;
 using NpgsqlTypes;
 using System.Linq;
-using System.Transactions;
-using System.Security.Cryptography.X509Certificates;
 
 namespace Dotmim.Sync.PostgreSql
 {
     public partial class NpgsqlSyncAdapter : DbSyncAdapter
     {
-
-
         // ---------------------------------------------------
         // Select Row Command
         // ---------------------------------------------------
@@ -49,8 +45,8 @@ namespace Dotmim.Sync.PostgreSql
             }
             stringBuilder.AppendLine($"\tside.\"sync_row_is_tombstone\" as sync_row_is_tombstone, ");
             stringBuilder.AppendLine($"\tside.\"update_scope_id\" as sync_update_scope_id");
-            stringBuilder.AppendLine($"FROM {schema}.{TableName.Quoted()} base");
-            stringBuilder.AppendLine($"RIGHT JOIN {schema}.{TrackingTableName.Quoted()} side ON");
+            stringBuilder.AppendLine($"FROM \"{schema}\".{TableName.Quoted()} base");
+            stringBuilder.AppendLine($"RIGHT JOIN \"{schema}\".{TrackingTableName.Quoted()} side ON");
 
             string str2 = string.Empty;
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
@@ -71,21 +67,6 @@ namespace Dotmim.Sync.PostgreSql
             return (sqlCommand, false);
         }
 
-
-        private void SetSelectRowParameter(DbCommand command)
-        {
-            DbParameter p;
-            foreach (var column in this.TableDescription.GetPrimaryKeysColumns())
-            {
-                var quotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
-
-                p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn}";
-                p.DbType = column.GetDbType();
-                p.SourceColumn = column.ColumnName;
-                command.Parameters.Add(p);
-            }
-        }
 
         // ---------------------------------------------------
         // Pre Update Command
@@ -115,24 +96,20 @@ namespace Dotmim.Sync.PostgreSql
             var stringBuilderParameters = new StringBuilder();
             var empty = string.Empty;
 
-            foreach (var column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
-                sqlCommand.Parameters.Add(GetSqlParameter(column, NpgsqlSyncProvider.NPGSQL_PREFIX_PARAMETER));
-
-            sqlCommand.Parameters.Add(new NpgsqlParameter("sync_scope_id", NpgsqlDbType.Uuid));
-            sqlCommand.Parameters.Add(new NpgsqlParameter("sync_force_write", NpgsqlDbType.Bigint));
-            sqlCommand.Parameters.Add(new NpgsqlParameter("sync_min_timestamp", NpgsqlDbType.Bigint));
-            sqlCommand.Parameters.Add(new NpgsqlParameter("sync_row_count", NpgsqlDbType.Integer) { Direction = ParameterDirection.Output });
-            sqlCommand.Parameters.Add(new NpgsqlParameter("sync_error_text", NpgsqlDbType.Text) { Direction = ParameterDirection.Output });
-
             stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION pg_temp.{procNameQuoted} (");
 
-            string str = "\t";
-            foreach (var parameter in sqlCommand.Parameters.Cast<NpgsqlParameter>())
+            foreach (var column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
-                stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
-                str = ",\n\t";
+                var columnName = ParserName.Parse(column, "\"").Unquoted().Normalized().ToString();
+                var columnType = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.TableDescription.OriginalProvider);
+                stringBuilder.AppendLine($"\t\"in_{columnName}\" {columnType} = NULL,");
             }
-            stringBuilder.AppendLine($") \n\t");
+
+            stringBuilder.AppendLine($"\tsync_scope_id Uuid = NULL,");
+            stringBuilder.AppendLine($"\tsync_force_write Bigint = NULL,");
+            stringBuilder.AppendLine($"\tsync_min_timestamp Bigint = NULL,");
+            stringBuilder.AppendLine($"\tout sync_row_count Integer,");
+            stringBuilder.AppendLine($"\tout sync_error_text Text)");
             stringBuilder.AppendLine($"AS $BODY$");
             stringBuilder.AppendLine($"DECLARE sync_error_sqlcontext text;");
             stringBuilder.AppendLine($"BEGIN");
@@ -152,10 +129,10 @@ namespace Dotmim.Sync.PostgreSql
                 comma = ", ";
             }
             stringBuilder.AppendLine($") AS p");
-            stringBuilder.AppendLine($"\tLEFT JOIN {schema}.{this.TrackingTableName.Quoted()} side ON ");
+            stringBuilder.AppendLine($"\tLEFT JOIN \"{schema}\".{this.TrackingTableName.Quoted()} side ON ");
             stringBuilder.AppendLine($"\t{NpgsqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "p", "side")}");
             stringBuilder.AppendLine($"\t)");
-            stringBuilder.AppendLine($"MERGE INTO {schema}.{TableName.Quoted()} AS base");
+            stringBuilder.AppendLine($"MERGE INTO \"{schema}\".{TableName.Quoted()} AS base");
             stringBuilder.AppendLine($"USING changes on {NpgsqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "changes", "base")}");
             if (hasMutableColumns)
             {
@@ -185,7 +162,7 @@ namespace Dotmim.Sync.PostgreSql
             stringBuilder.AppendLine($"GET DIAGNOSTICS \"sync_row_count\" = ROW_COUNT;");
             stringBuilder.AppendLine($"");
             stringBuilder.AppendLine($"IF (sync_row_count > 0) THEN");
-            stringBuilder.AppendLine($"\tUPDATE {schema}.{trackingTableQuoted}");
+            stringBuilder.AppendLine($"\tUPDATE \"{schema}\".{trackingTableQuoted}");
             stringBuilder.AppendLine($"\tSET \"update_scope_id\" = sync_scope_id, ");
             stringBuilder.AppendLine($"\t \"sync_row_is_tombstone\" = FALSE, ");
             stringBuilder.AppendLine($"\t \"timestamp\" = {TimestampValue}, ");
@@ -230,8 +207,8 @@ namespace Dotmim.Sync.PostgreSql
             sqlCommand.Parameters.Add(new NpgsqlParameter($"sync_scope_id", NpgsqlDbType.Uuid));
             sqlCommand.Parameters.Add(new NpgsqlParameter($"sync_force_write", NpgsqlDbType.Bigint));
             sqlCommand.Parameters.Add(new NpgsqlParameter($"sync_min_timestamp", NpgsqlDbType.Bigint));
-            sqlCommand.Parameters.Add(new NpgsqlParameter($"sync_row_count", NpgsqlDbType.Integer){Direction = ParameterDirection.Output});
-            sqlCommand.Parameters.Add(new NpgsqlParameter($"sync_error_text", NpgsqlDbType.Text){Direction = ParameterDirection.Output});
+            sqlCommand.Parameters.Add(new NpgsqlParameter($"sync_row_count", NpgsqlDbType.Integer) { Direction = ParameterDirection.Output });
+            sqlCommand.Parameters.Add(new NpgsqlParameter($"sync_error_text", NpgsqlDbType.Text) { Direction = ParameterDirection.Output });
 
             var stringBuilder = new StringBuilder();
 
@@ -247,15 +224,15 @@ namespace Dotmim.Sync.PostgreSql
             stringBuilder.AppendLine($"AS $BODY$ ");
             stringBuilder.AppendLine($"BEGIN");
             stringBuilder.AppendLine($"");
-            stringBuilder.AppendLine($"DELETE from {schema}.{TableName.Quoted()} base");
-            stringBuilder.AppendLine($"USING {schema}.{TrackingTableName.Quoted()} side ");
+            stringBuilder.AppendLine($"DELETE from \"{schema}\".{TableName.Quoted()} base");
+            stringBuilder.AppendLine($"USING \"{schema}\".{TrackingTableName.Quoted()} side ");
             stringBuilder.AppendLine($"WHERE {NpgsqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "base", "side")} ");
             stringBuilder.AppendLine($"AND (side.timestamp <= sync_min_timestamp OR side.timestamp IS NULL OR side.update_scope_id = sync_scope_id OR sync_force_write = 1)");
             stringBuilder.AppendLine($"AND ({NpgsqlManagementUtils.ColumnsAndParameters(this.TableDescription.PrimaryKeys, "base", NpgsqlSyncProvider.NPGSQL_PREFIX_PARAMETER)});");
             stringBuilder.AppendLine($"");
             stringBuilder.AppendLine($"GET DIAGNOSTICS \"sync_row_count\" = ROW_COUNT;");
             stringBuilder.AppendLine($"IF (sync_row_count > 0) THEN");
-            stringBuilder.AppendLine($"     UPDATE {schema}.{TrackingTableName.Quoted()} SET");
+            stringBuilder.AppendLine($"     UPDATE \"{schema}\".{TrackingTableName.Quoted()} SET");
             stringBuilder.AppendLine($"     \"update_scope_id\" = \"sync_scope_id\",");
             stringBuilder.AppendLine($"     \"sync_row_is_tombstone\" = TRUE,");
             stringBuilder.AppendLine($"     \"timestamp\" = {TimestampValue}, ");
@@ -303,49 +280,6 @@ namespace Dotmim.Sync.PostgreSql
             };
             return (command, false);
         }
-        private void SetUpdateRowParameters(DbCommand command)
-        {
-            DbParameter p;
-
-            foreach (var column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
-            {
-                var columnName = ParserName.Parse(column).Unquoted().Normalized().ToString();
-
-                p = command.CreateParameter();
-                p.ParameterName = $"@{columnName}";
-                p.DbType = column.GetDbType();
-                p.SourceColumn = column.ColumnName;
-                command.Parameters.Add(p);
-            }
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_id";
-            p.DbType = DbType.Guid;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_force_write";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_min_timestamp";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_row_count";
-            p.DbType = DbType.Int32;
-            p.Direction = ParameterDirection.Output;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_error_text";
-            p.DbType = DbType.String;
-            p.Direction = ParameterDirection.Output;
-            command.Parameters.Add(p);
-
-        }
 
         // ---------------------------------------------------
         // Delete Command
@@ -373,48 +307,6 @@ namespace Dotmim.Sync.PostgreSql
                 CommandText = strCommandText.ToString()
             };
             return (command, false);
-        }
-
-        private void SetDeleteRowParameters(DbCommand command)
-        {
-            DbParameter p;
-            foreach (var column in this.TableDescription.GetPrimaryKeysColumns())
-            {
-                var quotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
-
-                p = command.CreateParameter();
-                p.ParameterName = $"@{quotedColumn}";
-                p.DbType = column.GetDbType();
-                p.SourceColumn = column.ColumnName;
-                command.Parameters.Add(p);
-            }
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_scope_id";
-            p.DbType = DbType.Guid;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_force_write";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_min_timestamp";
-            p.DbType = DbType.Int64;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_row_count";
-            p.DbType = DbType.Int32;
-            p.Direction = ParameterDirection.Output;
-            command.Parameters.Add(p);
-
-            p = command.CreateParameter();
-            p.ParameterName = "@sync_error_text";
-            p.DbType = DbType.String;
-            p.Direction = ParameterDirection.Output;
-            command.Parameters.Add(p);
         }
 
         //----------------------------------------------------

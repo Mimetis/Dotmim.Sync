@@ -199,7 +199,7 @@ namespace Dotmim.Sync
 
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                await this.InterceptAsync(new DeprovisioningArgs(context, provision, scopeInfo?.Setup, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new DeprovisioningArgs(context, provision, scopeInfo?.Setup, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                 // get Database builder
                 var builder = this.Provider.GetDatabaseBuilder();
@@ -231,9 +231,9 @@ namespace Dotmim.Sync
                         var exists = false;
                         var tableBuilder = this.GetTableBuilder(table, scopeInfo);
 
-                        (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                         if (exists)
-                            await this.InternalDisableConstraintsAsync(scopeInfo, context, table, runner.Connection, runner.Transaction).ConfigureAwait(false);
+                            await this.InternalDisableConstraintsAsync(scopeInfo, context, table, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                     }
 
 

@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         public static async Task<SyncSetup> GetAllTablesAsync(SqliteConnection connection, SqliteTransaction transaction)
         {
-            var command = $"select tbl_name from sqlite_master where type='table';";
+            var command = $"select tbl_name from sqlite_master where type='table' and tbl_name not like 'sqlite_%';";
 
             var syncSetup = new SyncSetup();
 
