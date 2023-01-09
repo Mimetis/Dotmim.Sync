@@ -34,6 +34,8 @@ namespace Dotmim.Sync.Tests
             MySqlConnection.ClearAllPools();
             NpgsqlConnection.ClearAllPools();
 
+            Fixture.DropAllTablesAsync(Fixture.GetServerProvider(), false).GetAwaiter().GetResult();
+
             foreach (var clientProvider in Fixture.GetClientProviders())
                 Fixture.DropAllTablesAsync(clientProvider, true).GetAwaiter().GetResult();
 
