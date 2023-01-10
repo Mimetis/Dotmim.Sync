@@ -1,60 +1,60 @@
 jobs:
 
-  # - job: testsmysqltcp6
-  #   displayName: "MySql TCP .Net 6"
+  - job: testsmysqltcp6
+    displayName: "MySql TCP .Net 6"
 
-  #   pool:
-  #     # get an Ubuntu image to be able to get the light SQL container
-  #     vmImage: "ubuntu-latest" # 'VS2017-Win2016'
+    pool:
+      # get an Ubuntu image to be able to get the light SQL container
+      vmImage: "ubuntu-latest" # 'VS2017-Win2016'
 
-  #   variables:
-  #     solution: "**/*.sln"
-  #     buildPlatform: "Any CPU"
-  #     buildConfiguration: "Release"
+    variables:
+      solution: "**/*.sln"
+      buildPlatform: "Any CPU"
+      buildConfiguration: "Release"
 
-  #   steps:
-  #     - task: UseDotNet@2
-  #       displayName: 'Use .Net Core sdk'
-  #       inputs:
-  #         version: 3.x
+    steps:
+      - task: UseDotNet@2
+        displayName: 'Use .Net Core sdk'
+        inputs:
+          version: 3.x
 
-  #     - task: UseDotNet@2
-  #       displayName: 'Use .Net Sdk 6.x'
-  #       inputs:
-  #         packageType: 'sdk'
-  #         version: 6.0.x
-  #         includePreviewVersions: true
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 6.x'
+        inputs:
+          packageType: 'sdk'
+          version: 6.0.x
+          includePreviewVersions: true
           
-  #     - task: UseDotNet@2
-  #       displayName: 'Use .Net Sdk 7.x'
-  #       inputs:
-  #         packageType: 'sdk'
-  #         version: 7.0.x
-  #         includePreviewVersions: true   
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
+          includePreviewVersions: true   
 
-  #     - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
-  #       displayName: "Run SQL Server latest on Linux container"
+      - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
+        displayName: "Run SQL Server latest on Linux container"
  
-  #     - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
-  #       displayName: "Run MySql on Linux container"
+      - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
+        displayName: "Run MySql on Linux container"
 
-  #     - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
-  #       displayName: "Run MariaDB on Linux container"
+      - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
+        displayName: "Run MariaDB on Linux container"
 
-  #     - script: docker run --name postgres -e POSTGRES_PASSWORD=Password12! -p 5432:5432 -d postgres:latest
-  #       displayName: "Run PostgreSQL on Linux container"
+      - script: docker run --name postgres -e POSTGRES_PASSWORD=Password12! -p 5432:5432 -d postgres:latest
+        displayName: "Run PostgreSQL on Linux container"
 
-  #     - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests2.MySqlTcp -f net6.0 --logger trx
-  #       name: mysqlintegrationtests
-  #       displayName: "MySql Tcp Integration Tests"
-  #       continueOnError: true
-  #       env:
-  #         "AZUREDEV": "true"
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.IntegrationTests2.MySqlTcp -f net6.0 --logger trx
+        name: mysqlintegrationtests
+        displayName: "MySql Tcp Integration Tests"
+        continueOnError: true
+        env:
+          "AZUREDEV": "true"
 
-  #     - task: PublishTestResults@2
-  #       inputs:
-  #         testRunner: VSTest
-  #         testResultsFiles: "**/*.trx"
+      - task: PublishTestResults@2
+        inputs:
+          testRunner: VSTest
+          testResultsFiles: "**/*.trx"
 
   # - job: testsmysqltcp31
   #   displayName: "MySql TCP .Net Core 3.1"
