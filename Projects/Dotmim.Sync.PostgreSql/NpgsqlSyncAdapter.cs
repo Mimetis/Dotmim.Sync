@@ -7,6 +7,8 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -118,8 +120,8 @@ namespace Dotmim.Sync.PostgreSql
             }
 
             if (commandType != DbCommandType.InsertRow && commandType != DbCommandType.InsertRows &&
-                commandType != DbCommandType.UpdateRow && commandType != DbCommandType.UpdateRows && 
-                commandType != DbCommandType.DeleteRow && commandType != DbCommandType.DeleteRows )
+                commandType != DbCommandType.UpdateRow && commandType != DbCommandType.UpdateRows &&
+                commandType != DbCommandType.DeleteRow && commandType != DbCommandType.DeleteRows)
             {
                 var parameter = GetParameter(command, $"sync_row_count");
                 if (parameter != null)
@@ -214,33 +216,60 @@ namespace Dotmim.Sync.PostgreSql
 
         private (DbCommand, bool) GetEnableConstraintCommand()
         {
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(TableName);
+            var constraints = this.TableDescription.GetRelations();
+
+            if (constraints == null || !constraints.Any())
+                return (null, false);
 
             var strCommand = new StringBuilder();
             strCommand.AppendLine($"DO $$");
-            strCommand.AppendLine($"Declare tgname character varying(250);");
-            strCommand.AppendLine($"Declare cur_trg cursor For ");
-            strCommand.AppendLine($"Select tr.tgname");
-            strCommand.AppendLine($"from pg_catalog.pg_trigger tr ");
-            strCommand.AppendLine($"join pg_catalog.pg_class  cl on  cl.oid =  tr.tgrelid");
-            strCommand.AppendLine($"join pg_constraint ct on ct.oid = tr.tgconstraint");
-            strCommand.AppendLine($"join pg_catalog.pg_namespace nsp on nsp.oid = ct.connamespace");
-            strCommand.AppendLine($"where relname = '{TableName.Unquoted()}' and tgconstraint != 0 and nspname='{schema}';");
             strCommand.AppendLine($"BEGIN");
-            strCommand.AppendLine($"open cur_trg;");
-            strCommand.AppendLine($"loop");
-            strCommand.AppendLine($"fetch cur_trg into tgname;");
-            strCommand.AppendLine($"exit when not found;");
-            strCommand.AppendLine($"Execute 'ALTER TABLE \"{schema}\".{TableName.Quoted()} ENABLE TRIGGER \"' || tgname || '\";';");
-            strCommand.AppendLine($"end loop;");
-            strCommand.AppendLine($"close cur_trg;");
-            strCommand.AppendLine($"END $$;");
 
+            foreach (var constraint in this.TableDescription.GetRelations())
+            {
+                var parsedTableName = ParserName.Parse(constraint.GetTable());
+                var tableName = parsedTableName.Unquoted().ToString();
+                var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(parsedTableName);
+
+                var parsedParentTableName = ParserName.Parse(constraint.GetParentTable());
+                var parentTableName = parsedParentTableName.Unquoted().ToString();
+                var parentSchemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(parsedParentTableName);
+                var relationName = constraint.RelationName;
+                strCommand.AppendLine();
+                strCommand.AppendLine($"IF NOT EXISTS (SELECT ct.conname FROM pg_constraint ct WHERE ct.conname = '{relationName}') THEN");
+                strCommand.AppendLine($"ALTER TABLE \"{schemaName}\".\"{tableName}\" ");
+                strCommand.AppendLine($"ADD CONSTRAINT \"{relationName}\" ");
+                strCommand.Append("FOREIGN KEY (");
+                var empty = string.Empty;
+                foreach (var column in constraint.Keys)
+                {
+                    var childColumnName = ParserName.Parse(column.ColumnName, "\"").Quoted().ToString();
+                    strCommand.Append($"{empty} {childColumnName}");
+                    empty = ", ";
+                }
+                strCommand.AppendLine(" )");
+                strCommand.Append("REFERENCES ");
+                strCommand.Append($"\"{parentSchemaName}\".\"{parentTableName}\"").Append(" (");
+                empty = string.Empty;
+                foreach (var parentdColumn in constraint.ParentKeys)
+                {
+                    var parentColumnName = ParserName.Parse(parentdColumn.ColumnName, "\"").Quoted().ToString();
+                    strCommand.Append($"{empty} {parentColumnName}");
+                    empty = ", ";
+                }
+                strCommand.AppendLine(" ); ");
+                strCommand.AppendLine("END IF;");
+
+            }
+            strCommand.AppendLine();
+            strCommand.AppendLine($"END $$;");
             var command = new NpgsqlCommand
             {
                 CommandType = CommandType.Text,
                 CommandText = strCommand.ToString()
             };
+
+            Debug.WriteLine(command.CommandText);
             return (command, false);
         }
 
@@ -252,22 +281,27 @@ namespace Dotmim.Sync.PostgreSql
         {
             var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(TableName);
 
+            var constraints = this.TableDescription.GetRelations();
+
+            if (constraints == null || !constraints.Any())
+                return (null, false);
+
+
             var strCommand = new StringBuilder();
             strCommand.AppendLine($"DO $$");
-            strCommand.AppendLine($"Declare tgname character varying(250);");
+            strCommand.AppendLine($"Declare fkname character varying(250);");
             strCommand.AppendLine($"Declare cur_trg cursor For ");
-            strCommand.AppendLine($"Select tr.tgname");
-            strCommand.AppendLine($"from pg_catalog.pg_trigger tr ");
-            strCommand.AppendLine($"join pg_catalog.pg_class  cl on  cl.oid =  tr.tgrelid");
-            strCommand.AppendLine($"join pg_constraint ct on ct.oid = tr.tgconstraint");
+            strCommand.AppendLine($"Select ct.conname");
+            strCommand.AppendLine($"From pg_constraint ct ");
+            strCommand.AppendLine($"join pg_catalog.pg_class  cl on  cl.oid =  ct.conrelid");
             strCommand.AppendLine($"join pg_catalog.pg_namespace nsp on nsp.oid = ct.connamespace");
-            strCommand.AppendLine($"where relname = '{TableName.Unquoted()}' and tgconstraint != 0 and nspname='{schema}';");
+            strCommand.AppendLine($"where relname = '{TableName.Unquoted()}' and ct.contype = 'f' and nspname='{schema}';");
             strCommand.AppendLine($"BEGIN");
             strCommand.AppendLine($"open cur_trg;");
             strCommand.AppendLine($"loop");
-            strCommand.AppendLine($"fetch cur_trg into tgname;");
+            strCommand.AppendLine($"fetch cur_trg into fkname;");
             strCommand.AppendLine($"exit when not found;");
-            strCommand.AppendLine($"Execute 'ALTER TABLE \"{schema}\".{TableName.Quoted()} DISABLE TRIGGER \"' || tgname || '\";';");
+            strCommand.AppendLine($"Execute 'ALTER TABLE \"{schema}\".{TableName.Quoted()} DROP CONSTRAINT \"' || fkname || '\";';");
             strCommand.AppendLine($"end loop;");
             strCommand.AppendLine($"close cur_trg;");
             strCommand.AppendLine($"END $$;");

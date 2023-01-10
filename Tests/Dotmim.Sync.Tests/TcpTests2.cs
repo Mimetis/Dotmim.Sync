@@ -1443,9 +1443,24 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Add one row in each client then Reinitialize
             foreach (var clientProvider in clientsProvider)
             {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
                 var productCategory = await Fixture.AddProductCategoryAsync(clientProvider);
 
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                // MySql disabling constraint works on same transaction
+                // If transaction mode is different than AllOrNothing, need to call disable constraint before reset
+                if (options.TransactionMode != TransactionMode.AllOrNothing && (clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB))
+                {
+                    agent.LocalOrchestrator.OnGetCommand(async args =>
+                    {
+                        if (args.CommandType == DbCommandType.Reset)
+                        {
+                            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
+                            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
+                        }
+                    });
+                }
 
                 var s = await agent.SynchronizeAsync(setup, SyncType.Reinitialize);
 
@@ -1478,9 +1493,24 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             int download = 1;
             foreach (var clientProvider in clientsProvider)
             {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
                 var productCategory = await Fixture.AddProductCategoryAsync(clientProvider);
 
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                // MySql disabling constraint works on same transaction
+                // If transaction mode is different than AllOrNothing, need to call disable constraint before reset
+                if (options.TransactionMode != TransactionMode.AllOrNothing && (clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB))
+                {
+                    agent.LocalOrchestrator.OnGetCommand(async args =>
+                    {
+                        if (args.CommandType == DbCommandType.Reset)
+                        {
+                            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
+                            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
+                        }
+                    });
+                }
 
                 var s = await agent.SynchronizeAsync(setup, SyncType.ReinitializeWithUpload);
 

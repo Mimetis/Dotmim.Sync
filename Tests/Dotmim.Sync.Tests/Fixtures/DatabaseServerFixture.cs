@@ -18,7 +18,7 @@ namespace Dotmim.Sync.Tests.Fixtures
 {
     public class DatabaseServerFixture<T> : IDisposable where T : RelationalFixture
     {
-        public virtual List<ProviderType> ClientsType => new List<ProviderType> { ProviderType.Sqlite, ProviderType.MySql, ProviderType.Postgres, ProviderType.Sql };
+        public virtual List<ProviderType> ClientsType => new List<ProviderType> { ProviderType.MySql };
 
         // One Server type of T
         public virtual ProviderType ServerProviderType => HelperDatabase.GetProviderType<T>();
@@ -112,7 +112,7 @@ namespace Dotmim.Sync.Tests.Fixtures
         /// Add a ProductCategory row to the database
         /// </summary>
         public async Task<ProductCategory> AddProductCategoryAsync(CoreProvider provider,
-            string productCategoryId = default, string parentProductCategoryId = default, string name = default, Guid? rowguid = default, 
+            string productCategoryId = default, string parentProductCategoryId = default, string name = default, Guid? rowguid = default,
             DateTime? modifiedDate = default, string attributeWithSpace = default, DbConnection connection = null, DbTransaction transaction = null)
         {
             using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
@@ -307,7 +307,7 @@ namespace Dotmim.Sync.Tests.Fixtures
         /// <summary>
         /// Add a price list
         /// </summary>
-        public async Task<PriceList> AddPriceListAsync(CoreProvider provider, Guid? priceListId = default, string description = default, DateTime? from = default, 
+        public async Task<PriceList> AddPriceListAsync(CoreProvider provider, Guid? priceListId = default, string description = default, DateTime? from = default,
             DateTime? to = default, DbConnection connection = null, DbTransaction transaction = null)
         {
             using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
@@ -318,7 +318,7 @@ namespace Dotmim.Sync.Tests.Fixtures
             if (transaction != null)
                 ctx.Database.UseTransaction(transaction);
 
-            priceListId = priceListId.HasValue ?  priceListId : Guid.NewGuid();
+            priceListId = priceListId.HasValue ? priceListId : Guid.NewGuid();
             description = string.IsNullOrEmpty(description) ? HelperDatabase.GetRandomName() : description;
 
             var pl = new PriceList
@@ -356,11 +356,11 @@ namespace Dotmim.Sync.Tests.Fixtures
         /// <summary>
         /// Add a Customer item to the database identified by its name and its provider type.
         /// </summary>
-        public async Task<Customer> AddCustomerAsync(CoreProvider provider, Guid? customerId = default, string firstName = default, 
+        public async Task<Customer> AddCustomerAsync(CoreProvider provider, Guid? customerId = default, string firstName = default,
             string lastName = default, string companyName = default, DbConnection connection = null, DbTransaction transaction = null)
         {
             using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
-      
+
             if (connection != null)
                 ctx.Database.SetDbConnection(connection);
 

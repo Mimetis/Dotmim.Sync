@@ -377,7 +377,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 var parsedParentTableName = ParserName.Parse(constraint.GetParentTable());
                 var parentTableName = parsedParentTableName.Unquoted().ToString();
                 var parentSchemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(parsedParentTableName);
-                var relationName = NormalizeRelationName(constraint.RelationName);
+                //var relationName = NormalizeRelationName(constraint.RelationName);
+                var relationName = constraint.RelationName;
                 stringBuilder.AppendLine();
                 stringBuilder.Append($"ALTER TABLE \"{schemaName}\".\"{tableName}\" ");
                 stringBuilder.Append("ADD CONSTRAINT ");
