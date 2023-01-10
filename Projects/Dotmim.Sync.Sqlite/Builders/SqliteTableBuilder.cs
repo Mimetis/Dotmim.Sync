@@ -25,6 +25,7 @@ namespace Dotmim.Sync.Sqlite
         public SqliteTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName) 
             : base(tableDescription, tableName, trackingTableName, setup, scopeName)
         {
+            Console.WriteLine($"SqliteTableBuilder. TableName:{tableName.ObjectName}. SchemaName:{tableName.SchemaName}. TableDescription fullname:{tableDescription.GetFullName()}");
             this.sqliteObjectNames = new SqliteObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup, scopeName);
             this.sqliteDbMetadata = new SqliteDbMetadata();
         }

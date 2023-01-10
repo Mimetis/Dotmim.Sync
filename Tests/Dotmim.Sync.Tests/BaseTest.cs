@@ -22,6 +22,7 @@ namespace Dotmim.Sync.Tests
         public XunitTest Test { get; }
         public Stopwatch Stopwatch { get; }
         
+        private Stopwatch initializeStopwatch;
         public BaseTest(ITestOutputHelper output, DatabaseServerFixture<T> fixture)
         {
             this.Fixture = fixture;
@@ -31,6 +32,8 @@ namespace Dotmim.Sync.Tests
             var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
             this.Test = (XunitTest)testMember.GetValue(output);
 
+            initializeStopwatch = Stopwatch.StartNew();
+
             SqlConnection.ClearAllPools();
             MySqlConnection.ClearAllPools();
             NpgsqlConnection.ClearAllPools();
@@ -39,6 +42,8 @@ namespace Dotmim.Sync.Tests
 
             foreach (var clientProvider in Fixture.GetClientProviders())
                 Fixture.DropAllTablesAsync(clientProvider, true).GetAwaiter().GetResult();
+
+            initializeStopwatch.Stop();
 
             this.Stopwatch = Stopwatch.StartNew();
         }
@@ -55,7 +60,9 @@ namespace Dotmim.Sync.Tests
             //    foreach (ReflectionParameterInfo methodParameter in methodParameters)
             //        parameters.Append($"{methodParameter.Name}:{methodParameter.ParameterInfo.DefaultValue}. ");
 
-            t = $"{this.Test.TestCase.Method.Name}{t}: {this.Stopwatch.Elapsed.Minutes}:{this.Stopwatch.Elapsed.Seconds}.{this.Stopwatch.Elapsed.Milliseconds}.";
+            var preparationTime = $"[Prework :{this.initializeStopwatch.Elapsed.Minutes}:{this.initializeStopwatch.Elapsed.Seconds}.{this.initializeStopwatch.Elapsed.Milliseconds}]";
+
+            t = $"{this.Test.TestCase.Method.Name}{t}: {preparationTime} - {this.Stopwatch.Elapsed.Minutes}:{this.Stopwatch.Elapsed.Seconds}.{this.Stopwatch.Elapsed.Milliseconds}.";
             Console.WriteLine(t);
             Debug.WriteLine(t);
         }

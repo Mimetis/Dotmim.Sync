@@ -236,7 +236,7 @@ namespace Dotmim.Sync
                     cScopeInfos = new List<ScopeInfo>();
 
                 // try to get some filters
-                var existingFilters = cScopeInfos?.SelectMany(si => si.Setup.Filters).ToList();
+                var existingFilters = cScopeInfos?.SelectMany(si => si.Setup == null ? new SetupFilters() : si.Setup.Filters).ToList();
 
                 var defaultClientScopeInfo = this.InternalCreateScopeInfo(SyncOptions.DefaultScopeName);
                 SyncSetup setup;
