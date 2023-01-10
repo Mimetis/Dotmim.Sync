@@ -33,9 +33,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         }
     }
 
-    public class PostgresSqlTcpTests : TcpTests2<PostgresFixtureType>
+    public class PostgresTcpTests : TcpTests2<PostgresFixtureType>
     {
-        public PostgresSqlTcpTests(ITestOutputHelper output, DatabaseServerFixture<PostgresFixtureType> fixture) : base(output, fixture)
+        public PostgresTcpTests(ITestOutputHelper output, DatabaseServerFixture<PostgresFixtureType> fixture) : base(output, fixture)
         {
         }
     }
@@ -89,7 +89,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
-                new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
+                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
 
             // Get count of rows
             var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
@@ -188,7 +188,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 foreach (var setupTable in setup.Tables)
                 {
-                    var clientTable = clientProviderType == ProviderType.Sql ? clientSchema.Tables[setupTable.TableName, setupTable.SchemaName] : clientSchema.Tables[setupTable.TableName];
+
+                    var clientTable = clientSchema.Tables[setupTable.TableName, setupTable.SchemaName];
                     var serverTable = serverSchema.Tables[setupTable.TableName, setupTable.SchemaName];
 
                     Assert.Equal(clientTable.Columns.Count, serverTable.Columns.Count);
@@ -468,7 +469,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
-                new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
+                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
@@ -641,7 +642,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
-                new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
+                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
@@ -682,7 +683,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
-                new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
+                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
@@ -802,7 +803,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
-                new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
+                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
@@ -845,7 +846,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
-                new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
+                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
@@ -929,7 +930,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
-                new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
+                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
@@ -1010,7 +1011,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
-                new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
+                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
@@ -1112,7 +1113,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
-                new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
+                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
@@ -1174,7 +1175,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
-                new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
+                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
 
             foreach (var clientProvider in clientsProvider)
             {
@@ -1358,7 +1359,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
-                new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
+                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
@@ -1490,7 +1491,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
-                new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
+                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
 
             foreach (var table in setup.Tables)
                 table.SyncDirection = SyncDirection.UploadOnly;
@@ -1532,7 +1533,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
-                new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
+                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
 
             foreach (var table in setup.Tables)
                 table.SyncDirection = SyncDirection.DownloadOnly;
@@ -1875,8 +1876,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
-                new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
-            
+                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
+
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider).SynchronizeAsync(setup);

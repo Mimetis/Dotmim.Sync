@@ -11,6 +11,7 @@ using Xunit;
 using Xunit.Abstractions;
 using Xunit.Sdk;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Tests
 {
@@ -41,6 +42,8 @@ namespace Dotmim.Sync.Tests
 
             this.Stopwatch = Stopwatch.StartNew();
         }
+
+        
 
         public void OutputCurrentState(string subCategory = null)
         {

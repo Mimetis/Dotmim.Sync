@@ -53,7 +53,6 @@ namespace Dotmim.Sync.Tests.Fixtures
             {
                 var dbName = HelperDatabase.GetRandomName("tcp_cli");
                 new AdventureWorksContext(dbName, type, UseFallbackSchema, false).Database.EnsureCreated();
-                //HelperDatabase.CreateDatabaseAsync(type, dbName, true).GetAwaiter().GetResult();
                 ClientDatabaseNames.Add(type, dbName);
             }
         }
@@ -72,6 +71,17 @@ namespace Dotmim.Sync.Tests.Fixtures
                 yield return HelperDatabase.GetSyncProvider(type, ClientDatabaseNames[type]);
         }
 
+        public void EnsureTablesAreCreatedAsync(CoreProvider coreProvider, bool seeding)
+        {
+            var (t, d) = HelperDatabase.GetDatabaseType(coreProvider);
+
+            if (t == ProviderType.Sqlite)
+                HelperDatabase.DropDatabase(t, d);
+
+
+            new AdventureWorksContext(coreProvider, UseFallbackSchema, seeding).Database.EnsureCreated();
+
+        }
 
         /// <summary>
         /// Drop all tables from client database to have an empty database

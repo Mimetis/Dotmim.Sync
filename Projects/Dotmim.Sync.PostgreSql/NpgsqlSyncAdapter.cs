@@ -93,7 +93,7 @@ namespace Dotmim.Sync.PostgreSql
             if (commandType == DbCommandType.InsertRows || commandType == DbCommandType.UpdateRows || commandType == DbCommandType.DeleteRows
                 || commandType == DbCommandType.InsertRow || commandType == DbCommandType.UpdateRow || commandType == DbCommandType.DeleteRow)
             {
-                string errorOutputParameterName = $"{ParameterPrefix}sync_error_text";
+                string errorOutputParameterName = $"sync_error_text";
                 var parameter = GetParameter(command, errorOutputParameterName);
                 if (parameter == null)
                 {
@@ -117,12 +117,13 @@ namespace Dotmim.Sync.PostgreSql
                 }
             }
 
-            if (commandType == DbCommandType.Reset)
+            if (commandType != DbCommandType.InsertRow && commandType != DbCommandType.InsertRows &&
+                commandType != DbCommandType.UpdateRow && commandType != DbCommandType.UpdateRows && 
+                commandType != DbCommandType.DeleteRow && commandType != DbCommandType.DeleteRows )
             {
-                var parameter = GetParameter(command, $"{ParameterPrefix}sync_row_count");
+                var parameter = GetParameter(command, $"sync_row_count");
                 if (parameter != null)
                     command.Parameters.Remove(parameter);
-
             }
             return command;
         }

@@ -55,6 +55,21 @@ namespace Dotmim.Sync.MySql
             
             }
 
+            // for stored procedures, parameters are prefixed with "in_"
+            // for command parameters are prefixed with "@" ....
+            if (commandType == DbCommandType.UpdateMetadata || commandType == DbCommandType.SelectMetadata)
+            {
+                foreach (var parameter in command.Parameters)
+                {
+                    var p = parameter as DbParameter;
+                    if (p.ParameterName.StartsWith("in_"))
+                        p.ParameterName = p.ParameterName.Replace("in_", "");
+                    
+                    if (!p.ParameterName.StartsWith("@"))
+                    p.ParameterName = $"@{p.ParameterName}";
+                }
+            }
+
             return command;
         }
 
