@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Diagnostics;
 using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -87,7 +88,11 @@ namespace Dotmim.Sync.Tests.Fixtures
             var setup = localOrchestrator.GetAllTablesAsync(c).GetAwaiter().GetResult();
 
             if (!setup.HasTables)
+            {
                 Console.WriteLine($"Tables not created for provider {t} in database {d}");
+                Debug.WriteLine($"Tables not created for provider {t} in database {d}");
+
+            }
             c.Close();
 
         }

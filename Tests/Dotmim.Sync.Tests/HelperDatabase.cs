@@ -331,7 +331,7 @@ namespace Dotmim.Sync.Tests
             }
             catch (Exception ex)
             {
-                Debug.WriteLine(ex.Message);
+                Console.WriteLine($"Error trying to drop database {dbName} of type {providerType}: {ex.Message}");
             }
 
 
@@ -483,7 +483,7 @@ namespace Dotmim.Sync.Tests
             }
             catch (Exception)
             {
-                Debug.WriteLine($"Sqlite file seems loked. ({filePath})");
+                Console.WriteLine($"Sqlite file seems loked. ({filePath})");
             }
             finally { }
 
