@@ -1193,28 +1193,24 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             foreach (var clientProvider in clientsProvider)
             {
-
-
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
                 var localOrchestrator = new LocalOrchestrator(clientProvider);
-                if (clientProviderType == ProviderType.Sqlite)
+                var dbBuilder = clientProvider.GetDatabaseBuilder();
+
+                using (var connection = clientProvider.CreateConnection())
                 {
-                    var dbBuilder = clientProvider.GetDatabaseBuilder();
+                    await connection.OpenAsync();
+                    var setup = await dbBuilder.GetAllTablesAsync(connection, null).ConfigureAwait(false);
 
-                    using (var connection = clientProvider.CreateConnection())
-                    {
-                        await connection.OpenAsync();
-                        var setup = await dbBuilder.GetAllTablesAsync(connection, null).ConfigureAwait(false);
+                    Console.WriteLine($"Iterating over all tables for provider {clientProviderType}");
 
-                        Console.WriteLine("Iterating over all tables");
-
-                        if (setup == null || setup.Tables.Count == 0)
-                            Console.WriteLine("No table found in the database");
-                        else
-                            foreach (var table in setup.Tables)
-                                Console.WriteLine($"Table: {table.GetFullName()}");
-                    }
+                    if (setup == null || setup.Tables.Count == 0)
+                        Console.WriteLine("No table found in the database");
+                    else
+                        foreach (var table in setup.Tables)
+                            Console.WriteLine($"Table: {table.GetFullName()}");
                 }
+              
                 var provision = SyncProvision.ScopeInfo | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
                 // just check interceptor
@@ -1317,12 +1313,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChangesWithFilters));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChangesWithFilters));
                     }
-
                 }
-
-
             }
-
         }
 
         [Fact]
@@ -1419,7 +1411,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             });
 
-                options.DisableConstraintsOnApplyChanges = false;
+            options.DisableConstraintsOnApplyChanges = false;
             // Sync all clients to get these 2 new rows
             foreach (var clientProvider in clientsProvider)
             {
