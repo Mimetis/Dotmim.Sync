@@ -80,6 +80,16 @@ namespace Dotmim.Sync.Tests.Fixtures
 
             new AdventureWorksContext(coreProvider, UseFallbackSchema, seeding).Database.EnsureCreated();
 
+            var localOrchestrator = new LocalOrchestrator(coreProvider);
+            using var c = coreProvider.CreateConnection();
+            c.Open();
+
+            var setup = localOrchestrator.GetAllTablesAsync(c).GetAwaiter().GetResult();
+
+            if (!setup.HasTables)
+                Console.WriteLine($"Tables not created for provider {t} in database {d}");
+            c.Close();
+
         }
 
         /// <summary>
