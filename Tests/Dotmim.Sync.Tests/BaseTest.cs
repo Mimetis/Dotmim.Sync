@@ -65,6 +65,7 @@ namespace Dotmim.Sync.Tests
             t = $"{this.Test.TestCase.Method.Name}{t}: {preparationTime} - {this.Stopwatch.Elapsed.Minutes}:{this.Stopwatch.Elapsed.Seconds}.{this.Stopwatch.Elapsed.Milliseconds}.";
             Console.WriteLine(t);
             Debug.WriteLine(t);
+            this.Output.WriteLine(t);
         }
 
         public void Dispose()

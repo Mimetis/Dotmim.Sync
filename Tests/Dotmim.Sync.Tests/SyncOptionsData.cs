@@ -10,13 +10,13 @@ namespace Dotmim.Sync.Tests
 
         public IEnumerator<object[]> GetEnumerator()
         {
-            yield return new object[] { new SyncOptions { BatchSize = 100 , TransactionMode = Enumerations.TransactionMode.AllOrNothing } };
-            //yield return new object[] { new SyncOptions { BatchSize = 5000, TransactionMode = Enumerations.TransactionMode.PerBatch } };
-            //yield return new object[] { new SyncOptions { BatchSize = 5000, TransactionMode = Enumerations.TransactionMode.None } };
+            yield return new object[] { new SyncOptions { BatchSize = 100, TransactionMode = Enumerations.TransactionMode.AllOrNothing, DisableConstraintsOnApplyChanges = true } };
+            yield return new object[] { new SyncOptions { BatchSize = 5000, TransactionMode = Enumerations.TransactionMode.PerBatch, DisableConstraintsOnApplyChanges = true } };
+            yield return new object[] { new SyncOptions { BatchSize = 5000, TransactionMode = Enumerations.TransactionMode.None, DisableConstraintsOnApplyChanges = true } };
         }
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
-    
-    
+
+
 }

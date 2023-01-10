@@ -152,13 +152,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         public async Task Schema()
         {
             // Get count of rows
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
             var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
             var (serverProviderType, serverDatabaseName) = HelperDatabase.GetDatabaseType(serverProvider);
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider);
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
 
                 var s = await agent.SynchronizeAsync(setup);
                 var clientRowsCount = Fixture.GetDatabaseRowsCount(clientProvider);
@@ -178,7 +179,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 await clientConnection.OpenAsync();
 
-                var agent = new SyncAgent(clientProvider, serverProvider);
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
 
                 // force to get schema from database by calling the GetSchemaAsync (that will not read the ScopInfo record, but will make a full read of the database schema)
                 // The schema get here is not serialized / deserialiazed, like the remote schema (loaded from database)
@@ -301,7 +302,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 clientRowsCount = Fixture.GetDatabaseRowsCount(clientProvider);
                 Assert.Equal(rowsCount, s2.TotalChangesDownloadedFromServer);
-                
+
                 // On second sync, tables with only primary keys are downloaded but not inserted or updated
                 // except SQLite
                 if (clientProviderType == ProviderType.Sqlite) // Sqlite make a REPLACE statement, so primary keys only tables will increment count
@@ -323,7 +324,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Create a client provider, but it will not be used since server provider will raise an error before
             var clientProvider = clientsProvider.First();
 
-            var agent = new SyncAgent(clientProvider, badServerProvider);
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+            var agent = new SyncAgent(clientProvider, badServerProvider, options);
 
             var se = await Assert.ThrowsAnyAsync<SyncException>(async () => await agent.SynchronizeAsync(setup));
         }
@@ -342,7 +344,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Execute a sync on all clients and check results
             foreach (var badClientProvider in badClientsProviders)
             {
-                var agent = new SyncAgent(badClientProvider, serverProvider);
+                var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+                var agent = new SyncAgent(badClientProvider, serverProvider, options);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () => await agent.SynchronizeAsync(setup));
             }
@@ -358,7 +361,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider);
+                var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
@@ -385,7 +389,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider);
+                var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
@@ -404,7 +409,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider);
+                var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
@@ -1299,9 +1305,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task CheckCompositeKeys()
         {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider).SynchronizeAsync(setup);
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             foreach (var clientProvider in Fixture.GetClientProviders())
             {
@@ -1362,13 +1370,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task ForceFailingConstraintsButWorksWithDisableConstraintsOnApplyChanges()
         {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
                 Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider).SynchronizeAsync(setup);
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             var productCategory = await Fixture.AddProductCategoryAsync(serverProvider);
             var product = await Fixture.AddProductAsync(serverProvider, productCategoryId: productCategory.ProductCategoryId);
@@ -1390,7 +1399,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Sync all clients to get these 2 new rows
             foreach (var clientProvider in clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider);
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
 
                 // Generate the foreignkey error
                 agent.LocalOrchestrator.OnRowsChangesApplying(foreignKeysFailureAction);
@@ -1402,9 +1411,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 Assert.IsType<SyncException>(ex);
             }
-
-            // Using disable constraints should work
-            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // Should work now
             foreach (var clientProvider in clientsProvider)
@@ -1494,6 +1500,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task UploadOnly()
         {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
                 Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
@@ -1504,7 +1511,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Should not download anything
             foreach (var clientProvider in clientsProvider)
             {
-                var s = await new SyncAgent(clientProvider, serverProvider).SynchronizeAsync(setup);
+                var s = await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesAppliedOnClient);
             }
@@ -1519,9 +1526,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Sync all clients
             foreach (var clientProvider in clientsProvider)
             {
-                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
-
-                var agent = new SyncAgent(clientProvider, serverProvider);
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
 
                 var s = await agent.SynchronizeAsync(setup);
 
@@ -1536,6 +1541,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task DownloadOnly()
         {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
                 Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
@@ -1549,7 +1555,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Should not download anything
             foreach (var clientProvider in clientsProvider)
             {
-                var s = await new SyncAgent(clientProvider, serverProvider).SynchronizeAsync(setup);
+                var s = await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
                 Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(rowsCount, s.TotalChangesAppliedOnClient);
             }
@@ -1564,9 +1570,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Sync all clients
             foreach (var clientProvider in clientsProvider)
             {
-                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
-
-                var agent = new SyncAgent(clientProvider, serverProvider);
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
 
                 var s = await agent.SynchronizeAsync(setup);
 
@@ -1826,13 +1830,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task IsOutdatedShouldWorkIfCorrectAction()
         {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider).SynchronizeAsync(setup);
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             foreach (var clientProvider in clientsProvider)
             {
-                var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
 
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
@@ -1885,7 +1889,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider).SynchronizeAsync(setup);
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             // Insert lines on each client
             foreach (var clientProvider in clientsProvider)
