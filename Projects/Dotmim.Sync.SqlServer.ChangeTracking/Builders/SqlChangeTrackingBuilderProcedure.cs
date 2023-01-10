@@ -637,7 +637,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.Append($"\t");
                 if (isNoncomparable)
                     stringBuilder.Append("CAST(");
-                stringBuilder.Append("[base].{columnName}");
+                stringBuilder.Append($"[base].{columnName}");
                 if (isNoncomparable)
                     stringBuilder.Append($" AS NVARCHAR(MAX)) AS {columnName}");
 
@@ -775,9 +775,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 if (isNoncomparable)
                     stringBuilder.Append("CAST(");
                 if (isPrimaryKey)
-                    stringBuilder.Append($"\t[side].{columnName}, ");
+                    stringBuilder.Append($"\t[side].{columnName}");
                 else
-                    stringBuilder.Append($"\t[base].{columnName}, ");
+                    stringBuilder.Append($"\t[base].{columnName}");
                 if (isNoncomparable)
                     stringBuilder.Append($" AS NVARCHAR(MAX)) AS {columnName}");
                 stringBuilder.AppendLine(", ");
