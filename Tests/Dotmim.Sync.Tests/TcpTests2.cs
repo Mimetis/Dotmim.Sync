@@ -153,6 +153,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             // Get count of rows
             var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
+            var (serverProviderType, serverDatabaseName) = HelperDatabase.GetDatabaseType(serverProvider);
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -188,9 +189,19 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 foreach (var setupTable in setup.Tables)
                 {
+                    SyncTable clientTable;
+                    SyncTable serverTable;
 
-                    var clientTable = clientSchema.Tables[setupTable.TableName, setupTable.SchemaName];
-                    var serverTable = serverSchema.Tables[setupTable.TableName, setupTable.SchemaName];
+                    if (clientProviderType == ProviderType.Sqlite || clientProviderType == ProviderType.MySql)
+                        clientTable = clientSchema.Tables[setupTable.TableName];
+                    else
+                        clientTable = clientSchema.Tables[setupTable.TableName, setupTable.SchemaName];
+
+
+                    if (serverProviderType == ProviderType.Sqlite || serverProviderType == ProviderType.MySql)
+                        serverTable = serverSchema.Tables[setupTable.TableName];
+                    else
+                        serverTable = serverSchema.Tables[setupTable.TableName, setupTable.SchemaName];
 
                     Assert.Equal(clientTable.Columns.Count, serverTable.Columns.Count);
 
@@ -892,7 +903,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             // get rows count
-           var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
 
             // check rows count on server and on each client
             using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
@@ -1899,7 +1910,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             // Change sync direction on server side
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
-            
+
             var remoteScope = await remoteOrchestrator.GetScopeInfoAsync();
             var productCategorySetupTable = remoteScope.Setup.Tables.First(t => t.TableName == "ProductCategory");
             var productSetupTable = remoteScope.Setup.Tables.First(t => t.TableName == "Product");
@@ -1964,7 +1975,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             // all clients providers
             var clientProviders = new List<CoreProvider>();
-            
+
             var createdDatabases = new List<(ProviderType ProviderType, string DatabaseName)>();
 
             foreach (var providerType in providersTypes)
