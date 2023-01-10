@@ -1386,6 +1386,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         public async Task ForceFailingConstraintsButWorksWithDisableConstraintsOnApplyChanges()
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+            
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
                 Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
@@ -1397,6 +1398,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             var productCategory = await Fixture.AddProductCategoryAsync(serverProvider);
             var product = await Fixture.AddProductAsync(serverProvider, productCategoryId: productCategory.ProductCategoryId);
 
+
+            // forcing a fk exception
             var foreignKeysFailureAction = new Action<RowsChangesApplyingArgs>((args) =>
             {
                 if (args.SchemaTable.TableName != "Product")
@@ -1427,6 +1430,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 Assert.IsType<SyncException>(ex);
             }
+            options.DisableConstraintsOnApplyChanges = true;
 
             // Should work now
             foreach (var clientProvider in clientsProvider)
