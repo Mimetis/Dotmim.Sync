@@ -129,6 +129,7 @@ namespace Dotmim.Sync.Tests
             _ => ProviderType.Sql,
         };
 
+        
 
         public static void ClearPool(ProviderType providerType)
         {
@@ -333,7 +334,7 @@ namespace Dotmim.Sync.Tests
                 Debug.WriteLine(ex.Message);
             }
 
-  
+
         }
 
 
@@ -426,7 +427,7 @@ namespace Dotmim.Sync.Tests
         {
 
             schemaName = string.IsNullOrEmpty(schemaName) ? "public" : schemaName;
-            
+
             using var connection = new NpgsqlConnection(Setup.GetPostgresDatabaseConnectionString(dbName));
             connection.Open();
 
@@ -527,7 +528,7 @@ namespace Dotmim.Sync.Tests
             connection.Open();
 
             schemaName = string.IsNullOrEmpty(schemaName) ? "dbo" : schemaName;
-            
+
             using (var cmdDb = new SqlCommand($"DELETE FROM [{schemaName}].[{tableName}];", connection))
                 cmdDb.ExecuteNonQuery();
 

@@ -309,51 +309,34 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task BadConnectionFromServerShouldRaiseError()
         {
-            // change the remote orchestrator connection string
-            serverProvider.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown";
+            var badServerProvider = HelperDatabase.GetSyncProvider(Fixture.ServerProviderType, HelperDatabase.GetRandomName("tcp_srv_bad_"));
+            badServerProvider.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown";
 
-            // Execute a sync on all clients and check results
-            foreach (var clientProvider in clientsProvider)
-            {
+            // Create a client provider, but it will not be used since server provider will raise an error before
+            var clientProvider = clientsProvider.First();
 
-                var agent = new SyncAgent(clientProvider, serverProvider);
+            var agent = new SyncAgent(clientProvider, badServerProvider);
 
-                var onReconnect = new Action<ReConnectArgs>(args =>
-                    Console.WriteLine($"[Retry Connection] Can't connect to database {args.Connection?.Database}. " +
-                    $"Retry N°{args.Retry}. " +
-                    $"Waiting {args.WaitingTimeSpan.Milliseconds}. Exception:{args.HandledException.Message}."));
-
-                agent.LocalOrchestrator.OnReConnect(onReconnect);
-                agent.RemoteOrchestrator.OnReConnect(onReconnect);
-
-                var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
-                {
-                    var s = await agent.SynchronizeAsync(setup);
-                });
-            }
+            var se = await Assert.ThrowsAnyAsync<SyncException>(async () => await agent.SynchronizeAsync(setup));
         }
         [Fact]
         public async Task BadConnectionFromClientShouldRaiseError()
         {
-            // Execute a sync on all clients and check results
-            foreach (var clientProvider in clientsProvider)
+            var badClientsProviders = new List<CoreProvider>();
+
+            foreach (var type in Fixture.ClientsType)
             {
-                // change the local orchestrator connection string
-                // Set a connection string that will faile everywhere (event Sqlite)
-                clientProvider.ConnectionString = $@"Data Source=*;";
+                var badClientProvider = HelperDatabase.GetSyncProvider(type, HelperDatabase.GetRandomName("tcp_bad_cli"));
+                badClientProvider.ConnectionString = $@"Data Source=*;";
+                badClientsProviders.Add(badClientProvider);
+            }
 
-                var agent = new SyncAgent(clientProvider, serverProvider);
+            // Execute a sync on all clients and check results
+            foreach (var badClientProvider in badClientsProviders)
+            {
+                var agent = new SyncAgent(badClientProvider, serverProvider);
 
-                var onReconnect = new Action<ReConnectArgs>(args =>
-                    Console.WriteLine($"[Retry Connection] Can't connect to database {args.Connection?.Database}. Retry N°{args.Retry}. Waiting {args.WaitingTimeSpan.Milliseconds}. Exception:{args.HandledException.Message}."));
-
-                agent.LocalOrchestrator.OnReConnect(onReconnect);
-                agent.RemoteOrchestrator.OnReConnect(onReconnect);
-
-                var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
-                {
-                    var s = await agent.SynchronizeAsync(setup);
-                });
+                var se = await Assert.ThrowsAnyAsync<SyncException>(async () => await agent.SynchronizeAsync(setup));
             }
         }
 
@@ -385,8 +368,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task BadColumnSetupDoesNotExistInSchemaShouldRaiseError()
         {
+            // Creating a fake setup
+            var badSetup = new SyncSetup("Employee");
+
             // Add a malformatted column name
-            setup.Tables["Employee"].Columns.AddRange(new string[] { "EmployeeID", "FirstName", "LastNam" });
+            badSetup.Tables["Employee"].Columns.AddRange(new string[] { "EmployeeID", "FirstName", "LastNam" });
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -395,7 +381,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
-                    var s = await agent.SynchronizeAsync("noColumn", setup);
+                    var s = await agent.SynchronizeAsync("noColumn", badSetup);
                 });
 
                 Assert.Equal("MissingColumnException", se.TypeName);
@@ -405,7 +391,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task BadTableSetupDoesNotExistInSchemaShouldRaiseError()
         {
-            setup.Tables.Add("WeirdTable");
+            var badSetup = new SyncSetup("WeirdTable");
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -414,7 +400,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
-                    var s = await agent.SynchronizeAsync("WeirdTable", setup);
+                    var s = await agent.SynchronizeAsync("WeirdTable", badSetup);
                 });
 
                 Assert.Equal("MissingTableException", se.TypeName);
