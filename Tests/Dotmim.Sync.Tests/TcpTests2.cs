@@ -285,6 +285,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             foreach (var clientProvider in clientsProvider)
             {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
 
                 // On first sync, even tables with only primary keys are inserted
@@ -297,10 +299,16 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 var s2 = await agent.SynchronizeAsync("v2", setup);
 
-                // On second sync, tables with only primary keys are downloaded but not inserted or updated
                 clientRowsCount = Fixture.GetDatabaseRowsCount(clientProvider);
                 Assert.Equal(rowsCount, s2.TotalChangesDownloadedFromServer);
-                Assert.Equal(rowsCount - notUpdatedOnClientsCount, s2.TotalChangesAppliedOnClient);
+                
+                // On second sync, tables with only primary keys are downloaded but not inserted or updated
+                // except SQLite
+                if (clientProviderType == ProviderType.Sqlite) // Sqlite make a REPLACE statement, so primary keys only tables will increment count
+                    Assert.Equal(rowsCount, s2.TotalChangesAppliedOnClient);
+                else
+                    Assert.Equal(rowsCount - notUpdatedOnClientsCount, s2.TotalChangesAppliedOnClient);
+
                 Assert.Equal(0, s2.TotalChangesUploadedToServer);
                 Assert.Equal(rowsCount, clientRowsCount);
             }

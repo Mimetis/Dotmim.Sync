@@ -134,39 +134,53 @@ namespace Dotmim.Sync.PostgreSql
         /// </summary>
         public override DbCommand EnsureCommandParametersValues(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
         {
-            foreach (NpgsqlParameter parameter in command.Parameters)
+            foreach (NpgsqlParameter npgSqlParameter in command.Parameters)
             {
-                if (parameter.Value == null || parameter.Value == DBNull.Value)
+                if (npgSqlParameter.Value == null || npgSqlParameter.Value == DBNull.Value)
                     continue;
 
-                // Depending on framework and switch legacy, specify the kind of datetime used
-                if (parameter.NpgsqlDbType == NpgsqlDbType.TimestampTz)
-                {
-                    if (parameter.Value is DateTime dateTime)
-                        parameter.Value = legacyTimestampBehavior ? dateTime : DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
-                    else if (parameter.Value is DateTimeOffset dateTimeOffset)
-                        parameter.Value = dateTimeOffset.UtcDateTime;
-                    else
-                    {
-                        var dt = SyncTypeConverter.TryConvertTo<DateTime>(parameter.Value);
-                        parameter.Value = legacyTimestampBehavior ? dt : DateTime.SpecifyKind(dt, DateTimeKind.Utc);
-                    }
-
-                }
-                else if (parameter.NpgsqlDbType == NpgsqlDbType.Timestamp)
-                {
-                    if (parameter.Value is DateTime dateTime)
-                        parameter.Value = dateTime;
-                    if (parameter.Value is DateTimeOffset dateTimeOffset)
-                        parameter.Value = dateTimeOffset.DateTime;
-                    else
-                        parameter.Value = SyncTypeConverter.TryConvertTo<DateTime>(parameter.Value);
-                }
+                AddCommandParameterValue(npgSqlParameter, npgSqlParameter.Value, command, commandType);
             }
             return command;
         }
 
+        public override void AddCommandParameterValue(DbParameter parameter, object value, DbCommand command, DbCommandType commandType)
+        {
+            var npgSqlParameter = (NpgsqlParameter)parameter;
 
+            if (value == null || value == DBNull.Value)
+            {
+                npgSqlParameter.Value = DBNull.Value;
+                return;
+            }
+
+            // Depending on framework and switch legacy, specify the kind of datetime used
+            if (npgSqlParameter.NpgsqlDbType == NpgsqlDbType.TimestampTz)
+            {
+                if (value is DateTime dateTime)
+                    npgSqlParameter.Value = legacyTimestampBehavior ? dateTime : DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
+                else if (value is DateTimeOffset dateTimeOffset)
+                    npgSqlParameter.Value = dateTimeOffset.UtcDateTime;
+                else
+                {
+                    var dt = SyncTypeConverter.TryConvertTo<DateTime>(value);
+                    npgSqlParameter.Value = legacyTimestampBehavior ? dt : DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                }
+                return;
+            }
+            if (npgSqlParameter.NpgsqlDbType == NpgsqlDbType.Timestamp)
+            {
+                if (value is DateTime dateTime)
+                    npgSqlParameter.Value = dateTime;
+                if (value is DateTimeOffset dateTimeOffset)
+                    npgSqlParameter.Value = dateTimeOffset.DateTime;
+                else
+                    npgSqlParameter.Value = SyncTypeConverter.TryConvertTo<DateTime>(value);
+                return;
+            }
+
+            parameter.Value = SyncTypeConverter.TryConvertFromDbType(value, parameter.DbType);
+        }
 
         // ---------------------------------------------------
         // Reset Command

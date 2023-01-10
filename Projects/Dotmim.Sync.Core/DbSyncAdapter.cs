@@ -92,7 +92,10 @@ namespace Dotmim.Sync
             if (value == null || value == DBNull.Value)
                 parameter.Value = DBNull.Value;
             else
-                parameter.Value = SyncTypeConverter.TryConvertFromDbType(value, parameter.DbType);
+            {
+                var convValue = SyncTypeConverter.TryConvertFromDbType(value, parameter.DbType);
+                parameter.Value = convValue;
+            }
         }
 
         /// <summary>

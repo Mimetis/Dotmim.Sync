@@ -78,7 +78,6 @@ namespace Dotmim.Sync.Tests.Fixtures
             if (t == ProviderType.Sqlite)
                 HelperDatabase.DropDatabase(t, d);
 
-
             new AdventureWorksContext(coreProvider, UseFallbackSchema, seeding).Database.EnsureCreated();
 
         }

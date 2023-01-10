@@ -224,7 +224,7 @@ namespace Dotmim.Sync.Sqlite
                 empty = ", ";
             }
 
-            stringBuilder.AppendLine($"INSERT INTO {tableName.Quoted()}");
+            stringBuilder.AppendLine($"INSERT OR REPLACE INTO {tableName.Quoted()}");
             stringBuilder.AppendLine($"({stringBuilderArguments})");
             stringBuilder.Append($"VALUES ({stringBuilderParametersValues2}) ");
             stringBuilder.AppendLine($";");
