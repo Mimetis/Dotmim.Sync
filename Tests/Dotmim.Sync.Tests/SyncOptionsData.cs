@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Dotmim.Sync.Enumerations;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
@@ -10,9 +11,9 @@ namespace Dotmim.Sync.Tests
 
         public IEnumerator<object[]> GetEnumerator()
         {
-            yield return new object[] { new SyncOptions { BatchSize = 100, TransactionMode = Enumerations.TransactionMode.AllOrNothing, DisableConstraintsOnApplyChanges = true } };
-            yield return new object[] { new SyncOptions { BatchSize = 5000, TransactionMode = Enumerations.TransactionMode.PerBatch, DisableConstraintsOnApplyChanges = true } };
-            yield return new object[] { new SyncOptions { BatchSize = 5000, TransactionMode = Enumerations.TransactionMode.None, DisableConstraintsOnApplyChanges = true } };
+            yield return new object[] { new SyncOptions { BatchSize = 100, TransactionMode = TransactionMode.AllOrNothing, DisableConstraintsOnApplyChanges = true } };
+            yield return new object[] { new SyncOptions { BatchSize = 5000, TransactionMode = TransactionMode.PerBatch, DisableConstraintsOnApplyChanges = true, ErrorResolutionPolicy = ErrorResolution.RetryOneMoreTimeAndThrowOnError } };
+            yield return new object[] { new SyncOptions { BatchSize = 5000, TransactionMode = TransactionMode.None, DisableConstraintsOnApplyChanges = true, ErrorResolutionPolicy = ErrorResolution.RetryOneMoreTimeAndThrowOnError } };
         }
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

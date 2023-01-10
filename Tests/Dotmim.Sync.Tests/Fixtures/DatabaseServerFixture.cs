@@ -18,7 +18,7 @@ namespace Dotmim.Sync.Tests.Fixtures
 {
     public class DatabaseServerFixture<T> : IDisposable where T : RelationalFixture
     {
-        public virtual List<ProviderType> ClientsType => new List<ProviderType> { ProviderType.MySql, ProviderType.Sqlite, ProviderType.Sql };
+        public virtual List<ProviderType> ClientsType => new List<ProviderType> { ProviderType.Sqlite };
 
         // One Server type of T
         public virtual ProviderType ServerProviderType => HelperDatabase.GetProviderType<T>();

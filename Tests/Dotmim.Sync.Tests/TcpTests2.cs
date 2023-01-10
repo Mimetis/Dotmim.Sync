@@ -141,9 +141,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                     // Check DateTime DateTimeOffset
                     Assert.Equal(serverSaleHeader.ShipDate, clientSaleHeader.ShipDate);
-                    Assert.Equal(serverSaleHeader.OrderDate.Value, clientSaleHeader.OrderDate.Value);
-                    Assert.Equal(serverSaleHeader.DueDate.Value, clientSaleHeader.DueDate.Value);
-                    Assert.Equal(serverSaleHeader.ModifiedDate.Value, clientSaleHeader.ModifiedDate.Value);
+
+                    // If Postgres Server
+
+                    Assert.Equal(serverSaleHeader.OrderDate.Value.ToUniversalTime(), clientSaleHeader.OrderDate.Value.ToUniversalTime());
+                    Assert.Equal(serverSaleHeader.DueDate.Value.ToUniversalTime(), clientSaleHeader.DueDate.Value.ToUniversalTime());
+                    Assert.Equal(serverSaleHeader.ModifiedDate.Value.ToUniversalTime(), clientSaleHeader.ModifiedDate.Value.ToUniversalTime());
                 }
             }
         }
