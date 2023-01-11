@@ -197,7 +197,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(rowsCount, clientRowsCount);
             }
 
-            foreach (var clientProvider in Fixture.GetClientProviders())
+            foreach (var clientProvider in clientsProvider)
             {
                 // Check we have the correct columns replicated
                 using var clientConnection = clientProvider.CreateConnection();
@@ -230,6 +230,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                     else
                         serverTable = serverSchema.Tables[setupTable.TableName, setupTable.SchemaName];
 
+                    //if (clientTable.TableName == "PricesListDetail")
+                    //    Assert.Equal(clientTable.Columns.Count, serverTable.Columns.Count - 1);
+                    //else
                     Assert.Equal(clientTable.Columns.Count, serverTable.Columns.Count);
 
                     foreach (var serverColumn in serverTable.Columns)
@@ -370,7 +373,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var type in Fixture.ClientsType)
             {
                 var badClientProvider = HelperDatabase.GetSyncProvider(type, HelperDatabase.GetRandomName("tcp_bad_cli"));
-                badClientProvider.ConnectionString = $@"Data Source=*;";
+                badClientProvider.ConnectionString = $@"Data Source=\.\?\.;";
                 badClientsProviders.Add(badClientProvider);
             }
 
@@ -1993,7 +1996,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var clientProvider in clientsProvider)
             {
                 var localOrchestrator = new LocalOrchestrator(clientProvider, options);
-               
+
                 // Once created we can provision the new scope, thanks to the serverScope instance we already have
                 var clientScopeV1 = await localOrchestrator.ProvisionAsync(serverScope);
                 var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync("BidirToUp");

@@ -84,9 +84,10 @@ namespace Dotmim.Sync.Tests
             //    foreach (ReflectionParameterInfo methodParameter in methodParameters)
             //        parameters.Append($"{methodParameter.Name}:{methodParameter.ParameterInfo.DefaultValue}. ");
 
+            var overallTime = $"[Overall :{Fixture.OverallStopwatch.Elapsed.Minutes}:{Fixture.OverallStopwatch.Elapsed.Seconds}.{Fixture.OverallStopwatch.Elapsed.Milliseconds}]";
             var preparationTime = $"[Prework :{this.initializeStopwatch.Elapsed.Minutes}:{this.initializeStopwatch.Elapsed.Seconds}.{this.initializeStopwatch.Elapsed.Milliseconds}]";
 
-            t = $"{this.Test.TestCase.Method.Name}{t}: {preparationTime} - {this.Stopwatch.Elapsed.Minutes}:{this.Stopwatch.Elapsed.Seconds}.{this.Stopwatch.Elapsed.Milliseconds}.";
+            t = $"{this.Test.TestCase.Method.Name}{t}: {overallTime} - {preparationTime} - {this.Stopwatch.Elapsed.Minutes}:{this.Stopwatch.Elapsed.Seconds}.{this.Stopwatch.Elapsed.Milliseconds}.";
             Console.WriteLine(t);
             Debug.WriteLine(t);
             this.Output.WriteLine(t);

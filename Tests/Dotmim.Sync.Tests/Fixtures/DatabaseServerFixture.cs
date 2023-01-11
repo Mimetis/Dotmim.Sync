@@ -27,6 +27,8 @@ namespace Dotmim.Sync.Tests.Fixtures
         // SQL Server has schema on server database
         private string salesSchema = typeof(T) == typeof(SqlServerFixtureType) || typeof(T) == typeof(PostgresFixtureType) ? "SalesLT." : "";
 
+        public Stopwatch OverallStopwatch { get; }
+
         public virtual string[] Tables => new string[]
         {
             $"{salesSchema}ProductCategory", $"{salesSchema}ProductModel", $"{salesSchema}Product",
@@ -47,6 +49,8 @@ namespace Dotmim.Sync.Tests.Fixtures
 
         public DatabaseServerFixture()
         {
+            this.OverallStopwatch = Stopwatch.StartNew();
+
             this.ServerDatabaseName = HelperDatabase.GetRandomName("tcp_srv");
             //new AdventureWorksContext(ServerDatabaseName, ServerProviderType, UseFallbackSchema, true).Database.EnsureCreated();
 
@@ -468,6 +472,9 @@ namespace Dotmim.Sync.Tests.Fixtures
                 HelperDatabase.DropDatabase(tvp.Key, tvp.Value);
 
             HelperDatabase.DropDatabase(ServerProviderType, ServerDatabaseName);
+
+            this.OverallStopwatch.Stop();
+
         }
 
 
