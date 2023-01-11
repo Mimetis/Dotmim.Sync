@@ -47,7 +47,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         }
     }
 
-    public abstract class TcpTests2<T> : BaseTest<T>, IDisposable where T : RelationalFixture
+    public abstract partial class TcpTests2<T> : BaseTest<T>, IDisposable where T : RelationalFixture
     {
         private CoreProvider serverProvider;
         private IEnumerable<CoreProvider> clientsProvider;

@@ -130,6 +130,14 @@ namespace Dotmim.Sync.Tests
         };
 
         
+        public static void ClearAllPools()
+        {
+            SqlConnection.ClearAllPools();
+            MySqlConnection.ClearAllPools();
+            SqliteConnection.ClearAllPools();
+            NpgsqlConnection.ClearAllPools();
+
+        }
 
         public static void ClearPool(ProviderType providerType)
         {

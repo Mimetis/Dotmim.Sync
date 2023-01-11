@@ -76,6 +76,12 @@ namespace Dotmim.Sync.Tests.Fixtures
                 yield return HelperDatabase.GetSyncProvider(type, ClientDatabaseNames[type]);
         }
 
+        public void ClearAllPools()
+        {
+
+        }
+
+
         public void EnsureTablesAreCreated(CoreProvider coreProvider, bool seeding)
         {
             var (t, d) = HelperDatabase.GetDatabaseType(coreProvider);
@@ -402,38 +408,13 @@ namespace Dotmim.Sync.Tests.Fixtures
 
         }
 
+
+
         /// <summary>
         /// Get the server database rows count
         /// </summary>
         /// <returns></returns>
         public int GetDatabaseRowsCount(CoreProvider coreProvider)
-        {
-            int totalCountRows = 0;
-
-            using var ctx = new AdventureWorksContext(coreProvider, UseFallbackSchema, false);
-
-            totalCountRows += ctx.Address.Count();
-            totalCountRows += ctx.Customer.Count();
-            totalCountRows += ctx.CustomerAddress.Count();
-            totalCountRows += ctx.Employee.Count();
-            totalCountRows += ctx.EmployeeAddress.Count();
-            totalCountRows += ctx.Log.Count();
-            totalCountRows += ctx.Posts.Count();
-            totalCountRows += ctx.PostTag.Count();
-            totalCountRows += ctx.PricesList.Count();
-            totalCountRows += ctx.PricesListCategory.Count();
-            totalCountRows += ctx.PricesListDetail.Count();
-            totalCountRows += ctx.Product.Count();
-            totalCountRows += ctx.ProductCategory.Count();
-            totalCountRows += ctx.ProductModel.Count();
-            totalCountRows += ctx.SalesOrderDetail.Count();
-            totalCountRows += ctx.SalesOrderHeader.Count();
-            totalCountRows += ctx.Tags.Count();
-
-            return totalCountRows;
-        }
-
-        public int TruncateTables(CoreProvider coreProvider)
         {
             int totalCountRows = 0;
 
