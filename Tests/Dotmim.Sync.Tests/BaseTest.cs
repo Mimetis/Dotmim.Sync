@@ -12,6 +12,8 @@ using Xunit.Abstractions;
 using Xunit.Sdk;
 using System.Linq;
 using System.Threading.Tasks;
+using Dotmim.Sync.Tests.Models;
+using System.Xml.Linq;
 
 namespace Dotmim.Sync.Tests
 {
@@ -21,7 +23,7 @@ namespace Dotmim.Sync.Tests
         public ITestOutputHelper Output { get; }
         public XunitTest Test { get; }
         public Stopwatch Stopwatch { get; }
-        
+
         private Stopwatch initializeStopwatch;
         public BaseTest(ITestOutputHelper output, DatabaseServerFixture<T> fixture)
         {
@@ -38,6 +40,17 @@ namespace Dotmim.Sync.Tests
             MySqlConnection.ClearAllPools();
             NpgsqlConnection.ClearAllPools();
 
+
+            ResetClientsAndServerByCreatingThemAgain();
+
+
+            initializeStopwatch.Stop();
+
+            this.Stopwatch = Stopwatch.StartNew();
+        }
+
+        private void ResetClientsTables()
+        {
             // Drop DMS metadatas and truncate clients tables
             foreach (var clientProvider in Fixture.GetClientProviders())
             {
@@ -46,13 +59,20 @@ namespace Dotmim.Sync.Tests
                 // truncate all tables
                 Fixture.EmptyAllTablesAsync(clientProvider).GetAwaiter().GetResult(); ;
             }
-
-            initializeStopwatch.Stop();
-
-            this.Stopwatch = Stopwatch.StartNew();
         }
 
-        
+        private void ResetClientsAndServerByCreatingThemAgain()
+        {
+            HelperDatabase.DropDatabase(Fixture.ServerProviderType, Fixture.ServerDatabaseName);
+            new AdventureWorksContext(Fixture.ServerDatabaseName, Fixture.ServerProviderType, Fixture.UseFallbackSchema, true).Database.EnsureCreated();
+
+            // Drop DMS metadatas and truncate clients tables
+            foreach (var (clientType, clientDatabaseName) in Fixture.ClientDatabaseNames)
+            {
+                HelperDatabase.DropDatabase(clientType, clientDatabaseName);
+                new AdventureWorksContext(clientDatabaseName, clientType, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
+            }
+        }
 
         public void OutputCurrentState(string subCategory = null)
         {

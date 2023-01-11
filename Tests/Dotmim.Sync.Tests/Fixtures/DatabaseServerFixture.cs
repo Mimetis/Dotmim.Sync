@@ -48,12 +48,12 @@ namespace Dotmim.Sync.Tests.Fixtures
         public DatabaseServerFixture()
         {
             this.ServerDatabaseName = HelperDatabase.GetRandomName("tcp_srv");
-            new AdventureWorksContext(ServerDatabaseName, ServerProviderType, UseFallbackSchema, true).Database.EnsureCreated();
+            //new AdventureWorksContext(ServerDatabaseName, ServerProviderType, UseFallbackSchema, true).Database.EnsureCreated();
 
             foreach (var type in this.ClientsType)
             {
                 var dbName = HelperDatabase.GetRandomName("tcp_cli");
-                new AdventureWorksContext(dbName, type, UseFallbackSchema, false).Database.EnsureCreated();
+                //new AdventureWorksContext(dbName, type, UseFallbackSchema, false).Database.EnsureCreated();
                 ClientDatabaseNames.Add(type, dbName);
             }
         }
