@@ -340,10 +340,7 @@ namespace Dotmim.Sync.Tests
         [DebuggerStepThrough]
         public static void TruncateTable(ProviderType providerType, string dbName, string tableName, string schemaName)
         {
-            // We don't care to drop the database on Azure, as the test itself will destroy the instance at the end
-            if (Setup.IsOnAzureDev)
-                return;
-
+            
             try
             {
                 switch (providerType)

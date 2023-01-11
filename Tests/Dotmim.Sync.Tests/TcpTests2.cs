@@ -64,6 +64,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task RowsCount(SyncOptions options)
         {
+            // Drop clients databases tables, to let DMS creates them
+            foreach (var clientProvider in Fixture.GetClientProviders())
+                await Fixture.DropAllTablesAsync(clientProvider, true);
+
             // Get count of rows
             var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
 
@@ -87,9 +91,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task RowsCountWithExistingSchema(SyncOptions options)
         {
-            // Set Client database with existing tables
+            // Drop DMS metadatas
             foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
+            {
+                // drop all DMS tables & metadatas
+                await Fixture.DropAllTablesAsync(clientProvider, false);
+                // truncate all tables
+                await Fixture.EmptyAllTablesAsync(clientProvider);
+            }
 
             // Get count of rows
             var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
@@ -154,8 +163,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task Schema()
         {
-            // Get count of rows
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // Drop all DMS tables & metadatas + clients tables
+            foreach (var clientProvider in clientsProvider)
+                await Fixture.DropAllTablesAsync(clientProvider, true);
+
+            // Get count of rows
             var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
             var (serverProviderType, serverDatabaseName) = HelperDatabase.GetDatabaseType(serverProvider);
 
@@ -275,6 +289,15 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task MultiScopes(SyncOptions options)
         {
+            // Drop DMS metadatas
+            foreach (var clientProvider in clientsProvider)
+            {
+                // drop all DMS tables & metadatas
+                await Fixture.DropAllTablesAsync(clientProvider, false);
+                // truncate all tables
+                await Fixture.EmptyAllTablesAsync(clientProvider);
+            }
+
             // get the number of rows that have only primary keys (which do not accept any Update)
             int notUpdatedOnClientsCount;
             using (var serverDbCtx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
@@ -347,10 +370,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Execute a sync on all clients and check results
             foreach (var badClientProvider in badClientsProviders)
             {
+                var (t, d) = HelperDatabase.GetDatabaseType(badClientProvider);
                 var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
                 var agent = new SyncAgent(badClientProvider, serverProvider, options);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () => await agent.SynchronizeAsync(setup));
+                Console.WriteLine($"Exception correctly raised for provider {t}");
             }
         }
 
@@ -481,10 +506,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task InsertOneRowThenUpdateThisRowOnServerSide(SyncOptions options)
         {
-            // Set Client database with existing tables
-            foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
-
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
@@ -654,10 +675,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task InsertOneRowWithByteArrayOnServerSide(SyncOptions options)
         {
-            // Set Client database with existing tables
-            foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
-
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
@@ -695,9 +712,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task InsertOneRowInOneTableOnClientSideThenInsertAgainDuringGetChanges(SyncOptions options)
         {
-            // Set Client database with existing tables
+            // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
@@ -815,10 +832,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task UpdateOneRowInOneTableOnServerSide(SyncOptions options)
         {
-            // Set Client database with existing tables
-            foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
-
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
@@ -858,10 +871,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task UpdateOneRowInOneTableOnClientSide(SyncOptions options)
         {
-            // Set Client database with existing tables
-            foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
-
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
@@ -942,10 +951,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task UpdateOneRowToNullInOneTableOnClientSide(SyncOptions options)
         {
-            // Set Client database with existing tables
-            foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
-
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
@@ -1023,10 +1028,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task UpdateOneRowToNullInOneTableOnServerSide(SyncOptions options)
         {
-            // Set Client database with existing tables
-            foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
-
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
@@ -1126,10 +1127,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task DeleteOneRowInOneTableOnClientSide(SyncOptions options)
         {
-            // Set Client database with existing tables
-            foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
-
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
@@ -1188,15 +1185,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task UsingExistingClientDatabaseProvisionDeprovision()
         {
-            // Set Client database with existing tables
-            foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
-
             foreach (var clientProvider in clientsProvider)
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
                 var localOrchestrator = new LocalOrchestrator(clientProvider);
-              
+
                 var provision = SyncProvision.ScopeInfo | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
                 // just check interceptor
@@ -1372,10 +1365,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         public async Task ForceFailingConstraintsButWorksWithDisableConstraintsOnApplyChanges()
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
-            
+
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
+                Fixture.EnsureTablesAreCreated(clientProvider, false);
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
@@ -1436,12 +1429,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task Reinitialize(SyncOptions options)
         {
-            // Get count of rows
-            var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
-
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Get count of rows
+            var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
 
             // Reset stored proc needs it.
             options.DisableConstraintsOnApplyChanges = true;
@@ -1485,12 +1478,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task ReinitializeWithUpload(SyncOptions options)
         {
-            // Get count of rows
-            var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
-
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Get count of rows
+            var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
 
             // Reset stored proc needs it.
             options.DisableConstraintsOnApplyChanges = true;
@@ -1537,9 +1530,15 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         public async Task UploadOnly()
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
-            // Set Client database with existing tables
+
+            // Drop DMS metadatas
             foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
+            {
+                // drop all DMS tables & metadatas
+                await Fixture.DropAllTablesAsync(clientProvider, false);
+                // truncate all tables
+                await Fixture.EmptyAllTablesAsync(clientProvider);
+            }
 
             foreach (var table in setup.Tables)
                 table.SyncDirection = SyncDirection.UploadOnly;
@@ -1578,10 +1577,15 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         public async Task DownloadOnly()
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
- 
-            // Set Client database with existing tables
+
+            // Drop DMS metadatas
             foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
+            {
+                // drop all DMS tables & metadatas
+                await Fixture.DropAllTablesAsync(clientProvider, false);
+                // truncate all tables
+                await Fixture.EmptyAllTablesAsync(clientProvider);
+            }
 
             foreach (var table in setup.Tables)
                 table.SyncDirection = SyncDirection.DownloadOnly;
@@ -1623,9 +1627,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task Snapshots(SyncOptions options)
         {
-            // Set Client database with existing tables
+            // Drop DMS metadatas
             foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
+            {
+                // drop all DMS tables & metadatas
+                await Fixture.DropAllTablesAsync(clientProvider, false);
+                // truncate all tables
+                await Fixture.EmptyAllTablesAsync(clientProvider);
+            }
 
             // snapshot directory
             var snapshotDirctory = HelperDatabase.GetRandomName();
@@ -1694,9 +1703,15 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task SnapshotsThenReinitialize(SyncOptions options)
         {
-            // Set Client database with existing tables
+            // Drop DMS metadatas
             foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
+            {
+                // drop all DMS tables & metadatas
+                await Fixture.DropAllTablesAsync(clientProvider, false);
+                // truncate all tables
+                await Fixture.EmptyAllTablesAsync(clientProvider);
+            }
+
 
             // snapshot directory
             var snapshotDirctory = HelperDatabase.GetRandomName();
@@ -1801,6 +1816,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task SerializeAndDeserialize(SyncOptions options)
         {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
             var myRijndael = new RijndaelManaged();
             myRijndael.GenerateKey();
             myRijndael.GenerateIV();
@@ -1891,6 +1910,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         public async Task IsOutdatedShouldWorkIfCorrectAction()
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
@@ -1957,10 +1977,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task ChangeBidirectionalToUploadOnlyShouldWork(SyncOptions options)
         {
-            // Set Client database with existing tables
-            foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
-
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
@@ -2035,6 +2051,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task ParallelSyncForTwentyClients(SyncOptions options)
         {
+
             // Provision server, to be sure no clients will try to do something that could break server
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
