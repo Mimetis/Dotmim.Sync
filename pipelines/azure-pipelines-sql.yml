@@ -9,13 +9,13 @@ jobs:
   - template: azure-pipelines-template.yml
     parameters:
       displayName: 'SQL Server Tcp .net 7.0'
-      dotnetfx: '.net7.0'
+      dotnetfx: 'net7.0'
       filter: 'Dotmim.Sync.Tests.IntegrationTests2.SqlServerTcp'
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: 'SQL Server Tcp .net 6.0'
-      dotnetfx: '.net6.0'
+      dotnetfx: 'net6.0'
       filter: 'Dotmim.Sync.Tests.IntegrationTests2.SqlServerTcp'
   
   - template: azure-pipelines-template.yml
@@ -27,13 +27,13 @@ jobs:
   - template: azure-pipelines-template.yml
     parameters:
       displayName: 'PostgreSQL Tcp .net 7.0'
-      dotnetfx: '.net7.0'
+      dotnetfx: 'net7.0'
       filter: 'Dotmim.Sync.Tests.IntegrationTests2.PostgresTcp'
   
   - template: azure-pipelines-template.yml
     parameters:
       displayName: 'PostgreSQL Tcp .net 6.0'
-      dotnetfx: '.net6.0'
+      dotnetfx: 'net6.0'
       filter: 'Dotmim.Sync.Tests.IntegrationTests2.PostgresTcp'
   
   - template: azure-pipelines-template.yml
@@ -45,7 +45,7 @@ jobs:
   - template: azure-pipelines-template.yml
     parameters:
       displayName: 'MySQL Tcp .net 7.0'
-      dotnetfx: '.net7.0'
+      dotnetfx: 'net7.0'
       filter: 'Dotmim.Sync.Tests.IntegrationTests2.MySqlTcp'
   
 
@@ -107,194 +107,194 @@ jobs:
 
 
 
-  # - job: Beta
-  #   displayName: "Beta Nuget Packages"
+  - job: Beta
+    displayName: "Beta Nuget Packages"
 
-  #   # dependsOn: Tests
-  #   # condition: succeeded('Tests')
+    # dependsOn: Tests
+    # condition: succeeded('Tests')
 
-  #   pool:
-  #     vmImage: "ubuntu-latest"
+    pool:
+      vmImage: "ubuntu-latest"
 
-  #   variables:
-  #     buildConfiguration: "Release"
-  #     buildBetaId: "beta-"
-  #     artifactName: "drop"
+    variables:
+      buildConfiguration: "Release"
+      buildBetaId: "beta-"
+      artifactName: "drop"
 
-  #   steps:
-  #     - task: UseDotNet@2
-  #       displayName: 'Use .Net Core sdk'
-  #       inputs:
-  #         version: 3.x
+    steps:
+      - task: UseDotNet@2
+        displayName: 'Use .Net Core sdk'
+        inputs:
+          version: 3.x
 
-  #     # Use the latest .NET SDK
-  #     - task: UseDotNet@2
-  #       displayName: 'Use .Net Sdk 6.x'
-  #       inputs:
-  #         packageType: 'sdk'
-  #         version: 6.0.x
-  #         includePreviewVersions: true
+      # Use the latest .NET SDK
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 6.x'
+        inputs:
+          packageType: 'sdk'
+          version: 6.0.x
+          includePreviewVersions: true
 
-  #     - task: UseDotNet@2
-  #       displayName: 'Use .Net Sdk 7.x'
-  #       inputs:
-  #         packageType: 'sdk'
-  #         version: 7.0.x
-  #         includePreviewVersions: true
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
+          includePreviewVersions: true
 
-  #     - bash: |
-  #         build=$(Build.BuildId)
-  #         lenbuild=${#build}
-  #         if [ $lenbuild -eq 1 ]; then
-  #           build="000$build"
-  #         elif [ $lenbuild -eq 2 ]; then
-  #           build="00$build"
-  #         elif [ $lenbuild -eq 3 ]; then
-  #           build="0$build"
-  #         fi
-  #         echo "##vso[task.setvariable variable=buildBetaId]$(buildBetaId)$build"
+      - bash: |
+          build=$(Build.BuildId)
+          lenbuild=${#build}
+          if [ $lenbuild -eq 1 ]; then
+            build="000$build"
+          elif [ $lenbuild -eq 2 ]; then
+            build="00$build"
+          elif [ $lenbuild -eq 3 ]; then
+            build="0$build"
+          fi
+          echo "##vso[task.setvariable variable=buildBetaId]$(buildBetaId)$build"
 
-  #     - script: |
-  #         echo $(buildIdString)
-  #         echo $(buildBetaId)
-  #         dotnet --version
-  #         dotnet --info
-  #       displayName: Get dotnet version
+      - script: |
+          echo $(buildIdString)
+          echo $(buildBetaId)
+          dotnet --version
+          dotnet --info
+        displayName: Get dotnet version
 
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
-  #         dotnet pack Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core --version-suffix $(buildBetaId)
-  #       displayName: "beta nuget Dotmim.Sync.Core"
-  #       continueOnError: true
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) 
-  #         dotnet pack Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer  --version-suffix $(buildBetaId) 
-  #       displayName: "beta nuget Dotmim.Sync.SqlServer"
-  #       continueOnError: true
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
-  #         dotnet pack Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking  --version-suffix $(buildBetaId) 
-  #       displayName: "beta nuget Dotmim.Sync.SqlServerChangeTracking"
-  #       continueOnError: true
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) 
-  #         dotnet pack Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql --version-suffix $(buildBetaId) 
-  #       displayName: "beta nuget Dotmim.Sync.MySql"
-  #       continueOnError: true
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
-  #         dotnet pack Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB --version-suffix $(buildBetaId) 
-  #       displayName: "beta nuget Dotmim.Sync.MariaDB"
-  #       continueOnError: true
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
-  #         dotnet pack Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite --version-suffix $(buildBetaId) 
-  #       displayName: "beta nuget Dotmim.Sync.Sqlite"
-  #       continueOnError: true
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
-  #         dotnet pack Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.PostgreSql --version-suffix $(buildBetaId) 
-  #       displayName: "beta nuget Dotmim.Sync.PostgreSql"
-  #       continueOnError: true
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
-  #         dotnet pack Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client --version-suffix $(buildBetaId)
-  #       displayName: "beta nuget Dotmim.Sync.Web.Client"
-  #       continueOnError: true
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
-  #         dotnet pack Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server --version-suffix $(buildBetaId)
-  #       displayName: "beta nuget Dotmim.Sync.Web.Server"
-  #       continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
+          dotnet pack Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core --version-suffix $(buildBetaId)
+        displayName: "beta nuget Dotmim.Sync.Core"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) 
+          dotnet pack Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer  --version-suffix $(buildBetaId) 
+        displayName: "beta nuget Dotmim.Sync.SqlServer"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
+          dotnet pack Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking  --version-suffix $(buildBetaId) 
+        displayName: "beta nuget Dotmim.Sync.SqlServerChangeTracking"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) 
+          dotnet pack Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql --version-suffix $(buildBetaId) 
+        displayName: "beta nuget Dotmim.Sync.MySql"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
+          dotnet pack Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB --version-suffix $(buildBetaId) 
+        displayName: "beta nuget Dotmim.Sync.MariaDB"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
+          dotnet pack Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite --version-suffix $(buildBetaId) 
+        displayName: "beta nuget Dotmim.Sync.Sqlite"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
+          dotnet pack Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.PostgreSql --version-suffix $(buildBetaId) 
+        displayName: "beta nuget Dotmim.Sync.PostgreSql"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
+          dotnet pack Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client --version-suffix $(buildBetaId)
+        displayName: "beta nuget Dotmim.Sync.Web.Client"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
+          dotnet pack Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server --version-suffix $(buildBetaId)
+        displayName: "beta nuget Dotmim.Sync.Web.Server"
+        continueOnError: true
 
-  #     # Publish Build Artifacts
-  #     - task: PublishBuildArtifacts@1
-  #       inputs:
-  #         artifactName: $(artifactName)
+      # Publish Build Artifacts
+      - task: PublishBuildArtifacts@1
+        inputs:
+          artifactName: $(artifactName)
 
-  # - job: Release
-  #   displayName: "Release Nuget Packages"
+  - job: Release
+    displayName: "Release Nuget Packages"
 
-  #   # dependsOn: Tests
-  #   # condition: succeeded('Tests')
+    # dependsOn: Tests
+    # condition: succeeded('Tests')
 
-  #   # Pool on a VS 2017 image to be able to compile for .Net 4.6
-  #   pool:
-  #     vmImage: "ubuntu-latest"
+    # Pool on a VS 2017 image to be able to compile for .Net 4.6
+    pool:
+      vmImage: "ubuntu-latest"
 
-  #   variables:
-  #     buildConfiguration: "Release"
-  #     artifactName: "release"
+    variables:
+      buildConfiguration: "Release"
+      artifactName: "release"
 
-  #   steps:
-  #     - task: UseDotNet@2
-  #       displayName: 'Use .Net Core sdk'
-  #       inputs:
-  #         version: 3.x
+    steps:
+      - task: UseDotNet@2
+        displayName: 'Use .Net Core sdk'
+        inputs:
+          version: 3.x
 
-  #     # Use the latest .NET SDK
-  #     - task: UseDotNet@2
-  #       displayName: 'Use .Net Sdk 6.x'
-  #       inputs:
-  #         packageType: 'sdk'
-  #         version: 6.0.x
-  #         includePreviewVersions: true
+      # Use the latest .NET SDK
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 6.x'
+        inputs:
+          packageType: 'sdk'
+          version: 6.0.x
+          includePreviewVersions: true
 
-  #     - task: UseDotNet@2
-  #       displayName: 'Use .Net Sdk 7.x'
-  #       inputs:
-  #         packageType: 'sdk'
-  #         version: 7.0.x
-  #         includePreviewVersions: true
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
+          includePreviewVersions: true
 
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) 
-  #         dotnet pack Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core
-  #       displayName: "release nuget Dotmim.Sync.Core"
-  #       continueOnError: true
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration)  
-  #         dotnet pack Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer   
-  #       displayName: "release nuget Dotmim.Sync.SqlServer"
-  #       continueOnError: true
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) 
-  #         dotnet pack Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking   
-  #       displayName: "release nuget Dotmim.Sync.SqlServerChangeTracking"
-  #       continueOnError: true
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration)  
-  #         dotnet pack Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql  
-  #       displayName: "release nuget Dotmim.Sync.MySql"
-  #       continueOnError: true
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) 
-  #         dotnet pack Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB  
-  #       displayName: "release nuget Dotmim.Sync.MariaDB"
-  #       continueOnError: true
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) 
-  #         dotnet pack Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite  
-  #       displayName: "release nuget Dotmim.Sync.Sqlite"
-  #       continueOnError: true
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration)
-  #         dotnet pack Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.PostgreSql
-  #       displayName: "beta nuget Dotmim.Sync.PostgreSql"
-  #       continueOnError: true
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) 
-  #         dotnet pack Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client 
-  #       displayName: "release nuget Dotmim.Sync.Web.Client"
-  #       continueOnError: true
-  #     - script: |
-  #         dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) 
-  #         dotnet pack Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server 
-  #       displayName: "release nuget Dotmim.Sync.Web.Server"
-  #       continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) 
+          dotnet pack Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core
+        displayName: "release nuget Dotmim.Sync.Core"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration)  
+          dotnet pack Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer   
+        displayName: "release nuget Dotmim.Sync.SqlServer"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) 
+          dotnet pack Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking   
+        displayName: "release nuget Dotmim.Sync.SqlServerChangeTracking"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration)  
+          dotnet pack Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql  
+        displayName: "release nuget Dotmim.Sync.MySql"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) 
+          dotnet pack Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB  
+        displayName: "release nuget Dotmim.Sync.MariaDB"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) 
+          dotnet pack Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite  
+        displayName: "release nuget Dotmim.Sync.Sqlite"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration)
+          dotnet pack Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.PostgreSql
+        displayName: "beta nuget Dotmim.Sync.PostgreSql"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) 
+          dotnet pack Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client 
+        displayName: "release nuget Dotmim.Sync.Web.Client"
+        continueOnError: true
+      - script: |
+          dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) 
+          dotnet pack Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server 
+        displayName: "release nuget Dotmim.Sync.Web.Server"
+        continueOnError: true
 
 
-  #   # Publish Build Artifacts
-  #     - task: PublishBuildArtifacts@1
-  #       inputs:
-  #         artifactName: $(artifactName)
+    # Publish Build Artifacts
+      - task: PublishBuildArtifacts@1
+        inputs:
+          artifactName: $(artifactName)
