@@ -1452,19 +1452,19 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-                // MySql disabling constraint works on same transaction
-                // If transaction mode is different than AllOrNothing, need to call disable constraint before reset
-                if (options.TransactionMode != TransactionMode.AllOrNothing && (clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB))
-                {
-                    agent.LocalOrchestrator.OnGetCommand(async args =>
-                    {
-                        if (args.CommandType == DbCommandType.Reset)
-                        {
-                            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
-                            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
-                        }
-                    });
-                }
+                //// MySql disabling constraint works on same transaction
+                //// If transaction mode is different than AllOrNothing, need to call disable constraint before reset
+                //if (options.TransactionMode != TransactionMode.AllOrNothing && (clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB))
+                //{
+                //    agent.LocalOrchestrator.OnGetCommand(async args =>
+                //    {
+                //        if (args.CommandType == DbCommandType.Reset)
+                //        {
+                //            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
+                //            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
+                //        }
+                //    });
+                //}
 
                 var s = await agent.SynchronizeAsync(setup, SyncType.Reinitialize);
 
@@ -1502,19 +1502,19 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-                // MySql disabling constraint works on same transaction
-                // If transaction mode is different than AllOrNothing, need to call disable constraint before reset
-                if (options.TransactionMode != TransactionMode.AllOrNothing && (clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB))
-                {
-                    agent.LocalOrchestrator.OnGetCommand(async args =>
-                    {
-                        if (args.CommandType == DbCommandType.Reset)
-                        {
-                            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
-                            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
-                        }
-                    });
-                }
+                //// MySql disabling constraint works on same transaction
+                //// If transaction mode is different than AllOrNothing, need to call disable constraint before reset
+                //if (options.TransactionMode != TransactionMode.AllOrNothing && (clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB))
+                //{
+                //    agent.LocalOrchestrator.OnGetCommand(async args =>
+                //    {
+                //        if (args.CommandType == DbCommandType.Reset)
+                //        {
+                //            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
+                //            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
+                //        }
+                //    });
+                //}
 
                 var s = await agent.SynchronizeAsync(setup, SyncType.ReinitializeWithUpload);
 
@@ -1738,19 +1738,19 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-                // MySql disabling constraint works on same transaction
-                // If transaction mode is different than AllOrNothing, need to call disable constraint before reset
-                if (options.TransactionMode != TransactionMode.AllOrNothing && (clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB))
-                {
-                    agent.LocalOrchestrator.OnGetCommand(async args =>
-                    {
-                        if (args.CommandType == DbCommandType.Reset)
-                        {
-                            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
-                            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
-                        }
-                    });
-                }
+                //// MySql disabling constraint works on same transaction
+                //// If transaction mode is different than AllOrNothing, need to call disable constraint before reset
+                //if (options.TransactionMode != TransactionMode.AllOrNothing && (clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB))
+                //{
+                //    agent.LocalOrchestrator.OnGetCommand(async args =>
+                //    {
+                //        if (args.CommandType == DbCommandType.Reset)
+                //        {
+                //            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
+                //            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
+                //        }
+                //    });
+                //}
 
                 var s = await agent.SynchronizeAsync(setup, SyncType.ReinitializeWithUpload);
 
@@ -1893,19 +1893,19 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
-                // MySql disabling constraint works on same transaction
-                // If transaction mode is different than AllOrNothing, need to call disable constraint before reset
-                if (options.TransactionMode != TransactionMode.AllOrNothing && (clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB))
-                {
-                    agent.LocalOrchestrator.OnGetCommand(async args =>
-                    {
-                        if (args.CommandType == DbCommandType.Reset)
-                        {
-                            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
-                            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
-                        }
-                    });
-                }
+                //// MySql disabling constraint works on same transaction
+                //// If transaction mode is different than AllOrNothing, need to call disable constraint before reset
+                //if (options.TransactionMode != TransactionMode.AllOrNothing && (clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB))
+                //{
+                //    agent.LocalOrchestrator.OnGetCommand(async args =>
+                //    {
+                //        if (args.CommandType == DbCommandType.Reset)
+                //        {
+                //            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
+                //            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
+                //        }
+                //    });
+                //}
 
                 // Call a server delete metadata to update the last valid timestamp value in scope_info_server table
                 var dmc = await agent.RemoteOrchestrator.DeleteMetadatasAsync();

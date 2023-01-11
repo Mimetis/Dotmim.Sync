@@ -9,6 +9,7 @@ using MySql.Data.MySqlClient;
 using Dotmim.Sync.MySql.Builders;
 using System;
 using System.Reflection;
+using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.MySql
 {
@@ -51,7 +52,7 @@ namespace Dotmim.Sync.MySql
                 return shortProviderType;
             }
         }
-
+        public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnTableLevel;
         /// <summary>
         /// MySql can be a server side provider
         /// </summary>

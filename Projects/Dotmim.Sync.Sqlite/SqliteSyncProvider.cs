@@ -7,6 +7,7 @@ using System.IO;
 using Dotmim.Sync.Sqlite.Builders;
 using SQLitePCL;
 using System.Reflection;
+using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -27,7 +28,7 @@ namespace Dotmim.Sync.Sqlite
             return dbMetadata;
         }
 
-
+        public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnDatabaseLevel;
 
         /// <summary>
         /// SQLIte does not support to be a server side.

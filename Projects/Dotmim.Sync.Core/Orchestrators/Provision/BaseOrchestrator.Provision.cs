@@ -226,6 +226,7 @@ namespace Dotmim.Sync
 
                 // Disable check constraints
                 if (this.Options.DisableConstraintsOnApplyChanges)
+                {
                     foreach (var table in schemaTables.Reverse())
                     {
                         var exists = false;
@@ -235,7 +236,7 @@ namespace Dotmim.Sync
                         if (exists)
                             await this.InternalDisableConstraintsAsync(scopeInfo, context, table, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                     }
-
+                }
 
                 // Checking if we have to deprovision tables
                 bool hasDeprovisionTableFlag = provision.HasFlag(SyncProvision.Table);

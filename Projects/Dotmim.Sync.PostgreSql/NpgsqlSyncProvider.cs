@@ -5,6 +5,7 @@ using Npgsql;
 using System;
 using Dotmim.Sync.PostgreSql.Scope;
 using Dotmim.Sync.PostgreSql.Builders;
+using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.PostgreSql
 {
@@ -47,6 +48,7 @@ namespace Dotmim.Sync.PostgreSql
             }
         }
 
+        public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnTableLevel;
         public override bool CanBeServerProvider => true;
 
         public override string DefaultSchemaName => "public";

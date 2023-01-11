@@ -96,6 +96,13 @@ namespace Dotmim.Sync
         /// </summary>
         public abstract bool CanBeServerProvider { get; }
 
+
+        /// <summary>
+        /// Gets a value indicating on which level constraints disabling and enabling should be applied
+        /// </summary>
+        public abstract ConstraintsLevelAction ConstraintsLevelAction { get; }
+
+
         /// <summary>
         /// Gets the default isolation level used during transaction
         /// </summary>
