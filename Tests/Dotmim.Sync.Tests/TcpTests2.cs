@@ -373,7 +373,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var type in Fixture.ClientsType)
             {
                 var badClientProvider = HelperDatabase.GetSyncProvider(type, HelperDatabase.GetRandomName("tcp_bad_cli"));
-                badClientProvider.ConnectionString = $@"Data Source=\.\?\.;";
+                badClientProvider.ConnectionString = $@"Data Source=/dev/null/foo;";
                 badClientsProviders.Add(badClientProvider);
             }
 
