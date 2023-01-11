@@ -41,7 +41,7 @@ namespace Dotmim.Sync.Tests
             // Drop DMS metadatas and truncate clients tables
             foreach (var clientProvider in Fixture.GetClientProviders())
             {
-                // drop all DMS tables & metadatas
+                // drop all DMS tracking tables & metadatas
                 Fixture.DropAllTablesAsync(clientProvider, false).GetAwaiter().GetResult(); ;
                 // truncate all tables
                 Fixture.EmptyAllTablesAsync(clientProvider).GetAwaiter().GetResult(); ;

@@ -1917,9 +1917,33 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task ChangeBidirectionalToUploadOnlyShouldWork(SyncOptions options)
         {
-            // Execute a sync on all clients and check results
+            // Execute a sync on all clients
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Create a new setup
+            var setupUploadOnly = Fixture.GetSyncSetup();
+
+            // Remove all tables that are not the 4 tables we want to work with
+            var productCategorySetupTable = setupUploadOnly.Tables.First(t => t.TableName == "ProductCategory");
+            var productSetupTable = setupUploadOnly.Tables.First(t => t.TableName == "Product");
+            var customerSetupTable = setupUploadOnly.Tables.First(t => t.TableName == "Customer");
+            var priceListSetupTable = setupUploadOnly.Tables.First(t => t.TableName == "PricesList");
+
+            foreach (var table in setupUploadOnly.Tables.ToArray())
+            {
+                if (table.TableName != "ProductCategory" && table.TableName != "Product" && table.TableName != "Customer" && table.TableName != "PricesList")
+                    setupUploadOnly.Tables.Remove(table);
+            }
+
+            productCategorySetupTable.SyncDirection = SyncDirection.UploadOnly;
+            productSetupTable.SyncDirection = SyncDirection.UploadOnly;
+            customerSetupTable.SyncDirection = SyncDirection.UploadOnly;
+            priceListSetupTable.SyncDirection = SyncDirection.Bidirectional;
+
+            // Prepare remote scope
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+            var serverScope = await remoteOrchestrator.ProvisionAsync("uploadonly", setupUploadOnly);
 
             // Insert lines on each client
             foreach (var clientProvider in clientsProvider)
@@ -1936,20 +1960,21 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             await Fixture.AddPriceListAsync(serverProvider);
             await Fixture.AddCustomerAsync(serverProvider);
 
-            // Change sync direction on server side
-            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+            // Prepare local scope
+            foreach (var clientProvider in clientsProvider)
+            {
+                var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+               
+                // Once created we can provision the new scope, thanks to the serverScope instance we already have
+                var clientScopeV1 = await localOrchestrator.ProvisionAsync(serverScope);
+                var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync("uploadonly");
 
-            var remoteScope = await remoteOrchestrator.GetScopeInfoAsync();
-            var productCategorySetupTable = remoteScope.Setup.Tables.First(t => t.TableName == "ProductCategory");
-            var productSetupTable = remoteScope.Setup.Tables.First(t => t.TableName == "Product");
-            var customerSetupTable = remoteScope.Setup.Tables.First(t => t.TableName == "Customer");
-            var priceListSetupTable = remoteScope.Setup.Tables.First(t => t.TableName == "PricesList");
-
-            productCategorySetupTable.SyncDirection = SyncDirection.UploadOnly;
-            productSetupTable.SyncDirection = SyncDirection.UploadOnly;
-            customerSetupTable.SyncDirection = SyncDirection.UploadOnly;
-            priceListSetupTable.SyncDirection = SyncDirection.Bidirectional;
-            await remoteOrchestrator.SaveScopeInfoAsync(remoteScope);
+                // IF we launch synchronize on this new scope, it will get all the rows from the server
+                // We are making a shadow copy of previous scope to get the last synchronization metadata
+                var oldCScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync();
+                cScopeInfoClient.ShadowScope(oldCScopeInfoClient);
+                await localOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
+            }
 
             var download = 1;
             // Execute a sync on all clients and check results
@@ -1957,21 +1982,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-                // Change sync direction on the fly, on both side
-                var localScope = await agent.LocalOrchestrator.GetScopeInfoAsync();
-                var clientProductCategorySetupTable = localScope.Setup.Tables.First(t => t.TableName == "ProductCategory");
-                var clientProductSetupTable = localScope.Setup.Tables.First(t => t.TableName == "Product");
-                var clientCustomerSetupTable = localScope.Setup.Tables.First(t => t.TableName == "Customer");
-                var clientPriceListSetupTable = localScope.Setup.Tables.First(t => t.TableName == "PricesList");
-
-                clientProductCategorySetupTable.SyncDirection = SyncDirection.UploadOnly;
-                clientProductSetupTable.SyncDirection = SyncDirection.UploadOnly;
-                clientCustomerSetupTable.SyncDirection = SyncDirection.UploadOnly;
-                clientPriceListSetupTable.SyncDirection = SyncDirection.Bidirectional;
-
-                await agent.LocalOrchestrator.SaveScopeInfoAsync(localScope);
-
-                var s = await agent.SynchronizeAsync();
+                var s = await agent.SynchronizeAsync("uploadonly", setupUploadOnly);
 
                 Assert.Equal(download, s.TotalChangesDownloadedFromServer); // Only PriceList rows
                 Assert.Equal(download, s.TotalChangesAppliedOnClient); // Only PriceList rows
