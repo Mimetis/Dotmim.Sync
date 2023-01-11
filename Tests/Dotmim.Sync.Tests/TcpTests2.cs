@@ -91,15 +91,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task RowsCountWithExistingSchema(SyncOptions options)
         {
-            // Drop DMS metadatas
-            foreach (var clientProvider in clientsProvider)
-            {
-                // drop all DMS tables & metadatas
-                await Fixture.DropAllTablesAsync(clientProvider, false);
-                // truncate all tables
-                await Fixture.EmptyAllTablesAsync(clientProvider);
-            }
-
             // Get count of rows
             var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
 
@@ -289,15 +280,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task MultiScopes(SyncOptions options)
         {
-            // Drop DMS metadatas
-            foreach (var clientProvider in clientsProvider)
-            {
-                // drop all DMS tables & metadatas
-                await Fixture.DropAllTablesAsync(clientProvider, false);
-                // truncate all tables
-                await Fixture.EmptyAllTablesAsync(clientProvider);
-            }
-
             // get the number of rows that have only primary keys (which do not accept any Update)
             int notUpdatedOnClientsCount;
             using (var serverDbCtx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
@@ -312,7 +294,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             foreach (var clientProvider in clientsProvider)
             {
-                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+                var (clientProviderType, _) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
 
@@ -1366,17 +1348,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
-            // Set Client database with existing tables
-            foreach (var clientProvider in clientsProvider)
-                Fixture.EnsureTablesAreCreated(clientProvider, false);
-
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             var productCategory = await Fixture.AddProductCategoryAsync(serverProvider);
             var product = await Fixture.AddProductAsync(serverProvider, productCategoryId: productCategory.ProductCategoryId);
-
 
             // forcing a fk exception
             var foreignKeysFailureAction = new Action<RowsChangesApplyingArgs>((args) =>
@@ -1531,15 +1508,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
-            // Drop DMS metadatas
-            foreach (var clientProvider in clientsProvider)
-            {
-                // drop all DMS tables & metadatas
-                await Fixture.DropAllTablesAsync(clientProvider, false);
-                // truncate all tables
-                await Fixture.EmptyAllTablesAsync(clientProvider);
-            }
-
             foreach (var table in setup.Tables)
                 table.SyncDirection = SyncDirection.UploadOnly;
 
@@ -1577,15 +1545,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         public async Task DownloadOnly()
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
-
-            // Drop DMS metadatas
-            foreach (var clientProvider in clientsProvider)
-            {
-                // drop all DMS tables & metadatas
-                await Fixture.DropAllTablesAsync(clientProvider, false);
-                // truncate all tables
-                await Fixture.EmptyAllTablesAsync(clientProvider);
-            }
 
             foreach (var table in setup.Tables)
                 table.SyncDirection = SyncDirection.DownloadOnly;
@@ -1627,15 +1586,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task Snapshots(SyncOptions options)
         {
-            // Drop DMS metadatas
-            foreach (var clientProvider in clientsProvider)
-            {
-                // drop all DMS tables & metadatas
-                await Fixture.DropAllTablesAsync(clientProvider, false);
-                // truncate all tables
-                await Fixture.EmptyAllTablesAsync(clientProvider);
-            }
-
             // snapshot directory
             var snapshotDirctory = HelperDatabase.GetRandomName();
             var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
@@ -1703,16 +1653,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task SnapshotsThenReinitialize(SyncOptions options)
         {
-            // Drop DMS metadatas
-            foreach (var clientProvider in clientsProvider)
-            {
-                // drop all DMS tables & metadatas
-                await Fixture.DropAllTablesAsync(clientProvider, false);
-                // truncate all tables
-                await Fixture.EmptyAllTablesAsync(clientProvider);
-            }
-
-
             // snapshot directory
             var snapshotDirctory = HelperDatabase.GetRandomName();
             var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
@@ -2043,7 +1983,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
         }
 
-
         /// <summary>
         /// Insert one row on server, should be correctly sync on all clients
         /// </summary>
@@ -2051,7 +1990,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task ParallelSyncForTwentyClients(SyncOptions options)
         {
-
             // Provision server, to be sure no clients will try to do something that could break server
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 

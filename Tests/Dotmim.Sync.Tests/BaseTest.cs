@@ -38,10 +38,14 @@ namespace Dotmim.Sync.Tests
             MySqlConnection.ClearAllPools();
             NpgsqlConnection.ClearAllPools();
 
-            //Fixture.DropAllTablesAsync(Fixture.GetServerProvider(), false).GetAwaiter().GetResult();
-
-            //foreach (var clientProvider in Fixture.GetClientProviders())
-            //    Fixture.DropAllTablesAsync(clientProvider, false).GetAwaiter().GetResult();
+            // Drop DMS metadatas and truncate clients tables
+            foreach (var clientProvider in Fixture.GetClientProviders())
+            {
+                // drop all DMS tables & metadatas
+                Fixture.DropAllTablesAsync(clientProvider, false).GetAwaiter().GetResult(); ;
+                // truncate all tables
+                Fixture.EmptyAllTablesAsync(clientProvider).GetAwaiter().GetResult(); ;
+            }
 
             initializeStopwatch.Stop();
 
