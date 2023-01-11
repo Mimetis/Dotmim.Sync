@@ -64,9 +64,15 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task RowsCount(SyncOptions options)
         {
-            // Drop clients databases tables, to let DMS creates them
-            foreach (var clientProvider in Fixture.GetClientProviders())
-                await Fixture.DropAllTablesAsync(clientProvider, true);
+            // As we don't want to poluate the already created clients tables, we will create some new ones
+            var clientsProvider = new List<CoreProvider>();
+            foreach (var type in Fixture.ClientsType)
+            {
+                var dbName = HelperDatabase.GetRandomName("tcp_cli");
+                await HelperDatabase.CreateDatabaseAsync(type, dbName, true);
+                var clientProvider = HelperDatabase.GetSyncProvider(type, dbName);
+                clientsProvider.Add(clientProvider);
+            }
 
             // Get count of rows
             var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
@@ -83,6 +89,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(rowsCount, s.TotalChangesAppliedOnClient);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(rowsCount, clientRowsCount);
+            }
+
+            // Delete all clients databases
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (dt, n) = HelperDatabase.GetDatabaseType(clientProvider);
+                HelperDatabase.DropDatabase(dt, n);
             }
         }
 
@@ -156,9 +169,15 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
-            // Drop all DMS tables & metadatas + clients tables
-            foreach (var clientProvider in clientsProvider)
-                await Fixture.DropAllTablesAsync(clientProvider, true);
+            // As we don't want to poluate the already created clients tables, we will create some new ones
+            var clientsProvider = new List<CoreProvider>();
+            foreach (var type in Fixture.ClientsType)
+            {
+                var dbName = HelperDatabase.GetRandomName("tcp_cli");
+                await HelperDatabase.CreateDatabaseAsync(type, dbName, true);
+                var clientProvider = HelperDatabase.GetSyncProvider(type, dbName);
+                clientsProvider.Add(clientProvider);
+            }
 
             // Get count of rows
             var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
@@ -177,7 +196,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(rowsCount, clientRowsCount);
             }
-
 
             foreach (var clientProvider in Fixture.GetClientProviders())
             {
@@ -272,6 +290,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 }
                 clientConnection.Close();
 
+            }
+
+            // Delete all clients databases
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (dt, n) = HelperDatabase.GetDatabaseType(clientProvider);
+                HelperDatabase.DropDatabase(dt, n);
             }
 
         }
@@ -1165,7 +1190,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         }
 
         [Fact]
-        public async Task UsingExistingClientDatabaseProvisionDeprovision()
+        public async Task ProvisionAndDeprovision()
         {
             foreach (var clientProvider in clientsProvider)
             {
@@ -1552,7 +1577,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             foreach (var table in setupV2.Tables)
                 table.SyncDirection = SyncDirection.DownloadOnly;
-
 
             // Get count of rows
             var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
