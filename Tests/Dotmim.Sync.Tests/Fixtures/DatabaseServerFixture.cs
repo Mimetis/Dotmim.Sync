@@ -76,11 +76,6 @@ namespace Dotmim.Sync.Tests.Fixtures
                 yield return HelperDatabase.GetSyncProvider(type, ClientDatabaseNames[type]);
         }
 
-        public void ClearAllPools()
-        {
-
-        }
-
 
         public void EnsureTablesAreCreated(CoreProvider coreProvider, bool seeding)
         {

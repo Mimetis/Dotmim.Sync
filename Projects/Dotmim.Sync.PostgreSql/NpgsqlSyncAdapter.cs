@@ -216,53 +216,59 @@ namespace Dotmim.Sync.PostgreSql
 
         private (DbCommand, bool) GetEnableConstraintCommand()
         {
-            var constraints = this.TableDescription.GetRelations();
+            //var constraints = this.TableDescription.GetRelations();
 
-            if (constraints == null || !constraints.Any())
-                return (null, false);
+            //if (constraints == null || !constraints.Any())
+            //    return (null, false);
+            
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(TableName);
 
             var strCommand = new StringBuilder();
-            strCommand.AppendLine($"DO $$");
-            strCommand.AppendLine($"BEGIN");
 
-            foreach (var constraint in this.TableDescription.GetRelations())
-            {
-                var parsedTableName = ParserName.Parse(constraint.GetTable());
-                var tableName = parsedTableName.Unquoted().ToString();
-                var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(parsedTableName);
+            //strCommand.AppendLine($"DO $$");
+            //strCommand.AppendLine($"BEGIN");
 
-                var parsedParentTableName = ParserName.Parse(constraint.GetParentTable());
-                var parentTableName = parsedParentTableName.Unquoted().ToString();
-                var parentSchemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(parsedParentTableName);
-                var relationName = constraint.RelationName;
-                strCommand.AppendLine();
-                strCommand.AppendLine($"IF NOT EXISTS (SELECT ct.conname FROM pg_constraint ct WHERE ct.conname = '{relationName}') THEN");
-                strCommand.AppendLine($"ALTER TABLE \"{schemaName}\".\"{tableName}\" ");
-                strCommand.AppendLine($"ADD CONSTRAINT \"{relationName}\" ");
-                strCommand.Append("FOREIGN KEY (");
-                var empty = string.Empty;
-                foreach (var column in constraint.Keys)
-                {
-                    var childColumnName = ParserName.Parse(column.ColumnName, "\"").Quoted().ToString();
-                    strCommand.Append($"{empty} {childColumnName}");
-                    empty = ", ";
-                }
-                strCommand.AppendLine(" )");
-                strCommand.Append("REFERENCES ");
-                strCommand.Append($"\"{parentSchemaName}\".\"{parentTableName}\"").Append(" (");
-                empty = string.Empty;
-                foreach (var parentdColumn in constraint.ParentKeys)
-                {
-                    var parentColumnName = ParserName.Parse(parentdColumn.ColumnName, "\"").Quoted().ToString();
-                    strCommand.Append($"{empty} {parentColumnName}");
-                    empty = ", ";
-                }
-                strCommand.AppendLine(" ) NOT VALID; "); // NOT VALID is important to avoid re scan of the table afterwards
-                strCommand.AppendLine("END IF;");
+            //foreach (var constraint in this.TableDescription.GetRelations())
+            //{
+            //    var parsedTableName = ParserName.Parse(constraint.GetTable());
+            //    var tableName = parsedTableName.Unquoted().ToString();
+            //    var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(parsedTableName);
 
-            }
-            strCommand.AppendLine();
-            strCommand.AppendLine($"END $$;");
+            //    var parsedParentTableName = ParserName.Parse(constraint.GetParentTable());
+            //    var parentTableName = parsedParentTableName.Unquoted().ToString();
+            //    var parentSchemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(parsedParentTableName);
+            //    var relationName = constraint.RelationName;
+            //    strCommand.AppendLine();
+            //    strCommand.AppendLine($"IF NOT EXISTS (SELECT ct.conname FROM pg_constraint ct WHERE ct.conname = '{relationName}') THEN");
+            //    strCommand.AppendLine($"ALTER TABLE \"{schemaName}\".\"{tableName}\" ");
+            //    strCommand.AppendLine($"ADD CONSTRAINT \"{relationName}\" ");
+            //    strCommand.Append("FOREIGN KEY (");
+            //    var empty = string.Empty;
+            //    foreach (var column in constraint.Keys)
+            //    {
+            //        var childColumnName = ParserName.Parse(column.ColumnName, "\"").Quoted().ToString();
+            //        strCommand.Append($"{empty} {childColumnName}");
+            //        empty = ", ";
+            //    }
+            //    strCommand.AppendLine(" )");
+            //    strCommand.Append("REFERENCES ");
+            //    strCommand.Append($"\"{parentSchemaName}\".\"{parentTableName}\"").Append(" (");
+            //    empty = string.Empty;
+            //    foreach (var parentdColumn in constraint.ParentKeys)
+            //    {
+            //        var parentColumnName = ParserName.Parse(parentdColumn.ColumnName, "\"").Quoted().ToString();
+            //        strCommand.Append($"{empty} {parentColumnName}");
+            //        empty = ", ";
+            //    }
+            //    strCommand.AppendLine(" ) NOT VALID; "); // NOT VALID is important to avoid re scan of the table afterwards
+            //    strCommand.AppendLine("END IF;");
+
+            //}
+            //strCommand.AppendLine();
+            //strCommand.AppendLine($"END $$;");
+
+            strCommand.AppendLine($"ALTER TABLE \"{schema}\".{TableName.Quoted()}  ENABLE TRIGGER ALL;");
+
             var command = new NpgsqlCommand
             {
                 CommandType = CommandType.Text,
@@ -280,30 +286,32 @@ namespace Dotmim.Sync.PostgreSql
         {
             var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(TableName);
 
-            var constraints = this.TableDescription.GetRelations();
+            //var constraints = this.TableDescription.GetRelations();
 
-            if (constraints == null || !constraints.Any())
-                return (null, false);
+            //if (constraints == null || !constraints.Any())
+            //    return (null, false);
 
 
             var strCommand = new StringBuilder();
-            strCommand.AppendLine($"DO $$");
-            strCommand.AppendLine($"Declare fkname character varying(250);");
-            strCommand.AppendLine($"Declare cur_trg cursor For ");
-            strCommand.AppendLine($"Select ct.conname");
-            strCommand.AppendLine($"From pg_constraint ct ");
-            strCommand.AppendLine($"join pg_catalog.pg_class  cl on  cl.oid =  ct.conrelid");
-            strCommand.AppendLine($"join pg_catalog.pg_namespace nsp on nsp.oid = ct.connamespace");
-            strCommand.AppendLine($"where relname = '{TableName.Unquoted()}' and ct.contype = 'f' and nspname='{schema}';");
-            strCommand.AppendLine($"BEGIN");
-            strCommand.AppendLine($"open cur_trg;");
-            strCommand.AppendLine($"loop");
-            strCommand.AppendLine($"fetch cur_trg into fkname;");
-            strCommand.AppendLine($"exit when not found;");
-            strCommand.AppendLine($"Execute 'ALTER TABLE \"{schema}\".{TableName.Quoted()} DROP CONSTRAINT \"' || fkname || '\";';");
-            strCommand.AppendLine($"end loop;");
-            strCommand.AppendLine($"close cur_trg;");
-            strCommand.AppendLine($"END $$;");
+            //strCommand.AppendLine($"DO $$");
+            //strCommand.AppendLine($"Declare fkname character varying(250);");
+            //strCommand.AppendLine($"Declare cur_trg cursor For ");
+            //strCommand.AppendLine($"Select ct.conname");
+            //strCommand.AppendLine($"From pg_constraint ct ");
+            //strCommand.AppendLine($"join pg_catalog.pg_class  cl on  cl.oid =  ct.conrelid");
+            //strCommand.AppendLine($"join pg_catalog.pg_namespace nsp on nsp.oid = ct.connamespace");
+            //strCommand.AppendLine($"where relname = '{TableName.Unquoted()}' and ct.contype = 'f' and nspname='{schema}';");
+            //strCommand.AppendLine($"BEGIN");
+            //strCommand.AppendLine($"open cur_trg;");
+            //strCommand.AppendLine($"loop");
+            //strCommand.AppendLine($"fetch cur_trg into fkname;");
+            //strCommand.AppendLine($"exit when not found;");
+            //strCommand.AppendLine($"Execute 'ALTER TABLE \"{schema}\".{TableName.Quoted()} DROP CONSTRAINT \"' || fkname || '\";';");
+            //strCommand.AppendLine($"end loop;");
+            //strCommand.AppendLine($"close cur_trg;");
+            //strCommand.AppendLine($"END $$;");
+
+            strCommand.AppendLine($"ALTER TABLE \"{schema}\".{TableName.Quoted()}  DISABLE TRIGGER ALL;");
 
             var command = new NpgsqlCommand
             {
