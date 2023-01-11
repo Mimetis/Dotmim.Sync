@@ -1031,10 +1031,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
+            Address address;
             // Update one address to null on server side
             using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
             {
-                var address = await ctx.Address.SingleAsync(a => a.AddressId == 1);
+                address = ctx.Address.OrderBy(a => a.AddressId).Where(a => !string.IsNullOrEmpty(a.AddressLine2)).First();
                 address.AddressLine2 = null;
                 await ctx.SaveChangesAsync();
             }
@@ -1054,14 +1055,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 // Check value
                 using var ctx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
-                var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
+                var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == address.AddressId);
                 Assert.Null(cliAddress.AddressLine2);
             }
 
             // Update one address previously null to not null on server side
             using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
             {
-                var address = await ctx.Address.SingleAsync(a => a.AddressId == 1);
+                address = await ctx.Address.SingleAsync(a => a.AddressId == address.AddressId);
                 address.AddressLine2 = "NoT a null value !";
                 await ctx.SaveChangesAsync();
             }
@@ -1081,7 +1082,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 // Check value
                 using var ctx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
-                var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == 1);
+                var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == address.AddressId);
                 Assert.Equal("NoT a null value !", cliAddress.AddressLine2);
             }
         }
@@ -1195,21 +1196,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
                 var localOrchestrator = new LocalOrchestrator(clientProvider);
-                var dbBuilder = clientProvider.GetDatabaseBuilder();
-
-                using (var connection = clientProvider.CreateConnection())
-                {
-                    await connection.OpenAsync();
-                    var setup = await dbBuilder.GetAllTablesAsync(connection, null).ConfigureAwait(false);
-
-                    Console.WriteLine($"Iterating over all tables for provider {clientProviderType}");
-
-                    if (setup == null || setup.Tables.Count == 0)
-                        Console.WriteLine("No table found in the database");
-                    else
-                        foreach (var table in setup.Tables)
-                            Console.WriteLine($"Table: {table.GetFullName()}");
-                }
               
                 var provision = SyncProvision.ScopeInfo | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
@@ -1592,6 +1578,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         public async Task DownloadOnly()
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+ 
             // Set Client database with existing tables
             foreach (var clientProvider in clientsProvider)
                 Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
@@ -1636,6 +1623,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task Snapshots(SyncOptions options)
         {
+            // Set Client database with existing tables
+            foreach (var clientProvider in clientsProvider)
+                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
+
             // snapshot directory
             var snapshotDirctory = HelperDatabase.GetRandomName();
             var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
@@ -1703,6 +1694,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [ClassData(typeof(SyncOptionsData))]
         public async Task SnapshotsThenReinitialize(SyncOptions options)
         {
+            // Set Client database with existing tables
+            foreach (var clientProvider in clientsProvider)
+                Fixture.EnsureTablesAreCreatedAsync(clientProvider, false);
+
             // snapshot directory
             var snapshotDirctory = HelperDatabase.GetRandomName();
             var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
