@@ -1508,13 +1508,15 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
-            foreach (var table in setup.Tables)
+            var setupV2 = Fixture.GetSyncSetup();
+
+            foreach (var table in setupV2.Tables)
                 table.SyncDirection = SyncDirection.UploadOnly;
 
             // Should not download anything
             foreach (var clientProvider in clientsProvider)
             {
-                var s = await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+                var s = await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync("uploadonly", setupV2);
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesAppliedOnClient);
             }
@@ -1531,7 +1533,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync("uploadonly");
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesAppliedOnClient);
@@ -1546,8 +1548,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
-            foreach (var table in setup.Tables)
+            var setupV2 = Fixture.GetSyncSetup();
+
+            foreach (var table in setupV2.Tables)
                 table.SyncDirection = SyncDirection.DownloadOnly;
+
 
             // Get count of rows
             var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
@@ -1555,7 +1560,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Should not download anything
             foreach (var clientProvider in clientsProvider)
             {
-                var s = await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+                var s = await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync("downloadonly", setupV2);
                 Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(rowsCount, s.TotalChangesAppliedOnClient);
             }
@@ -1572,7 +1577,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync("downloadonly");
 
                 Assert.Equal(1, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesAppliedOnClient);
@@ -1943,7 +1948,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             // Prepare remote scope
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
-            var serverScope = await remoteOrchestrator.ProvisionAsync("uploadonly", setupUploadOnly);
+            var serverScope = await remoteOrchestrator.ProvisionAsync("BidirToUp", setupUploadOnly);
 
             // Insert lines on each client
             foreach (var clientProvider in clientsProvider)
@@ -1967,7 +1972,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                
                 // Once created we can provision the new scope, thanks to the serverScope instance we already have
                 var clientScopeV1 = await localOrchestrator.ProvisionAsync(serverScope);
-                var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync("uploadonly");
+                var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync("BidirToUp");
 
                 // IF we launch synchronize on this new scope, it will get all the rows from the server
                 // We are making a shadow copy of previous scope to get the last synchronization metadata
@@ -1982,7 +1987,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-                var s = await agent.SynchronizeAsync("uploadonly", setupUploadOnly);
+                var s = await agent.SynchronizeAsync("BidirToUp", setupUploadOnly);
 
                 Assert.Equal(download, s.TotalChangesDownloadedFromServer); // Only PriceList rows
                 Assert.Equal(download, s.TotalChangesAppliedOnClient); // Only PriceList rows

@@ -391,7 +391,7 @@ namespace Dotmim.Sync.Tests
             using var connection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString(dbName));
             connection.Open();
 
-            using (var cmdDb = new MySqlCommand($"DELETE FROM `{tableName}`;", connection))
+            using (var cmdDb = new MySqlCommand($"SET FOREIGN_KEY_CHECKS=0; DELETE FROM `{tableName}`;SET FOREIGN_KEY_CHECKS=1;", connection))
                 cmdDb.ExecuteNonQuery();
 
             connection.Close();
@@ -424,7 +424,7 @@ namespace Dotmim.Sync.Tests
             using var connection = new NpgsqlConnection(Setup.GetPostgresDatabaseConnectionString(dbName));
             connection.Open();
 
-            using (var cmdDb = new NpgsqlCommand($"DELETE FROM \"{schemaName}\".\"{tableName}\";", connection))
+            using (var cmdDb = new NpgsqlCommand($"ALTER TABLE \"{schemaName}\".\"{tableName}\" DISABLE TRIGGER ALL; DELETE FROM \"{schemaName}\".\"{tableName}\"; ALTER TABLE \"{schemaName}\".\"{tableName}\" ENABLE TRIGGER ALL; ", connection))
                 cmdDb.ExecuteNonQuery();
 
             connection.Close();
