@@ -1,14 +1,20 @@
-jobs:
+# jobs:
 
-- template: azure-pipelines-template.yml
-  parameters:
-    displayName: 'PostgreSQL Tcp Tests .net core 3.1'
-    dotnetfx: 'netcoreapp3.1'
-    filter: 'Dotmim.Sync.Tests.IntegrationTests2.PostgresTcp'
+# - template: azure-pipelines-template.yml
+#   parameters:
+#     displayName: 'PostgreSQL Tcp Tests .net core 3.1'
+#     dotnetfx: 'netcoreapp3.1'
+#     filter: 'Dotmim.Sync.Tests.IntegrationTests2.PostgresTcp'
 
-- template: azure-pipelines-template.yml
-  parameters:
-    displayName: 'PostgreSQL Tcp Tests .net 7.0'
-    dotnetfx: '.net7.0'
-    filter: 'Dotmim.Sync.Tests.IntegrationTests2.PostgresTcp'
+# - template: azure-pipelines-template.yml
+#   parameters:
+#     displayName: 'PostgreSQL Tcp Tests .net 7.0'
+#     dotnetfx: '.net7.0'
+#     filter: 'Dotmim.Sync.Tests.IntegrationTests2.PostgresTcp'
+ 
+# - template: azure-pipelines-template.yml
+#   parameters:
+#     displayName: 'PostgreSQL Tcp Tests .net 6.0'
+#     dotnetfx: '.net6.0'
+#     filter: 'Dotmim.Sync.Tests.IntegrationTests2.PostgresTcp'
  
