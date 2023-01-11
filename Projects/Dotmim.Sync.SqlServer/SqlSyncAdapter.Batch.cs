@@ -216,7 +216,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (DbException ex)
             {
-                Debug.WriteLine(ex.Message);
                 throw;
             }
             finally

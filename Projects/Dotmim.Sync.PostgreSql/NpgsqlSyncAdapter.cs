@@ -257,7 +257,7 @@ namespace Dotmim.Sync.PostgreSql
                     strCommand.Append($"{empty} {parentColumnName}");
                     empty = ", ";
                 }
-                strCommand.AppendLine(" ); ");
+                strCommand.AppendLine(" ) NOT VALID; "); // NOT VALID is important to avoid re scan of the table afterwards
                 strCommand.AppendLine("END IF;");
 
             }
@@ -269,7 +269,6 @@ namespace Dotmim.Sync.PostgreSql
                 CommandText = strCommand.ToString()
             };
 
-            Debug.WriteLine(command.CommandText);
             return (command, false);
         }
 
