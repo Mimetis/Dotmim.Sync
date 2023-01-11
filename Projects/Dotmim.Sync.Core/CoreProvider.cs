@@ -89,7 +89,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or sets the connection string used by the implemented provider
         /// </summary>
-        public string ConnectionString { get; set; }
+        public virtual string ConnectionString { get; set; }
 
         /// <summary>
         /// Gets a boolean indicating if the provider can be a server side provider
