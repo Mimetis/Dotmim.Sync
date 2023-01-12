@@ -36,6 +36,7 @@ using System.IdentityModel.Tokens.Jwt;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Tests.Fixtures;
 using System.Security.Cryptography;
+using Microsoft.Extensions.Options;
 
 namespace Dotmim.Sync.Tests.IntegrationTests2
 {
@@ -261,6 +262,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             // Get count of rows
             var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
+
+            await this.Kestrell.StopAsync();
+
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "v1", setup, new SyncOptions { DisableConstraintsOnApplyChanges = true });
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "v2", setup, new SyncOptions { DisableConstraintsOnApplyChanges = true });
+
+            var serviceUri = this.Kestrell.Run();
 
             foreach (var clientProvider in clientsProvider)
             {
@@ -1147,8 +1155,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             await this.Kestrell.StopAsync();
 
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setupV2, new SyncOptions { DisableConstraintsOnApplyChanges = true });
-            
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "uploadonly", setupV2, new SyncOptions { DisableConstraintsOnApplyChanges = true });
+
+
             var serviceUri = this.Kestrell.Run();
 
             // Should not download anything
@@ -1193,7 +1202,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             await this.Kestrell.StopAsync();
 
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setupV2, new SyncOptions { DisableConstraintsOnApplyChanges = true });
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "downloadonly", setupV2, new SyncOptions { DisableConstraintsOnApplyChanges = true });
 
             var serviceUri = this.Kestrell.Run();
 
@@ -1567,7 +1576,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             // Add one row in each client
             foreach (var clientProvider in clientsProvider)
-                await Fixture.AddProductCategoryAsync(clientProvider,  modifiedDate: clientProductCategoryModifiedDate, attributeWithSpace: "CLI");
+                await Fixture.AddProductCategoryAsync(clientProvider, modifiedDate: clientProductCategoryModifiedDate, attributeWithSpace: "CLI");
 
             // Add one row on server
             await Fixture.AddProductCategoryAsync(serverProvider, modifiedDate: serverProductCategoryModifiedDate, attributeWithSpace: "SRV");
@@ -1665,7 +1674,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
 
                 var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
-                
+
                 var se = await Assert.ThrowsAsync<SyncException>(async () =>
                 {
                     var tmpR = await agent.SynchronizeAsync();
@@ -1698,7 +1707,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
-            
+
             await this.Kestrell.StopAsync();
             this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
             this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "customScope1", new SyncSetup("Customer"), options);
@@ -1725,7 +1734,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         public async Task GetChangesBeforeServerIsInitialized()
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
-            
+
             // Get count of rows
             var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
 
@@ -1789,7 +1798,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(2, serverSyncChanges.ServerChangesSelected.TotalChangesSelected);
             }
         }
-
 
         [Fact]
         public async Task GetEstimatedChangesCountBeforeServerIsInitialized()
@@ -1859,274 +1867,273 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             }
         }
 
+        [Fact]
+        public async Task SessionIsLostDuringApplyChangesButChangesAreNotLost()
+        {
+            // Arrange
+            var options = new SyncOptions { BatchSize = 100, DisableConstraintsOnApplyChanges = true };
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            var rowsToSend = 3000;
+            var productNumber = "12345";
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientDatabaseType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
-        //[Fact]
-        //public async Task WithBatchingEnabled_WhenSessionIsLostDuringApplyChanges_ChangesAreNotLost()
-        //{
-        //    // Arrange
-        //    var options = new SyncOptions { BatchSize = 100 };
+                var products = Enumerable.Range(1, rowsToSend).Select(i =>
+                    new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}_{clientDatabaseName}" });
 
-        //    // create a server schema with seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+                using var clientDbCtx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
+                clientDbCtx.Product.AddRange(products);
+                await clientDbCtx.SaveChangesAsync();
+            }
 
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+            // stop current kestrell
+            await this.Kestrell.StopAsync();
 
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+            // for each client, fake that the sync session is interrupted
+            var clientCount = 0;
+            foreach (var clientProvider in clientsProvider)
+            {
+                using var kestrell = new KestrellTestServer(this.UseFiddler);
 
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, this.Server.Provider, options);
+                // Configure server orchestrator
+                kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
 
-        //        var s = await agent.SynchronizeAsync(this.Tables);
+                int batchIndex = 0;
 
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
+                // Create server web proxy
+                var serverHandler = new RequestDelegate(async context =>
+                {
+                    var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
 
+                    webServerAgent.OnHttpGettingRequest(args =>
+                    {
+                        var cScopeInfoClientId = args.HttpContext.GetClientScopeId();
+                        var cScopeInfoClientSessionId = args.HttpContext.GetClientSessionId();
+                        var cStep = args.HttpContext.GetCurrentStep();
 
-        //    // insert 3000 new products
-        //    var rowsToSend = 3000;
-        //    var productNumber = "12345";
+                        Debug.WriteLine($"RECEIVE Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
+                    });
 
-        //    foreach (var client in Clients)
-        //    {
-        //        var products = Enumerable.Range(1, rowsToSend).Select(i =>
-        //            new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}_{client.ProviderType}" });
+                    webServerAgent.OnHttpSendingResponse(async args =>
+                    {
+                        // SendChangesInProgress is occuring when server is receiving data from client
+                        // We are droping session on the second batch
+                        if (args.HttpStep == HttpStep.SendChangesInProgress && batchIndex == 1)
+                        {
+                            Debug.WriteLine($"DROPING Session Id {args.HttpContext.Session.Id} on batch {batchIndex}.");
+                            args.HttpContext.Session.Clear();
+                            await args.HttpContext.Session.CommitAsync();
+                        }
+                        if (args.HttpStep == HttpStep.SendChangesInProgress)
+                            batchIndex++;
 
-        //        using var clientDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
-        //        clientDbCtx.Product.AddRange(products);
-        //        await clientDbCtx.SaveChangesAsync();
-        //    }
+                    });
 
+                    await webServerAgent.HandleRequestAsync(context);
+                });
 
+                var serviceUri = kestrell.Run(serverHandler);
 
-        //    // for each client, fake that the sync session is interrupted
-        //    var clientCount = 0;
-        //    foreach (var client in Clients)
-        //    {
-        //        // configure server orchestrator
-        //        this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //            new SyncSetup(Tables));
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
 
-        //        int batchIndex = 0;
+                webRemoteOrchestrator.OnHttpPolicyRetrying(args => Debug.WriteLine(args.Message));
+                webRemoteOrchestrator.OnHttpSendingRequest(args =>
+                {
+                    var cScopeInfoClientId = "";
+                    var cScopeInfoClientSessionId = "";
+                    var cStep = "";
+                    if (args.Request.Headers.TryGetValues("dotmim-sync-scope-id", out var scopeIds))
+                        cScopeInfoClientId = scopeIds.ToList()[0];
 
-        //        // Create server web proxy
-        //        var serverHandler = new RequestDelegate(async context =>
-        //        {
-        //            var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
+                    if (args.Request.Headers.TryGetValues("dotmim-sync-session-id", out var sessionIds))
+                        cScopeInfoClientSessionId = sessionIds.ToList()[0];
 
-        //            webServerAgent.OnHttpGettingRequest(args =>
-        //            {
-        //                var cScopeInfoClientId = args.HttpContext.GetClientScopeId();
-        //                var cScopeInfoClientSessionId = args.HttpContext.GetClientSessionId();
-        //                var cStep = args.HttpContext.GetCurrentStep();
+                    if (args.Request.Headers.TryGetValues("dotmim-sync-step", out var steps))
+                        cStep = steps.ToList()[0];
 
-        //                Debug.WriteLine($"RECEIVE Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
+                    Debug.WriteLine($"SEND    Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
+                });
 
+                var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
 
-        //            });
+                var ex = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync());
 
-        //            webServerAgent.OnHttpSendingResponse(async args =>
-        //            {
-        //                // SendChangesInProgress is occuring when server is receiving data from client
-        //                // We are droping session on the second batch
-        //                if (args.HttpStep == HttpStep.SendChangesInProgress && batchIndex == 1)
-        //                {
-        //                    Debug.WriteLine($"DROPING Session Id {args.HttpContext.Session.Id} on batch {batchIndex}.");
-        //                    args.HttpContext.Session.Clear();
-        //                    await args.HttpContext.Session.CommitAsync();
-        //                }
-        //                if (args.HttpStep == HttpStep.SendChangesInProgress)
-        //                    batchIndex++;
+                // Assert
+                Assert.NotNull(ex); //"exception required!"
+                Assert.Equal("HttpSessionLostException", ex.TypeName);
 
-        //            });
+                await kestrell.StopAsync();
 
-        //            await webServerAgent.HandleRequestAsync(context);
-        //        });
+            }
 
-        //        var serviceUri = this.Kestrell.Run(serverHandler);
+            foreach (var clientProvider in clientsProvider)
+            {
+                using var kestrell = new KestrellTestServer(this.UseFiddler);
 
-        //        var orch = new WebRemoteOrchestrator(serviceUri);
+                // Configure server orchestrator
+                kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
 
-        //        orch.OnHttpPolicyRetrying(args => Debug.WriteLine(args.Message));
-        //        orch.OnHttpSendingRequest(args =>
-        //        {
-        //            var cScopeInfoClientId = "";
-        //            var cScopeInfoClientSessionId = "";
-        //            var cStep = "";
-        //            if (args.Request.Headers.TryGetValues("dotmim-sync-scope-id", out var scopeIds))
-        //                cScopeInfoClientId = scopeIds.ToList()[0];
+                var serviceUri = kestrell.Run();
 
-        //            if (args.Request.Headers.TryGetValues("dotmim-sync-session-id", out var sessionIds))
-        //                cScopeInfoClientSessionId = sessionIds.ToList()[0];
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
 
-        //            if (args.Request.Headers.TryGetValues("dotmim-sync-step", out var steps))
-        //                cStep = steps.ToList()[0];
+                // Act 2: Ensure client can recover
+                var agent2 = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
 
-        //            Debug.WriteLine($"SEND    Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
-        //        });
+                var s2 = await agent2.SynchronizeAsync();
 
-        //        var agent = new SyncAgent(client.Provider, orch, options);
+                Assert.Equal(rowsToSend, s2.TotalChangesUploadedToServer);
+                Assert.Equal(rowsToSend * clientCount, s2.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s2.TotalResolvedConflicts);
 
-        //        var ex = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync());
+                clientCount++;
 
-        //        // Assert
-        //        Assert.NotNull(ex); //"exception required!"
-        //        Assert.Equal("HttpSessionLostException", ex.TypeName);
+                using var serverDbCtx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema);
+                var serverCount = serverDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
+                Assert.Equal(rowsToSend * clientCount, serverCount);
 
-        //        await this.Kestrell.StopAsync();
+                await kestrell.StopAsync();
+            }
 
-        //    }
+        }
 
-        //    foreach (var client in Clients)
-        //    {
-        //        // configure server orchestrator
-        //        this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //            new SyncSetup(Tables));
 
-        //        var serviceUri = this.Kestrell.Run();
+        [Fact]
+        public async Task SessionIsLostDuringGetChangesButChangesAreNotLost()
+        {
+            // Arrange
+            var options = new SyncOptions { BatchSize = 100, DisableConstraintsOnApplyChanges = true };
 
-        //        // Act 2: Ensure client can recover
-        //        var agent2 = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
+            var rowsToReceive = 3000;
+            var productNumber = "12345";
 
-        //        var s2 = await agent2.SynchronizeAsync();
+            var products = Enumerable.Range(1, rowsToReceive).Select(i =>
+                new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}_{Fixture.ServerProviderType}" });
 
-        //        Assert.Equal(rowsToSend, s2.TotalChangesUploadedToServer);
-        //        Assert.Equal(rowsToSend * clientCount, s2.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s2.TotalResolvedConflicts);
+            using var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema);
+            ctx.Product.AddRange(products);
+            await ctx.SaveChangesAsync();
 
-        //        clientCount++;
+            // stop current kestrell
+            await this.Kestrell.StopAsync();
 
-        //        using var serverDbCtx = new AdventureWorksContext(this.Server);
-        //        var serverCount = serverDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
-        //        Assert.Equal(rowsToSend * clientCount, serverCount);
+            // for each client, fake that the sync session is interrupted
+            foreach (var clientProvider in clientsProvider)
+            {
+                using var kestrell = new KestrellTestServer(this.UseFiddler);
 
-        //        await this.Kestrell.StopAsync();
-        //    }
+                // Configure server orchestrator
+                kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
 
-        //}
+                int batchIndex = 0;
 
-        //[Fact]
-        //public async Task WithBatchingEnabled_WhenSessionIsLostDuringGetChanges_ChangesAreNotLost()
-        //{
-        //    // Arrange
-        //    var options = new SyncOptions { BatchSize = 100 };
+                // Create server web proxy
+                var serverHandler = new RequestDelegate(async context =>
+                {
+                    var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
 
-        //    // create a server schema with seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+                    webServerAgent.OnHttpGettingRequest(args =>
+                    {
+                        var cScopeInfoClientId = args.HttpContext.GetClientScopeId();
+                        var cScopeInfoClientSessionId = args.HttpContext.GetClientSessionId();
+                        var cStep = args.HttpContext.GetCurrentStep();
 
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                        Debug.WriteLine($"RECEIVE Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
+                    });
 
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
+                    webServerAgent.OnHttpSendingResponse(async args =>
+                    {
+                        // We are droping session on the second batch
+                        if (args.HttpStep == HttpStep.GetMoreChanges && batchIndex == 1)
+                        {
+                            Debug.WriteLine($"DROPING Session Id {args.HttpContext.Session.Id} on batch {batchIndex}.");
+                            args.HttpContext.Session.Clear();
+                            await args.HttpContext.Session.CommitAsync();
+                        }
+                        if (args.HttpStep == HttpStep.GetMoreChanges)
+                            batchIndex++;
 
-        //    var serviceUri = this.Kestrell.Run();
+                    });
 
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+                    await webServerAgent.HandleRequestAsync(context);
+                });
 
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
+                var serviceUri = kestrell.Run(serverHandler);
 
-        //        var s = await agent.SynchronizeAsync();
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
 
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
+                webRemoteOrchestrator.OnHttpPolicyRetrying(args => Debug.WriteLine(args.Message));
+                webRemoteOrchestrator.OnHttpSendingRequest(args =>
+                {
+                    var cScopeInfoClientId = "";
+                    var cScopeInfoClientSessionId = "";
+                    var cStep = "";
+                    if (args.Request.Headers.TryGetValues("dotmim-sync-scope-id", out var scopeIds))
+                        cScopeInfoClientId = scopeIds.ToList()[0];
 
-        //    await this.Kestrell.StopAsync();
+                    if (args.Request.Headers.TryGetValues("dotmim-sync-session-id", out var sessionIds))
+                        cScopeInfoClientSessionId = sessionIds.ToList()[0];
 
-        //    // insert 1000 new products so batching is used
-        //    var rowsToReceive = 3000;
-        //    var productNumber = "12345";
+                    if (args.Request.Headers.TryGetValues("dotmim-sync-step", out var steps))
+                        cStep = steps.ToList()[0];
 
-        //    var products = Enumerable.Range(1, rowsToReceive).Select(i =>
-        //        new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}" });
+                    Debug.WriteLine($"SEND    Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
+                });
 
-        //    using (var serverDbCtx = new AdventureWorksContext(this.Server))
-        //    {
-        //        serverDbCtx.Product.AddRange(products);
-        //        await serverDbCtx.SaveChangesAsync();
-        //    }
+                var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
 
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
+                var ex = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync());
 
-        //    int batchIndex = 0;
+                // Assert
+                Assert.NotNull(ex); //"exception required!"
+                Assert.Equal("HttpSessionLostException", ex.TypeName);
 
-        //    // Create server web proxy
-        //    var serverHandler = new RequestDelegate(async context =>
-        //    {
-        //        var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
+                await kestrell.StopAsync();
 
-        //        // IMPORTANT: Simulate server-side session loss after first batch message is already transmitted
-        //        webServerAgent.OnHttpSendingResponse(async args =>
-        //        {
-        //            // GetMoreChanges is occuring when server is sending back data to client
-        //            // We are droping session on the second batch
-        //            if (args.HttpStep == HttpStep.GetMoreChanges && batchIndex == 1)
-        //            {
-        //                args.HttpContext.Session.Clear();
-        //                await args.HttpContext.Session.CommitAsync();
-        //            }
+            }
 
-        //            if (args.HttpStep == HttpStep.GetMoreChanges)
-        //                batchIndex++;
-        //        });
+            foreach (var clientProvider in clientsProvider)
+            {
+                using var kestrell = new KestrellTestServer(this.UseFiddler);
 
-        //        await webServerAgent.HandleRequestAsync(context);
-        //    });
+                // Configure server orchestrator
+                kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
 
-        //    serviceUri = this.Kestrell.Run(serverHandler);
+                var serviceUri = kestrell.Run();
 
-        //    // for each client, fake that the sync session is interrupted
-        //    foreach (var client in Clients)
-        //    {
-        //        batchIndex = 0;
+                // restreint parallelism degrees to be sure the batch index is not downloaded at the end
+                // (This will not raise the error if the batchindex 1 is downloaded as the last part)
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri, maxDownladingDegreeOfParallelism: 1);
 
-        //        // restreint parallelism degrees to be sure the batch index is not downloaded at the end
-        //        // (This will not raise the error if the batchindex 1 is downloaded as the last part)
-        //        var orch = new WebRemoteOrchestrator(serviceUri, maxDownladingDegreeOfParallelism: 1);
-        //        var agent = new SyncAgent(client.Provider, orch, options);
+                // Act 2: Ensure client can recover
+                var agent2 = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
 
+                var s2 = await agent2.SynchronizeAsync();
 
-        //        var ex = await Assert.ThrowsAsync<SyncException>(async () =>
-        //        {
-        //            var r = await agent.SynchronizeAsync();
-        //        });
+                Assert.Equal(0, s2.TotalChangesUploadedToServer);
+                Assert.Equal(rowsToReceive, s2.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s2.TotalResolvedConflicts);
 
-        //        // Assert
-        //        Assert.NotNull(ex); //"exception required!"
-        //        Assert.Equal("HttpSessionLostException", ex.TypeName);
+                using var clientDbCtx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
+                var serverCount = clientDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
+                Assert.Equal(rowsToReceive, serverCount);
 
-        //        // Act 2: Ensure client can recover
-        //        var agent2 = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
+                await kestrell.StopAsync();
+            }
 
-        //        var s2 = await agent2.SynchronizeAsync();
+        }
 
-        //        Assert.Equal(0, s2.TotalChangesUploadedToServer);
-        //        Assert.Equal(rowsToReceive, s2.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s2.TotalResolvedConflicts);
 
-        //        using var clientDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
-        //        var serverCount = clientDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
-        //        Assert.Equal(rowsToReceive, serverCount);
-        //    }
 
-        //}
 
         ///// <summary>
         ///// Insert one row on server, should be correctly sync on all clients
@@ -2239,430 +2246,313 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
 
 
-        ///// <summary>
-        ///// Insert one row on server, should be correctly sync on all clients
-        ///// </summary>
-        //[Fact]
-        //public async Task Intermitent_Connection_SyncPolicy_RetryOnHttpGettingRequest_ShouldWork()
-        //{
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-        //    var interrupted = new Dictionary<HttpStep, bool>();
-
-        //    // Create server web proxy
-        //    var serverHandler = new RequestDelegate(async context =>
-        //    {
-        //        var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
-
-        //        // When Server Orchestrator send back the response, we will make an interruption
-        //        webServerAgent.OnHttpGettingRequest(args =>
-        //        {
-        //            if (!interrupted.ContainsKey(args.HttpStep))
-        //                interrupted.Add(args.HttpStep, false);
-
-        //            // interrupt each step to see if it's working
-        //            if (!interrupted[args.HttpStep])
-        //            {
-        //                interrupted[args.HttpStep] = true;
-        //                throw new TimeoutException($"Timeout exception raised on step {args.HttpStep}");
-        //            }
-
-        //        });
-
-        //        await webServerAgent.HandleRequestAsync(context);
-        //    });
-
-        //    var serviceUri = this.Kestrell.Run(serverHandler);
-
-
-        //    SyncOptions options = new SyncOptions { BatchSize = 10000 };
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
-
-        //        var policyRetries = 0;
-        //        webRemoteOrchestrator.OnHttpPolicyRetrying(args =>
-        //        {
-        //            policyRetries++;
-        //        });
-
-        //        var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
-
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //        Assert.InRange(policyRetries, 5, 7);
-        //        interrupted.Clear();
-        //    }
-
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-        //        await agent.SynchronizeAsync(Tables);
-        //    }
-
-        //    var finalRowsCount = this.GetServerDatabaseRowsCount(this.Server);
-        //    foreach (var client in Clients)
-        //        Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
-
-        //}
-
-        ///// <summary>
-        ///// On Intermittent connection, should work even if server has done its part
-        ///// </summary>
-        //[Fact]
-        //public async Task Intermitent_Connection_SyncPolicy_RetryOnHttpSendingResponse_ShouldWork()
-        //{
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-        //    var interrupted = new Dictionary<HttpStep, bool>();
-
-        //    // Create server web proxy
-        //    var serverHandler = new RequestDelegate(async context =>
-        //    {
-        //        var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
-
-        //        // When Server Orchestrator send back the response, we will make an interruption
-        //        webServerAgent.OnHttpSendingResponse(args =>
-        //        {
-        //            if (!interrupted.ContainsKey(args.HttpStep))
-        //                interrupted.Add(args.HttpStep, false);
+        /// <summary>
+        /// Insert one row on server, should be correctly sync on all clients
+        /// </summary>
+        [Fact]
+        public async Task IntermitentConnectionUsingSyncPolicyRetryOnHttpGettingRequest()
+        {
+            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            var interrupted = new Dictionary<HttpStep, bool>();
+            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+
+            await this.Kestrell.StopAsync();
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+
+
+            // Create server web proxy
+            var serverHandler = new RequestDelegate(async context =>
+            {
+                var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
+
+                // When Server Orchestrator send back the response, we will make an interruption
+                webServerAgent.OnHttpGettingRequest(args =>
+                {
+                    if (!interrupted.ContainsKey(args.HttpStep))
+                        interrupted.Add(args.HttpStep, false);
+
+                    // interrupt each step to see if it's working
+                    if (!interrupted[args.HttpStep])
+                    {
+                        interrupted[args.HttpStep] = true;
+                        throw new TimeoutException($"Timeout exception raised on step {args.HttpStep}");
+                    }
+
+                });
+
+                await webServerAgent.HandleRequestAsync(context);
+            });
+
+            var serviceUri = this.Kestrell.Run(serverHandler);
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+            {
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+
+                var policyRetries = 0;
+                webRemoteOrchestrator.OnHttpPolicyRetrying(args => policyRetries++);
+
+                var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
+
+                var s = await agent.SynchronizeAsync();
 
-        //            // interrupt each step to see if it's working
-        //            if (!interrupted[args.HttpStep])
-        //            {
-        //                interrupted[args.HttpStep] = true;
-        //                throw new TimeoutException($"Timeout exception raised on step {args.HttpStep}");
-        //            }
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.InRange(policyRetries, 5, 7);
+                interrupted.Clear();
+            }
+
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                await agent.SynchronizeAsync(setup);
+            }
+
+            var finalRowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+
+            foreach (var clientProvider in clientsProvider)
+                Assert.Equal(rowsCount, Fixture.GetDatabaseRowsCount(clientProvider));
+
+        }
+
+        /// <summary>
+        /// On Intermittent connection, should work even if server has done its part
+        /// </summary>
+        [Fact]
+        public async Task IntermitentConnectionUsingSyncPolicyOnRetryOnHttpSendingResponse()
+        {
+            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
-        //        });
-
-        //        await webServerAgent.HandleRequestAsync(context);
-        //    });
+            var interrupted = new Dictionary<HttpStep, bool>();
+            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
 
-        //    var serviceUri = this.Kestrell.Run(serverHandler);
+            await this.Kestrell.StopAsync();
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
 
-        //    SyncOptions options = new SyncOptions { BatchSize = 10000 };
+            // Create server web proxy
+            var serverHandler = new RequestDelegate(async context =>
+            {
+                var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
 
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                // When Server Orchestrator send back the response, we will make an interruption
+                webServerAgent.OnHttpSendingResponse(args =>
+                {
+                    if (!interrupted.ContainsKey(args.HttpStep))
+                        interrupted.Add(args.HttpStep, false);
 
-        //        var policyRetries = 0;
-        //        webRemoteOrchestrator.OnHttpPolicyRetrying(args =>
-        //        {
-        //            policyRetries++;
-        //        });
-
-        //        var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
-
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //        Assert.InRange(policyRetries, 5, 7);
-        //        interrupted.Clear();
-        //    }
-        //}
-
+                    // interrupt each step to see if it's working
+                    if (!interrupted[args.HttpStep])
+                    {
+                        interrupted[args.HttpStep] = true;
+                        throw new TimeoutException($"Timeout exception raised on step {args.HttpStep}");
+                    }
 
-        ///// <summary>
-        ///// On Intermittent connection, should work even if server has already applied a batch  and then timeout for some reason 
-        ///// Client will resend the batch again, but that's ok, since we are merging
-        ///// </summary>
-        //[Fact]
-        //public async Task Intermitent_Connection_SyncPolicy_InsertClientRow_ShouldWork()
-        //{
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+                });
 
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                await webServerAgent.HandleRequestAsync(context);
+            });
 
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-        //    var interruptedBatch = false;
-
-        //    // Create server web proxy
-        //    var serverHandler = new RequestDelegate(async context =>
-        //    {
-        //        var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
-
-        //        // When Server Orchestrator send back the response, we will make an interruption
-        //        webServerAgent.OnHttpSendingResponse(args =>
-        //        {
-        //            // Throw error when sending changes to server
-        //            if (args.HttpStep == HttpStep.SendChangesInProgress && !interruptedBatch)
-        //            {
-        //                interruptedBatch = true;
-        //                throw new TimeoutException($"Timeout exception raised on step {args.HttpStep}");
-        //            }
-
-        //        });
-
-        //        await webServerAgent.HandleRequestAsync(context);
-        //    });
-
-        //    var serviceUri = this.Kestrell.Run(serverHandler);
-
-        //    SyncOptions options = new SyncOptions { BatchSize = 100 };
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
-
-        //        var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
-
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
-
-
-        //    // Insert one line on each client
-        //    foreach (var client in Clients)
-        //    {
-        //        using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
-        //        for (var i = 0; i < 1000; i++)
-        //        {
-        //            var name = HelperDatabase.GetRandomName();
-        //            var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-
-        //            var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
-
-        //            cliCtx.Product.Add(product);
-        //        }
-        //        await cliCtx.SaveChangesAsync();
-        //    }
-
-
-        //    // Sync all clients
-        //    // First client  will upload one line and will download nothing
-        //    // Second client will upload one line and will download one line
-        //    // thrid client  will upload one line and will download two lines
-        //    int download = 0;
-        //    foreach (var client in Clients)
-        //    {
-        //        interruptedBatch = false;
-
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(download, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(1000, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-
-        //        // We have one batch that has been sent 2 times; it will be merged correctly on server
-        //        Assert.InRange<int>(s.ChangesAppliedOnServer.TotalAppliedChanges, 1000, 2000);
-        //        Assert.Equal(1000, s.ClientChangesSelected.TotalChangesSelected);
-
-        //        // Get count of rows
-        //        var finalRowsCount = this.GetServerDatabaseRowsCount(this.Server);
-        //        var clientRowsCount = this.GetServerDatabaseRowsCount(client);
-        //        Assert.Equal(finalRowsCount, clientRowsCount);
-
-        //        download += 1000;
-
-        //    }
-        //}
-
-
-        ///// <summary>
-        ///// Testing if blob are consistent across sync
-        ///// </summary>
-        //[Fact]
-        //public virtual async Task Blob_ShouldBeConsistent_AndSize_ShouldBeMaintained()
-        //{
-        //    // create a server db and seed it
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // configure server orchestrator
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Execute a sync on all clients to initialize schemas
-        //    foreach (var client in this.Clients)
-        //    {
-        //        var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
-        //        var agent = new SyncAgent(client.Provider, webRemoteOrchestrator);
-        //        var s = await agent.SynchronizeAsync();
-        //    }
-
-        //    // Create a new product on server with a big thumbnail photo
-        //    var name = HelperDatabase.GetRandomName();
-        //    var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-
-        //    var product = new Product
-        //    {
-        //        ProductId = Guid.NewGuid(),
-        //        Name = name,
-        //        ProductNumber = productNumber,
-        //        ThumbNailPhoto = new byte[20000]
-        //    };
-
-        //    using (var serverDbCtx = new AdventureWorksContext(this.Server))
-        //    {
-        //        serverDbCtx.Product.Add(product);
-        //        await serverDbCtx.SaveChangesAsync();
-        //    }
-
-        //    // Create a new product on client with a big thumbnail photo
-        //    foreach (var client in this.Clients)
-        //    {
-        //        var clientName = HelperDatabase.GetRandomName();
-        //        var clientProductNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-
-        //        var clientProduct = new Product
-        //        {
-        //            ProductId = Guid.NewGuid(),
-        //            Name = clientName,
-        //            ProductNumber = clientProductNumber,
-        //            ThumbNailPhoto = new byte[20000]
-        //        };
-
-        //        using (var clientDbCtx = new AdventureWorksContext(client, UseFallbackSchema))
-        //        {
-        //            clientDbCtx.Product.Add(product);
-        //            await clientDbCtx.SaveChangesAsync();
-        //        }
-        //    }
-        //    // Two sync to be sure all clients have all rows from all
-        //    foreach (var client in this.Clients)
-        //    {
-        //        var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
-        //        var agent = new SyncAgent(client.Provider, webRemoteOrchestrator);
-        //        var s = await agent.SynchronizeAsync();
-        //    }
-        //    foreach (var client in this.Clients)
-        //    {
-        //        var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
-        //        var agent = new SyncAgent(client.Provider, webRemoteOrchestrator);
-        //        var s = await agent.SynchronizeAsync();
-        //    }
-
-
-        //    // check rows count on server and on each client
-        //    using (var ctx = new AdventureWorksContext(this.Server))
-        //    {
-        //        var products = await ctx.Product.AsNoTracking().ToListAsync();
-        //        foreach (var p in products)
-        //        {
-        //            Assert.Equal(20000, p.ThumbNailPhoto.Length);
-        //        }
-
-        //    }
-
-        //    foreach (var client in Clients)
-        //    {
-        //        using var cliCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
-
-        //        var products = await cliCtx.Product.AsNoTracking().ToListAsync();
-        //        foreach (var p in products)
-        //        {
-        //            Assert.Equal(20000, p.ThumbNailPhoto.Length);
-        //        }
-        //    }
-        //}
-        ///// <summary>
-        ///// Insert one row on each client, should be sync on server and clients
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task Using_ExistingClientDatabase_UpdateUntrackedRowsAsync(SyncOptions options)
-        //{
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        // Get count of rows
-        //        var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //        // create a client schema without seeding
-        //        await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
-
-        //        // insert on product before making any first sync
-        //        var name = HelperDatabase.GetRandomName();
-        //        var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-
-        //        var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
-
-        //        using var serverDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
-        //        serverDbCtx.Product.Add(product);
-        //        await serverDbCtx.SaveChangesAsync();
-
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-
-        //        // mark local row as tracked
-        //        await agent.LocalOrchestrator.UpdateUntrackedRowsAsync();
-        //        s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(0, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(1, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-
-        //        Assert.Equal(this.GetServerDatabaseRowsCount(Server), this.GetServerDatabaseRowsCount(client));
-
-        //    }
-        //}
+            var serviceUri = this.Kestrell.Run(serverHandler);
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+            {
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+
+                var policyRetries = 0;
+                webRemoteOrchestrator.OnHttpPolicyRetrying(args =>
+                {
+                    policyRetries++;
+                });
+
+                var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.InRange(policyRetries, 5, 7);
+                interrupted.Clear();
+            }
+        }
+
+
+        /// <summary>
+        /// On Intermittent connection, should work even if server has already applied a batch  and then timeout for some reason 
+        /// Client will resend the batch again, but that's ok, since we are merging
+        /// </summary>
+        [Fact]
+        public async Task Intermitent_Connection_SyncPolicy_InsertClientRow_ShouldWork()
+        {
+            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+
+            await this.Kestrell.StopAsync();
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+
+            var interruptedBatch = false;
+
+            // Create server web proxy
+            var serverHandler = new RequestDelegate(async context =>
+            {
+                var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
+
+                // When Server Orchestrator send back the response, we will make an interruption
+                webServerAgent.OnHttpSendingResponse(args =>
+                {
+                    // Throw error when sending changes to server
+                    if (args.HttpStep == HttpStep.SendChangesInProgress && !interruptedBatch)
+                    {
+                        interruptedBatch = true;
+                        throw new TimeoutException($"Timeout exception raised on step {args.HttpStep}");
+                    }
+
+                });
+
+                await webServerAgent.HandleRequestAsync(context);
+            });
+
+            var serviceUri = this.Kestrell.Run(serverHandler);
+
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+            {
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+
+                var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+
+            // Insert one line on each client
+            foreach (var clientProvider in clientsProvider)
+                await Fixture.AddProductCategoryAsync(clientProvider);
+
+
+            // Sync all clients
+            // First client  will upload one line and will download nothing
+            // Second client will upload one line and will download one line
+            // thrid client  will upload one line and will download two lines
+            int download = 0;
+            foreach (var clientProvider in clientsProvider)
+            {
+                interruptedBatch = false;
+
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1000, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                // We have one batch that has been sent 2 times; it will be merged correctly on server
+                Assert.InRange<int>(s.ChangesAppliedOnServer.TotalAppliedChanges, 1000, 2000);
+                Assert.Equal(1000, s.ClientChangesSelected.TotalChangesSelected);
+
+                // Get count of rows
+                var finalRowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+                var clientRowsCount = Fixture.GetDatabaseRowsCount(clientProvider);
+                Assert.Equal(finalRowsCount, clientRowsCount);
+
+                download += 1000;
+            }
+        }
+
+        [Fact]
+        public virtual async Task BlobShouldBeConsistentAndSizeShouldBeMaintained()
+        {
+            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+            var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+
+            // Execute a sync on all clients to initialize schemas
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, webRemoteOrchestrator, options).SynchronizeAsync();
+
+            // Create a new product on server with a big thumbnail photo
+            var thumbnail = new byte[20000];
+
+            // add one row
+            await Fixture.AddProductAsync(serverProvider, name: $"BLOB_SERVER", thumbNailPhoto: thumbnail);
+
+            // Create a new product on client with a big thumbnail photo
+            foreach (var clientProvider in clientsProvider)
+            {
+                var clientName = HelperDatabase.GetRandomName();
+                var clientProductNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+                await Fixture.AddProductAsync(clientProvider, name: $"BLOB_{clientName}", productNumber: clientProductNumber, thumbNailPhoto: new byte[20000]);
+            }
+
+            // Two sync to be sure all clients have all rows from all
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, webRemoteOrchestrator, options).SynchronizeAsync();
+
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, webRemoteOrchestrator, options).SynchronizeAsync();
+
+            // check rows count on server and on each client
+            using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            {
+                var products = await ctx.Product.AsNoTracking().Where(p => p.Name.StartsWith("BLOB_")).ToListAsync();
+                foreach (var p in products)
+                    Assert.Equal(20000, p.ThumbNailPhoto.Length);
+            }
+
+            foreach (var clientProvider in clientsProvider)
+            {
+                using var cliCtx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
+
+                var products = await cliCtx.Product.AsNoTracking().Where(p => p.Name.StartsWith("BLOB_")).ToListAsync();
+                foreach (var p in products)
+                    Assert.Equal(20000, p.ThumbNailPhoto.Length);
+            }
+        }
+
+        /// <summary>
+        /// Insert one row on each client, should be sync on server and clients
+        /// </summary>
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task UsingExistingClientDatabaseAndUpdateUntrackedRowsAsync(SyncOptions options)
+        {
+            var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+            {
+                // Get count of rows
+                var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+
+                await Fixture.AddProductAsync(clientProvider);
+
+                var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
+
+                var s = await agent.SynchronizeAsync(setup);
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                // mark local row as tracked
+                await agent.LocalOrchestrator.UpdateUntrackedRowsAsync();
+                s = await agent.SynchronizeAsync();
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                Assert.Equal(Fixture.GetDatabaseRowsCount(serverProvider), Fixture.GetDatabaseRowsCount(clientProvider));
+
+            }
+        }
     }
 }

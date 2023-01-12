@@ -28,14 +28,11 @@ namespace Dotmim.Sync.Tests
 {
     public static class HelperDatabase
     {
-
         public static string GetRandomName(string pref = default)
         {
             var str1 = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
             return $"{pref}{str1}";
         }
-
-
 
         /// <summary>
         /// Get the Sqlite file path (ie: /Dir/mydatabase.db)
@@ -106,18 +103,15 @@ namespace Dotmim.Sync.Tests
             };
         }
 
-        public static CoreProvider GetSyncProvider(ProviderType providerType, string dbName)
+        public static CoreProvider GetSyncProvider(ProviderType providerType, string dbName) => providerType switch
         {
-            return providerType switch
-            {
-                ProviderType.Sql => new SqlSyncProvider(Setup.GetSqlDatabaseConnectionString(dbName)),
-                ProviderType.MySql => new MySqlSyncProvider(Setup.GetMySqlDatabaseConnectionString(dbName)),
-                ProviderType.MariaDB => new MariaDBSyncProvider(Setup.GetMariaDBDatabaseConnectionString(dbName)),
-                ProviderType.Sqlite => new SqliteSyncProvider(GetSqliteDatabaseConnectionString(dbName)),
-                ProviderType.Postgres => new NpgsqlSyncProvider(Setup.GetPostgresDatabaseConnectionString(dbName)),
-                _ => null,
-            };
-        }
+            ProviderType.Sql => new SqlSyncProvider(Setup.GetSqlDatabaseConnectionString(dbName)),
+            ProviderType.MySql => new MySqlSyncProvider(Setup.GetMySqlDatabaseConnectionString(dbName)),
+            ProviderType.MariaDB => new MariaDBSyncProvider(Setup.GetMariaDBDatabaseConnectionString(dbName)),
+            ProviderType.Sqlite => new SqliteSyncProvider(GetSqliteDatabaseConnectionString(dbName)),
+            ProviderType.Postgres => new NpgsqlSyncProvider(Setup.GetPostgresDatabaseConnectionString(dbName)),
+            _ => null,
+        };
 
         public static ProviderType GetProviderType<T>() where T : RelationalFixture => typeof(T) switch
         {
@@ -166,23 +160,29 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Create a database, depending the Provider type
         /// </summary>
-        public static Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
+        public static async Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true)
         {
             switch (providerType)
             {
                 case ProviderType.Sql:
-                    return CreateSqlServerDatabaseAsync(dbName, recreateDb);
+                    await CreateSqlServerDatabaseAsync(dbName, recreateDb);
+                    break;
                 case ProviderType.MySql:
-                    return CreateMySqlDatabaseAsync(dbName, recreateDb);
+                    await CreateMySqlDatabaseAsync(dbName, recreateDb);
+                    break;
                 case ProviderType.MariaDB:
-                    return CreateMariaDBDatabaseAsync(dbName, recreateDb);
+                    await CreateMariaDBDatabaseAsync(dbName, recreateDb);
+                    break;
                 case ProviderType.Postgres:
-                    return CreatePostgresDatabaseAsync(dbName, recreateDb);
+                    await CreatePostgresDatabaseAsync(dbName, recreateDb);
+                    break;
                 case ProviderType.Sqlite:
-                    return Task.CompletedTask;
+                    await Task.CompletedTask;
+                    break;
             }
-
-
+            
+            if (providerType == ProviderType.Sql)
+                await ActivateChangeTracking(dbName);
 
             throw new Exception($"Provider type {providerType} is not existing;");
         }
@@ -212,6 +212,29 @@ namespace Dotmim.Sync.Tests
             });
         }
 
+
+        private static async Task ActivateChangeTracking(string dbName)
+        {
+            var c = new SqlConnection(Setup.GetSqlDatabaseConnectionString(dbName));
+
+            // Check if we are using change tracking and it's enabled on the source
+            var isChangeTrackingEnabled = await SqlManagementUtils.IsChangeTrackingEnabledAsync(c, null).ConfigureAwait(false);
+
+            if (isChangeTrackingEnabled)
+                return;
+
+            using var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master"));
+
+            var script = $"ALTER DATABASE {dbName} SET CHANGE_TRACKING = ON (CHANGE_RETENTION = 2 DAYS, AUTO_CLEANUP = ON)";
+
+
+            masterConnection.Open();
+
+            using (var cmdCT = new SqlCommand(script, masterConnection))
+                await cmdCT.ExecuteNonQueryAsync();
+
+            masterConnection.Close();
+        }
         /// <summary>
         /// Create a new MySql Server database
         /// </summary>
@@ -341,14 +364,12 @@ namespace Dotmim.Sync.Tests
 
         }
 
-
         /// <summary>
         /// Drop a database, depending the Provider type
         /// </summary>
         [DebuggerStepThrough]
         public static void TruncateTable(ProviderType providerType, string dbName, string tableName, string schemaName)
         {
-            
             try
             {
                 switch (providerType)
@@ -378,7 +399,6 @@ namespace Dotmim.Sync.Tests
 
 
         }
-
 
         /// <summary>
         /// Drop a mysql database

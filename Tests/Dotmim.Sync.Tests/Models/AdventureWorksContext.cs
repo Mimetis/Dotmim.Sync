@@ -137,7 +137,6 @@ namespace Dotmim.Sync.Tests.Models
         public virtual DbSet<ProductModel> ProductModel { get; set; }
         public virtual DbSet<SalesOrderDetail> SalesOrderDetail { get; set; }
         public virtual DbSet<SalesOrderHeader> SalesOrderHeader { get; set; }
-        //public virtual DbSet<Sql> Sql { get; set; }
         public virtual DbSet<Posts> Posts { get; set; }
         public virtual DbSet<PostTag> PostTag { get; set; }
         public virtual DbSet<Tags> Tags { get; set; }

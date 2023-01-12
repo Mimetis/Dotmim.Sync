@@ -53,30 +53,25 @@ namespace Dotmim.Sync.Tests.Fixtures
         public DatabaseServerFixture()
         {
             this.OverallStopwatch = Stopwatch.StartNew();
-
             this.ServerDatabaseName = HelperDatabase.GetRandomName("tcp_srv");
 
             foreach (var type in this.ClientsType)
-            {
-                var dbName = HelperDatabase.GetRandomName("tcp_cli");
-                ClientDatabaseNames.Add(type, dbName);
-            }
+                ClientDatabaseNames.Add(type, HelperDatabase.GetRandomName("tcp_cli"));
         }
 
         /// <summary>
         /// Get the server provider. Creates database if not exists
         /// </summary>
-        public CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ServerProviderType, ServerDatabaseName);
+        public virtual CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ServerProviderType, ServerDatabaseName);
 
         /// <summary>
         /// Returns all clients providers. Create database if not exists
         /// </summary>
-        public IEnumerable<CoreProvider> GetClientProviders()
+        public virtual IEnumerable<CoreProvider> GetClientProviders()
         {
             foreach (var type in this.ClientsType)
                 yield return HelperDatabase.GetSyncProvider(type, ClientDatabaseNames[type]);
         }
-
 
         public void EnsureTablesAreCreated(CoreProvider coreProvider, bool seeding)
         {
@@ -100,7 +95,6 @@ namespace Dotmim.Sync.Tests.Fixtures
 
             }
             c.Close();
-
         }
 
         /// <summary>

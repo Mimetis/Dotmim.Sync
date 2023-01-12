@@ -35,8 +35,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 {
     public abstract partial class TcpTests2<T>
     {
-
-
         /// <summary>
         /// Check if a multi parameters value sync can work. 
         /// With only 1 Setup and multiple parameters values
@@ -636,7 +634,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(2, rAll.TotalChangesDownloadedFromServer);
             }
         }
-
 
         /// <summary>
         /// The idea here is to start with an existing client database, where we don't want to upload anything or download anything on first sync

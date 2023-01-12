@@ -3,6 +3,7 @@ using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer.Manager;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Fixtures;
+using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.EntityFrameworkCore;
@@ -32,6 +33,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
         }
     }
+    //public class SqlServerChangeTrackingTcpTests : TcpTests2<SqlServerFixtureType>
+    //{
+    //    public SqlServerChangeTrackingTcpTests(ITestOutputHelper output, DatabaseServerChangeTrackingFixture<SqlServerFixtureType> fixture) : base(output, fixture)
+    //    {
+    //    }
+    //}
 
     public class PostgresTcpTests : TcpTests2<PostgresFixtureType>
     {

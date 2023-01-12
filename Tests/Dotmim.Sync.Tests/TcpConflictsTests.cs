@@ -39,7 +39,7 @@ using Xunit.Sdk;
 namespace Dotmim.Sync.Tests
 {
     //[TestCaseOrderer("Dotmim.Sync.Tests.Misc.PriorityOrderer", "Dotmim.Sync.Tests")]
-    public abstract class TcpConflictsTests : IClassFixture<HelperProvider>, IDisposable
+    public abstract class TcpConflictsTests : IDisposable
     {
         private Stopwatch stopwatch;
 
@@ -93,10 +93,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public abstract Task CreateDatabaseAsync(ProviderType providerType, string dbName, bool recreateDb = true);
 
-        // abstract fixture used to run the tests
-        protected readonly HelperProvider fixture;
-
-        // Current test running
+         // Current test running
         private XunitTest test;
 
         /// <summary>
@@ -129,7 +126,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// For each test, Create a server database and some clients databases, depending on ProviderType provided in concrete class
         /// </summary>
-        public TcpConflictsTests(HelperProvider fixture, ITestOutputHelper output)
+        public TcpConflictsTests( ITestOutputHelper output)
         {
             // Getting the test running
             this.Output = output;
@@ -137,8 +134,6 @@ namespace Dotmim.Sync.Tests
             var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
             this.test = (XunitTest)testMember.GetValue(output);
             this.stopwatch = Stopwatch.StartNew();
-
-            this.fixture = fixture;
 
             // Since we are creating a lot of databases
             // each database will have its own pool
