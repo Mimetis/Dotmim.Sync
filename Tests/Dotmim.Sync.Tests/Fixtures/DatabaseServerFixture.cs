@@ -20,7 +20,10 @@ namespace Dotmim.Sync.Tests.Fixtures
 
     public class DatabaseServerFixture<T> : IDisposable where T : RelationalFixture
     {
-        public virtual List<ProviderType> ClientsType => new List<ProviderType> { HelperDatabase.GetProviderType<T>(), ProviderType.Sqlite, ProviderType.Sql };
+        public virtual List<ProviderType> ClientsType => new List<ProviderType> {
+            HelperDatabase.GetProviderType<T>(),
+            ProviderType.Sqlite,
+            typeof(T) == typeof(SqlServerFixtureType) ? ProviderType.Postgres : ProviderType.Sql };
 
         public virtual ProviderType ServerProviderType => HelperDatabase.GetProviderType<T>();
 
@@ -693,7 +696,7 @@ namespace Dotmim.Sync.Tests.Fixtures
         /// <summary>
         /// Add a SalesOrderDetail item to the database identified by its provider type.
         /// </summary>
-        public async Task<SalesOrderDetail> AddSalesOrderDetailAsync(CoreProvider provider, int salesOrderId, Guid productId, 
+        public async Task<SalesOrderDetail> AddSalesOrderDetailAsync(CoreProvider provider, int salesOrderId, Guid productId,
             int? salesOrderDetailId = default, short? orderQty = default, decimal? unitPrice = default,
             DbConnection connection = null, DbTransaction transaction = null)
         {

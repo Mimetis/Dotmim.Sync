@@ -52,9 +52,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         private IEnumerable<CoreProvider> clientsProvider;
         private SyncSetup setup;
         private SyncParameters parameters;
-        
+
         public new DatabaseFilterServerFixture<T> Fixture { get; }
-        
+
         public TcpFilterTests2(ITestOutputHelper output, DatabaseFilterServerFixture<T> fixture) : base(output, fixture)
         {
             Fixture = fixture;
@@ -64,19 +64,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             parameters = Fixture.GetFilterParameters();
         }
 
-        private void ResetClientsAndServerByCreatingThemAgain()
-        {
-            HelperDatabase.DropDatabase(Fixture.ServerProviderType, Fixture.ServerDatabaseName);
-            new AdventureWorksContext(Fixture.ServerDatabaseName, Fixture.ServerProviderType, Fixture.UseFallbackSchema, true).Database.EnsureCreated();
-
-            // Drop DMS metadatas and truncate clients tables
-            foreach (var (clientType, clientDatabaseName) in Fixture.ClientDatabaseNames)
-            {
-                HelperDatabase.DropDatabase(clientType, clientDatabaseName);
-                new AdventureWorksContext(clientDatabaseName, clientType, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
-            }
-        }
-        
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
@@ -96,7 +83,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
                 var s = await agent.SynchronizeAsync(setup, parameters);
                 var clientRowsCount = Fixture.GetDatabaseRowsCount(clientProvider);
-                
+
                 Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(rowsCount, s.TotalChangesAppliedOnClient);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -104,7 +91,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             }
         }
-
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
@@ -241,8 +227,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(SyncRowState.Deleted, s.ChangesAppliedOnServer.TableChangesApplied[1].State);
             }
         }
-
-
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
@@ -402,865 +386,315 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(rowsCount, Fixture.GetDatabaseRowsCount(clientProvider));
         }
 
-
-        ///// <summary>
-        ///// Insert one row in two tables on server, should be correctly sync on all clients
-        ///// </summary>
-        //[Fact]
-        //public async Task Snapshot_Initialize()
-        //{
-        //    // create a server schema with seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // ----------------------------------
-        //    // Setting correct options for sync agent to be able to reach snapshot
-        //    // ----------------------------------
-        //    var snapshotDirctory = HelperDatabase.GetRandomName();
-        //    var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
-        //    var options = new SyncOptions
-        //    {
-        //        SnapshotsDirectory = directory,
-        //        BatchSize = 200
-        //    };
-
-        //    // ----------------------------------
-        //    // Create a snapshot
-        //    // ----------------------------------
-        //    var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
-        //    await remoteOrchestrator.CreateSnapshotAsync(this.FilterSetup, this.FilterParameters);
-
-        //    // ----------------------------------
-        //    // Add rows on server AFTER snapshot
-        //    // ----------------------------------
-        //    // Create a new address & customer address on server
-        //    using (var serverDbCtx = new AdventureWorksContext(this.Server))
-        //    {
-        //        var addressLine1 = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-
-        //        var newAddress = new Address { AddressLine1 = addressLine1 };
-
-        //        serverDbCtx.Address.Add(newAddress);
-        //        await serverDbCtx.SaveChangesAsync();
-
-        //        var newCustomerAddress = new CustomerAddress
-        //        {
-        //            AddressId = newAddress.AddressId,
-        //            CustomerId = AdventureWorksContext.CustomerId1ForFilter,
-        //            AddressType = "OTH"
-        //        };
-
-        //        serverDbCtx.CustomerAddress.Add(newCustomerAddress);
-        //        await serverDbCtx.SaveChangesAsync();
-        //    }
-
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        // create agent with filtered tables and parameter
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-        //        var snapshotApplying = 0;
-        //        var snapshotApplied = 0;
-
-        //        agent.LocalOrchestrator.OnSnapshotApplying(saa => snapshotApplying++);
-        //        agent.LocalOrchestrator.OnSnapshotApplied(saa => snapshotApplied++);
-        //        var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-
-        //        Assert.Equal(1, snapshotApplying);
-        //        Assert.Equal(1, snapshotApplied);
-        //    }
-        //}
-
-        ///// <summary>
-        ///// Insert rows on server, and ensure DISTINCT is applied correctly 
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task Insert_TwoTables_EnsureDistinct(SyncOptions options)
-        //{
-        //    // create a server schema and seed
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        // create agent with filtered tables and parameter
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-        //        var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
-
-        //    // Create a new address & customer address on server
-        //    using (var serverDbCtx = new AdventureWorksContext(this.Server))
-        //    {
-        //        var addressLine1 = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-        //        var newAddress = new Address { AddressLine1 = addressLine1 };
-        //        serverDbCtx.Address.Add(newAddress);
-
-        //        var addressLine2 = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-        //        var newAddress2 = new Address { AddressLine1 = addressLine2 };
-        //        serverDbCtx.Address.Add(newAddress2);
-
-        //        await serverDbCtx.SaveChangesAsync();
-
-        //        var newCustomerAddress = new CustomerAddress
-        //        {
-        //            AddressId = newAddress.AddressId,
-        //            CustomerId = AdventureWorksContext.CustomerId1ForFilter,
-        //            AddressType = "Secondary Home 1"
-        //        };
-
-        //        serverDbCtx.CustomerAddress.Add(newCustomerAddress);
-
-        //        var newCustomerAddress2 = new CustomerAddress
-        //        {
-        //            AddressId = newAddress2.AddressId,
-        //            CustomerId = AdventureWorksContext.CustomerId1ForFilter,
-        //            AddressType = "Secondary Home 2"
-        //        };
-
-        //        serverDbCtx.CustomerAddress.Add(newCustomerAddress2);
-
-        //        await serverDbCtx.SaveChangesAsync();
-
-        //        // Update customer
-        //        var customer = serverDbCtx.Customer.Find(AdventureWorksContext.CustomerId1ForFilter);
-        //        customer.FirstName = "Orlanda";
-
-        //        await serverDbCtx.SaveChangesAsync();
-        //    }
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        // create agent with filtered tables and parameter
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-        //        var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
-
-        //        Assert.Equal(5, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
-        //}
-
-
-
-
-        ///// <summary>
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task Using_ExistingClientDatabase_Filter_With_NotSyncedColumn(SyncOptions options)
-        //{
-
-        //    if (this.Server.ProviderType != ProviderType.Sql)
-        //        return;
-
-        //    var clients = this.Clients.Where(c => c.ProviderType == ProviderType.Sql || c.ProviderType == ProviderType.Sqlite);
-
-        //    var setup = new SyncSetup(new string[] { "Customer" });
-
-        //    // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
-        //    setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "NameStyle", "FirstName", "LastName" });
-
-        //    // create a server schema and seed
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases WITH schema, and WITHOUT seeding
-        //    foreach (var client in clients)
-        //    {
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-        //        await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
-        //    }
-
-
-        //    var filter = new SetupFilter("Customer");
-        //    filter.AddParameter("EmployeeID", DbType.Int32, true);
-        //    filter.AddCustomWhere("EmployeeID = @EmployeeID or @EmployeeID is null");
-
-        //    setup.Filters.Add(filter);
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in clients)
-        //    {
-        //        // create agent with filtered tables and parameter
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-        //        var p = new SyncParameters(("EmployeeID", 1));
-        //        var s = await agent.SynchronizeAsync(setup, p);
-
-        //        Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
-
-        //    }
-        //}
-
-        ///// <summary>
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task Migration_Adding_Table(SyncOptions options)
-        //{
-        //    var setup = new SyncSetup(new string[] { "Customer" });
-
-        //    // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
-        //    setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
-        //    setup.Filters.Add("Customer", "EmployeeID");
-
-        //    // create a server schema and seed
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        // create agent with filtered tables and parameter
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-        //        var p = new SyncParameters(("EmployeeID", 1));
-
-        //        var s = await agent.SynchronizeAsync(setup, p);
-
-        //        Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
-        //    }
-
-        //    var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
-
-        //    // Adding a new scope on the server with a new table
-        //    var setupv2 = new SyncSetup(new string[] { "Customer", "Employee" });
-        //    setupv2.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
-        //    setupv2.Filters.Add("Customer", "EmployeeID");
-
-        //    var sScopeInfo = await remoteOrchestrator.ProvisionAsync("v2", setupv2);
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-
-        //        var parameters = new SyncParameters(("EmployeeID", 1));
-        //        // Create the table on local database
-        //        var localOrchestrator = new LocalOrchestrator(client.Provider);
-        //        await localOrchestrator.CreateTableAsync(sScopeInfo, "Employee");
-
-        //        // Once created we can provision the new scope, thanks to the serverScope instance we already have
-        //        await localOrchestrator.ProvisionAsync(sScopeInfo);
-
-        //        var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync("v2", parameters);
-
-        //        // IF we launch synchronize on this new scope, it will get all the rows from the server
-        //        // We are making a shadow copy of previous scope to get the last synchronization metadata
-        //        var oldCScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(syncParameters: parameters);
-        //        cScopeInfoClient.ShadowScope(oldCScopeInfoClient);
-        //        await localOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
-
-
-        //        // create agent with filtered tables and parameter
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-
-        //        if (options.TransactionMode != TransactionMode.AllOrNothing && (client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB))
-        //        {
-        //            agent.LocalOrchestrator.OnGetCommand(async args =>
-        //            {
-        //                if (args.CommandType == DbCommandType.Reset)
-        //                {
-        //                    var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
-        //                    await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
-        //                }
-        //            });
-        //        }
-
-        //        var s = await agent.SynchronizeAsync("v2", SyncType.Reinitialize, parameters);
-
-        //        Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
-        //    }
-
-        //}
-
-        ///// <summary>
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task Migration_Modifying_Table(SyncOptions options)
-        //{
-
-        //    var setup = new SyncSetup(new string[] { "Customer" });
-
-        //    // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
-        //    setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
-
-        //    // create a server schema and seed
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    setup.Filters.Add("Customer", "EmployeeID");
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        // create agent with filtered tables and parameter
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-        //        var p = new SyncParameters(("EmployeeID", 1));
-
-        //        var s = await agent.SynchronizeAsync(setup, p);
-
-        //        Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
-        //    }
-
-
-        //    // Adding a new scope on the server with a the same table plus one column
-        //    var setupv2 = new SyncSetup(new string[] { "Customer" });
-        //    // Adding a new column to Customer
-        //    setupv2.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName", "EmailAddress" });
-        //    setupv2.Filters.Add("Customer", "EmployeeID");
-
-        //    var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
-        //    var serverScope = await remoteOrchestrator.ProvisionAsync("v2", setupv2);
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-        //        // Adding the column on client side
-        //        var commandText = client.ProviderType switch
-        //        {
-        //            ProviderType.Sql => @"ALTER TABLE Customer ADD EmailAddress nvarchar(250) NULL;",
-        //            ProviderType.Sqlite => @"ALTER TABLE Customer ADD EmailAddress text NULL;",
-        //            ProviderType.MySql => @"ALTER TABLE `Customer` ADD `EmailAddress` nvarchar(250) NULL;",
-        //            ProviderType.MariaDB => @"ALTER TABLE `Customer` ADD `EmailAddress` nvarchar(250) NULL;",
-        //            ProviderType.Postgres => @"ALTER TABLE ""Customer"" ADD ""EmailAddress"" varchar(250) NULL;",
-        //            _ => throw new NotImplementedException()
-        //        };
-
-        //        var connection = client.Provider.CreateConnection();
-        //        connection.Open();
-        //        var command = connection.CreateCommand();
-        //        command.CommandText = commandText;
-        //        command.Connection = connection;
-        //        await command.ExecuteNonQueryAsync();
-        //        connection.Close();
-
-        //        // Once created we can provision the new scope, thanks to the serverScope instance we already have
-        //        var clientScopeV2 = await agent.LocalOrchestrator.ProvisionAsync(serverScope);
-
-        //        if (Server.ProviderType == ProviderType.MySql || Server.ProviderType == ProviderType.MariaDB)
-        //        {
-        //            agent.RemoteOrchestrator.OnConnectionOpen(coa =>
-        //            {
-        //                // tracking https://github.com/mysql-net/MySqlConnector/issues/924
-        //                MySqlConnection.ClearPool(coa.Connection as MySqlConnection);
-        //            });
-        //        }
-
-        //        if (client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB)
-        //        {
-        //            agent.LocalOrchestrator.OnConnectionOpen(coa =>
-        //            {
-        //                // tracking https://github.com/mysql-net/MySqlConnector/issues/924
-        //                MySqlConnection.ClearPool(coa.Connection as MySqlConnection);
-        //            });
-        //        }
-
-        //        // create agent with filtered tables and parameter
-        //        var p = new SyncParameters(("EmployeeID", 1));
-
-        //        var s = await agent.SynchronizeAsync("v2", SyncType.Reinitialize, p);
-
-        //        Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
-        //    }
-
-        //}
-
-
-        ///// <summary>
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task Migration_Removing_Table(SyncOptions options)
-        //{
-        //    var setup = new SyncSetup(new string[] { "Customer", "Employee" });
-
-        //    // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
-        //    setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
-        //    setup.Filters.Add("Customer", "EmployeeID");
-
-        //    var parameters = new SyncParameters(("EmployeeID", 1));
-
-        //    // create a server schema and seed
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        // create agent with filtered tables and parameter
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-        //        var s = await agent.SynchronizeAsync(setup, parameters);
-
-        //        Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
-        //    }
-
-
-        //    // Adding a new scope on the server with a the same table plus one column
-        //    var setupv2 = new SyncSetup(new string[] { "Employee" });
-        //    var remoteOrchestrator = new RemoteOrchestrator(Server.Provider);
-        //    var serverScopeV2 = await remoteOrchestrator.ProvisionAsync("v2", setupv2);
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        // create agent with filtered tables and parameter
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-
-        //        // Once created we can provision the new scope, thanks to the serverScope instance we already have
-        //        await agent.LocalOrchestrator.ProvisionAsync(serverScopeV2);
-        //        var cScopeInfoClientV2 = await agent.LocalOrchestrator.GetScopeInfoClientAsync("v2");
-
-        //        // IF we launch synchronize on this new scope, it will get all the rows from the server
-        //        // We are making a shadow copy of previous scope client to get the last synchronization metadata
-        //        var oldCScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync(syncParameters: parameters);
-        //        cScopeInfoClientV2.ShadowScope(oldCScopeInfoClient);
-        //        await agent.LocalOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClientV2);
-
-        //        // Deprovision first scope
-        //        await agent.LocalOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures);
-
-        //        var s = await agent.SynchronizeAsync("v2");
-
-        //        Assert.Equal(0, s.ChangesAppliedOnClient.TotalAppliedChanges);
-        //    }
-
-        //}
-
-
-        ///// <summary>
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task Deprovision_Should_Remove_Filtered_StoredProcedures(SyncOptions options)
-        //{
-        //    var setup = new SyncSetup(new string[] { "Customer", "Employee" });
-
-        //    // Filter columns. We are not syncing EmployeeID, BUT this column will be part of the filter
-        //    setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
-
-        //    // create a server schema and seed
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    setup.Filters.Add("Customer", "EmployeeID");
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        // create agent with filtered tables and parameter
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-        //        var p = new SyncParameters(("EmployeeID", 1));
-
-        //        var s = await agent.SynchronizeAsync(setup, p);
-
-        //        Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
-
-        //        var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync();
-
-        //        await agent.LocalOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.ScopeInfo | SyncProvision.TrackingTable);
-
-        //        foreach (var setupTable in setup.Tables)
-        //        {
-        //            Assert.False(await agent.LocalOrchestrator.ExistTriggerAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Delete));
-        //            Assert.False(await agent.LocalOrchestrator.ExistTriggerAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Insert));
-        //            Assert.False(await agent.LocalOrchestrator.ExistTriggerAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Update));
-
-        //            if (client.ProviderType == ProviderType.Sql)
-        //            {
-        //                Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkDeleteRows));
-        //                Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkTableType));
-        //                Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkUpdateRows));
-        //                Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteMetadata));
-        //                Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteRow));
-        //                Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.Reset));
-        //                Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChanges));
-        //                Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChanges));
-        //                Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectRow));
-        //                Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.UpdateRow));
-        //                Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChangesWithFilters));
-        //                Assert.False(await agent.LocalOrchestrator.ExistStoredProcedureAsync(scopeInfo, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChangesWithFilters));
-        //            }
-        //        }
-
-        //    }
-        //}
-
-        ///// <summary>
-        ///// Insert one row in two tables on server, should be correctly sync on all clients
-        ///// </summary>
-        //[Fact]
-        //public async Task Snapshot_ShouldNot_Delete_Folders()
-        //{
-        //    // create a server schema with seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // ----------------------------------
-        //    // Setting correct options for sync agent to be able to reach snapshot
-        //    // ----------------------------------
-        //    var snapshotDirctory = HelperDatabase.GetRandomName();
-        //    var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
-        //    var options = new SyncOptions
-        //    {
-        //        SnapshotsDirectory = directory,
-        //        BatchSize = 200
-        //    };
-        //    // ----------------------------------
-        //    // Create a snapshot
-        //    // ----------------------------------
-        //    var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
-
-        //    // getting snapshot directory names
-        //    var (rootDirectory, nameDirectory)
-        //        = await remoteOrchestrator.GetSnapshotDirectoryAsync(SyncOptions.DefaultScopeName, this.FilterParameters).ConfigureAwait(false);
-
-        //    Assert.False(Directory.Exists(rootDirectory));
-        //    Assert.False(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
-
-        //    var setup = new SyncSetup(new string[] { "Customer" });
-
-        //    await remoteOrchestrator.CreateSnapshotAsync(setup, this.FilterParameters);
-
-        //    Assert.True(Directory.Exists(rootDirectory));
-        //    Assert.True(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
-
-
-        //    // ----------------------------------
-        //    // Add rows on server AFTER snapshot
-        //    // ----------------------------------
-        //    // Create a new address & customer address on server
-        //    using (var serverDbCtx = new AdventureWorksContext(this.Server))
-        //    {
-        //        var addressLine1 = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-
-        //        var newAddress = new Address { AddressLine1 = addressLine1 };
-
-        //        serverDbCtx.Address.Add(newAddress);
-        //        await serverDbCtx.SaveChangesAsync();
-
-        //        var newCustomerAddress = new CustomerAddress
-        //        {
-        //            AddressId = newAddress.AddressId,
-        //            CustomerId = AdventureWorksContext.CustomerId1ForFilter,
-        //            AddressType = "OTH"
-        //        };
-
-        //        serverDbCtx.CustomerAddress.Add(newCustomerAddress);
-        //        await serverDbCtx.SaveChangesAsync();
-        //    }
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        // create agent with filtered tables and parameter
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-        //        var s = await agent.SynchronizeAsync("v2", this.FilterSetup, this.FilterParameters);
-
-        //        Assert.True(Directory.Exists(rootDirectory));
-        //        Assert.True(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
-        //    }
-
-        //}
-
-
-        ///// <summary>
-        ///// Insert one row in two tables on server, should be correctly sync on all clients
-        ///// </summary>
-        //[Fact]
-        //public async Task Snapshot_Initialize_ThenClientUploadSync_ThenReinitialize()
-        //{
-        //    // create a server schema with seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // snapshot directory
-        //    var snapshotDirctory = HelperDatabase.GetRandomName();
-        //    var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
-
-        //    var options = new SyncOptions
-        //    {
-        //        SnapshotsDirectory = directory,
-        //        BatchSize = 200
-        //    };
-
-        //    var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
-
-        //    await remoteOrchestrator.CreateSnapshotAsync(this.FilterSetup, this.FilterParameters);
-
-        //    // ----------------------------------
-        //    // Add rows on server AFTER snapshot
-        //    // ----------------------------------
-        //    var productId = Guid.NewGuid();
-        //    var productName = HelperDatabase.GetRandomName();
-        //    var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-        //    var productCategoryName = HelperDatabase.GetRandomName();
-        //    var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-        //    using (var ctx = new AdventureWorksContext(this.Server))
-        //    {
-        //        var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-        //        ctx.Add(pc);
-
-        //        var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-        //        ctx.Add(product);
-
-
-        //        var addressLine1 = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-
-        //        var newAddress = new Address { AddressLine1 = addressLine1 };
-
-        //        ctx.Address.Add(newAddress);
-        //        await ctx.SaveChangesAsync();
-
-        //        var newCustomerAddress = new CustomerAddress
-        //        {
-        //            AddressId = newAddress.AddressId,
-        //            CustomerId = AdventureWorksContext.CustomerId1ForFilter,
-        //            AddressType = "OTH"
-        //        };
-
-        //        ctx.CustomerAddress.Add(newCustomerAddress);
-
-        //        await ctx.SaveChangesAsync();
-        //    }
-
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        // create agent with filtered tables and parameter
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-        //        var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
-
-        //    // ----------------------------------
-        //    // Now add rows on client
-        //    // ----------------------------------
-
-        //    foreach (var client in Clients)
-        //    {
-        //        var name = HelperDatabase.GetRandomName();
-        //        var pn = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-
-        //        var product = new Product { ProductId = Guid.NewGuid(), ProductCategoryId = "A_BIKES", Name = name, ProductNumber = pn };
-
-        //        using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
-        //        ctx.Product.Add(product);
-        //        await ctx.SaveChangesAsync();
-        //    }
-
-        //    // Sync all clients
-        //    // First client  will upload one line and will download nothing
-        //    // Second client will upload one line and will download one line
-        //    // thrid client  will upload one line and will download two lines
-        //    int download = 0;
-        //    foreach (var client in Clients)
-        //    {
-        //        // create agent with filtered tables and parameter
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-        //        var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
-
-        //        Assert.Equal(download++, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(1, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
-
-        //    // Get count of rows
-        //    rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // ----------------------------------
-        //    // Now Reinitialize
-        //    // ----------------------------------
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        // create agent with filtered tables and parameter
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-        //        var s = await agent.SynchronizeAsync(this.FilterSetup, SyncType.Reinitialize, this.FilterParameters);
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
-        //}
-
-
-        ///// <summary>
-        ///// </summary>
-        //[Fact]
-        //public async Task Synchronize_ThenDeprovision_ThenAddPrefixes()
-        //{
-        //    var options = new SyncOptions();
-        //    var setup = new SyncSetup(new string[] { "Customer" });
-
-        //    // Filtered columns. 
-        //    setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
-
-        //    // create a server schema and seed
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    setup.Filters.Add("Customer", "EmployeeID");
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        // create agent with filtered tables and parameter
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-        //        var p = new SyncParameters(("EmployeeID", 1));
-
-        //        var s = await agent.SynchronizeAsync(setup, p);
-
-        //        Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
-
-        //    }
-        //    foreach (var client in Clients)
-        //    {
-        //        // Deprovision everything
-        //        var localOrchestrator = new LocalOrchestrator(client.Provider, options);
-        //        var clientScope = await localOrchestrator.GetScopeInfoAsync();
-
-        //        await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
-        //            | SyncProvision.Triggers
-        //            | SyncProvision.TrackingTable);
-
-        //        await localOrchestrator.DeleteScopeInfoAsync(clientScope);
-        //    }
-
-        //    var remoteOrchestrator = new RemoteOrchestrator(Server.Provider, options);
-        //    var serverScope = await remoteOrchestrator.GetScopeInfoAsync();
-
-        //    await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
-        //        | SyncProvision.Triggers
-        //        | SyncProvision.TrackingTable);
-
-        //    await remoteOrchestrator.DeleteScopeInfoAsync(serverScope);
-
-
-        //    // Adding a new table
-        //    setup.Tables.Add("Employee");
-
-        //    // Adding prefixes
-        //    setup.StoredProceduresPrefix = "sync";
-        //    setup.StoredProceduresSuffix = "sp";
-        //    setup.TrackingTablesPrefix = "track";
-        //    setup.TrackingTablesSuffix = "tbl";
-        //    setup.TriggersPrefix = "trg";
-        //    setup.TriggersSuffix = "tbl";
-
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-        //        var p = new SyncParameters(("EmployeeID", 1));
-
-
-        //        var s = await agent.SynchronizeAsync(setup, SyncType.Reinitialize, p);
-        //        Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
-        //    }
-
-
-        //}
-
-
-
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public virtual async Task MultiFiltersParameters(SyncOptions options)
-        //{
-        //    // create a server db and seed it
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // Get count of rows for parameter 2
-        //    var rowsCount2 = this.GetServerDatabaseRowsCount(this.Server, AdventureWorksContext.CustomerId2ForFilter);
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in this.Clients)
-        //    {
-        //        // create agent with filtered tables and parameter
-        //        var agent = new SyncAgent(client.Provider, Server.Provider, options);
-        //        var s = await agent.SynchronizeAsync(this.FilterSetup, this.FilterParameters);
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(rowsCount, this.GetServerDatabaseRowsCount(client));
-
-        //        // create agent with filtered tables and second parameter
-        //        var parameters2 = new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId2ForFilter));
-        //        agent = new SyncAgent(client.Provider, Server.Provider, options);
-        //        s = await agent.SynchronizeAsync(this.FilterSetup, parameters2);
-
-        //        Assert.Equal(rowsCount2, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(rowsCount2, this.GetServerDatabaseRowsCount(client, AdventureWorksContext.CustomerId2ForFilter));
-
-
-        //    }
-        //}
+        [Fact]
+        public async Task ProvisionAndDeprovision()
+        {
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+                var localOrchestrator = new LocalOrchestrator(clientProvider);
+                var provision = SyncProvision.ScopeInfo | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+                var schema = await remoteOrchestrator.GetSchemaAsync(setup);
+
+                // Read client scope
+                var clientScope = await localOrchestrator.GetScopeInfoAsync();
+
+                var serverScope = new ScopeInfo
+                {
+                    Name = clientScope.Name,
+                    Schema = schema,
+                    Setup = setup,
+                    Version = clientScope.Version
+                };
+
+                // Provision the database with all tracking tables, stored procedures, triggers and scope
+                clientScope = await localOrchestrator.ProvisionAsync(serverScope, provision);
+
+                //--------------------------
+                // ASSERTION
+                //--------------------------
+
+                // check if scope table is correctly created
+                var scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync();
+                Assert.True(scopeInfoTableExists);
+
+                // get the db manager
+                foreach (var setupTable in setup.Tables)
+                {
+                    Assert.True(await localOrchestrator.ExistTrackingTableAsync(clientScope, setupTable.TableName, setupTable.SchemaName));
+
+                    Assert.True(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Delete));
+                    Assert.True(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Insert));
+                    Assert.True(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Update));
+
+                    if (clientProviderType == ProviderType.Sql)
+                    {
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkTableType));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkDeleteRows));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkUpdateRows));
+                    }
+                    if (clientProviderType == ProviderType.Sql || clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB)
+                    {
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteMetadata));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteRow));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.Reset));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChanges));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChanges));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectRow));
+                        Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.UpdateRow));
+
+                        // We have filters here
+                        if (setupTable.TableName == "Address" || setupTable.TableName == "Customer" || setupTable.TableName == "CustomerAddress" ||
+                            setupTable.TableName == "SalesOrderDetail" || setupTable.TableName == "SalesOrderHeader" || setupTable.TableName == "Product")
+                        {
+
+                            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChangesWithFilters));
+                            Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChangesWithFilters));
+                        }
+                    }
+
+                }
+
+                // Deprovision the database with all tracking tables, stored procedures, triggers and scope
+                await localOrchestrator.DeprovisionAsync(provision);
+
+                // check if scope table is correctly created
+                scopeInfoTableExists = await localOrchestrator.ExistScopeInfoTableAsync();
+                Assert.False(scopeInfoTableExists);
+
+                // get the db manager
+                foreach (var setupTable in setup.Tables)
+                {
+                    Assert.False(await localOrchestrator.ExistTrackingTableAsync(clientScope, setupTable.TableName, setupTable.SchemaName));
+
+                    Assert.False(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Delete));
+                    Assert.False(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Insert));
+                    Assert.False(await localOrchestrator.ExistTriggerAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbTriggerType.Update));
+
+                    if (clientProviderType == ProviderType.Sql)
+                    {
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkDeleteRows));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkTableType));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.BulkUpdateRows));
+                    }
+                    if (clientProviderType == ProviderType.Sql || clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB)
+                    {
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteMetadata));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteRow));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.Reset));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChanges));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChanges));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectRow));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.UpdateRow));
+
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChangesWithFilters));
+                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectInitializedChangesWithFilters));
+                    }
+                }
+            }
+        }
+
+        [Fact]
+        public async Task SnapshotsShouldNotDeleteFolders()
+        {
+            // snapshot directory
+            var snapshotDirctory = HelperDatabase.GetRandomName();
+            var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
+
+            // Settings the options to enable snapshot
+            SyncOptions options = new SyncOptions
+            {
+                SnapshotsDirectory = directory,
+                BatchSize = 3000,
+                DisableConstraintsOnApplyChanges = true
+            };
+
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+
+            // getting snapshot directory names
+            var (rootDirectory, nameDirectory)
+                = await remoteOrchestrator.GetSnapshotDirectoryAsync(parameters).ConfigureAwait(false);
+
+            Assert.False(Directory.Exists(rootDirectory));
+            Assert.False(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
+
+            // Create a snapshot
+            await remoteOrchestrator.CreateSnapshotAsync(setup, parameters);
+
+            Assert.True(Directory.Exists(rootDirectory));
+            Assert.True(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                await agent.SynchronizeAsync(setup, parameters);
+
+                Assert.True(Directory.Exists(rootDirectory));
+                Assert.True(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));
+            }
+        }
+
+        [Fact]
+        public async Task SnapshotsThenAddRowsOnClientsThenReinitialize()
+        {
+            // snapshot directory
+            var snapshotDirctory = HelperDatabase.GetRandomName();
+            var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
+
+            // Settings the options to enable snapshot
+            SyncOptions options = new SyncOptions
+            {
+                SnapshotsDirectory = directory,
+                BatchSize = 3000,
+                DisableConstraintsOnApplyChanges = true
+            };
+
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+
+            // Create a snapshot
+            await remoteOrchestrator.CreateSnapshotAsync(setup, parameters);
+
+            // Execute a sync on all clients
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                await agent.SynchronizeAsync(setup, parameters);
+            }
+
+            // Add one row in each client then Sync
+            foreach (var clientProvider in clientsProvider)
+            {
+                await Fixture.AddProductCategoryAsync(clientProvider);
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var s = await agent.SynchronizeAsync(setup, parameters);
+
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+            }
+
+            // Get count of rows
+            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+
+            // Execute a sync on all clients to be sure all clients have all rows
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var s = await agent.SynchronizeAsync(setup, SyncType.Reinitialize, parameters);
+
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnServer);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(rowsCount, s.TotalChangesAppliedOnClient);
+
+                Assert.Equal(rowsCount, Fixture.GetDatabaseRowsCount(clientProvider));
+            }
+        }
+
+        [Fact]
+        public async Task SynchronizeThenDeprovisionThenAddPrefixes()
+        {
+            // Deletes all tables in client
+            foreach (var clientProvider in clientsProvider)
+                await Fixture.DropAllTablesAsync(clientProvider, true);
+
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+            setup = new SyncSetup(new string[] { "Customer" });
+
+            // Filtered columns. 
+            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
+            setup.Filters.Add("Customer", "EmployeeID");
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var p = new SyncParameters(("EmployeeID", 1));
+                var s = await agent.SynchronizeAsync(setup, p);
+
+                Assert.Equal(2, s.ChangesAppliedOnClient.TotalAppliedChanges);
+            }
+            
+            foreach (var clientProvider in clientsProvider)
+            {
+                // Deprovision everything
+                var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+                var clientScope = await localOrchestrator.GetScopeInfoAsync();
+
+                await localOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
+                    | SyncProvision.Triggers
+                    | SyncProvision.TrackingTable);
+
+                await localOrchestrator.DeleteScopeInfoAsync(clientScope);
+            }
+
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+            var serverScope = await remoteOrchestrator.GetScopeInfoAsync();
+
+            await remoteOrchestrator.DeprovisionAsync(SyncProvision.StoredProcedures
+                | SyncProvision.Triggers
+                | SyncProvision.TrackingTable);
+
+            await remoteOrchestrator.DeleteScopeInfoAsync(serverScope);
+
+            // Adding a new table
+            setup.Tables.Add("Employee");
+
+            // Adding prefixes
+            setup.StoredProceduresPrefix = "sync";
+            setup.StoredProceduresSuffix = "sp";
+            setup.TrackingTablesPrefix = "track";
+            setup.TrackingTablesSuffix = "tbl";
+            setup.TriggersPrefix = "trg";
+            setup.TriggersSuffix = "tbl";
+
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var p = new SyncParameters(("EmployeeID", 1));
+
+                var s = await agent.SynchronizeAsync(setup, SyncType.Reinitialize, p);
+                Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
+            }
+        }
+
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public virtual async Task MultiFiltersParameters(SyncOptions options)
+        {
+            // Get count of rows for parameter 1
+            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+
+            // Get count of rows for parameter 2
+            var rowsCount2 = Fixture.GetDatabaseRowsCount(serverProvider, AdventureWorksContext.CustomerId2ForFilter);
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                // create agent with filtered tables and parameter
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var s = await agent.SynchronizeAsync(setup, parameters);
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(rowsCount, Fixture.GetDatabaseRowsCount(clientProvider));
+
+                // create agent with filtered tables and second parameter
+                var parameters2 = new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId2ForFilter));
+                agent = new SyncAgent(clientProvider, serverProvider, options);
+                s = await agent.SynchronizeAsync(setup, parameters2);
+
+                Assert.Equal(rowsCount2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(rowsCount2, Fixture.GetDatabaseRowsCount(clientProvider, AdventureWorksContext.CustomerId2ForFilter));
+
+
+            }
+        }
 
     }
 }

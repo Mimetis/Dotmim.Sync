@@ -49,7 +49,7 @@ namespace Dotmim.Sync.Tests.Fixtures
             // Create a filter on table Address
             var addressFilter = new SetupFilter("Address");
             addressFilter.AddParameter("CustomerID", "Customer");
-            addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
+            addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressID", "Address", "AddressID");
             addressFilter.AddWhere("CustomerID", "CustomerAddress", "CustomerID");
             setup.Filters.Add(addressFilter);
             // ----------------------------------------------------
@@ -57,7 +57,7 @@ namespace Dotmim.Sync.Tests.Fixtures
             // Create a filter on table SalesLT.SalesOrderDetail
             var salesOrderDetailFilter = new SetupFilter("SalesOrderDetail", UseFallbackSchema ? "SalesLT" : null);
             salesOrderDetailFilter.AddParameter("CustomerID", "Customer");
-            salesOrderDetailFilter.AddJoin(Join.Left, $"{salesSchema}SalesOrderHeader").On($"{salesSchema}.SalesOrderHeader", "SalesOrderId", $"{salesSchema}.SalesOrderDetail", "SalesOrderId");
+            salesOrderDetailFilter.AddJoin(Join.Left, $"{salesSchema}SalesOrderHeader").On($"{salesSchema}.SalesOrderHeader", "SalesOrderID", $"{salesSchema}.SalesOrderDetail", "SalesOrderID");
             salesOrderDetailFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerID", $"{salesSchema}.SalesOrderHeader", "CustomerID");
             salesOrderDetailFilter.AddWhere("CustomerID", "CustomerAddress", "CustomerID");
             setup.Filters.Add(salesOrderDetailFilter);
@@ -65,7 +65,9 @@ namespace Dotmim.Sync.Tests.Fixtures
 
             // 4) Custom Wheres on Product.
             var productFilter = new SetupFilter("Product", UseFallbackSchema ? "SalesLT" : null);
-            productFilter.AddCustomWhere("ProductCategoryID IS NOT NULL");
+            var escapeChar =  "\"";
+
+            productFilter.AddCustomWhere($"{escapeChar}ProductCategoryID{escapeChar} IS NOT NULL");
             setup.Filters.Add(productFilter);
 
             return setup;
