@@ -447,11 +447,17 @@ namespace Dotmim.Sync
                         bool isTombstone = false;
                         for (var i = 0; i < dataReader.FieldCount; i++)
                         {
-                            if (dataReader.GetName(i) == "sync_row_is_tombstone")
+                            var columnName = dataReader.GetName(i);
+                            
+                            // if we have the tombstone value, do not add it to the table
+                            if (columnName == "sync_row_is_tombstone")
                             {
-                                isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
-                                break;
+                                var objIsTombstone = dataReader.GetValue(i);
+                                isTombstone = objIsTombstone == DBNull.Value ? false : Convert.ToInt64(objIsTombstone) > 0;
+                                continue;
                             }
+                            if (columnName == "sync_update_scope_id")
+                                continue;
                         }
 
                         // Set the correct state to be applied

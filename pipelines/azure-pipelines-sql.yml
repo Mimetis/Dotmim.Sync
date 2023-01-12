@@ -54,6 +54,18 @@ jobs:
       dotnetfx: 'net7.0'
       filter: 'Dotmim.Sync.Tests.IntegrationTests2.SqlServerHttp'
   
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: 'MySQL Http .net 7.0'
+      dotnetfx: 'net7.0'
+      filter: 'Dotmim.Sync.Tests.IntegrationTests2.MySqlHttp'
+  
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: 'Postgres Http .net 7.0'
+      dotnetfx: 'net7.0'
+      filter: 'Dotmim.Sync.Tests.IntegrationTests2.PostgresHttp'
+  
 
 
   # - job: testbasics

@@ -225,14 +225,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
                 var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
 
-                // don' need to specify scope name (default will be used) nor setup, since it already exists
-                var s = await agent.SynchronizeAsync();
-
-                Assert.Equal(download++, s.TotalChangesDownloadedFromServer);
-                Assert.Equal(1, s.TotalChangesUploadedToServer);
-                Assert.Equal(1, s.TotalChangesAppliedOnServer);
-                Assert.Equal(0, s.TotalResolvedConflicts);
-
                 agent.LocalOrchestrator.OnSessionBegin(args =>
                 {
                     if (args.Context.AdditionalProperties == null)
@@ -244,6 +236,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                     Assert.NotEmpty(args.Context.AdditionalProperties);
                     Assert.Single(args.Context.AdditionalProperties);
                 });
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download++, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
             }
         }
 
@@ -1146,6 +1145,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var table in setupV2.Tables)
                 table.SyncDirection = SyncDirection.UploadOnly;
 
+            await this.Kestrell.StopAsync();
+
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setupV2, new SyncOptions { DisableConstraintsOnApplyChanges = true });
+            
+            var serviceUri = this.Kestrell.Run();
+
             // Should not download anything
             foreach (var clientProvider in clientsProvider)
             {
@@ -1185,6 +1190,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             foreach (var table in setupV2.Tables)
                 table.SyncDirection = SyncDirection.DownloadOnly;
+
+            await this.Kestrell.StopAsync();
+
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setupV2, new SyncOptions { DisableConstraintsOnApplyChanges = true });
+
+            var serviceUri = this.Kestrell.Run();
 
             // Get count of rows
             var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
@@ -1627,7 +1638,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             }
         }
 
-
         [Fact]
         public async Task IsOutdatedShouldWorkIfCorrectAction()
         {
@@ -1682,279 +1692,173 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             }
         }
 
+        [Fact]
+        public virtual async Task HandlingDifferentScopeNames()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+            
+            await this.Kestrell.StopAsync();
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "customScope1", new SyncSetup("Customer"), options);
+            var serviceUri = this.Kestrell.Run();
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                var s = await agent.SynchronizeAsync("customScope1");
+
+                Assert.Equal(4, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(4, s.TotalChangesAppliedOnClient);
+
+                s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+            }
+        }
+
+        [Fact]
+        public async Task GetChangesBeforeServerIsInitialized()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+            
+            // Get count of rows
+            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+
+            foreach (var clientProvider in clientsProvider)
+            {
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
+
+                // Ensure scope is created locally
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
+
+                // get changes from server, without any changes sent from client side
+                var serverSyncChanges = await webRemoteOrchestrator.GetChangesAsync(cScopeInfoClient);
+
+                Assert.Equal(rowsCount, serverSyncChanges.ServerChangesSelected.TotalChangesSelected);
+            }
+        }
+
+        [Fact]
+        public async Task GetChangesAfterServerIsInitialized()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // Get count of rows
+            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+
+            // ----------------------------------
+            // Add rows on server AFTER first sync (so everything should be initialized)
+            // ----------------------------------
+            await Fixture.AddProductAsync(serverProvider);
+            await Fixture.AddProductCategoryAsync(serverProvider);
+
+            // ----------------------------------
+            // Get changes
+            // ----------------------------------
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
+
+                // Ensure scope is created locally
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
+
+                // get changes from server, without any changes sent from client side
+                var serverSyncChanges = await webRemoteOrchestrator.GetChangesAsync(cScopeInfoClient);
+
+                Assert.Equal(2, serverSyncChanges.ServerChangesSelected.TotalChangesSelected);
+            }
+        }
+
+
+        [Fact]
+        public async Task GetEstimatedChangesCountBeforeServerIsInitialized()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // Get count of rows
+            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
+
+                // Ensure scope is created locally
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
+
+                // get changes from server, without any changes sent from client side
+                var changes = await webRemoteOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient);
+
+                Assert.Equal(rowsCount, changes.ServerChangesSelected.TotalChangesSelected);
+            }
+        }
+
+        [Fact]
+        public async Task GetEstimatedChangesAfterServerIsInitialized()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // Get count of rows
+            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+            // ----------------------------------
+            // Add rows on server AFTER first sync (so everything should be initialized)
+            // ----------------------------------
+            await Fixture.AddProductAsync(serverProvider);
+            await Fixture.AddProductCategoryAsync(serverProvider);
+
+            // ----------------------------------
+            // Get estimated changes
+            // ----------------------------------
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
+
+                // Ensure scope is created locally
+                var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
+
+                // get changes from server, without any changes sent from client side
+                var serverSyncChanges = await webRemoteOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient);
+
+                Assert.Equal(2, serverSyncChanges.ServerChangesSelected.TotalChangesSelected);
+            }
+        }
 
-
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public virtual async Task Handling_DifferentScopeNames(SyncOptions options)
-        //{
-        //    // create a server db and seed it
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, "customScope1",
-        //        new SyncSetup(Tables));
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in this.Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-
-        //        var s = await agent.SynchronizeAsync("customScope1");
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //    }
-        //}
-
-        ///// <summary>
-        ///// Try to get changes from server without making a first sync
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task GetChanges_BeforeServerIsInitialized(SyncOptions options)
-        //{
-        //    // create a server schema with seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // ----------------------------------
-        //    // Get changes
-        //    // ----------------------------------
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
-        //        var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
-
-        //        // Ensure scope is created locally
-        //        var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
-
-        //        // get changes from server, without any changes sent from client side
-        //        var serverSyncChanges = await webRemoteOrchestrator.GetChangesAsync(cScopeInfoClient);
-
-        //        Assert.Equal(rowsCount, serverSyncChanges.ServerChangesSelected.TotalChangesSelected);
-        //    }
-        //}
-
-        ///// <summary>
-        ///// Try to get changes from server without making a first sync
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task GetChanges_AfterServerIsInitialized(SyncOptions options)
-        //{
-        //    // create a server schema with seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // configure server orchestrator
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
-
-
-        //    // ----------------------------------
-        //    // Add rows on server AFTER first sync (so everything should be initialized)
-        //    // ----------------------------------
-        //    var productId = Guid.NewGuid();
-        //    var productName = HelperDatabase.GetRandomName();
-        //    var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-        //    var productCategoryName = HelperDatabase.GetRandomName();
-        //    var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-        //    using (var ctx = new AdventureWorksContext(this.Server))
-        //    {
-        //        var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-        //        ctx.Add(pc);
-
-        //        var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-        //        ctx.Add(product);
-
-        //        await ctx.SaveChangesAsync();
-        //    }
-
-        //    // ----------------------------------
-        //    // Get changes
-        //    // ----------------------------------
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
-        //        var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
-
-        //        // Ensure scope is created locally
-        //        var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
-
-        //        // get changes from server, without any changes sent from client side
-        //        var serverSyncChanges = await webRemoteOrchestrator.GetChangesAsync(cScopeInfoClient);
-
-        //        Assert.Equal(2, serverSyncChanges.ServerChangesSelected.TotalChangesSelected);
-
-        //    }
-        //}
-
-
-        ///// <summary>
-        ///// Try to get changes from server without making a first sync
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task GetEstimatedChangesCount_BeforeServerIsInitialized(SyncOptions options)
-        //{
-        //    // create a server schema with seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // ----------------------------------
-        //    // Get changes
-        //    // ----------------------------------
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
-        //        var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
-
-        //        // Ensure scope is created locally
-        //        var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
-
-        //        // get changes from server, without any changes sent from client side
-        //        var changes = await webRemoteOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient);
-
-        //        Assert.Equal(rowsCount, changes.ServerChangesSelected.TotalChangesSelected);
-        //    }
-        //}
-
-        ///// <summary>
-        ///// Try to get changes from server without making a first sync
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task GetEstimatedChangesCount_AfterServerIsInitialized(SyncOptions options)
-        //{
-        //    // create a server schema with seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
-
-
-        //    // ----------------------------------
-        //    // Add rows on server AFTER first sync (so everything should be initialized)
-        //    // ----------------------------------
-        //    var productId = Guid.NewGuid();
-        //    var productName = HelperDatabase.GetRandomName();
-        //    var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-        //    var productCategoryName = HelperDatabase.GetRandomName();
-        //    var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-        //    using (var ctx = new AdventureWorksContext(this.Server))
-        //    {
-        //        var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-        //        ctx.Add(pc);
-
-        //        var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-        //        ctx.Add(product);
-
-        //        await ctx.SaveChangesAsync();
-        //    }
-
-        //    // ----------------------------------
-        //    // Get changes
-        //    // ----------------------------------
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
-        //        var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
-
-        //        // Ensure scope is created locally
-        //        var cScopeInfoClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
-
-        //        // get changes from server, without any changes sent from client side
-        //        var changes = await webRemoteOrchestrator.GetEstimatedChangesCountAsync(cScopeInfoClient);
-
-        //        Assert.Equal(2, changes.ServerChangesSelected.TotalChangesSelected);
-
-        //    }
-        //}
 
         //[Fact]
         //public async Task WithBatchingEnabled_WhenSessionIsLostDuringApplyChanges_ChangesAreNotLost()
