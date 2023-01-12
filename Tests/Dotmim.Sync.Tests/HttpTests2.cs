@@ -1568,11 +1568,15 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-            var serverProductCategoryModifiedDate = new DateTime(2022, 1, 12, 16, 46, 21);
+            var serverProductCategoryModifiedDate = new DateTime(2022, 1, 12, 16, 46, 21, DateTimeKind.Utc);
             var serverProductCategoryModifiedDateTicks = serverProductCategoryModifiedDate.Ticks;
+            Debug.WriteLine($"serverProductCategoryModifiedDate:{serverProductCategoryModifiedDate}");
+            Debug.WriteLine($"serverProductCategoryModifiedDateTicks:{serverProductCategoryModifiedDateTicks}");
 
-            var clientProductCategoryModifiedDate = new DateTime(2020, 1, 12, 16, 46, 21);
+            var clientProductCategoryModifiedDate = new DateTime(2020, 1, 12, 16, 46, 21, DateTimeKind.Utc);
             var clientProductCategoryModifiedDateTicks = clientProductCategoryModifiedDate.Ticks;
+            Debug.WriteLine($"clientProductCategoryModifiedDate:{clientProductCategoryModifiedDate}");
+            Debug.WriteLine($"clientProductCategoryModifiedDateTicks:{clientProductCategoryModifiedDateTicks}");
 
             // Add one row in each client
             foreach (var clientProvider in clientsProvider)
@@ -1609,7 +1613,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                     {
                         Assert.IsType<long>(row[5]);
                         var ticks = (long)row[5];
-                        Assert.Equal(clientProductCategoryModifiedDateTicks, ticks);
+                        
+                        if (row[6].ToString() == "SRV")
+                            Assert.Equal(serverProductCategoryModifiedDateTicks, ticks);
+                        else
+                            Assert.Equal(clientProductCategoryModifiedDateTicks, ticks);
                     }
                 });
 
@@ -1626,7 +1634,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                     {
                         Assert.IsType<long>(row[5]);
                         var ticks = (long)row[5];
-                        Assert.Equal(serverProductCategoryModifiedDateTicks, ticks);
+                        
+                        if (row[6].ToString() == "SRV")
+                            Assert.Equal(serverProductCategoryModifiedDateTicks, ticks);
+                        else
+                            Assert.Equal(clientProductCategoryModifiedDateTicks, ticks);
+
                     }
                 });
 
@@ -2386,7 +2399,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         /// Client will resend the batch again, but that's ok, since we are merging
         /// </summary>
         [Fact]
-        public async Task Intermitent_Connection_SyncPolicy_InsertClientRow_ShouldWork()
+        public async Task IntermitentConnectionUsingSyncPolicyInsertClientRowShouldWork()
         {
             SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
@@ -2437,7 +2450,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             // Insert one line on each client
             foreach (var clientProvider in clientsProvider)
-                await Fixture.AddProductCategoryAsync(clientProvider);
+                for (int i = 0; i < 1000; i++)
+                    await Fixture.AddProductCategoryAsync(clientProvider);
 
 
             // Sync all clients

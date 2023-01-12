@@ -179,12 +179,13 @@ namespace Dotmim.Sync.Tests
                 case ProviderType.Sqlite:
                     await Task.CompletedTask;
                     break;
+                default:
+                    throw new Exception($"Provider type {providerType} is not existing;");
             }
-            
+
             if (providerType == ProviderType.Sql)
                 await ActivateChangeTracking(dbName);
 
-            throw new Exception($"Provider type {providerType} is not existing;");
         }
 
         /// <summary>

@@ -20,6 +20,9 @@ namespace Dotmim.Sync.Tests.Fixtures
     public class DatabaseHttpServerFixture<T> : DatabaseServerFixture<T>, IDisposable where T : RelationalFixture
     {
         public DatabaseHttpServerFixture() : base() { }
-        public override List<ProviderType> ClientsType => new List<ProviderType> { ProviderType.Sqlite };
+
+        public override List<ProviderType> ClientsType => new List<ProviderType> { 
+            ProviderType.Sqlite, 
+            typeof(T) == typeof(SqlServerFixtureType) ? ProviderType.Postgres : ProviderType.Sql };
     }
 }
