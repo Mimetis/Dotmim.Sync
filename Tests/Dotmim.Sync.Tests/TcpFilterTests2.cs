@@ -56,11 +56,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
     {
         public MySqlTcpFilterTests(ITestOutputHelper output, DatabaseFilterServerFixture<MySqlFixtureType> fixture) : base(output, fixture)
         {
-            // Escape Character " is not working with MySql
-            // Change it
-            var productFilter = setup.Filters.First(sf => sf.TableName == "Product");
-            productFilter.CustomWheres.Clear();
-            productFilter.AddCustomWhere($"`ProductCategoryID` IS NOT NULL");
+            //// Escape Character " is not working with MySql
+            //// Change it
+            //var productFilter = setup.Filters.First(sf => sf.TableName == "Product");
+            //productFilter.CustomWheres.Clear();
+            //productFilter.AddCustomWhere($"`ProductCategoryID` IS NOT NULL");
         }
 
     }

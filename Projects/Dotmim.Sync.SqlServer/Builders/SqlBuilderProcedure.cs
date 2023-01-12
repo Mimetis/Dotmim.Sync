@@ -1177,7 +1177,10 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             foreach (var customWhere in customWheres)
             {
-                stringBuilder.Append($"{and2}{customWhere}");
+                // IF coming from Mysql
+                var customWhereIteration = customWhere.Replace("`", "\"");
+
+                stringBuilder.Append($"{and2}{customWhereIteration}");
                 and2 = " AND ";
             }
 
