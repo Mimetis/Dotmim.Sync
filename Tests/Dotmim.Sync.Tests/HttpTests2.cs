@@ -1897,7 +1897,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 var (clientDatabaseType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 var products = Enumerable.Range(1, rowsToSend).Select(i =>
-                    new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}_{clientDatabaseName}" });
+                    new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}" });
 
                 using var clientDbCtx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
                 clientDbCtx.Product.AddRange(products);
@@ -2026,7 +2026,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-            var rowsToReceive = 3000;
+            var rowsToReceive = 4000;
             var productNumber = "12345";
 
             var products = Enumerable.Range(1, rowsToReceive).Select(i =>
