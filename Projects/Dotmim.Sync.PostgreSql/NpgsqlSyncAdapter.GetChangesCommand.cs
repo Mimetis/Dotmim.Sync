@@ -282,6 +282,10 @@ namespace Dotmim.Sync.PostgreSql
                 // IF coming from Mysql
                 var customWhereIteration = customWhere.Replace("`", "\"");
 
+                // If coming from SQL
+                customWhereIteration = customWhereIteration.Replace("[", "\"");
+                customWhereIteration = customWhereIteration.Replace("]", "\"");
+
                 stringBuilder.Append($"{and2}{customWhereIteration}");
                 and2 = " AND ";
             }

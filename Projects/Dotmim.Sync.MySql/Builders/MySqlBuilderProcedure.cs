@@ -788,7 +788,7 @@ namespace Dotmim.Sync.MySql.Builders
                 customWhereIteration = customWhereIteration.Replace("[", "`");
                 customWhereIteration = customWhereIteration.Replace("]", "`");
                 
-                stringBuilder.Append($"{and2}{customWhere}");
+                stringBuilder.Append($"{and2}{customWhereIteration}");
                 and2 = " AND ";
             }
 
