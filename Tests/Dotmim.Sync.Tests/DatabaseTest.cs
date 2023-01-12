@@ -24,6 +24,17 @@ namespace Dotmim.Sync.Tests
         public virtual XunitTest Test { get; }
         public virtual Stopwatch Stopwatch { get; }
 
+
+        /// <summary>
+        /// Gets or Sets the Kestrell server used to server http queries
+        /// </summary>
+        public KestrellTestServer Kestrell { get; set; }
+
+        /// <summary>
+        /// Gets if fiddler is in use
+        /// </summary>
+        public bool UseFiddler { get; set; }
+
         private Stopwatch initializeStopwatch;
         public DatabaseTest(ITestOutputHelper output, DatabaseServerFixture<T> fixture)
         {
@@ -33,6 +44,9 @@ namespace Dotmim.Sync.Tests
             var type = output.GetType();
             var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
             this.Test = (XunitTest)testMember.GetValue(output);
+
+            // Create a kestrell server
+            this.Kestrell = new KestrellTestServer(this.UseFiddler);
 
             initializeStopwatch = Stopwatch.StartNew();
 

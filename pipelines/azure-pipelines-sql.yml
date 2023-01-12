@@ -48,6 +48,12 @@ jobs:
       dotnetfx: 'net7.0'
       filter: 'Dotmim.Sync.Tests.IntegrationTests2.MySqlTcp'
   
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: 'SQL Server Http .net 7.0'
+      dotnetfx: 'net7.0'
+      filter: 'Dotmim.Sync.Tests.IntegrationTests2.SqlServerHttp'
+  
 
 
   # - job: testbasics

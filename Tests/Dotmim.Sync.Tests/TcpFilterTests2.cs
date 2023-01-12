@@ -45,6 +45,19 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
         }
     }
+    public class PostgresTcpFilterTests : TcpFilterTests2<PostgresFixtureType>
+    {
+        public PostgresTcpFilterTests(ITestOutputHelper output, DatabaseFilterServerFixture<PostgresFixtureType> fixture) : base(output, fixture)
+        {
+        }
+    }
+
+    public class MySqlTcpFilterTests : TcpFilterTests2<MySqlFixtureType>
+    {
+        public MySqlTcpFilterTests(ITestOutputHelper output, DatabaseFilterServerFixture<MySqlFixtureType> fixture) : base(output, fixture)
+        {
+        }
+    }
 
     public abstract partial class TcpFilterTests2<T> : DatabaseTest<T>, IClassFixture<DatabaseFilterServerFixture<T>>, IDisposable where T : RelationalFixture
     {
