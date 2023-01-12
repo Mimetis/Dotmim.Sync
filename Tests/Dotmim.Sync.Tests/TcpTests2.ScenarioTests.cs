@@ -72,7 +72,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             }
         }
 
-
         [Fact]
         public virtual async Task AddingOneColumnInOneTableUsingTwoScopes()
         {
@@ -719,14 +718,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         //[Fact]
         //public virtual async Task Scenario_StartingWithAClientBackup()
         //{
-        //    if (this.Server.ProviderType != ProviderType.Sql)
-        //        return;
-
-        //    // create a server schema with seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    var productCategoryTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.ProductCategory" : "ProductCategory";
-        //    var productTableName = this.Server.ProviderType == ProviderType.Sql ? "SalesLT.Product" : "Product";
 
         //    var setup = new SyncSetup(productCategoryTableName, productTableName, "Employee");
         //    var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider);
@@ -803,7 +794,5 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
         //    }
         //}
-
-
     }
 }

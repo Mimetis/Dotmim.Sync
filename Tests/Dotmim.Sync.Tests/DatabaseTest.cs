@@ -17,15 +17,15 @@ using System.Xml.Linq;
 
 namespace Dotmim.Sync.Tests
 {
-    public class BaseTest<T> : IClassFixture<DatabaseServerFixture<T>>, IDisposable where T : RelationalFixture
+    public class DatabaseTest<T> : IDisposable where T : RelationalFixture
     {
-        public DatabaseServerFixture<T> Fixture { get; }
-        public ITestOutputHelper Output { get; }
-        public XunitTest Test { get; }
-        public Stopwatch Stopwatch { get; }
+        public virtual DatabaseServerFixture<T> Fixture { get; }
+        public virtual ITestOutputHelper Output { get; }
+        public virtual XunitTest Test { get; }
+        public virtual Stopwatch Stopwatch { get; }
 
         private Stopwatch initializeStopwatch;
-        public BaseTest(ITestOutputHelper output, DatabaseServerFixture<T> fixture)
+        public DatabaseTest(ITestOutputHelper output, DatabaseServerFixture<T> fixture)
         {
             this.Fixture = fixture;
             // Getting the test running
@@ -40,9 +40,7 @@ namespace Dotmim.Sync.Tests
             MySqlConnection.ClearAllPools();
             NpgsqlConnection.ClearAllPools();
 
-
             ResetClientsAndServerByCreatingThemAgain();
-
 
             initializeStopwatch.Stop();
 

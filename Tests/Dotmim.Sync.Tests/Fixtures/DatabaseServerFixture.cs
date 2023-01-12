@@ -17,15 +17,15 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace Dotmim.Sync.Tests.Fixtures
 {
+
     public class DatabaseServerFixture<T> : IDisposable where T : RelationalFixture
     {
-        public virtual List<ProviderType> ClientsType => new List<ProviderType> { HelperDatabase.GetProviderType<T>(), ProviderType.Sqlite };
+        public virtual List<ProviderType> ClientsType => new List<ProviderType> { HelperDatabase.GetProviderType<T>(), ProviderType.Sqlite, ProviderType.Sql };
 
-        // One Server type of T
         public virtual ProviderType ServerProviderType => HelperDatabase.GetProviderType<T>();
 
         // SQL Server has schema on server database
-        private string salesSchema = typeof(T) == typeof(SqlServerFixtureType) || typeof(T) == typeof(PostgresFixtureType) ? "SalesLT." : "";
+        protected string salesSchema = typeof(T) == typeof(SqlServerFixtureType) || typeof(T) == typeof(PostgresFixtureType) ? "SalesLT." : "";
 
         public Stopwatch OverallStopwatch { get; }
 
@@ -198,7 +198,7 @@ namespace Dotmim.Sync.Tests.Fixtures
             if (transaction != null)
                 ctx.Database.UseTransaction(transaction);
 
-            var pc = ctx.ProductCategory.FirstOrDefault(pc => pc.ProductCategoryId == productCategoryId);
+            var pc = await ctx.ProductCategory.FirstOrDefaultAsync(pc => pc.ProductCategoryId == productCategoryId);
             ctx.ProductCategory.Remove(pc);
 
             await ctx.SaveChangesAsync();
@@ -219,8 +219,6 @@ namespace Dotmim.Sync.Tests.Fixtures
 
             return await ctx.ProductCategory.FindAsync(productCategoryId);
         }
-
-
 
         /// Add a Product item to the database identified by its name and its provider type
         public async Task<Product> AddProductAsync(CoreProvider provider,
@@ -264,8 +262,6 @@ namespace Dotmim.Sync.Tests.Fixtures
             return p;
         }
 
-
-
         /// <summary>
         /// Get a Product row from the database
         /// </summary>
@@ -281,7 +277,6 @@ namespace Dotmim.Sync.Tests.Fixtures
 
             return await ctx.Product.FindAsync(productId);
         }
-
 
         /// <summary>
         /// Update a Product row to the database
@@ -317,12 +312,11 @@ namespace Dotmim.Sync.Tests.Fixtures
             if (transaction != null)
                 ctx.Database.UseTransaction(transaction);
 
-            var pc = ctx.Product.FirstOrDefault(pc => pc.ProductId == productId);
+            var pc = await ctx.Product.FirstOrDefaultAsync(pc => pc.ProductId == productId);
             ctx.Product.Remove(pc);
 
             await ctx.SaveChangesAsync();
         }
-
 
         /// <summary>
         /// Add a price list
@@ -354,7 +348,6 @@ namespace Dotmim.Sync.Tests.Fixtures
 
             return pl;
         }
-
 
 
         /// <summary>
@@ -403,13 +396,410 @@ namespace Dotmim.Sync.Tests.Fixtures
 
         }
 
+        /// <summary>
+        /// Add an Address item to the database identified by its name and its provider type.
+        /// </summary>
+        public async Task<Address> AddAddressAsync(CoreProvider provider, int? addressId = default, string addressLine1 = default, string addressLine2 = default,
+            string city = default, string postalCode = default, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            var (providerType, _) = HelperDatabase.GetDatabaseType(provider);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            ctx.Database.OpenConnection();
+
+            var address = new Address
+            {
+                AddressId = addressId == null ? default : addressId.Value,
+                AddressLine1 = addressLine1 == default ? HelperDatabase.GetRandomName() : addressLine1,
+                AddressLine2 = addressLine2 == default ? HelperDatabase.GetRandomName() : addressLine2,
+                City = city == default ? HelperDatabase.GetRandomName() : city,
+                PostalCode = postalCode == default ? HelperDatabase.GetRandomName() : postalCode,
+            };
+
+            ctx.Add(address);
+
+            if (providerType == ProviderType.Sql && addressId.HasValue)
+                ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT Address ON;");
+
+            await ctx.SaveChangesAsync();
+
+            if (providerType == ProviderType.Sql && addressId.HasValue)
+                ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT Address OFF;");
+
+            ctx.Database.CloseConnection();
+
+            return address;
+
+        }
+
+        /// <summary>
+        /// Update an Address row to the database
+        /// </summary>
+        public async Task<Address> UpdateAddressAsync(CoreProvider provider, Address address, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            ctx.Address.Add(address);
+            ctx.Entry(address).State = EntityState.Modified;
+
+            await ctx.SaveChangesAsync();
+
+            return address;
+        }
+
+        /// <summary>
+        /// Delete an Address row to the database
+        /// </summary>
+        public async Task DeleteAddressAsync(CoreProvider provider, int addressId, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            var pc = await ctx.Address.FirstOrDefaultAsync(pc => pc.AddressId == addressId);
+            ctx.Address.Remove(pc);
+
+            await ctx.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// Get an Address row from the database
+        /// </summary>
+        public async Task<Address> GetAddressAsync(CoreProvider provider, int addressId, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            return await ctx.Address.FindAsync(addressId);
+        }
+
+
+        /// <summary>
+        /// Add a CustomerAddress item to the database identified by its addressId and customerId and its provider type.
+        /// </summary>
+        public async Task<CustomerAddress> AddCustomerAddressAsync(CoreProvider provider, int addressId, Guid customerId, string addressType = default,
+            DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            var customerAddress = new CustomerAddress
+            {
+                AddressId = addressId,
+                CustomerId = customerId,
+                AddressType = addressType == default ? "Home" : addressType
+            };
+
+            ctx.Add(customerAddress);
+
+            await ctx.SaveChangesAsync();
+
+            return customerAddress;
+
+        }
+
+        /// <summary>
+        /// Update a CustomerAddress row to the database
+        /// </summary>
+        public async Task<CustomerAddress> UpdateCustomerAddressAsync(CoreProvider provider, CustomerAddress customerAddress, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            ctx.CustomerAddress.Add(customerAddress);
+            ctx.Entry(customerAddress).State = EntityState.Modified;
+
+            await ctx.SaveChangesAsync();
+
+            return customerAddress;
+        }
+
+        /// <summary>
+        /// Delete a CustomerAddress row to the database
+        /// </summary>
+        public async Task DeleteCustomerAddressAsync(CoreProvider provider, int addressId, Guid customerId, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            var pc = await ctx.CustomerAddress.FirstOrDefaultAsync(pc => pc.AddressId == addressId && pc.CustomerId == customerId);
+            ctx.CustomerAddress.Remove(pc);
+
+            await ctx.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// Get a CustomerAddress row from the database
+        /// </summary>
+        public async Task<CustomerAddress> GetCustomerAddressAsync(CoreProvider provider, int addressId, Guid customerId, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            return await ctx.CustomerAddress.FirstOrDefaultAsync(pc => pc.AddressId == addressId && pc.CustomerId == customerId);
+        }
+
+        /// <summary>
+        /// Add a SalesOrderHeader item to the database identified by its provider type.
+        /// </summary>
+        public async Task<SalesOrderHeader> AddSalesOrderHeaderAsync(CoreProvider provider, Guid? customerId, int? salesOrderId = default,
+            DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            var (providerType, _) = HelperDatabase.GetDatabaseType(provider);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            ctx.Database.OpenConnection();
+
+            var soh = new SalesOrderHeader
+            {
+                SalesOrderId = salesOrderId.HasValue ? salesOrderId.Value : default,
+                CustomerId = customerId.HasValue ? customerId.Value : AdventureWorksContext.CustomerId1ForFilter,
+                SalesOrderNumber = $"SO-99099",
+                RevisionNumber = 1,
+                Status = 5,
+                OnlineOrderFlag = true,
+                PurchaseOrderNumber = "PO348186287",
+                ShipMethod = "CAR TRANSPORTATION",
+                SubTotal = 6530.35M,
+                TaxAmt = 70.4279M,
+                Freight = 22.0087M,
+                TotalDue = 6530.35M + 70.4279M + 22.0087M
+            };
+
+
+            ctx.Add(soh);
+
+            var sohTableName = UseFallbackSchema ? "SalesLT.SalesOrderHeader" : "SalesOrderHeader";
+
+            if (providerType == ProviderType.Sql && salesOrderId.HasValue)
+                ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT {sohTableName} ON;");
+
+            await ctx.SaveChangesAsync();
+
+            if (providerType == ProviderType.Sql && salesOrderId.HasValue)
+                ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT {sohTableName} OFF;");
+
+            ctx.Database.CloseConnection();
+
+            return soh;
+
+        }
+
+        /// <summary>
+        /// Update a SalesOrderHeader row to the database
+        /// </summary>
+        public async Task<SalesOrderHeader> UpdateSalesOrderHeaderAsync(CoreProvider provider, SalesOrderHeader salesOrderHeader, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            ctx.SalesOrderHeader.Add(salesOrderHeader);
+            ctx.Entry(salesOrderHeader).State = EntityState.Modified;
+
+            await ctx.SaveChangesAsync();
+
+            return salesOrderHeader;
+        }
+
+        /// <summary>
+        /// Delete a SalesOrderHeader row to the database
+        /// </summary>
+        public async Task DeleteSalesOrderHeaderAsync(CoreProvider provider, int salesOrderId, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            var pc = await ctx.SalesOrderHeader.FirstOrDefaultAsync(pc => pc.SalesOrderId == salesOrderId);
+            ctx.SalesOrderHeader.Remove(pc);
+
+            await ctx.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// Get a SalesOrderHeader row from the database
+        /// </summary>
+        public async Task<SalesOrderHeader> GetSalesOrderHeaderAsync(CoreProvider provider, int salesOrderId, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            return await ctx.SalesOrderHeader.FindAsync(salesOrderId);
+        }
+
+        /// <summary>
+        /// Add a SalesOrderDetail item to the database identified by its provider type.
+        /// </summary>
+        public async Task<SalesOrderDetail> AddSalesOrderDetailAsync(CoreProvider provider, int salesOrderId, Guid productId, 
+            int? salesOrderDetailId = default, short? orderQty = default, decimal? unitPrice = default,
+            DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            var (providerType, _) = HelperDatabase.GetDatabaseType(provider);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            ctx.Database.OpenConnection();
+
+            var sod = new SalesOrderDetail
+            {
+                SalesOrderId = salesOrderId,
+                SalesOrderDetailId = salesOrderDetailId.HasValue ? salesOrderDetailId.Value : default,
+                ProductId = productId,
+                OrderQty = orderQty.HasValue ? orderQty.Value : (short)1,
+                UnitPrice = unitPrice.HasValue ? unitPrice.Value : 10M,
+                UnitPriceDiscount = 0M,
+            };
+
+
+            ctx.Add(sod);
+
+            var sodTableName = UseFallbackSchema ? "SalesLT.SalesOrderDetail" : "SalesOrderDetail";
+
+            if (providerType == ProviderType.Sql && salesOrderDetailId.HasValue)
+                ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT {sodTableName} ON;");
+
+            await ctx.SaveChangesAsync();
+
+            if (providerType == ProviderType.Sql && salesOrderDetailId.HasValue)
+                ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT {sodTableName} OFF;");
+
+            ctx.Database.CloseConnection();
+
+            return sod;
+
+        }
+
+        /// <summary>
+        /// Update a SalesOrderDetail row to the database
+        /// </summary>
+        public async Task<SalesOrderDetail> UpdateSalesOrderDetailAsync(CoreProvider provider, SalesOrderDetail salesOrderDetail, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            ctx.SalesOrderDetail.Add(salesOrderDetail);
+            ctx.Entry(salesOrderDetail).State = EntityState.Modified;
+
+            await ctx.SaveChangesAsync();
+
+            return salesOrderDetail;
+        }
+
+        /// <summary>
+        /// Delete a SalesOrderDetail row to the database
+        /// </summary>
+        public async Task DeleteSalesOrderDetailAsync(CoreProvider provider, int salesOrderDetailId, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            var pc = await ctx.SalesOrderDetail.FirstOrDefaultAsync(pc => pc.SalesOrderDetailId == salesOrderDetailId);
+            ctx.SalesOrderDetail.Remove(pc);
+
+            await ctx.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// Get a SalesOrderDetail row from the database
+        /// </summary>
+        public async Task<SalesOrderDetail> GetSalesOrderDetailAsync(CoreProvider provider, int salesOrderDetailId, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, UseFallbackSchema);
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            return await ctx.SalesOrderDetail.FindAsync(salesOrderDetailId);
+        }
 
 
         /// <summary>
         /// Get the server database rows count
         /// </summary>
         /// <returns></returns>
-        public int GetDatabaseRowsCount(CoreProvider coreProvider)
+        public virtual int GetDatabaseRowsCount(CoreProvider coreProvider)
         {
             int totalCountRows = 0;
 

@@ -49,7 +49,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
     }
 
-    public abstract class InterceptorsTests2<T> : BaseTest<T>, IDisposable where T : RelationalFixture
+    public abstract class InterceptorsTests2<T> : DatabaseTest<T>, IDisposable where T : RelationalFixture
     {
 
         public InterceptorsTests2(ITestOutputHelper output, DatabaseServerFixture<T> fixture) : base(output, fixture)

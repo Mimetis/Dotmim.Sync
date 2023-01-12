@@ -538,11 +538,15 @@ namespace Dotmim.Sync
                 {
                     await using var runnerError = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.None ? SyncMode.NoTransaction : SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                    // Disable check constraints for provider supporting only at table level
+                    if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
+                        await this.InternalDisableConstraintsAsync(scopeInfo, context, schemaTable, runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
 
                     // If conflicts occured
                     foreach (var conflictRow in conflictRows)
                     {
                         this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. Handle {{conflictsCount}} conflitcts", conflictRows.Count);
+
 
                         var (applied, conflictResolved, exception) =
                             await this.HandleConflictAsync(scopeInfo, context, message.Changes, message.LocalScopeId, message.SenderScopeId, conflictRow, schemaChangesTable,
@@ -613,6 +617,10 @@ namespace Dotmim.Sync
                     // Close file
                     if (localSerializer.IsOpen)
                         localSerializer.CloseFile();
+
+                    // Enable check constraints for provider supporting only at table level
+                    if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
+                        await this.InternalEnableConstraintsAsync(scopeInfo, context, schemaTable, runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
 
                     if (shouldRollbackTransaction)
                         await runnerError.RollbackAsync().ConfigureAwait(false);
