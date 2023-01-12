@@ -56,15 +56,21 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
     {
         public MySqlTcpFilterTests(ITestOutputHelper output, DatabaseFilterServerFixture<MySqlFixtureType> fixture) : base(output, fixture)
         {
+            // Escape Character " is not working with MySql
+            // Change it
+            var productFilter = setup.Filters.First(sf => sf.TableName == "Product");
+            productFilter.CustomWheres.Clear();
+            productFilter.AddCustomWhere($"`ProductCategoryID` IS NOT NULL");
         }
+
     }
 
     public abstract partial class TcpFilterTests2<T> : DatabaseTest<T>, IClassFixture<DatabaseFilterServerFixture<T>>, IDisposable where T : RelationalFixture
     {
-        private CoreProvider serverProvider;
-        private IEnumerable<CoreProvider> clientsProvider;
-        private SyncSetup setup;
-        private SyncParameters parameters;
+        internal CoreProvider serverProvider;
+        internal IEnumerable<CoreProvider> clientsProvider;
+        internal SyncSetup setup;
+        internal SyncParameters parameters;
 
         public new DatabaseFilterServerFixture<T> Fixture { get; }
 

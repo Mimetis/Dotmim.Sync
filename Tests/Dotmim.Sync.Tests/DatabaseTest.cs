@@ -19,6 +19,7 @@ namespace Dotmim.Sync.Tests
 {
     public class DatabaseTest<T> : IDisposable where T : RelationalFixture
     {
+        private Stopwatch initializeStopwatch;
         public virtual DatabaseServerFixture<T> Fixture { get; }
         public virtual ITestOutputHelper Output { get; }
         public virtual XunitTest Test { get; }
@@ -35,7 +36,6 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public bool UseFiddler { get; set; }
 
-        private Stopwatch initializeStopwatch;
         public DatabaseTest(ITestOutputHelper output, DatabaseServerFixture<T> fixture)
         {
             this.Fixture = fixture;
@@ -98,8 +98,9 @@ namespace Dotmim.Sync.Tests
 
             var overallTime = $"[Overall :{Fixture.OverallStopwatch.Elapsed.Minutes}:{Fixture.OverallStopwatch.Elapsed.Seconds}.{Fixture.OverallStopwatch.Elapsed.Milliseconds}]";
             var preparationTime = $"[Prework :{this.initializeStopwatch.Elapsed.Minutes}:{this.initializeStopwatch.Elapsed.Seconds}.{this.initializeStopwatch.Elapsed.Milliseconds}]";
+            var testClass = this.Test.TestCase.TestMethod.TestClass.Class as ReflectionTypeInfo;
 
-            t = $"{this.Test.TestCase.Method.Name}{t}: {overallTime} - {preparationTime} - {this.Stopwatch.Elapsed.Minutes}:{this.Stopwatch.Elapsed.Seconds}.{this.Stopwatch.Elapsed.Milliseconds}.";
+            t = $"{testClass.Type.Name}.{this.Test.TestCase.Method.Name}{t}: {overallTime} - {preparationTime} - {this.Stopwatch.Elapsed.Minutes}:{this.Stopwatch.Elapsed.Seconds}.{this.Stopwatch.Elapsed.Milliseconds}.";
             Console.WriteLine(t);
             Debug.WriteLine(t);
             this.Output.WriteLine(t);

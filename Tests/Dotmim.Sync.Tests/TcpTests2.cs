@@ -99,7 +99,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             }
         }
 
-
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task RowsCountWithExistingSchema(SyncOptions options)
@@ -722,12 +721,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
-
-            // Execute a sync on all clients to initialize client and server schema 
-            foreach (var clientProvider in clientsProvider)
-            {
-                var s = await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
-            }
 
             // Add one row in each client
             foreach (var clientProvider in clientsProvider)

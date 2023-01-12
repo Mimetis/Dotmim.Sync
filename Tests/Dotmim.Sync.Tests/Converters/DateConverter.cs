@@ -10,7 +10,7 @@ namespace Dotmim.Sync.SampleConsole
     {
         public string Key => "cuscom";
 
-        public void BeforeSerialize(object[] row, SyncTable schemaTable)
+        public void BeforeSerialize(SyncRow row, SyncTable schemaTable)
         {
             // Convert all DateTime columns to ticks
             foreach (var col in schemaTable.Columns.Where(c => c.GetDataType() == typeof(DateTime)))
@@ -18,11 +18,15 @@ namespace Dotmim.Sync.SampleConsole
                 var index = schemaTable.Columns.IndexOf(col);
 
                 if (row[index] != null)
-                    row[index] = ((DateTime)row[index]).Ticks;
+                {
+                    var dateTime = DateTime.Parse(row[index].ToString());
+                    
+                    row[index] = dateTime.Ticks;
+                }
             }
         }
 
-        public void AfterDeserialized(object[] row, SyncTable schemaTable)
+        public void AfterDeserialized(SyncRow row, SyncTable schemaTable)
         {
             // Convert all DateTime back from ticks
             foreach (var col in schemaTable.Columns.Where(c => c.GetDataType() == typeof(DateTime)))

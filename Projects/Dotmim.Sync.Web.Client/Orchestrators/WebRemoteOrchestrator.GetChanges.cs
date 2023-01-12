@@ -185,7 +185,8 @@ namespace Dotmim.Sync.Web.Client
 
             // If we are using a serializer that is not JSON, need to load in memory, then serialize to JSON
             // OR If we have an interceptor on getting response
-            if (this.SerializerFactory.Key != "json" || this.interceptors.HasInterceptors<HttpGettingResponseMessageArgs>())
+            // OR If we have a converter
+            if (this.SerializerFactory.Key != "json" || this.interceptors.HasInterceptors<HttpGettingResponseMessageArgs>() || this.Converter != null)
             {
                 var webSerializer = this.SerializerFactory.GetSerializer();
                 using var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
@@ -216,7 +217,14 @@ namespace Dotmim.Sync.Web.Client
                     localSerializer.OpenFile(fullPath, schemaTable, syncRowState);
 
                     foreach (var row in table.Rows)
-                        await localSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable).ConfigureAwait(false);
+                    {
+                        var syncRow = new SyncRow(schemaTable, row);
+
+                        if (this.Converter != null && syncRow.Length > 0)
+                            this.Converter.AfterDeserialized(syncRow, schemaTable);
+
+                        await localSerializer.WriteRowToFileAsync(syncRow, schemaTable).ConfigureAwait(false);
+                    }
 
                     // Close file
                     localSerializer.CloseFile();

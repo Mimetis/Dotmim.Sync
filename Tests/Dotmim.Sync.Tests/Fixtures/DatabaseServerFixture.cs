@@ -55,12 +55,10 @@ namespace Dotmim.Sync.Tests.Fixtures
             this.OverallStopwatch = Stopwatch.StartNew();
 
             this.ServerDatabaseName = HelperDatabase.GetRandomName("tcp_srv");
-            //new AdventureWorksContext(ServerDatabaseName, ServerProviderType, UseFallbackSchema, true).Database.EnsureCreated();
 
             foreach (var type in this.ClientsType)
             {
                 var dbName = HelperDatabase.GetRandomName("tcp_cli");
-                //new AdventureWorksContext(dbName, type, UseFallbackSchema, false).Database.EnsureCreated();
                 ClientDatabaseNames.Add(type, dbName);
             }
         }
@@ -155,7 +153,7 @@ namespace Dotmim.Sync.Tests.Fixtures
                 ParentProductCategoryId = parentProductCategoryId,
                 Name = name,
                 Rowguid = rowguid,
-                ModifiedDate = modifiedDate != null ? modifiedDate.Value.ToUniversalTime() : (DateTime?)null,
+                ModifiedDate = modifiedDate != null ? modifiedDate.Value : (DateTime?)null,
                 AttributeWithSpace = attributeWithSpace
 
             };
@@ -254,7 +252,7 @@ namespace Dotmim.Sync.Tests.Fixtures
                 Size = size,
                 Weight = weight,
                 Rowguid = rowguid,
-                ModifiedDate = modifiedDate != null ? modifiedDate.Value.ToUniversalTime() : (DateTime?)null,
+                ModifiedDate = modifiedDate != null ? modifiedDate.Value : (DateTime?)null,
                 ThumbNailPhoto = thumbNailPhoto,
                 ThumbnailPhotoFileName = thumbnailPhotoFileName
             };
@@ -342,8 +340,8 @@ namespace Dotmim.Sync.Tests.Fixtures
             {
                 PriceListId = priceListId.Value,
                 Description = description,
-                From = from != null ? from.Value.ToUniversalTime() : (DateTime?)null,
-                To = to != null ? to.Value.ToUniversalTime() : (DateTime?)null
+                From = from != null ? from.Value : (DateTime?)null,
+                To = to != null ? to.Value : (DateTime?)null
             };
             ctx.Add(pl);
 

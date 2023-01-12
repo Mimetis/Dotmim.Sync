@@ -19,6 +19,8 @@ namespace Dotmim.Sync.Tests.Fixtures
 {
     public class DatabaseFilterServerFixture<T> : DatabaseServerFixture<T>, IDisposable where T : RelationalFixture
     {
+        public override List<ProviderType> ClientsType => new List<ProviderType> { ProviderType.Sqlite };
+
         public DatabaseFilterServerFixture() : base() { }
         public virtual SyncParameters GetFilterParameters() => new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId1ForFilter));
 

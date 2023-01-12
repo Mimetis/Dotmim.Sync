@@ -35,57 +35,58 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Tests.Fixtures;
+using System.Security.Cryptography;
 
 namespace Dotmim.Sync.Tests.IntegrationTests2
 {
     public class SqlServerHttpTests : HttpTests2<SqlServerFixtureType>
     {
-        public SqlServerHttpTests(ITestOutputHelper output, DatabaseServerFixture<SqlServerFixtureType> fixture) : base(output, fixture)
+        public SqlServerHttpTests(ITestOutputHelper output, DatabaseHttpServerFixture<SqlServerFixtureType> fixture) : base(output, fixture)
         {
         }
     }
 
     public class PostgresHttpTests : HttpTests2<PostgresFixtureType>
     {
-        public PostgresHttpTests(ITestOutputHelper output, DatabaseServerFixture<PostgresFixtureType> fixture) : base(output, fixture)
+        public PostgresHttpTests(ITestOutputHelper output, DatabaseHttpServerFixture<PostgresFixtureType> fixture) : base(output, fixture)
         {
         }
     }
 
     public class MySqlHttpTests : HttpTests2<MySqlFixtureType>
     {
-        public MySqlHttpTests(ITestOutputHelper output, DatabaseServerFixture<MySqlFixtureType> fixture) : base(output, fixture)
+        public MySqlHttpTests(ITestOutputHelper output, DatabaseHttpServerFixture<MySqlFixtureType> fixture) : base(output, fixture)
         {
         }
     }
-    public abstract partial class HttpTests2<T> : DatabaseTest<T>, IClassFixture<DatabaseServerFixture<T>>, IDisposable where T : RelationalFixture
+    public abstract partial class HttpTests2<T> : DatabaseTest<T>, IClassFixture<DatabaseHttpServerFixture<T>>, IDisposable where T : RelationalFixture
     {
         private CoreProvider serverProvider;
         private IEnumerable<CoreProvider> clientsProvider;
         private SyncSetup setup;
+        private string serviceUri;
 
-        protected HttpTests2(ITestOutputHelper output, DatabaseServerFixture<T> fixture) : base(output, fixture)
+        protected HttpTests2(ITestOutputHelper output, DatabaseHttpServerFixture<T> fixture) : base(output, fixture)
         {
             serverProvider = Fixture.GetServerProvider();
             clientsProvider = Fixture.GetClientProviders();
             setup = Fixture.GetSyncSetup();
 
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup);
-
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, new SyncOptions { DisableConstraintsOnApplyChanges = true });
+            serviceUri = this.Kestrell.Run();
         }
 
-        [Fact]
-        public virtual async Task RowsCount()
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public virtual async Task RowsCount(SyncOptions options)
         {
-            var serviceUri = this.Kestrell.Run();
-
             // Get count of rows
             var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri));
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var s = await agent.SynchronizeAsync();
 
@@ -94,816 +95,1311 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             }
         }
 
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public virtual async Task RowsCount(SyncOptions options)
-        //{
-        //    // create a server db and seed it
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
 
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName, new SyncSetup(Tables));
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in this.Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //    }
-        //}
-
-        ///// <summary>
-        ///// Check a bad connection should raise correct error
-        ///// </summary>
-        //[Fact]
-        //public async Task Bad_ConnectionFromServer_ShouldRaiseError()
-        //{
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    var onReconnect = new Action<ReConnectArgs>(args =>
-        //         Console.WriteLine($"Can't connect to database {args.Connection?.Database}. Retry N°{args.Retry}. Waiting {args.WaitingTimeSpan.Milliseconds}. Exception:{args.HandledException.Message}."));
-
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown",
-        //        SyncOptions.DefaultScopeName, new SyncSetup(Tables));
-
-        //    var serviceUri = this.Kestrell.Run();
-
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
-        //        webRemoteOrchestrator.SyncPolicy.RetryCount = 0;
-
-        //        var agent = new SyncAgent(client.Provider, webRemoteOrchestrator);
-
-        //        agent.LocalOrchestrator.OnReConnect(onReconnect);
-
-        //        var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
-        //        {
-        //            var s = await agent.SynchronizeAsync();
-
-        //        });
-        //    }
-        //}
-
-        //[Fact]
-        //public async Task Bad_TableWithoutPrimaryKeys_ShouldRaiseError()
-        //{
-        //    string tableTestCreationScript = "create table tabletest (testid int, testname varchar(50))";
-
-        //    // Create an empty server database
-        //    await this.CreateDatabaseAsync(this.ServerType, this.Server.DatabaseName, true);
-
-        //    // Create the table on the server
-        //    await HelperDatabase.ExecuteScriptAsync(this.Server.ProviderType, this.Server.DatabaseName, tableTestCreationScript);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup("tabletest"));
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
-        //        webRemoteOrchestrator.SyncPolicy.RetryCount = 0;
-        //        var agent = new SyncAgent(client.Provider, webRemoteOrchestrator);
-
-        //        var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
-        //        {
-        //            var s = await agent.SynchronizeAsync();
-        //        });
-
-        //        Assert.Equal("MissingPrimaryKeyException", se.TypeName);
-        //    }
-        //}
-
-        //[Fact]
-        //public async Task Bad_ColumnSetup_DoesNotExistInSchema_ShouldRaiseError()
-        //{
-        //    // create a server db without seed
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(Server, false, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-
-        //    // Add a malformatted column name
-        //    var setup = new SyncSetup(Tables);
-        //    setup.Tables["Employee"].Columns.AddRange(new string[] { "EmployeeID", "FirstName", "LastNam" });
-
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString,
-        //        SyncOptions.DefaultScopeName, setup);
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
-        //        webRemoteOrchestrator.SyncPolicy.RetryCount = 0;
-
-        //        var agent = new SyncAgent(client.Provider, webRemoteOrchestrator);
-
-        //        var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
-        //        {
-        //            var s = await agent.SynchronizeAsync();
-        //        });
-
-        //        Assert.Equal("MissingColumnException", se.TypeName);
-        //    }
-        //}
-
-        //[Fact]
-        //public async Task Bad_TableSetup_DoesNotExistInSchema_ShouldRaiseError()
-        //{
-        //    // create a server db without seed
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(Server, false, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // Add a malformatted column name
-        //    var setup = new SyncSetup("WeirdTable");
-
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString,
-        //        SyncOptions.DefaultScopeName, setup);
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
-        //        webRemoteOrchestrator.SyncPolicy.RetryCount = 0;
-
-        //        var agent = new SyncAgent(client.Provider, webRemoteOrchestrator);
-
-        //        var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
-        //        {
-        //            var s = await agent.SynchronizeAsync();
-        //        });
-
-        //        Assert.Equal("MissingTableException", se.TypeName);
-        //    }
-        //}
-
-        ///// <summary>
-        ///// Insert one row on server, should be correctly sync on all clients
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task Insert_OneTable_FromServer(SyncOptions options)
-        //{
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(0, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
-
-        //    // Create a new product on server
-        //    var name = HelperDatabase.GetRandomName();
-        //    var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-
-        //    var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
-
-        //    using (var serverDbCtx = new AdventureWorksContext(this.Server))
-        //    {
-        //        serverDbCtx.Product.Add(product);
-        //        await serverDbCtx.SaveChangesAsync();
-        //    }
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(1, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
-        //}
-
-        ///// <summary>
-        ///// Insert one row on each client, should be sync on server and clients
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task Insert_OneTable_FromClient(SyncOptions options)
-        //{
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(0, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
-
-        //    // Insert one line on each client
-        //    foreach (var client in Clients)
-        //    {
-        //        var name = HelperDatabase.GetRandomName();
-        //        var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-
-        //        var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
-
-        //        using var serverDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
-        //        serverDbCtx.Product.Add(product);
-        //        await serverDbCtx.SaveChangesAsync();
-        //    }
-
-        //    // Sync all clients
-        //    // First client  will upload one line and will download nothing
-        //    // Second client will upload one line and will download one line
-        //    // thrid client  will upload one line and will download two lines
-        //    int download = 0;
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(download++, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(1, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
-
-        //}
-
-
-
-        ///// <summary>
-        ///// Insert one row on server, should be correctly sync on all clients
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task Check_AdditionalProperties_Are_Constant_Across_Http_Calls(SyncOptions options)
-        //{
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-
-        //    RequestDelegate serverHandler = new RequestDelegate(async context =>
-        //    {
-        //        var webServerAgent = context.RequestServices.GetService<WebServerAgent>();
-
-        //        // When Server Orchestrator send back the response, we will make an interruption
-        //        webServerAgent.OnHttpGettingRequest(args =>
-        //        {
-        //            Assert.NotEmpty(args.Context.AdditionalProperties);
-        //            Assert.Single(args.Context.AdditionalProperties);
-        //        });
-
-        //        webServerAgent.OnHttpSendingResponse(args =>
-        //        {
-        //            Assert.NotEmpty(args.Context.AdditionalProperties);
-        //            Assert.Single(args.Context.AdditionalProperties);
-        //        });
-
-        //        await webServerAgent.HandleRequestAsync(context);
-
-        //    });
-        //    var serviceUri = this.Kestrell.Run(serverHandler);
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new RemoteOrchestrator(this.Server.Provider), options);
-        //        var s = await agent.SynchronizeAsync(Tables);
-        //    }
-
-        //    // Insert one line on each client
-        //    foreach (var client in Clients)
-        //    {
-        //        var name = HelperDatabase.GetRandomName();
-        //        var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-
-        //        var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
-
-        //        using var serverDbCtx = new AdventureWorksContext(client, this.UseFallbackSchema);
-        //        serverDbCtx.Product.Add(product);
-        //        await serverDbCtx.SaveChangesAsync();
-        //    }
-
-
-        //    // Create a new product on server
-        //    var sName = HelperDatabase.GetRandomName();
-        //    var sProductNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-
-        //    var sProduct = new Product { ProductId = Guid.NewGuid(), Name = sName, ProductNumber = sProductNumber };
-
-        //    using (var serverDbCtx = new AdventureWorksContext(this.Server))
-        //    {
-        //        serverDbCtx.Product.Add(sProduct);
-        //        await serverDbCtx.SaveChangesAsync();
-        //    }
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        var remoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
-
-        //        var agent = new SyncAgent(client.Provider, remoteOrchestrator, options);
-
-        //        var apCreated = 0;
-
-        //        //agent.LocalOrchestrator.OnSessionBegin(args =>
-        //        //{
-        //        //    args.Context.AdditionalProperties = new Dictionary<string, string> { { "A", "1" } };
-        //        //    apCreated++;
-        //        //});
-
-        //        remoteOrchestrator.OnHttpSendingRequest(args =>
-        //        {
-
-        //            if (args.Context.AdditionalProperties == null)
-        //            {
-        //                args.Context.AdditionalProperties = new Dictionary<string, string> { { "A", "1" } };
-        //                apCreated++;
-
-        //            }
-
-        //            Assert.NotEmpty(args.Context.AdditionalProperties);
-        //            Assert.Single(args.Context.AdditionalProperties);
-        //        });
-
-        //        remoteOrchestrator.OnHttpGettingResponse(args =>
-        //        {
-        //            Assert.NotEmpty(args.Context.AdditionalProperties);
-        //            Assert.Single(args.Context.AdditionalProperties);
-        //        });
-
-        //        var s = await agent.SynchronizeAsync();
-        //    }
-        //}
-
-        ///// <summary>
-
-
-
-        ///// <summary>
-        ///// Delete rows on server, should be correctly sync on all clients
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task Delete_OneTable_FromServer(SyncOptions options)
-        //{
-        //    // create a server schema with seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // get rows count
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // part of the filter
-        //    var employeeId = 1;
-        //    // will be defined when address is inserted
-        //    var addressId = 0;
-
-        //    // Insert one address row and one addressemployee row
-        //    using (var serverDbCtx = new AdventureWorksContext(this.Server))
-        //    {
-        //        // Insert a new address for employee 1
-        //        var city = "Paris " + HelperDatabase.GetRandomName();
-        //        var addressline1 = "Rue Monthieu " + HelperDatabase.GetRandomName();
-        //        var stateProvince = "Ile de France";
-        //        var countryRegion = "France";
-        //        var postalCode = "75001";
-
-        //        var address = new Address
-        //        {
-        //            AddressLine1 = addressline1,
-        //            City = city,
-        //            StateProvince = stateProvince,
-        //            CountryRegion = countryRegion,
-        //            PostalCode = postalCode
-
-        //        };
-
-        //        serverDbCtx.Add(address);
-        //        await serverDbCtx.SaveChangesAsync();
-        //        addressId = address.AddressId;
-
-        //        var employeeAddress = new EmployeeAddress
-        //        {
-        //            EmployeeId = employeeId,
-        //            AddressId = address.AddressId,
-        //            AddressType = "SERVER"
-        //        };
-
-        //        var ea = serverDbCtx.EmployeeAddress.Add(employeeAddress);
-        //        await serverDbCtx.SaveChangesAsync();
-
-        //    }
-
-        //    // add 2 lines to rows count
-        //    rowsCount += 2;
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-
-        //        // check rows are create on client
-        //        using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
-        //        var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
-        //        var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
-        //        Assert.Equal(1, finalAddressesCount);
-        //        Assert.Equal(1, finalEmployeeAddressesCount);
-
-
-        //    }
-
-        //    // Delete those lines from server
-        //    using (var serverDbCtx = new AdventureWorksContext(this.Server))
-        //    {
-        //        // Get the addresses query
-        //        var address = await serverDbCtx.Address.SingleAsync(a => a.AddressId == addressId);
-        //        var empAddress = await serverDbCtx.EmployeeAddress.SingleAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
-
-        //        // remove them
-        //        serverDbCtx.EmployeeAddress.Remove(empAddress);
-        //        serverDbCtx.Address.Remove(address);
-
-        //        // Execute query
-        //        await serverDbCtx.SaveChangesAsync();
-        //    }
-
-        //    // Sync and check we have delete these lines on each server
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(2, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-
-        //        // check row deleted on client values
-        //        using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
-        //        var finalAddressesCount = await ctx.Address.AsNoTracking().CountAsync(a => a.AddressId == addressId);
-        //        var finalEmployeeAddressesCount = await ctx.EmployeeAddress.AsNoTracking().CountAsync(a => a.AddressId == addressId && a.EmployeeId == employeeId);
-        //        Assert.Equal(0, finalAddressesCount);
-        //        Assert.Equal(0, finalEmployeeAddressesCount);
-        //    }
-        //}
-
-        ///// <summary>
-        ///// Insert thousand or rows. Check if batch mode works correctly
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task Insert_ThousandRows_FromClient(SyncOptions options)
-        //{
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-        //        await agent.SynchronizeAsync();
-        //    }
-
-        //    // Insert one thousand lines on each client
-        //    foreach (var client in Clients)
-        //    {
-        //        using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
-        //        for (var i = 0; i < 2000; i++)
-        //        {
-        //            var name = HelperDatabase.GetRandomName();
-        //            var productNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
-
-        //            var product = new Product { ProductId = Guid.NewGuid(), Name = name, ProductNumber = productNumber };
-
-        //            ctx.Product.Add(product);
-        //        }
-        //        await ctx.SaveChangesAsync();
-        //    }
-
-        //    // Sync all clients
-        //    // First client  will upload 2000 lines and will download nothing
-        //    // Second client will upload 2000 lines and will download 2000 lines
-        //    // Third client  will upload 2000 line and will download 4000 lines
-        //    int download = 0;
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(download * 2000, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(2000, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-
-        //        download++;
-        //    }
-
-        //}
-
-        ///// <summary>
-        ///// Insert one row on each client, should be sync on server and clients
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task Reinitialize_Client(SyncOptions options)
-        //{
-        //    // create a server schema with seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
-
-        //    // Insert one line on each client
-        //    foreach (var client in Clients)
-        //    {
-        //        var productCategoryName = HelperDatabase.GetRandomName();
-        //        var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-        //        var productId = Guid.NewGuid();
-        //        var productName = HelperDatabase.GetRandomName();
-        //        var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-        //        using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
-        //        var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-        //        ctx.Add(pc);
-        //        var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
-        //        ctx.Add(product);
-        //        await ctx.SaveChangesAsync();
-        //    }
-
-        //    // Sync all clients
-        //    // inserted rows will be deleted 
-        //    foreach (var client in Clients)
-        //    {
-        //        // coz of ProductCategory Parent Id Foreign Key Constraints
-        //        // on Reset table in MySql
-        //        options.DisableConstraintsOnApplyChanges = true;
-
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-
-        //        if (options.TransactionMode != TransactionMode.AllOrNothing && (client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB))
-        //        {
-        //            agent.LocalOrchestrator.OnGetCommand(async args =>
-        //            {
-        //                if (args.CommandType == DbCommandType.Reset)
-        //                {
-        //                    var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
-        //                    await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
-        //                }
-        //            });
-        //        }
-        //        var s = await agent.SynchronizeAsync(SyncType.Reinitialize);
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-
-        //    }
-        //}
-
-        ///// <summary>
-        ///// Insert one row on each client, should be sync on server and clients
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task ReinitializeWithUpload_Client(SyncOptions options)
-        //{
-        //    // create a server schema with seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
-
-        //    // Insert one line on each client
-        //    foreach (var client in Clients)
-        //    {
-        //        var productCategoryName = HelperDatabase.GetRandomName();
-        //        var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-        //        var productId = Guid.NewGuid();
-        //        var productName = HelperDatabase.GetRandomName();
-        //        var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-        //        using var ctx = new AdventureWorksContext(client, this.UseFallbackSchema);
-        //        var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-        //        ctx.Add(pc);
-        //        var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber, ProductCategoryId = productCategoryId };
-        //        ctx.Add(product);
-        //        await ctx.SaveChangesAsync();
-        //    }
-
-        //    // Sync all clients
-        //    // client  will upload two lines and will download all + its two lines
-        //    int download = 2;
-        //    foreach (var client in Clients)
-        //    {
-        //        // coz of ProductCategory Parent Id Foreign Key Constraints
-        //        // on Reset table in MySql
-        //        options.DisableConstraintsOnApplyChanges = true;
-
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-
-        //        if (options.TransactionMode != TransactionMode.AllOrNothing && (client.ProviderType == ProviderType.MySql || client.ProviderType == ProviderType.MariaDB))
-        //        {
-        //            agent.LocalOrchestrator.OnGetCommand(async args =>
-        //            {
-        //                if (args.CommandType == DbCommandType.Reset)
-        //                {
-        //                    var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
-        //                    await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
-        //                }
-        //            });
-        //        }
-
-        //        var s = await agent.SynchronizeAsync(SyncType.ReinitializeWithUpload);
-
-        //        Assert.Equal(rowsCount + download, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(2, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //        download += 2;
-        //    }
-
-
-        //}
-
-        ///// <summary>
-        ///// Insert one row on each client, should be sync on server and clients
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task Bad_Converter_NotRegisteredOnServer_ShouldRaiseError(SyncOptions options)
-        //{
-        //    // create a server db and seed it
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
-
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in this.Clients)
-        //    {
-        //        // Add a converter on the client.
-        //        // But this converter is not register on the server side converters list.
-        //        var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri, new DateConverter());
-        //        webRemoteOrchestrator.SyncPolicy.RetryCount = 0;
-
-        //        var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
-
-        //        var exception = await Assert.ThrowsAsync<SyncException>(async () =>
-        //        {
-        //            var s = await agent.SynchronizeAsync();
-
-        //        });
-
-        //        Assert.Equal("HttpConverterNotConfiguredException", exception.TypeName);
-        //    }
-        //}
+        [Fact]
+        public async Task CheckAdditionalPropertiesAreConstantAcrossHttpCallsUsingOnHttpSendingRequest()
+        {
+            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Add one row on server
+            await Fixture.AddProductCategoryAsync(serverProvider);
+
+            // Add one row in each client
+            foreach (var clientProvider in clientsProvider)
+                await Fixture.AddProductCategoryAsync(clientProvider);
+
+            // Stop Kestrell to reconfigure
+            await this.Kestrell.StopAsync();
+
+            // Add again the serverprovider
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+
+            // override server handler to use OnHttpGettingRequest and OnHttpSendingResponse
+            var serverHandler = new RequestDelegate(async context =>
+            {
+                var webServerAgent = context.RequestServices.GetService<WebServerAgent>();
+
+                webServerAgent.OnHttpGettingRequest(args =>
+                {
+                    Assert.NotEmpty(args.Context.AdditionalProperties);
+                    Assert.Single(args.Context.AdditionalProperties);
+                });
+
+                webServerAgent.OnHttpSendingResponse(args =>
+                {
+                    Assert.NotEmpty(args.Context.AdditionalProperties);
+                    Assert.Single(args.Context.AdditionalProperties);
+                });
+
+                await webServerAgent.HandleRequestAsync(context);
+
+            });
+
+            var serviceUri = this.Kestrell.Run(serverHandler);
+
+            int download = 1;
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
+
+                webRemoteOrchestrator.OnHttpSendingRequest(args =>
+                {
+                    if (args.Context.AdditionalProperties == null)
+                        args.Context.AdditionalProperties = new Dictionary<string, string> { { "A", "1" } };
+
+                    Assert.NotEmpty(args.Context.AdditionalProperties);
+                    Assert.Single(args.Context.AdditionalProperties);
+                });
+
+                webRemoteOrchestrator.OnHttpGettingResponse(args =>
+                {
+                    Assert.NotEmpty(args.Context.AdditionalProperties);
+                    Assert.Single(args.Context.AdditionalProperties);
+                });
+
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download++, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+        }
+
+        [Fact]
+        public async Task CheckAdditionalPropertiesAreConstantAcrossHttpCallsUsingOnSessionBegins()
+        {
+            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Add one row on server
+            await Fixture.AddProductCategoryAsync(serverProvider);
+
+            // Add one row in each client
+            foreach (var clientProvider in clientsProvider)
+                await Fixture.AddProductCategoryAsync(clientProvider);
+
+            // Stop Kestrell to reconfigure
+            await this.Kestrell.StopAsync();
+
+            // Add again the serverprovider
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+
+            // override server handler to use OnHttpGettingRequest and OnHttpSendingResponse
+            var serverHandler = new RequestDelegate(async context =>
+            {
+                var webServerAgent = context.RequestServices.GetService<WebServerAgent>();
+
+                webServerAgent.OnHttpGettingRequest(args =>
+                {
+                    Assert.NotEmpty(args.Context.AdditionalProperties);
+                    Assert.Single(args.Context.AdditionalProperties);
+                });
+
+                webServerAgent.OnHttpSendingResponse(args =>
+                {
+                    Assert.NotEmpty(args.Context.AdditionalProperties);
+                    Assert.Single(args.Context.AdditionalProperties);
+                });
+
+                await webServerAgent.HandleRequestAsync(context);
+
+            });
+
+            var serviceUri = this.Kestrell.Run(serverHandler);
+
+            int download = 1;
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+                var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
+
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download++, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                agent.LocalOrchestrator.OnSessionBegin(args =>
+                {
+                    if (args.Context.AdditionalProperties == null)
+                        args.Context.AdditionalProperties = new Dictionary<string, string> { { "A", "1" } };
+                });
+
+                webRemoteOrchestrator.OnHttpGettingResponse(args =>
+                {
+                    Assert.NotEmpty(args.Context.AdditionalProperties);
+                    Assert.Single(args.Context.AdditionalProperties);
+                });
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task MultiScopes(SyncOptions options)
+        {
+            // get the number of rows that have only primary keys (which do not accept any Update)
+            int notUpdatedOnClientsCount;
+            using (var serverDbCtx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            {
+                var pricesListCategoriesCount = serverDbCtx.PricesListCategory.Count();
+                var postTagsCount = serverDbCtx.PostTag.Count();
+                notUpdatedOnClientsCount = pricesListCategoriesCount + postTagsCount;
+            }
+
+            // Get count of rows
+            var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
+
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientProviderType, _) = HelperDatabase.GetDatabaseType(clientProvider);
+
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                // On first sync, even tables with only primary keys are inserted
+                var s = await agent.SynchronizeAsync("v1", setup);
+                var clientRowsCount = Fixture.GetDatabaseRowsCount(clientProvider);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(rowsCount, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(rowsCount, clientRowsCount);
+
+                var s2 = await agent.SynchronizeAsync("v2", setup);
+
+                clientRowsCount = Fixture.GetDatabaseRowsCount(clientProvider);
+                Assert.Equal(rowsCount, s2.TotalChangesDownloadedFromServer);
+
+                // On second sync, tables with only primary keys are downloaded but not inserted or updated
+                // except SQLite
+                if (clientProviderType == ProviderType.Sqlite) // Sqlite make a REPLACE statement, so primary keys only tables will increment count
+                    Assert.Equal(rowsCount, s2.TotalChangesAppliedOnClient);
+                else
+                    Assert.Equal(rowsCount - notUpdatedOnClientsCount, s2.TotalChangesAppliedOnClient);
+
+                Assert.Equal(0, s2.TotalChangesUploadedToServer);
+                Assert.Equal(rowsCount, clientRowsCount);
+            }
+        }
+
+        [Fact]
+        public async Task BadConnectionFromServerShouldRaiseError()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+            var badServerProvider = HelperDatabase.GetSyncProvider(Fixture.ServerProviderType, HelperDatabase.GetRandomName("tcp_srv_bad_"));
+            badServerProvider.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown";
+
+            // Create a client provider, but it will not be used since server provider will raise an error before
+            var clientProvider = clientsProvider.First();
+
+            using var kestrell = new KestrellTestServer(this.UseFiddler);
+            kestrell.AddSyncServer(badServerProvider.GetType(), badServerProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+            var serviceUri = kestrell.Run();
+
+            var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+            var se = await Assert.ThrowsAnyAsync<SyncException>(async () => await agent.SynchronizeAsync(setup));
+        }
+
+        [Fact]
+        public async Task BadConnectionFromClientShouldRaiseError()
+        {
+            var badClientsProviders = new List<CoreProvider>();
+
+            foreach (var type in Fixture.ClientsType)
+            {
+                var badClientProvider = HelperDatabase.GetSyncProvider(type, HelperDatabase.GetRandomName("tcp_bad_cli"));
+                badClientProvider.ConnectionString = $@"Data Source=/dev/null/foo;";
+                badClientsProviders.Add(badClientProvider);
+            }
+
+            // Execute a sync on all clients and check results
+            foreach (var badClientProvider in badClientsProviders)
+            {
+                var (t, d) = HelperDatabase.GetDatabaseType(badClientProvider);
+                var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+                var agent = new SyncAgent(badClientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                var se = await Assert.ThrowsAnyAsync<SyncException>(async () => await agent.SynchronizeAsync(setup));
+                Console.WriteLine($"Exception correctly raised for provider {t}");
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task InsertOneRowInOneTableOnServerSide(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            await Fixture.AddProductCategoryAsync(serverProvider);
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task InsertTwoRowsInTwoTablesOnServerSide(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            await Fixture.AddProductCategoryAsync(serverProvider);
+            await Fixture.AddProductCategoryAsync(serverProvider);
+            await Fixture.AddProductAsync(serverProvider);
+            await Fixture.AddProductAsync(serverProvider);
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(4, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(4, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task InsertOneRowThenUpdateThisRowOnServerSide(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            var serverProductCategory = await Fixture.AddProductCategoryAsync(serverProvider);
+
+            var pcName = string.Concat(serverProductCategory.ProductCategoryId, "UPDATED");
+            serverProductCategory.Name = pcName;
+
+            await Fixture.UpdateProductCategoryAsync(serverProvider, serverProductCategory);
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
+                var s = await agent.SynchronizeAsync();
+
+                var clientProductCategory = await Fixture.GetProductCategoryAsync(clientProvider, serverProductCategory.ProductCategoryId);
+
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(pcName, clientProductCategory.Name);
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task InsertOneRowInOneTableOnClientSide(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Add one row in each client
+            foreach (var clientProvider in clientsProvider)
+                await Fixture.AddProductCategoryAsync(clientProvider);
+
+            int download = 0;
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download++, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task InsertTwoRowsInTwoTablesOnClientSide(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Add one row in each client
+            foreach (var clientProvider in clientsProvider)
+            {
+                await Fixture.AddProductCategoryAsync(clientProvider);
+                await Fixture.AddProductCategoryAsync(clientProvider);
+                await Fixture.AddProductAsync(clientProvider);
+                await Fixture.AddProductAsync(clientProvider);
+            }
+
+            int download = 0;
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(4, s.TotalChangesUploadedToServer);
+                Assert.Equal(4, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+                download += 4;
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task InsertTenThousandsRowsInOneTableOnClientSide(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            var rowsCountToInsert = 10000;
+
+            // Add one row in each client
+            foreach (var clientProvider in clientsProvider)
+                for (int i = 0; i < rowsCountToInsert; i++)
+                    await Fixture.AddProductCategoryAsync(clientProvider);
+
+            int download = 0;
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(rowsCountToInsert, s.TotalChangesUploadedToServer);
+                Assert.Equal(rowsCountToInsert, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+                download += rowsCountToInsert;
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task InsertOneRowAndDeleteOneRowInOneTableOnServerSide(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            var firstProductCategory = await Fixture.AddProductCategoryAsync(serverProvider);
+
+            // sync this category on each client to be able to delete it after
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // add one row
+            await Fixture.AddProductCategoryAsync(serverProvider);
+            // delete one row
+            await Fixture.DeleteProductCategoryAsync(serverProvider, firstProductCategory.ProductCategoryId);
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(2, s.TotalChangesAppliedOnClient);
+                Assert.Equal(2, s.ChangesAppliedOnClient.TableChangesApplied.Count);
+                Assert.Equal(1, s.ChangesAppliedOnClient.TableChangesApplied[0].Applied);
+                Assert.Equal(1, s.ChangesAppliedOnClient.TableChangesApplied[1].Applied);
+
+                var rowState = s.ChangesAppliedOnClient.TableChangesApplied[0].State;
+                var otherRowState = rowState == SyncRowState.Modified ? SyncRowState.Deleted : SyncRowState.Modified;
+                Assert.Equal(otherRowState, s.ChangesAppliedOnClient.TableChangesApplied[1].State);
+
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task InsertOneRowWithByteArrayOnServerSide(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            var thumbnail = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+
+            // add one row
+            var product = await Fixture.AddProductAsync(serverProvider, thumbNailPhoto: thumbnail);
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                var clientProduct = await Fixture.GetProductAsync(clientProvider, product.ProductId);
+
+                Assert.Equal(product.ThumbNailPhoto, clientProduct.ThumbNailPhoto);
+
+                for (var i = 0; i < product.ThumbNailPhoto.Length; i++)
+                    Assert.Equal(product.ThumbNailPhoto[i], clientProduct.ThumbNailPhoto[i]);
+
+                Assert.Equal(thumbnail.Length, clientProduct.ThumbNailPhoto.Length);
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task InsertOneRowInOneTableOnClientSideThenInsertAgainDuringGetChanges(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Add one row in each client
+            foreach (var clientProvider in clientsProvider)
+            {
+                await Fixture.AddProductCategoryAsync(clientProvider);
+                await Fixture.AddProductAsync(clientProvider);
+                await Fixture.AddPriceListAsync(clientProvider);
+            }
+
+            // Sync all clients
+            // First client  will upload 3 lines and will download nothing
+            // Second client will upload 3 lines and will download 3 lines
+            // thrid client  will upload 3 lines and will download 6 lines
+            int download = 0;
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+
+                // Sleep during a selecting changes on first sync
+                async Task tableChangesSelected(TableChangesSelectedArgs changes)
+                {
+                    if (changes.TableChangesSelected.TableName != "PricesList")
+                        return;
+                    try
+                    {
+                        await Fixture.AddPriceListAsync(clientProvider, connection: changes.Connection, transaction: changes.Transaction);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                        throw;
+                    }
+                    return;
+                };
+
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                // Intercept TableChangesSelected
+                agent.LocalOrchestrator.OnTableChangesSelected(tableChangesSelected);
+
+                var s = await agent.SynchronizeAsync(setup);
+
+                agent.LocalOrchestrator.ClearInterceptors();
+
+                Assert.Equal(download, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(3, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+                download += 3;
+
+            }
+
+            // CLI1 (6 rows) : CLI1 will upload 1 row and download 3 rows from CLI2 and 3 rows from CLI3
+            // CLI2 (4 rows) : CLI2 will upload 1 row and download 3 rows from CLI3 and 1 row from CLI1
+            // CLI3 (2 rows) : CLI3 will upload 1 row and download 1 row from CLI1 and 1 row from CLI2
+            download = 3 * (clientsProvider.Count() - 1);
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+                download -= 2;
+            }
+
+
+            // CLI1 (6) : CLI1 will download 1 row from CLI3 and 1 rows from CLI2
+            // CLI2 (4) : CLI2 will download 1 row from CLI3
+            // CLI3 (2) : CLI3 will download nothing
+            download = clientsProvider.Count() - 1;
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download--, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+            // check rows count on server and on each client
+            using var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema);
+
+            var productRowCount = await ctx.Product.AsNoTracking().CountAsync();
+            var productCategoryCount = await ctx.ProductCategory.AsNoTracking().CountAsync();
+            var priceListCount = await ctx.PricesList.AsNoTracking().CountAsync();
+            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+
+            foreach (var clientProvider in clientsProvider)
+            {
+                Assert.Equal(rowsCount, Fixture.GetDatabaseRowsCount(clientProvider));
+
+                using var cliCtx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
+                var pCount = await cliCtx.Product.AsNoTracking().CountAsync();
+                Assert.Equal(productRowCount, pCount);
+
+                var pcCount = await cliCtx.ProductCategory.AsNoTracking().CountAsync();
+                Assert.Equal(productCategoryCount, pcCount);
+
+                var plCount = await cliCtx.PricesList.AsNoTracking().CountAsync();
+                Assert.Equal(priceListCount, plCount);
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task UpdateOneRowInOneTableOnServerSide(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            var productCategory = await Fixture.AddProductCategoryAsync(serverProvider);
+
+            // sync this category on each client to be able to update productCategory after
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            var updatedProductCategoryName = $"UPDATED_{productCategory.Name}";
+
+            productCategory.Name = updatedProductCategoryName;
+            await Fixture.UpdateProductCategoryAsync(serverProvider, productCategory);
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Single(s.ChangesAppliedOnClient.TableChangesApplied);
+                Assert.Equal(1, s.ChangesAppliedOnClient.TableChangesApplied[0].Applied);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                var clientProductCategory = await Fixture.GetProductCategoryAsync(clientProvider, productCategory.ProductCategoryId);
+                Assert.Equal(updatedProductCategoryName, clientProductCategory.Name);
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task UpdateOneRowInOneTableOnClientSide(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Update one address on each client
+            // To avoid conflicts, each client will update differents lines
+            // each address id is generated from the foreach index
+            int addressId = 0;
+            foreach (var clientProvider in clientsProvider)
+            {
+                using (var ctx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema))
+                {
+                    var addresses = ctx.Address.OrderBy(a => a.AddressId).Where(a => !string.IsNullOrEmpty(a.AddressLine2)).Take(clientsProvider.ToList().Count).ToList();
+                    var address = addresses[addressId];
+
+                    // Update at least two properties
+                    address.City = HelperDatabase.GetRandomName("City");
+                    address.AddressLine1 = HelperDatabase.GetRandomName("Address");
+
+                    await ctx.SaveChangesAsync();
+                }
+                addressId++;
+            }
+
+            // Sync
+            int download = 0;
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download++, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+            // Now sync again to be sure all clients have all lines
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options).SynchronizeAsync(setup);
+
+            // get rows count
+            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+
+            // check rows count on server and on each client
+            using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            {
+                // get all addresses
+                var serverAddresses = await ctx.Address.AsNoTracking().ToListAsync();
+
+                foreach (var clientProvider in clientsProvider)
+                {
+                    Assert.Equal(rowsCount, Fixture.GetDatabaseRowsCount(clientProvider));
+
+                    using var cliCtx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
+                    // get all addresses
+                    var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
+
+                    // check row count
+                    Assert.Equal(serverAddresses.Count, clientAddresses.Count);
+
+                    foreach (var clientAddress in clientAddresses)
+                    {
+                        var serverAddress = serverAddresses.First(a => a.AddressId == clientAddress.AddressId);
+
+                        // check column value
+                        Assert.Equal(serverAddress.StateProvince, clientAddress.StateProvince);
+                        Assert.Equal(serverAddress.AddressLine1, clientAddress.AddressLine1);
+                        Assert.Equal(serverAddress.AddressLine2, clientAddress.AddressLine2);
+                    }
+                }
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task UpdateOneRowToNullInOneTableOnClientSide(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Update one address on each client
+            // To avoid conflicts, each client will update differents lines
+            // each address id is generated from the foreach index
+            int addressId = 0;
+            foreach (var clientProvider in clientsProvider)
+            {
+                using (var ctx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema))
+                {
+                    var addresses = ctx.Address.OrderBy(a => a.AddressId).Where(a => !string.IsNullOrEmpty(a.AddressLine2)).Take(clientsProvider.ToList().Count).ToList();
+                    var address = addresses[addressId];
+
+                    // Update a column to null value
+                    address.AddressLine2 = null;
+
+                    await ctx.SaveChangesAsync();
+                }
+                addressId++;
+            }
+
+            // Sync
+            int download = 0;
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(download++, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+
+            // Now sync again to be sure all clients have all lines
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options).SynchronizeAsync(setup);
+
+            // get rows count
+            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+
+            // check rows count on server and on each client
+            using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            {
+                // get all addresses
+                var serverAddresses = await ctx.Address.AsNoTracking().ToListAsync();
+
+                foreach (var clientProvider in clientsProvider)
+                {
+                    Assert.Equal(rowsCount, Fixture.GetDatabaseRowsCount(clientProvider));
+
+                    using var cliCtx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
+                    // get all addresses
+                    var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
+
+                    // check row count
+                    Assert.Equal(serverAddresses.Count, clientAddresses.Count);
+
+                    foreach (var clientAddress in clientAddresses)
+                    {
+                        var serverAddress = serverAddresses.First(a => a.AddressId == clientAddress.AddressId);
+
+                        // check column value
+                        Assert.Equal(serverAddress.AddressLine2, clientAddress.AddressLine2);
+                    }
+                }
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task UpdateOneRowToNullInOneTableOnServerSide(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            Address address;
+            // Update one address to null on server side
+            using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            {
+                address = ctx.Address.OrderBy(a => a.AddressId).Where(a => !string.IsNullOrEmpty(a.AddressLine2)).First();
+                address.AddressLine2 = null;
+                await ctx.SaveChangesAsync();
+            }
+
+            // Sync
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                // Check value
+                using var ctx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
+                var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == address.AddressId);
+                Assert.Null(cliAddress.AddressLine2);
+            }
+
+            // Update one address previously null to not null on server side
+            using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            {
+                address = await ctx.Address.SingleAsync(a => a.AddressId == address.AddressId);
+                address.AddressLine2 = "NoT a null value !";
+                await ctx.SaveChangesAsync();
+            }
+
+            // Sync
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                // Check value
+                using var ctx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
+                var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == address.AddressId);
+                Assert.Equal("NoT a null value !", cliAddress.AddressLine2);
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task DeleteOneRowInOneTableOnServerSide(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            var firstProductCategory = await Fixture.AddProductCategoryAsync(serverProvider);
+
+            // sync this category on each client to be able to delete it after
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // delete one row
+            await Fixture.DeleteProductCategoryAsync(serverProvider, firstProductCategory.ProductCategoryId);
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                // don' need to specify scope name (default will be used) nor setup, since it already exists
+                var s = await agent.SynchronizeAsync();
+
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Single(s.ChangesAppliedOnClient.TableChangesApplied);
+                Assert.Equal(1, s.ChangesAppliedOnClient.TableChangesApplied[0].Applied);
+                Assert.Equal(SyncRowState.Deleted, s.ChangesAppliedOnClient.TableChangesApplied[0].State);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task DeleteOneRowInOneTableOnClientSide(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // To avoid conflicts, each client will add a product category
+            // each address id is generated from the foreach index
+            foreach (var clientProvider in clientsProvider)
+                await Fixture.AddProductCategoryAsync(clientProvider, name: $"CLI_{HelperDatabase.GetRandomName()}");
+
+            // Execute two sync on all clients to be sure all clients have all lines
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Now delete rows on each client
+            foreach (var clientsProvider in clientsProvider)
+            {
+                // Then delete all product category items
+                using var ctx = new AdventureWorksContext(clientsProvider, Fixture.UseFallbackSchema);
+                foreach (var pc in ctx.ProductCategory.Where(pc => pc.Name.StartsWith("CLI_")))
+                    ctx.ProductCategory.Remove(pc);
+                await ctx.SaveChangesAsync();
+            }
+
+            var cpt = 0; // first client won't have any conflicts, but others will upload their deleted rows that are ALREADY deleted
+            foreach (var clientProvider in clientsProvider)
+            {
+                var s = await new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options).SynchronizeAsync();
+
+                // we are downloading deleted rows from server
+                Assert.Equal(cpt, s.TotalChangesDownloadedFromServer);
+                // but we should not have any rows applied locally
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                // anyway we are always uploading our deleted rows
+                Assert.Equal(clientsProvider.ToList().Count, s.TotalChangesUploadedToServer);
+                // w may have resolved conflicts locally
+                Assert.Equal(cpt, s.TotalResolvedConflicts);
+
+                cpt = clientsProvider.ToList().Count;
+            }
+
+            // check rows count on server and on each client
+            using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            {
+                var serverPC = await ctx.ProductCategory.AsNoTracking().CountAsync();
+                foreach (var clientProvider in clientsProvider)
+                {
+                    using var cliCtx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
+                    var clientPC = await cliCtx.ProductCategory.AsNoTracking().CountAsync();
+                    Assert.Equal(serverPC, clientPC);
+                }
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Reinitialize(SyncOptions options)
+        {
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Get count of rows
+            var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
+
+            // Reset stored proc needs it.
+            options.DisableConstraintsOnApplyChanges = true;
+
+            // Add one row in each client then Reinitialize
+            foreach (var clientProvider in clientsProvider)
+            {
+                var productCategory = await Fixture.AddProductCategoryAsync(clientProvider);
+
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                var s = await agent.SynchronizeAsync(setup, SyncType.Reinitialize);
+
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(rowsCount, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+
+                // The row should not be present as it has been overwritten by Reinitiliaze
+                var pc = await Fixture.GetProductCategoryAsync(clientProvider, productCategory.ProductCategoryId);
+                Assert.Null(pc);
+            }
+
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task ReinitializeWithUpload(SyncOptions options)
+        {
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Get count of rows
+            var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
+
+            // Reset stored proc needs it.
+            options.DisableConstraintsOnApplyChanges = true;
+
+            // Add one row in each client then ReinitializeWithUpload
+            int download = 1;
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+                var productCategory = await Fixture.AddProductCategoryAsync(clientProvider);
+
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                var s = await agent.SynchronizeAsync(setup, SyncType.ReinitializeWithUpload);
+
+                Assert.Equal(rowsCount + download, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(rowsCount + download, s.TotalChangesAppliedOnClient);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+
+                // The row should be present 
+                var pc = await Fixture.GetProductCategoryAsync(clientProvider, productCategory.ProductCategoryId);
+                Assert.NotNull(pc);
+                download++;
+            }
+
+        }
+
+        [Fact]
+        public async Task UploadOnly()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            var setupV2 = Fixture.GetSyncSetup();
+
+            foreach (var table in setupV2.Tables)
+                table.SyncDirection = SyncDirection.UploadOnly;
+
+            // Should not download anything
+            foreach (var clientProvider in clientsProvider)
+            {
+                var s = await new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options).SynchronizeAsync("uploadonly", setupV2);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+            }
+
+            // Add one row in each client
+            foreach (var clientProvider in clientsProvider)
+                await Fixture.AddProductCategoryAsync(clientProvider);
+
+            // Add a pc on server
+            await Fixture.AddProductCategoryAsync(serverProvider);
+
+            // Sync all clients
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                var s = await agent.SynchronizeAsync("uploadonly");
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+        }
+
+        [Fact]
+        public async Task DownloadOnly()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            var setupV2 = Fixture.GetSyncSetup();
+
+            foreach (var table in setupV2.Tables)
+                table.SyncDirection = SyncDirection.DownloadOnly;
+
+            // Get count of rows
+            var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
+
+            // Should not download anything
+            foreach (var clientProvider in clientsProvider)
+            {
+                var s = await new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options).SynchronizeAsync("downloadonly", setupV2);
+                Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(rowsCount, s.TotalChangesAppliedOnClient);
+            }
+
+            // Add one row in each client
+            foreach (var clientProvider in clientsProvider)
+                await Fixture.AddProductCategoryAsync(clientProvider);
+
+            // Add a pc on server
+            await Fixture.AddProductCategoryAsync(serverProvider);
+
+            // Sync all clients
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                var s = await agent.SynchronizeAsync("downloadonly");
+
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task Snapshots(SyncOptions options)
+        {
+            // snapshot directory
+            var snapshotDirctory = HelperDatabase.GetRandomName();
+            var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
+
+            // Settings the options to enable snapshot
+            options.SnapshotsDirectory = directory;
+            options.BatchSize = 3000;
+            // Disable constraints
+            options.DisableConstraintsOnApplyChanges = true;
+
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+
+            // Adding a row that I will delete after creating snapshot
+            var productCategoryTodelete = await Fixture.AddProductCategoryAsync(serverProvider);
+
+            // Create a snapshot
+            await remoteOrchestrator.CreateSnapshotAsync(setup);
+
+            // Add rows after creating snapshot
+            var pc1 = await Fixture.AddProductCategoryAsync(serverProvider);
+            var pc2 = await Fixture.AddProductCategoryAsync(serverProvider);
+            var p1 = await Fixture.AddProductAsync(serverProvider);
+            var p2 = await Fixture.AddPriceListAsync(serverProvider);
+            // Delete a row
+            await Fixture.DeleteProductCategoryAsync(serverProvider, productCategoryTodelete.ProductCategoryId);
+
+            // Get count of rows
+            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                var s = await agent.SynchronizeAsync(setup);
+
+                // + 2 because
+                // * 1 for the product category to delete, part of snapshot
+                // * 1 for the product category to delete, actually deleted
+                Assert.Equal(rowsCount + 2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(rowsCount + 2, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(rowsCount - 5 + 2, s.SnapshotChangesAppliedOnClient.TotalAppliedChanges);
+                Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
+                Assert.Equal(5, s.ServerChangesSelected.TotalChangesSelected);
+
+                Assert.Equal(rowsCount, Fixture.GetDatabaseRowsCount(clientProvider));
+
+                // Check rows added or deleted
+                var clipc = await Fixture.GetProductCategoryAsync(clientProvider, productCategoryTodelete.ProductCategoryId);
+                Assert.Null(clipc);
+                var cliPC1 = await Fixture.GetProductCategoryAsync(clientProvider, pc1.ProductCategoryId);
+                Assert.NotNull(cliPC1);
+                var cliPC2 = await Fixture.GetProductCategoryAsync(clientProvider, pc2.ProductCategoryId);
+                Assert.NotNull(cliPC2);
+                var cliP1 = await Fixture.GetProductAsync(clientProvider, p1.ProductId);
+                Assert.NotNull(cliP1);
+                var cliP2 = await Fixture.GetPriceListAsync(clientProvider, p2.PriceListId);
+                Assert.NotNull(cliP2);
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task SnapshotsThenReinitialize(SyncOptions options)
+        {
+            // snapshot directory
+            var snapshotDirctory = HelperDatabase.GetRandomName();
+            var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
+
+            // Settings the options to enable snapshot
+            options.SnapshotsDirectory = directory;
+            options.BatchSize = 3000;
+            // Disable constraints
+            options.DisableConstraintsOnApplyChanges = true;
+
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+
+            // Adding a row that I will delete after creating snapshot
+            var productCategoryTodelete = await Fixture.AddProductCategoryAsync(serverProvider);
+
+            // Create a snapshot
+            await remoteOrchestrator.CreateSnapshotAsync(setup);
+
+            // Add rows after creating snapshot
+            var pc1 = await Fixture.AddProductCategoryAsync(serverProvider);
+            var pc2 = await Fixture.AddProductCategoryAsync(serverProvider);
+            var p1 = await Fixture.AddProductAsync(serverProvider);
+            var p2 = await Fixture.AddPriceListAsync(serverProvider);
+            // Delete a row
+            await Fixture.DeleteProductCategoryAsync(serverProvider, productCategoryTodelete.ProductCategoryId);
+
+            // Execute a sync on all clients
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+                await agent.SynchronizeAsync(setup);
+
+                // Check rows added or deleted
+                var clipc = await Fixture.GetProductCategoryAsync(clientProvider, productCategoryTodelete.ProductCategoryId);
+                Assert.Null(clipc);
+                var cliPC1 = await Fixture.GetProductCategoryAsync(clientProvider, pc1.ProductCategoryId);
+                Assert.NotNull(cliPC1);
+                var cliPC2 = await Fixture.GetProductCategoryAsync(clientProvider, pc2.ProductCategoryId);
+                Assert.NotNull(cliPC2);
+                var cliP1 = await Fixture.GetProductAsync(clientProvider, p1.ProductId);
+                Assert.NotNull(cliP1);
+                var cliP2 = await Fixture.GetPriceListAsync(clientProvider, p2.PriceListId);
+                Assert.NotNull(cliP2);
+            }
+
+            // Add one row in each client then ReinitializeWithUpload
+            foreach (var clientProvider in clientsProvider)
+            {
+                var productCategory = await Fixture.AddProductCategoryAsync(clientProvider);
+
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+
+                var s = await agent.SynchronizeAsync(setup, SyncType.ReinitializeWithUpload);
+
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnServer);
+
+                // Check rows added or deleted
+                var pc = await Fixture.GetProductCategoryAsync(clientProvider, productCategory.ProductCategoryId);
+                Assert.NotNull(pc);
+                var clipc = await Fixture.GetProductCategoryAsync(clientProvider, productCategoryTodelete.ProductCategoryId);
+                Assert.Null(clipc);
+                var cliPC1 = await Fixture.GetProductCategoryAsync(clientProvider, pc1.ProductCategoryId);
+                Assert.NotNull(cliPC1);
+                var cliPC2 = await Fixture.GetProductCategoryAsync(clientProvider, pc2.ProductCategoryId);
+                Assert.NotNull(cliPC2);
+                var cliP1 = await Fixture.GetProductAsync(clientProvider, p1.ProductId);
+                Assert.NotNull(cliP1);
+                var cliP2 = await Fixture.GetPriceListAsync(clientProvider, p2.PriceListId);
+                Assert.NotNull(cliP2);
+            }
+
+            // Execute a sync on all clients to be sure all clients have all rows
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options).SynchronizeAsync();
+
+            // Get count of rows
+            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+
+            // Execute a sync on all clients to be sure all clients have all rows
+            foreach (var clientProvider in clientsProvider)
+                Assert.Equal(rowsCount, Fixture.GetDatabaseRowsCount(clientProvider));
+        }
+
+        /// <summary>
+        /// Insert one row on each client, should be sync on server and clients
+        /// </summary>
+        [Fact]
+        public async Task BadConverterNotRegisteredOnServerShouldRaiseError()
+        {
+            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                // Add a converter on the client.
+                // But this converter is not register on the server side converters list.
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri, new DateConverter());
+                webRemoteOrchestrator.SyncPolicy.RetryCount = 0;
+
+                var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
+
+                var exception = await Assert.ThrowsAsync<SyncException>(async () =>
+                {
+                    var s = await agent.SynchronizeAsync();
+                });
+
+                Assert.Equal("HttpConverterNotConfiguredException", exception.TypeName);
+            }
+        }
 
         ///// <summary>
         ///// Check web interceptors are working correctly
@@ -1043,238 +1539,150 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
         //}
 
-        ///// <summary>
-        ///// Insert one row on each client, should be sync on server and clients
-        ///// </summary>
-        ////[Theory]
-        ////[ClassData(typeof(SyncOptionsData))]
-        //public async Task Converter_Registered_ShouldConvertDateTime(SyncOptions options)
-        //{
-        //    // create a server db and seed it
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+        [Fact]
+        public async Task ConverterRegisteredShouldConvertDateTime()
+        {
+            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
+            var serverProductCategoryModifiedDate = new DateTime(2022, 1, 12, 16, 46, 21);
+            var serverProductCategoryModifiedDateTicks = serverProductCategoryModifiedDate.Ticks;
 
-        //    var webServerOptions = new WebServerOptions();
-        //    webServerOptions.Converters.Add(new DateConverter());
+            var clientProductCategoryModifiedDate = new DateTime(2020, 1, 12, 16, 46, 21);
+            var clientProductCategoryModifiedDateTicks = clientProductCategoryModifiedDate.Ticks;
 
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables), null, webServerOptions);
+            // Add one row in each client
+            foreach (var clientProvider in clientsProvider)
+                await Fixture.AddProductCategoryAsync(clientProvider,  modifiedDate: clientProductCategoryModifiedDate, attributeWithSpace: "CLI");
 
-        //    // Create server web proxy
-        //    var serverHandler = new RequestDelegate(async context =>
-        //    {
-        //        var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
+            // Add one row on server
+            await Fixture.AddProductCategoryAsync(serverProvider, modifiedDate: serverProductCategoryModifiedDate, attributeWithSpace: "SRV");
 
-        //        // Get response just before response sent back from server
-        //        // Assert if datetime are correctly converted to long
-        //        webServerAgent.OnHttpSendingChanges(sra =>
-        //        {
-        //            if (sra.Response.Changes == null)
-        //                return;
+            // Add a date converter
+            var webServerOptions = new WebServerOptions();
+            webServerOptions.Converters.Add(new DateConverter());
 
-        //            // check we have rows
-        //            Assert.True(sra.Response.Changes.HasRows);
+            // Stop Kestrell to reconfigure
+            await this.Kestrell.StopAsync();
 
-        //            // getting a table where we know we have date time
-        //            var table = sra.Response.Changes.Tables.FirstOrDefault(t => t.TableName == "Employee");
+            // Add again the serverprovider
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options, webServerOptions);
 
-        //            if (table != null)
-        //            {
-        //                Assert.NotEmpty(table.Rows);
+            // Create server web proxy
+            var serverHandler = new RequestDelegate(async context =>
+            {
+                var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
 
-        //                foreach (var row in table.Rows)
-        //                {
-        //                    var dateCell = row[5];
+                // When getting a row from client
+                webServerAgent.OnHttpGettingChanges(cca =>
+                {
+                    if (cca.Request.Changes == null || cca.Request.Changes.Tables == null)
+                        return;
 
-        //                    // check we have an integer here
-        //                    Assert.IsType<long>(dateCell);
-        //                }
-        //            }
-        //        });
+                    var table = cca.Request.Changes.Tables[0];
+                    Assert.NotEmpty(table.Rows);
 
+                    foreach (var row in table.Rows)
+                    {
+                        Assert.IsType<long>(row[5]);
+                        var ticks = (long)row[5];
+                        Assert.Equal(clientProductCategoryModifiedDateTicks, ticks);
+                    }
+                });
 
-        //        await webServerAgent.HandleRequestAsync(context);
-        //    });
+                // When sending a row from server to client
+                webServerAgent.OnHttpSendingChanges(sra =>
+                {
+                    if (sra.Response.Changes == null || sra.Response.Changes.Tables == null)
+                        return;
 
-        //    var serviceUri = this.Kestrell.Run(serverHandler);
+                    var table = sra.Response.Changes.Tables[0];
+                    Assert.NotEmpty(table.Rows);
 
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in this.Clients)
-        //    {
-        //        var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri, new DateConverter());
-        //        var agent = new SyncAgent(client.Provider, webRemoteOrchestrator, options);
-
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //    }
-        //}
+                    foreach (var row in table.Rows)
+                    {
+                        Assert.IsType<long>(row[5]);
+                        var ticks = (long)row[5];
+                        Assert.Equal(serverProductCategoryModifiedDateTicks, ticks);
+                    }
+                });
 
 
-        ///// <summary>
-        ///// Insert one row in two tables on server, should be correctly sync on all clients
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task Snapshot_Initialize(SyncOptions options)
-        //{
-        //    // create a server schema with seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, true, UseFallbackSchema);
+                await webServerAgent.HandleRequestAsync(context);
+            });
 
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+            var serviceUri = this.Kestrell.Run(serverHandler);
 
-        //    // snapshot directory
-        //    var snapshotDirctoryName = HelperDatabase.GetRandomName();
-        //    var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, snapshotDirctoryName);
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri, new DateConverter());
 
-        //    // configure server orchestrator
-        //    var setup = new SyncSetup(Tables);
+                var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
 
-        //    var remoteOptions = new SyncOptions
-        //    {
-        //        SnapshotsDirectory = snapshotDirectory,
-        //        BatchSize = 2000
-        //    };
-
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        setup, remoteOptions);
-
-        //    var serviceUri = this.Kestrell.Run();
-
-        //    // ----------------------------------
-        //    // Create a snapshot
-        //    // ----------------------------------
-        //    var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider, remoteOptions);
-        //    await remoteOrchestrator.CreateSnapshotAsync(setup);
-
-        //    // ----------------------------------
-        //    // Add rows on server AFTER snapshot
-        //    // ----------------------------------
-        //    var productId = Guid.NewGuid();
-        //    var productName = HelperDatabase.GetRandomName();
-        //    var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-        //    var productCategoryName = HelperDatabase.GetRandomName();
-        //    var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-        //    using (var ctx = new AdventureWorksContext(this.Server))
-        //    {
-        //        var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-        //        ctx.Add(pc);
-
-        //        var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-        //        ctx.Add(product);
-
-        //        await ctx.SaveChangesAsync();
-        //    }
-
-        //    // Get count of rows
-        //    var rowsCount = this.GetServerDatabaseRowsCount(this.Server);
-
-        //    // Execute a sync on all clients and check results
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
-
-        //        var s = await agent.SynchronizeAsync();
-
-        //        Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
-        //}
-
-        ///// <summary>
-        ///// Insert one row on each client, should be sync on server and clients
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public async Task IsOutdated_ShouldWork_If_Correct_Action(SyncOptions options)
-        //{
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
-
-        //    // create empty client databases
-        //    foreach (var client in this.Clients)
-        //        await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
+                var s = await agent.SynchronizeAsync();
+            }
+        }
 
 
-        //    // configure server orchestrator
-        //    this.Kestrell.AddSyncServer(this.Server.Provider.GetType(), this.Server.Provider.ConnectionString, SyncOptions.DefaultScopeName,
-        //        new SyncSetup(Tables));
+        [Fact]
+        public async Task IsOutdatedShouldWorkIfCorrectAction()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
-        //    var serviceUri = this.Kestrell.Run();
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    foreach (var client in Clients)
-        //    {
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
-        //        var s = await agent.SynchronizeAsync();
+                // Call a server delete metadata to update the last valid timestamp value in scope_info_server table
+                var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+                var dmc = await remoteOrchestrator.DeleteMetadatasAsync();
 
-        //        Assert.Equal(0, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-        //    }
+                // Client side : Create a product category and a product
+                await Fixture.AddProductAsync(clientProvider);
+                await Fixture.AddProductCategoryAsync(clientProvider);
 
-        //    // Call a server delete metadata to update the last valid timestamp value in scope_info_server table
-        //    var remoteOrchestrator = new RemoteOrchestrator(this.Server.Provider);
-        //    var dmc = await remoteOrchestrator.DeleteMetadatasAsync();
+                // Generate an outdated situation
+                await HelperDatabase.ExecuteScriptAsync(clientProviderType, clientDatabaseName,
+                                    $"Update scope_info_client set scope_last_server_sync_timestamp=-1");
 
-        //    // Insert one line on each client
-        //    foreach (var client in Clients)
-        //    {
-        //        // Client side : Create a product category and a product
-        //        var productId = Guid.NewGuid();
-        //        var productName = HelperDatabase.GetRandomName();
-        //        var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-        //        var productCategoryName = HelperDatabase.GetRandomName();
-        //        var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
 
-        //        using (var ctx = new AdventureWorksContext(client, this.UseFallbackSchema))
-        //        {
-        //            var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-        //            ctx.Add(pc);
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+                
+                var se = await Assert.ThrowsAsync<SyncException>(async () =>
+                {
+                    var tmpR = await agent.SynchronizeAsync();
+                });
 
-        //            var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-        //            ctx.Add(product);
+                Assert.Equal("OutOfDateException", se.TypeName);
 
-        //            await ctx.SaveChangesAsync();
-        //        }
+                // Intercept outdated event, and make a reinitialize with upload action
+                agent.LocalOrchestrator.OnOutdated(oa =>
+                {
+                    oa.Action = OutdatedAction.ReinitializeWithUpload;
+                });
 
-        //        // Generate an outdated situation
-        //        await HelperDatabase.ExecuteScriptAsync(client.ProviderType, client.DatabaseName,
-        //                            $"Update scope_info_client set scope_last_server_sync_timestamp={dmc.TimestampLimit - 1}");
+                var r = await agent.SynchronizeAsync();
+                var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+                var clientRowsCount = Fixture.GetDatabaseRowsCount(clientProvider);
 
-        //        // create a new agent
-        //        var agent = new SyncAgent(client.Provider, new WebRemoteOrchestrator(serviceUri), options);
+                Assert.Equal(rowsCount, r.TotalChangesDownloadedFromServer);
+                Assert.Equal(2, r.TotalChangesUploadedToServer);
 
-        //        //// Making a first sync, will initialize everything we need
-        //        //var se = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync());
+                Assert.Equal(rowsCount, clientRowsCount);
 
-        //        //Assert.Equal("OutOfDateException", se.TypeName);
 
-        //        // Intercept outdated event, and make a reinitialize with upload action
-        //        agent.LocalOrchestrator.OnOutdated(oa => oa.Action = OutdatedAction.ReinitializeWithUpload);
+            }
+        }
 
-        //        var r = await agent.SynchronizeAsync();
-        //        var c = GetServerDatabaseRowsCount(this.Server);
-        //        Assert.Equal(c, r.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(2, r.TotalChangesUploadedToServer);
-        //    }
-        //}
+
 
         //[Theory]
         //[ClassData(typeof(SyncOptionsData))]

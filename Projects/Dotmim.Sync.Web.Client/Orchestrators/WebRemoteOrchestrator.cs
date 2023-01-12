@@ -121,26 +121,6 @@ namespace Dotmim.Sync.Web.Client
 
         }
 
-
-        public void BeforeSerializeRows(ContainerTable table, SyncTable schemaTable, IConverter converter)
-        {
-            if (table.Rows.Count > 0)
-            {
-                foreach (var row in table.Rows)
-                    converter.BeforeSerialize(row, schemaTable);
-            }
-        }
-
-        public void AfterDeserializedRows(ContainerTable table, SyncTable schemaTable, IConverter converter)
-        {
-            if (table.Rows.Count > 0)
-            {
-                foreach (var row in table.Rows)
-                    converter.AfterDeserialized(row, schemaTable);
-
-            }
-        }
-
         /// <summary>
         /// Ensure we have policy. Create a new one, if not provided
         /// </summary>
@@ -214,6 +194,9 @@ namespace Dotmim.Sync.Web.Client
             return requestUri.ToString();
         }
 
+        /// <summary>
+        /// This ProcessRequestAsync\<T\> Will deserialize the message and then send back it to caller
+        /// </summary>
         public async Task<T> ProcessRequestAsync<T>(SyncContext context, IScopeMessage message, HttpStep step, int batchSize,
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null) where T : IScopeMessage
         {
@@ -274,8 +257,9 @@ namespace Dotmim.Sync.Web.Client
         }
 
         /// <summary>
-        /// Process a request message with HttpClient object. 
+        /// This ProcessRequestAsync will not deserialize the message and then send back directly the HttpResponseMessage
         /// </summary>
+
         public async Task<HttpResponseMessage> ProcessRequestAsync(IScopeMessage message, HttpStep step,int batchSize, 
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
