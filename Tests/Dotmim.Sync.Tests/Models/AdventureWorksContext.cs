@@ -1106,11 +1106,14 @@ namespace Dotmim.Sync.Tests.Models
             var providerType = adventureWorksContext.ProviderType;
             var useSchema = adventureWorksContext.useSchema;
             var useSeeding = adventureWorksContext.useSeeding;
+            var cstring = adventureWorksContext.ConnectionString;
 
             var hashCode = base.GetHashCode() * 397;
             hashCode ^= useSchema.GetHashCode();
             hashCode ^= providerType.GetHashCode();
             hashCode ^= useSeeding.GetHashCode();
+            hashCode ^= cstring.GetHashCode();
+
 
             return (hashCode, designTime);
         }
@@ -1129,6 +1132,7 @@ namespace Dotmim.Sync.Tests.Models
         private readonly ProviderType providerType;
         private readonly bool useSchema;
         private readonly bool useSeeding;
+        private readonly string cstring;
 
         public MyModelCacheKey(DbContext context)
             : base(context)
@@ -1139,6 +1143,7 @@ namespace Dotmim.Sync.Tests.Models
             this.providerType = adventureWorksContext.ProviderType;
             this.useSchema = adventureWorksContext.useSchema;
             this.useSeeding = adventureWorksContext.useSeeding;
+            this.cstring = adventureWorksContext.ConnectionString;
         }
 
         protected override bool Equals(ModelCacheKey other)
@@ -1149,7 +1154,8 @@ namespace Dotmim.Sync.Tests.Models
                 var isequal = base.Equals(other)
                     && otherModel?.providerType == this.providerType
                     && otherModel?.useSchema == this.useSchema
-                    && otherModel?.useSeeding == this.useSeeding;
+                    && otherModel?.useSeeding == this.useSeeding
+                    && otherModel?.cstring == this.cstring;
 
                 return isequal;
 
@@ -1167,6 +1173,7 @@ namespace Dotmim.Sync.Tests.Models
             hashCode ^= this.useSchema.GetHashCode();
             hashCode ^= this.providerType.GetHashCode();
             hashCode ^= this.useSeeding.GetHashCode();
+            hashCode ^= this.cstring.GetHashCode();
 
             return hashCode;
         }

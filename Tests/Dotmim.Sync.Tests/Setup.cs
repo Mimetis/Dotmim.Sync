@@ -63,7 +63,7 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite", false);
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_sqlct_adv", true);
         }
 
@@ -99,8 +99,8 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_adv");
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_cli_npg_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_adv", false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_cli_npg_advd", true);
         }
 
         public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_srv_npg_adv", true);
@@ -117,10 +117,10 @@ namespace Dotmim.Sync.Tests
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_adv");
-            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, "tcp_cli_mysql_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, "tcp_cli_mysql_adv");
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MySql, "tcp_srv_mysql_adv", true);
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MySql, "tcp_srv_mysql_adv");
     }
 
 
@@ -133,10 +133,10 @@ namespace Dotmim.Sync.Tests
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite");
-            yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "tcp_cli_maria_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "tcp_cli_maria_adv");
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "tcp_srv_maria_adv", true);
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "tcp_srv_maria_adv");
     }
 
 }
