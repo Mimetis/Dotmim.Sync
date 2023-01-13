@@ -23,6 +23,7 @@ using Dotmim.Sync.MariaDB;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.PostgreSql;
 using Dotmim.Sync.Tests.Fixtures;
+using Dotmim.Sync.Tests.Models;
 
 namespace Dotmim.Sync.Tests
 {
@@ -103,15 +104,24 @@ namespace Dotmim.Sync.Tests
             };
         }
 
-        public static CoreProvider GetSyncProvider(ProviderType providerType, string dbName) => providerType switch
+        public static CoreProvider GetSyncProvider(ProviderType providerType, string dbName, bool useFallbackSchema = false)
         {
-            ProviderType.Sql => new SqlSyncProvider(Setup.GetSqlDatabaseConnectionString(dbName)),
-            ProviderType.MySql => new MySqlSyncProvider(Setup.GetMySqlDatabaseConnectionString(dbName)),
-            ProviderType.MariaDB => new MariaDBSyncProvider(Setup.GetMariaDBDatabaseConnectionString(dbName)),
-            ProviderType.Sqlite => new SqliteSyncProvider(GetSqliteDatabaseConnectionString(dbName)),
-            ProviderType.Postgres => new NpgsqlSyncProvider(Setup.GetPostgresDatabaseConnectionString(dbName)),
-            _ => null,
-        };
+
+            CoreProvider provider = providerType switch
+            {
+                ProviderType.Sql => new SqlSyncProvider(Setup.GetSqlDatabaseConnectionString(dbName)),
+                ProviderType.MySql => new MySqlSyncProvider(Setup.GetMySqlDatabaseConnectionString(dbName)),
+                ProviderType.MariaDB => new MariaDBSyncProvider(Setup.GetMariaDBDatabaseConnectionString(dbName)),
+                ProviderType.Sqlite => new SqliteSyncProvider(GetSqliteDatabaseConnectionString(dbName)),
+                ProviderType.Postgres => new NpgsqlSyncProvider(Setup.GetPostgresDatabaseConnectionString(dbName)),
+                _ => null,
+            };
+            
+            if (useFallbackSchema)
+                provider.UseFallbackSchema(true);
+
+            return provider;
+        }
 
         public static ProviderType GetProviderType<T>() where T : RelationalFixture => typeof(T) switch
         {
@@ -123,7 +133,7 @@ namespace Dotmim.Sync.Tests
             _ => ProviderType.Sql,
         };
 
-        
+
         public static void ClearAllPools()
         {
             SqlConnection.ClearAllPools();

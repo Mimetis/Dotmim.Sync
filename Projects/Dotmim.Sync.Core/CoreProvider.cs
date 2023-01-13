@@ -102,7 +102,6 @@ namespace Dotmim.Sync
         /// </summary>
         public abstract ConstraintsLevelAction ConstraintsLevelAction { get; }
 
-
         /// <summary>
         /// Gets the default isolation level used during transaction
         /// </summary>
@@ -127,6 +126,11 @@ namespace Dotmim.Sync
         /// Gets or Sets the default schema name ("dbo" for sql server, "public" for postgres or null for mysql)
         /// </summary>
         public virtual string DefaultSchemaName { get; } = null;
+
+        /// <summary>
+        /// Gets or Sets Additional options for the provider
+        /// </summary>
+        public Dictionary<string, string> AdditionalProperties { get; set; } = new();
 
         /// <summary>
         /// Get naming tables

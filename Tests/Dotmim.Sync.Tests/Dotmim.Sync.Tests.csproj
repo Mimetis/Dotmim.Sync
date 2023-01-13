@@ -11,9 +11,9 @@
 		<LangVersion>8.0</LangVersion>
 	</PropertyGroup>
 	<ItemGroup>
-		<Compile Remove="UnitTests\Mock\**" />
-		<EmbeddedResource Remove="UnitTests\Mock\**" />
-		<None Remove="UnitTests\Mock\**" />
+	  <Compile Remove="UnitTests\**" />
+	  <EmbeddedResource Remove="UnitTests\**" />
+	  <None Remove="UnitTests\**" />
 	</ItemGroup>
 
 	<ItemGroup>

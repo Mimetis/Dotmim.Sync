@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.SqlServer.Manager;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Fixtures;
@@ -27,62 +28,42 @@ using static System.Net.Mime.MediaTypeNames;
 namespace Dotmim.Sync.Tests.IntegrationTests2
 {
 
-    public class SqlServerTcpTests : TcpTests2<SqlServerFixtureType>
+    public class SqlServerTcpTests : TcpTests2
     {
-        public SqlServerTcpTests(ITestOutputHelper output, DatabaseServerFixture<SqlServerFixtureType> fixture) : base(output, fixture)
+        public SqlServerTcpTests(ITestOutputHelper output, DatabaseServerFixture2 fixture) : base(output, fixture)
         {
         }
-    }
-    //public class SqlServerChangeTrackingTcpTests : TcpTests2<SqlServerFixtureType>
-    //{
-    //    public SqlServerChangeTrackingTcpTests(ITestOutputHelper output, DatabaseServerChangeTrackingFixture<SqlServerFixtureType> fixture) : base(output, fixture)
-    //    {
-    //    }
-    //}
 
-    public class PostgresTcpTests : TcpTests2<PostgresFixtureType>
-    {
-        public PostgresTcpTests(ITestOutputHelper output, DatabaseServerFixture<PostgresFixtureType> fixture) : base(output, fixture)
+        public override IEnumerable<CoreProvider> GetClientProviders()
         {
+            //yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("tcp_cli_sqlite"));
+            //yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, HelperDatabase.GetRandomName("tcp_cli_postgres"));
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_sql_adv", true);
         }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_sql_adv", true);
     }
 
-    public class MySqlTcpTests : TcpTests2<MySqlFixtureType>
-    {
-        public MySqlTcpTests(ITestOutputHelper output, DatabaseServerFixture<MySqlFixtureType> fixture) : base(output, fixture)
-        {
-        }
-    }
 
-    public abstract partial class TcpTests2<T> : DatabaseTest<T>, IClassFixture<DatabaseServerFixture<T>>, IDisposable where T : RelationalFixture
+    public abstract partial class TcpTests2 : Database2Test, IClassFixture<DatabaseServerFixture2>, IDisposable
     {
         private CoreProvider serverProvider;
         private IEnumerable<CoreProvider> clientsProvider;
         private SyncSetup setup;
 
-        public TcpTests2(ITestOutputHelper output, DatabaseServerFixture<T> fixture) : base(output, fixture)
+        public TcpTests2(ITestOutputHelper output, DatabaseServerFixture2 fixture) : base(output, fixture)
         {
-            serverProvider = Fixture.GetServerProvider();
-            clientsProvider = Fixture.GetClientProviders();
-            setup = Fixture.GetSyncSetup();
+            serverProvider = GetServerProvider();
+            clientsProvider = GetClientProviders();
+            setup = GetSetup();
         }
 
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task RowsCount(SyncOptions options)
         {
-            // As we don't want to poluate the already created clients tables, we will create some new ones
-            var clientsProvider = new List<CoreProvider>();
-            foreach (var type in Fixture.ClientsType)
-            {
-                var dbName = HelperDatabase.GetRandomName("tcp_cli");
-                await HelperDatabase.CreateDatabaseAsync(type, dbName, true);
-                var clientProvider = HelperDatabase.GetSyncProvider(type, dbName);
-                clientsProvider.Add(clientProvider);
-            }
-
             // Get count of rows
-            var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
+            var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -90,19 +71,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
 
                 var s = await agent.SynchronizeAsync(setup);
-                var clientRowsCount = Fixture.GetDatabaseRowsCount(clientProvider);
+                var clientRowsCount = clientProvider.GetDatabaseRowsCount();
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(rowsCount, s.TotalChangesAppliedOnClient);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(rowsCount, clientRowsCount);
-            }
-
-            // Delete all clients databases
-            foreach (var clientProvider in clientsProvider)
-            {
-                var (dt, n) = HelperDatabase.GetDatabaseType(clientProvider);
-                HelperDatabase.DropDatabase(dt, n);
             }
         }
 
@@ -111,7 +85,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         public async Task RowsCountWithExistingSchema(SyncOptions options)
         {
             // Get count of rows
-            var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
+            var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -119,15 +93,15 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
 
                 var s = await agent.SynchronizeAsync(setup);
-                var clientRowsCount = Fixture.GetDatabaseRowsCount(clientProvider);
+                var clientRowsCount = clientProvider.GetDatabaseRowsCount();
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(rowsCount, s.TotalChangesAppliedOnClient);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(rowsCount, clientRowsCount);
 
-                using var ctxServer = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema);
-                using var ctxClient = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
+                using var ctxServer = new AdventureWorksContext(serverProvider);
+                using var ctxClient = new AdventureWorksContext(clientProvider);
 
                 var serverSaleHeaders = ctxServer.SalesOrderHeader.AsNoTracking().ToList();
                 var clientSaleHeaders = ctxClient.SalesOrderHeader.AsNoTracking().ToList();
@@ -176,26 +150,27 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // As we don't want to poluate the already created clients tables, we will create some new ones
-            var clientsProvider = new List<CoreProvider>();
-            foreach (var type in Fixture.ClientsType)
+            var newClientsProvider = new List<CoreProvider>();
+            foreach (var clientProvider in clientsProvider)
             {
+                var (dbtype, _) = HelperDatabase.GetDatabaseType(clientProvider);
                 var dbName = HelperDatabase.GetRandomName("tcp_cli");
-                await HelperDatabase.CreateDatabaseAsync(type, dbName, true);
-                var clientProvider = HelperDatabase.GetSyncProvider(type, dbName);
-                clientsProvider.Add(clientProvider);
+
+                await HelperDatabase.CreateDatabaseAsync(dbtype, dbName, true);
+                newClientsProvider.Add(HelperDatabase.GetSyncProvider(dbtype, dbName, clientProvider.UseFallbackSchema()));
             }
 
             // Get count of rows
-            var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
+            var rowsCount = serverProvider.GetDatabaseRowsCount();
             var (serverProviderType, serverDatabaseName) = HelperDatabase.GetDatabaseType(serverProvider);
 
             // Execute a sync on all clients and check results
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in newClientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
 
                 var s = await agent.SynchronizeAsync(setup);
-                var clientRowsCount = Fixture.GetDatabaseRowsCount(clientProvider);
+                var clientRowsCount = clientProvider.GetDatabaseRowsCount();
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(rowsCount, s.TotalChangesAppliedOnClient);
@@ -203,7 +178,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(rowsCount, clientRowsCount);
             }
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in newClientsProvider)
             {
                 // Check we have the correct columns replicated
                 using var clientConnection = clientProvider.CreateConnection();
@@ -244,7 +219,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                         Assert.NotNull(clientColumn);
 
-                        if (Fixture.ServerProviderType == clientProviderType && Fixture.ServerProviderType == ProviderType.Sql)
+                        if (serverProviderType == clientProviderType && serverProviderType == ProviderType.Sql)
                         {
                             Assert.Equal(serverColumn.DataType, clientColumn.DataType);
                             Assert.Equal(serverColumn.IsUnicode, clientColumn.IsUnicode);
@@ -299,7 +274,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             }
 
             // Delete all clients databases
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in newClientsProvider)
             {
                 var (dt, n) = HelperDatabase.GetDatabaseType(clientProvider);
                 HelperDatabase.DropDatabase(dt, n);
@@ -313,7 +288,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             // get the number of rows that have only primary keys (which do not accept any Update)
             int notUpdatedOnClientsCount;
-            using (var serverDbCtx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            using (var serverDbCtx = new AdventureWorksContext(serverProvider))
             {
                 var pricesListCategoriesCount = serverDbCtx.PricesListCategory.Count();
                 var postTagsCount = serverDbCtx.PostTag.Count();
@@ -321,7 +296,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             }
 
             // Get count of rows
-            var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
+            var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             foreach (var clientProvider in clientsProvider)
             {
@@ -331,7 +306,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 // On first sync, even tables with only primary keys are inserted
                 var s = await agent.SynchronizeAsync("v1", setup);
-                var clientRowsCount = Fixture.GetDatabaseRowsCount(clientProvider);
+                var clientRowsCount = clientProvider.GetDatabaseRowsCount();
                 Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(rowsCount, s.TotalChangesAppliedOnClient);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -339,7 +314,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
                 var s2 = await agent.SynchronizeAsync("v2", setup);
 
-                clientRowsCount = Fixture.GetDatabaseRowsCount(clientProvider);
+                clientRowsCount = clientProvider.GetDatabaseRowsCount();
                 Assert.Equal(rowsCount, s2.TotalChangesDownloadedFromServer);
 
                 // On second sync, tables with only primary keys are downloaded but not inserted or updated
@@ -357,7 +332,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task BadConnectionFromServerShouldRaiseError()
         {
-            var badServerProvider = HelperDatabase.GetSyncProvider(Fixture.ServerProviderType, HelperDatabase.GetRandomName("tcp_srv_bad_"));
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+
+            var badServerProvider = HelperDatabase.GetSyncProvider(serverProviderType, HelperDatabase.GetRandomName("tcp_srv_bad_"));
             badServerProvider.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown";
 
             // Create a client provider, but it will not be used since server provider will raise an error before
@@ -373,9 +350,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             var badClientsProviders = new List<CoreProvider>();
 
-            foreach (var type in Fixture.ClientsType)
+            foreach (var clientProvider in clientsProvider)
             {
-                var badClientProvider = HelperDatabase.GetSyncProvider(type, HelperDatabase.GetRandomName("tcp_bad_cli"));
+                var (dbtype, _) = HelperDatabase.GetDatabaseType(clientProvider);
+
+                var badClientProvider = HelperDatabase.GetSyncProvider(dbtype, HelperDatabase.GetRandomName("tcp_bad_cli"));
                 badClientProvider.ConnectionString = $@"Data Source=/dev/null/foo;";
                 badClientsProviders.Add(badClientProvider);
             }
@@ -396,8 +375,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         public async Task BadTableWithoutPrimaryKeysShouldRaiseError()
         {
             // Create the table on the server
-            await HelperDatabase.ExecuteScriptAsync(Fixture.ServerProviderType, Fixture.ServerDatabaseName,
-                "create table tabletest (testid int, testname varchar(50))");
+            await serverProvider.ExecuteSqlRawAsync("create table tabletest (testid int, testname varchar(50))");
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -414,8 +392,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             }
 
             // Create the table on the server
-            await HelperDatabase.ExecuteScriptAsync(Fixture.ServerProviderType, Fixture.ServerDatabaseName,
-                "drop table tabletest");
+            await serverProvider.ExecuteSqlRawAsync("drop table tabletest");
         }
 
         [Fact]
@@ -470,7 +447,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-            await Fixture.AddProductCategoryAsync(serverProvider);
+            await serverProvider.AddProductCategoryAsync();
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -495,10 +472,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-            await Fixture.AddProductCategoryAsync(serverProvider);
-            await Fixture.AddProductCategoryAsync(serverProvider);
-            await Fixture.AddProductAsync(serverProvider);
-            await Fixture.AddProductAsync(serverProvider);
+            await serverProvider.AddProductCategoryAsync();
+            await serverProvider.AddProductCategoryAsync();
+            await serverProvider.AddProductAsync();
+            await serverProvider.AddProductAsync();
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -523,12 +500,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-            var serverProductCategory = await Fixture.AddProductCategoryAsync(serverProvider);
+            var serverProductCategory = await serverProvider.AddProductCategoryAsync();
 
             var pcName = string.Concat(serverProductCategory.ProductCategoryId, "UPDATED");
             serverProductCategory.Name = pcName;
 
-            await Fixture.UpdateProductCategoryAsync(serverProvider, serverProductCategory);
+            await serverProvider.UpdateProductCategoryAsync(serverProductCategory);
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -538,7 +515,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
 
-                var clientProductCategory = await Fixture.GetProductCategoryAsync(clientProvider, serverProductCategory.ProductCategoryId);
+                var clientProductCategory = await clientProvider.GetProductCategoryAsync(serverProductCategory.ProductCategoryId);
 
                 Assert.Equal(1, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesAppliedOnClient);
@@ -558,7 +535,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             // Add one row in each client
             foreach (var clientProvider in clientsProvider)
-                await Fixture.AddProductCategoryAsync(clientProvider);
+                await clientProvider.AddProductCategoryAsync();
 
             int download = 0;
             // Execute a sync on all clients and check results
@@ -587,10 +564,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Add one row in each client
             foreach (var clientProvider in clientsProvider)
             {
-                await Fixture.AddProductCategoryAsync(clientProvider);
-                await Fixture.AddProductCategoryAsync(clientProvider);
-                await Fixture.AddProductAsync(clientProvider);
-                await Fixture.AddProductAsync(clientProvider);
+                await clientProvider.AddProductCategoryAsync();
+                await clientProvider.AddProductCategoryAsync();
+                await clientProvider.AddProductAsync();
+                await clientProvider.AddProductAsync();
             }
 
             int download = 0;
@@ -623,7 +600,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Add one row in each client
             foreach (var clientProvider in clientsProvider)
                 for (int i = 0; i < rowsCountToInsert; i++)
-                    await Fixture.AddProductCategoryAsync(clientProvider);
+                    await clientProvider.AddProductCategoryAsync();
 
             int download = 0;
             // Execute a sync on all clients and check results
@@ -650,16 +627,16 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-            var firstProductCategory = await Fixture.AddProductCategoryAsync(serverProvider);
+            var firstProductCategory = await serverProvider.AddProductCategoryAsync();
 
             // sync this category on each client to be able to delete it after
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             // add one row
-            await Fixture.AddProductCategoryAsync(serverProvider);
+            await serverProvider.AddProductCategoryAsync();
             // delete one row
-            await Fixture.DeleteProductCategoryAsync(serverProvider, firstProductCategory.ProductCategoryId);
+            await serverProvider.DeleteProductCategoryAsync(firstProductCategory.ProductCategoryId);
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -695,7 +672,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             var thumbnail = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
 
             // add one row
-            var product = await Fixture.AddProductAsync(serverProvider, thumbNailPhoto: thumbnail);
+            var product = await serverProvider.AddProductAsync(thumbNailPhoto: thumbnail);
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -710,7 +687,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                var clientProduct = await Fixture.GetProductAsync(clientProvider, product.ProductId);
+                var clientProduct = await clientProvider.GetProductAsync(product.ProductId);
 
                 Assert.Equal(product.ThumbNailPhoto, clientProduct.ThumbNailPhoto);
 
@@ -732,9 +709,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Add one row in each client
             foreach (var clientProvider in clientsProvider)
             {
-                await Fixture.AddProductCategoryAsync(clientProvider);
-                await Fixture.AddProductAsync(clientProvider);
-                await Fixture.AddPriceListAsync(clientProvider);
+                await clientProvider.AddProductCategoryAsync();
+                await clientProvider.AddProductAsync();
+                await clientProvider.AddPriceListAsync();
             }
 
             // Sync all clients
@@ -753,7 +730,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                         return;
                     try
                     {
-                        await Fixture.AddPriceListAsync(clientProvider, connection: changes.Connection, transaction: changes.Transaction);
+                        await clientProvider.AddPriceListAsync(connection: changes.Connection, transaction: changes.Transaction);
                     }
                     catch (Exception ex)
                     {
@@ -812,18 +789,19 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             }
 
             // check rows count on server and on each client
-            using var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema);
+            using var ctx = new AdventureWorksContext(serverProvider, serverProvider.UseFallbackSchema());
 
             var productRowCount = await ctx.Product.AsNoTracking().CountAsync();
             var productCategoryCount = await ctx.ProductCategory.AsNoTracking().CountAsync();
             var priceListCount = await ctx.PricesList.AsNoTracking().CountAsync();
-            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+
+            var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             foreach (var clientProvider in clientsProvider)
             {
-                Assert.Equal(rowsCount, Fixture.GetDatabaseRowsCount(clientProvider));
+                Assert.Equal(rowsCount, clientProvider.GetDatabaseRowsCount());
 
-                using var cliCtx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
+                using var cliCtx = new AdventureWorksContext(clientProvider, clientProvider.UseFallbackSchema());
                 var pCount = await cliCtx.Product.AsNoTracking().CountAsync();
                 Assert.Equal(productRowCount, pCount);
 
@@ -843,7 +821,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-            var productCategory = await Fixture.AddProductCategoryAsync(serverProvider);
+            var productCategory = await serverProvider.AddProductCategoryAsync();
 
             // sync this category on each client to be able to update productCategory after
             foreach (var clientProvider in clientsProvider)
@@ -852,7 +830,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             var updatedProductCategoryName = $"UPDATED_{productCategory.Name}";
 
             productCategory.Name = updatedProductCategoryName;
-            await Fixture.UpdateProductCategoryAsync(serverProvider, productCategory);
+            await serverProvider.UpdateProductCategoryAsync(productCategory);
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -869,7 +847,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                var clientProductCategory = await Fixture.GetProductCategoryAsync(clientProvider, productCategory.ProductCategoryId);
+                var clientProductCategory = await clientProvider.GetProductCategoryAsync(productCategory.ProductCategoryId);
                 Assert.Equal(updatedProductCategoryName, clientProductCategory.Name);
             }
         }
@@ -888,7 +866,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             int addressId = 0;
             foreach (var clientProvider in clientsProvider)
             {
-                using (var ctx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema))
+                using (var ctx = new AdventureWorksContext(clientProvider, clientProvider.UseFallbackSchema()))
                 {
                     var addresses = ctx.Address.OrderBy(a => a.AddressId).Where(a => !string.IsNullOrEmpty(a.AddressLine2)).Take(clientsProvider.ToList().Count).ToList();
                     var address = addresses[addressId];
@@ -922,19 +900,19 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             // get rows count
-            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+            var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             // check rows count on server and on each client
-            using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            using (var ctx = new AdventureWorksContext(serverProvider, serverProvider.UseFallbackSchema()))
             {
                 // get all addresses
                 var serverAddresses = await ctx.Address.AsNoTracking().ToListAsync();
 
                 foreach (var clientProvider in clientsProvider)
                 {
-                    Assert.Equal(rowsCount, Fixture.GetDatabaseRowsCount(clientProvider));
+                    Assert.Equal(rowsCount, clientProvider.GetDatabaseRowsCount());
 
-                    using var cliCtx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
+                    using var cliCtx = new AdventureWorksContext(clientProvider, clientProvider.UseFallbackSchema());
                     // get all addresses
                     var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
 
@@ -968,7 +946,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             int addressId = 0;
             foreach (var clientProvider in clientsProvider)
             {
-                using (var ctx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema))
+                using (var ctx = new AdventureWorksContext(clientProvider, clientProvider.UseFallbackSchema()))
                 {
                     var addresses = ctx.Address.OrderBy(a => a.AddressId).Where(a => !string.IsNullOrEmpty(a.AddressLine2)).Take(clientsProvider.ToList().Count).ToList();
                     var address = addresses[addressId];
@@ -1001,19 +979,19 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             // get rows count
-            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+            var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             // check rows count on server and on each client
-            using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            using (var ctx = new AdventureWorksContext(serverProvider, serverProvider.UseFallbackSchema()))
             {
                 // get all addresses
                 var serverAddresses = await ctx.Address.AsNoTracking().ToListAsync();
 
                 foreach (var clientProvider in clientsProvider)
                 {
-                    Assert.Equal(rowsCount, Fixture.GetDatabaseRowsCount(clientProvider));
+                    Assert.Equal(rowsCount, clientProvider.GetDatabaseRowsCount());
 
-                    using var cliCtx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
+                    using var cliCtx = new AdventureWorksContext(clientProvider);
                     // get all addresses
                     var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
 
@@ -1041,7 +1019,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             Address address;
             // Update one address to null on server side
-            using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            using (var ctx = new AdventureWorksContext(serverProvider))
             {
                 address = ctx.Address.OrderBy(a => a.AddressId).Where(a => !string.IsNullOrEmpty(a.AddressLine2)).First();
                 address.AddressLine2 = null;
@@ -1062,13 +1040,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // Check value
-                using var ctx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
+                using var ctx = new AdventureWorksContext(clientProvider);
                 var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == address.AddressId);
                 Assert.Null(cliAddress.AddressLine2);
             }
 
             // Update one address previously null to not null on server side
-            using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            using (var ctx = new AdventureWorksContext(serverProvider))
             {
                 address = await ctx.Address.SingleAsync(a => a.AddressId == address.AddressId);
                 address.AddressLine2 = "NoT a null value !";
@@ -1089,7 +1067,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // Check value
-                using var ctx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
+                using var ctx = new AdventureWorksContext(clientProvider);
                 var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == address.AddressId);
                 Assert.Equal("NoT a null value !", cliAddress.AddressLine2);
             }
@@ -1103,14 +1081,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-            var firstProductCategory = await Fixture.AddProductCategoryAsync(serverProvider);
+            var firstProductCategory = await serverProvider.AddProductCategoryAsync();
 
             // sync this category on each client to be able to delete it after
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             // delete one row
-            await Fixture.DeleteProductCategoryAsync(serverProvider, firstProductCategory.ProductCategoryId);
+            await serverProvider.DeleteProductCategoryAsync(firstProductCategory.ProductCategoryId);
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -1141,7 +1119,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // To avoid conflicts, each client will add a product category
             // each address id is generated from the foreach index
             foreach (var clientProvider in clientsProvider)
-                await Fixture.AddProductCategoryAsync(clientProvider, name: $"CLI_{HelperDatabase.GetRandomName()}");
+                await clientProvider.AddProductCategoryAsync(name: $"CLI_{HelperDatabase.GetRandomName()}");
 
             // Execute two sync on all clients to be sure all clients have all lines
             foreach (var clientProvider in clientsProvider)
@@ -1153,7 +1131,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var clientsProvider in clientsProvider)
             {
                 // Then delete all product category items
-                using var ctx = new AdventureWorksContext(clientsProvider, Fixture.UseFallbackSchema);
+                using var ctx = new AdventureWorksContext(clientsProvider);
                 foreach (var pc in ctx.ProductCategory.Where(pc => pc.Name.StartsWith("CLI_")))
                     ctx.ProductCategory.Remove(pc);
                 await ctx.SaveChangesAsync();
@@ -1177,12 +1155,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             }
 
             // check rows count on server and on each client
-            using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            using (var ctx = new AdventureWorksContext(serverProvider))
             {
                 var serverPC = await ctx.ProductCategory.AsNoTracking().CountAsync();
                 foreach (var clientProvider in clientsProvider)
                 {
-                    using var cliCtx = new AdventureWorksContext(clientProvider, Fixture.UseFallbackSchema);
+                    using var cliCtx = new AdventureWorksContext(clientProvider);
                     var clientPC = await cliCtx.ProductCategory.AsNoTracking().CountAsync();
                     Assert.Equal(serverPC, clientPC);
                 }
@@ -1312,7 +1290,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-            foreach (var clientProvider in Fixture.GetClientProviders())
+            foreach (var clientProvider in clientsProvider)
             {
                 var localOrchestrator = new LocalOrchestrator(clientProvider);
                 var clientScope = await localOrchestrator.GetScopeInfoAsync();
@@ -1377,8 +1355,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-            var productCategory = await Fixture.AddProductCategoryAsync(serverProvider);
-            var product = await Fixture.AddProductAsync(serverProvider, productCategoryId: productCategory.ProductCategoryId);
+            var productCategory = await serverProvider.AddProductCategoryAsync();
+            var product = await serverProvider.AddProductAsync(productCategoryId: productCategory.ProductCategoryId);
 
             // forcing a fk exception
             var foreignKeysFailureAction = new Action<RowsChangesApplyingArgs>((args) =>
@@ -1436,7 +1414,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             // Get count of rows
-            var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
+            var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             // Reset stored proc needs it.
             options.DisableConstraintsOnApplyChanges = true;
@@ -1444,24 +1422,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Add one row in each client then Reinitialize
             foreach (var clientProvider in clientsProvider)
             {
-                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
-                var productCategory = await Fixture.AddProductCategoryAsync(clientProvider);
+                var productCategory = await clientProvider.AddProductCategoryAsync();
 
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-                //// MySql disabling constraint works on same transaction
-                //// If transaction mode is different than AllOrNothing, need to call disable constraint before reset
-                //if (options.TransactionMode != TransactionMode.AllOrNothing && (clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB))
-                //{
-                //    agent.LocalOrchestrator.OnGetCommand(async args =>
-                //    {
-                //        if (args.CommandType == DbCommandType.Reset)
-                //        {
-                //            var scopeInfo = await agent.LocalOrchestrator.GetScopeInfoAsync(args.Connection, args.Transaction);
-                //            await agent.LocalOrchestrator.DisableConstraintsAsync(scopeInfo, args.Table.TableName, args.Table.SchemaName, args.Connection, args.Transaction);
-                //        }
-                //    });
-                //}
 
                 var s = await agent.SynchronizeAsync(setup, SyncType.Reinitialize);
 
@@ -1470,7 +1433,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
 
                 // The row should not be present as it has been overwritten by Reinitiliaze
-                var pc = await Fixture.GetProductCategoryAsync(clientProvider, productCategory.ProductCategoryId);
+                var pc = await clientProvider.GetProductCategoryAsync(productCategory.ProductCategoryId);
                 Assert.Null(pc);
             }
 
@@ -1485,7 +1448,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             // Get count of rows
-            var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
+            var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             // Reset stored proc needs it.
             options.DisableConstraintsOnApplyChanges = true;
@@ -1495,7 +1458,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var clientProvider in clientsProvider)
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
-                var productCategory = await Fixture.AddProductCategoryAsync(clientProvider);
+                var productCategory = await clientProvider.AddProductCategoryAsync();
 
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
 
@@ -1507,7 +1470,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(1, s.TotalChangesAppliedOnServer);
 
                 // The row should be present 
-                var pc = await Fixture.GetProductCategoryAsync(clientProvider, productCategory.ProductCategoryId);
+                var pc = await clientProvider.GetProductCategoryAsync(productCategory.ProductCategoryId);
                 Assert.NotNull(pc);
                 download++;
             }
@@ -1519,7 +1482,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
-            var setupV2 = Fixture.GetSyncSetup();
+            var setupV2 = GetSetup();
 
             foreach (var table in setupV2.Tables)
                 table.SyncDirection = SyncDirection.UploadOnly;
@@ -1534,10 +1497,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             // Add one row in each client
             foreach (var clientProvider in clientsProvider)
-                await Fixture.AddProductCategoryAsync(clientProvider);
+                await clientProvider.AddProductCategoryAsync();
 
             // Add a pc on server
-            await Fixture.AddProductCategoryAsync(serverProvider);
+            await serverProvider.AddProductCategoryAsync();
 
             // Sync all clients
             foreach (var clientProvider in clientsProvider)
@@ -1559,13 +1522,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
-            var setupV2 = Fixture.GetSyncSetup();
+            var setupV2 = GetSetup();
 
             foreach (var table in setupV2.Tables)
                 table.SyncDirection = SyncDirection.DownloadOnly;
 
             // Get count of rows
-            var rowsCount = this.Fixture.GetDatabaseRowsCount(serverProvider);
+            var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             // Should not download anything
             foreach (var clientProvider in clientsProvider)
@@ -1577,10 +1540,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             // Add one row in each client
             foreach (var clientProvider in clientsProvider)
-                await Fixture.AddProductCategoryAsync(clientProvider);
+                await clientProvider.AddProductCategoryAsync();
 
             // Add a pc on server
-            await Fixture.AddProductCategoryAsync(serverProvider);
+            await serverProvider.AddProductCategoryAsync();
 
             // Sync all clients
             foreach (var clientProvider in clientsProvider)
@@ -1614,21 +1577,21 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
             // Adding a row that I will delete after creating snapshot
-            var productCategoryTodelete = await Fixture.AddProductCategoryAsync(serverProvider);
+            var productCategoryTodelete = await serverProvider.AddProductCategoryAsync();
 
             // Create a snapshot
             await remoteOrchestrator.CreateSnapshotAsync(setup);
 
             // Add rows after creating snapshot
-            var pc1 = await Fixture.AddProductCategoryAsync(serverProvider);
-            var pc2 = await Fixture.AddProductCategoryAsync(serverProvider);
-            var p1 = await Fixture.AddProductAsync(serverProvider);
-            var p2 = await Fixture.AddPriceListAsync(serverProvider);
+            var pc1 = await serverProvider.AddProductCategoryAsync();
+            var pc2 = await serverProvider.AddProductCategoryAsync();
+            var p1 = await serverProvider.AddProductAsync();
+            var p2 = await serverProvider.AddPriceListAsync();
             // Delete a row
-            await Fixture.DeleteProductCategoryAsync(serverProvider, productCategoryTodelete.ProductCategoryId);
+            await serverProvider.DeleteProductCategoryAsync(productCategoryTodelete.ProductCategoryId);
 
             // Get count of rows
-            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+            var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -1648,18 +1611,18 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(5, s.ChangesAppliedOnClient.TotalAppliedChanges);
                 Assert.Equal(5, s.ServerChangesSelected.TotalChangesSelected);
 
-                Assert.Equal(rowsCount, Fixture.GetDatabaseRowsCount(clientProvider));
+                Assert.Equal(rowsCount, clientProvider.GetDatabaseRowsCount());
 
                 // Check rows added or deleted
-                var clipc = await Fixture.GetProductCategoryAsync(clientProvider, productCategoryTodelete.ProductCategoryId);
+                var clipc = await clientProvider.GetProductCategoryAsync(productCategoryTodelete.ProductCategoryId);
                 Assert.Null(clipc);
-                var cliPC1 = await Fixture.GetProductCategoryAsync(clientProvider, pc1.ProductCategoryId);
+                var cliPC1 = await clientProvider.GetProductCategoryAsync(pc1.ProductCategoryId);
                 Assert.NotNull(cliPC1);
-                var cliPC2 = await Fixture.GetProductCategoryAsync(clientProvider, pc2.ProductCategoryId);
+                var cliPC2 = await clientProvider.GetProductCategoryAsync(pc2.ProductCategoryId);
                 Assert.NotNull(cliPC2);
-                var cliP1 = await Fixture.GetProductAsync(clientProvider, p1.ProductId);
+                var cliP1 = await clientProvider.GetProductAsync(p1.ProductId);
                 Assert.NotNull(cliP1);
-                var cliP2 = await Fixture.GetPriceListAsync(clientProvider, p2.PriceListId);
+                var cliP2 = await clientProvider.GetPriceListAsync(p2.PriceListId);
                 Assert.NotNull(cliP2);
             }
         }
@@ -1681,18 +1644,18 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
             // Adding a row that I will delete after creating snapshot
-            var productCategoryTodelete = await Fixture.AddProductCategoryAsync(serverProvider);
+            var productCategoryTodelete = await serverProvider.AddProductCategoryAsync();
 
             // Create a snapshot
             await remoteOrchestrator.CreateSnapshotAsync(setup);
 
             // Add rows after creating snapshot
-            var pc1 = await Fixture.AddProductCategoryAsync(serverProvider);
-            var pc2 = await Fixture.AddProductCategoryAsync(serverProvider);
-            var p1 = await Fixture.AddProductAsync(serverProvider);
-            var p2 = await Fixture.AddPriceListAsync(serverProvider);
+            var pc1 = await serverProvider.AddProductCategoryAsync();
+            var pc2 = await serverProvider.AddProductCategoryAsync();
+            var p1 = await serverProvider.AddProductAsync();
+            var p2 = await serverProvider.AddPriceListAsync();
             // Delete a row
-            await Fixture.DeleteProductCategoryAsync(serverProvider, productCategoryTodelete.ProductCategoryId);
+            await serverProvider.DeleteProductCategoryAsync(productCategoryTodelete.ProductCategoryId);
 
             // Execute a sync on all clients
             foreach (var clientProvider in clientsProvider)
@@ -1701,22 +1664,22 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 await agent.SynchronizeAsync(setup);
 
                 // Check rows added or deleted
-                var clipc = await Fixture.GetProductCategoryAsync(clientProvider, productCategoryTodelete.ProductCategoryId);
+                var clipc = await clientProvider.GetProductCategoryAsync(productCategoryTodelete.ProductCategoryId);
                 Assert.Null(clipc);
-                var cliPC1 = await Fixture.GetProductCategoryAsync(clientProvider, pc1.ProductCategoryId);
+                var cliPC1 = await clientProvider.GetProductCategoryAsync(pc1.ProductCategoryId);
                 Assert.NotNull(cliPC1);
-                var cliPC2 = await Fixture.GetProductCategoryAsync(clientProvider, pc2.ProductCategoryId);
+                var cliPC2 = await clientProvider.GetProductCategoryAsync(pc2.ProductCategoryId);
                 Assert.NotNull(cliPC2);
-                var cliP1 = await Fixture.GetProductAsync(clientProvider, p1.ProductId);
+                var cliP1 = await clientProvider.GetProductAsync(p1.ProductId);
                 Assert.NotNull(cliP1);
-                var cliP2 = await Fixture.GetPriceListAsync(clientProvider, p2.PriceListId);
+                var cliP2 = await clientProvider.GetPriceListAsync(p2.PriceListId);
                 Assert.NotNull(cliP2);
             }
 
             // Add one row in each client then ReinitializeWithUpload
             foreach (var clientProvider in clientsProvider)
             {
-                var productCategory = await Fixture.AddProductCategoryAsync(clientProvider);
+                var productCategory = await clientProvider.AddProductCategoryAsync();
 
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
 
@@ -1726,17 +1689,17 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(1, s.TotalChangesAppliedOnServer);
 
                 // Check rows added or deleted
-                var pc = await Fixture.GetProductCategoryAsync(clientProvider, productCategory.ProductCategoryId);
+                var pc = await clientProvider.GetProductCategoryAsync(productCategory.ProductCategoryId);
                 Assert.NotNull(pc);
-                var clipc = await Fixture.GetProductCategoryAsync(clientProvider, productCategoryTodelete.ProductCategoryId);
+                var clipc = await clientProvider.GetProductCategoryAsync(productCategoryTodelete.ProductCategoryId);
                 Assert.Null(clipc);
-                var cliPC1 = await Fixture.GetProductCategoryAsync(clientProvider, pc1.ProductCategoryId);
+                var cliPC1 = await clientProvider.GetProductCategoryAsync(pc1.ProductCategoryId);
                 Assert.NotNull(cliPC1);
-                var cliPC2 = await Fixture.GetProductCategoryAsync(clientProvider, pc2.ProductCategoryId);
+                var cliPC2 = await clientProvider.GetProductCategoryAsync(pc2.ProductCategoryId);
                 Assert.NotNull(cliPC2);
-                var cliP1 = await Fixture.GetProductAsync(clientProvider, p1.ProductId);
+                var cliP1 = await clientProvider.GetProductAsync(p1.ProductId);
                 Assert.NotNull(cliP1);
-                var cliP2 = await Fixture.GetPriceListAsync(clientProvider, p2.PriceListId);
+                var cliP2 = await clientProvider.GetPriceListAsync(p2.PriceListId);
                 Assert.NotNull(cliP2);
             }
 
@@ -1745,11 +1708,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync();
 
             // Get count of rows
-            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+            var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             // Execute a sync on all clients to be sure all clients have all rows
             foreach (var clientProvider in clientsProvider)
-                Assert.Equal(rowsCount, Fixture.GetDatabaseRowsCount(clientProvider));
+                Assert.Equal(rowsCount, clientProvider.GetDatabaseRowsCount());
         }
 
         [Theory]
@@ -1804,7 +1767,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             });
 
-            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+            var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -1840,7 +1803,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                     Assert.Equal(table.TotalChanges, readRows);
                 }
 
-                var clientRowsCount = Fixture.GetDatabaseRowsCount(clientProvider);
+                var clientRowsCount = clientProvider.GetDatabaseRowsCount();
 
                 Assert.Equal(clientRowsCount, rowsCount);
             }
@@ -1865,8 +1828,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 var dmc = await agent.RemoteOrchestrator.DeleteMetadatasAsync();
 
                 // Client side : Create a product category and a product
-                await Fixture.AddProductAsync(clientProvider);
-                await Fixture.AddProductCategoryAsync(clientProvider);
+                await clientProvider.AddProductAsync();
+                await clientProvider.AddProductCategoryAsync();
 
                 // Generate an outdated situation
                 await HelperDatabase.ExecuteScriptAsync(clientProviderType, clientDatabaseName,
@@ -1887,8 +1850,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 });
 
                 var r = await agent.SynchronizeAsync();
-                var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
-                var clientRowsCount = Fixture.GetDatabaseRowsCount(clientProvider);
+                var rowsCount = serverProvider.GetDatabaseRowsCount();
+                var clientRowsCount = clientProvider.GetDatabaseRowsCount();
 
                 Assert.Equal(rowsCount, r.TotalChangesDownloadedFromServer);
                 Assert.Equal(2, r.TotalChangesUploadedToServer);
@@ -1908,7 +1871,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             // Create a new setup
-            var setupUploadOnly = Fixture.GetSyncSetup();
+            var setupUploadOnly = GetSetup();
 
             // Remove all tables that are not the 4 tables we want to work with
             var productCategorySetupTable = setupUploadOnly.Tables.First(t => t.TableName == "ProductCategory");
@@ -1934,17 +1897,17 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Insert lines on each client
             foreach (var clientProvider in clientsProvider)
             {
-                await Fixture.AddProductAsync(clientProvider);
-                await Fixture.AddProductCategoryAsync(clientProvider);
-                await Fixture.AddPriceListAsync(clientProvider);
-                await Fixture.AddCustomerAsync(clientProvider);
+                await clientProvider.AddProductAsync();
+                await clientProvider.AddProductCategoryAsync();
+                await clientProvider.AddPriceListAsync();
+                await clientProvider.AddCustomerAsync();
             }
 
             // Insert lines or server
-            await Fixture.AddProductAsync(serverProvider);
-            await Fixture.AddProductCategoryAsync(serverProvider);
-            await Fixture.AddPriceListAsync(serverProvider);
-            await Fixture.AddCustomerAsync(serverProvider);
+            await serverProvider.AddProductAsync();
+            await serverProvider.AddProductCategoryAsync();
+            await serverProvider.AddPriceListAsync();
+            await serverProvider.AddCustomerAsync();
 
             // Prepare local scope
             foreach (var clientProvider in clientsProvider)
@@ -2031,7 +1994,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Await all tasks
             await Task.WhenAll(allTasks);
 
-            var rowsCount = Fixture.GetDatabaseRowsCount(serverProvider);
+            var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             foreach (var s in allTasks)
             {
@@ -2041,8 +2004,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             }
 
             // Create a new product on server 
-            await Fixture.AddProductAsync(serverProvider);
-            await Fixture.AddProductCategoryAsync(serverProvider);
+            await serverProvider.AddProductAsync();
+            await serverProvider.AddProductCategoryAsync();
 
             allTasks = new List<Task<SyncResult>>();
 

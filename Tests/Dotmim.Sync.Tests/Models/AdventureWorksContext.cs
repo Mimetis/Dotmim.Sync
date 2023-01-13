@@ -19,50 +19,29 @@ namespace Dotmim.Sync.Tests.Models
 
     public partial class AdventureWorksContext : DbContext
     {
+        private DbConnection Connection { get; }
         internal bool useSchema = false;
         internal bool useSeeding = false;
+
         public ProviderType ProviderType { get; set; }
         public string ConnectionString { get; set; }
 
-        private DbConnection Connection { get; }
-
         public static Guid CustomerId1ForFilter = Guid.NewGuid();
-
         public static Guid CustomerId2ForFilter = Guid.NewGuid();
 
-        public AdventureWorksContext((string DatabaseName, ProviderType ProviderType, CoreProvider provider) t, bool fallbackUseSchema = true, bool useSeeding = false) : this()
-        {
-            this.ProviderType = t.ProviderType;
-            this.ConnectionString = HelperDatabase.GetConnectionString(t.ProviderType, t.DatabaseName);
-            this.useSeeding = useSeeding;
-            this.useSchema = (this.ProviderType == ProviderType.Sql || this.ProviderType == ProviderType.Postgres) && fallbackUseSchema;
-        }
-        public AdventureWorksContext(CoreProvider provider, bool fallbackUseSchema = true, bool useSeeding = false) : this()
+
+        public AdventureWorksContext(CoreProvider provider, bool useSeeding = false) : this()
         {
             var db = HelperDatabase.GetDatabaseType(provider);
             this.ProviderType = db.ProviderType;
             this.ConnectionString = HelperDatabase.GetConnectionString(db.ProviderType, db.DatabaseName);
             this.useSeeding = useSeeding;
-            this.useSchema = (this.ProviderType == ProviderType.Sql || this.ProviderType == ProviderType.Postgres) && fallbackUseSchema;
+            this.useSchema = provider.UseFallbackSchema();
         }
 
-        public AdventureWorksContext(string databaseName, ProviderType providerType, bool fallbackUseSchema = true, bool useSeeding = false) : this()
-        {
-            this.ProviderType = providerType;
-            this.ConnectionString = HelperDatabase.GetConnectionString(providerType, databaseName);
-            this.useSeeding = useSeeding;
-            this.useSchema = (this.ProviderType == ProviderType.Sql || this.ProviderType == ProviderType.Postgres) && fallbackUseSchema;
-        }
+        public AdventureWorksContext(DbContextOptions<AdventureWorksContext> options) : base(options) { }
 
-
-        public AdventureWorksContext(DbContextOptions<AdventureWorksContext> options)
-            : base(options)
-        {
-        }
-
-        public AdventureWorksContext()
-        {
-        }
+        public AdventureWorksContext() { }
 
 #if NET7_0
         protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)

@@ -33,7 +33,7 @@ using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.IntegrationTests2
 {
-    public abstract partial class TcpTests2<T>
+    public abstract partial class TcpTests2
     {
         /// <summary>
         /// Check if a multi parameters value sync can work. 
@@ -77,7 +77,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             // Deletes all tables in client
             foreach (var clientProvider in clientsProvider)
-                await Fixture.DropAllTablesAsync(clientProvider, true);
+                await clientProvider.DropAllTablesAsync(true);
 
             // Get tables I need (with or without schema)
             var productCategoryTable = setup.Tables.First(t => t.TableName == "ProductCategory");
@@ -92,7 +92,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
 
             int productCategoryRowsCount = 0;
-            using (var readCtx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            using (var readCtx = new AdventureWorksContext(serverProvider))
                 productCategoryRowsCount = readCtx.ProductCategory.AsNoTracking().Count();
 
             // First sync to initialiaze client database, create table and fill product categories
@@ -116,8 +116,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             var serverScope = await remoteOrchestrator.ProvisionAsync("v2", setupV2);
 
             // Add rows on server
-            await Fixture.AddProductCategoryAsync(serverProvider);
-            await Fixture.AddProductAsync(serverProvider);
+            await serverProvider.AddProductCategoryAsync();
+            await serverProvider.AddProductAsync();
 
             HelperDatabase.ClearAllPools();
 
@@ -127,7 +127,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 var (clientProviderType, _) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 // exception on postgres
-                string schema = clientProviderType == ProviderType.Postgres && Fixture.UseFallbackSchema ? "SalesLT" : "public";
+                string schema = clientProviderType == ProviderType.Postgres && clientProvider.UseFallbackSchema() ? "SalesLT" : "public";
 
                 var commandText = clientProviderType switch
                 {
@@ -196,8 +196,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             var client1provider = new SqliteSyncProvider(HelperDatabase.GetSqliteFilePath(client1DatabaseName));
             var client2provider = new SqliteSyncProvider(HelperDatabase.GetSqliteFilePath(client2DatabaseName));
 
-            var productCategoryTableName = Fixture.ServerProviderType == ProviderType.Sql || Fixture.ServerProviderType == ProviderType.Postgres ? "SalesLT.ProductCategory" : "ProductCategory";
-            var productTableName = Fixture.ServerProviderType == ProviderType.Sql || Fixture.ServerProviderType == ProviderType.Postgres ? "SalesLT.Product" : "Product";
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+
+            var productCategoryTableName = serverProviderType == ProviderType.Sql || serverProviderType == ProviderType.Postgres ? "SalesLT.ProductCategory" : "ProductCategory";
+            var productTableName = serverProviderType == ProviderType.Sql || serverProviderType == ProviderType.Postgres ? "SalesLT.Product" : "Product";
 
             // --------------------------
             // Step 1: Create a default scope and Sync clients
@@ -209,7 +211,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Counting product categories & products
             int productCategoryRowsCount = 0;
             int productsCount = 0;
-            using (var readCtx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            using (var readCtx = new AdventureWorksContext(serverProvider))
             {
                 productCategoryRowsCount = readCtx.ProductCategory.AsNoTracking().Count();
                 productsCount = readCtx.Product.AsNoTracking().Count();
@@ -250,7 +252,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             var newAttributeWithSpaceValue = HelperDatabase.GetRandomName();
 
-            using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            using (var ctx = new AdventureWorksContext(serverProvider))
             {
                 var pc = new ProductCategory
                 {
@@ -282,7 +284,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             var localOrchestrator = new LocalOrchestrator(client1provider);
 
-            if (Fixture.ServerProviderType == ProviderType.Sql || Fixture.ServerProviderType == ProviderType.Postgres)
+            if (serverProviderType == ProviderType.Sql || serverProviderType == ProviderType.Postgres)
                 await localOrchestrator.CreateTableAsync(serverScope, "Product", "SalesLT");
             else
                 await localOrchestrator.CreateTableAsync(serverScope, "Product");
@@ -309,12 +311,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             Assert.Equal(1, r2.TotalChangesDownloadedFromServer);
 
             // now check values on each client
-            using (var ctx1 = new AdventureWorksContext((client1DatabaseName, ProviderType.Sqlite, client1provider), false))
+            using (var ctx1 = new AdventureWorksContext(client1provider, false))
             {
                 var producCategory1 = ctx1.ProductCategory.First(pc => pc.ProductCategoryId == productCategoryId);
                 Assert.Equal(newAttributeWithSpaceValue, producCategory1.AttributeWithSpace);
             }
-            using (var ctx2 = new AdventureWorksContext((client2DatabaseName, ProviderType.Sqlite, client2provider), false))
+            using (var ctx2 = new AdventureWorksContext(client2provider, false))
             {
                 var exc = Assert.ThrowsAny<Microsoft.Data.Sqlite.SqliteException>(() => ctx2.ProductCategory.First(pc => pc.ProductCategoryId == productCategoryId));
                 Assert.Contains("no such column", exc.Message);
@@ -324,7 +326,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             var serverScope2 = await agent2.RemoteOrchestrator.GetScopeInfoAsync();
 
             // Create the new table locally
-            if (Fixture.ServerProviderType == ProviderType.Sql || Fixture.ServerProviderType == ProviderType.Postgres)
+            if (serverProviderType == ProviderType.Sql || serverProviderType == ProviderType.Postgres)
                 await agent2.LocalOrchestrator.CreateTableAsync(serverScope2, "Product", "SalesLT");
             else
                 await agent2.LocalOrchestrator.CreateTableAsync(serverScope2, "Product");
@@ -345,7 +347,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Sync
             r2 = await agent2.SynchronizeAsync("v1", SyncType.Reinitialize);
 
-            using (var readCtx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            using (var readCtx = new AdventureWorksContext(serverProvider))
             {
                 productCategoryRowsCount = readCtx.ProductCategory.AsNoTracking().Count();
                 productsCount = readCtx.Product.AsNoTracking().Count();
@@ -365,7 +367,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             // Deletes all tables in client
             foreach (var clientProvider in clientsProvider)
-                await Fixture.DropAllTablesAsync(clientProvider, true);
+                await clientProvider.DropAllTablesAsync(true);
 
             // Get tables I need (with or without schema)
             var productCategoryTable = setup.Tables.First(t => t.TableName == "ProductCategory");
@@ -376,7 +378,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
 
             int productCategoryRowsCount = 0;
-            using (var readCtx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            using (var readCtx = new AdventureWorksContext(serverProvider))
                 productCategoryRowsCount = readCtx.ProductCategory.AsNoTracking().Count();
 
             // First sync to initialiaze client database, create table and fill product categories
@@ -398,8 +400,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // overwrite the setup
             var serverScope = await remoteOrchestrator.ProvisionAsync("v1", setupV1, overwrite: true);
 
-            await Fixture.AddProductCategoryAsync(serverProvider);
-            await Fixture.AddProductAsync(serverProvider);
+            await serverProvider.AddProductCategoryAsync();
+            await serverProvider.AddProductAsync();
 
             HelperDatabase.ClearAllPools();
 
@@ -408,7 +410,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 var (clientProviderType, _) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 // exception on postgres
-                string schema = clientProviderType == ProviderType.Postgres && Fixture.UseFallbackSchema ? "SalesLT" : "public";
+                string schema = clientProviderType == ProviderType.Postgres && clientProvider.UseFallbackSchema() ? "SalesLT" : "public";
 
                 var commandText = clientProviderType switch
                 {
@@ -464,7 +466,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             // Deletes all tables in client
             foreach (var clientProvider in clientsProvider)
-                await Fixture.DropAllTablesAsync(clientProvider, true);
+                await clientProvider.DropAllTablesAsync(true);
 
             // Get tables I need (with or without schema)
             var productCategoryTable = setup.Tables.First(t => t.TableName == "ProductCategory");
@@ -475,7 +477,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
 
             int productCategoryRowsCount = 0;
-            using (var readCtx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
+            using (var readCtx = new AdventureWorksContext(serverProvider))
                 productCategoryRowsCount = readCtx.ProductCategory.AsNoTracking().Count();
 
             // First sync to initialiaze client database, create table and fill product categories
@@ -497,8 +499,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // overwrite the setup
             var serverScope = await remoteOrchestrator.ProvisionAsync("v1", setupV1, overwrite: true);
 
-            await Fixture.AddProductCategoryAsync(serverProvider);
-            await Fixture.AddProductAsync(serverProvider);
+            await serverProvider.AddProductCategoryAsync();
+            await serverProvider.AddProductAsync();
 
             HelperDatabase.ClearAllPools();
 
@@ -508,7 +510,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 var (clientProviderType, _) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 // exception on postgres
-                string schema = clientProviderType == ProviderType.Postgres && Fixture.UseFallbackSchema ? "SalesLT" : "public";
+                string schema = clientProviderType == ProviderType.Postgres && clientProvider.UseFallbackSchema() ? "SalesLT" : "public";
 
                 var commandText = clientProviderType switch
                 {
@@ -598,8 +600,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // ----------------------------------------------
             // SERVER SIDE: Add a product cat and product
 
-            await Fixture.AddProductAsync(serverProvider);
-            await Fixture.AddProductCategoryAsync(serverProvider);
+            await serverProvider.AddProductAsync();
+            await serverProvider.AddProductCategoryAsync();
 
 
             foreach (var clientProvider in clientsProvider)
@@ -650,7 +652,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
                 HelperDatabase.DropDatabase(clientProviderType, clientDatabaseName);
-                new AdventureWorksContext(clientDatabaseName, clientProviderType, Fixture.UseFallbackSchema, false).Database.EnsureCreated();
+                await clientProvider.EnsureTablesAreCreatedAsync(true);
             }
 
             // Get tables I need (with or without schema)
@@ -667,10 +669,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // 3) Get the timestamp to use on the client
             var serverTimeStamp = await remoteOrchestrator.GetLocalTimestampAsync();
 
-
             // 4) Insert some rows in server
-            await Fixture.AddProductAsync(serverProvider);
-            await Fixture.AddProductCategoryAsync(serverProvider);
+            await serverProvider.AddProductAsync();
+            await serverProvider.AddProductCategoryAsync();
 
             // First sync to initialiaze client database, create table and fill product categories
             foreach (var clientProvider in clientsProvider)
