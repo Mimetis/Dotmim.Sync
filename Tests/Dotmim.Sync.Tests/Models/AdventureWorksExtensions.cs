@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Tests.Core;
+using Dotmim.Sync.Tests.Misc;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -14,7 +15,7 @@ namespace Dotmim.Sync.Tests.Models
     public static class AdventureWorksExtensions
     {
 
-        public static bool UseFallbackSchema(this CoreProvider coreProvider, bool? defaultValue = false)
+        public static bool UseFallbackSchema(this CoreProvider coreProvider, bool? defaultValue = null)
         {
             if (defaultValue.HasValue)
             {

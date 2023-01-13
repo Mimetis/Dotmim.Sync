@@ -10,6 +10,14 @@ using Microsoft.Data.SqlClient;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Configuration;
 using Npgsql;
+using Dotmim.Sync.Tests.Fixtures;
+using Dotmim.Sync.Tests.IntegrationTests;
+using Dotmim.Sync.Tests.Misc;
+using System.Collections.Generic;
+using Xunit.Abstractions;
+using System.Xml.Linq;
+using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.Tests.Models;
 
 namespace Dotmim.Sync.Tests
 {
@@ -18,103 +26,6 @@ namespace Dotmim.Sync.Tests
     /// </summary>
     public class Setup
     {
-        private static IConfigurationRoot configuration;
-
-        static Setup()
-        {
-            configuration = new ConfigurationBuilder()
-              .AddJsonFile("appsettings.json", false, true) 
-              .AddJsonFile("appsettings.local.json", true, true)
-              .Build();
-
-        }
-
-        /// <summary>
-        /// Returns the database connection string for Sql
-        /// </summary>
-        internal static string GetSqlDatabaseConnectionString(string dbName)
-        {
-            var cstring = string.Format(configuration.GetSection("ConnectionStrings")["SqlConnection"], dbName);
-
-            var builder = new SqlConnectionStringBuilder(cstring);
-
-            if (IsOnAzureDev)
-            {
-                builder.IntegratedSecurity = false;
-                builder.DataSource = @"localhost";
-                builder.UserID = "sa";
-                builder.Password = "Password12!";
-                builder.TrustServerCertificate = true;
-            }
-            return builder.ToString();
-        }
-
-        /// <summary>
-        /// Returns the database connection string for Azure Sql
-        /// </summary>
-        internal static string GetSqlAzureDatabaseConnectionString(string dbName) =>
-            string.Format(configuration.GetSection("ConnectionStrings")["AzureSqlConnection"], dbName);
-
-        /// <summary>
-        /// Returns the database connection string for MySql
-        /// </summary>
-        internal static string GetMySqlDatabaseConnectionString(string dbName)
-        {
-            var cstring = string.Format(configuration.GetSection("ConnectionStrings")["MySqlConnection"], dbName);
-
-            var builder = new MySqlConnectionStringBuilder(cstring);
-
-            if (IsOnAzureDev)
-            {
-                builder.Port = 3307;
-                builder.UserID = "root";
-                builder.Password = "Password12!";
-            }
-
-            var cn = builder.ToString();
-            return cn;
-        }
-
-
-        /// <summary>
-        /// Returns the database connection string for MySql
-        /// </summary>
-        internal static string GetMariaDBDatabaseConnectionString(string dbName)
-        {
-            var cstring = string.Format(configuration.GetSection("ConnectionStrings")["MariaDBConnection"], dbName);
-
-            var builder = new MySqlConnectionStringBuilder(cstring);
-
-            if (IsOnAzureDev)
-            {
-                builder.Port = 3308;
-                builder.UserID = "root";
-                builder.Password = "Password12!";
-            }
-
-            var cn = builder.ToString();
-            return cn;
-        }
-
-        /// <summary>
-        /// Returns the database connection string for MySql
-        /// </summary>
-        internal static string GetPostgresDatabaseConnectionString(string dbName)
-        {
-            var cstring = string.Format(configuration.GetSection("ConnectionStrings")["NpgsqlConnection"], dbName);
-
-            var builder = new NpgsqlConnectionStringBuilder(cstring);
-
-            if (IsOnAzureDev)
-            {
-                builder.Port = 5432;
-                builder.Username = "postgres";
-                builder.Password = "Password12!";
-            }
-
-            var cn = builder.ToString();
-            return cn;
-        }
 
         /// <summary>
         /// Gets if the tests are running on AppVeyor
@@ -143,4 +54,89 @@ namespace Dotmim.Sync.Tests
         }
 
     }
+
+    public class SqlServerChangeTrackingTcpTests : TcpTests
+    {
+        public SqlServerChangeTrackingTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_sqlct_adv", true);
+        }
+
+        public override CoreProvider GetServerProvider()
+        {
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString("tcp_srv_sqlct_adv");
+            var provider = new SqlSyncChangeTrackingProvider(cstring);
+            provider.UseFallbackSchema(true);
+            return provider;
+        }
+    }
+
+    public class SqlServerTcpTests : TcpTests
+    {
+        public SqlServerTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_sql_adv", true);
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_sql_adv", true);
+    }
+
+    public class PostgresTcpTests : TcpTests
+    {
+        public PostgresTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_cli_npg_adv");
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_srv_npg_adv", true);
+    }
+
+
+
+    public class MySqlTcpTests : TcpTests
+    {
+        public MySqlTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, "tcp_cli_mysql_adv", true);
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MySql, "tcp_srv_mysql_adv", true);
+    }
+
+
+    public class MariaDBTcpTests : TcpTests
+    {
+        public MariaDBTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "tcp_cli_maria_adv", true);
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "tcp_srv_maria_adv", true);
+    }
+
 }

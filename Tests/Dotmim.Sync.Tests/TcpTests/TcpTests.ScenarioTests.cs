@@ -31,9 +31,9 @@ using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Dotmim.Sync.Tests.IntegrationTests2
+namespace Dotmim.Sync.Tests.IntegrationTests
 {
-    public abstract partial class TcpTests2
+    public abstract partial class TcpTests
     {
         /// <summary>
         /// Check if a multi parameters value sync can work. 
@@ -198,15 +198,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
 
-            var productCategoryTableName = serverProviderType == ProviderType.Sql || serverProviderType == ProviderType.Postgres ? "SalesLT.ProductCategory" : "ProductCategory";
-            var productTableName = serverProviderType == ProviderType.Sql || serverProviderType == ProviderType.Postgres ? "SalesLT.Product" : "Product";
+            var productCategoryTableName = serverProvider.UseFallbackSchema() ? "SalesLT.ProductCategory" : "ProductCategory";
+            var productTableName = serverProvider.UseFallbackSchema() ? "SalesLT.Product" : "Product";
 
             // --------------------------
             // Step 1: Create a default scope and Sync clients
             // Note we are not including the [Attribute With Space] column
             var setup = new SyncSetup(new string[] { productCategoryTableName });
-            setup.Tables[productCategoryTableName].Columns.AddRange(
-                "ProductCategoryId", "Name", "ParentProductCategoryId", "rowguid", "ModifiedDate");
+            setup.Tables[productCategoryTableName].Columns.AddRange("ProductCategoryId", "Name", "ParentProductCategoryId", "rowguid", "ModifiedDate");
 
             // Counting product categories & products
             int productCategoryRowsCount = 0;
@@ -216,7 +215,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 productCategoryRowsCount = readCtx.ProductCategory.AsNoTracking().Count();
                 productsCount = readCtx.Product.AsNoTracking().Count();
             }
-
 
             var agent1 = new SyncAgent(client1provider, serverProvider, options);
             var r1 = await agent1.SynchronizeAsync(setup);

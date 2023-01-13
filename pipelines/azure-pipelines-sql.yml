@@ -4,79 +4,79 @@ jobs:
     parameters:
       displayName: 'SQL Server Tcp .net core 3.1'
       dotnetfx: 'netcoreapp3.1'
-      filter: 'Dotmim.Sync.Tests.IntegrationTests2.SqlServerTcp'
+      filter: 'Dotmim.Sync.Tests.SqlServerTcp'
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: 'SQL Server Tcp .net 7.0'
       dotnetfx: 'net7.0'
-      filter: 'Dotmim.Sync.Tests.IntegrationTests2.SqlServerTcp'
+      filter: 'Dotmim.Sync.Tests.SqlServerTcp'
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: 'SQL Server Tcp .net 6.0'
       dotnetfx: 'net6.0'
-      filter: 'Dotmim.Sync.Tests.IntegrationTests2.SqlServerTcp'
+      filter: 'Dotmim.Sync.Tests.SqlServerTcp'
 
-  # - template: azure-pipelines-template.yml
-  #   parameters:
-  #     displayName: 'SQL Server Change Tracking Tcp .net 7.0'
-  #     dotnetfx: 'net7.0'
-  #     filter: 'Dotmim.Sync.Tests.IntegrationTests2.SqlServerChangeTrackingTcp'  
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: 'SQL Server Change Tracking Tcp .net 7.0'
+      dotnetfx: 'net7.0'
+      filter: 'Dotmim.Sync.Tests.SqlServerChangeTrackingTcp'  
 
-  # - template: azure-pipelines-template.yml
-  #   parameters:
-  #     displayName: 'SQL Server Change Tracking Tcp .net core 3.1'
-  #     dotnetfx: 'netcoreapp3.1'
-  #     filter: 'Dotmim.Sync.Tests.IntegrationTests2.SqlServerChangeTrackingTcp'  
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: 'SQL Server Change Tracking Tcp .net core 3.1'
+      dotnetfx: 'netcoreapp3.1'
+      filter: 'Dotmim.Sync.Tests.SqlServerChangeTrackingTcp'  
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: 'PostgreSQL Tcp .net core 3.1'
       dotnetfx: 'netcoreapp3.1'
-      filter: 'Dotmim.Sync.Tests.IntegrationTests2.PostgresTcp'
+      filter: 'Dotmim.Sync.Tests.PostgresTcp'
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: 'PostgreSQL Tcp .net 7.0'
       dotnetfx: 'net7.0'
-      filter: 'Dotmim.Sync.Tests.IntegrationTests2.PostgresTcp'
+      filter: 'Dotmim.Sync.Tests.PostgresTcp'
   
   - template: azure-pipelines-template.yml
     parameters:
       displayName: 'PostgreSQL Tcp .net 6.0'
       dotnetfx: 'net6.0'
-      filter: 'Dotmim.Sync.Tests.IntegrationTests2.PostgresTcp'
+      filter: 'Dotmim.Sync.Tests.PostgresTcp'
   
   - template: azure-pipelines-template.yml
     parameters:
       displayName: 'MySQL Tcp .net core 3.1'
       dotnetfx: 'netcoreapp3.1'
-      filter: 'Dotmim.Sync.Tests.IntegrationTests2.MySqlTcp'
+      filter: 'Dotmim.Sync.Tests.MySqlTcp'
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: 'MySQL Tcp .net 7.0'
       dotnetfx: 'net7.0'
-      filter: 'Dotmim.Sync.Tests.IntegrationTests2.MySqlTcp'
+      filter: 'Dotmim.Sync.Tests.MySqlTcp'
   
   - template: azure-pipelines-template.yml
     parameters:
       displayName: 'SQL Server Http .net 7.0'
       dotnetfx: 'net7.0'
-      filter: 'Dotmim.Sync.Tests.IntegrationTests2.SqlServerHttp'
+      filter: 'Dotmim.Sync.Tests.SqlServerHttp'
   
   - template: azure-pipelines-template.yml
     parameters:
       displayName: 'MySQL Http .net 7.0'
       dotnetfx: 'net7.0'
-      filter: 'Dotmim.Sync.Tests.IntegrationTests2.MySqlHttp'
+      filter: 'Dotmim.Sync.Tests.MySqlHttp'
   
   - template: azure-pipelines-template.yml
     parameters:
       displayName: 'Postgres Http .net 7.0'
       dotnetfx: 'net7.0'
-      filter: 'Dotmim.Sync.Tests.IntegrationTests2.PostgresHttp'
+      filter: 'Dotmim.Sync.Tests.PostgresHttp'
   
 
 

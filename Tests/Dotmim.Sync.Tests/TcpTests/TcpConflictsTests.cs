@@ -37,22 +37,22 @@ using Xunit;
 using Xunit.Abstractions;
 using Xunit.Sdk;
 
-namespace Dotmim.Sync.Tests
+namespace Dotmim.Sync.Tests.IntegrationTests
 {
 
-    public abstract class TcpConflictsTests : Database2Test, IClassFixture<DatabaseServerFixture2>, IDisposable
+    public abstract class TcpConflictsTests : DatabaseTest, IClassFixture<DatabaseServerFixture>, IDisposable
     {
         private CoreProvider serverProvider;
         private IEnumerable<CoreProvider> clientsProvider;
         private SyncSetup setup;
 
-        public TcpConflictsTests(ITestOutputHelper output, DatabaseServerFixture2 fixture) : base(output, fixture)
+        public TcpConflictsTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
         {
             serverProvider = GetServerProvider();
             clientsProvider = GetClientProviders();
             setup = GetSetup();
         }
-        
+
         private async Task CheckProductCategoryRows(CoreProvider clientProvider, string nameShouldStartWith = null)
         {
             // check rows count on server and on each client
@@ -118,7 +118,7 @@ namespace Dotmim.Sync.Tests
             using var connection = coreProvider.CreateConnection();
             connection.Open();
             using var transaction = connection.BeginTransaction();
-            
+
             // Get ProductCategoryTable
             var productCategoryTable = setup.Tables.First(t => t.TableName == "ProductCategory");
 
@@ -142,7 +142,7 @@ namespace Dotmim.Sync.Tests
             var pcName = serverProviderType == ProviderType.Sql ? "[SalesLT].[ProductCategory]" : "[ProductCategory]";
             var subcatrandom = Path.GetRandomFileName();
             var categoryName = string.Concat("A_", string.Concat(subcatrandom.Where(c => char.IsLetter(c))).ToUpperInvariant());
-           
+
             var sqlConnection = new SqlConnection(sqlSyncProvider.ConnectionString);
             var commandText = $"UPDATE {pcName} SET [Name] = '{categoryName}' + [ProductCategoryID];";
             var command = sqlConnection.CreateCommand();
@@ -196,8 +196,8 @@ namespace Dotmim.Sync.Tests
         [Fact]
         public virtual async Task UniqueKeyOnSameTableRaiseAnError()
         {
-            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
-            
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
             foreach (var clientProvider in clientsProvider)
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);

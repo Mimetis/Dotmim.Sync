@@ -38,17 +38,17 @@ using Dotmim.Sync.Tests.Fixtures;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
 
-namespace Dotmim.Sync.Tests.IntegrationTests2
+namespace Dotmim.Sync.Tests.IntegrationTests
 {
 
-    public abstract partial class HttpTests2 : Database2Test, IClassFixture<DatabaseServerFixture2>, IDisposable
+    public abstract partial class HttpTests : DatabaseTest, IClassFixture<DatabaseServerFixture>, IDisposable
     {
         private CoreProvider serverProvider;
         private IEnumerable<CoreProvider> clientsProvider;
         private SyncSetup setup;
         private string serviceUri;
 
-        protected HttpTests2(ITestOutputHelper output, DatabaseServerFixture2 fixture) : base(output, fixture)
+        protected HttpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
         {
             serverProvider = GetServerProvider();
             clientsProvider = GetClientProviders();
@@ -81,7 +81,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task CheckAdditionalPropertiesAreConstantAcrossHttpCallsUsingOnHttpSendingRequest()
         {
-            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
@@ -123,7 +123,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             var serviceUri = this.Kestrell.Run(serverHandler);
 
-            int download = 1;
+            var download = 1;
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
             {
@@ -158,7 +158,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task CheckAdditionalPropertiesAreConstantAcrossHttpCallsUsingOnSessionBegins()
         {
-            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
@@ -200,7 +200,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             var serviceUri = this.Kestrell.Run(serverHandler);
 
-            int download = 1;
+            var download = 1;
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
             {
@@ -287,7 +287,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
             var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
-            
+
             var badServerProvider = HelperDatabase.GetSyncProvider(serverProviderType, HelperDatabase.GetRandomName("tcp_srv_bad_"));
             badServerProvider.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown";
 
@@ -394,7 +394,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             var pcName = string.Concat(serverProductCategory.ProductCategoryId, "UPDATED");
             serverProductCategory.Name = pcName;
 
-            await serverProvider.UpdateProductCategoryAsync( serverProductCategory);
+            await serverProvider.UpdateProductCategoryAsync(serverProductCategory);
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -426,7 +426,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             foreach (var clientProvider in clientsProvider)
                 await clientProvider.AddProductCategoryAsync();
 
-            int download = 0;
+            var download = 0;
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
             {
@@ -459,7 +459,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 await clientProvider.AddProductAsync();
             }
 
-            int download = 0;
+            var download = 0;
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
             {
@@ -488,10 +488,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             // Add one row in each client
             foreach (var clientProvider in clientsProvider)
-                for (int i = 0; i < rowsCountToInsert; i++)
+                for (var i = 0; i < rowsCountToInsert; i++)
                     await clientProvider.AddProductCategoryAsync();
 
-            int download = 0;
+            var download = 0;
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
             {
@@ -525,7 +525,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // add one row
             await serverProvider.AddProductCategoryAsync();
             // delete one row
-            await serverProvider.DeleteProductCategoryAsync( firstProductCategory.ProductCategoryId);
+            await serverProvider.DeleteProductCategoryAsync(firstProductCategory.ProductCategoryId);
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -576,7 +576,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
-                var clientProduct = await clientProvider.GetProductAsync( product.ProductId);
+                var clientProduct = await clientProvider.GetProductAsync(product.ProductId);
 
                 Assert.Equal(product.ThumbNailPhoto, clientProduct.ThumbNailPhoto);
 
@@ -607,7 +607,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // First client  will upload 3 lines and will download nothing
             // Second client will upload 3 lines and will download 3 lines
             // thrid client  will upload 3 lines and will download 6 lines
-            int download = 0;
+            var download = 0;
             foreach (var clientProvider in clientsProvider)
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
@@ -751,7 +751,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Update one address on each client
             // To avoid conflicts, each client will update differents lines
             // each address id is generated from the foreach index
-            int addressId = 0;
+            var addressId = 0;
             foreach (var clientProvider in clientsProvider)
             {
                 using (var ctx = new AdventureWorksContext(clientProvider))
@@ -769,7 +769,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             }
 
             // Sync
-            int download = 0;
+            var download = 0;
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
@@ -831,7 +831,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // Update one address on each client
             // To avoid conflicts, each client will update differents lines
             // each address id is generated from the foreach index
-            int addressId = 0;
+            var addressId = 0;
             foreach (var clientProvider in clientsProvider)
             {
                 using (var ctx = new AdventureWorksContext(clientProvider))
@@ -848,7 +848,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             }
 
             // Sync
-            int download = 0;
+            var download = 0;
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
@@ -1007,7 +1007,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // To avoid conflicts, each client will add a product category
             // each address id is generated from the foreach index
             foreach (var clientProvider in clientsProvider)
-                await clientProvider.AddProductCategoryAsync( name: $"CLI_{HelperDatabase.GetRandomName()}");
+                await clientProvider.AddProductCategoryAsync(name: $"CLI_{HelperDatabase.GetRandomName()}");
 
             // Execute two sync on all clients to be sure all clients have all lines
             foreach (var clientProvider in clientsProvider)
@@ -1104,7 +1104,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             options.DisableConstraintsOnApplyChanges = true;
 
             // Add one row in each client then ReinitializeWithUpload
-            int download = 1;
+            var download = 1;
             foreach (var clientProvider in clientsProvider)
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
@@ -1283,7 +1283,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.NotNull(cliPC1);
                 var cliPC2 = await clientProvider.GetProductCategoryAsync(pc2.ProductCategoryId);
                 Assert.NotNull(cliPC2);
-                var cliP1 = await clientProvider.GetProductAsync( p1.ProductId);
+                var cliP1 = await clientProvider.GetProductAsync(p1.ProductId);
                 Assert.NotNull(cliP1);
                 var cliP2 = await clientProvider.GetPriceListAsync(p2.PriceListId);
                 Assert.NotNull(cliP2);
@@ -1318,7 +1318,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             var p1 = await serverProvider.AddProductAsync();
             var p2 = await serverProvider.AddPriceListAsync();
             // Delete a row
-            await serverProvider.DeleteProductCategoryAsync( productCategoryTodelete.ProductCategoryId);
+            await serverProvider.DeleteProductCategoryAsync(productCategoryTodelete.ProductCategoryId);
 
             // Execute a sync on all clients
             foreach (var clientProvider in clientsProvider)
@@ -1333,9 +1333,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.NotNull(cliPC1);
                 var cliPC2 = await clientProvider.GetProductCategoryAsync(pc2.ProductCategoryId);
                 Assert.NotNull(cliPC2);
-                var cliP1 = await clientProvider.GetProductAsync( p1.ProductId);
+                var cliP1 = await clientProvider.GetProductAsync(p1.ProductId);
                 Assert.NotNull(cliP1);
-                var cliP2 = await clientProvider.GetPriceListAsync( p2.PriceListId);
+                var cliP2 = await clientProvider.GetPriceListAsync(p2.PriceListId);
                 Assert.NotNull(cliP2);
             }
 
@@ -1360,7 +1360,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.NotNull(cliPC1);
                 var cliPC2 = await clientProvider.GetProductCategoryAsync(pc2.ProductCategoryId);
                 Assert.NotNull(cliPC2);
-                var cliP1 = await clientProvider.GetProductAsync( p1.ProductId);
+                var cliP1 = await clientProvider.GetProductAsync(p1.ProductId);
                 Assert.NotNull(cliP1);
                 var cliP2 = await clientProvider.GetPriceListAsync(p2.PriceListId);
                 Assert.NotNull(cliP2);
@@ -1384,7 +1384,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task BadConverterNotRegisteredOnServerShouldRaiseError()
         {
-            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -1546,7 +1546,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task ConverterRegisteredShouldConvertDateTime()
         {
-            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // Execute a sync on all clients to initialize client and server schema 
             foreach (var clientProvider in clientsProvider)
@@ -1564,10 +1564,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             // Add one row in each client
             foreach (var clientProvider in clientsProvider)
-                await clientProvider.AddProductCategoryAsync( modifiedDate: clientProductCategoryModifiedDate, attributeWithSpace: "CLI");
+                await clientProvider.AddProductCategoryAsync(modifiedDate: clientProductCategoryModifiedDate, attributeWithSpace: "CLI");
 
             // Add one row on server
-            await serverProvider.AddProductCategoryAsync( modifiedDate: serverProductCategoryModifiedDate, attributeWithSpace: "SRV");
+            await serverProvider.AddProductCategoryAsync(modifiedDate: serverProductCategoryModifiedDate, attributeWithSpace: "SRV");
 
             // Add a date converter
             var webServerOptions = new WebServerOptions();
@@ -1900,7 +1900,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 // Configure server orchestrator
                 kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
 
-                int batchIndex = 0;
+                var batchIndex = 0;
 
                 // Create server web proxy
                 var serverHandler = new RequestDelegate(async context =>
@@ -2033,7 +2033,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 // Configure server orchestrator
                 kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
 
-                int batchIndex = 0;
+                var batchIndex = 0;
 
                 // Create server web proxy
                 var serverHandler = new RequestDelegate(async context =>
@@ -2251,7 +2251,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task IntermitentConnectionUsingSyncPolicyRetryOnHttpGettingRequest()
         {
-            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             var interrupted = new Dictionary<HttpStep, bool>();
             var rowsCount = serverProvider.GetDatabaseRowsCount();
@@ -2323,7 +2323,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task IntermitentConnectionUsingSyncPolicyOnRetryOnHttpSendingResponse()
         {
-            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             var interrupted = new Dictionary<HttpStep, bool>();
             var rowsCount = serverProvider.GetDatabaseRowsCount();
@@ -2387,7 +2387,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public async Task IntermitentConnectionUsingSyncPolicyInsertClientRowShouldWork()
         {
-            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             var rowsCount = serverProvider.GetDatabaseRowsCount();
 
@@ -2436,7 +2436,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
 
             // Insert one line on each client
             foreach (var clientProvider in clientsProvider)
-                for (int i = 0; i < 1000; i++)
+                for (var i = 0; i < 1000; i++)
                     await clientProvider.AddProductCategoryAsync();
 
 
@@ -2444,7 +2444,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // First client  will upload one line and will download nothing
             // Second client will upload one line and will download one line
             // thrid client  will upload one line and will download two lines
-            int download = 0;
+            var download = 0;
             foreach (var clientProvider in clientsProvider)
             {
                 interruptedBatch = false;
@@ -2457,7 +2457,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // We have one batch that has been sent 2 times; it will be merged correctly on server
-                Assert.InRange<int>(s.ChangesAppliedOnServer.TotalAppliedChanges, 1000, 2000);
+                Assert.InRange(s.ChangesAppliedOnServer.TotalAppliedChanges, 1000, 2000);
                 Assert.Equal(1000, s.ClientChangesSelected.TotalChangesSelected);
 
                 // Get count of rows
@@ -2472,7 +2472,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
         [Fact]
         public virtual async Task BlobShouldBeConsistentAndSizeShouldBeMaintained()
         {
-            SyncOptions options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
             var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
 
             // Execute a sync on all clients to initialize schemas

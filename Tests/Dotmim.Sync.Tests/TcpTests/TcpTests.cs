@@ -25,33 +25,17 @@ using Xunit;
 using Xunit.Abstractions;
 using static System.Net.Mime.MediaTypeNames;
 
-namespace Dotmim.Sync.Tests.IntegrationTests2
+namespace Dotmim.Sync.Tests.IntegrationTests
 {
 
-    public class SqlServerTcpTests : TcpTests2
-    {
-        public SqlServerTcpTests(ITestOutputHelper output, DatabaseServerFixture2 fixture) : base(output, fixture)
-        {
-        }
 
-        public override IEnumerable<CoreProvider> GetClientProviders()
-        {
-            //yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("tcp_cli_sqlite"));
-            //yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, HelperDatabase.GetRandomName("tcp_cli_postgres"));
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_sql_adv", true);
-        }
-
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_sql_adv", true);
-    }
-
-
-    public abstract partial class TcpTests2 : Database2Test, IClassFixture<DatabaseServerFixture2>, IDisposable
+    public abstract partial class TcpTests : DatabaseTest, IClassFixture<DatabaseServerFixture>, IDisposable
     {
         private CoreProvider serverProvider;
         private IEnumerable<CoreProvider> clientsProvider;
         private SyncSetup setup;
 
-        public TcpTests2(ITestOutputHelper output, DatabaseServerFixture2 fixture) : base(output, fixture)
+        public TcpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
         {
             serverProvider = GetServerProvider();
             clientsProvider = GetClientProviders();

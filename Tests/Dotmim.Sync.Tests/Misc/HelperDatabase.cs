@@ -1,5 +1,4 @@
-﻿using Dotmim.Sync.Tests;
-using Dotmim.Sync.Tests.Core;
+﻿using Dotmim.Sync.Tests.Core;
 using Microsoft.Data.Sqlite;
 #if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
 using MySqlConnector;
@@ -24,11 +23,110 @@ using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.PostgreSql;
 using Dotmim.Sync.Tests.Fixtures;
 using Dotmim.Sync.Tests.Models;
+using Microsoft.Extensions.Configuration;
 
-namespace Dotmim.Sync.Tests
+namespace Dotmim.Sync.Tests.Misc
 {
     public static class HelperDatabase
     {
+        private static IConfigurationRoot configuration;
+
+        static HelperDatabase()
+        {
+            configuration = new ConfigurationBuilder()
+              .AddJsonFile("appsettings.json", false, true)
+              .AddJsonFile("appsettings.local.json", true, true)
+              .Build();
+
+        }
+
+        /// <summary>
+        /// Returns the database connection string for Sql
+        /// </summary>
+        internal static string GetSqlDatabaseConnectionString(string dbName)
+        {
+            var cstring = string.Format(configuration.GetSection("ConnectionStrings")["SqlConnection"], dbName);
+
+            var builder = new SqlConnectionStringBuilder(cstring);
+
+            if (Setup.IsOnAzureDev)
+            {
+                builder.IntegratedSecurity = false;
+                builder.DataSource = @"localhost";
+                builder.UserID = "sa";
+                builder.Password = "Password12!";
+                builder.TrustServerCertificate = true;
+            }
+            return builder.ToString();
+        }
+
+        /// <summary>
+        /// Returns the database connection string for Azure Sql
+        /// </summary>
+        internal static string GetSqlAzureDatabaseConnectionString(string dbName) =>
+            string.Format(configuration.GetSection("ConnectionStrings")["AzureSqlConnection"], dbName);
+
+        /// <summary>
+        /// Returns the database connection string for MySql
+        /// </summary>
+        internal static string GetMySqlDatabaseConnectionString(string dbName)
+        {
+            var cstring = string.Format(configuration.GetSection("ConnectionStrings")["MySqlConnection"], dbName);
+
+            var builder = new MySqlConnectionStringBuilder(cstring);
+
+            if (Setup.IsOnAzureDev)
+            {
+                builder.Port = 3307;
+                builder.UserID = "root";
+                builder.Password = "Password12!";
+            }
+
+            var cn = builder.ToString();
+            return cn;
+        }
+
+
+        /// <summary>
+        /// Returns the database connection string for MySql
+        /// </summary>
+        internal static string GetMariaDBDatabaseConnectionString(string dbName)
+        {
+            var cstring = string.Format(configuration.GetSection("ConnectionStrings")["MariaDBConnection"], dbName);
+
+            var builder = new MySqlConnectionStringBuilder(cstring);
+
+            if (Setup.IsOnAzureDev)
+            {
+                builder.Port = 3308;
+                builder.UserID = "root";
+                builder.Password = "Password12!";
+            }
+
+            var cn = builder.ToString();
+            return cn;
+        }
+
+        /// <summary>
+        /// Returns the database connection string for MySql
+        /// </summary>
+        internal static string GetPostgresDatabaseConnectionString(string dbName)
+        {
+            var cstring = string.Format(configuration.GetSection("ConnectionStrings")["NpgsqlConnection"], dbName);
+
+            var builder = new NpgsqlConnectionStringBuilder(cstring);
+
+            if (Setup.IsOnAzureDev)
+            {
+                builder.Port = 5432;
+                builder.Username = "postgres";
+                builder.Password = "Password12!";
+            }
+
+            var cn = builder.ToString();
+            return cn;
+        }
+
         public static string GetRandomName(string pref = default)
         {
             var str1 = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
@@ -64,23 +162,23 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public static string GetConnectionString(ProviderType providerType, string dbName)
         {
-            string con = "";
+            var con = "";
             switch (providerType)
             {
                 case ProviderType.Sql:
-                    con = Setup.GetSqlDatabaseConnectionString(dbName);
+                    con = GetSqlDatabaseConnectionString(dbName);
                     break;
                 case ProviderType.MySql:
-                    con = Setup.GetMySqlDatabaseConnectionString(dbName);
+                    con = GetMySqlDatabaseConnectionString(dbName);
                     break;
                 case ProviderType.MariaDB:
-                    con = Setup.GetMariaDBDatabaseConnectionString(dbName);
+                    con = GetMariaDBDatabaseConnectionString(dbName);
                     break;
                 case ProviderType.Sqlite:
                     con = GetSqliteDatabaseConnectionString(dbName);
                     break;
                 case ProviderType.Postgres:
-                    con = Setup.GetPostgresDatabaseConnectionString(dbName);
+                    con = GetPostgresDatabaseConnectionString(dbName);
                     break;
             }
 
@@ -109,30 +207,19 @@ namespace Dotmim.Sync.Tests
 
             CoreProvider provider = providerType switch
             {
-                ProviderType.Sql => new SqlSyncProvider(Setup.GetSqlDatabaseConnectionString(dbName)),
-                ProviderType.MySql => new MySqlSyncProvider(Setup.GetMySqlDatabaseConnectionString(dbName)),
-                ProviderType.MariaDB => new MariaDBSyncProvider(Setup.GetMariaDBDatabaseConnectionString(dbName)),
+                ProviderType.Sql => new SqlSyncProvider(GetSqlDatabaseConnectionString(dbName)),
+                ProviderType.MySql => new MySqlSyncProvider(GetMySqlDatabaseConnectionString(dbName)),
+                ProviderType.MariaDB => new MariaDBSyncProvider(GetMariaDBDatabaseConnectionString(dbName)),
                 ProviderType.Sqlite => new SqliteSyncProvider(GetSqliteDatabaseConnectionString(dbName)),
-                ProviderType.Postgres => new NpgsqlSyncProvider(Setup.GetPostgresDatabaseConnectionString(dbName)),
+                ProviderType.Postgres => new NpgsqlSyncProvider(GetPostgresDatabaseConnectionString(dbName)),
                 _ => null,
             };
-            
+
             if (useFallbackSchema)
                 provider.UseFallbackSchema(true);
 
             return provider;
         }
-
-        public static ProviderType GetProviderType<T>() where T : RelationalFixture => typeof(T) switch
-        {
-            _ when typeof(T) == typeof(SqlServerFixtureType) => ProviderType.Sql,
-            _ when typeof(T) == typeof(MySqlFixtureType) => ProviderType.MySql,
-            _ when typeof(T) == typeof(MariaDBFixtureType) => ProviderType.MariaDB,
-            _ when typeof(T) == typeof(SqliteFixtureType) => ProviderType.Sqlite,
-            _ when typeof(T) == typeof(PostgresFixtureType) => ProviderType.Postgres,
-            _ => ProviderType.Sql,
-        };
-
 
         public static void ClearAllPools()
         {
@@ -209,11 +296,11 @@ namespace Dotmim.Sync.Tests
                 return Task.CompletedTask;
             });
 
-            SyncPolicy policy = SyncPolicy.WaitAndRetry(3, TimeSpan.FromMilliseconds(500), null, onRetry);
+            var policy = SyncPolicy.WaitAndRetry(3, TimeSpan.FromMilliseconds(500), null, onRetry);
 
             await policy.ExecuteAsync(async () =>
             {
-                using var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master"));
+                using var masterConnection = new SqlConnection(GetSqlDatabaseConnectionString("master"));
                 masterConnection.Open();
 
                 using (var cmdDb = new SqlCommand(GetSqlCreationScript(dbName, recreateDb), masterConnection))
@@ -224,9 +311,9 @@ namespace Dotmim.Sync.Tests
         }
 
 
-        private static async Task ActivateChangeTracking(string dbName)
+        public static async Task ActivateChangeTracking(string dbName)
         {
-            var c = new SqlConnection(Setup.GetSqlDatabaseConnectionString(dbName));
+            var c = new SqlConnection(GetSqlDatabaseConnectionString(dbName));
 
             // Check if we are using change tracking and it's enabled on the source
             var isChangeTrackingEnabled = await SqlManagementUtils.IsChangeTrackingEnabledAsync(c, null).ConfigureAwait(false);
@@ -234,7 +321,7 @@ namespace Dotmim.Sync.Tests
             if (isChangeTrackingEnabled)
                 return;
 
-            using var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master"));
+            using var masterConnection = new SqlConnection(GetSqlDatabaseConnectionString("master"));
 
             var script = $"ALTER DATABASE {dbName} SET CHANGE_TRACKING = ON (CHANGE_RETENTION = 2 DAYS, AUTO_CLEANUP = ON)";
 
@@ -257,11 +344,11 @@ namespace Dotmim.Sync.Tests
                 return Task.CompletedTask;
             });
 
-            SyncPolicy policy = SyncPolicy.WaitAndRetry(3, TimeSpan.FromMilliseconds(500), null, onRetry);
+            var policy = SyncPolicy.WaitAndRetry(3, TimeSpan.FromMilliseconds(500), null, onRetry);
 
             await policy.ExecuteAsync(async () =>
             {
-                using var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("information_schema"));
+                using var sysConnection = new MySqlConnection(GetMySqlDatabaseConnectionString("information_schema"));
                 sysConnection.Open();
 
                 if (recreateDb)
@@ -288,11 +375,11 @@ namespace Dotmim.Sync.Tests
                 return Task.CompletedTask;
             });
 
-            SyncPolicy policy = SyncPolicy.WaitAndRetry(3, TimeSpan.FromMilliseconds(500), null, onRetry);
+            var policy = SyncPolicy.WaitAndRetry(3, TimeSpan.FromMilliseconds(500), null, onRetry);
 
             await policy.ExecuteAsync(async () =>
             {
-                using var sysConnection = new MySqlConnection(Setup.GetMariaDBDatabaseConnectionString("information_schema"));
+                using var sysConnection = new MySqlConnection(GetMariaDBDatabaseConnectionString("information_schema"));
                 sysConnection.Open();
 
                 if (recreateDb)
@@ -319,11 +406,11 @@ namespace Dotmim.Sync.Tests
                 return Task.CompletedTask;
             });
 
-            SyncPolicy policy = SyncPolicy.WaitAndRetry(3, TimeSpan.FromMilliseconds(500), null, onRetry);
+            var policy = SyncPolicy.WaitAndRetry(3, TimeSpan.FromMilliseconds(500), null, onRetry);
 
             await policy.ExecuteAsync(async () =>
             {
-                using var sysConnection = new NpgsqlConnection(Setup.GetPostgresDatabaseConnectionString("postgres"));
+                using var sysConnection = new NpgsqlConnection(GetPostgresDatabaseConnectionString("postgres"));
                 sysConnection.Open();
 
                 if (recreateDb)
@@ -416,7 +503,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         private static void DropMySqlDatabase(string dbName)
         {
-            using var sysConnection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString("information_schema"));
+            using var sysConnection = new MySqlConnection(GetMySqlDatabaseConnectionString("information_schema"));
             sysConnection.Open();
 
             using (var cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection))
@@ -427,7 +514,7 @@ namespace Dotmim.Sync.Tests
 
         private static void TruncateMySqlTable(string dbName, string tableName)
         {
-            using var connection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString(dbName));
+            using var connection = new MySqlConnection(GetMySqlDatabaseConnectionString(dbName));
             connection.Open();
 
             using (var cmdDb = new MySqlCommand($"SET FOREIGN_KEY_CHECKS=0; DELETE FROM `{tableName}`;SET FOREIGN_KEY_CHECKS=1;", connection))
@@ -441,7 +528,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         private static void DropPostgresDatabase(string dbName)
         {
-            using var sysConnection = new NpgsqlConnection(Setup.GetPostgresDatabaseConnectionString("postgres"));
+            using var sysConnection = new NpgsqlConnection(GetPostgresDatabaseConnectionString("postgres"));
             sysConnection.Open();
 
             using (var cmdDb = new NpgsqlCommand($"" +
@@ -460,7 +547,7 @@ namespace Dotmim.Sync.Tests
 
             schemaName = string.IsNullOrEmpty(schemaName) ? "public" : schemaName;
 
-            using var connection = new NpgsqlConnection(Setup.GetPostgresDatabaseConnectionString(dbName));
+            using var connection = new NpgsqlConnection(GetPostgresDatabaseConnectionString(dbName));
             connection.Open();
 
             using (var cmdDb = new NpgsqlCommand($"ALTER TABLE \"{schemaName}\".\"{tableName}\" DISABLE TRIGGER ALL; DELETE FROM \"{schemaName}\".\"{tableName}\"; ALTER TABLE \"{schemaName}\".\"{tableName}\" ENABLE TRIGGER ALL; ", connection))
@@ -475,7 +562,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         private static void DropMariaDBDatabase(string dbName)
         {
-            using var sysConnection = new MySqlConnection(Setup.GetMariaDBDatabaseConnectionString("information_schema"));
+            using var sysConnection = new MySqlConnection(GetMariaDBDatabaseConnectionString("information_schema"));
             sysConnection.Open();
 
             using (var cmdDb = new MySqlCommand($"drop database if exists {dbName};", sysConnection))
@@ -486,7 +573,7 @@ namespace Dotmim.Sync.Tests
 
         private static void TruncateMariaDbTable(string dbName, string tableName)
         {
-            using var connection = new MySqlConnection(Setup.GetMariaDBDatabaseConnectionString(dbName));
+            using var connection = new MySqlConnection(GetMariaDBDatabaseConnectionString(dbName));
             connection.Open();
 
             using (var cmdDb = new MySqlCommand($"DELETE FROM `{tableName}`;", connection))
@@ -537,7 +624,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         private static void DropSqlDatabase(string dbName)
         {
-            using var masterConnection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master"));
+            using var masterConnection = new SqlConnection(GetSqlDatabaseConnectionString("master"));
             try
             {
                 masterConnection.Open();
@@ -556,7 +643,7 @@ namespace Dotmim.Sync.Tests
         }
         private static void TruncateSqlTable(string dbName, string tableName, string schemaName)
         {
-            using var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString(dbName));
+            using var connection = new SqlConnection(GetSqlDatabaseConnectionString(dbName));
             connection.Open();
 
             schemaName = string.IsNullOrEmpty(schemaName) ? "dbo" : schemaName;
@@ -589,7 +676,7 @@ namespace Dotmim.Sync.Tests
 
         private static async Task ExecuteMariaDBScriptAsync(string dbName, string script)
         {
-            using var connection = new MySqlConnection(Setup.GetMariaDBDatabaseConnectionString(dbName));
+            using var connection = new MySqlConnection(GetMariaDBDatabaseConnectionString(dbName));
             connection.Open();
 
             using (var cmdDb = new MySqlCommand(script, connection))
@@ -599,7 +686,7 @@ namespace Dotmim.Sync.Tests
         }
         private static async Task ExecuteMySqlScriptAsync(string dbName, string script)
         {
-            using var connection = new MySqlConnection(Setup.GetMySqlDatabaseConnectionString(dbName));
+            using var connection = new MySqlConnection(GetMySqlDatabaseConnectionString(dbName));
             connection.Open();
 
             using (var cmdDb = new MySqlCommand(script, connection))
@@ -609,14 +696,14 @@ namespace Dotmim.Sync.Tests
         }
         private static async Task ExecuteSqlScriptAsync(string dbName, string script)
         {
-            using var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString(dbName));
+            using var connection = new SqlConnection(GetSqlDatabaseConnectionString(dbName));
             connection.Open();
 
             //split the script on "GO" commands
-            string[] splitter = new string[] { "\r\nGO\r\n" };
-            string[] commandTexts = script.Split(splitter, StringSplitOptions.RemoveEmptyEntries);
+            var splitter = new string[] { "\r\nGO\r\n" };
+            var commandTexts = script.Split(splitter, StringSplitOptions.RemoveEmptyEntries);
 
-            foreach (string commandText in commandTexts)
+            foreach (var commandText in commandTexts)
             {
                 using var cmdDb = new SqlCommand(commandText, connection);
                 await cmdDb.ExecuteNonQueryAsync();
@@ -628,19 +715,15 @@ namespace Dotmim.Sync.Tests
             using var connection = new SqliteConnection(GetSqliteDatabaseConnectionString(dbName));
             connection.Open();
             using (var cmdDb = new SqliteCommand(script, connection))
-            {
                 await cmdDb.ExecuteNonQueryAsync();
-            }
             connection.Close();
         }
         private static async Task ExecutePostgreSqlScriptAsync(string dbName, string script)
         {
-            using var connection = new NpgsqlConnection(Setup.GetPostgresDatabaseConnectionString(dbName));
+            using var connection = new NpgsqlConnection(GetPostgresDatabaseConnectionString(dbName));
             connection.Open();
             using (var cmdDb = new NpgsqlCommand(script, connection))
-            {
                 await cmdDb.ExecuteNonQueryAsync();
-            }
             connection.Close();
         }
 
@@ -652,11 +735,11 @@ namespace Dotmim.Sync.Tests
             if (!Directory.Exists(Path.Combine(Path.GetTempPath(), "Backup")))
                 Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "Backup"));
 
-            string localDatabasePath = Path.Combine(Path.GetTempPath(), "Backup", $"{dbName}.bak");
+            var localDatabasePath = Path.Combine(Path.GetTempPath(), "Backup", $"{dbName}.bak");
 
             var formatMediaName = $"DatabaseToolkitBackup_{dbName}";
 
-            using var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString(dbName));
+            using var connection = new SqlConnection(GetSqlDatabaseConnectionString(dbName));
 
             var sql = @$"BACKUP DATABASE [{dbName}] TO DISK = N'{localDatabasePath}' WITH NAME = '{formatMediaName}'";
 
@@ -677,7 +760,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public static void RestoreSqlDatabase(string dbName)
         {
-            string localDatabasePath = Path.Combine(Path.GetTempPath(), "Backup", $"{dbName}.bak");
+            var localDatabasePath = Path.Combine(Path.GetTempPath(), "Backup", $"{dbName}.bak");
 
             var script = $@"
                 if (exists (select * from sys.databases where name = '{dbName}'))
@@ -690,7 +773,7 @@ namespace Dotmim.Sync.Tests
                 ALTER DATABASE [{dbName}] SET MULTI_USER";
 
 
-            using var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master"));
+            using var connection = new SqlConnection(GetSqlDatabaseConnectionString("master"));
             connection.Open();
 
             using var cmdDb = new SqlCommand(script, connection);
@@ -708,7 +791,7 @@ namespace Dotmim.Sync.Tests
             var dataName = Path.GetFileNameWithoutExtension(toDbName) + ".mdf";
             var logName = Path.GetFileNameWithoutExtension(toDbName) + ".ldf";
 
-            string localDatabaseBackupPath = Path.Combine(Path.GetTempPath(), "Backup", $"{fromDbName}.bak");
+            var localDatabaseBackupPath = Path.Combine(Path.GetTempPath(), "Backup", $"{fromDbName}.bak");
 
 
             var script = $@"
@@ -739,13 +822,11 @@ namespace Dotmim.Sync.Tests
                 ALTER DATABASE [{toDbName}] SET MULTI_USER";
 
 
-            using var connection = new SqlConnection(Setup.GetSqlDatabaseConnectionString("master"));
+            using var connection = new SqlConnection(GetSqlDatabaseConnectionString("master"));
             connection.Open();
 
             using (var cmdDb = new SqlCommand(script, connection))
-            {
                 cmdDb.ExecuteNonQuery();
-            }
 
             connection.Close();
         }

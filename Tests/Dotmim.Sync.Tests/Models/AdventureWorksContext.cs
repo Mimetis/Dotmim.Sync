@@ -1,4 +1,5 @@
 using Dotmim.Sync.Tests.Core;
+using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Web.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;

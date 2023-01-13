@@ -36,20 +36,19 @@ using Xunit;
 using Xunit.Abstractions;
 using Xunit.Sdk;
 
-namespace Dotmim.Sync.Tests.IntegrationTests2
+namespace Dotmim.Sync.Tests.IntegrationTests
 {
 
-
-    public abstract partial class TcpFilterTests2 : Database2Test, IClassFixture<DatabaseServerFixture2>, IDisposable
+    public abstract partial class TcpFilterTests : DatabaseTest, IClassFixture<DatabaseServerFixture>, IDisposable
     {
         internal CoreProvider serverProvider;
         internal IEnumerable<CoreProvider> clientsProvider;
         internal SyncSetup setup;
         internal SyncParameters parameters;
 
-        public new DatabaseServerFixture2 Fixture { get; }
+        public new DatabaseServerFixture Fixture { get; }
 
-        public TcpFilterTests2(ITestOutputHelper output, DatabaseServerFixture2 fixture) : base(output, fixture)
+        public TcpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
         {
             serverProvider = GetServerProvider();
             clientsProvider = GetClientProviders();
@@ -157,7 +156,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             await serverProvider.AddCustomerAddressAsync(address3.AddressId, AdventureWorksContext.CustomerId2ForFilter);
 
 
-            int download = 0;
+            var download = 0;
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
             {
@@ -319,7 +318,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             // not synced as no ProductCategoryId
             var p1 = await serverProvider.AddProductAsync();
             // Delete a row
-            await serverProvider.DeleteProductCategoryAsync( productCategoryTodelete.ProductCategoryId);
+            await serverProvider.DeleteProductCategoryAsync(productCategoryTodelete.ProductCategoryId);
 
             // Execute a sync on all clients
             foreach (var clientProvider in clientsProvider)
@@ -328,15 +327,15 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 await agent.SynchronizeAsync(setup, parameters);
 
                 // Check rows added or deleted
-                var clipc = await clientProvider.GetProductCategoryAsync( productCategoryTodelete.ProductCategoryId);
+                var clipc = await clientProvider.GetProductCategoryAsync(productCategoryTodelete.ProductCategoryId);
                 Assert.Null(clipc);
-                var cliPC1 = await clientProvider.GetProductCategoryAsync( pc1.ProductCategoryId);
+                var cliPC1 = await clientProvider.GetProductCategoryAsync(pc1.ProductCategoryId);
                 Assert.NotNull(cliPC1);
                 var cliPC2 = await clientProvider.GetProductCategoryAsync(pc2.ProductCategoryId);
                 Assert.NotNull(cliPC2);
-                var cliP1 = await clientProvider.GetProductAsync( p1.ProductId);
+                var cliP1 = await clientProvider.GetProductAsync(p1.ProductId);
                 Assert.Null(cliP1);
-                var cliP2 = await clientProvider.GetPriceListAsync( p2.PriceListId);
+                var cliP2 = await clientProvider.GetPriceListAsync(p2.PriceListId);
                 Assert.NotNull(cliP2);
             }
 
@@ -353,17 +352,17 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
                 Assert.Equal(1, s.TotalChangesAppliedOnServer);
 
                 // Check rows added or deleted
-                var pc = await clientProvider.GetProductCategoryAsync( productCategory.ProductCategoryId);
+                var pc = await clientProvider.GetProductCategoryAsync(productCategory.ProductCategoryId);
                 Assert.NotNull(pc);
-                var clipc = await clientProvider.GetProductCategoryAsync( productCategoryTodelete.ProductCategoryId);
+                var clipc = await clientProvider.GetProductCategoryAsync(productCategoryTodelete.ProductCategoryId);
                 Assert.Null(clipc);
-                var cliPC1 = await clientProvider.GetProductCategoryAsync( pc1.ProductCategoryId);
+                var cliPC1 = await clientProvider.GetProductCategoryAsync(pc1.ProductCategoryId);
                 Assert.NotNull(cliPC1);
-                var cliPC2 = await clientProvider.GetProductCategoryAsync( pc2.ProductCategoryId);
+                var cliPC2 = await clientProvider.GetProductCategoryAsync(pc2.ProductCategoryId);
                 Assert.NotNull(cliPC2);
-                var cliP1 = await clientProvider.GetProductAsync( p1.ProductId);
+                var cliP1 = await clientProvider.GetProductAsync(p1.ProductId);
                 Assert.Null(cliP1);
-                var cliP2 = await clientProvider.GetPriceListAsync( p2.PriceListId);
+                var cliP2 = await clientProvider.GetPriceListAsync(p2.PriceListId);
                 Assert.NotNull(cliP2);
             }
 
@@ -496,7 +495,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
 
             // Settings the options to enable snapshot
-            SyncOptions options = new SyncOptions
+            var options = new SyncOptions
             {
                 SnapshotsDirectory = directory,
                 BatchSize = 3000,
@@ -538,7 +537,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             var directory = Path.Combine(Environment.CurrentDirectory, snapshotDirctory);
 
             // Settings the options to enable snapshot
-            SyncOptions options = new SyncOptions
+            var options = new SyncOptions
             {
                 SnapshotsDirectory = directory,
                 BatchSize = 3000,
@@ -663,7 +662,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests2
             var rowsCount = serverProvider.GetDatabaseFilteredRowsCount();
 
             // Get count of rows for parameter 2
-            var rowsCount2 = serverProvider.GetDatabaseFilteredRowsCount( AdventureWorksContext.CustomerId2ForFilter);
+            var rowsCount2 = serverProvider.GetDatabaseFilteredRowsCount(AdventureWorksContext.CustomerId2ForFilter);
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)

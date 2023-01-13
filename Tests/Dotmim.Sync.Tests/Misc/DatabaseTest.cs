@@ -16,9 +16,9 @@ using Dotmim.Sync.Tests.Models;
 using System.Xml.Linq;
 using Dotmim.Sync.Tests.Core;
 
-namespace Dotmim.Sync.Tests
+namespace Dotmim.Sync.Tests.Misc
 {
-    public abstract class Database2Test : IDisposable
+    public abstract class DatabaseTest : IDisposable
     {
         private Stopwatch initializeStopwatch;
 
@@ -27,13 +27,14 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public virtual string[] GetTables()
         {
-            string salesSchema = GetServerProvider().UseFallbackSchema() ? "SalesLT." : "";
+            var salesSchema = GetServerProvider().UseFallbackSchema() ? "SalesLT" : null;
+            var salesSchemaWithDot = string.IsNullOrEmpty(salesSchema) ? string.Empty : $"{salesSchema}.";
 
             var tables = new string[]
               {
-                $"{salesSchema}ProductCategory", $"{salesSchema}ProductModel", $"{salesSchema}Product",
+                $"{salesSchemaWithDot}ProductCategory", $"{salesSchemaWithDot}ProductModel", $"{salesSchemaWithDot}Product",
                 "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-                $"{salesSchema}SalesOrderHeader", $"{salesSchema}SalesOrderDetail",
+                $"{salesSchemaWithDot}SalesOrderHeader", $"{salesSchemaWithDot}SalesOrderDetail",
                 "Posts", "Tags", "PostTag",
                 "PricesList", "PricesListCategory", "PricesListDetail", "Log"
               };
@@ -42,9 +43,66 @@ namespace Dotmim.Sync.Tests
         }
 
         /// <summary>
-        /// Gets the setup used for sync
+        /// Gets the setup used for sync without filter
         /// </summary>
         public virtual SyncSetup GetSetup() => new SyncSetup(GetTables());
+
+
+        /// <summary>
+        /// Gets the setup used for sync with filter
+        /// </summary>
+        public virtual SyncSetup GetFilteredSetup()
+        {
+            var setup = new SyncSetup(GetTables());
+
+            var salesSchema = GetServerProvider().UseFallbackSchema() ? "SalesLT" : null;
+            var salesSchemaWithDot = string.IsNullOrEmpty(salesSchema) ? string.Empty : $"{salesSchema}.";
+
+            // Filter columns
+            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
+            setup.Tables["Address"].Columns.AddRange(new string[] { "AddressID", "AddressLine1", "City", "PostalCode" });
+
+            // Filters clause
+
+            // 1) EASY Way:
+            setup.Filters.Add("CustomerAddress", "CustomerID");
+            setup.Filters.Add("SalesOrderHeader", "CustomerID", salesSchema);
+
+
+            // 2) Same, but decomposed in 3 Steps
+            var customerFilter = new SetupFilter("Customer");
+            customerFilter.AddParameter("CustomerID", "Customer", true);
+            customerFilter.AddWhere("CustomerID", "Customer", "CustomerID");
+            setup.Filters.Add(customerFilter);
+
+            // 3) Create your own filter
+
+            // Create a filter on table Address
+            var addressFilter = new SetupFilter("Address");
+            addressFilter.AddParameter("CustomerID", "Customer");
+            addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressID", "Address", "AddressID");
+            addressFilter.AddWhere("CustomerID", "CustomerAddress", "CustomerID");
+            setup.Filters.Add(addressFilter);
+            // ----------------------------------------------------
+
+            // Create a filter on table SalesLT.SalesOrderDetail
+            var salesOrderDetailFilter = new SetupFilter("SalesOrderDetail", salesSchema);
+            salesOrderDetailFilter.AddParameter("CustomerID", "Customer");
+            salesOrderDetailFilter.AddJoin(Join.Left, $"{salesSchemaWithDot}SalesOrderHeader").On($"{salesSchemaWithDot}SalesOrderHeader", "SalesOrderID", $"{salesSchemaWithDot}SalesOrderDetail", "SalesOrderID");
+            salesOrderDetailFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerID", $"{salesSchemaWithDot}SalesOrderHeader", "CustomerID");
+            salesOrderDetailFilter.AddWhere("CustomerID", "CustomerAddress", "CustomerID");
+            setup.Filters.Add(salesOrderDetailFilter);
+            // ----------------------------------------------------
+
+            // 4) Custom Wheres on Product.
+            var productFilter = new SetupFilter("Product", salesSchema);
+            var escapeChar = "\"";
+
+            productFilter.AddCustomWhere($"{escapeChar}ProductCategoryID{escapeChar} IS NOT NULL");
+            setup.Filters.Add(productFilter);
+
+            return setup;
+        }
 
         /// <summary>
         /// Get the server provider
@@ -59,9 +117,9 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// Get filters parameters
         /// </summary>
-        public virtual SyncParameters GetFilterParameters() => null;
+        public virtual SyncParameters GetFilterParameters() => new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId1ForFilter));
 
-        public virtual DatabaseServerFixture2 Fixture { get; }
+        public virtual DatabaseServerFixture Fixture { get; }
         public virtual ITestOutputHelper Output { get; }
         public virtual XunitTest Test { get; }
         public virtual Stopwatch Stopwatch { get; }
@@ -76,7 +134,7 @@ namespace Dotmim.Sync.Tests
         /// </summary>
         public bool UseFiddler { get; set; }
 
-        public Database2Test(ITestOutputHelper output, DatabaseServerFixture2 fixture)
+        public DatabaseTest(ITestOutputHelper output, DatabaseServerFixture fixture)
         {
             this.Fixture = fixture;
             // Getting the test running
@@ -116,7 +174,6 @@ namespace Dotmim.Sync.Tests
         private void CreateDatabases()
         {
             var (serverProviderType, serverDatabaseName) = HelperDatabase.GetDatabaseType(GetServerProvider());
-
             HelperDatabase.DropDatabase(serverProviderType, serverDatabaseName);
 
             foreach (var clientProvider in GetClientProviders())
@@ -125,11 +182,17 @@ namespace Dotmim.Sync.Tests
                 HelperDatabase.DropDatabase(clientProviderType, clientDatabaseName);
             }
 
-
             new AdventureWorksContext(GetServerProvider(), true).Database.EnsureCreated();
+            if (serverProviderType == ProviderType.Sql)
+                HelperDatabase.ActivateChangeTracking(serverDatabaseName).GetAwaiter().GetResult();
 
             foreach (var clientProvider in GetClientProviders())
+            {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
                 new AdventureWorksContext(clientProvider).Database.EnsureCreated();
+                if (clientProviderType == ProviderType.Sql)
+                    HelperDatabase.ActivateChangeTracking(clientDatabaseName).GetAwaiter().GetResult();
+            }
         }
 
         public void OutputCurrentState(string subCategory = null)
