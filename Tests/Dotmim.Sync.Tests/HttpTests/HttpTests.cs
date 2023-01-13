@@ -1881,7 +1881,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var (clientDatabaseType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 var products = Enumerable.Range(1, rowsToSend).Select(i =>
-                    new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}" });
+                    new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"{i}{clientDatabaseType}" });
 
                 using var clientDbCtx = new AdventureWorksContext(clientProvider);
                 clientDbCtx.Product.AddRange(products);
@@ -2010,13 +2010,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-            var rowsToReceive = 4000;
-            var productNumber = "12345";
+            var rowsToReceive = 5000;
+            var productNumber = "ZZ-";
 
             var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
 
             var products = Enumerable.Range(1, rowsToReceive).Select(i =>
-                new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"_{i}_{serverProviderType}" });
+                new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"{i}{serverProviderType}" });
 
             using var ctx = new AdventureWorksContext(serverProvider);
             ctx.Product.AddRange(products);
@@ -2123,7 +2123,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(0, s2.TotalResolvedConflicts);
 
                 using var clientDbCtx = new AdventureWorksContext(clientProvider);
-                var serverCount = clientDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
+                var serverCount = clientDbCtx.Product.Count(p => p.ProductNumber.StartsWith($"ZZ-"));
                 Assert.Equal(rowsToReceive, serverCount);
 
                 await kestrell.StopAsync();
