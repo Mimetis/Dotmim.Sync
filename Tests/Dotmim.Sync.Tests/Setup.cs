@@ -63,13 +63,55 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite", false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_adv", false);
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_sqlct_adv", true);
         }
 
         public override CoreProvider GetServerProvider()
         {
             var cstring = HelperDatabase.GetSqlDatabaseConnectionString("tcp_srv_sqlct_adv");
+            var provider = new SqlSyncChangeTrackingProvider(cstring);
+            provider.UseFallbackSchema(true);
+            return provider;
+        }
+    }
+
+    public class SqlServerChangeTrackingTcpFilterTests : TcpFilterTests
+    {
+        public SqlServerChangeTrackingTcpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_fil_sqlite_adv", false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_fil_sqlct_adv", true);
+        }
+
+        public override CoreProvider GetServerProvider()
+        {
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString("tcp_srv_fil_sqlct_adv");
+            var provider = new SqlSyncChangeTrackingProvider(cstring);
+            provider.UseFallbackSchema(true);
+            return provider;
+        }
+    }
+
+    public class SqlServerChangeTrackingHttpFilterTests : HttpTests
+    {
+        public SqlServerChangeTrackingHttpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "http_cli_sqlite_adv", false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "http_cli_sqlct_adv", true);
+        }
+
+        public override CoreProvider GetServerProvider()
+        {
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString("http_srv_sqlct_adv");
             var provider = new SqlSyncChangeTrackingProvider(cstring);
             provider.UseFallbackSchema(true);
             return provider;
@@ -84,13 +126,44 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_adv");
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_sql_adv", true);
         }
 
         public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_sql_adv", true);
     }
 
+    public class SqlServerTcpFilterTests : TcpFilterTests
+    {
+        public SqlServerTcpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_fil_sqlite_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_filt_sql_adv", true);
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_filt_sql_adv", true);
+    }
+    
+    public class SqlServerHttpTests : HttpTests
+    {
+        public SqlServerHttpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "http_cli_sqlite_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "http_cli_sql_adv", true);
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "http_srv_sql_adv", true);
+    }
+
+    
     public class PostgresTcpTests : TcpTests
     {
         public PostgresTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
@@ -100,12 +173,41 @@ namespace Dotmim.Sync.Tests
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_adv", false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_cli_npg_advd", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_cli_npg_adv", true);
         }
 
         public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_srv_npg_adv", true);
     }
 
+    public class PostgresTcpFilterTests : TcpFilterTests
+    {
+        public PostgresTcpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_fil_sqlite_adv", false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_cli_fil_npg_adv", true);
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_srv_fil_npg_adv", true);
+    }
+
+    public class PostgresHttpTests : HttpTests
+    {
+        public PostgresHttpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "http_cli_sqlite_adv", false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "http_cli_npg_adv", true);
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, "http_srv_npg_adv", true);
+    }
 
 
     public class MySqlTcpTests : TcpTests
@@ -123,6 +225,36 @@ namespace Dotmim.Sync.Tests
         public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MySql, "tcp_srv_mysql_adv");
     }
 
+    public class MySqlTcpFilterTests : TcpFilterTests
+    {
+        public MySqlTcpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_fil_sqlite_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, "tcp_cli_fil_mysql_adv");
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MySql, "tcp_srv_fil_mysql_adv");
+    }
+
+    public class MySqlHttpTests : HttpTests
+    {
+        public MySqlHttpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "http_cli_sqlite_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, "http_cli_mysql_adv");
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MySql, "http_srv_mysql_adv");
+    }
+
 
     public class MariaDBTcpTests : TcpTests
     {
@@ -132,11 +264,40 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_adv");
             yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "tcp_cli_maria_adv");
         }
 
         public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "tcp_srv_maria_adv");
     }
+   
+    public class MariaDBTcpFilterTests : TcpFilterTests
+    {
+        public MariaDBTcpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
 
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_fil_sqlite_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "tcp_cli_fil_maria_adv");
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "tcp_srv_fil_maria_adv");
+    }
+
+    public class MariaDBHttpTests : TcpTests
+    {
+        public MariaDBHttpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "http_cli_sqlite_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "http_cli_maria_adv");
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "http_srv_maria_adv");
+    }
 }

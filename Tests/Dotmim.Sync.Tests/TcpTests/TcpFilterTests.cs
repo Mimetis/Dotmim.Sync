@@ -52,7 +52,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         {
             serverProvider = GetServerProvider();
             clientsProvider = GetClientProviders();
-            setup = GetSetup();
+            setup = GetFilteredSetup();
             parameters = GetFilterParameters();
         }
 

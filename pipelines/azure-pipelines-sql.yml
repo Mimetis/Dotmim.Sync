@@ -1,84 +1,99 @@
 jobs:
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: "SQL Server Tcp .net core 3.1"
+      dotnetfx: "netcoreapp3.1"
+      filter: "Dotmim.Sync.Tests.SqlServerTcp"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: 'SQL Server Tcp .net core 3.1'
-      dotnetfx: 'netcoreapp3.1'
-      filter: 'Dotmim.Sync.Tests.SqlServerTcp'
+      displayName: "SQL Server Tcp .net 7.0"
+      dotnetfx: "net7.0"
+      filter: "Dotmim.Sync.Tests.SqlServerTcp"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: 'SQL Server Tcp .net 7.0'
-      dotnetfx: 'net7.0'
-      filter: 'Dotmim.Sync.Tests.SqlServerTcp'
+      displayName: "SQL Server Tcp .net 6.0"
+      dotnetfx: "net6.0"
+      filter: "Dotmim.Sync.Tests.SqlServerTcp"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: 'SQL Server Tcp .net 6.0'
-      dotnetfx: 'net6.0'
-      filter: 'Dotmim.Sync.Tests.SqlServerTcp'
+      displayName: "SQL Server Change Tracking Tcp .net 7.0"
+      dotnetfx: "net7.0"
+      filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingTcp"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: 'SQL Server Change Tracking Tcp .net 7.0'
-      dotnetfx: 'net7.0'
-      filter: 'Dotmim.Sync.Tests.SqlServerChangeTrackingTcp'  
+      displayName: "SQL Server Change Tracking Tcp .net core 3.1"
+      dotnetfx: "netcoreapp3.1"
+      filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingTcp"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: 'SQL Server Change Tracking Tcp .net core 3.1'
-      dotnetfx: 'netcoreapp3.1'
-      filter: 'Dotmim.Sync.Tests.SqlServerChangeTrackingTcp'  
+      displayName: "PostgreSQL Tcp .net core 3.1"
+      dotnetfx: "netcoreapp3.1"
+      filter: "Dotmim.Sync.Tests.PostgresTcp"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: 'PostgreSQL Tcp .net core 3.1'
-      dotnetfx: 'netcoreapp3.1'
-      filter: 'Dotmim.Sync.Tests.PostgresTcp'
+      displayName: "PostgreSQL Tcp .net 7.0"
+      dotnetfx: "net7.0"
+      filter: "Dotmim.Sync.Tests.PostgresTcp"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: 'PostgreSQL Tcp .net 7.0'
-      dotnetfx: 'net7.0'
-      filter: 'Dotmim.Sync.Tests.PostgresTcp'
-  
-  - template: azure-pipelines-template.yml
-    parameters:
-      displayName: 'PostgreSQL Tcp .net 6.0'
-      dotnetfx: 'net6.0'
-      filter: 'Dotmim.Sync.Tests.PostgresTcp'
-  
-  - template: azure-pipelines-template.yml
-    parameters:
-      displayName: 'MySQL Tcp .net core 3.1'
-      dotnetfx: 'netcoreapp3.1'
-      filter: 'Dotmim.Sync.Tests.MySqlTcp'
+      displayName: "PostgreSQL Tcp .net 6.0"
+      dotnetfx: "net6.0"
+      filter: "Dotmim.Sync.Tests.PostgresTcp"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: 'MySQL Tcp .net 7.0'
-      dotnetfx: 'net7.0'
-      filter: 'Dotmim.Sync.Tests.MySqlTcp'
-  
-  - template: azure-pipelines-template.yml
-    parameters:
-      displayName: 'SQL Server Http .net 7.0'
-      dotnetfx: 'net7.0'
-      filter: 'Dotmim.Sync.Tests.SqlServerHttp'
-  
-  - template: azure-pipelines-template.yml
-    parameters:
-      displayName: 'MySQL Http .net 7.0'
-      dotnetfx: 'net7.0'
-      filter: 'Dotmim.Sync.Tests.MySqlHttp'
-  
-  - template: azure-pipelines-template.yml
-    parameters:
-      displayName: 'Postgres Http .net 7.0'
-      dotnetfx: 'net7.0'
-      filter: 'Dotmim.Sync.Tests.PostgresHttp'
-  
+      displayName: "MySQL Tcp .net core 3.1"
+      dotnetfx: "netcoreapp3.1"
+      filter: "Dotmim.Sync.Tests.MySqlTcp"
 
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: "MySQL Tcp .net 7.0"
+      dotnetfx: "net7.0"
+      filter: "Dotmim.Sync.Tests.MySqlTcp"
+
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: "MariaDB Tcp .net core 3.1"
+      dotnetfx: "netcoreapp3.1"
+      filter: "Dotmim.Sync.Tests.MariaDBTcp"
+
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: "MariaDB Tcp .net 7.0"
+      dotnetfx: "net7.0"
+      filter: "Dotmim.Sync.Tests.MariaDBTcp"
+
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: "SQL Server Change Tracking Http .net 7.0"
+      dotnetfx: "net7.0"
+      filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingHttp"
+
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: "SQL Server Http .net 7.0"
+      dotnetfx: "net7.0"
+      filter: "Dotmim.Sync.Tests.SqlServerHttp"
+
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: "MySQL Http .net 7.0"
+      dotnetfx: "net7.0"
+      filter: "Dotmim.Sync.Tests.MySqlHttp"
+
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: "Postgres Http .net 7.0"
+      dotnetfx: "net7.0"
+      filter: "Dotmim.Sync.Tests.PostgresHttp"
 
   # - job: testbasics
   #   displayName: "Tests Basics"
@@ -135,8 +150,6 @@ jobs:
   #         testRunner: VSTest
   #         testResultsFiles: "**/*.trx"
 
-
-
   - job: Beta
     displayName: "Beta Nuget Packages"
 
@@ -153,22 +166,22 @@ jobs:
 
     steps:
       - task: UseDotNet@2
-        displayName: 'Use .Net Core sdk'
+        displayName: "Use .Net Core sdk"
         inputs:
           version: 3.x
 
       # Use the latest .NET SDK
       - task: UseDotNet@2
-        displayName: 'Use .Net Sdk 6.x'
+        displayName: "Use .Net Sdk 6.x"
         inputs:
-          packageType: 'sdk'
+          packageType: "sdk"
           version: 6.0.x
           includePreviewVersions: true
 
       - task: UseDotNet@2
-        displayName: 'Use .Net Sdk 7.x'
+        displayName: "Use .Net Sdk 7.x"
         inputs:
-          packageType: 'sdk'
+          packageType: "sdk"
           version: 7.0.x
           includePreviewVersions: true
 
@@ -198,32 +211,32 @@ jobs:
         continueOnError: true
       - script: |
           dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) 
-          dotnet pack Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer  --version-suffix $(buildBetaId) 
+          dotnet pack Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer  --version-suffix $(buildBetaId)
         displayName: "beta nuget Dotmim.Sync.SqlServer"
         continueOnError: true
       - script: |
           dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
-          dotnet pack Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking  --version-suffix $(buildBetaId) 
+          dotnet pack Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking  --version-suffix $(buildBetaId)
         displayName: "beta nuget Dotmim.Sync.SqlServerChangeTracking"
         continueOnError: true
       - script: |
           dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) 
-          dotnet pack Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql --version-suffix $(buildBetaId) 
+          dotnet pack Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql --version-suffix $(buildBetaId)
         displayName: "beta nuget Dotmim.Sync.MySql"
         continueOnError: true
       - script: |
           dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
-          dotnet pack Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB --version-suffix $(buildBetaId) 
+          dotnet pack Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB --version-suffix $(buildBetaId)
         displayName: "beta nuget Dotmim.Sync.MariaDB"
         continueOnError: true
       - script: |
           dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
-          dotnet pack Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite --version-suffix $(buildBetaId) 
+          dotnet pack Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite --version-suffix $(buildBetaId)
         displayName: "beta nuget Dotmim.Sync.Sqlite"
         continueOnError: true
       - script: |
           dotnet build Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
-          dotnet pack Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.PostgreSql --version-suffix $(buildBetaId) 
+          dotnet pack Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.PostgreSql --version-suffix $(buildBetaId)
         displayName: "beta nuget Dotmim.Sync.PostgreSql"
         continueOnError: true
       - script: |
@@ -258,22 +271,22 @@ jobs:
 
     steps:
       - task: UseDotNet@2
-        displayName: 'Use .Net Core sdk'
+        displayName: "Use .Net Core sdk"
         inputs:
           version: 3.x
 
       # Use the latest .NET SDK
       - task: UseDotNet@2
-        displayName: 'Use .Net Sdk 6.x'
+        displayName: "Use .Net Sdk 6.x"
         inputs:
-          packageType: 'sdk'
+          packageType: "sdk"
           version: 6.0.x
           includePreviewVersions: true
 
       - task: UseDotNet@2
-        displayName: 'Use .Net Sdk 7.x'
+        displayName: "Use .Net Sdk 7.x"
         inputs:
-          packageType: 'sdk'
+          packageType: "sdk"
           version: 7.0.x
           includePreviewVersions: true
 
@@ -284,27 +297,27 @@ jobs:
         continueOnError: true
       - script: |
           dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration)  
-          dotnet pack Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer   
+          dotnet pack Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer
         displayName: "release nuget Dotmim.Sync.SqlServer"
         continueOnError: true
       - script: |
           dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) 
-          dotnet pack Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking   
+          dotnet pack Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking
         displayName: "release nuget Dotmim.Sync.SqlServerChangeTracking"
         continueOnError: true
       - script: |
           dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration)  
-          dotnet pack Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql  
+          dotnet pack Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql
         displayName: "release nuget Dotmim.Sync.MySql"
         continueOnError: true
       - script: |
           dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) 
-          dotnet pack Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB  
+          dotnet pack Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB
         displayName: "release nuget Dotmim.Sync.MariaDB"
         continueOnError: true
       - script: |
           dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) 
-          dotnet pack Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite  
+          dotnet pack Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite
         displayName: "release nuget Dotmim.Sync.Sqlite"
         continueOnError: true
       - script: |
@@ -314,17 +327,16 @@ jobs:
         continueOnError: true
       - script: |
           dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) 
-          dotnet pack Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client 
+          dotnet pack Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client
         displayName: "release nuget Dotmim.Sync.Web.Client"
         continueOnError: true
       - script: |
           dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) 
-          dotnet pack Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server 
+          dotnet pack Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server
         displayName: "release nuget Dotmim.Sync.Web.Server"
         continueOnError: true
 
-
-    # Publish Build Artifacts
+      # Publish Build Artifacts
       - task: PublishBuildArtifacts@1
         inputs:
           artifactName: $(artifactName)
