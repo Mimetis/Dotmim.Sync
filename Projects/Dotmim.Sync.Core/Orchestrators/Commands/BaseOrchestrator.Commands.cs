@@ -147,6 +147,7 @@ namespace Dotmim.Sync
             }
 
             // if we have a filter, set the filter parameters
+            
             if (tableFilter != null && tableFilter.Parameters != null && tableFilter.Parameters.Count > 0)
             {
                 // context parameters can be null at some point.

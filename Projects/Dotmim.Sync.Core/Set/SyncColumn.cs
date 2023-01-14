@@ -207,11 +207,11 @@ namespace Dotmim.Sync
             if (DataType == "16")
                 return System.Data.DbType.Guid;
 
-            if (DataType == "17" && this.MaxLength <= 0)
+            if (DataType == "17" )
                 return System.Data.DbType.String;
 
-            if (DataType == "17" && this.MaxLength > 0)
-                return System.Data.DbType.StringFixedLength;
+            //if (DataType == "17" && this.MaxLength > 0)
+            //    return System.Data.DbType.StringFixedLength;
 
             if (DataType == "18")
                 return System.Data.DbType.SByte;

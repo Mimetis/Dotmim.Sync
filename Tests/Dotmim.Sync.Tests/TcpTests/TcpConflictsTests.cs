@@ -2549,11 +2549,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
         }
 
-
         // ------------------------------------------------------------------------
         // Delete Client - Delete Server
         // ------------------------------------------------------------------------
-
 
         /// <summary>
         /// Generate a deleted row on the server and on the client, it's resolved as:
@@ -2577,7 +2575,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             return productId;
         }
-
         
         [Fact]
         public virtual async Task Conflict_DC_DS_ServerShouldWins()
@@ -2751,7 +2748,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-
         // ------------------------------------------------------------------------
         // Delete Client - Not Exists Server
         // ------------------------------------------------------------------------
@@ -2880,7 +2876,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-
         [Fact]
         public virtual async Task Conflict_DC_NULLS_ClientShouldWins_CozHandler()
         {
@@ -2934,307 +2929,294 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
         }
 
-        ///// <summary>
-        ///// Generate a deleted row on Server, that does not exists on Client, it's resolved as:
-        ///// </summary>
-        //private async Task Generate_NULLC_DS_Conflict((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) client, SyncOptions options)
-        //{
-        //    var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
-        //    var productCategoryName = HelperDatabase.GetRandomName("CLI");
-        //    var productCategoryNameUpdated = HelperDatabase.GetRandomName("SRV");
-
-        //    // create empty client database
-        //    await this.CreateDatabaseAsync(clientProviderType, client.DatabaseName, true);
-
-        //    // Execute a sync on all clients to initialize client and server schema 
-        //    await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(Tables);
-
-        //    // Insert a product category on server
-        //    using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
-        //    {
-        //        ctx.Add(new ProductCategory { ProductCategoryId = productId, Name = productCategoryName });
-        //        await ctx.SaveChangesAsync();
-        //    }
-
-        //    // Then delete it
-        //    using (var ctx = new AdventureWorksContext(serverProvider, Fixture.UseFallbackSchema))
-        //    {
-        //        var pcdel = ctx.ProductCategory.Single(pc => pc.ProductCategoryId == productId);
-        //        ctx.ProductCategory.Remove(pcdel);
-        //        await ctx.SaveChangesAsync();
-        //    }
-
-        //    // So far we have a row marked as deleted in the tracking table.
-        //}
-
-
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public virtual async Task Conflict_NULLC_DS_ServerShouldWins(SyncOptions options)
-        //{
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(serverProvider, false, UseFallbackSchema);
-
-        //    foreach (var clientProvider in clientsProvider)
-        //    {
-        //        await Generate_NULLC_DS_Conflict(client, options);
-
-        //        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        //        var s = await agent.SynchronizeAsync(setup);
-
-        //        Assert.Equal(1, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalChangesAppliedOnClient);
-        //        Assert.Equal(1, s.TotalResolvedConflicts);
-
-        //        await CheckProductCategoryRows(client);
-        //    }
-
-        //}
-
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public virtual async Task Conflict_NULLC_DS_ServerShouldWins_CozHandler(SyncOptions options)
-        //{
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(serverProvider, false, UseFallbackSchema);
-
-        //    foreach (var clientProvider in clientsProvider)
-        //    {
-        //        await Generate_NULLC_DS_Conflict(client, options);
-
-        //        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        //        var localOrchestrator = agent.LocalOrchestrator;
-        //        var remoteOrchestrator = agent.RemoteOrchestrator;
-
-        //        // From client : Remote is server, Local is client
-        //        localOrchestrator.OnApplyChangesConflictOccured(async acf =>
-        //        {
-        //            // Check conflict is correctly set
-        //            var conflict = await acf.GetSyncConflictAsync();
-        //            var localRow = conflict.LocalRow;
-        //            var remoteRow = conflict.RemoteRow;
-
-        //            Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
-        //            Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, conflict.Type);
-        //            Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
-        //            Assert.Null(localRow);
-        //        });
-
-        //        // From Server : Remote is client, Local is server
-        //        remoteOrchestrator.OnApplyChangesConflictOccured(acf =>
-        //        {
-        //            throw new Exception("Should not happen since since client did not sent anything. SO far server will send back the deleted row as standard batch row");
-        //        });
-
-        //        var s = await agent.SynchronizeAsync(setup);
-
-        //        Assert.Equal(1, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalChangesAppliedOnClient);
-        //        Assert.Equal(1, s.TotalResolvedConflicts);
-
-        //        await CheckProductCategoryRows(client);
-        //    }
-
-        //}
-
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public virtual async Task Conflict_NULLC_DS_ClientShouldWins(SyncOptions options)
-        //{
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(serverProvider, false, UseFallbackSchema);
-
-
-        //    foreach (var clientProvider in clientsProvider)
-        //    {
-        //        await Generate_NULLC_DS_Conflict(client, options);
-
-        //        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        //        // Set conflict resolution to client
-        //        options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
-
-        //        var s = await agent.SynchronizeAsync(setup);
-
-        //        Assert.Equal(1, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalChangesAppliedOnClient);
-        //        Assert.Equal(1, s.TotalResolvedConflicts);
-
-
-        //        await CheckProductCategoryRows(client);
-        //    }
-
-        //}
-
-
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public virtual async Task Conflict_NULLC_DS_ClientShouldWins_CozHandler(SyncOptions options)
-        //{
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(serverProvider, false, UseFallbackSchema);
-
-
-        //    foreach (var clientProvider in clientsProvider)
-        //    {
-        //        await Generate_NULLC_DS_Conflict(client, options);
-
-        //        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        //        // Set conflict resolution to client
-        //        options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
-
-        //        var localOrchestrator = agent.LocalOrchestrator;
-        //        var remoteOrchestrator = agent.RemoteOrchestrator;
-
-        //        // From client : Remote is server, Local is client
-        //        localOrchestrator.OnApplyChangesConflictOccured(async acf =>
-        //        {
-        //            // Check conflict is correctly set
-        //            var conflict = await acf.GetSyncConflictAsync();
-        //            var localRow = conflict.LocalRow;
-        //            var remoteRow = conflict.RemoteRow;
-
-        //            Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
-        //            Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, conflict.Type);
-        //            Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
-        //            Assert.Null(localRow);
-        //        });
-
-        //        // From Server : Remote is client, Local is server
-        //        remoteOrchestrator.OnApplyChangesConflictOccured(acf =>
-        //        {
-        //            throw new Exception("Should not happen since since client did not sent anything. SO far server will send back the deleted row as standard batch row");
-        //        });
-
-        //        var s = await agent.SynchronizeAsync(setup);
-
-        //        Assert.Equal(1, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalChangesAppliedOnClient);
-        //        Assert.Equal(1, s.TotalResolvedConflicts);
-
-
-        //        await CheckProductCategoryRows(client);
-        //    }
-
-        //}
-
-
-
-        ///// Generate a conflict when inserting one row on server and the same row on each client
-        ///// Server should wins the conflict because default behavior
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public virtual async Task Conflict_UC_US_ClientChoosedTheWinner(SyncOptions options)
-        //{
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(serverProvider, false, UseFallbackSchema);
-
-        //    // Execute a sync on all clients and check results
-        //    // Each client will upload its row (conflicting)
-        //    // then download the others client lines + conflict that should be ovewritten on client
-        //    foreach (var clientProvider in clientsProvider)
-        //    {
-
-        //        await Generate_UC_US_Conflict(client, options);
-
-        //        var clientNameDecidedOnClientMachine = HelperDatabase.GetRandomName();
-
-        //        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        //        var localOrchestrator = agent.LocalOrchestrator;
-        //        var remoteOrchestrator = agent.RemoteOrchestrator;
-
-        //        // From client : Remote is server, Local is client
-        //        // From here, we are going to let the client decides who is the winner of the conflict
-        //        localOrchestrator.OnApplyChangesConflictOccured(async acf =>
-        //        {
-        //            // Check conflict is correctly set
-        //            var conflict = await acf.GetSyncConflictAsync();
-        //            var localRow = conflict.LocalRow;
-        //            var remoteRow = conflict.RemoteRow;
-
-        //            // remote is server; local is client
-        //            Assert.StartsWith("SRV", remoteRow["Name"].ToString());
-        //            Assert.StartsWith("CLI", localRow["Name"].ToString());
-
-        //            Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
-        //            Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
-
-        //            // The conflict resolution is always the opposite from the one configured by options
-        //            Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
-        //            Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
-
-        //            // From that point, you can easily letting the client decides who is the winner
-        //            // You can do a merge or whatever
-        //            // Show a UI with the local / remote row and letting him decides what is the good row version
-        //            // for testing purpose; will just going to set name to some fancy UI_CLIENT... instead of CLI or SRV
-
-        //            // SHOW UI
-        //            // OH.... CLIENT DECIDED TO SET NAME TO /// clientNameDecidedOnClientMachine 
-
-        //            remoteRow["Name"] = clientNameDecidedOnClientMachine;
-        //            // Mandatory to override the winner registered in the tracking table
-        //            // Use with caution !
-        //            // To be sure the row will be marked as updated locally, the scope id should be set to null
-        //            acf.SenderScopeId = null;
-        //        });
-
-        //        // From Server : Remote is client, Local is server
-        //        // From that point we do not do anything, letting the server to resolve the conflict and send back
-        //        // the server row and client row conflicting to the client
-        //        remoteOrchestrator.OnApplyChangesConflictOccured(async acf =>
-        //        {
-        //            // Check conflict is correctly set
-        //            var conflict = await acf.GetSyncConflictAsync();
-        //            var localRow = conflict.LocalRow;
-        //            var remoteRow = conflict.RemoteRow;
-
-        //            // remote is client; local is server
-        //            Assert.StartsWith("CLI", remoteRow["Name"].ToString());
-        //            Assert.StartsWith("SRV", localRow["Name"].ToString());
-
-        //            Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
-        //            Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
-
-        //            Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
-        //            Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
-        //        });
-
-        //        // First sync, we allow server to resolve the conflict and send back the result to client
-        //        var s = await agent.SynchronizeAsync(setup);
-
-        //        Assert.Equal(1, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(1, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(1, s.TotalResolvedConflicts);
-
-        //        // From this point the Server row Name is "SRV...."
-        //        // And the Client row NAME is "UI_CLIENT..."
-        //        // Make a new sync to send "UI_CLIENT..." to Server
-
-        //        s = await agent.SynchronizeAsync(setup);
-
-
-        //        Assert.Equal(0, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(1, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-
-        //        // Check that the product category name has been correctly sended back to the server
-        //        await CheckProductCategoryRows(client);
-
-        //    }
-
-
-        //}
-
+        /// <summary>
+        /// Generate a deleted row on Server, that does not exists on Client, it's resolved as:
+        /// </summary>
+        private async Task<string> Generate_NULLC_DS_Conflict(SyncAgent agent)
+        {
+            var productCategory = await agent.RemoteOrchestrator.Provider.AddProductCategoryAsync();
+            // Then delete it
+            await agent.RemoteOrchestrator.Provider.DeleteProductCategoryAsync(productCategory.ProductCategoryId);
+            // So far we have a row marked as deleted in the tracking table.
+            return productCategory.ProductCategoryId;
+        }
+
+
+        [Fact]
+        public virtual async Task Conflict_NULLC_DS_ServerShouldWins()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            
+            var download = 1;
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var productCategoryId = await Generate_NULLC_DS_Conflict(agent);
+
+                var s = await agent.SynchronizeAsync(setup);
+
+                Assert.Equal(download, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(download, s.TotalResolvedConflicts);
+
+                var pcClient = await clientProvider.GetProductCategoryAsync(productCategoryId);
+                Assert.Null(pcClient);
+                var pcServer = await clientProvider.GetProductCategoryAsync(productCategoryId);
+                Assert.Null(pcServer);
+                download++;
+            }
+
+        }
+
+        [Fact]
+        public virtual async Task Conflict_NULLC_DS_ServerShouldWins_CozHandler()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            var download = 1;
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var productCategoryId = await Generate_NULLC_DS_Conflict(agent);
+
+                var localOrchestrator = agent.LocalOrchestrator;
+                var remoteOrchestrator = agent.RemoteOrchestrator;
+
+                // From client : Remote is server, Local is client
+                localOrchestrator.OnApplyChangesConflictOccured(async acf =>
+                {
+                    // Check conflict is correctly set
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
+
+                    Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
+                    Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, conflict.Type);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Null(localRow);
+                });
+
+                // From Server : Remote is client, Local is server
+                remoteOrchestrator.OnApplyChangesConflictOccured(acf =>
+                {
+                    throw new Exception("Should not happen since since client did not sent anything. SO far server will send back the deleted row as standard batch row");
+                });
+
+                var s = await agent.SynchronizeAsync(setup);
+
+                Assert.Equal(download, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(download, s.TotalResolvedConflicts);
+
+                var pcClient = await clientProvider.GetProductCategoryAsync(productCategoryId);
+                Assert.Null(pcClient);
+                var pcServer = await clientProvider.GetProductCategoryAsync(productCategoryId);
+                Assert.Null(pcServer);
+                download++;
+            }
+        }
+
+        [Fact]
+        public virtual async Task Conflict_NULLC_DS_ClientShouldWins()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            var download = 1;
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var productCategoryId = await Generate_NULLC_DS_Conflict(agent);
+
+                // Set conflict resolution to client
+                options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+
+                var s = await agent.SynchronizeAsync(setup);
+
+                Assert.Equal(download, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(download, s.TotalResolvedConflicts);
+
+                var pcClient = await clientProvider.GetProductCategoryAsync(productCategoryId);
+                Assert.Null(pcClient);
+                var pcServer = await clientProvider.GetProductCategoryAsync(productCategoryId);
+                Assert.Null(pcServer);
+                download++;
+            }
+
+        }
+
+        [Fact]
+        public virtual async Task Conflict_NULLC_DS_ClientShouldWins_CozHandler()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            var download = 1;
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var productCategoryId = await Generate_NULLC_DS_Conflict(agent);
+
+                var localOrchestrator = agent.LocalOrchestrator;
+                var remoteOrchestrator = agent.RemoteOrchestrator;
+
+                // Set conflict resolution to client
+                options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
+
+                // From client : Remote is server, Local is client
+                localOrchestrator.OnApplyChangesConflictOccured(async acf =>
+                {
+                    // Check conflict is correctly set
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
+
+                    Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
+                    Assert.Equal(ConflictType.RemoteIsDeletedLocalNotExists, conflict.Type);
+                    Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
+                    Assert.Null(localRow);
+                });
+
+                // From Server : Remote is client, Local is server
+                remoteOrchestrator.OnApplyChangesConflictOccured(acf =>
+                {
+                    throw new Exception("Should not happen since since client did not sent anything. SO far server will send back the deleted row as standard batch row");
+                });
+
+                var s = await agent.SynchronizeAsync(setup);
+
+                Assert.Equal(download, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(download, s.TotalResolvedConflicts);
+
+                var pcClient = await clientProvider.GetProductCategoryAsync(productCategoryId);
+                Assert.Null(pcClient);
+                var pcServer = await clientProvider.GetProductCategoryAsync(productCategoryId);
+                Assert.Null(pcServer);
+                download++;
+            }
+        }
+
+        /// Generate a conflict when inserting one row on server and the same row on each client
+        /// Server should wins the conflict because default behavior
+        /// </summary>
+        [Fact]
+        public virtual async Task Conflict_UC_US_ClientChoosedTheWinner()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            foreach (var clientProvider in clientsProvider)
+            {
+                var clientNameDecidedOnClientMachine = HelperDatabase.GetRandomName();
+
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var productCategoryId = await Generate_UC_US_Conflict(agent);
+
+                var localOrchestrator = agent.LocalOrchestrator;
+                var remoteOrchestrator = agent.RemoteOrchestrator;
+
+                // From client : Remote is server, Local is client
+                // From here, we are going to let the client decides who is the winner of the conflict
+                localOrchestrator.OnApplyChangesConflictOccured(async acf =>
+                {
+                    // Check conflict is correctly set
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
+
+                    // remote is server; local is client
+                    Assert.StartsWith("SRV", remoteRow["Name"].ToString());
+                    Assert.StartsWith("CLI", localRow["Name"].ToString());
+
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
+
+                    // The conflict resolution is always the opposite from the one configured by options
+                    Assert.Equal(ConflictResolution.ClientWins, acf.Resolution);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
+
+                    // From that point, you can easily letting the client decides who is the winner
+                    // You can do a merge or whatever
+                    // Show a UI with the local / remote row and letting him decides what is the good row version
+                    // for testing purpose; will just going to set name to some fancy UI_CLIENT... instead of CLI or SRV
+
+                    // SHOW UI
+                    // OH.... CLIENT DECIDED TO SET NAME TO /// clientNameDecidedOnClientMachine 
+
+                    remoteRow["Name"] = clientNameDecidedOnClientMachine;
+                    // Mandatory to override the winner registered in the tracking table
+                    // Use with caution !
+                    // To be sure the row will be marked as updated locally, the scope id should be set to null
+                    acf.SenderScopeId = null;
+                });
+
+                // From Server : Remote is client, Local is server
+                // From that point we do not do anything, letting the server to resolve the conflict and send back
+                // the server row and client row conflicting to the client
+                remoteOrchestrator.OnApplyChangesConflictOccured(async acf =>
+                {
+                    // Check conflict is correctly set
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
+
+                    // remote is client; local is server
+                    Assert.StartsWith("CLI", remoteRow["Name"].ToString());
+                    Assert.StartsWith("SRV", localRow["Name"].ToString());
+
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
+
+                    Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
+                });
+
+                // First sync, we allow server to resolve the conflict and send back the result to client
+                var s = await agent.SynchronizeAsync(setup);
+
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                // From this point the Server row Name is "SRV...."
+                // And the Client row NAME is "UI_CLIENT..."
+                // Make a new sync to send "UI_CLIENT..." to Server
+
+                s = await agent.SynchronizeAsync(setup);
+
+
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                var pcClient = await clientProvider.GetProductCategoryAsync(productCategoryId);
+                Assert.Equal(clientNameDecidedOnClientMachine, pcClient.Name);
+                var pcServer = await serverProvider.GetProductCategoryAsync(productCategoryId);
+                Assert.Equal(clientNameDecidedOnClientMachine, pcServer.Name);
+            }
+        }
     }
 }

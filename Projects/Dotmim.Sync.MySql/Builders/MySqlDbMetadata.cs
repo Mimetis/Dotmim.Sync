@@ -26,11 +26,7 @@ namespace Dotmim.Sync.MySql.Builders
 
         public override DbType GetDbType(SyncColumn columnDefinition)
         {
-            DbType stringDbType;
-            if (columnDefinition.IsUnicode)
-                stringDbType = columnDefinition.MaxLength <= 0 ? DbType.String : DbType.StringFixedLength;
-            else
-                stringDbType = columnDefinition.MaxLength <= 0 ? DbType.AnsiString : DbType.AnsiStringFixedLength;
+            DbType stringDbType = columnDefinition.IsUnicode ? DbType.String : DbType.AnsiString;
 
             return columnDefinition.OriginalTypeName.ToLowerInvariant() switch
             {
@@ -189,10 +185,10 @@ namespace Dotmim.Sync.MySql.Builders
 
             if (IsNumericType(columnDefinition) && precision == 0)
                 return (PRECISION_DEFAULT, 0);
-         
+
             if (!IsSupportingScale(columnDefinition) || scale == 0)
                 return (0, 0);
-            
+
             return CoercePrecisionAndScale(precision, scale);
         }
 
@@ -389,7 +385,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             var (precision, scale) = GetPrecisionAndScale(column);
 
-            
+
             return mySqlDbType switch
             {
                 MySqlDbType.Float or
