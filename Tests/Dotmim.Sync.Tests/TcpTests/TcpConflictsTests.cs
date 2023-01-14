@@ -55,52 +55,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             setup = GetSetup();
         }
 
-
-
-        private async Task Resolve_Client_UniqueKeyError_WithDelete(SqlSyncProvider sqlSyncProvider)
-        {
-            var sqlConnection = new SqlConnection(sqlSyncProvider.ConnectionString);
-            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(sqlSyncProvider);
-
-            var subcatrandom = Path.GetRandomFileName();
-            var categoryName = string.Concat("A_", string.Concat(subcatrandom.Where(c => char.IsLetter(c))).ToUpperInvariant());
-
-            var pcName = serverProviderType == ProviderType.Sql ? "[SalesLT].[ProductCategory]" : "[ProductCategory]";
-
-            var commandText = $"DELETE FROM {pcName} WHERE [ProductCategoryID]='Z_02';";
-
-            var command = sqlConnection.CreateCommand();
-            command.CommandText = commandText;
-            sqlConnection.Open();
-            await command.ExecuteNonQueryAsync();
-            sqlConnection.Close();
-
-        }
-
-        private async Task Update_Client_UniqueKeyError(SqlSyncProvider sqlSyncProvider)
-        {
-            var sqlConnection = new SqlConnection(sqlSyncProvider.ConnectionString);
-            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(sqlSyncProvider);
-
-            var subcatrandom = Path.GetRandomFileName();
-            var categoryName = string.Concat("A_", string.Concat(subcatrandom.Where(c => char.IsLetter(c))).ToUpperInvariant());
-
-            var pcName = serverProviderType == ProviderType.Sql ? "[SalesLT].[ProductCategory]" : "[ProductCategory]";
-
-            var commandText = $"UPDATE {pcName} SET [Name] = [Name];";
-
-            var command = sqlConnection.CreateCommand();
-            command.CommandText = commandText;
-            sqlConnection.Open();
-            await command.ExecuteNonQueryAsync();
-            sqlConnection.Close();
-
-        }
-
         [Fact]
         public virtual async Task ErrorUniqueKeyOnSameTableRaiseAnError()
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             // Adding two rows on server side, that are correct
             var str = HelperDatabase.GetRandomName().ToUpper()[..9];
@@ -878,29 +840,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
 
         //// ------------------------------------------------------------------------
-        //// Generate Foreign Key failure
+        //// Foreign Key failure
         //// ------------------------------------------------------------------------
 
-        ///// <summary>
-        ///// Generate a foreign key failure
-        ///// </summary>
-        //private async Task Generate_ForeignKeyError()
-        //{
-        //    using var ctx = new AdventureWorksContext(serverProvider);
-        //    ctx.Add(new ProductCategory
-        //    {
-        //        ProductCategoryId = "ZZZZ",
-        //        Name = HelperDatabase.GetRandomName("SRV")
-        //    });
-        //    ctx.Add(new ProductCategory
-        //    {
-        //        ProductCategoryId = "AAAA",
-        //        ParentProductCategoryId = "ZZZZ",
-        //        Name = HelperDatabase.GetRandomName("SRV")
-        //    });
-        //    await ctx.SaveChangesAsync();
-
-        //}
 
         [Fact]
         public virtual async Task ErrorForeignKeyOnSameTableRaiseError()
@@ -1052,7 +994,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-
         [Fact]
         public virtual async Task ErrorForeignKeyOnSameTableContinueOnErrorUsingSyncOptions()
         {
@@ -1064,7 +1005,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             await serverProvider.AddProductCategoryAsync("ZZZZ");
             await serverProvider.AddProductCategoryAsync("AAAA", "ZZZZ");
-
 
             foreach (var clientProvider in clientsProvider)
             {
@@ -1152,96 +1092,96 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
+        [Fact]
+        public virtual async Task ErrorForeignKeyOnSameTableRetryOneMoreTime()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public virtual async Task Error_ForeignKey_OnSameTable_RetryOneMoreTime(SyncOptions options)
-        //{
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(serverProvider, false, UseFallbackSchema);
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-        //    await Generate_ForeignKeyError();
+            await serverProvider.AddProductCategoryAsync("ZZZZ");
+            await serverProvider.AddProductCategoryAsync("AAAA", "ZZZZ");
 
-        //    foreach (var clientProvider in clientsProvider)
-        //    {
+            foreach (var clientProvider in clientsProvider)
+            {
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+                // enablig constraints check
+                options.DisableConstraintsOnApplyChanges = false;
+                // set error policy
+                options.ErrorResolutionPolicy = ErrorResolution.ContinueOnError;
+                // Disable bulk operations to have the same results for SQL as others providers
+                clientProvider.UseBulkOperations = false;
 
-        //        // Get a random directory to be sure we are not conflicting with another test
-        //        var directoryName = HelperDatabase.GetRandomName();
-        //        options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-        //        // create empty client databases
-        //        await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
+                // As OnRowsChangesApplying will be called 2 times, we only apply tricky change one time
+                var rowChanged = false;
 
-        //        // Disable bulk operations to generate the fk constraint failure
-        //        clientProvider.UseBulkOperations = false;
+                // Generate the foreignkey error
+                agent.LocalOrchestrator.OnRowsChangesApplying(args =>
+                {
+                    if (args.SyncRows == null || args.SyncRows.Count <= 0)
+                        return;
 
-        //        var agent = new SyncAgent(clientProvider, serverProvider, options);
+                    var row = args.SyncRows[0];
 
-        //        // As OnRowsChangesApplying will be called 2 times, we only apply tricky change one time
-        //        var rowChanged = false;
+                    if (row["ParentProductCategoryId"] != null && row["ParentProductCategoryId"].ToString() == "ZZZZ")
+                    {
+                        // We need to change the row only one time
+                        if (rowChanged)
+                            return;
 
-        //        // Generate the foreignkey error
-        //        agent.LocalOrchestrator.OnRowsChangesApplying(args =>
-        //        {
+                        row["ParentProductCategoryId"] = "BBBBB";
+                        rowChanged = true;
+                    }
+                });
 
-        //            if (args.SyncRows == null || args.SyncRows.Count <= 0)
-        //                return;
+                // Once error has been raised, we change back the row to the initial value
+                // to let a chance to apply again at the end
+                agent.LocalOrchestrator.OnRowsChangesApplied(args =>
+                {
+                    if (args.SyncRows == null || args.SyncRows.Count <= 0)
+                        return;
 
-        //            var row = args.SyncRows[0];
+                    var row = args.SyncRows[0];
 
-        //            if (row["ParentProductCategoryId"] != null && row["ParentProductCategoryId"].ToString() == "ZZZZ")
-        //            {
-        //                // We need to change the row only one time
-        //                if (rowChanged)
-        //                    return;
+                    if (row["ParentProductCategoryId"] != null && row["ParentProductCategoryId"].ToString() == "BBBBB")
+                    {
+                        row["ParentProductCategoryId"] = "ZZZZ";
+                        rowChanged = true;
+                    }
+                });
 
-        //                row["ParentProductCategoryId"] = "BBBBB";
-        //                rowChanged = true;
-        //            }
-        //        });
+                agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+                {
+                    // Continue On Error
+                    args.Resolution = ErrorResolution.RetryOneMoreTimeAndThrowOnError;
+                    Assert.NotNull(args.Exception);
+                    Assert.NotNull(args.ErrorRow);
+                    Assert.NotNull(args.SchemaTable);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
+                });
 
-        //        // Once error has been raised, we change back the row to the initial value
-        //        // to let a chance to apply again at the end
-        //        agent.LocalOrchestrator.OnRowsChangesApplied(args =>
-        //        {
-        //            if (args.SyncRows == null || args.SyncRows.Count <= 0)
-        //                return;
+                var s = await agent.SynchronizeAsync(setup);
 
-        //            var row = args.SyncRows[0];
+                // Download 2 rows
+                // But applied only 1
+                // The other one is a failed inserted row
+                Assert.Equal(2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(2, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalResolvedConflicts);
 
-        //            if (row["ParentProductCategoryId"] != null && row["ParentProductCategoryId"].ToString() == "BBBBB")
-        //            {
-        //                row["ParentProductCategoryId"] = "ZZZZ";
-        //                rowChanged = true;
-        //            }
-        //        });
+                var batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
 
-        //        agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
-        //        {
-        //            // Continue On Error
-        //            args.Resolution = ErrorResolution.RetryOneMoreTimeAndThrowOnError;
-        //            Assert.NotNull(args.Exception);
-        //            Assert.NotNull(args.ErrorRow);
-        //            Assert.NotNull(args.SchemaTable);
-        //            Assert.Equal(SyncRowState.Modified, args.ApplyType);
-        //        });
-
-        //        var s = await agent.SynchronizeAsync(setup);
-
-        //        // Download 2 rows
-        //        // But applied only 1
-        //        // The other one is a failed inserted row
-        //        Assert.Equal(2, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(2, s.TotalChangesAppliedOnClient);
-        //        Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
-
-        //        var batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
-
-        //        Assert.Empty(batchInfos);
-        //    }
-        //}
+                Assert.Empty(batchInfos);
+            }
+        }
 
         //[Theory]
         //[ClassData(typeof(SyncOptionsData))]
@@ -1349,34 +1289,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         // ------------------------------------------------------------------------
         // InsertClient - InsertServer
         // ------------------------------------------------------------------------
-
-        private async Task CheckProductCategoryRows(CoreProvider clientProvider, string nameShouldStartWith = null)
-        {
-            // check rows count on server and on each client
-            using var ctx = new AdventureWorksContext(serverProvider);
-            // get all product categories
-            var serverPC = await ctx.ProductCategory.AsNoTracking().ToListAsync();
-
-            using var cliCtx = new AdventureWorksContext(clientProvider);
-            // get all product categories
-            var clientPC = await cliCtx.ProductCategory.AsNoTracking().ToListAsync();
-
-            // check row count
-            Assert.Equal(serverPC.Count, clientPC.Count);
-
-            foreach (var cpc in clientPC)
-            {
-                var spc = serverPC.First(pc => pc.ProductCategoryId == cpc.ProductCategoryId);
-
-                // check column value
-                Assert.Equal(spc.ProductCategoryId, cpc.ProductCategoryId);
-                Assert.Equal(spc.Name, cpc.Name);
-
-                if (!string.IsNullOrEmpty(nameShouldStartWith))
-                    Assert.StartsWith(nameShouldStartWith, cpc.Name);
-
-            }
-        }
 
         /// <summary>
         /// Generate a conflict when inserting one row on server and the same row on each client
@@ -1622,72 +1534,83 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-        ///// <summary>
-        ///// Generate a conflict when inserting one row on server and the same row on each client
-        ///// Client should wins the conflict because we have an event raised
-        ///// </summary>
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public virtual async Task Conflict_IC_IS_ClientShouldWins_CozHandler(SyncOptions options)
-        //{
-        //    // Create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(serverProvider, false, UseFallbackSchema);
+        /// <summary>
+        /// Generate a conflict when inserting one row on server and the same row on each client
+        /// Client should wins the conflict because we have an event raised
+        /// </summary>
+        [Fact]
+        public virtual async Task Conflict_IC_IS_ClientShouldWins_CozHandler()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
-        //    // Execute a sync on all clients and check results
-        //    // Each client will upload its row (conflicting)
-        //    // then download the others client lines (and not the conflict since it's resolved)
-        //    foreach (var clientProvider in clientsProvider)
-        //    {
-        //        await Generate_InsertClient_InsertServer(client, options);
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-        //        var agent = new SyncAgent(clientProvider, serverProvider, options);
+            var productCategoryNameClient = HelperDatabase.GetRandomName("CLI");
+            var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
+            var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
+            await serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
 
-        //        var localOrchestrator = agent.LocalOrchestrator;
-        //        var remoteOrchestrator = agent.RemoteOrchestrator;
+            // Execute a sync on all clients and check results
+            // Each client will upload its row (conflicting)
+            // then download the others client lines (and not the conflict since it's resolved)
+            foreach (var clientProvider in clientsProvider)
+            {
+                await clientProvider.AddProductCategoryAsync(productId, name: productCategoryNameClient);
 
-        //        // From client : Remote is server, Local is client
-        //        localOrchestrator.OnApplyChangesConflictOccured(acf =>
-        //        {
-        //            // Since we have a ClientWins resolution,
-        //            // We should NOT have any conflict raised on the client side
-        //            // Since the conflict has been resolver on server
-        //            // And Server forces applied the client row
-        //            // So far the client row is good and should not raise any conflict
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-        //            throw new Exception("Should not happen because ConflictResolution.ClientWins !!");
-        //        });
+                var localOrchestrator = agent.LocalOrchestrator;
+                var remoteOrchestrator = agent.RemoteOrchestrator;
 
-        //        // From Server : Remote is client, Local is server
-        //        remoteOrchestrator.OnApplyChangesConflictOccured(async acf =>
-        //        {
-        //            // Check conflict is correctly set
-        //            var conflict = await acf.GetSyncConflictAsync();
-        //            var localRow = conflict.LocalRow;
-        //            var remoteRow = conflict.RemoteRow;
+                // From client : Remote is server, Local is client
+                localOrchestrator.OnApplyChangesConflictOccured(acf =>
+                {
+                    // Since we have a ClientWins resolution,
+                    // We should NOT have any conflict raised on the client side
+                    // Since the conflict has been resolver on server
+                    // And Server forces applied the client row
+                    // So far the client row is good and should not raise any conflict
 
-        //            Assert.StartsWith("SRV", localRow["Name"].ToString());
-        //            Assert.StartsWith("CLI", remoteRow["Name"].ToString());
+                    throw new Exception("Should not happen because ConflictResolution.ClientWins !!");
+                });
 
-        //            Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
-        //            Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
+                // From Server : Remote is client, Local is server
+                remoteOrchestrator.OnApplyChangesConflictOccured(async acf =>
+                {
+                    // Check conflict is correctly set
+                    var conflict = await acf.GetSyncConflictAsync();
+                    var localRow = conflict.LocalRow;
+                    var remoteRow = conflict.RemoteRow;
 
-        //            Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
-        //            Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
+                    Assert.StartsWith("SRV", localRow["Name"].ToString());
+                    Assert.StartsWith("CLI", remoteRow["Name"].ToString());
 
-        //            // Client should wins
-        //            acf.Resolution = ConflictResolution.ClientWins;
-        //        });
+                    Assert.Equal(SyncRowState.Modified, conflict.RemoteRow.RowState);
+                    Assert.Equal(SyncRowState.Modified, conflict.LocalRow.RowState);
 
-        //        var s = await agent.SynchronizeAsync(setup);
+                    Assert.Equal(ConflictResolution.ServerWins, acf.Resolution);
+                    Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
 
-        //        Assert.Equal(0, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(1, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(1, s.TotalResolvedConflicts);
+                    // Client should wins
+                    acf.Resolution = ConflictResolution.ClientWins;
+                });
 
-        //        await CheckProductCategoryRows(client, "CLI");
-        //    }
+                var s = await agent.SynchronizeAsync(setup);
 
-        //}
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                var pcClient = await clientProvider.GetProductCategoryAsync(productId);
+                var pcServer = await clientProvider.GetProductCategoryAsync(productId);
+
+                Assert.Equal(pcServer.Name, pcClient.Name);
+                Assert.StartsWith("CLI", pcClient.Name);
+            }
+
+        }
 
         //// ------------------------------------------------------------------------
         //// Update Client - Update Server
