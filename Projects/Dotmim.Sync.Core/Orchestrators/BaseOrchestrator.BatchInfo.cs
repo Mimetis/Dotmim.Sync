@@ -111,7 +111,7 @@ namespace Dotmim.Sync
                     try
                     {
                         // Get full path of my batchpartinfo
-                        var fullPath = batchInfo.GetBatchPartInfoPath(bpi).FullPath;
+                        var fullPath = batchInfo.GetBatchPartInfoPath(bpi);
 
                         if (!File.Exists(fullPath))
                             continue;
@@ -191,7 +191,7 @@ namespace Dotmim.Sync
             foreach (var bpi in batchInfo.GetBatchPartsInfo(tableName, schemaName))
             {
                 // Get full path of my batchpartinfo
-                var fullPath = batchInfo.GetBatchPartInfoPath(bpi).FullPath;
+                var fullPath = batchInfo.GetBatchPartInfoPath(bpi);
 
                 if (!File.Exists(fullPath))
                     continue;
@@ -284,25 +284,26 @@ namespace Dotmim.Sync
 
         internal async Task InternalSaveTableToBatchPartInfoAsync(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable syncTable)
         {
-            var localSerializer = new LocalJsonSerializer(this, context);
+            if (syncTable?.Rows == null || syncTable.Rows.Count <= 0)
+                return;
 
             // Get full path of my batchpartinfo
-            var fullPath = batchInfo.GetBatchPartInfoPath(batchPartInfo).FullPath;
+            var fullPath = batchInfo.GetBatchPartInfoPath(batchPartInfo);
 
             if (File.Exists(fullPath))
                 File.Delete(fullPath);
 
-            if (syncTable?.Rows != null && syncTable.Rows.Count <= 0)
-            {
-                // open the file and write table header
-                localSerializer.OpenFile(fullPath, syncTable, batchPartInfo.State);
+            var localSerializer = new LocalJsonSerializer(this, context);
 
-                foreach (var row in syncTable.Rows)
-                    await localSerializer.WriteRowToFileAsync(row, syncTable).ConfigureAwait(false);
+            // open the file and write table header
+            localSerializer.OpenFile(fullPath, syncTable, batchPartInfo.State);
 
-                // Close file
-                localSerializer.CloseFile();
-            }
+            foreach (var row in syncTable.Rows)
+                await localSerializer.WriteRowToFileAsync(row, syncTable).ConfigureAwait(false);
+
+            // Close file
+            localSerializer.CloseFile();
+
         }
 
     }

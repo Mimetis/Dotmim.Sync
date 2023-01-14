@@ -126,7 +126,7 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            //yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_adv");
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_sql_adv", true);
         }
 
@@ -163,7 +163,36 @@ namespace Dotmim.Sync.Tests
         public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "http_srv_sql_adv", true);
     }
 
-    
+    public class SqlServerConflictTests : TcpConflictsTests
+    {
+        public SqlServerConflictTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_sql_co_adv", true);
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_sql_co_adv", true);
+    }
+
+    public class PostgresConflictTests : TcpConflictsTests
+    {
+        public PostgresConflictTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_cli_npg_co_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_npg_co_adv", false);
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_srv_npg_co_adv", true);
+    }
+
+
     public class PostgresTcpTests : TcpTests
     {
         public PostgresTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)

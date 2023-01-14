@@ -288,7 +288,7 @@ namespace Dotmim.Sync
 
                 foreach (var bpi in batchPartInfos.ToArray())
                 {
-                    string fullPath = batchInfo.GetBatchPartInfoPath(bpi).FullPath;
+                    string fullPath = batchInfo.GetBatchPartInfoPath(bpi);
 
                     if (fullPath != null && bpi.RowsCount == 0 && File.Exists(fullPath))
                     {

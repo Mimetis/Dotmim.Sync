@@ -789,9 +789,9 @@ namespace Dotmim.Sync.Web.Server
                     var containerTable = new ContainerTable(table);
                     foreach (var part in serverSyncChanges.ServerBatchInfo.GetBatchPartsInfo(table))
                     {
-                        var paths = serverSyncChanges.ServerBatchInfo.GetBatchPartInfoPath(part);
+                        var path = serverSyncChanges.ServerBatchInfo.GetBatchPartInfoPath(part);
                         var localSerializer = new LocalJsonSerializer(this.RemoteOrchestrator, context);
-                        foreach (var syncRow in localSerializer.GetRowsFromFile(paths.FullPath, table))
+                        foreach (var syncRow in localSerializer.GetRowsFromFile(path, table))
                         {
                             containerTable.Rows.Add(syncRow.ToArray());
                         }

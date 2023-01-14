@@ -1875,13 +1875,17 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             var rowsToSend = 3000;
-            var productNumber = "12345";
             foreach (var clientProvider in clientsProvider)
             {
                 var (clientDatabaseType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 var products = Enumerable.Range(1, rowsToSend).Select(i =>
-                    new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"{i}{clientDatabaseType}" });
+                    new Product
+                    {
+                        ProductId = Guid.NewGuid(),
+                        Name = Guid.NewGuid().ToString("N"),
+                        ProductNumber = $"ZZ-{i}{clientDatabaseType}"
+                    });
 
                 using var clientDbCtx = new AdventureWorksContext(clientProvider);
                 clientDbCtx.Product.AddRange(products);
@@ -1991,7 +1995,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 clientCount++;
 
                 using var serverDbCtx = new AdventureWorksContext(serverProvider);
-                var serverCount = serverDbCtx.Product.Count(p => p.ProductNumber.Contains($"{productNumber}_"));
+                var serverCount = serverDbCtx.Product.Count(p => p.ProductNumber.StartsWith($"ZZ-"));
                 Assert.Equal(rowsToSend * clientCount, serverCount);
 
                 await kestrell.StopAsync();
@@ -2011,12 +2015,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
             var rowsToReceive = 5000;
-            var productNumber = "ZZ-";
 
             var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
 
             var products = Enumerable.Range(1, rowsToReceive).Select(i =>
-                new Product { ProductId = Guid.NewGuid(), Name = Guid.NewGuid().ToString("N"), ProductNumber = productNumber + $"{i}{serverProviderType}" });
+                new Product { ProductId = Guid.NewGuid(), 
+                    Name = Guid.NewGuid().ToString("N"), 
+                    ProductNumber = $"ZZ-{i}{serverProviderType}" });
 
             using var ctx = new AdventureWorksContext(serverProvider);
             ctx.Product.AddRange(products);
@@ -2123,8 +2128,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(0, s2.TotalResolvedConflicts);
 
                 using var clientDbCtx = new AdventureWorksContext(clientProvider);
-                var serverCount = clientDbCtx.Product.Count(p => p.ProductNumber.StartsWith($"ZZ-"));
-                Assert.Equal(rowsToReceive, serverCount);
+                var clientCount = clientDbCtx.Product.Count(p => p.ProductNumber.StartsWith($"ZZ-"));
+                Assert.Equal(rowsToReceive, clientCount);
 
                 await kestrell.StopAsync();
             }

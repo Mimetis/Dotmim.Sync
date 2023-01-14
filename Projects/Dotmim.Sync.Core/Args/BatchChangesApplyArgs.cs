@@ -99,7 +99,7 @@ namespace Dotmim.Sync
         ///         Console.WriteLine($"FileName:{args.BatchPartInfo.FileName}. RowsCount:{args.BatchPartInfo.RowsCount} ");
         ///         Console.WriteLine($"Applying rows from this batch part info:");
         /// 
-        ///         var table = await agent.LocalOrchestrator.LoadTableFromBatchPartInfoAsync(args.BatchInfo,
+        ///         var table = await agent.LocalOrchestrator.LoadTableFromBatchPartInfo(args.BatchInfo,
         ///                           args.BatchPartInfo, args.State, args.Connection, args.Transaction);
         /// 
         ///         foreach (var row in table.Rows)
@@ -128,7 +128,7 @@ namespace Dotmim.Sync
         ///         Console.WriteLine($"FileName:{args.BatchPartInfo.FileName}. RowsCount:{args.BatchPartInfo.RowsCount} ");
         ///         Console.WriteLine($"Rows applied from this batch part info:");
         /// 
-        ///         var table = await agent.LocalOrchestrator.LoadTableFromBatchPartInfoAsync(args.BatchInfo,
+        ///         var table = await agent.LocalOrchestrator.LoadTableFromBatchPartInfo(args.BatchInfo,
         ///                           args.BatchPartInfo, args.State, args.Connection, args.Transaction);
         /// 
         ///         foreach (var row in table.Rows)

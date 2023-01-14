@@ -72,7 +72,7 @@ namespace Dotmim.Sync
                     var failedRows = new List<SyncRow>();
 
                     // Read already present lines
-                    var lastSyncErrorsBpiFullPath = lastSyncErrorsBatchInfo.GetBatchPartInfoPath(tableBpis.ToList()[0]).FullPath;
+                    var lastSyncErrorsBpiFullPath = lastSyncErrorsBatchInfo.GetBatchPartInfoPath(tableBpis.ToList()[0]);
 
                     foreach (var syncRow in localSerializerReader.GetRowsFromFile(lastSyncErrorsBpiFullPath, schemaChangesTable))
                         failedRows.Add(syncRow);
@@ -83,7 +83,7 @@ namespace Dotmim.Sync
                     foreach (var batchPartInfo in bpiTables)
                     {
                         // Get full path of my batchpartinfo
-                        var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo).FullPath;
+                        var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo);
 
                         foreach (var syncRow in localSerializerReader.GetRowsFromFile(fullPath, schemaChangesTable))
                         {
@@ -336,7 +336,7 @@ namespace Dotmim.Sync
                 foreach (var batchPartInfo in bpiTables)
                 {
                     // Get full path of my batchpartinfo
-                    var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo).FullPath;
+                    var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo);
 
                     if (batchPartInfo.State != SyncRowState.None && batchPartInfo.State != applyType)
                         continue;

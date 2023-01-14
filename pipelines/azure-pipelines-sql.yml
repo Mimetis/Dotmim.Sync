@@ -19,6 +19,12 @@ jobs:
 
   - template: azure-pipelines-template.yml
     parameters:
+      displayName: "SQL Server Conflicts .net 7.0"
+      dotnetfx: "net7.0"
+      filter: "Dotmim.Sync.Tests.SqlServerConflictTests"
+
+  - template: azure-pipelines-template.yml
+    parameters:
       displayName: "SQL Server Change Tracking Tcp .net 7.0"
       dotnetfx: "net7.0"
       filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingTcp"
