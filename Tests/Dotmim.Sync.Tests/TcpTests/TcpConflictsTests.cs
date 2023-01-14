@@ -1431,19 +1431,21 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-            var productCategoryNameClient = HelperDatabase.GetRandomName("CLI");
-            var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
-            var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
-            await serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
-
             // Execute a sync on all clients and check results
             // Each client will upload its row (conflicting)
             // then download the others client lines (and not the conflict since it's resolved)
             foreach (var clientProvider in clientsProvider)
             {
-                await clientProvider.AddProductCategoryAsync(productId, name: productCategoryNameClient);
-
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                // Reinit 
+                await agent.SynchronizeAsync();
+
+                var productCategoryNameClient = HelperDatabase.GetRandomName("CLI");
+                var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
+                var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
+                await serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
+                await clientProvider.AddProductCategoryAsync(productId, name: productCategoryNameClient);
 
                 agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
@@ -1474,19 +1476,21 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-            var productCategoryNameClient = HelperDatabase.GetRandomName("CLI");
-            var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
-            var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
-            await serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
-
             // Execute a sync on all clients and check results
             // Each client will upload its row (conflicting)
             // then download the others client lines (and not the conflict since it's resolved)
             foreach (var clientProvider in clientsProvider)
             {
-                await clientProvider.AddProductCategoryAsync(productId, name: productCategoryNameClient);
-
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                // Reinit 
+                await agent.SynchronizeAsync();
+
+                var productCategoryNameClient = HelperDatabase.GetRandomName("CLI");
+                var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
+                var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
+                await serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
+                await clientProvider.AddProductCategoryAsync(productId, name: productCategoryNameClient);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -1547,19 +1551,21 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-            var productCategoryNameClient = HelperDatabase.GetRandomName("CLI");
-            var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
-            var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
-            await serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
-
             // Execute a sync on all clients and check results
             // Each client will upload its row (conflicting)
             // then download the others client lines (and not the conflict since it's resolved)
             foreach (var clientProvider in clientsProvider)
             {
-                await clientProvider.AddProductCategoryAsync(productId, name: productCategoryNameClient);
-
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                // Reinit 
+                await agent.SynchronizeAsync();
+
+                var productCategoryNameClient = HelperDatabase.GetRandomName("CLI");
+                var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
+                var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
+                await serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
+                await clientProvider.AddProductCategoryAsync(productId, name: productCategoryNameClient);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
