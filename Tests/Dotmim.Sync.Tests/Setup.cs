@@ -185,8 +185,8 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_cli_npg_co_adv", true);
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_npg_co_adv", false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_cli_npg_co_adv", true);
         }
 
         public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_srv_npg_co_adv", true);
