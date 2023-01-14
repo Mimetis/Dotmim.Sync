@@ -192,7 +192,6 @@ namespace Dotmim.Sync.Tests
         public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_srv_npg_co_adv", true);
     }
 
-
     public class PostgresTcpTests : TcpTests
     {
         public PostgresTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
@@ -283,6 +282,22 @@ namespace Dotmim.Sync.Tests
 
         public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MySql, "http_srv_mysql_adv");
     }
+
+    public class MySqlConflictTests : TcpConflictsTests
+    {
+        public MySqlConflictTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_cli_mysql_co_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_mysql_co_adv", false);
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_srv_mysql_co_adv", true);
+    }
+
 
 
     public class MariaDBTcpTests : TcpTests

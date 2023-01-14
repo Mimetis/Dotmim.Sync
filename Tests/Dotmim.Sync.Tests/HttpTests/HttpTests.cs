@@ -2042,99 +2042,22 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 // Configure server orchestrator
                 kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
 
-                var batchIndex = 0;
-
-                // Create server web proxy
-                var serverHandler = new RequestDelegate(async context =>
-                {
-                    var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
-
-                    webServerAgent.OnHttpGettingRequest(args =>
-                    {
-                        var cScopeInfoClientId = args.HttpContext.GetClientScopeId();
-                        var cScopeInfoClientSessionId = args.HttpContext.GetClientSessionId();
-                        var cStep = args.HttpContext.GetCurrentStep();
-
-                        Console.WriteLine($"SERVER RECEIVE Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
-                        Debug.WriteLine($"SERVER RECEIVE Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
-                    });
-
-                    webServerAgent.OnHttpSendingResponse(async args =>
-                    {
-                        //// We are droping session on the second batch
-                        //if (args.HttpStep == HttpStep.GetMoreChanges && batchIndex == 1)
-                        //{
-                        //    Console.WriteLine($"SERVER DROPING Session Id {args.HttpContext.Session.Id} on batch {batchIndex}.");
-                        //    Debug.WriteLine($"SERVER DROPING Session Id {args.HttpContext.Session.Id} on batch {batchIndex}.");
-                        //    args.HttpContext.Session.Clear();
-                        //    await args.HttpContext.Session.CommitAsync();
-                        //}
-                        //if (args.HttpStep == HttpStep.GetMoreChanges)
-                        //    batchIndex++;
-
-                    });
-
-                    await webServerAgent.HandleRequestAsync(context);
-                });
-
-                var serviceUri = kestrell.Run(serverHandler);
+                var serviceUri = kestrell.Run();
 
                 var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
 
-                webRemoteOrchestrator.OnHttpPolicyRetrying(args => Console.WriteLine(args.Message));
-                webRemoteOrchestrator.OnHttpGettingResponse(args =>
-                {
-                    var cScopeInfoClientId = "";
-                    var cScopeInfoClientSessionId = "";
-                    if (args.Response.Headers.TryGetValues("dotmim-sync-scope-id", out var scopeIds))
-                        cScopeInfoClientId = scopeIds.ToList()[0];
-
-                    if (args.Response.Headers.TryGetValues("dotmim-sync-session-id", out var sessionIds))
-                        cScopeInfoClientSessionId = sessionIds.ToList()[0];
-
-                    Console.WriteLine($"CLIENT GETTING Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{args.Step}. Data:{args.Data}");
-                    Debug.WriteLine($"CLIENT GETTING Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{args.Step}. Data:{args.Data}");
-                });
-
+                // To simulate a lost session, just send another session id
                 webRemoteOrchestrator.OnHttpSendingRequest(args =>
                 {
-
-                    var cScopeInfoClientId = "";
-                    var cScopeInfoClientSessionId = "";
-                    var cStep = "";
-
                     args.Request.Headers.Remove("dotmim-sync-session-id");
                     args.Request.Headers.Add("dotmim-sync-session-id", Guid.NewGuid().ToString());
-
-                    if (args.Request.Headers.TryGetValues("dotmim-sync-scope-id", out var scopeIds))
-                        cScopeInfoClientId = scopeIds.ToList()[0];
-
-                    if (args.Request.Headers.TryGetValues("dotmim-sync-session-id", out var sessionIds))
-                        cScopeInfoClientSessionId = sessionIds.ToList()[0];
-
-                    if (args.Request.Headers.TryGetValues("dotmim-sync-step", out var steps))
-                        cStep = steps.ToList()[0];
-
-                    Console.WriteLine($"CLIENT SENDING Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
-                    Debug.WriteLine($"CLIENT SENDING Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
                 });
 
                 var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
-
-                var ex = await Assert.ThrowsAsync<SyncException>(async () =>
-                {
-                    var s = await agent.SynchronizeAsync();
-
-                    Console.WriteLine(s);
-                    
-                });
-
-                // Assert
-                Assert.NotNull(ex); //"exception required!"
+                var ex = await Assert.ThrowsAsync<SyncException>(() =>agent.SynchronizeAsync());
                 Assert.Equal("HttpSessionLostException", ex.TypeName);
 
                 await kestrell.StopAsync();
-
             }
 
             foreach (var clientProvider in clientsProvider)

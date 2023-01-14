@@ -538,187 +538,327 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-        //[Fact]
-        //public virtual async Task ErrorUniqueKeyOnSameTableRetryOnNextSyncWithResolve()
-        //{
-        //    var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+        [Fact]
+        public virtual async Task ErrorUniqueKeyOnSameTableRetryOnNextSyncWithResolve()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
-        //    // make a first sync to init the two databases
-        //    foreach (var clientProvider in clientsProvider)
-        //        await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-        //    // Adding two rows on server side, that are correct
-        //    var str = HelperDatabase.GetRandomName().ToUpper()[..9];
-        //    await serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
-        //    await serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
+            // Adding two rows on server side, that are correct
+            var str = HelperDatabase.GetRandomName().ToUpper()[..9];
+            await serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
+            await serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
 
-        //    foreach (var clientProvider in clientsProvider)
-        //    {
-        //        // Get a random directory to be sure we are not conflicting with another test
-        //        var directoryName = HelperDatabase.GetRandomName();
-        //        options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+            foreach (var clientProvider in clientsProvider)
+            {
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
 
-        //        var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-        //        // To generate a unique key constraint, will modify the batch part info on client just before load it.
-        //        // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
-        //        var interceptorId = agent.LocalOrchestrator.OnBatchChangesApplying(args =>
-        //        {
-        //            if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
-        //            {
-        //                var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
+                // To generate a unique key constraint, will modify the batch part info on client just before load it.
+                // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
+                var interceptorId = agent.LocalOrchestrator.OnBatchChangesApplying(args =>
+                {
+                    if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
+                    {
+                        var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
 
-        //                var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
-        //                foreach (var row in table.Rows)
-        //                    if (row["ProductCategoryID"].ToString() == $"Z1{str}")
-        //                        row["Name"] = $"Z2{str}";
+                        foreach (var row in table.Rows)
+                            if (row["ProductCategoryID"].ToString() == $"Z2{str}")
+                                row["Name"] = $"Z1{str}";
 
-        //                agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
-        //            }
-        //        });
+                        agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
+                    }
+                });
 
-        //        agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
-        //        {
-        //            // Continue On Error
-        //            args.Resolution = ErrorResolution.RetryOnNextSync;
-        //            Assert.NotNull(args.Exception);
-        //            Assert.NotNull(args.ErrorRow);
-        //            Assert.NotNull(args.SchemaTable);
-        //            Assert.Equal(SyncRowState.Modified, args.ApplyType);
-        //        });
+                agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+                {
+                    // Continue On Error
+                    args.Resolution = ErrorResolution.RetryOnNextSync;
+                    Assert.NotNull(args.Exception);
+                    Assert.NotNull(args.ErrorRow);
+                    Assert.NotNull(args.SchemaTable);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
+                });
 
-        //        var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(setup);
 
-        //        Assert.Equal(2, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalChangesAppliedOnServer);
-        //        Assert.Equal(1, s.TotalChangesAppliedOnClient);
-        //        Assert.Equal(1, s.TotalChangesFailedToApplyOnClient);
-        //        Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
+                Assert.Equal(2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
 
-        //        var batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
+                var batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
 
-        //        Assert.NotNull(batchInfos);
-        //        Assert.Single(batchInfos);
-        //        Assert.Single(batchInfos[0].BatchPartsInfo);
-        //        Assert.Contains("ERROR", batchInfos[0].BatchPartsInfo[0].FileName);
-        //        Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERROR", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
 
-        //        var batchInfo = batchInfos[0];
+                var batchInfo = batchInfos[0];
 
-        //        var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfo(batchInfo);
+                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfo(batchInfo);
 
-        //        foreach (var syncTable in syncTables)
-        //        {
-        //            Assert.Equal("ProductCategory", syncTable.TableName);
-        //            Assert.True(syncTable.HasRows);
+                foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
 
-        //            Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
-        //        }
+                    Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
+                }
 
-        //        // To resolve the issue, just clear the interceptor
-        //        agent.LocalOrchestrator.ClearInterceptors(interceptorId);
+                // To resolve the issue, just clear the interceptor
+                agent.LocalOrchestrator.ClearInterceptors(interceptorId);
 
-        //        s = await agent.SynchronizeAsync(setup);
+                // And then intercept again the error batch re applied to change the value
+                agent.LocalOrchestrator.OnBatchChangesApplying(args =>
+                {
+                    if (args.BatchPartInfo != null && args.SchemaTable.TableName == "ProductCategory")
+                    {
+                        var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
 
-        //        Assert.Equal(0, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(13, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(13, s.TotalChangesAppliedOnServer);
-        //        Assert.Equal(0, s.TotalChangesAppliedOnClient);
-        //        Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
-        //        Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
+                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
-        //        batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
+                        foreach (var row in table.Rows)
+                            if (row["ProductCategoryID"].ToString() == $"Z2{str}")
+                                row["Name"] = $"Z2{str}";
 
-        //        Assert.Empty(batchInfos);
-        //    }
-        //}
+                        agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
+                    }
+                });
 
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public virtual async Task Error_UniqueKey_OnSameTable_RetryOnNextSync_ThenResolveClient_WithDelete(SyncOptions options)
-        //{
-        //    // Only works for SQL
+                s = await agent.SynchronizeAsync(setup);
 
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(serverProvider, true, UseFallbackSchema);
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
 
-        //    foreach (var clientProvider in clientsProvider)
-        //    {
-        //        if (clientProviderType != ProviderType.Sql)
-        //            continue;
+                batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
 
-        //        // Get a random directory to be sure we are not conflicting with another test
-        //        var directoryName = HelperDatabase.GetRandomName();
-        //        options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+                Assert.Empty(batchInfos);
+            }
+        }
 
-        //        // create empty client databases
-        //        await this.CreateDatabaseAsync(clientProviderType, client.DatabaseName, true);
+        [Fact]
+        public virtual async Task ErrorUniqueKeyOnSameTableRetryOnNextSyncThenResolveClientByDelete()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
-        //        var agent = new SyncAgent(clientProvider, serverProvider, options);
-        //        await agent.SynchronizeAsync(setup);
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-        //        await Generate_Client_UniqueKeyError(clientProvider as SqlSyncProvider);
+            // Adding two rows on server side, that are correct
+            var str = HelperDatabase.GetRandomName().ToUpper()[..9];
+            await serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
+            await serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
 
-        //        agent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
-        //        {
-        //            // Continue On Error
-        //            args.Resolution = ErrorResolution.RetryOnNextSync;
-        //            Assert.NotNull(args.Exception);
-        //            Assert.NotNull(args.ErrorRow);
-        //            Assert.NotNull(args.SchemaTable);
-        //            Assert.Equal(SyncRowState.Modified, args.ApplyType);
-        //        });
+            foreach (var clientProvider in clientsProvider)
+            {
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
 
-        //        var s = await agent.SynchronizeAsync(setup);
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-        //        Assert.Equal(0, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(2, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(1, s.TotalChangesAppliedOnServer);
-        //        Assert.Equal(0, s.TotalChangesAppliedOnClient);
-        //        Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
-        //        Assert.Equal(1, s.TotalChangesFailedToApplyOnServer);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
+                // To generate a unique key constraint, will modify the batch part info on client just before load it.
+                // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
+                var interceptorId = agent.LocalOrchestrator.OnBatchChangesApplying(args =>
+                {
+                    if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
+                    {
+                        var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
 
-        //        var batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
+                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
-        //        Assert.NotNull(batchInfos);
-        //        Assert.Single(batchInfos);
-        //        Assert.Single(batchInfos[0].BatchPartsInfo);
-        //        Assert.Contains("ERROR", batchInfos[0].BatchPartsInfo[0].FileName);
-        //        Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+                        foreach (var row in table.Rows)
+                            if (row["ProductCategoryID"].ToString() == $"Z2{str}")
+                                row["Name"] = $"Z1{str}";
 
-        //        var batchInfo = batchInfos[0];
-        //        var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfo(batchInfo);
+                        agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
+                    }
+                });
 
-        //        foreach (var syncTable in syncTables)
-        //        {
-        //            Assert.Equal("ProductCategory", syncTable.TableName);
-        //            Assert.True(syncTable.HasRows);
+                agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+                {
+                    // Continue On Error
+                    args.Resolution = ErrorResolution.RetryOnNextSync;
+                    Assert.NotNull(args.Exception);
+                    Assert.NotNull(args.ErrorRow);
+                    Assert.NotNull(args.SchemaTable);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
+                });
 
-        //            Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
-        //        }
+                var s = await agent.SynchronizeAsync(setup);
 
-        //        await Resolve_Client_UniqueKeyError_WithDelete(clientProvider as SqlSyncProvider);
+                Assert.Equal(2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
 
-        //        s = await agent.SynchronizeAsync(setup);
+                var batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
 
-        //        Assert.Equal(0, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(1, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(0, s.TotalChangesAppliedOnServer);
-        //        Assert.Equal(0, s.TotalChangesAppliedOnClient);
-        //        Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
-        //        Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
-        //        Assert.Equal(1, s.TotalResolvedConflicts);
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERROR", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
 
-        //        batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
+                var batchInfo = batchInfos[0];
 
-        //        Assert.Empty(batchInfos);
-        //    }
-        //}
+                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfo(batchInfo);
+
+                foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
+                }
+
+                // To resolve the issue, just clear the interceptor
+                agent.LocalOrchestrator.ClearInterceptors(interceptorId);
+
+                // And then delete the values on server side
+                await serverProvider.DeleteProductCategoryAsync($"Z2{str}");
+
+                s = await agent.SynchronizeAsync(setup);
+
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(1, s.TotalResolvedConflicts);
+
+                batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
+
+                Assert.Empty(batchInfos);
+            }
+        }
+
+        [Fact]
+        public virtual async Task ErrorUniqueKeyOnSameTableRetryOnNextSyncThenResolveClientByUpdate()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Adding two rows on server side, that are correct
+            var str = HelperDatabase.GetRandomName().ToUpper()[..9];
+            await serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
+            await serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
+
+            foreach (var clientProvider in clientsProvider)
+            {
+                // Get a random directory to be sure we are not conflicting with another test
+                var directoryName = HelperDatabase.GetRandomName();
+                options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                // To generate a unique key constraint, will modify the batch part info on client just before load it.
+                // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
+                var interceptorId = agent.LocalOrchestrator.OnBatchChangesApplying(args =>
+                {
+                    if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
+                    {
+                        var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
+
+                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+
+                        foreach (var row in table.Rows)
+                            if (row["ProductCategoryID"].ToString() == $"Z2{str}")
+                                row["Name"] = $"Z1{str}";
+
+                        agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
+                    }
+                });
+
+                agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+                {
+                    // Continue On Error
+                    args.Resolution = ErrorResolution.RetryOnNextSync;
+                    Assert.NotNull(args.Exception);
+                    Assert.NotNull(args.ErrorRow);
+                    Assert.NotNull(args.SchemaTable);
+                    Assert.Equal(SyncRowState.Modified, args.ApplyType);
+                });
+
+                var s = await agent.SynchronizeAsync(setup);
+
+                Assert.Equal(2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(1, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                var batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
+
+                Assert.NotNull(batchInfos);
+                Assert.Single(batchInfos);
+                Assert.Single(batchInfos[0].BatchPartsInfo);
+                Assert.Contains("ERROR", batchInfos[0].BatchPartsInfo[0].FileName);
+                Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+
+                var batchInfo = batchInfos[0];
+
+                var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfo(batchInfo);
+
+                foreach (var syncTable in syncTables)
+                {
+                    Assert.Equal("ProductCategory", syncTable.TableName);
+                    Assert.True(syncTable.HasRows);
+
+                    Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
+                }
+
+                // To resolve the issue, just clear the interceptor
+                agent.LocalOrchestrator.ClearInterceptors(interceptorId);
+
+                // And then delete the values on server side
+                var pc = await serverProvider.GetProductCategoryAsync($"Z2{str}");
+                pc.Name = $"Z2{str}";
+                await serverProvider.UpdateProductCategoryAsync(pc);
+
+                s = await agent.SynchronizeAsync(setup);
+
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
+                Assert.Equal(0, s.TotalChangesFailedToApplyOnServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+
+                batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
+
+                Assert.Empty(batchInfos);
+            }
+        }
 
 
         //[Theory]
