@@ -2019,9 +2019,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
 
             var products = Enumerable.Range(1, rowsToReceive).Select(i =>
-                new Product { ProductId = Guid.NewGuid(), 
-                    Name = Guid.NewGuid().ToString("N"), 
-                    ProductNumber = $"ZZ-{i}{serverProviderType}" });
+                new Product
+                {
+                    ProductId = Guid.NewGuid(),
+                    Name = Guid.NewGuid().ToString("N"),
+                    ProductNumber = $"ZZ-{i}{serverProviderType}"
+                });
 
             using var ctx = new AdventureWorksContext(serverProvider);
             ctx.Product.AddRange(products);
@@ -2051,7 +2054,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                         var cScopeInfoClientSessionId = args.HttpContext.GetClientSessionId();
                         var cStep = args.HttpContext.GetCurrentStep();
 
-                        Debug.WriteLine($"RECEIVE Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
+                        Console.WriteLine($"SERVER RECEIVE Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
+                        Debug.WriteLine($"SERVER RECEIVE Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
                     });
 
                     webServerAgent.OnHttpSendingResponse(async args =>
@@ -2059,7 +2063,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                         // We are droping session on the second batch
                         if (args.HttpStep == HttpStep.GetMoreChanges && batchIndex == 1)
                         {
-                            Debug.WriteLine($"DROPING Session Id {args.HttpContext.Session.Id} on batch {batchIndex}.");
+                            Console.WriteLine($"SERVER DROPING Session Id {args.HttpContext.Session.Id} on batch {batchIndex}.");
+                            Debug.WriteLine($"SERVER DROPING Session Id {args.HttpContext.Session.Id} on batch {batchIndex}.");
                             args.HttpContext.Session.Clear();
                             await args.HttpContext.Session.CommitAsync();
                         }
@@ -2075,9 +2080,24 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
 
-                webRemoteOrchestrator.OnHttpPolicyRetrying(args => Debug.WriteLine(args.Message));
+                webRemoteOrchestrator.OnHttpPolicyRetrying(args => Console.WriteLine(args.Message));
+                webRemoteOrchestrator.OnHttpGettingResponse(args =>
+                {
+                    var cScopeInfoClientId = "";
+                    var cScopeInfoClientSessionId = "";
+                    if (args.Response.Headers.TryGetValues("dotmim-sync-scope-id", out var scopeIds))
+                        cScopeInfoClientId = scopeIds.ToList()[0];
+
+                    if (args.Response.Headers.TryGetValues("dotmim-sync-session-id", out var sessionIds))
+                        cScopeInfoClientSessionId = sessionIds.ToList()[0];
+
+                    Console.WriteLine($"CLIENT GETTING Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{args.Step}. Data:{args.Data}");
+                    Debug.WriteLine($"CLIENT GETTING Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{args.Step}. Data:{args.Data}");
+                });
+
                 webRemoteOrchestrator.OnHttpSendingRequest(args =>
                 {
+
                     var cScopeInfoClientId = "";
                     var cScopeInfoClientSessionId = "";
                     var cStep = "";
@@ -2090,12 +2110,19 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     if (args.Request.Headers.TryGetValues("dotmim-sync-step", out var steps))
                         cStep = steps.ToList()[0];
 
-                    Debug.WriteLine($"SEND    Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
+                    Console.WriteLine($"CLIENT SENDING Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
+                    Debug.WriteLine($"CLIENT SENDING Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
                 });
 
                 var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
 
-                var ex = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync());
+                var ex = await Assert.ThrowsAsync<SyncException>(async () =>
+                {
+                    var s = await agent.SynchronizeAsync();
+
+                    Console.WriteLine(s);
+                    
+                });
 
                 // Assert
                 Assert.NotNull(ex); //"exception required!"
