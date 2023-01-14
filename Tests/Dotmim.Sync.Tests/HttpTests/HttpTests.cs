@@ -37,6 +37,7 @@ using Dotmim.Sync.Builders;
 using Dotmim.Sync.Tests.Fixtures;
 using System.Security.Cryptography;
 using Microsoft.Extensions.Options;
+using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities;
 
 namespace Dotmim.Sync.Tests.IntegrationTests
 {
@@ -2060,16 +2061,16 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                     webServerAgent.OnHttpSendingResponse(async args =>
                     {
-                        // We are droping session on the second batch
-                        if (args.HttpStep == HttpStep.GetMoreChanges && batchIndex == 1)
-                        {
-                            Console.WriteLine($"SERVER DROPING Session Id {args.HttpContext.Session.Id} on batch {batchIndex}.");
-                            Debug.WriteLine($"SERVER DROPING Session Id {args.HttpContext.Session.Id} on batch {batchIndex}.");
-                            args.HttpContext.Session.Clear();
-                            await args.HttpContext.Session.CommitAsync();
-                        }
-                        if (args.HttpStep == HttpStep.GetMoreChanges)
-                            batchIndex++;
+                        //// We are droping session on the second batch
+                        //if (args.HttpStep == HttpStep.GetMoreChanges && batchIndex == 1)
+                        //{
+                        //    Console.WriteLine($"SERVER DROPING Session Id {args.HttpContext.Session.Id} on batch {batchIndex}.");
+                        //    Debug.WriteLine($"SERVER DROPING Session Id {args.HttpContext.Session.Id} on batch {batchIndex}.");
+                        //    args.HttpContext.Session.Clear();
+                        //    await args.HttpContext.Session.CommitAsync();
+                        //}
+                        //if (args.HttpStep == HttpStep.GetMoreChanges)
+                        //    batchIndex++;
 
                     });
 
@@ -2101,6 +2102,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     var cScopeInfoClientId = "";
                     var cScopeInfoClientSessionId = "";
                     var cStep = "";
+
+                    args.Request.Headers.Remove("dotmim-sync-session-id");
+                    args.Request.Headers.Add("dotmim-sync-session-id", Guid.NewGuid().ToString());
+
                     if (args.Request.Headers.TryGetValues("dotmim-sync-scope-id", out var scopeIds))
                         cScopeInfoClientId = scopeIds.ToList()[0];
 
