@@ -172,6 +172,7 @@ namespace Dotmim.Sync.Tests
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_sql_co_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_co_adv", true);
         }
 
         public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_sql_co_adv", true);
@@ -185,8 +186,8 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_npg_co_adv", false);
             yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_cli_npg_co_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_npg_co_adv", false);
         }
 
         public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_srv_npg_co_adv", true);
