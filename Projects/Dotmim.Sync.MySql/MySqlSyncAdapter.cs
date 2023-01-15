@@ -161,7 +161,7 @@ namespace Dotmim.Sync.MySql
                     command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.UpdateUntrackedRows, filter);
                     break;
                 case DbCommandType.Reset:
-                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandType = CommandType.Text;
                     command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.Reset, filter);
                     break;
                 case DbCommandType.BulkTableType:

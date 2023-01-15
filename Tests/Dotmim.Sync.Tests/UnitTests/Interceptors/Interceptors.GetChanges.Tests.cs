@@ -135,7 +135,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var changes = await localOrchestrator.GetChangesAsync(scopeInfoClient);
 
             Assert.Equal(setup.Tables.Count, onSelecting);
-            Assert.Equal(17, onSelected);
+            Assert.Equal(setup.Tables.Count, onSelected);
             Assert.Equal(1, onDatabaseSelected);
             Assert.Equal(1, onDatabaseSelecting);
         }
