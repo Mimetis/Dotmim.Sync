@@ -143,7 +143,6 @@ namespace Dotmim.Sync
 
             if (command == null) return (context, false, null);
 
-
             // Set the parameters value from row 
             this.InternalSetCommandParametersValues(context,  command, DbCommandType.UpdateMetadata, syncAdapter, connection, transaction, cancellationToken, progress,
                 row, senderScopeId, 0, row.RowState == SyncRowState.Deleted, forceWrite);

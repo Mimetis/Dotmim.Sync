@@ -77,8 +77,8 @@ internal class Program
         //var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
         //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        // var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
 
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
@@ -137,9 +137,6 @@ internal class Program
         await SynchronizeAsync(clientProvider, serverProvider, setup, options);
     }
 
-
-
-
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
         // Using the Progress pattern to handle progession during the synchronization
@@ -150,6 +147,7 @@ internal class Program
         options.DisableConstraintsOnApplyChanges = true;
 
         var agent = new SyncAgent(clientProvider, serverProvider, options);
+
         do
         {
             try

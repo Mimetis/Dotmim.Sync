@@ -576,8 +576,9 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
         public DbCommand CreateResetCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset);
-            return CreateProcedureCommand(BuildResetCommand, commandName, connection, transaction);
+            //var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset);
+            //return CreateProcedureCommand(BuildResetCommand, commandName, connection, transaction);
+            return null;
         }
 
         //------------------------------------------------------------------
@@ -695,8 +696,10 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public DbCommand CreateDeleteMetadataCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata);
-            return CreateProcedureCommand(BuildDeleteMetadataCommand, commandName, (SqlConnection)connection, (SqlTransaction)transaction);
+            //var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata);
+            //return CreateProcedureCommand(BuildDeleteMetadataCommand, commandName, (SqlConnection)connection, (SqlTransaction)transaction);
+
+            return null;
         }
 
         //------------------------------------------------------------------
@@ -753,8 +756,9 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public DbCommand CreateSelectRowCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow);
-            return CreateProcedureCommand(BuildSelectRowCommand, commandName, (SqlConnection)connection, (SqlTransaction)transaction);
+            //var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow);
+            //return CreateProcedureCommand(BuildSelectRowCommand, commandName, (SqlConnection)connection, (SqlTransaction)transaction);
+            return null;
         }
 
         //------------------------------------------------------------------
@@ -983,6 +987,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             return this.CreateProcedureCommand(BuildUpdateCommand, commandName, hasMutableColumns, (SqlConnection)connection, (SqlTransaction)transaction);
         }
 
+        //------------------------------------------------------------------
+        // Select changes command
+        //------------------------------------------------------------------
+
         /// <summary>
         /// Add all sql parameters
         /// </summary>
@@ -1190,10 +1198,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
-
-        //------------------------------------------------------------------
-        // Select changes command
-        //------------------------------------------------------------------
         protected virtual SqlCommand BuildSelectIncrementalChangesCommand(SyncFilter filter = null)
         {
             var sqlCommand = new SqlCommand();
@@ -1302,100 +1306,6 @@ namespace Dotmim.Sync.SqlServer.Builders
         //------------------------------------------------------------------
         // Select initialized changes command
         //------------------------------------------------------------------
-
-        //protected virtual SqlCommand BuildSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
-        //{
-
-        //    var sqlCommand = new SqlCommand();
-
-        //    var pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt) { Value = "NULL", IsNullable = true };
-        //    sqlCommand.Parameters.Add(pTimestamp);
-
-        //    var pIndex = new SqlParameter("@sync_index", SqlDbType.BigInt) { Value = 0, IsNullable = false };
-        //    sqlCommand.Parameters.Add(pIndex);
-
-        //    var pBatch = new SqlParameter("@sync_batch_size", SqlDbType.BigInt) { Value = 1, IsNullable = false };
-        //    sqlCommand.Parameters.Add(pBatch);
-
-
-        //    // Add filter parameters
-        //    if (filter != null)
-        //        this.CreateFilterParameters(sqlCommand, filter);
-
-        //    var stringBuilder = new StringBuilder("SELECT DISTINCT");
-        //    var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
-        //    for (var i = 0; i < columns.Count; i++)
-        //    {
-        //        var mutableColumn = columns[i];
-        //        var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-        //        stringBuilder.Append($"\t[base].{columnName}");
-
-        //        if (i < columns.Count - 1)
-        //            stringBuilder.AppendLine(", ");
-        //    }
-        //    stringBuilder.AppendLine();
-        //    stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
-
-        //    // ----------------------------------
-        //    // Make Left Join
-        //    // ----------------------------------
-        //    stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
-
-        //    string empty = "";
-        //    foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-        //    {
-        //        var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-        //        stringBuilder.Append($"{empty}[base].{columnName} = [side].{columnName}");
-        //        empty = " AND ";
-        //    }
-
-        //    // ----------------------------------
-        //    // Custom Joins
-        //    // ----------------------------------
-        //    if (filter != null)
-        //        stringBuilder.Append(CreateFilterCustomJoins(filter));
-
-        //    stringBuilder.AppendLine();
-        //    stringBuilder.AppendLine("WHERE (");
-
-        //    // ----------------------------------
-        //    // Where filters and Custom Where string
-        //    // ----------------------------------
-        //    if (filter != null)
-        //    {
-        //        var createFilterWhereSide = CreateFilterWhereSide(filter);
-        //        stringBuilder.Append(createFilterWhereSide);
-
-        //        if (!string.IsNullOrEmpty(createFilterWhereSide))
-        //            stringBuilder.AppendLine($"AND ");
-
-        //        var createFilterCustomWheres = CreateFilterCustomWheres(filter);
-        //        stringBuilder.Append(createFilterCustomWheres);
-
-        //        if (!string.IsNullOrEmpty(createFilterCustomWheres))
-        //            stringBuilder.AppendLine($"AND ");
-        //    }
-        //    // ----------------------------------
-
-
-        //    stringBuilder.AppendLine("\t([side].[timestamp] > @sync_min_timestamp OR  @sync_min_timestamp IS NULL)");
-        //    stringBuilder.AppendLine(")");
-
-        //    stringBuilder.Append("ORDER BY ");
-        //    empty = "";
-        //    foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-        //    {
-        //        var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-        //        stringBuilder.Append($"{empty}[base].{columnName}");
-        //        empty = ", ";
-        //    }
-        //    stringBuilder.AppendLine("");
-        //    stringBuilder.AppendLine("OFFSET @sync_index ROWS FETCH NEXT @sync_batch_size ROWS ONLY");
-
-        //    sqlCommand.CommandText = stringBuilder.ToString();
-
-        //    return sqlCommand;
-        //}
 
         protected virtual SqlCommand BuildSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
