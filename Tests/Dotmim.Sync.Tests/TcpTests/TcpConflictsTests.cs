@@ -2683,8 +2683,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 var s = await agent.SynchronizeAsync(setup);
 
-                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnServer);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 var pcClient = await clientProvider.GetProductCategoryAsync(productCategoryId);
@@ -2737,8 +2739,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 var s = await agent.SynchronizeAsync(setup);
 
-                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnServer);
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
                 var pcClient = await clientProvider.GetProductCategoryAsync(productCategoryId);
