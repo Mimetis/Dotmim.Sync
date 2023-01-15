@@ -57,7 +57,7 @@ namespace Dotmim.Sync.MySql
 
             // for stored procedures, parameters are prefixed with "in_"
             // for command parameters are prefixed with "@" ....
-            if (commandType == DbCommandType.UpdateMetadata || commandType == DbCommandType.SelectMetadata)
+            if (commandType == DbCommandType.UpdateMetadata || commandType == DbCommandType.SelectMetadata || commandType == DbCommandType.SelectRow)
             {
                 foreach (var parameter in command.Parameters)
                 {
@@ -106,8 +106,8 @@ namespace Dotmim.Sync.MySql
                     command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
                     break;
                 case DbCommandType.SelectRow:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow, filter);
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.SelectRow, filter);
                     break;
                 case DbCommandType.UpdateRow:
                 case DbCommandType.InsertRow:
@@ -130,17 +130,20 @@ namespace Dotmim.Sync.MySql
                     command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.EnableConstraints, filter);
                     break;
                 case DbCommandType.DeleteMetadata:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata, filter);
-                    break;
+                    //command.CommandType = CommandType.StoredProcedure;
+                    //command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata, filter);
+                    //break;
+                    return (default, false);
                 case DbCommandType.UpdateMetadata:
-                    command.CommandType = CommandType.Text;
-                    command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
-                    break;
+                    //command.CommandType = CommandType.Text;
+                    //command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
+                    //break;
+                    return (default, false);
                 case DbCommandType.SelectMetadata:
-                    command.CommandType = CommandType.Text;
-                    command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.SelectMetadata, filter);
-                    break;
+                    //command.CommandType = CommandType.Text;
+                    //command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.SelectMetadata, filter);
+                    //break;
+                    return (default, false);
                 case DbCommandType.InsertTrigger:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.MySqlObjectNames.GetTriggerCommandName(DbTriggerType.Insert, filter);
@@ -159,7 +162,7 @@ namespace Dotmim.Sync.MySql
                     break;
                 case DbCommandType.Reset:
                     command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
+                    command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.Reset, filter);
                     break;
                 case DbCommandType.BulkTableType:
                 case DbCommandType.PreUpdateRows:

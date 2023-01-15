@@ -286,8 +286,9 @@ namespace Dotmim.Sync.MySql.Builders
         }
         public DbCommand CreateResetCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset);
-            return CreateProcedureCommand(BuildResetCommand, commandName, connection, transaction);
+            //var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset);
+            //return CreateProcedureCommand(BuildResetCommand, commandName, connection, transaction);
+            return null;
         }
 
         //------------------------------------------------------------------
@@ -378,8 +379,9 @@ namespace Dotmim.Sync.MySql.Builders
 
         public DbCommand CreateDeleteMetadataCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata);
-            return CreateProcedureCommand(BuildDeleteMetadataCommand, commandName, connection, transaction);
+            //var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata);
+            //return CreateProcedureCommand(BuildDeleteMetadataCommand, commandName, connection, transaction);
+            return null;
         }
 
 
@@ -444,8 +446,9 @@ namespace Dotmim.Sync.MySql.Builders
 
         public DbCommand CreateSelectRowCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow);
-            return CreateProcedureCommand(BuildSelectRowCommand, commandName, connection, transaction);
+            //var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow);
+            //return CreateProcedureCommand(BuildSelectRowCommand, commandName, connection, transaction);
+            return null;
         }
 
         //------------------------------------------------------------------
@@ -584,6 +587,11 @@ namespace Dotmim.Sync.MySql.Builders
             var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow);
             return this.CreateProcedureCommand(BuildUpdateCommand, commandName, hasMutableColumns, connection, transaction);
         }
+
+
+        //------------------------------------------------------------------
+        // Select changes command
+        //------------------------------------------------------------------
 
         /// <summary>
         /// Add all sql parameters
@@ -798,11 +806,6 @@ namespace Dotmim.Sync.MySql.Builders
             return stringBuilder.ToString();
         }
 
-
-
-        //------------------------------------------------------------------
-        // Select changes command
-        //------------------------------------------------------------------
         private MySqlCommand BuildSelectIncrementalChangesCommand(SyncFilter filter = null)
         {
             var sqlCommand = new MySqlCommand();
@@ -917,124 +920,6 @@ namespace Dotmim.Sync.MySql.Builders
         //------------------------------------------------------------------
         // Select changes command
         //------------------------------------------------------------------
-
-        //private MySqlCommand BuildSelectInitializedChangesCommand(SyncFilter filter)
-        //{
-        //    var sqlCommand = new MySqlCommand();
-
-        //    var syncMinParameter = new MySqlParameter
-        //    {
-        //        ParameterName = "sync_min_timestamp",
-        //        MySqlDbType = MySqlDbType.Int64,
-        //        Value = 0
-        //    };
-        //    sqlCommand.Parameters.Add(syncMinParameter);
-        //    var syncIndex = new MySqlParameter
-        //    {
-        //        ParameterName = "sync_index",
-        //        MySqlDbType = MySqlDbType.Int64,
-        //        Value = 0
-        //    };
-        //    sqlCommand.Parameters.Add(syncIndex);
-        //    var syncBatchSize = new MySqlParameter
-        //    {
-        //        ParameterName = "sync_batch_size",
-        //        MySqlDbType = MySqlDbType.Int64,
-        //        Value = -1
-        //    };
-        //    sqlCommand.Parameters.Add(syncBatchSize);
-
-
-        //    // Add filter parameters
-        //    if (filter != null)
-        //        CreateFilterParameters(sqlCommand, filter);
-
-        //    var stringBuilder = new StringBuilder("SELECT ");
-        //    var columns = this.tableDescription.GetMutableColumns(false, true).ToList();
-
-        //    for (var i = 0; i < columns.Count; i++)
-        //    {
-        //        var mutableColumn = columns[i];
-        //        var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
-        //        stringBuilder.AppendLine($"\t`base`.{columnName}");
-
-        //        if (i < columns.Count - 1)
-        //            stringBuilder.Append(", ");
-        //    }
-        //    stringBuilder.AppendLine($"FROM");
-        //    stringBuilder.Append($"\t( SELECT ");
-
-        //    string empty = "";
-        //    foreach (var pkColumn in this.tableDescription.PrimaryKeys)
-        //    {
-        //        var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
-        //        stringBuilder.Append($"{empty}{pkColumnName}");
-        //        empty = ", ";
-        //    }
-        //    stringBuilder.Append($"\tFROM {tableName.Quoted().ToString()} ");
-
-        //    // ----------------------------------
-        //    // Custom Joins
-        //    // ----------------------------------
-        //    if (filter != null)
-        //        stringBuilder.Append($"\t{CreateFilterCustomJoins(filter)}");
-
-        //    // ----------------------------------
-        //    // Where filters and Custom Where string
-        //    // ----------------------------------
-        //    if (filter != null)
-        //    {
-        //        stringBuilder.AppendLine();
-        //        stringBuilder.AppendLine("\tWHERE ");
-
-        //        var createFilterWhereSide = CreateFilterWhereSide(filter, true);
-        //        stringBuilder.Append(createFilterWhereSide);
-
-        //        if (!string.IsNullOrEmpty(createFilterWhereSide))
-        //            stringBuilder.AppendLine($"\tAND ");
-
-        //        var createFilterCustomWheres = CreateFilterCustomWheres(filter);
-        //        stringBuilder.Append(createFilterCustomWheres);
-
-        //        if (!string.IsNullOrEmpty(createFilterCustomWheres))
-        //            stringBuilder.AppendLine($"\tAND ");
-        //    }
-        //    // ----------------------------------
-
-        //    stringBuilder.Append(" ORDER BY ");
-        //    empty = "";
-        //    foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-        //    {
-        //        var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
-        //        stringBuilder.Append($"{empty}{pkColumnName}");
-        //        empty = ", ";
-        //    }
-
-        //    stringBuilder.AppendLine(" LIMIT `sync_index`, `sync_batch_size`) `side`");
-        //    stringBuilder.Append($"JOIN {tableName.Quoted().ToString()} `base` ON ");
-
-        //    empty = "";
-        //    foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-        //    {
-        //        var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
-        //        stringBuilder.Append($"{empty}`base`.{pkColumnName}=`side`.{pkColumnName}");
-        //        empty = " AND ";
-        //    }
-        //    stringBuilder.AppendLine();
-        //    stringBuilder.Append("ORDER BY ");
-        //    empty = "";
-        //    foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-        //    {
-        //        var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
-        //        stringBuilder.Append($"{empty}{pkColumnName}");
-        //        empty = ", ";
-        //    }
-        //    stringBuilder.AppendLine(";");
-
-        //    sqlCommand.CommandText = stringBuilder.ToString();
-
-        //    return sqlCommand;
-        //}
 
         private MySqlCommand BuildSelectInitializedChangesCommand(SyncFilter filter)
         {

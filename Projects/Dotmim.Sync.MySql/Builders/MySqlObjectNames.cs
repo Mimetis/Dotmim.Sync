@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using MySqlConnector;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +13,8 @@ namespace Dotmim.Sync.MySql.Builders
 {
     public class MySqlObjectNames
     {
+        public const string MYSQL_PREFIX_PARAMETER = "in_";
+
         public const string TimestampValue = "ROUND(UNIX_TIMESTAMP(CURRENT_TIMESTAMP(6)) * 10000)";
 
         internal const string insertTriggerName = "`{0}insert_trigger`";
@@ -162,6 +165,8 @@ namespace Dotmim.Sync.MySql.Builders
             this.AddCommandName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand());
             this.AddCommandName(DbCommandType.UpdateMetadata, CreateUpdateMetadataCommand());
             this.AddCommandName(DbCommandType.SelectMetadata, CreateSelectMetadataCommand());
+            this.AddCommandName(DbCommandType.Reset, CreateResetCommand());
+            this.AddCommandName(DbCommandType.SelectRow, CreateSelectRowCommand());
         }
 
         private string CreateSelectMetadataCommand()
@@ -285,6 +290,65 @@ namespace Dotmim.Sync.MySql.Builders
 
         }
 
+        private string CreateResetCommand()
+        {
+
+           
+            var stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()};");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()};");
+            stringBuilder.AppendLine();
+
+           return stringBuilder.ToString();
+
+        }
+
+        private string CreateSelectRowCommand()
+        {
+
+            StringBuilder stringBuilder = new StringBuilder("SELECT ");
+            stringBuilder.AppendLine();
+            StringBuilder stringBuilder1 = new StringBuilder();
+            string empty = string.Empty;
+            foreach (var pkColumn in this.TableDescription.PrimaryKeys)
+            {
+                var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
+                var parameterName = ParserName.Parse(pkColumn, "`").Unquoted().Normalized().ToString();
+
+                stringBuilder1.Append($"{empty}`side`.{columnName} = @{parameterName}");
+                empty = " AND ";
+            }
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
+            {
+                var nonPkColumnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+
+                var isPrimaryKey = this.TableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
+
+                if (isPrimaryKey)
+                    stringBuilder.AppendLine($"\t`side`.{nonPkColumnName}, ");
+                else
+                    stringBuilder.AppendLine($"\t`base`.{nonPkColumnName}, ");
+            }
+
+            stringBuilder.AppendLine("\t`side`.`sync_row_is_tombstone`, ");
+            stringBuilder.AppendLine("\t`side`.`update_scope_id` as `sync_update_scope_id`");
+            stringBuilder.AppendLine($"FROM {tableName.Quoted()} `base`");
+            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Quoted()} `side` ON");
+
+            string str = string.Empty;
+            foreach (var pkColumn in this.TableDescription.PrimaryKeys)
+            {
+                var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
+
+                stringBuilder.Append($"{str}`base`.{columnName} = `side`.{columnName}");
+                str = " AND ";
+            }
+            stringBuilder.AppendLine();
+            stringBuilder.Append("WHERE ");
+            stringBuilder.Append(stringBuilder1.ToString());
+            stringBuilder.Append(";");
+            return stringBuilder.ToString(); 
+        }
 
     }
 }

@@ -1,4 +1,11 @@
 jobs:
+
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: "SQL Server Tcp .net 7.0"
+      dotnetfx: "net7.0"
+      filter: "Dotmim.Sync.Tests.SqlServerUnitTests"
+
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "SQL Server Tcp .net core 3.1"

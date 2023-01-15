@@ -18,6 +18,7 @@ using Xunit.Abstractions;
 using System.Xml.Linq;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Models;
+using Dotmim.Sync.Tests.UnitTests;
 
 namespace Dotmim.Sync.Tests
 {
@@ -54,6 +55,23 @@ namespace Dotmim.Sync.Tests
         }
 
     }
+
+
+    public class SqlServerUnitTests : InterceptorsTests
+    {
+        public SqlServerUnitTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_ut_adv", true);
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_ut_adv", true);
+
+    }
+
 
     public class SqlServerChangeTrackingTcpTests : TcpTests
     {

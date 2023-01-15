@@ -24,19 +24,8 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task LocalOrchestrator_Scope()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
             var scopeName = "scope";
-
-            var options = new SyncOptions();
-            var setup = new SyncSetup(this.Tables);
-
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
 
             var scopeTableCreating = 0;
             var scopeTableCreated = 0;
@@ -127,24 +116,13 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(1, scopeLoaded);
             Assert.Equal(0, scopeSaving);
             Assert.Equal(0, scopeSaved);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
+
         [Fact]
         public async Task RemoteOrchestrator_Scope()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
             var scopeName = "scope";
-
-            var options = new SyncOptions();
-            var setup = new SyncSetup(this.Tables);
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
             var scopeTableCreating = 0;
             var scopeTableCreated = 0;
@@ -239,8 +217,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(1, scopeLoaded);
             Assert.Equal(0, scopeSaving);
             Assert.Equal(0, scopeSaved);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
     }
 }

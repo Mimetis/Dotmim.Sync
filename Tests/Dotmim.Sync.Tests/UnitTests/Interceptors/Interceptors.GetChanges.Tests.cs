@@ -24,30 +24,13 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task LocalOrchestrator_GetChanges()
         {
-            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
-
-            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
-
-            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
-            var serverProvider = new SqlSyncProvider(csServer);
-
-            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
-            var clientProvider = new SqlSyncProvider(csClient);
-
-            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, false).Database.EnsureCreatedAsync();
-            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
-
             var scopeName = "scopesnap1";
-            var syncOptions = new SyncOptions();
-            var setup = new SyncSetup();
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider);
+            var agent = new SyncAgent(clientProvider, serverProvider, options);
 
             // Making a first sync, will initialize everything we need
-            var s = await agent.SynchronizeAsync(scopeName, this.Tables);
+            var s = await agent.SynchronizeAsync(scopeName, setup);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -56,23 +39,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Client side : Create a product category and a product
             // Create a productcategory item
             // Create a new product on server
-            var productId = Guid.NewGuid();
-            var productName = HelperDatabase.GetRandomName();
-            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-            var productCategoryName = HelperDatabase.GetRandomName();
-            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-            using (var ctx = new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider)))
-            {
-                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                ctx.Add(pc);
-
-                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-                ctx.Add(product);
-
-                await ctx.SaveChangesAsync();
-            }
+            await clientProvider.AddProductCategoryAsync();
+            await clientProvider.AddProductAsync();
 
             var onDatabaseSelecting = 0;
             var onDatabaseSelected = 0;
@@ -108,78 +76,31 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var changes = await localOrchestrator.GetChangesAsync(scopeInfoClient);
 
-            Assert.Equal(this.Tables.Length, onSelecting);
-            Assert.Equal(this.Tables.Length, onSelected);
+            Assert.Equal(setup.Tables.Count, onSelecting);
+            Assert.Equal(setup.Tables.Count, onSelected);
             Assert.Equal(1, onDatabaseSelected);
             Assert.Equal(1, onDatabaseSelecting);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbNameSrv);
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbNameCli);
         }
 
         [Fact]
         public async Task LocalOrchestrator_GetBatchChanges()
         {
-            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
-
-            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
-
-            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
-            var serverProvider = new SqlSyncProvider(csServer);
-
-            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
-            var clientProvider = new SqlSyncProvider(csClient);
-
-            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, true).Database.EnsureCreatedAsync();
-            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
-
             var scopeName = "scopesnap1";
-            var syncOptions = new SyncOptions
-            {
-                BatchSize = 100
-            };
-
-            var setup = new SyncSetup();
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider, syncOptions);
+            var agent = new SyncAgent(clientProvider, serverProvider, options);
 
             // Making a first sync, will initialize everything we need
-            var s = await agent.SynchronizeAsync(scopeName, this.Tables);
+            var s = await agent.SynchronizeAsync(scopeName, setup);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
             var remoteOrchestrator = agent.RemoteOrchestrator;
 
-            // Client side : Create a product category and a product
-            // Create a productcategory item
-            // Create a new product on server
-            using (var ctx = new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider)))
-            {
-                for (int i = 0; i <= 10000; i++)
-                {
-                    var productId = Guid.NewGuid();
-                    var productName = HelperDatabase.GetRandomName() + "_" + HelperDatabase.GetRandomName();
-                    var productNumber = productName.ToUpperInvariant().Substring(0, 10);
 
-                    var productCategoryName = HelperDatabase.GetRandomName();
-                    var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
+            await clientProvider.AddProductCategoryAsync();
+            await clientProvider.AddProductAsync();
 
-                    if (!ctx.ProductCategory.Any(p => p.ProductCategoryId == productCategoryId))
-                    {
-                        var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                        ctx.Add(pc);
-                    }
-
-                    var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-                    ctx.Add(product);
-
-                }
-                await ctx.SaveChangesAsync();
-
-            }
             var onDatabaseSelecting = 0;
             var onDatabaseSelected = 0;
             var onSelecting = 0;
@@ -213,13 +134,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
             var changes = await localOrchestrator.GetChangesAsync(scopeInfoClient);
 
-            Assert.Equal(this.Tables.Length, onSelecting);
-            Assert.Equal(16, onSelected);
+            Assert.Equal(setup.Tables.Count, onSelecting);
+            Assert.Equal(17, onSelected);
             Assert.Equal(1, onDatabaseSelected);
             Assert.Equal(1, onDatabaseSelecting);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbNameSrv);
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbNameCli);
         }
 
 
@@ -227,55 +145,21 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task RemoteOrchestrator_GetChanges()
         {
-            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
-
-            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
-
-            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
-            var serverProvider = new SqlSyncProvider(csServer);
-
-            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
-            var clientProvider = new SqlSyncProvider(csClient);
-
-            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, false).Database.EnsureCreatedAsync();
-            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
-
             var scopeName = "scopesnap1";
-            var syncOptions = new SyncOptions();
-            var setup = new SyncSetup();
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider);
+            var agent = new SyncAgent(clientProvider, serverProvider, options);
 
             // Making a first sync, will initialize everything we need
-            var s = await agent.SynchronizeAsync(scopeName, this.Tables);
+            var s = await agent.SynchronizeAsync(scopeName, setup);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
             var remoteOrchestrator = agent.RemoteOrchestrator;
 
             // Server side : Create a product category and a product
-            // Create a productcategory item
-            // Create a new product on server
-            var productId = Guid.NewGuid();
-            var productName = HelperDatabase.GetRandomName();
-            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-            var productCategoryName = HelperDatabase.GetRandomName();
-            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-            using (var ctx = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider)))
-            {
-                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                ctx.Add(pc);
-
-                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-                ctx.Add(product);
-
-                await ctx.SaveChangesAsync();
-            }
+            await serverProvider.AddProductCategoryAsync();
+            await serverProvider.AddProductAsync();
 
             var onSelecting = 0;
             var onSelected = 0;
@@ -310,13 +194,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Get changes to be populated to be sent to the client
             var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
 
-            Assert.Equal(this.Tables.Length, onSelecting);
-            Assert.Equal(this.Tables.Length, onSelected);
+            Assert.Equal(setup.Tables.Count, onSelecting);
+            Assert.Equal(setup.Tables.Count, onSelected);
             Assert.Equal(1, onDatabaseSelected);
             Assert.Equal(1, onDatabaseSelecting);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbNameSrv);
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbNameCli);
         }
 
     }

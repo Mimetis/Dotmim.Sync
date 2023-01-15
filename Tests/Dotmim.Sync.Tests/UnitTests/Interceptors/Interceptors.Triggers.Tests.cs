@@ -24,17 +24,9 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task Trigger_Create_One()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
             // 1) create a console logger
@@ -43,7 +35,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             var logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Debug);
             options.Logger = logger;
 
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -66,7 +57,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, onDropped);
 
             // Check 
-            using (var c = new SqlConnection(cs))
+            using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync().ConfigureAwait(false);
                 var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null).ConfigureAwait(false);
@@ -74,26 +65,15 @@ namespace Dotmim.Sync.Tests.UnitTests
                 c.Close();
             }
 
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task Trigger_Exists()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -105,26 +85,15 @@ namespace Dotmim.Sync.Tests.UnitTests
             exists = await remoteOrchestrator.ExistTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Update);
             Assert.False(exists);
 
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task Trigger_Create_All()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -147,7 +116,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, onDropped);
 
             // Check 
-            using (var c = new SqlConnection(cs))
+            using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync().ConfigureAwait(false);
                 var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null).ConfigureAwait(false);
@@ -158,28 +127,15 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.Single(check.Rows);
                 c.Close();
             }
-
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task Trigger_Drop_One()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -187,7 +143,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.True(isCreated);
 
             // Ensuring we have a clean new instance
-            remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
             var onCreating = 0;
             var onCreated = 0;
@@ -208,7 +164,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(1, onDropped);
 
             // Check 
-            using (var c = new SqlConnection(cs))
+            using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync().ConfigureAwait(false);
                 var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null).ConfigureAwait(false);
@@ -220,27 +176,15 @@ namespace Dotmim.Sync.Tests.UnitTests
             isDropped = await remoteOrchestrator.DropTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Update);
 
             Assert.False(isDropped);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task Trigger_Drop_One_Cancel()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -248,7 +192,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.True(isCreated);
 
             // Ensuring we have a clean new instance
-            remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
             var onCreating = 0;
             var onCreated = 0;
@@ -274,34 +218,22 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, onDropped);
 
             // Check 
-            using (var c = new SqlConnection(cs))
+            using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync().ConfigureAwait(false);
                 var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null).ConfigureAwait(false);
                 Assert.Single(check.Rows);
                 c.Close();
             }
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task Trigger_Create_One_Overwrite()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -343,28 +275,15 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(1, onCreated);
             Assert.Equal(1, onDropping);
             Assert.Equal(1, onDropped);
-
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task Trigger_Drop_All()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -399,9 +318,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, onCreated);
             Assert.Equal(3, onDropping);
             Assert.Equal(3, onDropped);
-
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
     }
