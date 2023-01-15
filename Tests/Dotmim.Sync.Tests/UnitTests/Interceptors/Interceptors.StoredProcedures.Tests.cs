@@ -136,8 +136,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             var isCreated = await remoteOrchestrator.CreateStoredProceduresAsync(scopeInfo, "Product", "SalesLT");
 
             Assert.True(isCreated);
-            Assert.Equal(10, onCreating);
-            Assert.Equal(10, onCreated);
+            Assert.Equal(7, onCreating);
+            Assert.Equal(7, onCreated);
             Assert.Equal(0, onDropping);
             Assert.Equal(0, onDropped);
 
@@ -328,8 +328,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             var isCreated = await remoteOrchestrator.CreateStoredProceduresAsync(scopeInfo, "Product", "SalesLT");
 
             Assert.True(isCreated);
-            Assert.Equal(10, onCreating);
-            Assert.Equal(10, onCreated);
+            Assert.Equal(7, onCreating);
+            Assert.Equal(7, onCreated);
             Assert.Equal(0, onDropping);
             Assert.Equal(0, onDropped);
 

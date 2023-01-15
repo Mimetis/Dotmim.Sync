@@ -18,6 +18,20 @@
 	  <None Remove="UnitTests\Mock\**" />
 	  <None Remove="UnitTests\Orchestrators\**" />
 	</ItemGroup>
+	<ItemGroup>
+	  <Compile Include="UnitTests\Orchestrators\LocalOrchestrator.GetChanges.Tests.cs" />
+	  <Compile Include="UnitTests\Orchestrators\LocalOrchestrator.GetEstimatedChanges.Tests.cs" />
+	  <Compile Include="UnitTests\Orchestrators\LocalOrchestrator.ScopeClients.Tests.cs" />
+	  <Compile Include="UnitTests\Orchestrators\LocalOrchestrator.Scopes.Tests.cs" />
+	  <Compile Include="UnitTests\Orchestrators\LocalOrchestrator.Tests.cs" />
+	  <Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.GetChanges.Tests.cs" />
+	  <Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.GetEstimatedChanges.Tests.cs" />
+	  <Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.Scopes.Tests.cs" />
+	  <Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.Snapshots.Tests.cs" />
+	  <Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.StoredProcedures.Tests.cs" />
+	  <Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.Tests.cs" />
+	  <Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.Triggers.Tests.cs" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="MessagePack" Version="2.4.59" />

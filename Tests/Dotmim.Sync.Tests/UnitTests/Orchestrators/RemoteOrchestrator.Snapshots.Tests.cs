@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
+using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -26,14 +27,6 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task RemoteOrchestrator_CreateSnapshot_CheckInterceptors()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_srv");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var serverProvider = new SqlSyncProvider(cs);
-
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, serverProvider), true, true);
-            await ctx.Database.EnsureCreatedAsync();
-
             var scopeName = "scopesnap1";
             var onSnapshotCreating = false;
             var onSnapshotCreated = false;
@@ -48,10 +41,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 BatchSize = 200
             };
 
-            var setup = new SyncSetup(Tables);
-
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
-
 
             remoteOrchestrator.OnSnapshotCreating(args =>
             {
@@ -102,14 +92,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
             var clientProvider = new SqlSyncProvider(csClient);
 
-
             // Make a first sync to be sure everything is in place
             var agent = new SyncAgent(clientProvider, serverProvider, options);
 
             var onSnapshotApplying = false;
             var onSnapshotApplied = false;
-
-
 
             agent.LocalOrchestrator.OnSnapshotApplying(saa =>
             {
@@ -121,31 +108,18 @@ namespace Dotmim.Sync.Tests.UnitTests
                 onSnapshotApplied = true;
             });
 
-
             // Making a first sync, will initialize everything we need
             await agent.SynchronizeAsync(scopeName, setup);
 
             Assert.True(onSnapshotApplying);
             Assert.True(onSnapshotApplied);
-
-
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
 
         [Fact]
         public async Task RemoteOrchestrator_CreateSnapshot_CheckBatchInfo()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, true);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var rowsCount = GetServerDatabaseRowsCount((dbName, ProviderType.Sql, sqlProvider));
-
+            var rowsCount = serverProvider.GetDatabaseRowsCount();
             var scopeName = "scopesnap2";
 
             // snapshot directory
@@ -158,10 +132,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 BatchSize = 200
             };
 
-            var setup = new SyncSetup(Tables);
-            var provider = new SqlSyncProvider(cs);
-
-            var orchestrator = new RemoteOrchestrator(provider, options);
+            var orchestrator = new RemoteOrchestrator(serverProvider, options);
 
             var bi = await orchestrator.CreateSnapshotAsync(scopeName, setup);
 
@@ -199,21 +170,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.NotNull(summaryObject["parts"][0]["file"]);
             Assert.NotNull(summaryObject["parts"][0]["index"]);
             Assert.NotNull(summaryObject["parts"][0]["last"]);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
 
         [Fact]
         public async Task RemoteOrchestrator_CreateSnapshot_WithParameters_CheckBatchInfo()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, true);
-            await ctx.Database.EnsureCreatedAsync();
-
             // snapshot directory
             var snapshotDirctoryName = HelperDatabase.GetRandomName();
             var snapshotDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), snapshotDirctoryName);
@@ -223,10 +185,6 @@ namespace Dotmim.Sync.Tests.UnitTests
                 SnapshotsDirectory = snapshotDirectory,
                 BatchSize = 200
             };
-
-            var setup = new SyncSetup(Tables);
-            var provider = new SqlSyncProvider(cs);
-
             setup.Filters.Add("Customer", "CompanyName");
 
             var addressCustomerFilter = new SetupFilter("CustomerAddress");
@@ -258,7 +216,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             setup.Filters.Add(orderDetailsFilter);
 
 
-            var orchestrator = new RemoteOrchestrator(provider, options);
+            var orchestrator = new RemoteOrchestrator(serverProvider, options);
 
             SyncParameters parameters = new SyncParameters();
             var p1 = new SyncParameter("CompanyName", "A Bike Store");
@@ -300,7 +258,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.NotNull(summaryObject["parts"][0]["index"]);
             Assert.NotNull(summaryObject["parts"][0]["last"]);
 
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
 
@@ -308,76 +265,31 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task RemoteOrchestrator_CreateSnapshot_ShouldFail_If_MissingMandatoriesOptions()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, true);
-            await ctx.Database.EnsureCreatedAsync();
-
             var scopeName = "scopesnap";
 
             // snapshot directory
             var snapshotDirctoryName = HelperDatabase.GetRandomName();
             var snapshotDirectory = Path.Combine(Environment.CurrentDirectory, snapshotDirctoryName);
 
-            var options = new SyncOptions();
-
-            var setup = new SyncSetup(Tables);
-            var provider = new SqlSyncProvider(cs);
-
-            var orchestrator = new RemoteOrchestrator(provider, options);
+            var orchestrator = new RemoteOrchestrator(serverProvider, options);
             var se = await Assert.ThrowsAsync<SyncException>(() => orchestrator.CreateSnapshotAsync(scopeName, setup));
 
             Assert.Equal(SyncStage.SnapshotCreating, se.SyncStage);
             Assert.Equal("SnapshotMissingMandatariesOptionsException", se.TypeName);
 
             options = new SyncOptions { BatchSize = 2000 };
-            orchestrator = new RemoteOrchestrator(provider, options);
+            orchestrator = new RemoteOrchestrator(serverProvider, options);
             se = await Assert.ThrowsAsync<SyncException>(() => orchestrator.CreateSnapshotAsync(scopeName, setup));
 
             Assert.Equal(SyncStage.SnapshotCreating, se.SyncStage);
             Assert.Equal("SnapshotMissingMandatariesOptionsException", se.TypeName);
 
             options = new SyncOptions { };
-            orchestrator = new RemoteOrchestrator(provider, options);
+            orchestrator = new RemoteOrchestrator(serverProvider, options);
             se = await Assert.ThrowsAsync<SyncException>(() => orchestrator.CreateSnapshotAsync(scopeName, setup));
 
             Assert.Equal(SyncStage.SnapshotCreating, se.SyncStage);
             Assert.Equal("SnapshotMissingMandatariesOptionsException", se.TypeName);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
-
-
-        public int GetServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t)
-        {
-            int totalCountRows = 0;
-
-            using (var serverDbCtx = new AdventureWorksContext(t))
-            {
-                totalCountRows += serverDbCtx.Address.Count();
-                totalCountRows += serverDbCtx.Customer.Count();
-                totalCountRows += serverDbCtx.CustomerAddress.Count();
-                totalCountRows += serverDbCtx.Employee.Count();
-                totalCountRows += serverDbCtx.EmployeeAddress.Count();
-                totalCountRows += serverDbCtx.Log.Count();
-                totalCountRows += serverDbCtx.Posts.Count();
-                totalCountRows += serverDbCtx.PostTag.Count();
-                totalCountRows += serverDbCtx.PricesList.Count();
-                totalCountRows += serverDbCtx.PricesListCategory.Count();
-                totalCountRows += serverDbCtx.PricesListDetail.Count();
-                totalCountRows += serverDbCtx.Product.Count();
-                totalCountRows += serverDbCtx.ProductCategory.Count();
-                totalCountRows += serverDbCtx.ProductModel.Count();
-                totalCountRows += serverDbCtx.SalesOrderDetail.Count();
-                totalCountRows += serverDbCtx.SalesOrderHeader.Count();
-                //totalCountRows += serverDbCtx.Sql.Count();
-                totalCountRows += serverDbCtx.Tags.Count();
-            }
-
-            return totalCountRows;
-        }
-
     }
 }

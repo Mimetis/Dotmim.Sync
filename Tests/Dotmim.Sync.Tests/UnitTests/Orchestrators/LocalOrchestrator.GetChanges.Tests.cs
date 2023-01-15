@@ -22,86 +22,86 @@ namespace Dotmim.Sync.Tests.UnitTests
     public partial class LocalOrchestratorTests : IDisposable
     {
 
-        public SyncSetup GetFilterSetup()
-        {
-            var setup = new SyncSetup(new string[] {
-                            "SalesLT.ProductModel", "SalesLT.ProductCategory","SalesLT.Product",
-                            "Customer","Address", "CustomerAddress", "Employee",
-                            "SalesLT.SalesOrderHeader","SalesLT.SalesOrderDetail" });
+        //public SyncSetup GetFilterSetup()
+        //{
+        //    var setup = new SyncSetup(new string[] {
+        //                    "SalesLT.ProductModel", "SalesLT.ProductCategory","SalesLT.Product",
+        //                    "Customer","Address", "CustomerAddress", "Employee",
+        //                    "SalesLT.SalesOrderHeader","SalesLT.SalesOrderDetail" });
 
-            // Vertical Filter on columns
-            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
-            setup.Tables["Address"].Columns.AddRange(new string[] { "AddressID", "AddressLine1", "City", "PostalCode" });
+        //    // Vertical Filter on columns
+        //    setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
+        //    setup.Tables["Address"].Columns.AddRange(new string[] { "AddressID", "AddressLine1", "City", "PostalCode" });
 
-            // Horizontal Filters on where clause
+        //    // Horizontal Filters on where clause
 
-            // 1) EASY Way:
-            setup.Filters.Add("CustomerAddress", "CustomerID");
-            setup.Filters.Add("SalesOrderHeader", "CustomerID", "SalesLT");
-
-
-            // 2) Same, but decomposed in 3 Steps
-
-            var customerFilter = new SetupFilter("Customer");
-            customerFilter.AddParameter("CustomerID", "Customer", true);
-            customerFilter.AddWhere("CustomerID", "Customer", "CustomerID");
-            setup.Filters.Add(customerFilter);
-
-            // 3) Create your own filter
-
-            // Create a filter on table Address
-            var addressFilter = new SetupFilter("Address");
-            addressFilter.AddParameter("CustomerID", "Customer");
-            addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
-            addressFilter.AddWhere("CustomerID", "CustomerAddress", "CustomerID");
-            setup.Filters.Add(addressFilter);
-            // ----------------------------------------------------
-
-            // Create a filter on table SalesLT.SalesOrderDetail
-            var salesOrderDetailFilter = new SetupFilter("SalesOrderDetail", "SalesLT");
-            salesOrderDetailFilter.AddParameter("CustomerID", "Customer");
-            salesOrderDetailFilter.AddJoin(Join.Left, "SalesLT.SalesOrderHeader").On("SalesLT.SalesOrderHeader", "SalesOrderId", "SalesLT.SalesOrderDetail", "SalesOrderId");
-            salesOrderDetailFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerID", "SalesLT.SalesOrderHeader", "CustomerID");
-            salesOrderDetailFilter.AddWhere("CustomerID", "CustomerAddress", "CustomerID");
-            setup.Filters.Add(salesOrderDetailFilter);
-            // ----------------------------------------------------
-
-            // 4) Custom Wheres on Product.
-            var productFilter = new SetupFilter("Product", "SalesLT");
-            productFilter.AddCustomWhere("ProductCategoryID IS NOT NULL OR side.sync_row_is_tombstone = 1");
-            setup.Filters.Add(productFilter);
+        //    // 1) EASY Way:
+        //    setup.Filters.Add("CustomerAddress", "CustomerID");
+        //    setup.Filters.Add("SalesOrderHeader", "CustomerID", "SalesLT");
 
 
-            return setup;
+        //    // 2) Same, but decomposed in 3 Steps
 
-        }
+        //    var customerFilter = new SetupFilter("Customer");
+        //    customerFilter.AddParameter("CustomerID", "Customer", true);
+        //    customerFilter.AddWhere("CustomerID", "Customer", "CustomerID");
+        //    setup.Filters.Add(customerFilter);
 
-        public int GetFilterServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, Guid? customerId = null)
-        {
-            int totalCountRows = 0;
+        //    // 3) Create your own filter
 
-            if (!customerId.HasValue)
-                customerId = AdventureWorksContext.CustomerId1ForFilter;
+        //    // Create a filter on table Address
+        //    var addressFilter = new SetupFilter("Address");
+        //    addressFilter.AddParameter("CustomerID", "Customer");
+        //    addressFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "AddressId", "Address", "AddressId");
+        //    addressFilter.AddWhere("CustomerID", "CustomerAddress", "CustomerID");
+        //    setup.Filters.Add(addressFilter);
+        //    // ----------------------------------------------------
 
-            using (var serverDbCtx = new AdventureWorksContext(t))
-            {
+        //    // Create a filter on table SalesLT.SalesOrderDetail
+        //    var salesOrderDetailFilter = new SetupFilter("SalesOrderDetail", "SalesLT");
+        //    salesOrderDetailFilter.AddParameter("CustomerID", "Customer");
+        //    salesOrderDetailFilter.AddJoin(Join.Left, "SalesLT.SalesOrderHeader").On("SalesLT.SalesOrderHeader", "SalesOrderId", "SalesLT.SalesOrderDetail", "SalesOrderId");
+        //    salesOrderDetailFilter.AddJoin(Join.Left, "CustomerAddress").On("CustomerAddress", "CustomerID", "SalesLT.SalesOrderHeader", "CustomerID");
+        //    salesOrderDetailFilter.AddWhere("CustomerID", "CustomerAddress", "CustomerID");
+        //    setup.Filters.Add(salesOrderDetailFilter);
+        //    // ----------------------------------------------------
 
-                var addressesCount = serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == customerId)).Count();
-                var customersCount = serverDbCtx.Customer.Where(c => c.CustomerId == customerId).Count();
-                var customerAddressesCount = serverDbCtx.CustomerAddress.Where(c => c.CustomerId == customerId).Count();
-                var salesOrdersDetailsCount = serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == customerId).Count();
-                var salesOrdersHeadersCount = serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == customerId).Count();
-                var employeesCount = serverDbCtx.Employee.Count();
-                var productsCount = serverDbCtx.Product.Count();
-                var productsCategoryCount = serverDbCtx.ProductCategory.Count();
-                var productsModelCount = serverDbCtx.ProductModel.Count();
+        //    // 4) Custom Wheres on Product.
+        //    var productFilter = new SetupFilter("Product", "SalesLT");
+        //    productFilter.AddCustomWhere("ProductCategoryID IS NOT NULL OR side.sync_row_is_tombstone = 1");
+        //    setup.Filters.Add(productFilter);
 
-                totalCountRows = addressesCount + customersCount + customerAddressesCount + salesOrdersDetailsCount + salesOrdersHeadersCount +
-                                 productsCount + productsCategoryCount + productsModelCount + employeesCount;
-            }
 
-            return totalCountRows;
-        }
+        //    return setup;
+
+        //}
+
+        //public int GetFilterServerDatabaseRowsCount((string DatabaseName, ProviderType ProviderType, CoreProvider Provider) t, Guid? customerId = null)
+        //{
+        //    int totalCountRows = 0;
+
+        //    if (!customerId.HasValue)
+        //        customerId = AdventureWorksContext.CustomerId1ForFilter;
+
+        //    using (var serverDbCtx = new AdventureWorksContext(t))
+        //    {
+
+        //        var addressesCount = serverDbCtx.Address.Where(a => a.CustomerAddress.Any(ca => ca.CustomerId == customerId)).Count();
+        //        var customersCount = serverDbCtx.Customer.Where(c => c.CustomerId == customerId).Count();
+        //        var customerAddressesCount = serverDbCtx.CustomerAddress.Where(c => c.CustomerId == customerId).Count();
+        //        var salesOrdersDetailsCount = serverDbCtx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == customerId).Count();
+        //        var salesOrdersHeadersCount = serverDbCtx.SalesOrderHeader.Where(c => c.CustomerId == customerId).Count();
+        //        var employeesCount = serverDbCtx.Employee.Count();
+        //        var productsCount = serverDbCtx.Product.Count();
+        //        var productsCategoryCount = serverDbCtx.ProductCategory.Count();
+        //        var productsModelCount = serverDbCtx.ProductModel.Count();
+
+        //        totalCountRows = addressesCount + customersCount + customerAddressesCount + salesOrdersDetailsCount + salesOrdersHeadersCount +
+        //                         productsCount + productsCategoryCount + productsModelCount + employeesCount;
+        //    }
+
+        //    return totalCountRows;
+        //}
 
 
         /// <summary>
@@ -110,70 +110,27 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task LocalOrchestrator_GetChanges_WithFilters_ShouldReturnNewRowsInserted()
         {
-            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
-
-            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
-
-            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
-            var serverProvider = new SqlSyncProvider(csServer);
-
-            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
-            var clientProvider = new SqlSyncProvider(csClient);
-
-            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, true).Database.EnsureCreatedAsync();
-            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
             var scopeName = "scopesnap1";
-            var setup = GetFilterSetup();
-            var rowsCount = GetFilterServerDatabaseRowsCount((dbNameSrv, ProviderType.Sql, serverProvider));
+            var setup = GetFilteredSetup();
+            var rowsCount = serverProvider.GetDatabaseFilteredRowsCount();
+            var parameters = GetFilterParameters();
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider);
-            var parameters = new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId1ForFilter));
+            var agent = new SyncAgent(clientProvider, serverProvider, options);
 
             // Making a first sync, will initialize everything we need
             var r = await agent.SynchronizeAsync(scopeName, setup, parameters);
             Assert.Equal(rowsCount, r.TotalChangesDownloadedFromServer);
 
-            // Get the orchestrators
-            var localOrchestrator = agent.LocalOrchestrator;
-            var remoteOrchestrator = agent.RemoteOrchestrator;
-
             // Client side : Create a sales order header + 3 sales order details linked to the filter
-            using var ctxClient = new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true);
-
-            var soh = new SalesOrderHeader
-            {
-                SalesOrderNumber = $"SO-99999",
-                RevisionNumber = 1,
-                Status = 5,
-                OnlineOrderFlag = true,
-                PurchaseOrderNumber = "PO348186287",
-                AccountNumber = "10-4020-000609",
-                CustomerId = AdventureWorksContext.CustomerId1ForFilter,
-                ShipToAddressId = 4,
-                BillToAddressId = 5,
-                ShipMethod = "CAR TRANSPORTATION",
-                SubTotal = 6530.35M,
-                TaxAmt = 70.4279M,
-                Freight = 22.0087M,
-                TotalDue = 6530.35M + 70.4279M + 22.0087M
-            };
-
-            var productId = ctxClient.Product.First().ProductId;
-
-            var sod1 = new SalesOrderDetail { OrderQty = 1, ProductId = productId, UnitPrice = 3578.2700M };
-            var sod2 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 44.5400M };
-            var sod3 = new SalesOrderDetail { OrderQty = 2, ProductId = productId, UnitPrice = 1431.5000M };
-
-            soh.SalesOrderDetail.Add(sod1);
-            soh.SalesOrderDetail.Add(sod2);
-            soh.SalesOrderDetail.Add(sod3);
-
-            ctxClient.SalesOrderHeader.Add(soh);
-            await ctxClient.SaveChangesAsync();
+            var products = await clientProvider.GetProductsAsync();
+            var soh = await clientProvider.AddSalesOrderHeaderAsync(AdventureWorksContext.CustomerId1ForFilter);
+            await clientProvider.AddSalesOrderDetailAsync(soh.SalesOrderId, products[0].ProductId);
+            await clientProvider.AddSalesOrderDetailAsync(soh.SalesOrderId, products[0].ProductId);
+            await clientProvider.AddSalesOrderDetailAsync(soh.SalesOrderId, products[0].ProductId);
 
             // Get changes to be populated to the server
             var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
@@ -199,53 +156,20 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task LocalOrchestrator_GetChanges_ShouldReturnNewRowsInserted()
         {
-            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
-
-            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
-
-            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
-            var serverProvider = new SqlSyncProvider(csServer);
-
-            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
-            var clientProvider = new SqlSyncProvider(csClient);
-
-            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, false).Database.EnsureCreatedAsync();
-            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
-
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
             var scopeName = "scopesnap1";
 
             // Make a first sync to be sure everything is in place
             var agent = new SyncAgent(clientProvider, serverProvider);
 
             // Making a first sync, will initialize everything we need
-            await agent.SynchronizeAsync(scopeName, this.Tables);
+            await agent.SynchronizeAsync(scopeName, setup);
 
-            // Get the orchestrators
-            var localOrchestrator = agent.LocalOrchestrator;
-            var remoteOrchestrator = agent.RemoteOrchestrator;
-
-            // Server side : Create a product category and a product
             // Create a productcategory item
             // Create a new product on server
-            var productId = Guid.NewGuid();
-            var productName = HelperDatabase.GetRandomName();
-            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-            var productCategoryName = HelperDatabase.GetRandomName();
-            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-            using (var ctx = new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider)))
-            {
-                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                ctx.Add(pc);
-
-                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-                ctx.Add(product);
-
-                await ctx.SaveChangesAsync();
-            }
+            var productCategory = await clientProvider.AddProductCategoryAsync();
+            var product = await clientProvider.AddProductAsync();
 
             // Get changes to be populated to the server
             var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
@@ -259,11 +183,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var productTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "Product", "SalesLT");
             var productRowName = productTable.Rows[0]["Name"];
-            Assert.Equal(productName, productRowName);
+            Assert.Equal(product.Name, productRowName);
 
             var productCategoryTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "ProductCategory", "SalesLT");
             var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
-            Assert.Equal(productCategoryName, productCategoryRowName);
+            Assert.Equal(productCategory.Name, productCategoryRowName);
 
         }
 
@@ -272,56 +196,20 @@ namespace Dotmim.Sync.Tests.UnitTests
         /// RemoteOrchestrator.GetChanges() should return rows inserted on server, depending on the client scope sent
         /// </summary>
         [Fact]
-        public async Task LocalOrchestrator_GetChanges__WithSerialize_Deserialize_ShouldReturnNewRowsInserted()
+        public async Task LocalOrchestrator_GetChanges_WithSerialize_Deserialize_ShouldReturnNewRowsInserted()
         {
-            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
-
-            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
-
-            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
-            var serverProvider = new SqlSyncProvider(csServer);
-
-            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
-            var clientProvider = new SqlSyncProvider(csClient);
-
-            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, false).Database.EnsureCreatedAsync();
-            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
-
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
             var scopeName = "scopesnap1";
 
             // Make a first sync to be sure everything is in place
             var agent = new SyncAgent(clientProvider, serverProvider);
 
             // Making a first sync, will initialize everything we need
-            await agent.SynchronizeAsync(scopeName, this.Tables);
+            await agent.SynchronizeAsync(scopeName, setup);
 
-            // Get the orchestrators
-            var localOrchestrator = agent.LocalOrchestrator;
-            var remoteOrchestrator = agent.RemoteOrchestrator;
-
-            // Server side : Create a product category and a product
-            // Create a productcategory item
-            // Create a new product on server
-            var productId = Guid.NewGuid();
-            var productName = HelperDatabase.GetRandomName();
-            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-            var productCategoryName = HelperDatabase.GetRandomName();
-            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-            using (var ctx = new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider)))
-            {
-                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                ctx.Add(pc);
-
-                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-                ctx.Add(product);
-
-                await ctx.SaveChangesAsync();
-            }
-
+            var productCategory = await clientProvider.AddProductCategoryAsync();
+            var product = await clientProvider.AddProductAsync();
 
             // Get changes to be populated to the server
             var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
@@ -335,11 +223,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var productTable =  localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "Product", "SalesLT");
             var productRowName = productTable.Rows[0]["Name"];
-            Assert.Equal(productName, productRowName);
+            Assert.Equal(product.Name, productRowName);
 
             var productCategoryTable =  localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "ProductCategory", "SalesLT");
             var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
-            Assert.Equal(productCategoryName, productCategoryRowName);
+            Assert.Equal(productCategory.Name, productCategoryRowName);
 
         }
 

@@ -153,6 +153,19 @@ namespace Dotmim.Sync.Tests.Models
             return p;
         }
 
+        public async static Task<List<Product>> GetProductsAsync(this CoreProvider provider, DbConnection connection = null, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+
+            if (connection != null)
+                ctx.Database.SetDbConnection(connection);
+
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            return await ctx.Product.ToListAsync();
+        }
+      
         public async static Task<Product> GetProductAsync(this CoreProvider provider, Guid productId, DbConnection connection = null, DbTransaction transaction = null)
         {
             using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());

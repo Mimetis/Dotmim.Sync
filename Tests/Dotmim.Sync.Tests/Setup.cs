@@ -72,6 +72,35 @@ namespace Dotmim.Sync.Tests
 
     }
 
+    public class SqlServerUnitLocalOrchestratorTests : LocalOrchestratorTests
+    {
+        public SqlServerUnitLocalOrchestratorTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_ut_adv", true);
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_ut_adv", true);
+
+    }
+
+    public class SqlServerUnitRemoteOrchestratorTests : RemoteOrchestratorTests
+    {
+        public SqlServerUnitRemoteOrchestratorTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_ut_adv", true);
+        }
+
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_ut_adv", true);
+
+    }
 
     public class SqlServerChangeTrackingTcpTests : TcpTests
     {

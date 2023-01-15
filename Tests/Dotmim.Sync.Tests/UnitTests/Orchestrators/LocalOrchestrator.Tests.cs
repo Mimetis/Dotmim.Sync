@@ -1,6 +1,8 @@
 ﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
+using Dotmim.Sync.Tests.Fixtures;
+using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
 using Newtonsoft.Json;
 using System;
@@ -8,6 +10,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
@@ -18,43 +21,23 @@ using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
-    public partial class LocalOrchestratorTests : IDisposable
+    public abstract partial class LocalOrchestratorTests : DatabaseTest, IClassFixture<DatabaseServerFixture>, IDisposable
     {
+        private CoreProvider serverProvider;
+        private CoreProvider clientProvider;
+        private IEnumerable<CoreProvider> clientsProvider;
+        private SyncSetup setup;
+        private SyncOptions options;
 
-        public string[] Tables => new string[]
-         {
-            "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Employee", "Customer", "Address", "CustomerAddress", "EmployeeAddress",
-            "SalesLT.SalesOrderHeader", "SalesLT.SalesOrderDetail", "Posts", "Tags", "PostTag",
-            "PricesList", "PricesListCategory", "PricesListDetail"
-         };
-
-        // Current test running
-        private ITest test;
-        private Stopwatch stopwatch;
-        public ITestOutputHelper Output { get; }
-
-        public LocalOrchestratorTests(ITestOutputHelper output)
+        public LocalOrchestratorTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
         {
-
-            // Getting the test running
-            this.Output = output;
-            var type = output.GetType();
-            var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
-            this.test = (ITest)testMember.GetValue(output);
-            this.stopwatch = Stopwatch.StartNew();
-        }
-
-        public void Dispose()
-        {
-
-            this.stopwatch.Stop();
-
-            var str = $"{test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
-            Console.WriteLine(str);
-            Debug.WriteLine(str);
+            serverProvider = GetServerProvider();
+            clientsProvider = GetClientProviders();
+            clientProvider = clientsProvider.First();
+            setup = GetSetup();
+            options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
         }
-
 
         [Fact]
         public async Task LocalOrchestrator_BeginSession_ShouldIncrement_SyncStage()
