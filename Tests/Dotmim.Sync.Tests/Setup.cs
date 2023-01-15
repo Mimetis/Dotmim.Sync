@@ -80,7 +80,7 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_ut_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_lut_adv", true);
         }
 
         public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_lut_adv", true);
@@ -95,7 +95,7 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_ut_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_rut_adv", true);
         }
 
         public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_rut_adv", true);

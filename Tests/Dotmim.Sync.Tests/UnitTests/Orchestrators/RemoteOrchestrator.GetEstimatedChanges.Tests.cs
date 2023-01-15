@@ -127,7 +127,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var changes = await remoteOrchestrator.GetEstimatedChangesCountAsync(clientScopeInfo);
 
             Assert.NotNull(changes.ServerChangesSelected);
-            Assert.Equal(2, changes.ServerChangesSelected.TableChangesSelected.Count);
+            Assert.Equal(16, changes.ServerChangesSelected.TableChangesSelected.Count);
             Assert.Contains("Product", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("ProductCategory", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
         }
