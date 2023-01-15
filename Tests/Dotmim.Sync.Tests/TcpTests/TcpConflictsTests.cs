@@ -2855,6 +2855,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
+            // since we have no interceptor, we don't know what kind of conflict (delete - no rows)
+            // is happening. So server will try to apply the delete and will add the metadata
+            // then it's normal to download this delete on next client
+            var download = 0;
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
@@ -2865,7 +2869,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 var s = await agent.SynchronizeAsync(setup);
 
-                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(download, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
                 
@@ -2873,6 +2877,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Null(pcClient);
                 var pcServer = await clientProvider.GetProductCategoryAsync(productCategoryId);
                 Assert.Null(pcServer);
+                download++;
             }
         }
 
