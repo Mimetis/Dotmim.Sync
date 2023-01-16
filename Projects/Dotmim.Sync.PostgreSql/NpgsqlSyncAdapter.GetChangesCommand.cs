@@ -202,7 +202,7 @@ namespace Dotmim.Sync.PostgreSql
                 empty = " AND ";
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine("WHERE (side.\"timestamp\" > @sync_min_timestamp AND \"side\".\"sync_row_is_tombstone\" = True);");
+            stringBuilder.AppendLine("WHERE (side.\"timestamp\" > @sync_min_timestamp AND \"side\".\"sync_row_is_tombstone\" = 1);");
             
             var sqlCommand = new NpgsqlCommand
             {
@@ -352,7 +352,7 @@ namespace Dotmim.Sync.PostgreSql
 
             if (checkTombstoneRows)
             {
-                stringBuilder.AppendLine($" OR side.sync_row_is_tombstone = TRUE");
+                stringBuilder.AppendLine($" OR side.sync_row_is_tombstone = 1");
                 stringBuilder.AppendLine($")");
             }
             // Managing when state is tombstone

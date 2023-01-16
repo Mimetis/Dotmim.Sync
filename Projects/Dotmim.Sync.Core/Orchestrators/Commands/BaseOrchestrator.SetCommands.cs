@@ -69,7 +69,7 @@ namespace Dotmim.Sync
                     // Get column name and type
                     parameterName = ParserName.Parse(columnFilter, syncAdapter.QuotePrefix, syncAdapter.QuoteSuffix).Unquoted().Normalized().ToString();
                     parameterDbType = columnFilter.GetDbType();
-                    size = columnFilter.MaxLength;
+                    size = columnFilter.GetDataType() == typeof(string) && columnFilter.MaxLength > 0 ? columnFilter.MaxLength : -1;
                     defaultValue = param.DefaultValue;
 
                 }
@@ -137,7 +137,7 @@ namespace Dotmim.Sync
                     // Get column name and type
                     parameterName = ParserName.Parse(columnFilter, syncAdapter.QuotePrefix, syncAdapter.QuoteSuffix).Unquoted().Normalized().ToString();
                     parameterDbType = columnFilter.GetDbType();
-                    size = columnFilter.MaxLength;
+                    size = columnFilter.GetDataType() == typeof(string) && columnFilter.MaxLength > 0 ? columnFilter.MaxLength : -1;
                     defaultValue = param.DefaultValue;
 
                 }
@@ -209,11 +209,12 @@ namespace Dotmim.Sync
             {
                 var columnName = ParserName.Parse(column, syncAdapter.QuotePrefix, syncAdapter.QuoteSuffix).Unquoted().Normalized().ToString();
 
+
                 p = command.CreateParameter();
                 p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
-                //p.Size = column.MaxLength;
+                p.Size = column.GetDataType() == typeof(string) && column.MaxLength > 0 ? column.MaxLength : -1;
                 command.Parameters.Add(p);
             }
 
@@ -248,7 +249,7 @@ namespace Dotmim.Sync
                 p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
-                //p.Size = column.MaxLength;
+                p.Size = column.GetDataType() == typeof(string) && column.MaxLength > 0 ? column.MaxLength : -1;
                 command.Parameters.Add(p);
             }
 
@@ -293,7 +294,7 @@ namespace Dotmim.Sync
                 p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
-                //p.Size = column.MaxLength;
+                p.Size = column.GetDataType() == typeof(string) && column.MaxLength > 0 ? column.MaxLength : -1;
                 command.Parameters.Add(p);
             }
 
@@ -310,7 +311,7 @@ namespace Dotmim.Sync
                 p.Direction = ParameterDirection.Output;
                 command.Parameters.Add(p);
             }
-            
+
             return command;
         }
 
@@ -330,7 +331,7 @@ namespace Dotmim.Sync
                 p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
-                p.Size = column.MaxLength;
+                p.Size = column.GetDataType() == typeof(string) && column.MaxLength > 0 ? column.MaxLength : -1;
                 command.Parameters.Add(p);
             }
 
@@ -346,7 +347,7 @@ namespace Dotmim.Sync
 
             p = command.CreateParameter();
             p.ParameterName = $"{syncAdapter.ParameterPrefix}sync_row_is_tombstone";
-            p.DbType = DbType.Boolean;
+            p.DbType = DbType.Int16;
             command.Parameters.Add(p);
 
             if (syncAdapter.SupportsOutputParameters)
@@ -357,7 +358,7 @@ namespace Dotmim.Sync
                 p.Direction = ParameterDirection.Output;
                 command.Parameters.Add(p);
             }
-            
+
             return command;
         }
 
@@ -376,7 +377,7 @@ namespace Dotmim.Sync
                 p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
-                p.Size = column.MaxLength;
+                p.Size = column.GetDataType() == typeof(string) && column.MaxLength > 0 ? column.MaxLength : -1;
                 command.Parameters.Add(p);
             }
 

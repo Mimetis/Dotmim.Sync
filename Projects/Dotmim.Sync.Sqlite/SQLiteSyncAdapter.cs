@@ -34,23 +34,18 @@ namespace Dotmim.Sync.Sqlite
             return (command, false);
         }
 
-        //public override void AddCommandParameterValue(DbParameter parameter, object value, DbCommand command, DbCommandType commandType)
-        //{
-        //    if (value == null || value == DBNull.Value)
-        //        parameter.Value = DBNull.Value;
-        //    else
-        //    {
-        //        var convValue = SyncTypeConverter.TryConvertFromDbType(value, parameter.DbType);
-        //        parameter.Value = convValue;
-        //    }
-
-        //    //if (parameter.DbType == DbType.Guid)
-        //    //{
-        //    //    parameter.Value = 
-        //    //}
-
-        //}
-           
+        public override void AddCommandParameterValue(DbParameter parameter, object value, DbCommand command, DbCommandType commandType)
+        {
+            if (value == null || value == DBNull.Value)
+                parameter.Value = DBNull.Value;
+            else
+            {
+                var convValue = SyncTypeConverter.TryConvertFromDbType(value, parameter.DbType);
+                parameter.Value = convValue;
+                //if (parameter.DbType == DbType.Guid)
+                //    parameter.Size = 0;
+            }
+        }
 
         public override DbCommand EnsureCommandParameters(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {

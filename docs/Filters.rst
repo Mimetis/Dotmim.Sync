@@ -212,7 +212,7 @@ For instance, here is the code that is generated using a ``AddCustomWhere`` clau
 
     var filter = new SetupFilter("SalesOrderDetail");
     filter.AddParameter("OrderQty", System.Data.DbType.Int16);
-    filter.AddCustomWhere("OrderQty = @OrderQty");
+    filter.AddCustomWhere("{{{OrderQty}}} = @OrderQty");
 
 
 .. code-block:: sql
@@ -220,12 +220,18 @@ For instance, here is the code that is generated using a ``AddCustomWhere`` clau
     SELECT DISTINCT ..............
     WHERE (
     (
-        OrderQty = @OrderQty
+        [OrderQty] = @OrderQty
     )
     AND 
         [side].[timestamp] > @sync_min_timestamp
         AND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL)
     )
+
+.. note:: The **{{{** and **}}}** characters are used to escape the column ``OrderQty``, and will be replaced by the escaper character of the database engine.
+    
+    * For **SQL Server** and **SQLite** it will be ``[`` and ``]``
+    * For **MySQL** and **MariaDB** it will be `````
+    * For **Postgres**, it will be ``"`` 
 
 
 The problem here is pretty simple. 
@@ -254,7 +260,7 @@ Here is the good ``AddCustomWhere`` method where deleted rows are handled correc
 
     var filter = new SetupFilter("SalesOrderDetail");
     filter.AddParameter("OrderQty", System.Data.DbType.Int16);
-    filter.AddCustomWhere("OrderQty = @OrderQty OR side.sync_row_is_tombstone = 1");
+    filter.AddCustomWhere("{{{OrderQty}}} = @OrderQty OR {{{side}}}.{{{sync_row_is_tombstone}}} = 1");
     setup.Filters.Add(filter);
 
 

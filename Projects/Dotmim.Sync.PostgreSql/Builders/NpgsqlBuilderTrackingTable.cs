@@ -54,7 +54,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             // adding the tracking columns
             stringBuilder.AppendLine($"\"update_scope_id\" uuid NULL, ");
             stringBuilder.AppendLine($"\"timestamp\" bigint NULL, ");
-            stringBuilder.AppendLine($"\"sync_row_is_tombstone\" boolean NOT NULL default FALSE, ");
+            stringBuilder.AppendLine($"\"sync_row_is_tombstone\" smallint NOT NULL default 0, ");
             stringBuilder.AppendLine($"\"last_change_datetime\" timestamptz NULL ");
             stringBuilder.AppendLine(");");
 
