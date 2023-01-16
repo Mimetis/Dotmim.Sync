@@ -88,14 +88,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                 DbStoredProcedureType.SelectChangesWithFilters => this.CreateSelectIncrementalChangesWithFilterCommand(filter, connection, transaction),
                 DbStoredProcedureType.SelectInitializedChanges => this.CreateSelectInitializedChangesCommand(connection, transaction),
                 DbStoredProcedureType.SelectInitializedChangesWithFilters => this.CreateSelectInitializedChangesWithFilterCommand(filter, connection, transaction),
-                DbStoredProcedureType.SelectRow => this.CreateSelectRowCommand(connection, transaction),
+                DbStoredProcedureType.SelectRow => null,
                 DbStoredProcedureType.UpdateRow => this.CreateUpdateCommand(connection, transaction),
                 DbStoredProcedureType.DeleteRow => this.CreateDeleteCommand(connection, transaction),
-                DbStoredProcedureType.DeleteMetadata => this.CreateDeleteMetadataCommand(connection, transaction),
+                DbStoredProcedureType.DeleteMetadata => null,
                 DbStoredProcedureType.BulkTableType => this.CreateBulkTableTypeCommand(connection, transaction),
                 DbStoredProcedureType.BulkUpdateRows => this.CreateBulkUpdateCommand(connection, transaction),
                 DbStoredProcedureType.BulkDeleteRows => this.CreateBulkDeleteCommand(connection, transaction),
-                DbStoredProcedureType.Reset => this.CreateResetCommand(connection, transaction),
+                DbStoredProcedureType.Reset => null,
                 _ => null,
             };
 
@@ -574,6 +574,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
+        
         public DbCommand CreateResetCommand(DbConnection connection, DbTransaction transaction)
         {
             //var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset);

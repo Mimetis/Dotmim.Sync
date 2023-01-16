@@ -5,6 +5,7 @@ using Dotmim.Sync.Manager;
 using Dotmim.Sync.Serialization;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -21,10 +22,54 @@ namespace Dotmim.Sync
 {
     public partial class LocalOrchestrator
     {
+
+        /// <summary>
+        /// Returning the version found in a scope info table
+        /// scope info table rows returned as a classic SyncTable (to be compatible with any scope_info table version)
+        /// </summary>
+        public virtual async Task<(Version version, SyncTable scopeInfos)> GetVersionAsync()
+        {
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
+            Version version = null;
+            SyncTable scopeInfos = null;
+
+
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating).ConfigureAwait(false);
+            // get Database builder
+            var dbBuilder = this.Provider.GetDatabaseBuilder();
+
+            // Initialize database if needed
+            await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+            bool cScopeInfoExists;
+            (context, cScopeInfoExists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
+                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+            // no scopes info table. Just a new sync
+            if (!cScopeInfoExists)
+                return default;
+
+            // If we have a scope info, we can get the version
+            scopeInfos = await dbBuilder.GetTableAsync(this.Options.ScopeInfoTableName, default,
+                runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+            if (scopeInfos != null && scopeInfos.Rows.Count > 0)
+            {
+                // Get the first row and check sync_scope_version value
+                var row = scopeInfos.Rows[0];
+                var versionString = row["sync_scope_version"] == DBNull.Value ? null : row["sync_scope_version"].ToString();
+                version = SyncVersion.EnsureVersion(versionString);
+            }
+
+            return (version, scopeInfos);
+        }
+
+
+
         /// <summary>
         /// Check if we need to upgrade the Database Structure
         /// </summary>
-        public virtual async Task<bool> NeedsToUpgradeAsync()
+        public virtual async Task<bool> NeedsToUpgradeAsyncBack()
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
@@ -354,6 +399,42 @@ namespace Dotmim.Sync
                 throw GetSyncError(context, ex);
             }
         }
+
+
+
+        internal virtual async Task<(SyncContext context, bool upgraded)> InternalUpgradeAsync(SyncTable scopeInfos, Version version,
+                        SyncContext context, DbConnection connection, DbTransaction transaction,
+                        CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            if (version.Major == 0 && version.Minor == 9 && version.Revision <= 5)
+            {
+                // If we have only one scope without paramaters, we can upgrade it automatically
+
+                foreach(var row in scopeInfos.Rows) {
+                    var setupJson = row["sync_scope_setup"].ToString();
+                    if (setupJson != null)
+                    {
+                        var setup = new JObject(setupJson);
+                        if (setup != null)
+                        {
+                            var filters = setup["fils"];
+                        }
+                    }
+                }
+
+                StringBuilder stringBuilder = new StringBuilder();
+                stringBuilder.AppendLine($"Your version is {version} and you need to manually upgrade your client to be able to use the current verison {SyncVersion.Current}.");
+                stringBuilder.AppendLine($"Your {this.Options.ScopeInfoTableName} table contains setup with filters that need to be migrated manually, as new version needs the parameters values saved in the {this.Options.ScopeInfoTableName} table and they are not present in the {this.Options.ScopeInfoTableName} table version {version}.");
+                stringBuilder.AppendLine($"Please see this discussion on how to migrate to your version to the last one : https://github.com/Mimetis/Dotmim.Sync/discussions/802#discussioncomment-3594681");
+                throw new Exception(stringBuilder.ToString());
+            }
+
+            
+
+
+            return (default, default);
+        }
+
 
 
         internal virtual async Task<(SyncContext context, bool upgraded)> InternalUpgradeAsync(List<ScopeInfo> clientScopeInfos,

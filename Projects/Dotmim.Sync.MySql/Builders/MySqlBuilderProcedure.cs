@@ -128,12 +128,6 @@ namespace Dotmim.Sync.MySql.Builders
             if (param.Direction == ParameterDirection.Output || param.Direction == ParameterDirection.InputOutput)
                 output = "OUT ";
 
-            // MySql does not accept default value or Is Nullable
-            //if (param.IsNullable)
-            //    isNull="NULL";
-            //if (param.Value != null)
-            //    defaultValue = $"= {param.Value.ToString()}";
-
             var parameterName = ParserName.Parse(param.ParameterName, "`").Quoted().ToString();
 
             stringBuilder3.Append($"{output}{parameterName} {columnDeclarationString} {isNull} {defaultValue}");
@@ -354,6 +348,7 @@ namespace Dotmim.Sync.MySql.Builders
         {
             var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow);
             return CreateProcedureCommand(BuildDeleteCommand, commandName, connection, transaction);
+            //return null;
         }
 
         //------------------------------------------------------------------
@@ -901,20 +896,23 @@ namespace Dotmim.Sync.MySql.Builders
 
         public DbCommand CreateSelectIncrementalChangesCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges);
-            Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(null);
-            return CreateProcedureCommand(cmdWithoutFilter, commandName, connection, transaction);
+            //var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges);
+            //Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectIncrementalChangesCommand(null);
+            //return CreateProcedureCommand(cmdWithoutFilter, commandName, connection, transaction);
 
+            return null;
         }
 
         public DbCommand CreateSelectIncrementalChangesWithFilterCommand(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
-            if (filter == null)
-                return null;
+            //if (filter == null)
+            //    return null;
 
-            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
-            Func<MySqlCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(filter);
-            return CreateProcedureCommand(cmdWithFilter, commandName, connection, transaction);
+            //var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
+            //Func<MySqlCommand> cmdWithFilter = () => BuildSelectIncrementalChangesCommand(filter);
+            //return CreateProcedureCommand(cmdWithFilter, commandName, connection, transaction);
+
+            return null;
         }
 
         //------------------------------------------------------------------
@@ -1039,19 +1037,22 @@ namespace Dotmim.Sync.MySql.Builders
         }
         public DbCommand CreateSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges);
-            Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectInitializedChangesCommand(null);
-            return CreateProcedureCommand(cmdWithoutFilter, commandName, connection, transaction);
+            //var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges);
+            //Func<MySqlCommand> cmdWithoutFilter = () => BuildSelectInitializedChangesCommand(null);
+            //return CreateProcedureCommand(cmdWithoutFilter, commandName, connection, transaction);
+            return null;
         }
 
         public DbCommand CreateSelectInitializedChangesWithFilterCommand(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
-            if (filter == null)
-                return null;
+            //if (filter == null)
+            //    return null;
 
-            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
-            Func<MySqlCommand> cmdWithFilter = () => BuildSelectInitializedChangesCommand(filter);
-            return CreateProcedureCommand(cmdWithFilter, commandName, connection, transaction);
+            //var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
+            //Func<MySqlCommand> cmdWithFilter = () => BuildSelectInitializedChangesCommand(filter);
+            //return CreateProcedureCommand(cmdWithFilter, commandName, connection, transaction);
+            return null;
+
         }
     }
 }

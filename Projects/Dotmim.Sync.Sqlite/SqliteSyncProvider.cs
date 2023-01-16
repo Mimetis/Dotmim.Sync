@@ -74,6 +74,23 @@ namespace Dotmim.Sync.Sqlite
         {
         }
 
+        public string FilePath
+        {
+            get
+            {
+                try
+                {
+                    return new FileInfo(this.builder.DataSource).FullName;
+                }
+                catch (Exception)
+                {
+
+                    return null;
+                }
+                
+            }
+        }
+
         public override string ConnectionString
         {
             get
@@ -153,7 +170,7 @@ namespace Dotmim.Sync.Sqlite
                 builder.ForeignKeys = !this.Orchestrator.Options.DisableConstraintsOnApplyChanges;
 
             var connectionString = builder.ToString();
-            
+
             var sqliteConnection = new SqliteConnection(connectionString);
 
             return sqliteConnection;

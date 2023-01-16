@@ -1,9 +1,15 @@
 ﻿using Dotmim.Sync.Builders;
+#if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
 using MySqlConnector;
+#elif NETSTANDARD
+using MySql.Data.MySqlClient;
+#endif
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
+
 
 #if MARIADB
 namespace Dotmim.Sync.MariaDB.Builders
@@ -11,7 +17,7 @@ namespace Dotmim.Sync.MariaDB.Builders
 namespace Dotmim.Sync.MySql.Builders
 #endif
 {
-    public class MySqlObjectNames
+    public partial class MySqlObjectNames
     {
         public const string MYSQL_PREFIX_PARAMETER = "in_";
 
@@ -48,6 +54,7 @@ namespace Dotmim.Sync.MySql.Builders
         Dictionary<DbCommandType, string> commandNames = new Dictionary<DbCommandType, string>();
         
         private ParserName tableName, trackingName;
+        private MySqlDbMetadata dbMetadata;
 
         public SyncTable TableDescription { get; }
         public SyncSetup Setup { get; }
@@ -124,7 +131,7 @@ namespace Dotmim.Sync.MySql.Builders
             this.ScopeName = scopeName;
             this.tableName = tableName;
             this.trackingName = trackingName;
-
+            this.dbMetadata = new MySqlDbMetadata();
             SetDefaultNames();
         }
 
@@ -167,9 +174,100 @@ namespace Dotmim.Sync.MySql.Builders
             this.AddCommandName(DbCommandType.SelectMetadata, CreateSelectMetadataCommand());
             this.AddCommandName(DbCommandType.Reset, CreateResetCommand());
             this.AddCommandName(DbCommandType.SelectRow, CreateSelectRowCommand());
+            this.AddCommandName(DbCommandType.DeleteRow, CreateDeleteCommand());
+            this.AddCommandName(DbCommandType.UpdateRow, CreateUpdateCommand());
+            this.AddCommandName(DbCommandType.SelectChanges, CreateSelectIncrementalChangesCommand());
+            this.AddCommandName(DbCommandType.SelectChangesWithFilters, CreateSelectIncrementalChangesCommand());
+            this.AddCommandName(DbCommandType.SelectInitializedChanges, CreateSelectInitializedChangesCommand());
+            this.AddCommandName(DbCommandType.SelectInitializedChangesWithFilters, CreateSelectInitializedChangesCommand());
         }
 
-        private string CreateSelectMetadataCommand()
+        internal MySqlParameter GetMySqlParameter(SyncColumn column)
+        {
+#if MARIADB
+            var originalProvider = MariaDBSyncProvider.ProviderType;
+#elif MYSQL
+            var originalProvider = MySqlSyncProvider.ProviderType;
+#endif
+            var parameterName = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
+
+            // Get the good SqlDbType (even if we are not from Sql Server def)
+            var mySqlDbType = this.TableDescription.OriginalProvider == originalProvider ?
+                this.dbMetadata.GetMySqlDbType(column) : this.dbMetadata.GetOwnerDbTypeFromDbType(column);
+
+            var sqlParameter = new MySqlParameter
+            {
+                ParameterName = $"{MYSQL_PREFIX_PARAMETER}{parameterName}",
+                DbType = column.GetDbType(),
+                IsNullable = column.AllowDBNull,
+                MySqlDbType = mySqlDbType,
+                SourceColumn = string.IsNullOrEmpty(column.ExtraProperty1) ? null : column.ExtraProperty1,
+            };
+
+
+            (byte precision, byte scale) = this.dbMetadata.GetCompatibleColumnPrecisionAndScale(column, this.TableDescription.OriginalProvider);
+
+            if ((sqlParameter.DbType == DbType.Decimal || sqlParameter.DbType == DbType.Double
+                 || sqlParameter.DbType == DbType.Single || sqlParameter.DbType == DbType.VarNumeric) && precision > 0)
+            {
+                sqlParameter.Precision = precision;
+                if (scale > 0)
+                    sqlParameter.Scale = scale;
+            }
+            else if (column.MaxLength > 0)
+            {
+                sqlParameter.Size = (int)column.MaxLength;
+            }
+            else if (sqlParameter.DbType == DbType.Guid)
+            {
+                sqlParameter.Size = 36;
+            }
+            else
+            {
+                sqlParameter.Size = -1;
+            }
+
+            return sqlParameter;
+        }
+
+
+        /// <summary>
+        /// From a SqlParameter, create the declaration
+        /// </summary>
+        internal string CreateParameterDeclaration(MySqlParameter param)
+        {
+
+            var tmpColumn = new SyncColumn(param.ParameterName)
+            {
+                OriginalDbType = param.MySqlDbType.ToString(),
+                OriginalTypeName = param.MySqlDbType.ToString().ToLowerInvariant(),
+                MaxLength = param.Size,
+                Precision = param.Precision,
+                Scale = param.Scale,
+                DbType = (int)param.DbType,
+                ExtraProperty1 = string.IsNullOrEmpty(param.SourceColumn) ? null : param.SourceColumn
+            };
+
+            var stringBuilder3 = new StringBuilder();
+            string columnDeclarationString = this.dbMetadata.GetCompatibleColumnTypeDeclarationString(tmpColumn, this.TableDescription.OriginalProvider);
+
+            string output = string.Empty;
+            string isNull = string.Empty;
+            string defaultValue = string.Empty;
+
+            if (param.Direction == ParameterDirection.Output || param.Direction == ParameterDirection.InputOutput)
+                output = "OUT ";
+
+            var parameterName = ParserName.Parse(param.ParameterName, "`").Quoted().ToString();
+
+            stringBuilder3.Append($"{output}{parameterName} {columnDeclarationString} {isNull} {defaultValue}");
+
+            return stringBuilder3.ToString();
+
+        }
+
+
+        public string CreateSelectMetadataCommand()
         {
             var pkeySelect = new StringBuilder();
             var pkeyValues = new StringBuilder();
@@ -196,7 +294,7 @@ namespace Dotmim.Sync.MySql.Builders
             var commandText = stringBuilder.ToString();
             return commandText;
         }
-        private string CreateUpdateMetadataCommand()
+        public string CreateUpdateMetadataCommand()
         {
             StringBuilder stringBuilder = new StringBuilder();
 
@@ -250,7 +348,7 @@ namespace Dotmim.Sync.MySql.Builders
             return stringBuilder.ToString();
         }
 
-        private string CreateUpdateUntrackedRowsCommand()
+        public string CreateUpdateUntrackedRowsCommand()
         {
             var stringBuilder = new StringBuilder();
             var str1 = new StringBuilder();
@@ -290,7 +388,7 @@ namespace Dotmim.Sync.MySql.Builders
 
         }
 
-        private string CreateResetCommand()
+        public string CreateResetCommand()
         {
 
            
@@ -303,7 +401,7 @@ namespace Dotmim.Sync.MySql.Builders
 
         }
 
-        private string CreateSelectRowCommand()
+        public string CreateSelectRowCommand()
         {
 
             StringBuilder stringBuilder = new StringBuilder("SELECT ");
@@ -348,6 +446,134 @@ namespace Dotmim.Sync.MySql.Builders
             stringBuilder.Append(stringBuilder1.ToString());
             stringBuilder.Append(";");
             return stringBuilder.ToString(); 
+        }
+
+        public string CreateDeleteCommand()
+        {
+
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine("DECLARE ts BIGINT;");
+            stringBuilder.AppendLine("DECLARE t_update_scope_id VARCHAR(36);");
+            stringBuilder.AppendLine($"SELECT `timestamp`, `update_scope_id` FROM {trackingName.Quoted()} WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), trackingName.Quoted().ToString(), "@")} LIMIT 1 INTO ts, t_update_scope_id;");
+            stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted()} WHERE");
+            stringBuilder.AppendLine(MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), ""));
+            stringBuilder.AppendLine("AND (ts <= @sync_min_timestamp OR ts IS NULL OR t_update_scope_id = @sync_scope_id OR @sync_force_write = 1);");
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"SELECT ROW_COUNT() INTO @sync_row_count;"); //[AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"IF (@sync_row_count > 0) THEN");
+            stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted()}");
+            stringBuilder.AppendLine($"\tSET `update_scope_id` = @sync_scope_id, ");
+            stringBuilder.AppendLine($"\t\t `sync_row_is_tombstone` = 1, ");
+            stringBuilder.AppendLine($"\t\t `timestamp` = {TimestampValue}, ");
+            stringBuilder.AppendLine($"\t\t `last_change_datetime` = now() ");
+            stringBuilder.AppendLine($"\tWHERE {MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), "", "@")};");
+            stringBuilder.AppendLine($"END IF;");
+
+            return stringBuilder.ToString();
+        }
+
+        public string CreateUpdateCommand()
+        {
+            var stringBuilder = new StringBuilder();
+
+            var listColumnsTmp = new StringBuilder();
+            var listColumnsTmp2 = new StringBuilder();
+            var listColumnsTmp3 = new StringBuilder();
+
+            var hasMutableColumns = this.TableDescription.GetMutableColumns(false).Any();
+
+            var and = "";
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var param = GetMySqlParameter(column);
+                param.ParameterName = $"t_{param.ParameterName}";
+                var declar = CreateParameterDeclaration(param);
+                var columnNameQuoted = ParserName.Parse(column, "`").Quoted().ToString();
+
+                var parameterNameQuoted = ParserName.Parse(param.ParameterName, "`").Quoted().ToString();
+
+                // Primary keys column name, with quote
+                listColumnsTmp.Append($"{columnNameQuoted}, ");
+
+                // param name without type
+                listColumnsTmp2.Append($"{parameterNameQuoted}, ");
+
+                // param name with type
+                stringBuilder.AppendLine($"DECLARE {declar};");
+
+                // Param equal IS NULL
+                listColumnsTmp3.Append($"{and}{parameterNameQuoted} IS NULL");
+
+                and = " AND ";
+
+            }
+
+            stringBuilder.AppendLine("DECLARE ts BIGINT;");
+            stringBuilder.AppendLine("DECLARE t_update_scope_id VARCHAR(36);");
+            stringBuilder.AppendLine($"SELECT {listColumnsTmp}`timestamp`, `update_scope_id` FROM {trackingName.Quoted()} ");
+            stringBuilder.AppendLine($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), trackingName.Quoted().ToString(), "@")} LIMIT 1 ");
+            stringBuilder.AppendLine($"INTO {listColumnsTmp2} ts, t_update_scope_id;");
+            stringBuilder.AppendLine();
+
+            if (hasMutableColumns)
+            {
+                stringBuilder.AppendLine($"UPDATE {tableName.Quoted()}");
+                stringBuilder.Append($"SET {MySqlManagementUtils.CommaSeparatedUpdateFromParameters(this.TableDescription, "", "@")}");
+                stringBuilder.Append($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), "", "@")}");
+                stringBuilder.AppendLine($" AND (ts <= @sync_min_timestamp OR ts IS NULL OR t_update_scope_id  = @sync_scope_id OR @sync_force_write = 1);");
+                stringBuilder.AppendLine();
+                stringBuilder.AppendLine($"SELECT ROW_COUNT() INTO @sync_row_count;"); //[AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
+                stringBuilder.AppendLine($"IF (@sync_row_count = 0) THEN");
+
+            }
+
+            string empty = string.Empty;
+            var stringBuilderArguments = new StringBuilder();
+            var stringBuilderParameters = new StringBuilder();
+            foreach (var mutableColumn in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
+            {
+                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+                var parameterName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+
+                var paramQuotedColumn = ParserName.Parse($"@{mutableColumn.ColumnName}", "`");
+
+                stringBuilderArguments.Append(string.Concat(empty, columnName));
+                stringBuilderParameters.Append(string.Concat(empty, paramQuotedColumn.Quoted().Normalized().ToString()));
+                empty = ", ";
+            }
+
+            // If we don't have any mutable column, we can't update, and the Insert
+            // will fail if we don't ignore the insert (on Reinitialize for example)
+            var ignoreKeyWord = hasMutableColumns ? "" : "IGNORE";
+            stringBuilder.AppendLine($"\tINSERT {ignoreKeyWord} INTO {tableName.Quoted()}");
+            stringBuilder.AppendLine($"\t({stringBuilderArguments})");
+            stringBuilder.AppendLine($"\tSELECT * FROM ( SELECT {stringBuilderParameters}) as TMP ");
+            stringBuilder.AppendLine($"\tWHERE ( {listColumnsTmp3} )");
+            stringBuilder.AppendLine($"\tOR (ts <= @sync_min_timestamp OR ts IS NULL OR t_update_scope_id = @sync_scope_id OR @sync_force_write = 1)");
+            stringBuilder.AppendLine($"\tLIMIT 1;");
+            stringBuilder.AppendLine($"");
+            stringBuilder.AppendLine($"SELECT ROW_COUNT() INTO @sync_row_count;"); // [AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
+            stringBuilder.AppendLine($"");
+
+            if (hasMutableColumns)
+                stringBuilder.AppendLine("END IF;");
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"IF (@sync_row_count > 0) THEN");
+            stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted()}");
+            stringBuilder.AppendLine($"\tSET `update_scope_id` = @sync_scope_id, ");
+            stringBuilder.AppendLine($"\t\t `sync_row_is_tombstone` = 0, ");
+            stringBuilder.AppendLine($"\t\t `timestamp` = {TimestampValue}, ");
+            stringBuilder.AppendLine($"\t\t `last_change_datetime` = now() ");
+            stringBuilder.AppendLine($"\tWHERE {MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), "", "@")};");
+            stringBuilder.AppendLine($"END IF;");
+
+            return stringBuilder.ToString();
         }
 
     }

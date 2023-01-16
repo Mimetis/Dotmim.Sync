@@ -479,7 +479,7 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn.Quoted().ToString());
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"{paramQuotedColumn.Quoted().ToString()}");
+                stringBuilder.Append($"{paramQuotedColumn.Quoted()}");
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
