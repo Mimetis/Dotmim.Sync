@@ -161,7 +161,7 @@ namespace Dotmim.Sync.PostgreSql
 
             stringBuilder.AppendLine($"{strPkeysList}, \"update_scope_id\", \"timestamp\", \"sync_row_is_tombstone\", \"last_change_datetime\"");
             stringBuilder.AppendLine($")");
-            stringBuilder.AppendLine($"SELECT {strBasePkeyList}, NULL, {TimestampValue}, False, now()");
+            stringBuilder.AppendLine($"SELECT {strBasePkeyList}, NULL, {TimestampValue}, 0, now()");
             stringBuilder.AppendLine($"FROM \"{schema}\".{TableName.Quoted()} as base WHERE NOT EXISTS");
             stringBuilder.AppendLine($"   (SELECT {strSidePkeyList}");
             stringBuilder.AppendLine($"    FROM \"{schema}\".{TrackingTableName.Quoted()} as side ");
