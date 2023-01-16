@@ -158,12 +158,10 @@ namespace Dotmim.Sync.MySql.Builders
 
             foreach (var customWhere in customWheres)
             {
-                // IF coming from Postgres
-                var customWhereIteration = customWhere.Replace("\"", "`");
-
-                // If coming from SQL
-                customWhereIteration = customWhereIteration.Replace("[", "`");
-                customWhereIteration = customWhereIteration.Replace("]", "`");
+                // Template escape character
+                var customWhereIteration = customWhere;
+                customWhereIteration = customWhereIteration.Replace("{{{", "`");
+                customWhereIteration = customWhereIteration.Replace("}}}", "`");
 
                 stringBuilder.Append($"{and2}{customWhereIteration}");
                 and2 = " AND ";

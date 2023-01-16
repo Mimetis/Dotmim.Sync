@@ -96,9 +96,8 @@ namespace Dotmim.Sync.Tests.Misc
 
             // 4) Custom Wheres on Product.
             var productFilter = new SetupFilter("Product", salesSchema);
-            var escapeChar = "\"";
 
-            productFilter.AddCustomWhere($"{escapeChar}ProductCategoryID{escapeChar} IS NOT NULL");
+            productFilter.AddCustomWhere("{{{ProductCategoryID}}} IS NOT NULL OR {{{side}}}.{{{sync_row_is_tombstone}}} = 1");
             setup.Filters.Add(productFilter);
 
             return setup;

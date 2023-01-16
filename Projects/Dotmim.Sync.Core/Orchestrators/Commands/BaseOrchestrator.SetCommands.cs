@@ -168,7 +168,6 @@ namespace Dotmim.Sync
                 p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
-                p.Size = column.MaxLength > 0 ? column.MaxLength : -1;
                 command.Parameters.Add(p);
             }
 
@@ -214,7 +213,7 @@ namespace Dotmim.Sync
                 p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
-                p.Size = column.MaxLength;
+                //p.Size = column.MaxLength;
                 command.Parameters.Add(p);
             }
 
@@ -249,7 +248,7 @@ namespace Dotmim.Sync
                 p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
-                p.Size = column.MaxLength;
+                //p.Size = column.MaxLength;
                 command.Parameters.Add(p);
             }
 
@@ -294,7 +293,7 @@ namespace Dotmim.Sync
                 p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
-                p.Size = column.MaxLength;
+                //p.Size = column.MaxLength;
                 command.Parameters.Add(p);
             }
 

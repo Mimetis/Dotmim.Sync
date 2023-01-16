@@ -220,6 +220,50 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task DeleteOneRowInOneTableOnServerSide(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup, parameters);
+
+            // Execute a sync on all clients and check results
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                // init everything
+                await agent.SynchronizeAsync(setup, parameters);
+
+                // Add product category
+                var productCategory = await serverProvider.AddProductCategoryAsync();
+                // add product part of the filter
+                var product = await serverProvider.AddProductAsync(productCategoryId: productCategory.ProductCategoryId);
+                // sync this category on each client to be able to delete it after
+
+                // send it to client
+                var s = await agent.SynchronizeAsync(setup, parameters);
+                Assert.Equal(2, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(2, s.TotalChangesAppliedOnClient);
+
+                // delete product on server
+                await serverProvider.DeleteProductAsync(product.ProductId);
+
+                // Sync again and see if it's downloaded and deleted
+                s = await agent.SynchronizeAsync(setup, parameters);
+
+                Assert.Equal(1, s.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, s.TotalChangesAppliedOnClient);
+                Assert.Single(s.ChangesAppliedOnClient.TableChangesApplied);
+                Assert.Equal(1, s.ChangesAppliedOnClient.TableChangesApplied[0].Applied);
+                Assert.Equal(SyncRowState.Deleted, s.ChangesAppliedOnClient.TableChangesApplied[0].State);
+                Assert.Equal(0, s.TotalChangesUploadedToServer);
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+        }
+
         [Theory]
         [ClassData(typeof(SyncOptionsData))]
         public async Task Snapshots(SyncOptions options)
