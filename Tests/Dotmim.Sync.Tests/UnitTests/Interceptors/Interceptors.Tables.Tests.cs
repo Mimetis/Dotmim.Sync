@@ -2,6 +2,7 @@
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
+using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
 using Microsoft.Data.SqlClient;
 using System;
@@ -23,13 +24,13 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task Table_Create_One()
         {
+            // Create a new empty client database
+            var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            await HelperDatabase.CreateDatabaseAsync(clientProviderType, dbName, true);
+            clientProvider = HelperDatabase.GetSyncProvider(clientProviderType, dbName, clientProvider.UseFallbackSchema());
 
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var options = new SyncOptions();
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
             var table = new SyncTable("Product", "SalesLT");
@@ -43,8 +44,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var schema = new SyncSet();
             schema.Tables.Add(table);
-
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
 
             var scopeInfo = await localOrchestrator.GetScopeInfoAsync();
             scopeInfo.Setup = setup;
@@ -75,7 +74,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Check we have a new column in tracking table
-            using (var c = new SqlConnection(cs))
+            using (var c = new SqlConnection(clientProvider.ConnectionString))
             {
                 await c.OpenAsync().ConfigureAwait(false);
                 var cols = await SqlManagementUtils.GetColumnsForTableAsync("Product", "SalesLT", c, null).ConfigureAwait(false);
@@ -83,20 +82,12 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.NotNull(cols.Rows.FirstOrDefault(r => r["name"].ToString() == "internal_id"));
                 c.Close();
             }
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task Table_Exists()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var options = new SyncOptions();
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var setup = new SyncSetup(new string[] { "SalesLT.Product", "SalesLT.ProductCategory" });
 
             var table = new SyncTable("Product", "SalesLT");
@@ -111,8 +102,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             var schema = new SyncSet();
             schema.Tables.Add(table);   
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-
             var scopeInfo = await localOrchestrator.GetScopeInfoAsync();
             scopeInfo.Setup = setup;
             scopeInfo.Schema = schema;
@@ -125,20 +114,18 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             exists = await localOrchestrator.ExistTableAsync(scopeInfo, "ProductCategory", "SalesLT").ConfigureAwait(false);
             Assert.False(exists);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task Table_Create_One_Overwrite()
         {
+            // Create a new empty client database
+            var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
             var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            await HelperDatabase.CreateDatabaseAsync(clientProviderType, dbName, true);
+            clientProvider = HelperDatabase.GetSyncProvider(clientProviderType, dbName, clientProvider.UseFallbackSchema());
 
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var options = new SyncOptions();
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
 
             // Overwrite existing table with this new one
@@ -154,8 +141,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             var schema = new SyncSet();
             schema.Tables.Add(table);
 
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-
             var scopeInfo = await localOrchestrator.GetScopeInfoAsync();
             scopeInfo.Setup = setup;
             scopeInfo.Schema = schema;
@@ -165,7 +150,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var isCreated = await localOrchestrator.CreateTableAsync(scopeInfo, table.TableName, table.SchemaName);
 
             // Ensuring we have a clean new instance
-            localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            localOrchestrator = new LocalOrchestrator(clientProvider, options);
 
             var onCreating = false;
             var onCreated = false;
@@ -200,38 +185,27 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.True(onDropped);
             Assert.True(onCreating);
             Assert.True(onCreated);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task Table_Create_All()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts" });
-
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var serverScope = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
             // new empty db
-            dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
-            cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            sqlProvider = new SqlSyncProvider(cs);
+            // Create a new empty client database
+            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
+            await HelperDatabase.CreateDatabaseAsync(clientProviderType, dbName, true);
+            clientProvider = HelperDatabase.GetSyncProvider(clientProviderType, dbName, clientProvider.UseFallbackSchema());
 
-            localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            localOrchestrator = new LocalOrchestrator(clientProvider, options);
 
             var onCreating = 0;
             var onCreated = 0;
@@ -274,185 +248,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(4, onDropping);
             Assert.Equal(4, onDropped);
 
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
-        }
-
-        [Fact]
-        public async Task Table_Drop_One()
-        {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
-
-            // Overwrite existing table with this new one
-            var table = new SyncTable("Product", "SalesLT");
-            var colID = new SyncColumn("ID", typeof(Guid));
-            var colName = new SyncColumn("Name", typeof(string));
-
-            table.Columns.Add(colID);
-            table.Columns.Add(colName);
-            table.Columns.Add("Number", typeof(int));
-            table.PrimaryKeys.Add("ID");
-            var schema = new SyncSet();
-            schema.Tables.Add(table);
-
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-
-            var scopeInfo = await localOrchestrator.GetScopeInfoAsync();
-            scopeInfo.Setup = setup;
-            scopeInfo.Schema = schema;
-            await localOrchestrator.SaveScopeInfoAsync(scopeInfo);
-
-            localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-
-            // Call create a first time to have an existing table
-            var isCreated = await localOrchestrator.CreateTableAsync(scopeInfo, table.TableName, table.SchemaName);
-
-            Assert.True(isCreated);
-
-            // Ensuring we have a clean new instance
-            localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-
-            var onCreating = false;
-            var onCreated = false;
-            var onDropping = false;
-            var onDropped = false;
-
-            localOrchestrator.OnTableCreating(ttca => onCreating = true);
-            localOrchestrator.OnTableCreated(ttca => onCreated = true);
-            localOrchestrator.OnTableDropping(ttca => onDropping = true);
-            localOrchestrator.OnTableDropped(ttca => onDropped = true);
-
-            var isDropped = await localOrchestrator.DropTableAsync(scopeInfo, table.TableName, table.SchemaName);
-
-            Assert.True(isDropped);
-            Assert.True(onDropping);
-            Assert.True(onDropped);
-            Assert.False(onCreating);
-            Assert.False(onCreated);
-
-            // Check we have the correct table ovewritten
-            using (var c = new SqlConnection(cs))
-            {
-                await c.OpenAsync().ConfigureAwait(false);
-                var stable = await SqlManagementUtils.GetTableDefinitionAsync("Product", "SalesLT", c, null).ConfigureAwait(false);
-                Assert.Empty(stable.Rows);
-                c.Close();
-            }
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
-        }
-
-        [Fact]
-        public async Task Table_Drop_One_Cancel()
-        {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
-
-            // Overwrite existing table with this new one
-            var table = new SyncTable("Product", "SalesLT");
-            var colID = new SyncColumn("ID", typeof(Guid));
-            var colName = new SyncColumn("Name", typeof(string));
-
-            table.Columns.Add(colID);
-            table.Columns.Add(colName);
-            table.Columns.Add("Number", typeof(int));
-            table.PrimaryKeys.Add("ID");
-            var schema = new SyncSet();
-            schema.Tables.Add(table);
-
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-
-            var scopeInfo = await localOrchestrator.GetScopeInfoAsync();
-            scopeInfo.Setup = setup;
-            scopeInfo.Schema = schema;
-            await localOrchestrator.SaveScopeInfoAsync(scopeInfo);
-
-            // Call create a first time to have an existing table
-            var isCreated = await localOrchestrator.CreateTableAsync(scopeInfo, table.TableName, table.SchemaName);
-
-            Assert.True(isCreated);
-
-            // Ensuring we have a clean new instance
-            localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-
-            var onCreating = false;
-            var onCreated = false;
-            var onDropping = false;
-            var onDropped = false;
-
-            localOrchestrator.OnTableCreating(ttca => onCreating = true);
-            localOrchestrator.OnTableCreated(ttca => onCreated = true);
-            localOrchestrator.OnTableDropped(ttca => onDropped = true);
-
-            localOrchestrator.OnTableDropping(ttca =>
-            {
-                ttca.Cancel = true;
-                onDropping = true;
-            });
-
-            var isDropped = await localOrchestrator.DropTableAsync(scopeInfo, table.TableName, table.SchemaName);
-
-            Assert.True(onDropping);
-
-            Assert.False(isDropped);
-            Assert.False(onDropped);
-            Assert.False(onCreating);
-            Assert.False(onCreated);
-
-            using (var c = new SqlConnection(cs))
-            {
-                await c.OpenAsync().ConfigureAwait(false);
-                var stable = await SqlManagementUtils.GetTableDefinitionAsync("Product", "SalesLT", c, null).ConfigureAwait(false);
-                Assert.Single(stable.Rows);
-                c.Close();
-            }
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
-        }
-
-        [Fact]
-        public async Task Table_Drop_All()
-        {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
-            var setup = new SyncSetup(this.Tables);
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
-
-            var onDropping = 0;
-            var onDropped = 0;
-
-            var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
-
-            remoteOrchestrator.OnTableDropping(ttca => onDropping++);
-            remoteOrchestrator.OnTableDropped(ttca => onDropped++);
-
-            await remoteOrchestrator.DropTablesAsync(scopeInfo);
-
-            Assert.Equal(this.Tables.Length, onDropping);
-            Assert.Equal(this.Tables.Length, onDropped);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
+            HelperDatabase.DropDatabase(clientProviderType, dbName);
         }
     }
 }

@@ -41,7 +41,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             "smallmoney" => DbType.Currency,
             "nchar" => DbType.StringFixedLength,
             "numeric" => DbType.VarNumeric,
-            "nvarchar" => column.MaxLength <= 0 ? DbType.String : DbType.StringFixedLength,
+            "nvarchar" => DbType.String,
             "real" => DbType.Decimal,
             "smalldatetime" => DbType.DateTime,
             "smallint" => DbType.Int16,
@@ -52,7 +52,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             "tinyint" => DbType.Int16,
             "uniqueidentifier" => DbType.Guid,
             "varbinary" => DbType.Binary,
-            "varchar" => column.MaxLength <= 0 ? DbType.AnsiString : DbType.AnsiStringFixedLength,
+            "varchar" => DbType.AnsiString,
             "xml" => DbType.String,
             _ => throw new Exception($"this type {column.OriginalTypeName} for column {column.ColumnName} is not supported")
         };

@@ -65,11 +65,14 @@ namespace Dotmim.Sync
 
                         // Conflict, but both have delete the row, so just update the metadata to the right winner
                         case ConflictType.RemoteIsDeletedLocalIsDeleted:
-                            (_, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context,
-                                conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                            //(_, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context,
+                            //    conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                            //applied = false;
+                            //conflictResolved = operationComplete && exception == null;
 
                             applied = false;
-                            conflictResolved = operationComplete && exception == null;
+                            conflictResolved = true;
+
                             break;
 
                         // The row does not exists locally, and since it's coming from a deleted state, we can forget it
@@ -87,10 +90,15 @@ namespace Dotmim.Sync
                             // Conflict, but both have delete the row, so just update the metadata to the right winner
                             if (!operationComplete && exception == null)
                             {
-                                (_, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context,
-                                    conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                                // IS IT MANDATORY to update to the correct winner ?
+                                // if we don't have any rows on one side, we will add a metadata for nothing...
+                                //(_, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context,
+                                //    conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                                //applied = false;
+                                //conflictResolved = operationComplete && exception == null;
                                 applied = false;
-                                conflictResolved = operationComplete && exception == null;
+                                conflictResolved = true;
+
                             }
                             else
                             {

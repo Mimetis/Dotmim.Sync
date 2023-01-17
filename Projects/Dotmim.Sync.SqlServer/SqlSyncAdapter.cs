@@ -44,75 +44,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.trackingName = trackingName;
         }
 
-        private SqlMetaData GetSqlMetadaFromType(SyncColumn column)
-        {
-            long maxLength = column.MaxLength;
-            var dataType = column.GetDataType();
-            var dbType = column.GetDbType();
-
-            var sqlDbType = this.TableDescription.OriginalProvider == SqlSyncProvider.ProviderType ?
-                this.SqlMetadata.GetSqlDbType(column) : this.SqlMetadata.GetOwnerDbTypeFromDbType(column);
-
-            // Since we validate length before, it's not mandatory here.
-            // let's say.. just in case..
-            if (sqlDbType == SqlDbType.VarChar || sqlDbType == SqlDbType.NVarChar)
-            {
-                // set value for (MAX) 
-                maxLength = maxLength <= 0 ? SqlMetaData.Max : maxLength;
-
-                // If max length is specified (not (MAX) )
-                if (maxLength > 0)
-                    maxLength = sqlDbType == SqlDbType.NVarChar ? Math.Min(maxLength, 4000) : Math.Min(maxLength, 8000);
-
-                return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
-            }
-
-
-            if (dataType == typeof(char))
-                return new SqlMetaData(column.ColumnName, sqlDbType, 1);
-
-            if (sqlDbType == SqlDbType.Char || sqlDbType == SqlDbType.NChar)
-            {
-                maxLength = maxLength <= 0 ? (sqlDbType == SqlDbType.NChar ? 4000 : 8000) : maxLength;
-                return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
-            }
-
-            if (sqlDbType == SqlDbType.Binary)
-            {
-                maxLength = maxLength <= 0 ? 8000 : maxLength;
-                return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
-            }
-
-            if (sqlDbType == SqlDbType.VarBinary)
-            {
-                // set value for (MAX) 
-                maxLength = maxLength <= 0 ? SqlMetaData.Max : maxLength;
-
-                return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
-            }
-
-            if (sqlDbType == SqlDbType.Decimal)
-            {
-                var (p, s) = this.SqlMetadata.GetPrecisionAndScale(column);
-                if (p > 0 && p > s)
-                {
-                    return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
-                }
-                else
-                {
-                    if (p == 0)
-                        p = 18;
-                    if (s == 0)
-                        s = Math.Min((byte)(p - 1), (byte)6);
-                    return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
-                }
-
-            }
-
-            return new SqlMetaData(column.ColumnName, sqlDbType);
-
-        }
-
 
         public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
         {
@@ -141,8 +72,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                     isBatch = false;
                     break;
                 case DbCommandType.SelectRow:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow, filter);
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.SelectRow, filter);
                     isBatch = false;
                     break;
                 case DbCommandType.UpdateRow:
@@ -194,20 +125,25 @@ namespace Dotmim.Sync.SqlServer.Builders
                     isBatch = false;
                     break;
                 case DbCommandType.DeleteMetadata:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata, filter);
-                    isBatch = false;
-                    break;
+                    //command.CommandType = CommandType.StoredProcedure;
+                    //command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata, filter);
+                    //isBatch = false;
+                    //break;
+                    return (default, false);
+
                 case DbCommandType.UpdateMetadata:
-                    command.CommandType = CommandType.Text;
-                    command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
-                    isBatch = false;
-                    break;
+                    //command.CommandType = CommandType.Text;
+                    //command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
+                    //isBatch = false;
+                    //break;
+                    return (default, false);
+
                 case DbCommandType.SelectMetadata:
-                    command.CommandType = CommandType.Text;
-                    command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.SelectMetadata, filter);
-                    isBatch = false;
-                    break;
+                    //command.CommandType = CommandType.Text;
+                    //command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.SelectMetadata, filter);
+                    //isBatch = false;
+                    //break;
+                    return (default, false);
                 case DbCommandType.InsertTrigger:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.SqlObjectNames.GetTriggerCommandName(DbTriggerType.Insert, filter);
@@ -234,8 +170,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                     isBatch = false;
                     break;
                 case DbCommandType.Reset:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.Reset, filter);
                     isBatch = false;
                     break;
                 case DbCommandType.PreDeleteRow:
@@ -365,224 +301,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-        ///// <summary>
-        ///// Set a stored procedure parameters or text parameters
-        ///// </summary>
-        //public override async Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction = null, SyncFilter filter = null)
-        //{
-        //    if (command == null)
-        //        return;
-
-        //    if (command.Parameters != null && command.Parameters.Count > 0)
-        //        return;
-
-        //    // special case for constraint
-        //    if (commandType == DbCommandType.DisableConstraints || commandType == DbCommandType.EnableConstraints)
-        //        return;
-
-
-        //    // special case for UpdateMetadata
-        //    if (commandType == DbCommandType.UpdateMetadata)
-        //    {
-        //        this.SetUpdateRowParameters(command);
-        //        return;
-        //    }
-        //    if (commandType == DbCommandType.SelectMetadata)
-        //    {
-        //        this.SetSelectRowParameters(command);
-        //        return;
-        //    }
-        //    if (commandType == DbCommandType.SelectChanges || commandType == DbCommandType.SelectChangesWithFilters ||
-        //        commandType == DbCommandType.SelectInitializedChanges || commandType == DbCommandType.SelectInitializedChangesWithFilters)
-        //    {
-        //        this.SetSelectChangesParameters(command, commandType, filter);
-        //        return;
-        //    }
-
-        //    // if we don't have stored procedure, return, because we don't want to derive parameters
-        //    if (command.CommandType != CommandType.StoredProcedure)
-        //        return;
-
-        //    bool alreadyOpened = connection.State == ConnectionState.Open;
-
-        //    try
-        //    {
-        //        if (!alreadyOpened)
-        //            await connection.OpenAsync().ConfigureAwait(false);
-
-        //        command.Transaction = transaction;
-
-        //        var textParser = ParserName.Parse(command.CommandText).Unquoted().Normalized().ToString();
-
-        //        var source = connection.Database;
-
-        //        textParser = $"{source}-{textParser}";
-
-        //        if (derivingParameters.ContainsKey(textParser))
-        //        {
-        //            foreach (var p in derivingParameters[textParser])
-        //                command.Parameters.Add(p.Clone());
-        //        }
-        //        else
-        //        {
-        //            // Using the SqlCommandBuilder.DeriveParameters() method is not working yet, 
-        //            // because default value is not well done handled on the Dotmim.Sync framework
-        //            // TODO: Fix SqlCommandBuilder.DeriveParameters
-        //            //SqlCommandBuilder.DeriveParameters((SqlCommand)command);
-
-        //            await ((SqlConnection)connection).DeriveParametersAsync((SqlCommand)command, false, (SqlTransaction)transaction).ConfigureAwait(false);
-
-        //            var arrayParameters = new List<SqlParameter>();
-        //            foreach (var p in command.Parameters)
-        //                arrayParameters.Add(((SqlParameter)p).Clone());
-
-        //            derivingParameters.TryAdd(textParser, arrayParameters);
-        //        }
-
-        //        if (command.Parameters.Count > 0 && command.Parameters[0].ParameterName == "@RETURN_VALUE")
-        //            command.Parameters.RemoveAt(0);
-
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Debug.WriteLine($"DeriveParameters failed : {ex}");
-        //        throw;
-        //    }
-        //    finally
-        //    {
-        //        if (!alreadyOpened && connection.State != ConnectionState.Closed)
-        //            connection.Close();
-        //    }
-
-
-        //    foreach (var parameter in command.Parameters)
-        //    {
-        //        var sqlParameter = (SqlParameter)parameter;
-
-        //        // try to get the source column (from the SchemaTable)
-        //        var sqlParameterName = sqlParameter.ParameterName.Replace("@", "");
-        //        var colDesc = TableDescription.Columns.FirstOrDefault(c => c.ColumnName.Equals(sqlParameterName, SyncGlobalization.DataSourceStringComparison));
-
-        //        if (colDesc != null && !string.IsNullOrEmpty(colDesc.ColumnName))
-        //            sqlParameter.SourceColumn = colDesc.ColumnName;
-        //    }
-        //}
-
-        //private void SetSelectChangesParameters(DbCommand command, DbCommandType commandType, SyncFilter filter = null)
-        //{
-        //    var originalProvider = SqlSyncProvider.ProviderType;
-
-        //    var p = command.CreateParameter();
-        //    p.ParameterName = "sync_min_timestamp";
-        //    p.DbType = DbType.Int64;
-        //    command.Parameters.Add(p);
-
-        //    if (commandType == DbCommandType.SelectChanges || commandType == DbCommandType.SelectChangesWithFilters)
-        //    {
-        //        p = command.CreateParameter();
-        //        p.ParameterName = "sync_scope_id";
-        //        p.DbType = DbType.Guid;
-        //        command.Parameters.Add(p);
-        //    }
-
-        //    if (filter == null)
-        //        return;
-
-        //    var parameters = filter.Parameters;
-
-        //    if (parameters.Count == 0)
-        //        return;
-
-        //    foreach (var param in parameters)
-        //    {
-        //        if (param.DbType.HasValue)
-        //        {
-        //            // Get column name and type
-        //            var columnName = ParserName.Parse(param.Name).Unquoted().Normalized().ToString();
-        //            var syncColumn = new SyncColumn(columnName)
-        //            {
-        //                DbType = (int)param.DbType.Value,
-        //                MaxLength = param.MaxLength,
-        //            };
-        //            var sqlDbType = this.SqlMetadata.GetOwnerDbTypeFromDbType(syncColumn);
-
-        //            var customParameterFilter = new SqlParameter($"@{columnName}", sqlDbType);
-        //            customParameterFilter.Size = param.MaxLength;
-        //            customParameterFilter.IsNullable = param.AllowNull;
-        //            customParameterFilter.Value = param.DefaultValue;
-
-        //            command.Parameters.Add(customParameterFilter);
-        //        }
-        //        else
-        //        {
-        //            var tableFilter = this.TableDescription.Schema.Tables[param.TableName, param.SchemaName];
-        //            if (tableFilter == null)
-        //                throw new FilterParamTableNotExistsException(param.TableName);
-
-        //            var columnFilter = tableFilter.Columns[param.Name];
-        //            if (columnFilter == null)
-        //                throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
-
-        //            // Get column name and type
-        //            var columnName = ParserName.Parse(columnFilter).Normalized().Unquoted().ToString();
-
-        //            var sqlDbType = tableFilter.OriginalProvider == originalProvider ?
-        //                this.SqlMetadata.GetSqlDbType(columnFilter) : this.SqlMetadata.GetOwnerDbTypeFromDbType(columnFilter);
-
-        //            // Add it as parameter
-        //            var sqlParamFilter = new SqlParameter($"@{columnName}", sqlDbType);
-        //            sqlParamFilter.Size = columnFilter.MaxLength;
-        //            sqlParamFilter.IsNullable = param.AllowNull;
-        //            sqlParamFilter.Value = param.DefaultValue;
-        //            command.Parameters.Add(sqlParamFilter);
-        //        }
-        //    }
-        //}
-
-        //private void SetUpdateRowParameters(DbCommand command)
-        //{
-        //    DbParameter p;
-
-        //    foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
-        //    {
-        //        var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
-        //        p = command.CreateParameter();
-        //        p.ParameterName = $"@{unquotedColumn}";
-        //        p.DbType = column.GetDbType();
-        //        p.SourceColumn = column.ColumnName;
-        //        p.Size = column.MaxLength;
-        //        command.Parameters.Add(p);
-        //    }
-
-        //    p = command.CreateParameter();
-        //    p.ParameterName = "@sync_scope_id";
-        //    p.DbType = DbType.Guid;
-        //    p.Size = 32;
-        //    command.Parameters.Add(p);
-
-        //    p = command.CreateParameter();
-        //    p.ParameterName = "@sync_row_is_tombstone";
-        //    p.DbType = DbType.Boolean;
-        //    p.Size = 2;
-        //    command.Parameters.Add(p);
-
-        //}
-
-        //private void SetSelectRowParameters(DbCommand command)
-        //{
-        //    DbParameter p;
-
-        //    foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
-        //    {
-        //        var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
-        //        p = command.CreateParameter();
-        //        p.ParameterName = $"@{unquotedColumn}";
-        //        p.DbType = column.GetDbType();
-        //        p.SourceColumn = column.ColumnName;
-        //        p.Size = column.MaxLength;
-        //        command.Parameters.Add(p);
-        //    }
-
-        //}
+       
     }
 }

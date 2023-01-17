@@ -4,7 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Dotmim.Sync.Tests
+namespace Dotmim.Sync.Tests.Misc
 {
     public class SyncOptionsData : IEnumerable<object[]>
     {

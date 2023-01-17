@@ -125,14 +125,14 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Gets the full path + file name for a given batch part info
         /// </summary>
-        public (string FullPath, string FileName) GetBatchPartInfoPath(BatchPartInfo batchPartInfo)
+        public string GetBatchPartInfoPath(BatchPartInfo batchPartInfo)
         {
             if (BatchPartsInfo == null)
-                return (default, default);
+                return null;
 
             var fullPath = Path.Combine(this.GetDirectoryFullPath(), batchPartInfo.FileName);
 
-            return (fullPath, batchPartInfo.FileName);
+            return fullPath;
 
         }
 

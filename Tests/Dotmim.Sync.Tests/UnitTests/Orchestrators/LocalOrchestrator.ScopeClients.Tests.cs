@@ -17,15 +17,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task LocalOrchestrator_MultipleScopeClients_ShouldHave_SameClientId()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var options = new SyncOptions();
-
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
 
             var localScopeInfo1 = await localOrchestrator.GetScopeInfoClientAsync();
             var localScopeInfo2 = await localOrchestrator.GetScopeInfoClientAsync("A");
@@ -34,7 +26,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(localScopeInfo1.Id, localScopeInfo2.Id);
             Assert.Equal(localScopeInfo2.Id, localScopeInfo3.Id);
 
-
             // Check we get the 3 scopes
             var allScopes = await localOrchestrator.GetAllScopeInfoClientsAsync();
 
@@ -42,32 +33,15 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Check the scope id, read from database, is good
             foreach (var scope in allScopes)
-            {
                 Assert.Equal(scope.Id, localScopeInfo1.Id);
-            }
-
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task LocalOrchestrator_GetAllScopeClients_ShouldReturnsEmptyList_IfNotExists()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var options = new SyncOptions();
-
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
-
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var localScopeInfoClients = await localOrchestrator.GetAllScopeInfoClientsAsync();
-
             Assert.Empty(localScopeInfoClients);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
     }

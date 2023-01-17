@@ -7,6 +7,7 @@ using System.Text;
 using Dotmim.Sync.Builders;
 using NpgsqlTypes;
 using System.Linq;
+using static Npgsql.Replication.PgOutput.Messages.RelationMessage;
 
 namespace Dotmim.Sync.PostgreSql
 {
@@ -161,13 +162,31 @@ namespace Dotmim.Sync.PostgreSql
             stringBuilder.AppendLine($"GET DIAGNOSTICS \"sync_row_count\" = ROW_COUNT;");
             stringBuilder.AppendLine($"");
             stringBuilder.AppendLine($"IF (sync_row_count > 0) THEN");
-            stringBuilder.AppendLine($"\tUPDATE \"{schema}\".{trackingTableQuoted}");
-            stringBuilder.AppendLine($"\tSET \"update_scope_id\" = sync_scope_id, ");
-            stringBuilder.AppendLine($"\t \"sync_row_is_tombstone\" = FALSE, ");
-            stringBuilder.AppendLine($"\t \"timestamp\" = {TimestampValue}, ");
-            stringBuilder.AppendLine($"\t \"last_change_datetime\" = now() ");
-            stringBuilder.AppendLine($"\tWHERE {NpgsqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), "", NpgsqlSyncProvider.NPGSQL_PREFIX_PARAMETER)};");
+
+            string selectPkeys = "";
+            string insertPkeys = "";
+            string insertePkeysValues = "";
+            foreach(var pkeyColumn in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkeyColumn, "\"").Unquoted().Normalized();
+                insertPkeys += $"{ParserName.Parse(pkeyColumn, "\"").Quoted()}, ";
+                insertePkeysValues += $"\"changes\".{ParserName.Parse(pkeyColumn, "\"").Quoted()}, ";
+                selectPkeys += $", \"in_{ParserName.Parse(pkeyColumn, "\"").Unquoted().Normalized()}\" as {ParserName.Parse(pkeyColumn, "\"").Quoted()}";
+            }
+
+            stringBuilder.AppendLine($"\tMERGE INTO \"{schema}\".{trackingTableQuoted} AS base");
+            stringBuilder.AppendLine($"\tUSING (SELECT sync_scope_id {selectPkeys}) AS changes on {NpgsqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "changes", "base")}");
+            stringBuilder.AppendLine($"\t\tWHEN MATCHED THEN");
+            stringBuilder.AppendLine($"\t\tUPDATE ");
+            stringBuilder.AppendLine($"\t\tSET \"update_scope_id\" = \"changes\".\"sync_scope_id\", ");
+            stringBuilder.AppendLine($"\t\t \"sync_row_is_tombstone\" = 0, ");
+            stringBuilder.AppendLine($"\t\t \"timestamp\" = {TimestampValue}, ");
+            stringBuilder.AppendLine($"\t\t \"last_change_datetime\" = now() ");
+            stringBuilder.AppendLine($"\tWHEN NOT MATCHED THEN");
+            stringBuilder.AppendLine($"\t\tINSERT ({insertPkeys}\"update_scope_id\", \"sync_row_is_tombstone\", \"timestamp\", \"last_change_datetime\")");
+            stringBuilder.AppendLine($"\t\tVALUES ({insertePkeysValues}\"changes\".\"sync_scope_id\", 0, {TimestampValue}, now());");
             stringBuilder.AppendLine($"END IF;");
+            stringBuilder.AppendLine($"");
             stringBuilder.AppendLine($"EXCEPTION WHEN OTHERS THEN");
             stringBuilder.AppendLine($"\tGET STACKED DIAGNOSTICS sync_error_text = MESSAGE_TEXT, sync_error_sqlcontext = PG_EXCEPTION_CONTEXT;");
             stringBuilder.AppendLine($"\t\"sync_error_text\" = \"sync_error_text\" || '. ' || \"sync_error_sqlcontext\";");
@@ -214,6 +233,7 @@ namespace Dotmim.Sync.PostgreSql
             stringBuilder.AppendLine($"\tout sync_row_count Integer,");
             stringBuilder.AppendLine($"\tout sync_error_text Text)");
             stringBuilder.AppendLine($"AS $BODY$ ");
+            stringBuilder.AppendLine($"DECLARE sync_error_sqlcontext text;");
             stringBuilder.AppendLine($"BEGIN");
             stringBuilder.AppendLine($"");
             stringBuilder.AppendLine($"DELETE from \"{schema}\".{TableName.Quoted()} base");
@@ -224,21 +244,37 @@ namespace Dotmim.Sync.PostgreSql
             stringBuilder.AppendLine($"");
             stringBuilder.AppendLine($"GET DIAGNOSTICS \"sync_row_count\" = ROW_COUNT;");
             stringBuilder.AppendLine($"IF (sync_row_count > 0) THEN");
-            stringBuilder.AppendLine($"     UPDATE \"{schema}\".{TrackingTableName.Quoted()} SET");
-            stringBuilder.AppendLine($"     \"update_scope_id\" = \"sync_scope_id\",");
-            stringBuilder.AppendLine($"     \"sync_row_is_tombstone\" = TRUE,");
-            stringBuilder.AppendLine($"     \"timestamp\" = {TimestampValue}, ");
-            stringBuilder.AppendLine($"     \"last_change_datetime\" = now()");
-            stringBuilder.AppendLine($"     WHERE ({NpgsqlManagementUtils.ColumnsAndParameters(this.TableDescription.PrimaryKeys, "", NpgsqlSyncProvider.NPGSQL_PREFIX_PARAMETER)}); ");
-            stringBuilder.AppendLine($"");
-            stringBuilder.AppendLine($"     GET DIAGNOSTICS \"sync_row_count\" = ROW_COUNT;");
-            stringBuilder.AppendLine($"END IF;");
-            stringBuilder.AppendLine($"EXCEPTION WHEN OTHERS THEN");
-            stringBuilder.AppendLine($"    GET STACKED DIAGNOSTICS sync_error_text = MESSAGE_TEXT;");
-            stringBuilder.AppendLine($"    \"sync_row_count\"=-1;");
-            stringBuilder.AppendLine($"END;");
-            stringBuilder.AppendLine("$BODY$ LANGUAGE 'plpgsql';");
 
+            string selectPkeys = "";
+            string insertPkeys = "";
+            string insertePkeysValues = "";
+            foreach (var pkeyColumn in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkeyColumn, "\"").Unquoted().Normalized();
+                insertPkeys += $"{ParserName.Parse(pkeyColumn, "\"").Quoted()}, ";
+                insertePkeysValues += $"\"changes\".{ParserName.Parse(pkeyColumn, "\"").Quoted()}, ";
+                selectPkeys += $", \"in_{ParserName.Parse(pkeyColumn, "\"").Unquoted().Normalized()}\" as {ParserName.Parse(pkeyColumn, "\"").Quoted()}";
+            }
+
+            stringBuilder.AppendLine($"\tMERGE INTO \"{schema}\".{TrackingTableName.Quoted()} AS base");
+            stringBuilder.AppendLine($"\tUSING (SELECT sync_scope_id {selectPkeys}) AS changes on {NpgsqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "changes", "base")}");
+            stringBuilder.AppendLine($"\t\tWHEN MATCHED THEN");
+            stringBuilder.AppendLine($"\t\tUPDATE ");
+            stringBuilder.AppendLine($"\t\tSET \"update_scope_id\" = \"changes\".\"sync_scope_id\", ");
+            stringBuilder.AppendLine($"\t\t \"sync_row_is_tombstone\" = 1, ");
+            stringBuilder.AppendLine($"\t\t \"timestamp\" = {TimestampValue}, ");
+            stringBuilder.AppendLine($"\t\t \"last_change_datetime\" = now() ");
+            stringBuilder.AppendLine($"\tWHEN NOT MATCHED THEN");
+            stringBuilder.AppendLine($"\t\tINSERT ({insertPkeys}\"update_scope_id\", \"sync_row_is_tombstone\", \"timestamp\", \"last_change_datetime\")");
+            stringBuilder.AppendLine($"\t\tVALUES ({insertePkeysValues}\"changes\".\"sync_scope_id\", 1, {TimestampValue}, now());");
+            stringBuilder.AppendLine($"END IF;");
+            stringBuilder.AppendLine($"");
+            stringBuilder.AppendLine($"EXCEPTION WHEN OTHERS THEN");
+            stringBuilder.AppendLine($"\tGET STACKED DIAGNOSTICS sync_error_text = MESSAGE_TEXT, sync_error_sqlcontext = PG_EXCEPTION_CONTEXT;");
+            stringBuilder.AppendLine($"\t\"sync_error_text\" = \"sync_error_text\" || '. ' || \"sync_error_sqlcontext\";");
+            stringBuilder.AppendLine($"\t\"sync_row_count\"=-1;");
+            stringBuilder.AppendLine($"END; ");
+            stringBuilder.AppendLine($"$BODY$ LANGUAGE 'plpgsql';");
             sqlCommand.CommandType = CommandType.Text;
             sqlCommand.CommandText = stringBuilder.ToString();
             return (sqlCommand, false);

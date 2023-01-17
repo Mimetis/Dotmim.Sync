@@ -7,6 +7,7 @@ using System;
 using System.Data.Common;
 using Microsoft.Data.SqlClient;
 using System.Data;
+using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.SqlServer
 {
@@ -32,7 +33,7 @@ namespace Dotmim.Sync.SqlServer
 
         public SqlSyncProvider(SqlConnectionStringBuilder builder) : base()
         {
-            if (String.IsNullOrEmpty(builder.ConnectionString))
+            if (string.IsNullOrEmpty(builder.ConnectionString))
                 throw new Exception("You have to provide parameters to the Sql builder to be able to construct a valid connection string.");
 
             this.builder = builder;
@@ -57,7 +58,8 @@ namespace Dotmim.Sync.SqlServer
             }
         }
 
-
+        public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnSessionLevel;
+        
         static string shortProviderType;
         public override string GetShortProviderTypeName() => ShortProviderType;
         public static string ShortProviderType

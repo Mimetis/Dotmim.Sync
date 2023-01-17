@@ -7,6 +7,7 @@ using System.Data;
 using System.Data.Common;
 using System.Linq;
 using System.Text;
+using static Azure.Core.HttpHeader;
 
 namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 {
@@ -430,6 +431,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         //------------------------------------------------------------------
         // Update command
         //------------------------------------------------------------------
+        
         protected override SqlCommand BuildUpdateCommand(bool hasMutableColumns)
         {
             var sqlCommand = new SqlCommand();
@@ -606,7 +608,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             var stringBuilder = new StringBuilder("");
             stringBuilder.AppendLine(";WITH ");
-            stringBuilder.AppendLine($"  {trackingName.Quoted().ToString()} AS (");
+            stringBuilder.AppendLine($"  {trackingName.Quoted()} AS (");
             stringBuilder.Append("\tSELECT ");
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
@@ -894,56 +896,56 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             return sqlCommand;
         }
 
-        protected override SqlCommand BuildDeleteMetadataCommand()
-        {
-            SqlCommand sqlCommand = new SqlCommand();
-            this.AddPkColumnParametersToCommand(sqlCommand);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_row_timestamp", SqlDbType.BigInt);
-            sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
-            {
-                Direction = ParameterDirection.Output
-            };
-            sqlCommand.Parameters.Add(sqlParameter2);
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("SELECT 1;");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = 1;"));
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
+        //protected override SqlCommand BuildDeleteMetadataCommand()
+        //{
+        //    SqlCommand sqlCommand = new SqlCommand();
+        //    this.AddPkColumnParametersToCommand(sqlCommand);
+        //    SqlParameter sqlParameter1 = new SqlParameter("@sync_row_timestamp", SqlDbType.BigInt);
+        //    sqlCommand.Parameters.Add(sqlParameter1);
+        //    SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
+        //    {
+        //        Direction = ParameterDirection.Output
+        //    };
+        //    sqlCommand.Parameters.Add(sqlParameter2);
+        //    StringBuilder stringBuilder = new StringBuilder();
+        //    stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.AppendLine("SELECT 1;");
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = 1;"));
+        //    sqlCommand.CommandText = stringBuilder.ToString();
+        //    return sqlCommand;
+        //}
 
-        protected override SqlCommand BuildResetCommand()
-        {
-            SqlCommand sqlCommand = new SqlCommand();
-            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
-            {
-                Direction = ParameterDirection.Output
-            };
-            sqlCommand.Parameters.Add(sqlParameter2);
+        //protected override SqlCommand BuildResetCommand()
+        //{
+        //    SqlCommand sqlCommand = new SqlCommand();
+        //    SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
+        //    {
+        //        Direction = ParameterDirection.Output
+        //    };
+        //    sqlCommand.Parameters.Add(sqlParameter2);
 
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
-            stringBuilder.AppendLine();
+        //    StringBuilder stringBuilder = new StringBuilder();
+        //    stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
+        //    stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted().ToString()} DISABLE CHANGE_TRACKING;");
-            stringBuilder.AppendLine($"DELETE FROM {tableName.Schema().Quoted().ToString()};");
+        //    stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted().ToString()} DISABLE CHANGE_TRACKING;");
+        //    stringBuilder.AppendLine($"DELETE FROM {tableName.Schema().Quoted().ToString()};");
 
-            if (setup.HasTableWithColumns(tableDescription.TableName))
-            {
-                stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = ON);");
-            }
-            else
-            {
-                stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);");
-            }
+        //    if (setup.HasTableWithColumns(tableDescription.TableName))
+        //    {
+        //        stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = ON);");
+        //    }
+        //    else
+        //    {
+        //        stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);");
+        //    }
 
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
+        //    sqlCommand.CommandText = stringBuilder.ToString();
+        //    return sqlCommand;
+        //}
     }
 }

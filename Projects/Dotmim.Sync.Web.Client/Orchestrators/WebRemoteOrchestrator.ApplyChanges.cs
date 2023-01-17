@@ -94,11 +94,12 @@ namespace Dotmim.Sync.Web.Client
                         // read rows from file
                         var fullPath = Path.Combine(clientChanges.ClientBatchInfo.GetDirectoryFullPath(), bpi.FileName);
                         foreach (var row in localSerializer.GetRowsFromFile(fullPath, schemaTable))
+                        {
+                            if (this.Converter != null && row.Length > 0)
+                                this.Converter.BeforeSerialize(row, schemaTable);
+                            
                             containerTable.Rows.Add(row.ToArray());
-
-                        // Call the converter if needed
-                        if (this.Converter != null && containerTable.HasRows)
-                            BeforeSerializeRows(containerTable, schemaTable, this.Converter);
+                        }
 
                         tmpRowsSendedCount += containerTable.Rows.Count;
 

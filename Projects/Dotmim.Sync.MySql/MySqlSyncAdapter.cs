@@ -39,34 +39,56 @@ namespace Dotmim.Sync.MySql
         }
         public override DbCommand EnsureCommandParameters(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
-            // Remove in_ for all sync parameters... (historical)
-            foreach(DbParameter parameter in command.Parameters)
+            if (commandType == DbCommandType.UpdateRow || commandType == DbCommandType.UpdateRows ||
+                commandType == DbCommandType.InsertRow || commandType == DbCommandType.InsertRows ||
+                commandType == DbCommandType.DeleteRow || commandType == DbCommandType.DeleteRows)
             {
-                parameter.ParameterName = parameter.ParameterName switch
+                foreach (DbParameter parameter in command.Parameters)
                 {
-                    "in_sync_scope_id" => "sync_scope_id",
-                    "in_sync_min_timestamp" => "sync_min_timestamp",
-                    "in_sync_row_is_tombstone" => "sync_row_is_tombstone",
-                    "in_sync_row_count" => "sync_row_count",
-                    "in_sync_row_timestamp" => "sync_row_timestamp",
-                    "in_sync_force_write" => "sync_force_write",
-                    _ => parameter.ParameterName
-                };
-            
+                    parameter.ParameterName = parameter.ParameterName switch
+                    {
+                        "in_sync_scope_id" => "sync_scope_id",
+                        "in_sync_min_timestamp" => "sync_min_timestamp",
+                        "in_sync_row_is_tombstone" => "sync_row_is_tombstone",
+                        "in_sync_row_count" => "sync_row_count",
+                        "in_sync_row_timestamp" => "sync_row_timestamp",
+                        "in_sync_force_write" => "sync_force_write",
+                        _ => parameter.ParameterName
+                    };
+                }
+            }
+            else
+            {
+                foreach (DbParameter parameter in command.Parameters)
+                {
+                    parameter.ParameterName = parameter.ParameterName switch
+                    {
+                        "in_sync_scope_id" => "@sync_scope_id",
+                        "in_sync_min_timestamp" => "@sync_min_timestamp",
+                        "in_sync_row_is_tombstone" => "@sync_row_is_tombstone",
+                        "in_sync_row_count" => "@sync_row_count",
+                        "in_sync_row_timestamp" => "@sync_row_timestamp",
+                        "in_sync_force_write" => "@sync_force_write",
+                        _ => parameter.ParameterName
+                    };
+                }
+
             }
 
             // for stored procedures, parameters are prefixed with "in_"
             // for command parameters are prefixed with "@" ....
-            if (commandType == DbCommandType.UpdateMetadata || commandType == DbCommandType.SelectMetadata)
+            if (commandType != DbCommandType.UpdateRow && commandType != DbCommandType.UpdateRows &&
+                commandType != DbCommandType.InsertRow && commandType != DbCommandType.InsertRows &&
+                commandType != DbCommandType.DeleteRow && commandType != DbCommandType.DeleteRows)
             {
                 foreach (var parameter in command.Parameters)
                 {
                     var p = parameter as DbParameter;
                     if (p.ParameterName.StartsWith("in_"))
                         p.ParameterName = p.ParameterName.Replace("in_", "");
-                    
+
                     if (!p.ParameterName.StartsWith("@"))
-                    p.ParameterName = $"@{p.ParameterName}";
+                        p.ParameterName = $"@{p.ParameterName}";
                 }
             }
 
@@ -90,24 +112,24 @@ namespace Dotmim.Sync.MySql
             switch (nameType)
             {
                 case DbCommandType.SelectChanges:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges, filter);
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.MySqlObjectNames.CreateSelectIncrementalChangesCommand(filter);
                     break;
                 case DbCommandType.SelectInitializedChanges:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges, filter);
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.MySqlObjectNames.CreateSelectInitializedChangesCommand(filter);
                     break;
                 case DbCommandType.SelectInitializedChangesWithFilters:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.MySqlObjectNames.CreateSelectInitializedChangesCommand(filter);
                     break;
                 case DbCommandType.SelectChangesWithFilters:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.MySqlObjectNames.CreateSelectIncrementalChangesCommand(filter);
                     break;
                 case DbCommandType.SelectRow:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow, filter);
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.MySqlObjectNames.CreateSelectRowCommand();
                     break;
                 case DbCommandType.UpdateRow:
                 case DbCommandType.InsertRow:
@@ -130,17 +152,20 @@ namespace Dotmim.Sync.MySql
                     command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.EnableConstraints, filter);
                     break;
                 case DbCommandType.DeleteMetadata:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata, filter);
-                    break;
+                    //command.CommandType = CommandType.StoredProcedure;
+                    //command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata, filter);
+                    //break;
+                    return (default, false);
                 case DbCommandType.UpdateMetadata:
-                    command.CommandType = CommandType.Text;
-                    command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
-                    break;
+                    //command.CommandType = CommandType.Text;
+                    //command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
+                    //break;
+                    return (default, false);
                 case DbCommandType.SelectMetadata:
-                    command.CommandType = CommandType.Text;
-                    command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.SelectMetadata, filter);
-                    break;
+                    //command.CommandType = CommandType.Text;
+                    //command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.SelectMetadata, filter);
+                    //break;
+                    return (default, false);
                 case DbCommandType.InsertTrigger:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.MySqlObjectNames.GetTriggerCommandName(DbTriggerType.Insert, filter);
@@ -155,11 +180,11 @@ namespace Dotmim.Sync.MySql
                     break;
                 case DbCommandType.UpdateUntrackedRows:
                     command.CommandType = CommandType.Text;
-                    command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.UpdateUntrackedRows, filter);
+                    command.CommandText = this.MySqlObjectNames.CreateUpdateUntrackedRowsCommand();
                     break;
                 case DbCommandType.Reset:
-                    command.CommandType = CommandType.StoredProcedure;
-                    command.CommandText = this.MySqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset, filter);
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.MySqlObjectNames.CreateResetCommand();
                     break;
                 case DbCommandType.BulkTableType:
                 case DbCommandType.PreUpdateRows:
@@ -176,282 +201,8 @@ namespace Dotmim.Sync.MySql
             return (command, isBatch);
         }
 
- 
-//        public override Task AddCommandParametersAsync(DbCommandType commandType, DbCommand command, DbConnection connection, DbTransaction transaction = null, SyncFilter filter = null)
-//        {
 
-//            if (command == null)
-//                return Task.CompletedTask;
-
-//            if (command.Parameters != null && command.Parameters.Count > 0)
-//                return Task.CompletedTask;
-
-//            switch (commandType)
-//            {
-//                case DbCommandType.SelectChanges:
-//                case DbCommandType.SelectChangesWithFilters:
-//                case DbCommandType.SelectInitializedChanges:
-//                case DbCommandType.SelectInitializedChangesWithFilters:
-//                    this.SetSelectChangesParameters(command, filter);
-//                    break;
-//                case DbCommandType.SelectRow:
-//                    this.SetSelectRowParameters(command);
-//                    break;
-//                case DbCommandType.DeleteMetadata:
-//                    this.SetDeleteMetadataParameters(command);
-//                    break;
-//                case DbCommandType.SelectMetadata:
-//                    this.SetSelectMetadataParameters(command);
-//                    break;
-//                case DbCommandType.DeleteRow:
-//                case DbCommandType.DeleteRows:
-//                    this.SetDeleteRowParameters(command);
-//                    break;
-//                case DbCommandType.UpdateRow:
-//                case DbCommandType.InsertRow:
-//                case DbCommandType.UpdateRows:
-//                case DbCommandType.InsertRows:
-//                    this.SetUpdateRowParameters(command);
-//                    break;
-//                case DbCommandType.UpdateMetadata:
-//                    this.SetUpdateMetadataParameters(command);
-//                    break;
-//                default:
-//                    break;
-//            }
-
-//            return Task.CompletedTask;
-//        }
-
-//        private void SetUpdateMetadataParameters(DbCommand command)
-//        {
-//            DbParameter p;
-
-//            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
-//            {
-//                var columnName = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
-
-//                p = command.CreateParameter();
-//                p.ParameterName = $"@{columnName}";
-//                p.DbType = column.GetDbType();
-//                p.SourceColumn = column.ColumnName;
-//                command.Parameters.Add(p);
-//            }
-
-//            p = command.CreateParameter();
-//            p.ParameterName = "@sync_scope_id";
-//            p.DbType = DbType.Guid;
-//            command.Parameters.Add(p);
-
-//            p = command.CreateParameter();
-//            p.ParameterName = "@sync_row_is_tombstone";
-//            p.DbType = DbType.Boolean;
-//            command.Parameters.Add(p);
-
-//        }
-
-//        private void SetSelectMetadataParameters(DbCommand command)
-//        {
-//            DbParameter p;
-
-//            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
-//            {
-//                var columnName = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
-
-//                p = command.CreateParameter();
-//                p.ParameterName = $"@{columnName}";
-//                p.DbType = column.GetDbType();
-//                p.SourceColumn = column.ColumnName;
-//                command.Parameters.Add(p);
-//            }
-//        }
-
-//        private void SetUpdateRowParameters(DbCommand command)
-//        {
-//            DbParameter p;
-
-//            var prefix_parameter = MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER;
-
-//            foreach (var column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
-//            {
-//                var columnName = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
-
-//                p = command.CreateParameter();
-//                p.ParameterName = $"{prefix_parameter}{columnName}";
-//                p.DbType = column.GetDbType();
-//                p.SourceColumn = column.ColumnName;
-//                command.Parameters.Add(p);
-//            }
-
-//            p = command.CreateParameter();
-//            p.ParameterName = "sync_scope_id";
-//            p.DbType = DbType.Guid;
-//            command.Parameters.Add(p);
-
-//            p = command.CreateParameter();
-//            p.ParameterName = "sync_force_write";
-//            p.DbType = DbType.Int64;
-//            command.Parameters.Add(p);
-
-//            p = command.CreateParameter();
-//            p.ParameterName = "sync_min_timestamp";
-//            p.DbType = DbType.Int64;
-//            command.Parameters.Add(p);
-
-//            p = command.CreateParameter();
-//            p.ParameterName = "sync_row_count";
-//            p.DbType = DbType.Int32;
-//            p.Direction = ParameterDirection.Output;
-//            command.Parameters.Add(p);
-
-//        }
-
-//        private void SetDeleteRowParameters(DbCommand command)
-//        {
-//            DbParameter p;
-//            var prefix_parameter = MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER;
-//            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
-//            {
-//                var quotedColumn = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
-
-//                p = command.CreateParameter();
-//                p.ParameterName = $"{prefix_parameter}{quotedColumn}";
-//                p.DbType = column.GetDbType();
-//                p.SourceColumn = column.ColumnName;
-//                command.Parameters.Add(p);
-//            }
-
-//            p = command.CreateParameter();
-//            p.ParameterName = "sync_scope_id";
-//            p.DbType = DbType.Guid;
-//            command.Parameters.Add(p);
-
-//            p = command.CreateParameter();
-//            p.ParameterName = "sync_force_write";
-//            p.DbType = DbType.Int64;
-//            command.Parameters.Add(p);
-
-//            p = command.CreateParameter();
-//            p.ParameterName = "sync_min_timestamp";
-//            p.DbType = DbType.Int64;
-//            command.Parameters.Add(p);
-
-//            p = command.CreateParameter();
-//            p.ParameterName = "sync_row_count";
-//            p.DbType = DbType.Int32;
-//            p.Direction = ParameterDirection.Output;
-//            command.Parameters.Add(p);
-//        }
-
-//        private void SetSelectRowParameters(DbCommand command)
-//        {
-//            DbParameter p;
-//            var prefix_parameter = MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER;
-//            foreach (var column in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
-//            {
-//                var quotedColumn = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
-
-//                p = command.CreateParameter();
-//                p.ParameterName = $"{prefix_parameter}{quotedColumn}";
-//                p.DbType = column.GetDbType();
-//                p.SourceColumn = column.ColumnName;
-//                command.Parameters.Add(p);
-//            }
-
-//            p = command.CreateParameter();
-//            p.ParameterName = "sync_scope_id";
-//            p.DbType = DbType.Guid;
-//            command.Parameters.Add(p);
-
-//        }
-
-//        private void SetDeleteMetadataParameters(DbCommand command)
-//        {
-//            var p = command.CreateParameter();
-//            p.ParameterName = "sync_row_timestamp";
-//            p.DbType = DbType.Int64;
-//            command.Parameters.Add(p);
-//        }
-
-//        private void SetSelectChangesParameters(DbCommand command, SyncFilter filter = null)
-//        {
-//#if MARIADB
-//            var originalProvider = MariaDBSyncProvider.ProviderType;
-//#elif MYSQL
-//            var originalProvider = MySqlSyncProvider.ProviderType;
-//#endif
-
-//            var p = command.CreateParameter();
-//            p.ParameterName = "sync_min_timestamp";
-//            p.DbType = DbType.Int64;
-//            command.Parameters.Add(p);
-
-//            p = command.CreateParameter();
-//            p.ParameterName = "sync_scope_id";
-//            p.DbType = DbType.Guid;
-//            command.Parameters.Add(p);
-
-//            if (filter == null)
-//                return;
-
-//            var parameters = filter.Parameters;
-
-//            if (parameters.Count == 0)
-//                return;
-
-//            foreach (var param in parameters)
-//            {
-//                if (param.DbType.HasValue)
-//                {
-//                    // Get column name and type
-//                    var columnName = ParserName.Parse(param.Name, "`").Unquoted().Normalized().ToString();
-//                    var syncColumn = new SyncColumn(columnName)
-//                    {
-//                        DbType = (int)param.DbType.Value,
-//                        MaxLength = param.MaxLength,
-//                    };
-//                    var sqlDbType = this.MySqlDbMetadata.GetOwnerDbTypeFromDbType(syncColumn);
-
-//                    var customParameterFilter = new MySqlParameter($"in_{columnName}", sqlDbType)
-//                    {
-//                        Size = param.MaxLength,
-//                        IsNullable = param.AllowNull,
-//                        Value = param.DefaultValue
-//                    };
-//                    command.Parameters.Add(customParameterFilter);
-//                }
-//                else
-//                {
-//                    var tableFilter = this.TableDescription.Schema.Tables[param.TableName, param.SchemaName];
-//                    if (tableFilter == null)
-//                        throw new FilterParamTableNotExistsException(param.TableName);
-
-//                    var columnFilter = tableFilter.Columns[param.Name];
-//                    if (columnFilter == null)
-//                        throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
-
-//                    // Get column name and type
-//                    var columnName = ParserName.Parse(columnFilter, "`").Unquoted().Normalized().ToString();
-
-
-//                    var sqlDbType = tableFilter.OriginalProvider == originalProvider ?
-//                        this.MySqlDbMetadata.GetMySqlDbType(columnFilter) : this.MySqlDbMetadata.GetOwnerDbTypeFromDbType(columnFilter);
-
-//                    // Add it as parameter
-//                    var sqlParamFilter = new MySqlParameter($"in_{columnName}", sqlDbType)
-//                    {
-//                        Size = columnFilter.MaxLength,
-//                        IsNullable = param.AllowNull,
-//                        Value = param.DefaultValue
-//                    };
-//                    command.Parameters.Add(sqlParamFilter);
-//                }
-
-//            }
-
-//        }
-
-        public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null) 
+        public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
             => throw new NotImplementedException();
     }
 }

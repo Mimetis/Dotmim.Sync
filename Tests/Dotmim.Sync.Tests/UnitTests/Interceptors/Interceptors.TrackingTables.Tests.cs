@@ -23,24 +23,14 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task TrackingTable_Create_One()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
             var setup = new SyncSetup(new string[] { "SalesLT.Product" })
             {
                 TrackingTablesPrefix = "t_",
                 TrackingTablesSuffix = "_t"
             };
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -66,7 +56,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Check we have a new column in tracking table
-            using (var c = new SqlConnection(cs))
+            using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync().ConfigureAwait(false);
                 var cols = await SqlManagementUtils.GetColumnsForTableAsync("t_Product_t", "SalesLT", c, null).ConfigureAwait(false);
@@ -74,28 +64,16 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.NotNull(cols.Rows.FirstOrDefault(r => r["name"].ToString() == "internal_id"));
                 c.Close();
             }
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task TrackingTable_Exists()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product", "SalesLT.ProductCategory" });
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -107,31 +85,21 @@ namespace Dotmim.Sync.Tests.UnitTests
             exists = await remoteOrchestrator.ExistTrackingTableAsync(scopeInfo, "ProductCategory", "SalesLT");
             Assert.False(exists);
 
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
 
         [Fact]
         public async Task TrackingTable_Create_All()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+            
             var setup = new SyncSetup(new string[]
             { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts" })
             {
                 TrackingTablesPrefix = "t_",
                 TrackingTablesSuffix = "_t"
             };
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -175,28 +143,18 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(4, onCreated);
             Assert.Equal(4, onDropping);
             Assert.Equal(4, onDropped);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task TrackingTable_Drop_One()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
 
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -221,7 +179,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Check we have a new column in tracking table
-            using (var c = new SqlConnection(cs))
+            using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
@@ -231,28 +189,17 @@ namespace Dotmim.Sync.Tests.UnitTests
 
                 c.Close();
             }
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task TrackingTable_Drop_One_Cancel()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" });
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -277,7 +224,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.False(onDropped);
 
             // Check we have a new column in tracking table
-            using (var c = new SqlConnection(cs))
+            using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
@@ -287,28 +234,17 @@ namespace Dotmim.Sync.Tests.UnitTests
 
                 c.Close();
             }
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task TrackingTable_Drop_All()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
+            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts" });
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
-
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -324,8 +260,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.Equal(4, onDropping);
             Assert.Equal(4, onDropped);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
     }

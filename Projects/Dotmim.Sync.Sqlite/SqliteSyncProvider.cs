@@ -7,6 +7,7 @@ using System.IO;
 using Dotmim.Sync.Sqlite.Builders;
 using SQLitePCL;
 using System.Reflection;
+using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -15,7 +16,6 @@ namespace Dotmim.Sync.Sqlite
     {
 
 
-        private string filePath;
         private DbMetadata dbMetadata;
         private static String providerType;
         private SqliteConnectionStringBuilder builder;
@@ -28,7 +28,7 @@ namespace Dotmim.Sync.Sqlite
             return dbMetadata;
         }
 
-
+        public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnDatabaseLevel;
 
         /// <summary>
         /// SQLIte does not support to be a server side.
@@ -74,14 +74,42 @@ namespace Dotmim.Sync.Sqlite
         {
         }
 
+        public string FilePath
+        {
+            get
+            {
+                try
+                {
+                    return new FileInfo(this.builder.DataSource).FullName;
+                }
+                catch (Exception)
+                {
+
+                    return null;
+                }
+                
+            }
+        }
+
+        public override string ConnectionString
+        {
+            get
+            {
+                if (builder == null)
+                    return null;
+
+                return builder.ConnectionString;
+            }
+            set
+            {
+                this.builder = new SqliteConnectionStringBuilder(value);
+            }
+        }
         public SqliteSyncProvider(string filePath) : this()
         {
-            this.filePath = filePath;
-
             if (filePath.ToLowerInvariant().StartsWith("data source"))
             {
-                this.ConnectionString = filePath;
-                this.builder = new SqliteConnectionStringBuilder(this.ConnectionString);
+                this.builder = new SqliteConnectionStringBuilder(filePath);
             }
             else
             {
@@ -94,18 +122,13 @@ namespace Dotmim.Sync.Sqlite
                     throw new Exception($"Sqlite database file path needs a file name");
 
                 this.builder = new SqliteConnectionStringBuilder { DataSource = filePath };
-
-                this.ConnectionString = builder.ConnectionString;
             }
 
         }
 
         public SqliteSyncProvider(FileInfo fileInfo) : this()
         {
-            this.filePath = fileInfo.FullName;
-            this.builder = new SqliteConnectionStringBuilder { DataSource = filePath };
-
-            this.ConnectionString = builder.ConnectionString;
+            this.builder = new SqliteConnectionStringBuilder { DataSource = fileInfo.FullName };
         }
 
         public override string GetDatabaseName()
@@ -118,22 +141,17 @@ namespace Dotmim.Sync.Sqlite
 
         public SqliteSyncProvider(SqliteConnectionStringBuilder sqliteConnectionStringBuilder) : this()
         {
-            if (String.IsNullOrEmpty(sqliteConnectionStringBuilder.DataSource))
+            if (string.IsNullOrEmpty(sqliteConnectionStringBuilder.DataSource))
                 throw new Exception("You have to provide at least a DataSource property to be able to connect to your SQlite database.");
 
-            this.filePath = sqliteConnectionStringBuilder.DataSource;
-
-            this.ConnectionString = sqliteConnectionStringBuilder.ConnectionString;
+            this.builder = sqliteConnectionStringBuilder;
         }
 
         public override void EnsureSyncException(SyncException syncException)
         {
-            if (!string.IsNullOrEmpty(this.ConnectionString))
-            {
-                var builder = new SqliteConnectionStringBuilder(this.ConnectionString);
 
+            if (builder != null)
                 syncException.DataSource = builder.DataSource;
-            }
 
             var sqliteException = syncException.InnerException as SqliteException;
 
@@ -148,16 +166,12 @@ namespace Dotmim.Sync.Sqlite
 
         public override DbConnection CreateConnection()
         {
-            // Affect options
-            var builder = new SqliteConnectionStringBuilder(this.ConnectionString);
-
             if (!builder.ForeignKeys.HasValue && this.Orchestrator != null)
-            {
                 builder.ForeignKeys = !this.Orchestrator.Options.DisableConstraintsOnApplyChanges;
-                this.ConnectionString = builder.ToString();
-            }
 
-            var sqliteConnection = new SqliteConnection(this.ConnectionString);
+            var connectionString = builder.ToString();
+
+            var sqliteConnection = new SqliteConnection(connectionString);
 
             return sqliteConnection;
         }

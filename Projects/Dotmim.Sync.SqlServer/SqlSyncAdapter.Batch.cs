@@ -18,7 +18,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 {
     public partial class SqlSyncAdapter : DbSyncAdapter
     {
-        
+
         /// <summary>
         /// Executing a batch command
         /// </summary>
@@ -216,7 +216,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
             catch (DbException ex)
             {
-                Debug.WriteLine(ex.Message);
                 throw;
             }
             finally
@@ -229,5 +228,75 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
         }
 
-      }
+
+
+        private SqlMetaData GetSqlMetadaFromType(SyncColumn column)
+        {
+            long maxLength = column.MaxLength;
+            var dataType = column.GetDataType();
+
+            var sqlDbType = this.TableDescription.OriginalProvider == SqlSyncProvider.ProviderType ?
+                this.SqlMetadata.GetSqlDbType(column) : this.SqlMetadata.GetOwnerDbTypeFromDbType(column);
+
+            // Since we validate length before, it's not mandatory here.
+            // let's say.. just in case..
+            if (sqlDbType == SqlDbType.VarChar || sqlDbType == SqlDbType.NVarChar)
+            {
+                // set value for (MAX) 
+                maxLength = maxLength <= 0 ? SqlMetaData.Max : maxLength;
+
+                // If max length is specified (not (MAX) )
+                if (maxLength > 0)
+                    maxLength = sqlDbType == SqlDbType.NVarChar ? Math.Min(maxLength, 4000) : Math.Min(maxLength, 8000);
+
+                return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
+            }
+
+
+            if (dataType == typeof(char))
+                return new SqlMetaData(column.ColumnName, sqlDbType, 1);
+
+            if (sqlDbType == SqlDbType.Char || sqlDbType == SqlDbType.NChar)
+            {
+                maxLength = maxLength <= 0 ? (sqlDbType == SqlDbType.NChar ? 4000 : 8000) : maxLength;
+                return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
+            }
+
+            if (sqlDbType == SqlDbType.Binary)
+            {
+                maxLength = maxLength <= 0 ? 8000 : maxLength;
+                return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
+            }
+
+            if (sqlDbType == SqlDbType.VarBinary)
+            {
+                // set value for (MAX) 
+                maxLength = maxLength <= 0 ? SqlMetaData.Max : maxLength;
+
+                return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
+            }
+
+            if (sqlDbType == SqlDbType.Decimal)
+            {
+                var (p, s) = this.SqlMetadata.GetPrecisionAndScale(column);
+                if (p > 0 && p > s)
+                {
+                    return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
+                }
+                else
+                {
+                    if (p == 0)
+                        p = 18;
+                    if (s == 0)
+                        s = Math.Min((byte)(p - 1), (byte)6);
+                    return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
+                }
+
+            }
+
+            return new SqlMetaData(column.ColumnName, sqlDbType);
+
+        }
+
+    }
 }

@@ -1,8 +1,9 @@
 ﻿using Dotmim.Sync.Builders;
-
-
+using Dotmim.Sync.SqlServer.Manager;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 
@@ -44,6 +45,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         Dictionary<DbStoredProcedureType, string> storedProceduresNames = new();
         Dictionary<DbTriggerType, string> triggersNames = new();
         Dictionary<DbCommandType, string> commandNames = new();
+        private SqlDbMetadata sqlDbMetadata;
 
         public SyncTable TableDescription { get; }
         public SyncSetup Setup { get; }
@@ -119,6 +121,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.Setup = setup;
             this.ScopeName = scopeName;
             this.SetDefaultNames();
+            this.sqlDbMetadata = new SqlDbMetadata();
         }
 
         /// <summary>
@@ -166,6 +169,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.AddCommandName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand());
             this.AddCommandName(DbCommandType.SelectMetadata, CreateSelectMetadataCommand());
             this.AddCommandName(DbCommandType.UpdateMetadata, CreateUpdateMetadataCommand());
+            this.AddCommandName(DbCommandType.SelectRow, CreateSelectRowCommand());
+            this.AddCommandName(DbCommandType.Reset, CreateResetCommand());
 
         }
 
@@ -174,7 +179,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             var stringBuilder = new StringBuilder();
             var pkeysSelect = new StringBuilder();
             var pkeysWhere = new StringBuilder();
-
 
             string and = string.Empty;
             string comma = string.Empty;
@@ -290,6 +294,79 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return r;
 
+        }
+
+        private string CreateSelectRowCommand()
+        {
+            var stringBuilder = new StringBuilder("SELECT ");
+            stringBuilder.AppendLine();
+            var stringBuilder1 = new StringBuilder();
+            string empty = string.Empty;
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
+
+                stringBuilder1.Append($"{empty}[side].{columnName} = @{parameterName}");
+                empty = " AND ";
+            }
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
+            {
+                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+
+                var isPrimaryKey = this.TableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
+
+                if (isPrimaryKey)
+                    stringBuilder.AppendLine($"\t[side].{columnName}, ");
+                else
+                    stringBuilder.AppendLine($"\t[base].{columnName}, ");
+            }
+            stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone] as [sync_row_is_tombstone], ");
+            stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id]");
+
+            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
+            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON");
+
+            string str = string.Empty;
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+                stringBuilder.Append($"{str}[base].{columnName} = [side].{columnName}");
+                str = " AND ";
+            }
+            stringBuilder.AppendLine();
+            stringBuilder.Append(string.Concat("WHERE ", stringBuilder1.ToString()));
+            return stringBuilder.ToString();
+        }
+
+        private string CreateResetCommand()
+        {
+            var updTriggerName = GetTriggerCommandName(DbTriggerType.Update);
+            var delTriggerName = GetTriggerCommandName(DbTriggerType.Delete);
+            var insTriggerName = GetTriggerCommandName(DbTriggerType.Insert);
+
+         
+
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"SET @sync_row_count = 0;");
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine($"DISABLE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"DISABLE TRIGGER {insTriggerName} ON {tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"DISABLE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted()};");
+
+            stringBuilder.AppendLine($"DELETE FROM {tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.Schema().Quoted()};");
+
+            stringBuilder.AppendLine($"ENABLE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"ENABLE TRIGGER {insTriggerName} ON {tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"ENABLE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted()};");
+
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine(string.Concat("SET @sync_row_count = @@ROWCOUNT;"));
+
+            return stringBuilder.ToString();
         }
 
     }

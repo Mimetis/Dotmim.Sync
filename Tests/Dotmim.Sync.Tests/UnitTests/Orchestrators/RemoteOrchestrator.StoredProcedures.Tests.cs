@@ -24,26 +24,14 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task RemoteOrchestrator_StoredProcedure_ShouldCreate()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
             var scopeName = "scope";
-
-            var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" })
             {
                 StoredProceduresPrefix = "sp_",
                 StoredProceduresSuffix = "_sp"
             };
 
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
@@ -61,34 +49,20 @@ namespace Dotmim.Sync.Tests.UnitTests
             await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo2, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters, false);
 
             Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo2, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters));
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
 
         [Fact]
         public async Task RemoteOrchestrator_StoredProcedure_ShouldOverwrite()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
             var scopeName = "scope";
-
-            var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" })
             {
                 StoredProceduresPrefix = "sp_",
                 StoredProceduresSuffix = "_sp"
             };
 
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
@@ -106,24 +80,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, true);
 
             Assert.True(assertOverWritten);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
 
         [Fact]
         public async Task RemoteOrchestrator_StoredProcedure_ShouldNotOverwrite()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
             var scopeName = "scope";
 
             var options = new SyncOptions();
@@ -133,7 +95,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 StoredProceduresSuffix = "_sp"
             };
 
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
@@ -151,23 +113,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             await remoteOrchestrator.CreateStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges, false);
 
             Assert.False(assertOverWritten);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task RemoteOrchestrator_StoredProcedure_Exists()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
             var scopeName = "scope";
 
             var options = new SyncOptions();
@@ -177,7 +127,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 StoredProceduresSuffix = "_sp"
             };
 
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
@@ -185,23 +135,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges));
             Assert.False(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.UpdateRow));
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task RemoteOrchestrator_StoredProcedures_ShouldCreate()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
             var scopeName = "scope";
 
             var options = new SyncOptions();
@@ -213,7 +151,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Adding a filter to check if stored procedures "with filters" are also generated
             setup.Filters.Add("Product", "ProductCategoryID", "SalesLT");
 
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
@@ -222,21 +160,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.BulkDeleteRows));
             Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.BulkTableType));
             Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.BulkUpdateRows));
-            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.DeleteMetadata));
             Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.DeleteRow));
-            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.Reset));
             Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChanges));
             Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectInitializedChanges));
-            Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectRow));
             Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.UpdateRow));
             Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectChangesWithFilters));
             Assert.True(await remoteOrchestrator.ExistStoredProcedureAsync(scopeInfo, "Product", "SalesLT", DbStoredProcedureType.SelectInitializedChangesWithFilters));
-
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
-
-
-
     }
 }

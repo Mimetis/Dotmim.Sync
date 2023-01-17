@@ -26,53 +26,21 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task LocalOrchestrator_MetadataCleaning()
         {
-            var dbNameSrv = HelperDatabase.GetRandomName("tcp_lo_srv_mc");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameSrv, true);
-
-            var dbNameCli = HelperDatabase.GetRandomName("tcp_lo_cli_mc");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbNameCli, true);
-
-            var csServer = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameSrv);
-            var serverProvider = new SqlSyncProvider(csServer);
-
-            var csClient = HelperDatabase.GetConnectionString(ProviderType.Sql, dbNameCli);
-            var clientProvider = new SqlSyncProvider(csClient);
-
-            await new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider), true, false).Database.EnsureCreatedAsync();
-            await new AdventureWorksContext((dbNameCli, ProviderType.Sql, clientProvider), true, false).Database.EnsureCreatedAsync();
-
             var scopeName = "scopesnap1";
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider);
+            var agent = new SyncAgent(clientProvider, serverProvider, options);
 
             // Making a first sync, will initialize everything we need
-            var s = await agent.SynchronizeAsync(scopeName, this.Tables);
+            var s = await agent.SynchronizeAsync(scopeName, setup);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
             var remoteOrchestrator = agent.RemoteOrchestrator;
 
             // Server side : Create a product category and a product
-            // Create a productcategory item
-            // Create a new product on server
-            var productId = Guid.NewGuid();
-            var productName = HelperDatabase.GetRandomName();
-            var productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-            var productCategoryName = HelperDatabase.GetRandomName();
-            var productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-            using (var ctx = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider)))
-            {
-                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                ctx.Add(pc);
-
-                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-                ctx.Add(product);
-
-                await ctx.SaveChangesAsync();
-            }
+            await serverProvider.AddProductCategoryAsync();
+            await serverProvider.AddProductAsync();
 
             var cleaning = 0;
             var cleaned = 0;
@@ -88,8 +56,6 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.Equal(0, args.DatabaseMetadatasCleaned.RowsCleanedCount);
                 Assert.Empty(args.DatabaseMetadatasCleaned.Tables);
             });
-
-
 
             // Making a first sync, will call cleaning, but nothing is cleaned (still interceptors are called)
             var s2 = await agent.SynchronizeAsync(scopeName);
@@ -121,16 +87,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, cleaned);
 
             // Server side : Create a product category 
-            productCategoryName = HelperDatabase.GetRandomName();
-            productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-            using (var ctx = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider)))
-            {
-                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                ctx.Add(pc);
-
-                await ctx.SaveChangesAsync();
-            }
+            await serverProvider.AddProductCategoryAsync();
 
             // Reset interceptors
             localOrchestrator.ClearInterceptors();
@@ -153,25 +110,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(1, cleaned);
 
             // Server side : Create a product category and a product
-            // Create a productcategory item
-            // Create a new product on server
-            productId = Guid.NewGuid();
-            productName = HelperDatabase.GetRandomName();
-            productNumber = productName.ToUpperInvariant().Substring(0, 10);
-
-            productCategoryName = HelperDatabase.GetRandomName();
-            productCategoryId = productCategoryName.ToUpperInvariant().Substring(0, 6);
-
-            using (var ctx = new AdventureWorksContext((dbNameSrv, ProviderType.Sql, serverProvider)))
-            {
-                var pc = new ProductCategory { ProductCategoryId = productCategoryId, Name = productCategoryName };
-                ctx.Add(pc);
-
-                var product = new Product { ProductId = productId, Name = productName, ProductNumber = productNumber };
-                ctx.Add(product);
-
-                await ctx.SaveChangesAsync();
-            }
+            await serverProvider.AddProductCategoryAsync();
+            await serverProvider.AddProductAsync();
 
             // Reset interceptors
             localOrchestrator.ClearInterceptors();
@@ -193,9 +133,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             // cleaning is always called on N-1 rows, so nothing here should be called
             Assert.Equal(1, cleaning);
             Assert.Equal(1, cleaned);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbNameSrv);
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbNameCli);
         }
     }
 }

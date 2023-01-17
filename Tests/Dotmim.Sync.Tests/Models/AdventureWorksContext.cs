@@ -1,4 +1,5 @@
 using Dotmim.Sync.Tests.Core;
+using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Web.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -19,50 +20,29 @@ namespace Dotmim.Sync.Tests.Models
 
     public partial class AdventureWorksContext : DbContext
     {
+        private DbConnection Connection { get; }
         internal bool useSchema = false;
         internal bool useSeeding = false;
+
         public ProviderType ProviderType { get; set; }
         public string ConnectionString { get; set; }
 
-        private DbConnection Connection { get; }
-
         public static Guid CustomerId1ForFilter = Guid.NewGuid();
-
         public static Guid CustomerId2ForFilter = Guid.NewGuid();
 
-        public AdventureWorksContext((string DatabaseName, ProviderType ProviderType, CoreProvider provider) t, bool fallbackUseSchema = true, bool useSeeding = false) : this()
-        {
-            this.ProviderType = t.ProviderType;
-            this.ConnectionString = HelperDatabase.GetConnectionString(t.ProviderType, t.DatabaseName);
-            this.useSeeding = useSeeding;
-            this.useSchema = (this.ProviderType == ProviderType.Sql || this.ProviderType == ProviderType.Postgres) && fallbackUseSchema;
-        }
-        public AdventureWorksContext(CoreProvider provider, bool fallbackUseSchema = true, bool useSeeding = false) : this()
+
+        public AdventureWorksContext(CoreProvider provider, bool useSeeding = false) : this()
         {
             var db = HelperDatabase.GetDatabaseType(provider);
             this.ProviderType = db.ProviderType;
             this.ConnectionString = HelperDatabase.GetConnectionString(db.ProviderType, db.DatabaseName);
             this.useSeeding = useSeeding;
-            this.useSchema = (this.ProviderType == ProviderType.Sql || this.ProviderType == ProviderType.Postgres) && fallbackUseSchema;
+            this.useSchema = provider.UseFallbackSchema();
         }
 
-        public AdventureWorksContext(string databaseName, ProviderType providerType, bool fallbackUseSchema = true, bool useSeeding = false) : this()
-        {
-            this.ProviderType = providerType;
-            this.ConnectionString = HelperDatabase.GetConnectionString(providerType, databaseName);
-            this.useSeeding = useSeeding;
-            this.useSchema = (this.ProviderType == ProviderType.Sql || this.ProviderType == ProviderType.Postgres) && fallbackUseSchema;
-        }
+        public AdventureWorksContext(DbContextOptions<AdventureWorksContext> options) : base(options) { }
 
-
-        public AdventureWorksContext(DbContextOptions<AdventureWorksContext> options)
-            : base(options)
-        {
-        }
-
-        public AdventureWorksContext()
-        {
-        }
+        public AdventureWorksContext() { }
 
 #if NET7_0
         protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -137,7 +117,6 @@ namespace Dotmim.Sync.Tests.Models
         public virtual DbSet<ProductModel> ProductModel { get; set; }
         public virtual DbSet<SalesOrderDetail> SalesOrderDetail { get; set; }
         public virtual DbSet<SalesOrderHeader> SalesOrderHeader { get; set; }
-        //public virtual DbSet<Sql> Sql { get; set; }
         public virtual DbSet<Posts> Posts { get; set; }
         public virtual DbSet<PostTag> PostTag { get; set; }
         public virtual DbSet<Tags> Tags { get; set; }
@@ -1127,11 +1106,14 @@ namespace Dotmim.Sync.Tests.Models
             var providerType = adventureWorksContext.ProviderType;
             var useSchema = adventureWorksContext.useSchema;
             var useSeeding = adventureWorksContext.useSeeding;
+            var cstring = adventureWorksContext.ConnectionString;
 
             var hashCode = base.GetHashCode() * 397;
             hashCode ^= useSchema.GetHashCode();
             hashCode ^= providerType.GetHashCode();
             hashCode ^= useSeeding.GetHashCode();
+            hashCode ^= cstring.GetHashCode();
+
 
             return (hashCode, designTime);
         }
@@ -1150,6 +1132,7 @@ namespace Dotmim.Sync.Tests.Models
         private readonly ProviderType providerType;
         private readonly bool useSchema;
         private readonly bool useSeeding;
+        private readonly string cstring;
 
         public MyModelCacheKey(DbContext context)
             : base(context)
@@ -1160,6 +1143,7 @@ namespace Dotmim.Sync.Tests.Models
             this.providerType = adventureWorksContext.ProviderType;
             this.useSchema = adventureWorksContext.useSchema;
             this.useSeeding = adventureWorksContext.useSeeding;
+            this.cstring = adventureWorksContext.ConnectionString;
         }
 
         protected override bool Equals(ModelCacheKey other)
@@ -1170,7 +1154,8 @@ namespace Dotmim.Sync.Tests.Models
                 var isequal = base.Equals(other)
                     && otherModel?.providerType == this.providerType
                     && otherModel?.useSchema == this.useSchema
-                    && otherModel?.useSeeding == this.useSeeding;
+                    && otherModel?.useSeeding == this.useSeeding
+                    && otherModel?.cstring == this.cstring;
 
                 return isequal;
 
@@ -1188,6 +1173,7 @@ namespace Dotmim.Sync.Tests.Models
             hashCode ^= this.useSchema.GetHashCode();
             hashCode ^= this.providerType.GetHashCode();
             hashCode ^= this.useSeeding.GetHashCode();
+            hashCode ^= this.cstring.GetHashCode();
 
             return hashCode;
         }

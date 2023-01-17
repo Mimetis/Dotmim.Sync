@@ -429,11 +429,7 @@ namespace Dotmim.Sync.Sqlite
         private void CreateSelectChangesCommandText()
         {
             var stringBuilder = new StringBuilder("SELECT ");
-            //foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
-            //{
-            //    var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-            //    stringBuilder.AppendLine($"\t[side].{columnName}, ");
-            //}
+
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
@@ -447,8 +443,8 @@ namespace Dotmim.Sync.Sqlite
             }
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone], ");
             stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id] ");
-            stringBuilder.AppendLine($"FROM {trackingName.Quoted().ToString()} [side]");
-            stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} [base]");
+            stringBuilder.AppendLine($"FROM {trackingName.Quoted()} [side]");
+            stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted()} [base]");
             stringBuilder.Append($"ON ");
 
             string empty = "";

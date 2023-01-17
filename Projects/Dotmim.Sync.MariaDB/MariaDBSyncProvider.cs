@@ -1,9 +1,10 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Manager;
 using System.Data.Common;
+using Dotmim.Sync.Enumerations;
 #if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
 using MySqlConnector;
-#elif NETSTANDARD 
+#elif NETSTANDARD
 using MySql.Data.MySqlClient;
 using System.Reflection;
 #endif
@@ -39,7 +40,8 @@ namespace Dotmim.Sync.MariaDB
                 return providerType;
             }
         }
-
+        public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnTableLevel;
+        
         static string shortProviderType;
         public override string GetShortProviderTypeName() => ShortProviderType;
         public static string ShortProviderType

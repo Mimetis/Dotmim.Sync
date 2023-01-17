@@ -251,9 +251,9 @@ namespace Dotmim.Sync
                 // no need to check on every call to SynchronizeAsync
                 if (!checkUpgradeDone)
                 {
-                    var needToUpgrade = await this.LocalOrchestrator.NeedsToUpgradeAsync().ConfigureAwait(false);
-                    if (needToUpgrade)
-                        throw new Exception("This version needs a client manual upgrade.");
+                    //var needToUpgrade = await this.LocalOrchestrator.NeedsToUpgradeAsync().ConfigureAwait(false);
+                    //if (needToUpgrade)
+                    //    throw new Exception("This version needs a client manual upgrade.");
 
                     checkUpgradeDone = true;
                 }

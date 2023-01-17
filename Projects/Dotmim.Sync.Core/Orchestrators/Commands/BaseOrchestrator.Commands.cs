@@ -147,7 +147,8 @@ namespace Dotmim.Sync
             }
 
             // if we have a filter, set the filter parameters
-            if (tableFilter != null)
+            
+            if (tableFilter != null && tableFilter.Parameters != null && tableFilter.Parameters.Count > 0)
             {
                 // context parameters can be null at some point.
                 var contexParameters = context.Parameters ?? new SyncParameters();
@@ -158,7 +159,8 @@ namespace Dotmim.Sync
                         p.Name.Equals(filterParam.Name, SyncGlobalization.DataSourceStringComparison));
 
                     var param = syncAdapter.GetParameter(command, filterParam.Name);
-                    syncAdapter.AddCommandParameterValue(param, parameter?.Value, command, commandType);
+                    if (param != null)
+                        syncAdapter.AddCommandParameterValue(param, parameter?.Value, command, commandType);
                 }
             }
 

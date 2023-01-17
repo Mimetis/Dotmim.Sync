@@ -72,7 +72,7 @@ namespace Dotmim.Sync
                     var failedRows = new List<SyncRow>();
 
                     // Read already present lines
-                    var lastSyncErrorsBpiFullPath = lastSyncErrorsBatchInfo.GetBatchPartInfoPath(tableBpis.ToList()[0]).FullPath;
+                    var lastSyncErrorsBpiFullPath = lastSyncErrorsBatchInfo.GetBatchPartInfoPath(tableBpis.ToList()[0]);
 
                     foreach (var syncRow in localSerializerReader.GetRowsFromFile(lastSyncErrorsBpiFullPath, schemaChangesTable))
                         failedRows.Add(syncRow);
@@ -83,7 +83,7 @@ namespace Dotmim.Sync
                     foreach (var batchPartInfo in bpiTables)
                     {
                         // Get full path of my batchpartinfo
-                        var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo).FullPath;
+                        var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo);
 
                         foreach (var syncRow in localSerializerReader.GetRowsFromFile(fullPath, schemaChangesTable))
                         {
@@ -162,7 +162,7 @@ namespace Dotmim.Sync
                     // Disable check constraints
                     // Because Sqlite does not support "PRAGMA foreign_keys=OFF" Inside a transaction
                     // Report this disabling constraints brefore opening a transaction
-                    if (this.Options.DisableConstraintsOnApplyChanges)
+                    if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnSessionLevel)
                     {
                         foreach (var table in schemaTables)
                             context = await this.InternalDisableConstraintsAsync(scopeInfo, context, table, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -214,7 +214,7 @@ namespace Dotmim.Sync
                     }
 
                     // Re enable check constraints
-                    if (this.Options.DisableConstraintsOnApplyChanges)
+                    if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnSessionLevel)
                         foreach (var table in schemaTables)
                             context = await this.InternalEnableConstraintsAsync(scopeInfo, context, table, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
@@ -336,7 +336,7 @@ namespace Dotmim.Sync
                 foreach (var batchPartInfo in bpiTables)
                 {
                     // Get full path of my batchpartinfo
-                    var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo).FullPath;
+                    var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo);
 
                     if (batchPartInfo.State != SyncRowState.None && batchPartInfo.State != applyType)
                         continue;
@@ -351,13 +351,16 @@ namespace Dotmim.Sync
                     // Rows fetch (either of the good state or not) from the BPI
                     var rowsFetched = 0;
 
-
                     this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. Directory name {{directoryName}}. BatchParts count {{BatchPartsInfoCount}}", message.Changes.DirectoryName, message.Changes.BatchPartsInfo.Count);
 
                     // accumulating rows
                     var batchRows = new List<SyncRow>();
 
                     await using var runner = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.PerBatch ? SyncMode.WithTransaction : SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    // Disable check constraints for provider supporting only at table level
+                    if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
+                        await this.InternalDisableConstraintsAsync(scopeInfo, context, schemaTable, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     // Pre command if exists
                     var (preCommand, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbPreCommandType,
@@ -423,7 +426,7 @@ namespace Dotmim.Sync
 
                                 // fallback to row per row
                                 syncAdapter.UseBulkOperations = false;
-                                (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType, 
+                                (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType,
                                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
                                 cmdText = command.CommandText;
 
@@ -494,6 +497,11 @@ namespace Dotmim.Sync
                         }
                     }
 
+                    // Enable check constraints for provider supporting only at table level
+                    if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
+                        await this.InternalEnableConstraintsAsync(scopeInfo, context, schemaTable, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+
                     await runner.CommitAsync().ConfigureAwait(false);
 
                     var batchChangesAppliedArgs = new BatchChangesAppliedArgs(context, message.Changes, batchPartInfo, schemaTable, applyType, command, connection, transaction);
@@ -530,11 +538,15 @@ namespace Dotmim.Sync
                 {
                     await using var runnerError = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.None ? SyncMode.NoTransaction : SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                    // Disable check constraints for provider supporting only at table level
+                    if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
+                        await this.InternalDisableConstraintsAsync(scopeInfo, context, schemaTable, runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
 
                     // If conflicts occured
                     foreach (var conflictRow in conflictRows)
                     {
                         this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. Handle {{conflictsCount}} conflitcts", conflictRows.Count);
+
 
                         var (applied, conflictResolved, exception) =
                             await this.HandleConflictAsync(scopeInfo, context, message.Changes, message.LocalScopeId, message.SenderScopeId, conflictRow, schemaChangesTable,
@@ -605,6 +617,10 @@ namespace Dotmim.Sync
                     // Close file
                     if (localSerializer.IsOpen)
                         localSerializer.CloseFile();
+
+                    // Enable check constraints for provider supporting only at table level
+                    if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
+                        await this.InternalEnableConstraintsAsync(scopeInfo, context, schemaTable, runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
 
                     if (shouldRollbackTransaction)
                         await runnerError.RollbackAsync().ConfigureAwait(false);
@@ -685,7 +701,7 @@ namespace Dotmim.Sync
         }
 
 
-        internal virtual async Task<(int rowAppliedCount, Exception errorException)> InternalApplySingleRowAsync(SyncContext context, DbCommand command, 
+        internal virtual async Task<(int rowAppliedCount, Exception errorException)> InternalApplySingleRowAsync(SyncContext context, DbCommand command,
             SyncRow syncRow, SyncTable schemaChangesTable, DbSyncAdapter syncAdapter,
             SyncRowState applyType, MessageApplyChanges message, DbCommandType dbCommandType,
              DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)

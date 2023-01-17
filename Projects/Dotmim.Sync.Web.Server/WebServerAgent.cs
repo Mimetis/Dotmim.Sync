@@ -167,8 +167,7 @@ namespace Dotmim.Sync.Web.Server
 
                 // Get converter used by client
                 // Can be null
-                var clientConverter = this.GetClientConverter(cliConverterKey);
-                this.clientConverter = clientConverter;
+                this.clientConverter = this.GetClientConverter(cliConverterKey);
 
                 byte[] binaryData = null;
                 Type responseSerializerType = null;
@@ -671,10 +670,6 @@ namespace Dotmim.Sync.Web.Server
                 var fileName = BatchInfo.GenerateNewFileName(httpMessage.BatchIndex.ToString(), tableName, localSerializer.Extension, "CLICHANGES");
                 var fullPath = Path.Combine(sessionCache.ClientBatchInfo.GetDirectoryFullPath(), fileName);
 
-                // If client has made a conversion on each line, apply the reverse side of it
-                if (this.clientConverter != null)
-                    AfterDeserializedRows(containerTable, schemaTable, this.clientConverter);
-
                 SyncRowState syncRowState = SyncRowState.None;
                 if (containerTable.Rows != null && containerTable.Rows.Count > 0)
                 {
@@ -686,7 +681,14 @@ namespace Dotmim.Sync.Web.Server
                 localSerializer.OpenFile(fullPath, schemaTable, syncRowState);
 
                 foreach (var row in containerTable.Rows)
-                    await localSerializer.WriteRowToFileAsync(new SyncRow(schemaTable, row), schemaTable).ConfigureAwait(false);
+                {
+                    var syncRow = new SyncRow(schemaTable, row);
+
+                    if (this.clientConverter != null && syncRow.Length > 0)
+                        this.clientConverter.AfterDeserialized(syncRow, schemaTable);
+                    
+                    await localSerializer.WriteRowToFileAsync(syncRow, schemaTable).ConfigureAwait(false);
+                }
 
                 // Close file
                 localSerializer.CloseFile();
@@ -787,9 +789,9 @@ namespace Dotmim.Sync.Web.Server
                     var containerTable = new ContainerTable(table);
                     foreach (var part in serverSyncChanges.ServerBatchInfo.GetBatchPartsInfo(table))
                     {
-                        var paths = serverSyncChanges.ServerBatchInfo.GetBatchPartInfoPath(part);
+                        var path = serverSyncChanges.ServerBatchInfo.GetBatchPartInfoPath(part);
                         var localSerializer = new LocalJsonSerializer(this.RemoteOrchestrator, context);
-                        foreach (var syncRow in localSerializer.GetRowsFromFile(paths.FullPath, table))
+                        foreach (var syncRow in localSerializer.GetRowsFromFile(path, table))
                         {
                             containerTable.Rows.Add(syncRow.ToArray());
                         }
@@ -879,11 +881,12 @@ namespace Dotmim.Sync.Web.Server
             // read rows from file
             var localSerializer = new LocalJsonSerializer(this.RemoteOrchestrator, context);
             foreach (var row in localSerializer.GetRowsFromFile(fullPath, schemaTable))
+            {
+                if (row != null && row.Length > 0 && this.clientConverter != null)
+                    this.clientConverter.BeforeSerialize(row, schemaTable);
+                
                 containerTable.Rows.Add(row.ToArray());
-
-            // if client request a conversion on each row, apply the conversion
-            if (this.clientConverter != null && containerTable.HasRows)
-                BeforeSerializeRows(containerTable, schemaTable, this.clientConverter);
+            }
 
             // generate the response
             changesResponse.Changes = containerSet;
@@ -911,31 +914,6 @@ namespace Dotmim.Sync.Web.Server
             if (cleanFolder)
                 sessionCache.ServerBatchInfo.TryRemoveDirectory();
             return new HttpMessageSendChangesResponse(httpMessage.SyncContext) { ServerStep = HttpStep.SendEndDownloadChanges };
-        }
-
-
-        /// <summary>
-        /// Before serializing all rows, call the converter for each row
-        /// </summary>
-        public virtual void BeforeSerializeRows(ContainerTable table, SyncTable schemaTable, IConverter converter)
-        {
-            if (table.Rows.Count > 0)
-            {
-                foreach (var row in table.Rows)
-                    converter.BeforeSerialize(row, schemaTable);
-            }
-        }
-
-        /// <summary>
-        /// After deserializing all rows, call the converter for each row
-        /// </summary>
-        public virtual void AfterDeserializedRows(ContainerTable table, SyncTable schemaTable, IConverter converter)
-        {
-            if (table.Rows.Count > 0)
-            {
-                foreach (var row in table.Rows)
-                    converter.AfterDeserialized(row, schemaTable);
-            }
         }
 
 

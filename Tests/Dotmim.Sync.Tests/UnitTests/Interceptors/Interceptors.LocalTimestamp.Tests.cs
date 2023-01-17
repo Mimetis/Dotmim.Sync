@@ -24,20 +24,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task LocalTimestamp()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
-            var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
-
-            var localOrchestrator = new LocalOrchestrator(sqlProvider, options);
+            var localOrchestrator = new LocalOrchestrator(serverProvider, options);
 
             var onLTLoading = 0;
             var onLTLoaded = 0;
@@ -49,10 +36,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.Equal(1, onLTLoading);
             Assert.Equal(1, onLTLoaded);
-
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
-
     }
 }

@@ -23,17 +23,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task RemoteOrchestrator_Provision_ShouldCreate_Triggers()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
             var scopeName = "scope";
-
-            var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" })
             {
                 TrackingTablesSuffix = "sync",
@@ -47,7 +37,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
             var triggerUpdate = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_update_trigger";
 
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             // Needs the tracking table to be able to create triggers
@@ -55,7 +45,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             await remoteOrchestrator.ProvisionAsync(scopeInfo, provision);
 
-            using (var c = new SqlConnection(cs))
+            using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
@@ -70,39 +60,25 @@ namespace Dotmim.Sync.Tests.UnitTests
 
                 c.Close();
             }
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task RemoteOrchestrator_Trigger_ShouldCreate()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
             var scopeName = "scope";
-
-            var options = new SyncOptions();
             var setup = new SyncSetup(new string[] { "SalesLT.Product" })
             {
                 TriggersPrefix = "trg_",
                 TriggersSuffix = "_trg"
             };
 
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
 
-            using (var c = new SqlConnection(cs))
+            using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
@@ -115,7 +91,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var triggerUpdate = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_update_trigger";
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Update, false);
 
-            using (var c = new SqlConnection(cs))
+            using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
@@ -128,7 +104,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var triggerDelete = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_delete_trigger";
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Delete, false);
 
-            using (var c = new SqlConnection(cs))
+            using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
@@ -137,22 +113,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
                 c.Close();
             }
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task RemoteOrchestrator_Trigger_ShouldOverwrite()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
 
             var scopeName = "scope";
 
@@ -163,7 +128,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 TriggersSuffix = "_trg"
             };
 
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
@@ -178,23 +143,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, true);
 
             Assert.True(assertOverWritten);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task RemoteOrchestrator_Trigger_ShouldNotOverwrite()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
             var scopeName = "scope";
 
             var options = new SyncOptions();
@@ -204,7 +157,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 TriggersSuffix = "_trg"
             };
 
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
 
@@ -221,23 +174,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
 
             Assert.False(assertOverWritten);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task RemoteOrchestrator_Trigger_Exists()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
             var scopeName = "scope";
 
             var options = new SyncOptions();
@@ -247,7 +188,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 TriggersSuffix = "_trg"
             };
 
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
@@ -257,23 +198,11 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             Assert.True(insertExists);
             Assert.False(updateExists);
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
 
         [Fact]
         public async Task RemoteOrchestrator_Triggers_ShouldCreate()
         {
-            var dbName = HelperDatabase.GetRandomName("tcp_lo_");
-            await HelperDatabase.CreateDatabaseAsync(ProviderType.Sql, dbName, true);
-
-            var cs = HelperDatabase.GetConnectionString(ProviderType.Sql, dbName);
-            var sqlProvider = new SqlSyncProvider(cs);
-
-            // Create default table
-            var ctx = new AdventureWorksContext((dbName, ProviderType.Sql, sqlProvider), true, false);
-            await ctx.Database.EnsureCreatedAsync();
-
             var scopeName = "scope";
 
             var options = new SyncOptions();
@@ -282,7 +211,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             setup.TriggersPrefix = "trg_";
             setup.TriggersSuffix = "_trg";
 
-            var remoteOrchestrator = new RemoteOrchestrator(sqlProvider, options);
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(scopeName, setup);
 
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
@@ -291,7 +220,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             await remoteOrchestrator.CreateTriggersAsync(scopeInfo, "Product", "SalesLT");
 
-            using (var c = new SqlConnection(cs))
+            using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
@@ -301,7 +230,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 c.Close();
             }
 
-            using (var c = new SqlConnection(cs))
+            using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
@@ -311,7 +240,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 c.Close();
             }
 
-            using (var c = new SqlConnection(cs))
+            using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync().ConfigureAwait(false);
 
@@ -320,11 +249,6 @@ namespace Dotmim.Sync.Tests.UnitTests
 
                 c.Close();
             }
-
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
         }
-
-
-
     }
 }

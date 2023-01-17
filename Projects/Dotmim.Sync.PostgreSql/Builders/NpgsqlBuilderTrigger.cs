@@ -146,9 +146,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine($"BEGIN");
             stringBuilder.AppendLine($"  INSERT INTO \"{schema}\".{trackingName.Quoted()} ");
             stringBuilder.AppendLine($"  ({idColumns}, \"update_scope_id\", \"timestamp\" ,\"sync_row_is_tombstone\" ,\"last_change_datetime\")");
-            stringBuilder.AppendLine($"  VALUES( {idColumnsSelects}, null, {this.timestampValue}, FALSE, now())");
+            stringBuilder.AppendLine($"  VALUES( {idColumnsSelects}, null, {this.timestampValue}, 0, now())");
             stringBuilder.AppendLine($"  ON CONFLICT({idColumns}) DO UPDATE");
-            stringBuilder.AppendLine($"  SET \"timestamp\" = {this.timestampValue}, \"sync_row_is_tombstone\" = FALSE, \"update_scope_id\" = null ,\"last_change_datetime\" = now();");
+            stringBuilder.AppendLine($"  SET \"timestamp\" = {this.timestampValue}, \"sync_row_is_tombstone\" = 0, \"update_scope_id\" = null ,\"last_change_datetime\" = now();");
             stringBuilder.AppendLine($"return NEW;");
             stringBuilder.AppendLine($"END;");
             stringBuilder.AppendLine($"$new$;");
@@ -189,9 +189,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine($"BEGIN");
             stringBuilder.AppendLine($"  INSERT INTO \"{schema}\".{trackingName.Quoted()} ");
             stringBuilder.AppendLine($"  ({idColumns}, \"update_scope_id\", \"timestamp\" ,\"sync_row_is_tombstone\" ,\"last_change_datetime\")");
-            stringBuilder.AppendLine($"  VALUES( {idColumnsSelects}, null, {this.timestampValue}, TRUE, now())");
+            stringBuilder.AppendLine($"  VALUES( {idColumnsSelects}, null, {this.timestampValue}, 1, now())");
             stringBuilder.AppendLine($"  ON CONFLICT({idColumns}) DO UPDATE");
-            stringBuilder.AppendLine($"  SET \"timestamp\" = {this.timestampValue}, \"sync_row_is_tombstone\" = TRUE, \"update_scope_id\" = null ,\"last_change_datetime\" = now();");
+            stringBuilder.AppendLine($"  SET \"timestamp\" = {this.timestampValue}, \"sync_row_is_tombstone\" = 1, \"update_scope_id\" = null ,\"last_change_datetime\" = now();");
             stringBuilder.AppendLine($"return OLD;");
             stringBuilder.AppendLine($"END;");
             stringBuilder.AppendLine($"$new$;");

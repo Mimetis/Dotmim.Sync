@@ -89,12 +89,18 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or sets the connection string used by the implemented provider
         /// </summary>
-        public string ConnectionString { get; set; }
+        public virtual string ConnectionString { get; set; }
 
         /// <summary>
         /// Gets a boolean indicating if the provider can be a server side provider
         /// </summary>
         public abstract bool CanBeServerProvider { get; }
+
+
+        /// <summary>
+        /// Gets a value indicating on which level constraints disabling and enabling should be applied
+        /// </summary>
+        public abstract ConstraintsLevelAction ConstraintsLevelAction { get; }
 
         /// <summary>
         /// Gets the default isolation level used during transaction
@@ -120,6 +126,11 @@ namespace Dotmim.Sync
         /// Gets or Sets the default schema name ("dbo" for sql server, "public" for postgres or null for mysql)
         /// </summary>
         public virtual string DefaultSchemaName { get; } = null;
+
+        /// <summary>
+        /// Gets or Sets Additional options for the provider
+        /// </summary>
+        public Dictionary<string, string> AdditionalProperties { get; set; } = new();
 
         /// <summary>
         /// Get naming tables
