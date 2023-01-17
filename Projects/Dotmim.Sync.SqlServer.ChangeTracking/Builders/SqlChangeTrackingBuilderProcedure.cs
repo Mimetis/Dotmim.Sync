@@ -357,78 +357,78 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         //------------------------------------------------------------------
         // Select Row command
         //------------------------------------------------------------------
-        protected override SqlCommand BuildSelectRowCommand()
-        {
-            var sqlCommand = new SqlCommand();
-            this.AddPkColumnParametersToCommand(sqlCommand);
-            var sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
-            sqlCommand.Parameters.Add(sqlParameter);
+        //protected override SqlCommand BuildSelectRowCommand()
+        //{
+        //    var sqlCommand = new SqlCommand();
+        //    this.AddPkColumnParametersToCommand(sqlCommand);
+        //    var sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
+        //    sqlCommand.Parameters.Add(sqlParameter);
 
-            var stringBuilder1 = new StringBuilder();
-            var stringBuilder11 = new StringBuilder();
-            var stringBuilder3 = new StringBuilder();
-            var stringBuilder4 = new StringBuilder();
+        //    var stringBuilder1 = new StringBuilder();
+        //    var stringBuilder11 = new StringBuilder();
+        //    var stringBuilder3 = new StringBuilder();
+        //    var stringBuilder4 = new StringBuilder();
 
-            string empty = string.Empty;
-            string comma = string.Empty;
-            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-            {
-                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
+        //    string empty = string.Empty;
+        //    string comma = string.Empty;
+        //    foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+        //    {
+        //        var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+        //        var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
 
-                stringBuilder1.Append($"{empty}[side].{columnName} = @{parameterName}");
-                stringBuilder11.Append($"{empty}[base].{columnName} = @{parameterName}");
-                stringBuilder3.Append($"{comma}{columnName}");
-                stringBuilder4.Append($"{empty}[base].{columnName} = [side].{columnName}");
+        //        stringBuilder1.Append($"{empty}[side].{columnName} = @{parameterName}");
+        //        stringBuilder11.Append($"{empty}[base].{columnName} = @{parameterName}");
+        //        stringBuilder3.Append($"{comma}{columnName}");
+        //        stringBuilder4.Append($"{empty}[base].{columnName} = [side].{columnName}");
 
-                empty = " AND ";
-                comma = ", ";
-            }
+        //        empty = " AND ";
+        //        comma = ", ";
+        //    }
 
-            var stringBuilderColumnsWithSide = new StringBuilder();
-            var stringBuilderColumnsBase = new StringBuilder();
-            foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
-            {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+        //    var stringBuilderColumnsWithSide = new StringBuilder();
+        //    var stringBuilderColumnsBase = new StringBuilder();
+        //    foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
+        //    {
+        //        var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
 
-                var isPrimaryKey = this.tableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
+        //        var isPrimaryKey = this.tableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
-                if (isPrimaryKey)
-                    stringBuilderColumnsWithSide.AppendLine($"\t[side].{columnName}, ");
-                else
-                    stringBuilderColumnsWithSide.AppendLine($"\t[base].{columnName}, ");
+        //        if (isPrimaryKey)
+        //            stringBuilderColumnsWithSide.AppendLine($"\t[side].{columnName}, ");
+        //        else
+        //            stringBuilderColumnsWithSide.AppendLine($"\t[base].{columnName}, ");
 
-                stringBuilderColumnsBase.AppendLine($"\t[base].{columnName}, ");
-            }
+        //        stringBuilderColumnsBase.AppendLine($"\t[base].{columnName}, ");
+        //    }
 
-            var stringBuilder = new StringBuilder();
+        //    var stringBuilder = new StringBuilder();
 
-            stringBuilder.AppendLine($"IF (SELECT TOP 1 1 FROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, 0) AS [side] WHERE ({stringBuilder1.ToString()})) > 0");
-            stringBuilder.AppendLine("BEGIN");
-            stringBuilder.AppendLine("\tSELECT");
-            // add columns
-            stringBuilder.Append(stringBuilderColumnsWithSide.ToString());
-            stringBuilder.AppendLine("\tCAST([side].SYS_CHANGE_CONTEXT as uniqueidentifier) AS [sync_update_scope_id],");
-            stringBuilder.AppendLine("\tCASE [side].SYS_CHANGE_OPERATION WHEN 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
-            stringBuilder.AppendLine($"\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, 0) AS [side]");
-            stringBuilder.AppendLine($"\tLEFT JOIN {tableName.Schema().Quoted().ToString()} [base] ON");
-            stringBuilder.AppendLine($"\t\t{stringBuilder4.ToString()}");
-            stringBuilder.AppendLine($"\tWHERE {stringBuilder1.ToString()}");
-            stringBuilder.AppendLine("END");
-            stringBuilder.AppendLine("ELSE");
-            stringBuilder.AppendLine("BEGIN");
-            stringBuilder.AppendLine("\tSELECT");
-            stringBuilder.Append(stringBuilderColumnsBase.ToString());
-            stringBuilder.AppendLine("\tnull as sync_update_scope_id, ");
-            stringBuilder.AppendLine("\t0 as sync_row_is_tombstone ");
-            stringBuilder.AppendLine($"\tFROM {tableName.Schema().Quoted().ToString()} as [base] ");
-            stringBuilder.Append(string.Concat("\tWHERE ", stringBuilder11.ToString()));
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine("END");
+        //    stringBuilder.AppendLine($"IF (SELECT TOP 1 1 FROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, 0) AS [side] WHERE ({stringBuilder1.ToString()})) > 0");
+        //    stringBuilder.AppendLine("BEGIN");
+        //    stringBuilder.AppendLine("\tSELECT");
+        //    // add columns
+        //    stringBuilder.Append(stringBuilderColumnsWithSide.ToString());
+        //    stringBuilder.AppendLine("\tCAST([side].SYS_CHANGE_CONTEXT as uniqueidentifier) AS [sync_update_scope_id],");
+        //    stringBuilder.AppendLine("\tCASE [side].SYS_CHANGE_OPERATION WHEN 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
+        //    stringBuilder.AppendLine($"\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted().ToString()}, 0) AS [side]");
+        //    stringBuilder.AppendLine($"\tLEFT JOIN {tableName.Schema().Quoted().ToString()} [base] ON");
+        //    stringBuilder.AppendLine($"\t\t{stringBuilder4.ToString()}");
+        //    stringBuilder.AppendLine($"\tWHERE {stringBuilder1.ToString()}");
+        //    stringBuilder.AppendLine("END");
+        //    stringBuilder.AppendLine("ELSE");
+        //    stringBuilder.AppendLine("BEGIN");
+        //    stringBuilder.AppendLine("\tSELECT");
+        //    stringBuilder.Append(stringBuilderColumnsBase.ToString());
+        //    stringBuilder.AppendLine("\tnull as sync_update_scope_id, ");
+        //    stringBuilder.AppendLine("\t0 as sync_row_is_tombstone ");
+        //    stringBuilder.AppendLine($"\tFROM {tableName.Schema().Quoted().ToString()} as [base] ");
+        //    stringBuilder.Append(string.Concat("\tWHERE ", stringBuilder11.ToString()));
+        //    stringBuilder.AppendLine();
+        //    stringBuilder.AppendLine("END");
 
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
+        //    sqlCommand.CommandText = stringBuilder.ToString();
+        //    return sqlCommand;
+        //}
 
         //------------------------------------------------------------------
         // Update command
@@ -622,6 +622,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine("\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted()}, @sync_min_timestamp) AS [CT]");
             stringBuilder.AppendLine("\t)" + (hasNoncomparableColumns ? ", " : ""));
+
+            // if we have a filter we may have joins that will duplicate lines
             if (filter != null)
             {
                 if (hasNoncomparableColumns)
@@ -648,7 +650,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                     stringBuilder.Append($" AS NVARCHAR(MAX)) AS {columnName}");
                 stringBuilder.AppendLine();
             }
-
+            stringBuilder.AppendLine($"\t, [side].[sync_row_is_tombstone] as [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted()} [base]");
             stringBuilder.Append($"LEFT JOIN {trackingName.Quoted()} [side]");
             stringBuilder.Append("ON ");
