@@ -353,10 +353,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-
-        //------------------------------------------------------------------
-        // Select Row command
-        //------------------------------------------------------------------
+        
         //protected override SqlCommand BuildSelectRowCommand()
         //{
         //    var sqlCommand = new SqlCommand();
@@ -398,7 +395,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         //        else
         //            stringBuilderColumnsWithSide.AppendLine($"\t[base].{columnName}, ");
 
-        //        stringBuilderColumnsBase.AppendLine($"\t[base].{columnName}, ");
+        //        stringBuilderColumnsBase.AppendLine($"\t[base].{ columnName}, ");
         //    }
 
         //    var stringBuilder = new StringBuilder();
