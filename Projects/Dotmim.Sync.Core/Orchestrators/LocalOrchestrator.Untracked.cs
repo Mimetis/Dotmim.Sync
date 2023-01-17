@@ -87,7 +87,7 @@ namespace Dotmim.Sync
             var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
 
             // Get correct Select incremental changes command 
-            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.UpdateUntrackedRows, null,
+            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.UpdateUntrackedRows, 
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
             if (command == null) return (context, 0);
@@ -102,7 +102,7 @@ namespace Dotmim.Sync
             var rowAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
-            var syncRowCountParam = InternalGetParameter(command, "sync_row_count");
+            var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 rowAffected = (int)syncRowCountParam.Value;

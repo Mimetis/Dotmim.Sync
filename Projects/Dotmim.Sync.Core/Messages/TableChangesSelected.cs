@@ -57,5 +57,11 @@ namespace Dotmim.Sync
         /// </summary>
         [IgnoreDataMember()]
         public int TotalChanges => this.Upserts + this.Deletes;
+
+        public override string ToString()
+        {
+            string tn = string.IsNullOrEmpty(this.SchemaName) ? this.TableName : $"{this.SchemaName}.{this.TableName}";
+            return $"{tn}: [{Upserts} inserts /{Upserts} deletes]";
+        }
     }
 }

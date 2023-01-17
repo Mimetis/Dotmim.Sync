@@ -153,7 +153,7 @@ namespace Dotmim.Sync
         internal virtual async Task<(SyncContext context, List<BatchPartInfo> batchPartInfos, TableChangesSelected tableChangesSelected)>
             InternalReadSyncTableChangesAsync(
             ScopeInfo scopeInfo, SyncContext context, Guid? excludintScopeId, SyncTable syncTable,
-            BatchInfo batchInfo, bool isNew, long? lastTimestamp,
+            BatchInfo batchInfo, bool isNew, long? lastTimestamp, 
             DbConnection connection, DbTransaction transaction,
             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -187,18 +187,16 @@ namespace Dotmim.Sync
                 if (selectIncrementalChangesCommand == null)
                     return (context, default, default);
 
-                this.InternalSetSelectChangesCommonParameters(context, syncTable, excludintScopeId, isNew, lastTimestamp, selectIncrementalChangesCommand);
+                // Get correct adapter
+                var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
+
+                this.InternalSetCommandParametersValues(context, selectIncrementalChangesCommand, dbCommandType, syncAdapter, connection, transaction, cancellationToken, progress,
+                    sync_scope_id:excludintScopeId, sync_min_timestamp:lastTimestamp);
 
                 var schemaChangesTable = CreateChangesTable(syncTable);
 
-                // numbers of batch files generated
-                //var batchIndex = -1;
-
                 var localSerializerModified = new LocalJsonSerializer(this, context);
                 var localSerializerDeleted = new LocalJsonSerializer(this, context);
-
-                //string batchPartInfoFullPathModified = null, batchPartFileNameModified = null;
-                //string batchPartInfoFullPathDeleted = null, batchPartFileNameDeleted = null;
 
                 // Statistics
                 var tableChangesSelected = new TableChangesSelected(schemaChangesTable.TableName, schemaChangesTable.SchemaName);
@@ -338,7 +336,7 @@ namespace Dotmim.Sync
                 var (batchPartInfoFullPath, batchPartFileName) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, index, localJsonSerializer.Extension, ext);
                 localJsonSerializer.OpenFile(batchPartInfoFullPath, schemaChangesTable, syncRow.RowState);
 
-                batchPartInfo = new BatchPartInfo(batchPartFileName, schemaChangesTable.TableName, schemaChangesTable.SchemaName, syncRow.RowState,  0, index);
+                batchPartInfo = new BatchPartInfo(batchPartFileName, schemaChangesTable.TableName, schemaChangesTable.SchemaName, syncRow.RowState, 0, index);
                 batchPartInfos.Add(batchPartInfo);
             }
 
@@ -384,7 +382,6 @@ namespace Dotmim.Sync
 
                 await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
 
-
                 if (context.SyncWay == SyncWay.Upload && context.SyncType == SyncType.Reinitialize)
                     return (context, changes);
 
@@ -412,12 +409,20 @@ namespace Dotmim.Sync
                     if (context.SyncWay == SyncWay.Download && setupTable.SyncDirection == SyncDirection.UploadOnly)
                         return;
 
+                    // Get correct adapter
+                    var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
+
                     // Get Command
-                    var (command, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew, connection, transaction);
+                    var (command, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew, connection, transaction).ConfigureAwait(false);
 
                     if (command == null) return;
 
-                    this.InternalSetSelectChangesCommonParameters(context, syncTable, excludingScopeId, isNew, fromLastTimestamp, command);
+                    // set the paramater values
+                    //await this.InternalSetSelectChangesCommonParametersAsync(context, syncTable, excludingScopeId, isNew, fromLastTimestamp, 
+                    //    dbCommandType, command, syncAdapter, connection, transaction).ConfigureAwait(false);
+
+                    this.InternalSetCommandParametersValues(context, command, dbCommandType, syncAdapter, connection, transaction, cancellationToken, progress,
+                        sync_scope_id: excludingScopeId, sync_min_timestamp: fromLastTimestamp);
 
                     // launch interceptor if any
                     var args = new TableChangesSelectingArgs(context, syncTable, command, connection, transaction);
@@ -524,7 +529,7 @@ namespace Dotmim.Sync
                 // Get correct Select incremental changes command 
                 var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
 
-                var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType, tableFilter,
+                var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType, 
                     connection, transaction, default, default).ConfigureAwait(false);
 
                 return (command, dbCommandType);
@@ -545,55 +550,56 @@ namespace Dotmim.Sync
             }
         }
 
-        /// <summary>
-        /// Set common parameters to SelectChanges Sql command
-        /// </summary>
-        internal void InternalSetSelectChangesCommonParameters(SyncContext context, SyncTable syncTable, Guid? excludingScopeId, bool isNew, long? lastTimestamp, DbCommand selectIncrementalChangesCommand)
-        {
-            try
-            {
-                // Set the parameters
-                SetParameterValue(selectIncrementalChangesCommand, "sync_min_timestamp", lastTimestamp);
-                SetParameterValue(selectIncrementalChangesCommand, "sync_scope_id", excludingScopeId.HasValue ? excludingScopeId.Value : DBNull.Value);
+        ///// <summary>
+        ///// Set common parameters to SelectChanges Sql command
+        ///// </summary>
+        //internal async Task InternalSetSelectChangesCommonParametersAsync(SyncContext context, SyncTable syncTable, Guid? excludingScopeId, bool isNew, long? lastTimestamp,
+        //    DbCommandType commandType, DbCommand selectIncrementalChangesCommand, DbSyncAdapter adapter, DbConnection connection, DbTransaction transaction)
+        //{
+        //    try
+        //    {
+        //        // Set the parameters
+        //        await adapter.AddCommandParameterValueAsync("sync_min_timestamp", lastTimestamp, commandType, selectIncrementalChangesCommand, connection, transaction).ConfigureAwait(false);
+        //        await adapter.AddCommandParameterValueAsync("sync_scope_id", excludingScopeId.HasValue ? excludingScopeId.Value : DBNull.Value, commandType, selectIncrementalChangesCommand, connection, transaction).ConfigureAwait(false);
 
-                // Check filters
-                SyncFilter tableFilter = null;
+        //        // Check filters
+        //        SyncFilter tableFilter = null;
 
-                // Sqlite does not have any filter, since he can't be server side
-                if (this.Provider != null && this.Provider.CanBeServerProvider)
-                    tableFilter = syncTable.GetFilter();
+        //        // Sqlite does not have any filter, since he can't be server side
+        //        if (this.Provider != null && this.Provider.CanBeServerProvider)
+        //            tableFilter = syncTable.GetFilter();
 
-                var hasFilters = tableFilter != null;
+        //        var hasFilters = tableFilter != null;
 
-                if (!hasFilters)
-                    return;
+        //        if (!hasFilters)
+        //            return;
 
-                // context parameters can be null at some point.
-                var contexParameters = context.Parameters ?? new SyncParameters();
+        //        // context parameters can be null at some point.
+        //        var contexParameters = context.Parameters ?? new SyncParameters();
 
-                foreach (var filterParam in tableFilter.Parameters)
-                {
-                    var parameter = contexParameters.FirstOrDefault(p =>
-                        p.Name.Equals(filterParam.Name, SyncGlobalization.DataSourceStringComparison));
+        //        foreach (var filterParam in tableFilter.Parameters)
+        //        {
+        //            var parameter = contexParameters.FirstOrDefault(p =>
+        //                p.Name.Equals(filterParam.Name, SyncGlobalization.DataSourceStringComparison));
 
-                    object val = parameter?.Value;
+        //            object val = parameter?.Value;
 
-                    SetParameterValue(selectIncrementalChangesCommand, filterParam.Name, val);
-                }
-            }
-            catch (Exception ex)
-            {
-                string message = null;
+        //            await adapter.AddCommandParameterValueAsync(filterParam.Name, val, commandType, selectIncrementalChangesCommand, connection, transaction).ConfigureAwait(false);
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        string message = null;
 
-                if (syncTable != null)
-                    message += $"Table:{syncTable.GetFullName()}.";
+        //        if (syncTable != null)
+        //            message += $"Table:{syncTable.GetFullName()}.";
 
-                message += $"Is New:{isNew}.";
-                message += $"lastTimestamp:{lastTimestamp}.";
+        //        message += $"Is New:{isNew}.";
+        //        message += $"lastTimestamp:{lastTimestamp}.";
 
-                throw GetSyncError(context, ex, message);
-            }
-        }
+        //        throw GetSyncError(context, ex, message);
+        //    }
+        //}
 
         /// <summary>
         /// Create a new SyncRow from a dataReader.
@@ -615,7 +621,8 @@ namespace Dotmim.Sync
                     // if we have the tombstone value, do not add it to the table
                     if (columnName == "sync_row_is_tombstone")
                     {
-                        isTombstone = Convert.ToInt64(dataReader.GetValue(i)) > 0;
+                        var objIsTombstone = dataReader.GetValue(i);
+                        isTombstone = objIsTombstone == DBNull.Value ? false : Convert.ToInt64(objIsTombstone) > 0;
                         continue;
                     }
                     if (columnName == "sync_update_scope_id")

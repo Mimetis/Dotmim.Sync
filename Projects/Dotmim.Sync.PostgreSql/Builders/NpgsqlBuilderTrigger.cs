@@ -54,7 +54,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             var commandTriggerName = GetTriggerName(triggerType);
 
-            var commandText = $@"select exists(select from information_schema.triggers where trigger_schema = @schemaname and trigger_name = @triggername )";
+            var commandText = $"select exists(select * from information_schema.triggers where trigger_schema = @schemaname and trigger_name = @triggername )";
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -69,7 +69,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             var p2 = command.CreateParameter();
             p2.ParameterName = "@schemaname";
-            p2.Value = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(commandTriggerName);
+            p2.Value = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
             command.Parameters.Add(p2);
 
             return Task.FromResult(command);
@@ -79,8 +79,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
         {
             var commandTriggerName = GetTriggerName(triggerType);
             var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
-
-            var commandText = $@"drop trigger if exists {commandTriggerName.Quoted()} on {schema}.{tableName.Quoted()}";
+            var function = $"\"{schema}\".{commandTriggerName.Unquoted().Normalized().ToString().ToLower()}_function()";
+            var commandText = $"drop trigger if exists {commandTriggerName.Quoted()} on \"{schema}\".{tableName.Quoted()};" +
+                              $"drop function if exists {function};";
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -136,14 +137,14 @@ namespace Dotmim.Sync.PostgreSql.Builders
             }
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {schema}.{commandTriggerName.Unquoted().Normalized().ToString().ToLower()}_function()");
+            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION \"{schema}\".{commandTriggerName.Unquoted().Normalized().ToString().ToLower()}_function()");
             stringBuilder.AppendLine($"  RETURNS trigger");
             stringBuilder.AppendLine($"  LANGUAGE 'plpgsql'");
             stringBuilder.AppendLine($"  COST 100");
             stringBuilder.AppendLine($"  VOLATILE NOT LEAKPROOF");
             stringBuilder.AppendLine($"AS $new$");
             stringBuilder.AppendLine($"BEGIN");
-            stringBuilder.AppendLine($"  INSERT INTO {schema}.{trackingName.Quoted()} ");
+            stringBuilder.AppendLine($"  INSERT INTO \"{schema}\".{trackingName.Quoted()} ");
             stringBuilder.AppendLine($"  ({idColumns}, \"update_scope_id\", \"timestamp\" ,\"sync_row_is_tombstone\" ,\"last_change_datetime\")");
             stringBuilder.AppendLine($"  VALUES( {idColumnsSelects}, null, {this.timestampValue}, FALSE, now())");
             stringBuilder.AppendLine($"  ON CONFLICT({idColumns}) DO UPDATE");
@@ -152,8 +153,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine($"END;");
             stringBuilder.AppendLine($"$new$;");
             stringBuilder.AppendLine($"CREATE OR REPLACE TRIGGER {commandTriggerName.Quoted()}");
-            stringBuilder.AppendLine($"AFTER {triggerFor} ON {schema}.{tableName.Quoted()}");
-            stringBuilder.AppendLine($"FOR EACH ROW EXECUTE FUNCTION {schema}.{commandTriggerName.Unquoted().Normalized().ToString().ToLower()}_function()");
+            stringBuilder.AppendLine($"AFTER {triggerFor} ON \"{schema}\".{tableName.Quoted()}");
+            stringBuilder.AppendLine($"FOR EACH ROW EXECUTE FUNCTION \"{schema}\".{commandTriggerName.Unquoted().Normalized().ToString().ToLower()}_function()");
 
             return stringBuilder.ToString(); ;
         }
@@ -179,14 +180,14 @@ namespace Dotmim.Sync.PostgreSql.Builders
             }
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION {schema}.{commandTriggerName.Unquoted().Normalized().ToString().ToLower()}_function()");
+            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION \"{schema}\".{commandTriggerName.Unquoted().Normalized().ToString().ToLower()}_function()");
             stringBuilder.AppendLine($"  RETURNS trigger");
             stringBuilder.AppendLine($"  LANGUAGE 'plpgsql'");
             stringBuilder.AppendLine($"  COST 100");
             stringBuilder.AppendLine($"  VOLATILE NOT LEAKPROOF");
             stringBuilder.AppendLine($"AS $new$");
             stringBuilder.AppendLine($"BEGIN");
-            stringBuilder.AppendLine($"  INSERT INTO {schema}.{trackingName.Quoted()} ");
+            stringBuilder.AppendLine($"  INSERT INTO \"{schema}\".{trackingName.Quoted()} ");
             stringBuilder.AppendLine($"  ({idColumns}, \"update_scope_id\", \"timestamp\" ,\"sync_row_is_tombstone\" ,\"last_change_datetime\")");
             stringBuilder.AppendLine($"  VALUES( {idColumnsSelects}, null, {this.timestampValue}, TRUE, now())");
             stringBuilder.AppendLine($"  ON CONFLICT({idColumns}) DO UPDATE");
@@ -195,8 +196,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine($"END;");
             stringBuilder.AppendLine($"$new$;");
             stringBuilder.AppendLine($"CREATE OR REPLACE TRIGGER {commandTriggerName.Quoted()}");
-            stringBuilder.AppendLine($"AFTER DELETE ON {schema}.{tableName.Quoted()}");
-            stringBuilder.AppendLine($"FOR EACH ROW EXECUTE FUNCTION {schema}.{commandTriggerName.Unquoted().Normalized().ToString().ToLower()}_function()");
+            stringBuilder.AppendLine($"AFTER DELETE ON \"{schema}\".{tableName.Quoted()}");
+            stringBuilder.AppendLine($"FOR EACH ROW EXECUTE FUNCTION \"{schema}\".{commandTriggerName.Unquoted().Normalized().ToString().ToLower()}_function()");
             return stringBuilder.ToString();
 
         }

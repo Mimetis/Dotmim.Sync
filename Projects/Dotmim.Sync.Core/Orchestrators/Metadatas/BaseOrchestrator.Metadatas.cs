@@ -17,6 +17,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Transactions;
 
 namespace Dotmim.Sync
 {
@@ -59,14 +60,16 @@ namespace Dotmim.Sync
                         var syncTable = scopeInfo.Schema.Tables[setupTable.TableName, setupTable.SchemaName];
                         var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
 
-                        var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DeleteMetadata, null,
+                        var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DeleteMetadata, 
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                         if (command != null)
                         {
                             // Set the special parameters for delete metadata
-                            SetParameterValue(command, "sync_row_timestamp", timestampLimit);
-
+                            command = this.InternalSetCommandParametersValues(context, command, DbCommandType.DeleteMetadata, syncAdapter, 
+                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress,
+                                sync_min_timestamp: timestampLimit);
+                            
                             await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DeleteMetadata, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                             // Parametrized command timeout established if exist
@@ -79,9 +82,9 @@ namespace Dotmim.Sync
                             rowsCleanedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                             // Check if we have a return value instead
-                            var syncRowCountParam = InternalGetParameter(command, "sync_row_count");
+                            var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
 
-                            if (syncRowCountParam != null)
+                            if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
                                 rowsCleanedCount = (int)syncRowCountParam.Value;
 
                             // Only add a new table metadata stats object, if we have, at least, purged 1 or more rows
@@ -124,24 +127,26 @@ namespace Dotmim.Sync
         /// <summary>
         /// Update a metadata row
         /// </summary>
-        internal async Task<(SyncContext context, bool metadataUpdated, Exception exception)>
-            InternalUpdateMetadatasAsync(ScopeInfo scopeInfo, SyncContext context, SyncRow row, SyncTable schemaTable, Guid? senderScopeId, bool forceWrite, DbConnection connection, DbTransaction transaction)
+        internal async Task<(SyncContext context, bool metadataUpdated, Exception exception)>InternalUpdateMetadatasAsync(ScopeInfo scopeInfo, SyncContext context, 
+                                SyncRow row, SyncTable schemaTable, Guid? senderScopeId, bool forceWrite, 
+                                DbConnection connection, DbTransaction transaction,
+                                CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             context.SyncStage = SyncStage.ChangesApplying;
+            
             var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
 
             await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction).ConfigureAwait(false);
 
-            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.UpdateMetadata, null,
+            var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.UpdateMetadata, 
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
             if (command == null) return (context, false, null);
 
-            // Set the parameters value from row
-            this.SetColumnParametersValues(command, row);
 
-            // Set the special parameters for update
-            this.AddScopeParametersValues(command, senderScopeId, 0, row.RowState == SyncRowState.Deleted, forceWrite);
+            // Set the parameters value from row 
+            this.InternalSetCommandParametersValues(context,  command, DbCommandType.UpdateMetadata, syncAdapter, connection, transaction, cancellationToken, progress,
+                row, senderScopeId, 0, row.RowState == SyncRowState.Deleted, forceWrite);
 
             await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.UpdateMetadata, runner.Connection, runner.Transaction)).ConfigureAwait(false);
 
@@ -158,9 +163,9 @@ namespace Dotmim.Sync
                 metadataUpdatedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead
-                var syncRowCountParam = InternalGetParameter(command, "sync_row_count");
+                var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
 
-                if (syncRowCountParam != null)
+                if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
                     metadataUpdatedRowsCount = (int)syncRowCountParam.Value;
 
                 command.Dispose();

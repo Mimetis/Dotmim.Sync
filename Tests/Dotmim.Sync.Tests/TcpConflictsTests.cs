@@ -34,6 +34,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
+using Xunit.Sdk;
 
 namespace Dotmim.Sync.Tests
 {
@@ -96,7 +97,7 @@ namespace Dotmim.Sync.Tests
         protected readonly HelperProvider fixture;
 
         // Current test running
-        private ITest test;
+        private XunitTest test;
 
         /// <summary>
         /// Gets the remote orchestrator and its database name
@@ -116,6 +117,16 @@ namespace Dotmim.Sync.Tests
         public ITestOutputHelper Output { get; }
 
         /// <summary>
+        /// Output to console and debug the current state
+        /// </summary>
+        public void OutputCurrentState(string subCategory = null)
+        {
+            var t = string.IsNullOrEmpty(subCategory) ? "" : $" - {subCategory}";
+            t = $"{this.test.TestCase.Method.Name}{t}: {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
+            Console.WriteLine(t);
+            Debug.WriteLine(t);
+        }
+        /// <summary>
         /// For each test, Create a server database and some clients databases, depending on ProviderType provided in concrete class
         /// </summary>
         public TcpConflictsTests(HelperProvider fixture, ITestOutputHelper output)
@@ -124,7 +135,7 @@ namespace Dotmim.Sync.Tests
             this.Output = output;
             var type = output.GetType();
             var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
-            this.test = (ITest)testMember.GetValue(output);
+            this.test = (XunitTest)testMember.GetValue(output);
             this.stopwatch = Stopwatch.StartNew();
 
             this.fixture = fixture;
@@ -172,9 +183,7 @@ namespace Dotmim.Sync.Tests
 
             this.stopwatch.Stop();
 
-            var str = $"{test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
-            Console.WriteLine(str);
-            Debug.WriteLine(str);
+            OutputCurrentState();
 
         }
 
@@ -3091,7 +3100,6 @@ namespace Dotmim.Sync.Tests
         {
             var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
             var productCategoryName = HelperDatabase.GetRandomName("CLI");
-            var productCategoryNameUpdated = HelperDatabase.GetRandomName("SRV");
 
             // create empty client database
             await this.CreateDatabaseAsync(client.ProviderType, client.DatabaseName, true);
@@ -3197,27 +3205,37 @@ namespace Dotmim.Sync.Tests
         [ClassData(typeof(SyncOptionsData))]
         public virtual async Task Conflict_DC_NULLS_ClientShouldWins(SyncOptions options)
         {
+            Debug.WriteLine($"-------------------------------");
+            Debug.WriteLine($"- Start Test Conflict_DC_NULLS_ClientShouldWins {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}");
             // create a server schema without seeding
             await this.EnsureDatabaseSchemaAndSeedAsync(this.Server, false, UseFallbackSchema);
 
             foreach (var client in Clients)
             {
+                Debug.WriteLine($"-- Generate_DC_NULLS_Conflict client {client.DatabaseName}. {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}");
                 await Generate_DC_NULLS_Conflict(client, options);
+                Debug.WriteLine($"-- Done Generate_DC_NULLS_Conflict client {client.DatabaseName}. {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}");
 
                 var agent = new SyncAgent(client.Provider, Server.Provider, options);
 
                 // Set conflict resolution to client
                 options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
+                Debug.WriteLine($"-- Sync for {client.DatabaseName}. {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}");
                 var s = await agent.SynchronizeAsync(Tables);
+                Debug.WriteLine($"-- Done Sync Result for {client.DatabaseName}. {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}");
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
 
+                Debug.WriteLine($"-- CheckProductCategoryRows for {client.DatabaseName}. {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}");
                 await CheckProductCategoryRows(client);
+                Debug.WriteLine($"-- Done CheckProductCategoryRows for {client.DatabaseName}. {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}");
+
             }
 
+            Debug.WriteLine($"- End Test Conflict_DC_NULLS_ClientShouldWins {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}");
         }
 
 

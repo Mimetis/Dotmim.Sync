@@ -21,6 +21,12 @@ namespace Dotmim.Sync
                 
         }
 
+        public override string ToString()
+        {
+            string tn = string.IsNullOrEmpty(this.SchemaName) ? this.TableName : $"{this.SchemaName}.{this.TableName}";
+            return $"{tn}: [{Applied} applied /{ResolvedConflicts} resolved /{Failed} failed]";
+        }
+
         /// <summary>
         /// Gets or sets the name of the table that the DmTableSurrogate object represents.
         /// </summary>

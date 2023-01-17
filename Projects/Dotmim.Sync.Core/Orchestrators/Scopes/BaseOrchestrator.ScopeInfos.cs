@@ -193,7 +193,7 @@ namespace Dotmim.Sync
 
                 if (command == null) return (context, null);
 
-                SetParameterValue(command, "sync_scope_name", context.ScopeName);
+                InternalSetParameterValue(command, "sync_scope_name", context.ScopeName);
 
                 var action = new ScopeInfoLoadingArgs(context, context.ScopeName, command, runner.Connection, runner.Transaction);
                 await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
@@ -247,7 +247,7 @@ namespace Dotmim.Sync
 
                 if (existsCommand == null) return (context, false);
 
-                SetParameterValue(existsCommand, "sync_scope_name", scopeName);
+                InternalSetParameterValue(existsCommand, "sync_scope_name", scopeName);
 
                 if (existsCommand == null)
                     return (context, false);
@@ -414,12 +414,12 @@ namespace Dotmim.Sync
 
         private DbCommand InternalSetSaveScopeInfoParameters(ScopeInfo scopeInfo, DbCommand command)
         {
-            SetParameterValue(command, "sync_scope_name", scopeInfo.Name);
-            SetParameterValue(command, "sync_scope_schema", scopeInfo.Schema == null ? DBNull.Value : JsonConvert.SerializeObject(scopeInfo.Schema));
-            SetParameterValue(command, "sync_scope_setup", scopeInfo.Setup == null ? DBNull.Value : JsonConvert.SerializeObject(scopeInfo.Setup));
-            SetParameterValue(command, "sync_scope_version", scopeInfo.Version);
-            SetParameterValue(command, "sync_scope_last_clean_timestamp", !scopeInfo.LastCleanupTimestamp.HasValue ? DBNull.Value : scopeInfo.LastCleanupTimestamp);
-            SetParameterValue(command, "sync_scope_properties", scopeInfo.Properties == null ? DBNull.Value : scopeInfo.Properties);
+            InternalSetParameterValue(command, "sync_scope_name", scopeInfo.Name);
+            InternalSetParameterValue(command, "sync_scope_schema", scopeInfo.Schema == null ? DBNull.Value : JsonConvert.SerializeObject(scopeInfo.Schema));
+            InternalSetParameterValue(command, "sync_scope_setup", scopeInfo.Setup == null ? DBNull.Value : JsonConvert.SerializeObject(scopeInfo.Setup));
+            InternalSetParameterValue(command, "sync_scope_version", scopeInfo.Version);
+            InternalSetParameterValue(command, "sync_scope_last_clean_timestamp", !scopeInfo.LastCleanupTimestamp.HasValue ? DBNull.Value : scopeInfo.LastCleanupTimestamp);
+            InternalSetParameterValue(command, "sync_scope_properties", scopeInfo.Properties == null ? DBNull.Value : scopeInfo.Properties);
 
 
             return command;
@@ -427,10 +427,24 @@ namespace Dotmim.Sync
 
         private DbCommand InternalSetDeleteScopeInfoParameters(ScopeInfo scopeInfo, DbCommand command)
         {
-            SetParameterValue(command, "sync_scope_name", scopeInfo.Name);
+            InternalSetParameterValue(command, "sync_scope_name", scopeInfo.Name);
 
             return command;
         }
+
+        public static void InternalSetParameterValue(DbCommand command, string parameterName, object value)
+        {
+            var parameter = DbSyncAdapter.InternalGetParameter(command, parameterName);
+            if (parameter == null)
+                return;
+
+            if (value == null || value == DBNull.Value)
+                parameter.Value = DBNull.Value;
+            else
+                parameter.Value = SyncTypeConverter.TryConvertFromDbType(value, parameter.DbType);
+        }
+
+
 
         private ScopeInfo InternalReadScopeInfo(DbDataReader reader)
         {

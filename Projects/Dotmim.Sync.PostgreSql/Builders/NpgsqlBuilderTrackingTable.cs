@@ -11,6 +11,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using static Npgsql.Replication.PgOutput.Messages.RelationMessage;
 
 namespace Dotmim.Sync.PostgreSql.Builders
 {
@@ -21,6 +22,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
         private SyncTable tableDescription;
         private ParserName tableName;
         private ParserName trackingName;
+
         public NpgsqlBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
         {
             this.tableDescription = tableDescription;
@@ -36,12 +38,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var trackingTableUnquoted = trackingName.Unquoted().ToString();
             var stringBuilder = new StringBuilder();
             var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
-            stringBuilder.AppendLine($"CREATE TABLE {schema}.{trackingTableQuoted} (");
+            stringBuilder.AppendLine($"CREATE TABLE \"{schema}\".{trackingTableQuoted} (");
 
             // Adding the primary key
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var quotedColumnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
+
                 var columnType = this.dbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, this.tableDescription.OriginalProvider);
 
                 var nullableColumn = pkColumn.AllowDBNull ? "NULL" : "NOT NULL";
@@ -56,7 +59,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine(");");
 
             // Primary Keys
-            stringBuilder.Append($"ALTER TABLE {schema}.{trackingTableQuoted} ADD CONSTRAINT PK_{trackingTableUnquoted} PRIMARY KEY (");
+            stringBuilder.Append($"ALTER TABLE \"{schema}\".{trackingTableQuoted} ADD CONSTRAINT PK_{trackingTableUnquoted} PRIMARY KEY (");
 
             var primaryKeysColumns = this.tableDescription.GetPrimaryKeysColumns().ToList();
             for (int i = 0; i < primaryKeysColumns.Count; i++)
@@ -74,7 +77,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             // Index
             var indexName = trackingName.Schema().Quoted().Normalized().ToString();
 
-            stringBuilder.AppendLine($"CREATE INDEX {trackingTableUnquoted}_timestamp_index ON {trackingTableQuoted} (");
+            stringBuilder.AppendLine($"CREATE INDEX {trackingTableUnquoted}_timestamp_index ON \"{schema}\".{trackingTableQuoted} (");
             stringBuilder.AppendLine($"\t  \"timestamp\" ASC");
             stringBuilder.AppendLine($"\t, \"update_scope_id\" ASC");
             stringBuilder.AppendLine($"\t, \"sync_row_is_tombstone\" ASC");
@@ -111,7 +114,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"DROP TABLE {schema}.{trackingTableQuoted};");
+            stringBuilder.AppendLine($"DROP TABLE \"{schema}\".{trackingTableQuoted};");
 
             var command = new NpgsqlCommand(stringBuilder.ToString(), (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
 
@@ -159,28 +162,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         public Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
         {
-            StringBuilder stringBuilder = new StringBuilder();
-
-            var schemaName = this.trackingName.SchemaName;
-            var tableName = this.trackingName.ObjectName;
-
-            schemaName = string.IsNullOrEmpty(schemaName) ? "public" : schemaName;
-            var oldSchemaNameString = string.IsNullOrEmpty(oldTableName.SchemaName) ? "public" : oldTableName.SchemaName;
-
-            var oldFullName = $"{oldSchemaNameString}.{oldTableName}";
-
-            // First of all, renaming the table   
-            stringBuilder.Append($"EXEC sp_rename '{oldFullName}', '{tableName}'; ");
-
-            // then if necessary, move to another schema
-            if (!string.Equals(oldSchemaNameString, schemaName, SyncGlobalization.DataSourceStringComparison))
-            {
-                var tmpName = $"{oldSchemaNameString}.{tableName}";
-                stringBuilder.Append($"ALTER SCHEMA {schemaName} TRANSFER {tmpName};");
-            }
-            var command = new NpgsqlCommand(stringBuilder.ToString(), (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
-
-            return Task.FromResult((DbCommand)command);
+            return Task.FromResult((DbCommand)null);
         }
     }
 }

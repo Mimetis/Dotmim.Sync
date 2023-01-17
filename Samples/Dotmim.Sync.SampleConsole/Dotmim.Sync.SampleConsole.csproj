@@ -8,7 +8,7 @@
 		<LangVersion>9.0</LangVersion>
 	</PropertyGroup>
 	<ItemGroup>
-	  <None Remove="C:\Users\spertus\.nuget\packages\nlog.config\4.7.15\contentFiles\any\any\NLog.config" />
+		<None Remove="C:\Users\spertus\.nuget\packages\nlog.config\4.7.15\contentFiles\any\any\NLog.config" />
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="MessagePack" Version="2.4.59" />
@@ -50,7 +50,21 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 		<None Update="Nlog.config">
-		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>
+
+
+	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNet7)'">
+		<PackageReference Include="Npgsql" Version="7.0.1" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNet6)'">
+		<PackageReference Include="Npgsql" Version="6.0.8" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNetStandard)' OR '$(TargetFramework)' == '$(TargetFrameworkNetCore)'">
+		<PackageReference Include="Npgsql" Version="5.0.15" />
+	</ItemGroup>
+
 </Project>

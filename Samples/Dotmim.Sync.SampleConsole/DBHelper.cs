@@ -24,6 +24,13 @@ namespace Dotmim.Sync.SampleConsole
 
         }
 
+        public static string GetRandomName(string pref = default)
+        {
+            var str1 = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+            return $"{pref}{str1}";
+        }
+
+
         public static string GetConnectionString(string connectionStringName) =>
             configuration.GetSection("ConnectionStrings")[connectionStringName];
 

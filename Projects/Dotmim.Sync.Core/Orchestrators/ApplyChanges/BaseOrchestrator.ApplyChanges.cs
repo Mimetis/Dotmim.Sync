@@ -165,7 +165,7 @@ namespace Dotmim.Sync
                     if (this.Options.DisableConstraintsOnApplyChanges)
                     {
                         foreach (var table in schemaTables)
-                            context = await this.InternalDisableConstraintsAsync(scopeInfo, context, table, connection, transaction).ConfigureAwait(false);
+                            context = await this.InternalDisableConstraintsAsync(scopeInfo, context, table, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     }
 
                     // -----------------------------------------------------
@@ -216,7 +216,7 @@ namespace Dotmim.Sync
                     // Re enable check constraints
                     if (this.Options.DisableConstraintsOnApplyChanges)
                         foreach (var table in schemaTables)
-                            context = await this.InternalEnableConstraintsAsync(scopeInfo, context, table, connection, transaction).ConfigureAwait(false);
+                            context = await this.InternalEnableConstraintsAsync(scopeInfo, context, table, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 }
 
@@ -360,7 +360,7 @@ namespace Dotmim.Sync
                     await using var runner = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.PerBatch ? SyncMode.WithTransaction : SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Pre command if exists
-                    var (preCommand, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbPreCommandType, null,
+                    var (preCommand, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbPreCommandType,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     if (preCommand != null)
@@ -370,7 +370,7 @@ namespace Dotmim.Sync
                         preCommand.Dispose();
                     }
 
-                    (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType, null,
+                    (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
 
                     if (command == null)
@@ -423,7 +423,7 @@ namespace Dotmim.Sync
 
                                 // fallback to row per row
                                 syncAdapter.UseBulkOperations = false;
-                                (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType, null,
+                                (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType, 
                                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
                                 cmdText = command.CommandText;
 
@@ -446,7 +446,7 @@ namespace Dotmim.Sync
                                     command.Connection = runner.Connection;
                                     command.Transaction = runner.Transaction;
 
-                                    var (singleRowAppliedCount, singleErrorException) = await this.InternalApplySingleRowAsync(context, command, batchRow, schemaChangesTable, applyType, message, dbCommandType,
+                                    var (singleRowAppliedCount, singleErrorException) = await this.InternalApplySingleRowAsync(context, command, batchRow, schemaChangesTable, syncAdapter, applyType, message, dbCommandType,
                                                 runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                                     if (singleRowAppliedCount > 0)
@@ -482,7 +482,7 @@ namespace Dotmim.Sync
                             command.Connection = runner.Connection;
                             command.Transaction = runner.Transaction;
 
-                            var (rowAppliedCount, errorException) = await this.InternalApplySingleRowAsync(context, command, syncRow, schemaChangesTable, applyType, message, dbCommandType,
+                            var (rowAppliedCount, errorException) = await this.InternalApplySingleRowAsync(context, command, syncRow, schemaChangesTable, syncAdapter, applyType, message, dbCommandType,
                                 runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                             if (rowAppliedCount > 0)
@@ -685,7 +685,8 @@ namespace Dotmim.Sync
         }
 
 
-        internal virtual async Task<(int rowAppliedCount, Exception errorException)> InternalApplySingleRowAsync(SyncContext context, DbCommand command, SyncRow syncRow, SyncTable schemaChangesTable,
+        internal virtual async Task<(int rowAppliedCount, Exception errorException)> InternalApplySingleRowAsync(SyncContext context, DbCommand command, 
+            SyncRow syncRow, SyncTable schemaChangesTable, DbSyncAdapter syncAdapter,
             SyncRowState applyType, MessageApplyChanges message, DbCommandType dbCommandType,
              DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
@@ -705,22 +706,19 @@ namespace Dotmim.Sync
                 command = batchArgs.Command;
 
                 // Set the parameters value from row 
-                this.SetColumnParametersValues(command, batchArgs.SyncRows.First());
-
-                // Set the special parameters for update
-                this.AddScopeParametersValues(command, message.SenderScopeId, message.LastTimestamp, applyType == SyncRowState.Deleted, false);
+                this.InternalSetCommandParametersValues(context, command, dbCommandType, syncAdapter, connection, transaction, cancellationToken, progress,
+                    batchArgs.SyncRows.First(), message.SenderScopeId, message.LastTimestamp, applyType == SyncRowState.Deleted, false);
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, command, dbCommandType, connection, transaction),
                     progress, cancellationToken).ConfigureAwait(false);
 
-
                 rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead
-                var syncRowCountParam = InternalGetParameter(command, "sync_row_count");
+                var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
 
                 // Check if we have an handled error
-                var syncErrorText = InternalGetParameter(command, "sync_error_text");
+                var syncErrorText = syncAdapter.GetParameter(command, "sync_error_text");
 
                 if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
                     rowAppliedCount = (int)syncRowCountParam.Value;

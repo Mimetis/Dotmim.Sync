@@ -5,6 +5,7 @@ using System.Text;
 using System.Data;
 using System.Linq;
 using NpgsqlTypes;
+using Npgsql;
 
 namespace Dotmim.Sync.PostgreSql.Builders
 {
@@ -56,7 +57,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case NpgsqlDbType.Varchar:
                 case NpgsqlDbType.Char:
                     //case NpgsqlDbType.Text:
-                    argument = $"({column.MaxLength})";
+                    argument = column.MaxLength > 0 ? $"({column.MaxLength})" : "";
                     break;
                 case NpgsqlDbType.Numeric:
                     var (p, s) = this.GetPrecisionAndScale(column);
@@ -160,11 +161,11 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case "char":
                 case "name":
                 case "bpchar":
-                case "character varying":
                     return DbType.AnsiStringFixedLength;
 
 
                 case "varchar":
+                case "character varying":
                 case "refcursor":
                 case "citext":
                 case "text":
@@ -227,10 +228,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             var iMaxLength = column.MaxLength > 8000 ? 8000 : Convert.ToInt32(column.MaxLength);
 
-            //// special length for nchar and nvarchar
-            //if ((sqlDbType == NpgsqlDbType.Bytea || sqlDbType == NpgsqlDbType.Varchar || sqlDbType == NpgsqlDbType.Text) && iMaxLength > 0)
-            //    iMaxLength /= 2;
-
             if (iMaxLength > 0 && sqlDbType != NpgsqlDbType.Varchar && sqlDbType != NpgsqlDbType.Text &&
                 sqlDbType != NpgsqlDbType.Char && sqlDbType != NpgsqlDbType.Bytea)
                 iMaxLength = 0;
@@ -240,189 +237,102 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         public NpgsqlDbType GetNpgsqlDbType(SyncColumn column) => (NpgsqlDbType)this.GetOwnerDbType(column);
 
-        public override object GetOwnerDbType(SyncColumn column)
+
+        public override object GetOwnerDbType(SyncColumn column) => column.OriginalTypeName.ToLowerInvariant() switch
         {
-            switch (column.OriginalTypeName.ToLowerInvariant())
-            {
-                //case "array":
-                //    return NpgsqlDbType.Array;
-                case "bigint":
-                case "int8":
-                    return NpgsqlDbType.Bigint;
-                case "bit":
-                    return NpgsqlDbType.Bit;
-                case "boolean":
-                case "bool":
-                    return NpgsqlDbType.Boolean;
-                case "box":
-                    return NpgsqlDbType.Box;
-                case "bytea":
-                    return NpgsqlDbType.Bytea;
-                case "character":
-                case "char":
-                case "bpchar":
-                    return NpgsqlDbType.Char;
-                case "cid":
-                    return NpgsqlDbType.Cid;
-                case "cidr":
-                    return NpgsqlDbType.Cidr;
-                case "circle":
-                    return NpgsqlDbType.Circle;
-                case "citext":
-                    return NpgsqlDbType.Citext;
-                case "date":
-                    return NpgsqlDbType.Date;
-                case "double precision":
-                case "float8":
-                    return NpgsqlDbType.Double;
-                case "geography":
-                    return NpgsqlDbType.Geography;
-                case "geometry":
-                    return NpgsqlDbType.Geometry;
-                case "hstore":
-                    return NpgsqlDbType.Hstore;
-                case "inet":
-                    return NpgsqlDbType.Inet;
-                case "int2vector":
-                    return NpgsqlDbType.Int2Vector;
-                case "integer":
-                case "int":
-                case "int2":
-                case "int4":
-                    return NpgsqlDbType.Integer;
-                case "internalchar":
-                    return NpgsqlDbType.InternalChar;
-                case "interval":
-                    return NpgsqlDbType.Interval;
-                case "json":
-                    return NpgsqlDbType.Json;
-                case "jsonb":
-                    return NpgsqlDbType.Jsonb;
-                case "line":
-                    return NpgsqlDbType.Line;
-                case "lseg":
-                    return NpgsqlDbType.LSeg;
-                case "macaddr":
-                    return NpgsqlDbType.MacAddr;
-                case "macaddr8":
-                    return NpgsqlDbType.MacAddr8;
-                case "money":
-                    return NpgsqlDbType.Money;
-                case "name":
-                    return NpgsqlDbType.Name;
-                case "decimal":
-                case "numeric":
-                    return NpgsqlDbType.Numeric;
-                case "oid":
-                    return NpgsqlDbType.Oid;
-                case "oidvector":
-                    return NpgsqlDbType.Oidvector;
-                case "path":
-                    return NpgsqlDbType.Path;
-                case "point":
-                    return NpgsqlDbType.Point;
-                case "polygon":
-                    return NpgsqlDbType.Polygon;
-                case "range":
-                    return NpgsqlDbType.Range;
-                case "real":
-                case "float4":
-                    return NpgsqlDbType.Real;
-                case "refcursor":
-                    return NpgsqlDbType.Refcursor;
-                case "regconfig":
-                    return NpgsqlDbType.Regconfig;
-                case "regtype":
-                    return NpgsqlDbType.Regtype;
-                case "smallint":
-                    return NpgsqlDbType.Smallint;
-                case "text":
-                    return NpgsqlDbType.Text;
-                case "tid":
-                    return NpgsqlDbType.Tid;
-                case "time":
-                case "time without time zone":
-                    return NpgsqlDbType.Time;
-                case "timestamp":
-                case "timestamp without time zone":
-                    return NpgsqlDbType.Timestamp;
-                case "timestamptz":
-                case "timestamp with time zone":
-                    return NpgsqlDbType.TimestampTz;
-                case "timetz":
-                case "time with time zone":
-                    return NpgsqlDbType.TimeTz;
-                case "tsquery":
-                    return NpgsqlDbType.TsQuery;
-                case "tsvector":
-                    return NpgsqlDbType.TsVector;
-                case "uuid":
-                    return NpgsqlDbType.Uuid;
-                case "varbit":
-                    return NpgsqlDbType.Varbit;
-                case "varchar":
-                case "character varying":
-                    return NpgsqlDbType.Varchar;
-                case "xid":
-                    return NpgsqlDbType.Xid;
-                case "xml":
-                    return NpgsqlDbType.Xml;
-            }
-            throw new Exception($"Type '{column.OriginalTypeName.ToLowerInvariant()}' (column {column.ColumnName}) is not supported");
-        }
+            "bigint" or "int8" => NpgsqlDbType.Bigint,
+            "bit" => NpgsqlDbType.Bit,
+            "boolean" or "bool" => NpgsqlDbType.Boolean,
+            "box" => NpgsqlDbType.Box,
+            "bytea" => NpgsqlDbType.Bytea,
+            "character" or "char" or "bpchar" => NpgsqlDbType.Char,
+            "cid" => NpgsqlDbType.Cid,
+            "cidr" => NpgsqlDbType.Cidr,
+            "circle" => NpgsqlDbType.Circle,
+            "citext" => NpgsqlDbType.Citext,
+            "date" => NpgsqlDbType.Date,
+            "double precision" or "float8" => NpgsqlDbType.Double,
+            "geography" => NpgsqlDbType.Geography,
+            "geometry" => NpgsqlDbType.Geometry,
+            "hstore" => NpgsqlDbType.Hstore,
+            "inet" => NpgsqlDbType.Inet,
+            "int2vector" => NpgsqlDbType.Int2Vector,
+            "integer" or "int" or "int2" or "int4" => NpgsqlDbType.Integer,
+            "internalchar" => NpgsqlDbType.InternalChar,
+            "interval" => NpgsqlDbType.Interval,
+            "json" => NpgsqlDbType.Json,
+            "jsonb" => NpgsqlDbType.Jsonb,
+            "line" => NpgsqlDbType.Line,
+            "lseg" => NpgsqlDbType.LSeg,
+            "macaddr" => NpgsqlDbType.MacAddr,
+            "macaddr8" => NpgsqlDbType.MacAddr8,
+            "money" => NpgsqlDbType.Money,
+            "name" => NpgsqlDbType.Name,
+            "decimal" or "numeric" => NpgsqlDbType.Numeric,
+            "oid" => NpgsqlDbType.Oid,
+            "oidvector" => NpgsqlDbType.Oidvector,
+            "path" => NpgsqlDbType.Path,
+            "point" => NpgsqlDbType.Point,
+            "polygon" => NpgsqlDbType.Polygon,
+            "range" => NpgsqlDbType.Range,
+            "real" or "float4" => NpgsqlDbType.Real,
+            "refcursor" => NpgsqlDbType.Refcursor,
+            "regconfig" => NpgsqlDbType.Regconfig,
+            "regtype" => NpgsqlDbType.Regtype,
+            "smallint" => NpgsqlDbType.Smallint,
+            "text" => NpgsqlDbType.Text,
+            "tid" => NpgsqlDbType.Tid,
+            "time" or "time without time zone" => NpgsqlDbType.Time,
+            "timestamp" or "timestamp without time zone" => NpgsqlDbType.Timestamp,
+            "timestamptz" or "timestamp with time zone" => NpgsqlDbType.TimestampTz,
+            "timetz" or "time with time zone" => NpgsqlDbType.TimeTz,
+            "tsquery" => NpgsqlDbType.TsQuery,
+            "tsvector" => NpgsqlDbType.TsVector,
+            "uuid" => NpgsqlDbType.Uuid,
+            "varbit" => NpgsqlDbType.Varbit,
+            "varchar" or "character varying" => NpgsqlDbType.Varchar,
+            "xid" => NpgsqlDbType.Xid,
+            "xml" => (object)NpgsqlDbType.Xml,
+            _ => throw new Exception($"Type '{column.OriginalTypeName.ToLowerInvariant()}' (column {column.ColumnName}) is not supported"),
+        };
+
+
         public NpgsqlDbType GetOwnerDbTypeFromDbType(SyncColumn column)
         {
-            switch (column.GetDbType())
+#if NET6_0_OR_GREATER            
+            // Getting EnableLegacyTimestampBehavior behavior
+            var legacyTimestampBehavior = false;
+            AppContext.TryGetSwitch("Npgsql.EnableLegacyTimestampBehavior", out legacyTimestampBehavior);
+#else
+            var legacyTimestampBehavior = true;
+#endif
+            var npgsqlDbType = column.GetDbType() switch
             {
-                case DbType.AnsiStringFixedLength:
-                    return NpgsqlDbType.Char;
-                case DbType.AnsiString:
-                    return NpgsqlDbType.Varchar;
-                case DbType.Binary:
-                    return NpgsqlDbType.Bytea;
-                case DbType.Boolean:
-                    return NpgsqlDbType.Boolean;
-                case DbType.Byte:
-                case DbType.SByte:
-                    return NpgsqlDbType.Smallint;
-                case DbType.Currency:
-                    return NpgsqlDbType.Money;
-                case DbType.Date:
-                    return NpgsqlDbType.Date;
-                case DbType.Time:
-                    return NpgsqlDbType.Time;
-                case DbType.DateTime2:
-                    return NpgsqlDbType.Timestamp;
-                case DbType.DateTime:
-                    return NpgsqlDbType.Timestamp;
-                case DbType.DateTimeOffset:
-                    return NpgsqlDbType.TimestampTz;
-                case DbType.Single:
-                    return NpgsqlDbType.Real;
-                case DbType.Decimal:
-                case DbType.VarNumeric:
-                    return NpgsqlDbType.Numeric;
-                case DbType.Double:
-                    return NpgsqlDbType.Double;
-                case DbType.Guid:
-                    return NpgsqlDbType.Uuid;
-                case DbType.Int16:
-                case DbType.UInt16:
-                    return NpgsqlDbType.Smallint;
-                case DbType.Int32:
-                case DbType.UInt32:
-                    return NpgsqlDbType.Integer;
-                case DbType.Int64:
-                case DbType.UInt64:
-                    return NpgsqlDbType.Bigint;
-                case DbType.String:
-                case DbType.StringFixedLength:
-                case DbType.Xml:
-                    return NpgsqlDbType.Text;
-                //case DbType.Object:
-                //    return NpgsqlDbType.Array;
-            }
-            throw new Exception($"this type name {column.GetType().ToString()} is not supported");
+                DbType.AnsiStringFixedLength or DbType.AnsiString or DbType.String or DbType.StringFixedLength => NpgsqlDbType.Varchar,
+                DbType.Binary => NpgsqlDbType.Bytea,
+                DbType.Boolean => NpgsqlDbType.Boolean,
+                DbType.Byte or DbType.SByte => NpgsqlDbType.Smallint,
+                DbType.Currency => NpgsqlDbType.Money,
+                DbType.Date => NpgsqlDbType.Date,
+                DbType.Time => NpgsqlDbType.Time,
+                DbType.DateTime2 => NpgsqlDbType.Timestamp,
+                DbType.DateTime => legacyTimestampBehavior ? NpgsqlDbType.Timestamp : NpgsqlDbType.TimestampTz,
+                DbType.DateTimeOffset => NpgsqlDbType.TimestampTz,
+                DbType.Single => NpgsqlDbType.Real,
+                DbType.Decimal or DbType.VarNumeric => NpgsqlDbType.Numeric,
+                DbType.Double => NpgsqlDbType.Double,
+                DbType.Guid => NpgsqlDbType.Uuid,
+                DbType.Int16 or DbType.UInt16 => NpgsqlDbType.Smallint,
+                DbType.Int32 or DbType.UInt32 => NpgsqlDbType.Integer,
+                DbType.Int64 or DbType.UInt64 => NpgsqlDbType.Bigint,
+                DbType.Xml => NpgsqlDbType.Text,
+                _ => throw new Exception($"this type name {column.GetType()} is not supported"),
+            };
+
+            if (npgsqlDbType == NpgsqlDbType.Varchar && column.MaxLength <= 0)
+                npgsqlDbType = NpgsqlDbType.Text;
+
+            return npgsqlDbType;
         }
         public override byte GetPrecision(SyncColumn columnDefinition)
         {
@@ -439,65 +349,26 @@ namespace Dotmim.Sync.PostgreSql.Builders
             return CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
         }
 
-        public override Type GetType(SyncColumn column)
+        public override Type GetType(SyncColumn column) => GetNpgsqlDbType(column) switch
         {
-            switch (GetNpgsqlDbType(column))
-            {
-                case NpgsqlDbType.Bigint:
-                    return typeof(long);
-                case NpgsqlDbType.Double:
-                    return typeof(double);
-                case NpgsqlDbType.Int2Vector:
-                case NpgsqlDbType.Integer:
-                    return typeof(int);
-                case NpgsqlDbType.Real:
-                    return typeof(float);
-                case NpgsqlDbType.Numeric:
-                case NpgsqlDbType.Money:
-                    return typeof(decimal);
-                case NpgsqlDbType.Smallint:
-                    return typeof(short);
-                case NpgsqlDbType.Boolean:
-                    return typeof(bool);
-                case NpgsqlDbType.Char:
-                    return typeof(char);
-                case NpgsqlDbType.Text:
-                case NpgsqlDbType.Varchar:
-                case NpgsqlDbType.Name:
-                case NpgsqlDbType.Citext:
-                    return typeof(string);
-                case NpgsqlDbType.Bytea:
-                    return typeof(byte[]);
-                case NpgsqlDbType.Date:
-                case NpgsqlDbType.Timestamp:
-                    return typeof(DateTime);
-                case NpgsqlDbType.Time:
-                    return typeof(TimeSpan);
-                case NpgsqlDbType.TimestampTz:
-                case NpgsqlDbType.TimeTz:
-                    return typeof(DateTimeOffset);
-                case NpgsqlDbType.Inet:
-                case NpgsqlDbType.Cidr:
-                case NpgsqlDbType.MacAddr:
-                case NpgsqlDbType.MacAddr8:
-                case NpgsqlDbType.Bit:
-                case NpgsqlDbType.Varbit:
-                case NpgsqlDbType.TsVector:
-                case NpgsqlDbType.TsQuery:
-                    return typeof(string);
-                case NpgsqlDbType.Uuid:
-                    return typeof(Guid);
-                case NpgsqlDbType.Xml:
-                case NpgsqlDbType.Json:
-                case NpgsqlDbType.Jsonb:
-                case NpgsqlDbType.Hstore:
-                    return typeof(string);
-                //case NpgsqlDbType.Array:
-                //    return typeof(string);
-            }
-            throw new Exception($"this NpgsqlDbType {GetNpgsqlDbType(column).ToString()} is not supported");
-
-        }
+            NpgsqlDbType.Bigint => typeof(long),
+            NpgsqlDbType.Double => typeof(double),
+            NpgsqlDbType.Int2Vector or NpgsqlDbType.Integer => typeof(int),
+            NpgsqlDbType.Real => typeof(float),
+            NpgsqlDbType.Numeric or NpgsqlDbType.Money => typeof(decimal),
+            NpgsqlDbType.Smallint => typeof(short),
+            NpgsqlDbType.Boolean => typeof(bool),
+            NpgsqlDbType.Char => typeof(char),
+            NpgsqlDbType.Text or NpgsqlDbType.Varchar or NpgsqlDbType.Name or NpgsqlDbType.Citext => typeof(string),
+            NpgsqlDbType.Bytea => typeof(byte[]),
+            NpgsqlDbType.Date or NpgsqlDbType.Timestamp => typeof(DateTime),
+            NpgsqlDbType.Time => typeof(TimeSpan),
+            NpgsqlDbType.TimestampTz or NpgsqlDbType.TimeTz => typeof(DateTimeOffset),
+            NpgsqlDbType.Inet or NpgsqlDbType.Cidr or NpgsqlDbType.MacAddr or NpgsqlDbType.MacAddr8 or NpgsqlDbType.Bit or NpgsqlDbType.Varbit or NpgsqlDbType.TsVector or NpgsqlDbType.TsQuery => typeof(string),
+            NpgsqlDbType.Uuid => typeof(Guid),
+            NpgsqlDbType.Xml or NpgsqlDbType.Json or NpgsqlDbType.Jsonb or NpgsqlDbType.Hstore => typeof(string),
+            _ => throw new Exception($"this NpgsqlDbType {GetNpgsqlDbType(column)} is not supported"),
+        };
         public override bool IsNumericType(SyncColumn column)
         {
             switch (column.OriginalTypeName.ToLowerInvariant())

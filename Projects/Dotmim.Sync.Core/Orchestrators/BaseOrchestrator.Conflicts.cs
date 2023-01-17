@@ -66,7 +66,7 @@ namespace Dotmim.Sync
                         // Conflict, but both have delete the row, so just update the metadata to the right winner
                         case ConflictType.RemoteIsDeletedLocalIsDeleted:
                             (_, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context,
-                                conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction).ConfigureAwait(false);
+                                conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                             applied = false;
                             conflictResolved = operationComplete && exception == null;
@@ -82,13 +82,13 @@ namespace Dotmim.Sync
                         // So delete the local row
                         case ConflictType.RemoteIsDeletedLocalExists:
                             (context, operationComplete, exception) = await this.InternalApplyDeleteAsync(scopeInfo, context, batchInfo,
-                                conflictRow, schemaChangesTable, lastTimestamp, nullableSenderScopeId, true, connection, transaction, cancellationToken, progress);
+                                conflictRow, schemaChangesTable, lastTimestamp, nullableSenderScopeId, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                             // Conflict, but both have delete the row, so just update the metadata to the right winner
                             if (!operationComplete && exception == null)
                             {
                                 (_, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context,
-                                    conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction);
+                                    conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                                 applied = false;
                                 conflictResolved = operationComplete && exception == null;
                             }
@@ -234,26 +234,28 @@ namespace Dotmim.Sync
         /// Try to get a source row
         /// </summary>
         internal async Task<(SyncContext context, SyncRow syncRow)> InternalGetConflictRowAsync(ScopeInfo scopeInfo, SyncContext context,
-            SyncTable schemaTable, SyncRow primaryKeyRow, DbConnection connection, DbTransaction transaction)
+            SyncTable schemaTable, SyncRow primaryKeyRow, DbConnection connection, DbTransaction transaction,
+                                CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             try
             {
                 var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
 
                 // Get the row in the local repository
-                var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.SelectRow, null,
+                var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.SelectRow,
                     connection, transaction, default, default).ConfigureAwait(false);
 
                 if (command == null) return (context, null);
 
-                // set the primary keys columns as parameters
-                this.SetColumnParametersValues(command, primaryKeyRow);
+                // Set the parameters value from row 
+                this.InternalSetCommandParametersValues(context, command, DbCommandType.SelectRow, syncAdapter, connection, transaction, cancellationToken, progress,
+                    row: primaryKeyRow);
+
+                await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.SelectRow, connection, transaction)).ConfigureAwait(false);
 
                 // Create a select table based on the schema in parameter + scope columns
                 var changesSet = schemaTable.Schema.Clone(false);
                 var selectTable = CreateChangesTable(schemaTable, changesSet);
-
-                await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.SelectRow, connection, transaction)).ConfigureAwait(false);
 
                 using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 

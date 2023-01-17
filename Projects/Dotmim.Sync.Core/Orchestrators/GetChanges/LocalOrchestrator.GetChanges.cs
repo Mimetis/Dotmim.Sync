@@ -217,7 +217,8 @@ namespace Dotmim.Sync
                 else
                 {
                     clientChangesSelected = await this.InternalGetChangesAsync(cScopeInfo,
-                        context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp, clientTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets, clientBatchInfo,
+                        context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp, clientTimestamp, remoteScopeId, 
+                        this.Provider.SupportsMultipleActiveResultSets, clientBatchInfo, 
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                 }
 

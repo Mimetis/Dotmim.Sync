@@ -12,7 +12,7 @@ namespace Dotmim.Sync.SqlServer
     public static class SqlExtensionsMethods
     {
 
-        internal static async Task<SqlParameter[]> DeriveParametersAsync(this SqlConnection connection, SqlCommand cmd, bool includeReturnValueParameter = false, SqlTransaction transaction = null)
+        internal static SqlParameter[] DeriveParameters(this SqlConnection connection, SqlCommand cmd, bool includeReturnValueParameter = false, SqlTransaction transaction = null)
         {
             if (cmd == null) throw new ArgumentNullException("SqlCommand");
 
@@ -24,7 +24,7 @@ namespace Dotmim.Sync.SqlServer
             var alreadyOpened = connection.State == ConnectionState.Open;
 
             if (!alreadyOpened)
-                await connection.OpenAsync().ConfigureAwait(false);
+                connection.Open();
 
             try
             {
@@ -39,7 +39,7 @@ namespace Dotmim.Sync.SqlServer
                 p.Value = schemaName;
                 getParamsCommand.Parameters.Add(p);
 
-                using (var sdr = await getParamsCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                using (var sdr = getParamsCommand.ExecuteReader())
                 {
                     // Do we have any rows?
                     if (sdr.HasRows)
@@ -64,7 +64,7 @@ namespace Dotmim.Sync.SqlServer
                             //if (0 == String.Compare("xml", datatype, true))
                             //    datatype = "Text";
 
-                            if (0 == String.Compare("table", datatype, true))
+                            if (0 == string.Compare("table", datatype, true))
                                 datatype = "Structured";
 
                             // TODO : Should we raise an error here ??

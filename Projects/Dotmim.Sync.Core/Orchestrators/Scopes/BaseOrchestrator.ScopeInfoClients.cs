@@ -129,9 +129,9 @@ namespace Dotmim.Sync
 
                 if (existsCommand == null) return (context, false);
 
-                SetParameterValue(existsCommand, "sync_scope_name", context.ScopeName);
-                SetParameterValue(existsCommand, "sync_scope_id", context.ClientId);
-                SetParameterValue(existsCommand, "sync_scope_hash", context.Hash);
+                InternalSetParameterValue(existsCommand, "sync_scope_name", context.ScopeName);
+                InternalSetParameterValue(existsCommand, "sync_scope_id", context.ClientId);
+                InternalSetParameterValue(existsCommand, "sync_scope_hash", context.Hash);
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
@@ -161,9 +161,9 @@ namespace Dotmim.Sync
 
                 if (command == null) return (context, null);
 
-                SetParameterValue(command, "sync_scope_name", context.ScopeName);
-                SetParameterValue(command, "sync_scope_id", context.ClientId);
-                SetParameterValue(command, "sync_scope_hash", context.Hash);
+                InternalSetParameterValue(command, "sync_scope_name", context.ScopeName);
+                InternalSetParameterValue(command, "sync_scope_id", context.ClientId);
+                InternalSetParameterValue(command, "sync_scope_hash", context.Hash);
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, command, default, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
@@ -297,16 +297,16 @@ namespace Dotmim.Sync
 
         private DbCommand InternalSetSaveScopeInfoClientParameters(ScopeInfoClient scopeInfoClient, DbCommand command)
         {
-            SetParameterValue(command, "sync_scope_id", scopeInfoClient.Id.ToString());
-            SetParameterValue(command, "sync_scope_name", scopeInfoClient.Name);
-            SetParameterValue(command, "sync_scope_hash", scopeInfoClient.Hash);
-            SetParameterValue(command, "scope_last_sync_timestamp", scopeInfoClient.LastSyncTimestamp);
-            SetParameterValue(command, "scope_last_server_sync_timestamp", scopeInfoClient.LastServerSyncTimestamp);
-            SetParameterValue(command, "scope_last_sync", scopeInfoClient.LastSync.HasValue ? (object)scopeInfoClient.LastSync.Value : DBNull.Value);
-            SetParameterValue(command, "scope_last_sync_duration", scopeInfoClient.LastSyncDuration);
-            SetParameterValue(command, "sync_scope_properties", scopeInfoClient.Properties);
-            SetParameterValue(command, "sync_scope_errors", scopeInfoClient.Errors);
-            SetParameterValue(command, "sync_scope_parameters", scopeInfoClient.Parameters != null ? JsonConvert.SerializeObject(scopeInfoClient.Parameters) : DBNull.Value);
+            InternalSetParameterValue(command, "sync_scope_id", scopeInfoClient.Id.ToString());
+            InternalSetParameterValue(command, "sync_scope_name", scopeInfoClient.Name);
+            InternalSetParameterValue(command, "sync_scope_hash", scopeInfoClient.Hash);
+            InternalSetParameterValue(command, "scope_last_sync_timestamp", scopeInfoClient.LastSyncTimestamp);
+            InternalSetParameterValue(command, "scope_last_server_sync_timestamp", scopeInfoClient.LastServerSyncTimestamp);
+            InternalSetParameterValue(command, "scope_last_sync", scopeInfoClient.LastSync.HasValue ? (object)scopeInfoClient.LastSync.Value : DBNull.Value);
+            InternalSetParameterValue(command, "scope_last_sync_duration", scopeInfoClient.LastSyncDuration);
+            InternalSetParameterValue(command, "sync_scope_properties", scopeInfoClient.Properties);
+            InternalSetParameterValue(command, "sync_scope_errors", scopeInfoClient.Errors);
+            InternalSetParameterValue(command, "sync_scope_parameters", scopeInfoClient.Parameters != null ? JsonConvert.SerializeObject(scopeInfoClient.Parameters) : DBNull.Value);
 
             return command;
         }
