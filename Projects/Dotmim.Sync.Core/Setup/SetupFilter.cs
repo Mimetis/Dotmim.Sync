@@ -84,13 +84,13 @@ namespace Dotmim.Sync
         /// For SQL Server, parameter will be added as @{parameterName}
         /// For MySql, parameter will be added as in_{parameterName}
         /// </summary>
-        public void AddParameter(string parameterName, string tableName, string schemaName, bool allowNull = false, string defaultValue = null)
+        public void AddParameter(string columnName, string tableName, string schemaName, bool allowNull = false, string defaultValue = null)
         {
 
-            if (this.Parameters.Any(p => string.Equals(p.Name, parameterName, SyncGlobalization.DataSourceStringComparison)))
-                throw new FilterParameterAlreadyExistsException(parameterName, this.TableName);
+            if (this.Parameters.Any(p => string.Equals(p.Name, columnName, SyncGlobalization.DataSourceStringComparison)))
+                throw new FilterParameterAlreadyExistsException(columnName, this.TableName);
 
-            this.Parameters.Add(new SetupFilterParameter { Name = parameterName, TableName = tableName, SchemaName = schemaName, DefaultValue = defaultValue, AllowNull = allowNull });
+            this.Parameters.Add(new SetupFilterParameter { Name = columnName, TableName = tableName, SchemaName = schemaName, DefaultValue = defaultValue, AllowNull = allowNull });
         }
 
 
@@ -99,12 +99,12 @@ namespace Dotmim.Sync
         /// For SQL Server, parameter will be added as @{parameterName}
         /// For MySql, parameter will be added as in_{parameterName}
         /// </summary>
-        public void AddParameter(string parameterName, string tableName, bool allowNull = false, string defaultValue = null)
+        public void AddParameter(string columnName, string tableName, bool allowNull = false, string defaultValue = null)
         {
-            if (this.Parameters.Any(p => string.Equals(p.Name, parameterName, SyncGlobalization.DataSourceStringComparison)))
-                throw new FilterParameterAlreadyExistsException(parameterName, this.TableName);
+            if (this.Parameters.Any(p => string.Equals(p.Name, columnName, SyncGlobalization.DataSourceStringComparison)))
+                throw new FilterParameterAlreadyExistsException(columnName, this.TableName);
 
-            this.Parameters.Add(new SetupFilterParameter { Name = parameterName, TableName = tableName, DefaultValue = defaultValue, AllowNull = allowNull });
+            this.Parameters.Add(new SetupFilterParameter { Name = columnName, TableName = tableName, DefaultValue = defaultValue, AllowNull = allowNull });
         }
 
 
