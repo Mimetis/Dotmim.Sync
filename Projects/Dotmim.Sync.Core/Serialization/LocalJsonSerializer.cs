@@ -308,8 +308,11 @@ namespace Dotmim.Sync.Serialization
                 {
                     var tmpTable = GetSchemaTableFromReader(reader, serializer, schemaTable != null ? schemaTable.TableName : tableName, schemaTable != null ? schemaTable.SchemaName : schemaName);
 
-                    if (schemaTable == null && tmpTable != null)
+                    if (tmpTable != null)
                         schemaTable = tmpTable;
+
+                    //if (schemaTable == null && tmpTable != null)
+                    //    schemaTable = tmpTable;
 
                     continue;
                 }

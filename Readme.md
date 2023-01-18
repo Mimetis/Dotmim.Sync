@@ -1,6 +1,6 @@
 ![DMS](docs/assets/Smallicon.png)
 
-[![Build Status](https://dev.azure.com/dotmim/Dotmim.Sync/_apis/build/status/Dotmim.Sync%20Full%20Tests)](https://dev.azure.com/dotmim/Dotmim.Sync/_build/latest?definitionId=5) [![Documentation Status](https://readthedocs.org/projects/dotmimsync/badge/?version=master)](https://dotmimsync.readthedocs.io/?badge=master)
+[![Build Status](https://dev.azure.com/dotmim/Dotmim.Sync/_apis/build/status/Tests)](https://dev.azure.com/dotmim/Dotmim.Sync/_build/latest?definitionId=9) [![Documentation Status](https://readthedocs.org/projects/dotmimsync/badge/?version=master)](https://dotmimsync.readthedocs.io/?badge=master)
 
 See the Azure Devops CI : [https://dev.azure.com/dotmim/Dotmim.Sync](https://dev.azure.com/dotmim/Dotmim.Sync)
 
