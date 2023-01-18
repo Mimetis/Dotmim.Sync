@@ -35,13 +35,13 @@ namespace Dotmim.Sync
         public string StoredProceduresSuffix { get; set; }
 
         /// <summary>
-        /// Specify a prefix for naming stored procedure. Default is empty string
+        /// Specify a prefix for naming triggers. Default is empty string
         /// </summary>
         [DataMember(Name = "tf", IsRequired = false, EmitDefaultValue = false, Order = 5)]
         public string TriggersPrefix { get; set; }
 
         /// <summary>
-        /// Specify a suffix for naming stored procedures. Default is empty string
+        /// Specify a suffix for naming triggers. Default is empty string
         /// </summary>
         [DataMember(Name = "ts", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public string TriggersSuffix { get; set; }
