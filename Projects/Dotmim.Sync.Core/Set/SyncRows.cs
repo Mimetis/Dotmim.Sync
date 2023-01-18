@@ -70,16 +70,16 @@ namespace Dotmim.Sync
         }
   
         /// <summary>
-        /// Make a filter on primarykeys
+        /// Make a filter on primary keys
         /// </summary>
         public static SyncRow GetRowByPrimaryKeys(SyncRow criteria, IList<SyncRow> rows, SyncTable schemaTable )
         {
-            // Get the primarykeys to get the ordinal
+            // Get the primary keys to get the ordinal
             var primaryKeysColumn = schemaTable.GetPrimaryKeysColumns().ToList();
             var criteriaKeysColumn = criteria.SchemaTable.GetPrimaryKeysColumns().ToList();
 
             if (primaryKeysColumn.Count != criteriaKeysColumn.Count)
-                throw new ArgumentOutOfRangeException($"Can't make a query on primary keys since number of primary keys columns in criterias is not matching the number of primary keys columns in this table");
+                throw new ArgumentOutOfRangeException($"Can't make a query on primary keys since number of primary keys columns in criteria is not matching the number of primary keys columns in this table");
 
             var filteredRow = rows.FirstOrDefault(itemRow =>
             {
