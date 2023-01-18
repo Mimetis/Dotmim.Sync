@@ -15,6 +15,8 @@ Welcome to Dotmim.Sync
 
 Available for syncing **SQL Server**, **MySQL**, **MariaDB**, **PostgreSQL** and **Sqlite** databases.
 
+Limitations and restrictions: The order of columns matters in DMS. Columns must be in the same order in a table on the client as on the server.
+
 .. note:: The source code is available on `Github <https://www.github.com/mimetis/dotmim.sync>`_. 
    
    This framework is still in beta. There is no support other than me and the time I can put on it. Don't be afraid to reach me out, but expect delay sometimes :)
