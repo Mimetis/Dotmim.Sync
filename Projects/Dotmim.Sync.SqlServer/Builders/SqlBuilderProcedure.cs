@@ -1232,11 +1232,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
                 var isNoncomparable = nonComparableColumns.Contains(mutableColumn);
                 var isPrimaryKey = this.tableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
-                stringBuilder.Append("\t");
                 if (isPrimaryKey)
-                    stringBuilder.Append($"[side].{columnName}");
+                    stringBuilder.AppendLine($"\t[side].{columnName}, ");
                 else
-                    stringBuilder.Append($"[base].{columnName}");
+                    stringBuilder.Append($"\t[base].{columnName}, ");
             }
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone] as [sync_row_is_tombstone], ");
             stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id]");
