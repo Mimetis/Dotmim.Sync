@@ -1235,7 +1235,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (isPrimaryKey)
                     stringBuilder.AppendLine($"\t[side].{columnName}, ");
                 else
-                    stringBuilder.Append($"\t[base].{columnName}, ");
+                    stringBuilder.AppendLine($"\t[base].{columnName}, ");
             }
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone] as [sync_row_is_tombstone], ");
             stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id]");
