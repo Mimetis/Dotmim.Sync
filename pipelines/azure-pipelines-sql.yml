@@ -126,60 +126,60 @@ jobs:
       dotnetfx: "net7.0"
       filter: "Dotmim.Sync.Tests.PostgresHttp"
 
-  # - job: testbasics
-  #   displayName: "Tests Basics"
+  - job: testbasics
+    displayName: "Tests Basics"
 
-  #   pool:
-  #     # get an Ubuntu image to be able to get the light SQL container
-  #     vmImage: "ubuntu-latest" # "Ubuntu 16.04" # "ubuntu-latest" # 'VS2017-Win2016'
+    pool:
+      # get an Ubuntu image to be able to get the light SQL container
+      vmImage: "ubuntu-latest" # "Ubuntu 16.04" # "ubuntu-latest" # 'VS2017-Win2016'
 
-  #   variables:
-  #     solution: "**/*.sln"
-  #     buildPlatform: "Any CPU"
-  #     buildConfiguration: "Release"
-  #     AZUREDEV: "true"
+    variables:
+      solution: "**/*.sln"
+      buildPlatform: "Any CPU"
+      buildConfiguration: "Release"
+      AZUREDEV: "true"
 
-  #   steps:
+    steps:
 
-  #     - script: printenv
-  #       displayName: Get env variables
+      - script: printenv
+        displayName: Get env variables
 
-  #     # Use the latest .NET SDK
-  #     - task: UseDotNet@2
-  #       displayName: 'Use .Net Sdk 7.x'
-  #       inputs:
-  #         packageType: 'sdk'
-  #         version: 7.0.x
-  #         includePreviewVersions: true
+      # Use the latest .NET SDK
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 7.x'
+        inputs:
+          packageType: 'sdk'
+          version: 7.0.x
+          includePreviewVersions: true
 
-  #     - task: UseDotNet@2
-  #       displayName: 'Use .Net Sdk 6.x'
-  #       inputs:
-  #         packageType: 'sdk'
-  #         version: 6.0.x
-  #         includePreviewVersions: true
+      - task: UseDotNet@2
+        displayName: 'Use .Net Sdk 6.x'
+        inputs:
+          packageType: 'sdk'
+          version: 6.0.x
+          includePreviewVersions: true
 
-  #     - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
-  #       displayName: "Run SQL Server latest on Linux container"
+      - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
+        displayName: "Run SQL Server latest on Linux container"
 
-  #     - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.StandAlone -f net6.0 --logger trx
-  #       name: standalonetests
-  #       displayName: "Standalone Tests"
-  #       continueOnError: true
-  #       env:
-  #         "AZUREDEV": "true"
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.StandAlone -f net6.0 --logger trx
+        name: standalonetests
+        displayName: "Standalone Tests"
+        continueOnError: true
+        env:
+          "AZUREDEV": "true"
 
-  #     - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.UnitTests -f net6.0 --logger trx
-  #       name: unittests
-  #       displayName: "Unit Tests"
-  #       continueOnError: true
-  #       env:
-  #         "AZUREDEV": "true"
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.UnitTests -f net6.0 --logger trx
+        name: unittests
+        displayName: "Unit Tests"
+        continueOnError: true
+        env:
+          "AZUREDEV": "true"
 
-  #     - task: PublishTestResults@2
-  #       inputs:
-  #         testRunner: VSTest
-  #         testResultsFiles: "**/*.trx"
+      - task: PublishTestResults@2
+        inputs:
+          testRunner: VSTest
+          testResultsFiles: "**/*.trx"
 
   - job: Beta
     displayName: "Beta Nuget Packages"

@@ -251,6 +251,11 @@ namespace Dotmim.Sync
                 // no need to check on every call to SynchronizeAsync
                 if (!checkUpgradeDone)
                 {
+                    //var (version, scopeInfos) = await this.LocalOrchestrator.GetVersionAsync();
+                    //if (version != null && version < SyncVersion.Current)
+                    //{
+                    //    await this.LocalOrchestrator.InternalUpgradeAsync(context, scopeInfos, version, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    //}
                     //var needToUpgrade = await this.LocalOrchestrator.NeedsToUpgradeAsync().ConfigureAwait(false);
                     //if (needToUpgrade)
                     //    throw new Exception("This version needs a client manual upgrade.");
@@ -390,7 +395,7 @@ namespace Dotmim.Sync
                 context.ProgressPercentage = 0.1;
 
                 // On local orchestrator, get local changes
-                (context, clientSyncChanges) = await this.LocalOrchestrator.InternalGetChangesAsync(cScopeInfo, context, cScopeInfoClient, 
+                (context, clientSyncChanges) = await this.LocalOrchestrator.InternalGetChangesAsync(cScopeInfo, context, cScopeInfoClient,
                     default, default, cancellationToken, progress).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)

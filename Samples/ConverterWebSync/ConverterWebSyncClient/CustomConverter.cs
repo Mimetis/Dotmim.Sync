@@ -11,7 +11,7 @@ namespace ConverterWebSyncClient
     {
         public string Key => "cuscom";
 
-        public void BeforeSerialize(object[] row, SyncTable schemaTable)
+        public void BeforeSerialize(SyncRow row, SyncTable schemaTable)
         {
             // Each row belongs to a Table with its own Schema
             // Easy to filter if needed
@@ -34,7 +34,7 @@ namespace ConverterWebSyncClient
 
         }
 
-        public void AfterDeserialized(object[] row, SyncTable schemaTable)
+        public void AfterDeserialized(SyncRow row, SyncTable schemaTable)
         {
             // Only convert for table Product
             if (schemaTable.TableName != "Product")

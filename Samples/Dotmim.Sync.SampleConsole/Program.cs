@@ -82,8 +82,8 @@ internal class Program
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        var setup = new SyncSetup(allTables);
-        //var setup = new SyncSetup(oneTable);
+        //var setup = new SyncSetup(allTables);
+        var setup = new SyncSetup(oneTable);
 
         //var setup = new SyncSetup("SaleInvoices");
         //setup.Tables["SaleInvoices"].Columns.AddRange("Id", "Uuid", "IssuedDate", "CustomerId", 
@@ -105,7 +105,7 @@ internal class Program
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
-        // setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
+        //setup.Filters.Add("ProductCategory", "ParentProductCategoryID", null, true);
 
         //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitserver"));
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitclient"));
@@ -131,13 +131,195 @@ internal class Program
 
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("CliProduct"));
         //clientProvider.UseBulkOperations = false;
+       // await MiltenAsync();
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options, "v1");
+    }
+    private static async Task MiltenAsync()
+    {
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("Milten"));
+        var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+        var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        var setup = new SyncSetup("Files", "Users", "Facilities", "UserFacility");
+
+        var filter = new SetupFilter("Files");
+        var filterString = new StringBuilder();
+        filterString.AppendLine($"base.Id In (Select Facilities.LogoId From Facilities Where Facilities.Uuid = @FacilityId)");
+        filterString.AppendLine($"OR");
+        filterString.AppendLine($"base.Id In (Select Users.AvatarId " +
+                                $"From Users " +
+                                $"Join UserFacility on Users.Id=UserFacility.UserId " +
+                                $"Join Facilities ON UserFacility.FacilityId=Facilities.Id " +
+                                $"Where Facilities.Uuid = @FacilityId)");
+        filterString.AppendLine($"OR");
+        filterString.AppendLine($"side.sync_row_is_tombstone = 1");
+        filter.AddCustomWhere(filterString.ToString());
+        filter.AddParameter("FacilityId", DbType.Guid);
+        setup.Filters.Add(filter);
+        
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
+        //options.ProgressLevel = SyncProgressLevel.Debug;
+        options.DisableConstraintsOnApplyChanges = true;
+
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+        var parameters = new SyncParameters { { "FacilityId", new Guid("D3D03A7B-E778-4495-BD93-465108F117C0") } };
+
+        do
+        {
+            try
+            {
+                Console.Clear();
+                Console.ForegroundColor = ConsoleColor.Green;
+                var s = await agent.SynchronizeAsync(setup, parameters, progress: progress);
+                Console.WriteLine(s);
+            }
+            catch (SyncException e)
+            {
+                Console.ResetColor();
+                Console.WriteLine(e.Message);
+            }
+            catch (Exception e)
+            {
+                Console.ResetColor();
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+    }
+
+
+    private static async Task VagueItAsync()
+    {
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+        var serverDbName = "VagueIt";
+
+        var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+        var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+        var setup = new SyncSetup("UserAccount");
+
+        using (var sqliteConnection = new SqliteConnection(clientProvider.ConnectionString))
+        {
+            await sqliteConnection.OpenAsync();
+            var createTableCommandText = $@"CREATE TABLE UserAccount (
+                                    Id INTEGER NOT NULL, 
+                                    DateStamp datetime NOT NULL COLLATE NOCASE, 
+                                    InducementExpires datetime NOT NULL COLLATE NOCASE, 
+                                    Logging INTEGER NOT NULL DEFAULT 0 CHECK(Logging IN (0,1)), 
+                                    LoginHash TEXT NOT NULL COLLATE NOCASE CHECK (length(LoginHash) <= 50), 
+                                    RunSetupWizard INTEGER NOT NULL DEFAULT 0 CHECK(RunSetupWizard IN (0,1)), 
+                                    SubscriptionExpires datetime NOT NULL COLLATE NOCASE, 
+                                    SubscriptionBalance NUMERIC NOT NULL CHECK (SubscriptionBalance BETWEEN -9999998.99 AND 9999999.99),
+                                    SyncRate NUMERIC NOT NULL CHECK (SyncRate BETWEEN 0 AND 9.99999999), 
+                                    PRIMARY KEY(Id))
+                                    ";
+            var sqliteCommand = new SqliteCommand(createTableCommandText, sqliteConnection);
+            await sqliteCommand.ExecuteNonQueryAsync();
+            await sqliteConnection.CloseAsync();
+        }
+
+
+        // Sync through kestrell
+        // --------------------------
+        var configureServices = new Action<IServiceCollection>(services =>
+        {
+            services.AddSyncServer<SqlSyncProvider>(DBHelper.GetDatabaseConnectionString(serverDbName), "UserAccount", setup, options);
+            services.AddSyncServer<SqlSyncProvider>(DBHelper.GetDatabaseConnectionString(serverDbName), "ALL", setup, options);
+        });
+
+        var serverHandler = new RequestDelegate(async context =>
+        {
+            try
+            {
+                var webServerAgents = context.RequestServices.GetService<IEnumerable<WebServerAgent>>();
+                var scopeName = context.GetScopeName();
+                var clientScopeId = context.GetClientScopeId();
+                var webServerAgent = webServerAgents.FirstOrDefault(c => c.ScopeName == scopeName);
+                await webServerAgent.HandleRequestAsync(context);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                throw;
+            }
+
+        });
+
+        using var server = new KestrellTestServer(configureServices, false);
+
+        var clientHandler = new ResponseDelegate(async (serviceUri) =>
+        {
+            try
+            {
+                // create the agent
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+                agent.LocalOrchestrator.OnRowsChangesApplying(args => args.SyncRows.ForEach(sr => Console.WriteLine(sr)));
+
+                // Create the scope locally
+                var localOrchestrator = new LocalOrchestrator(clientProvider);
+                var scope = new ScopeInfo { Schema = await localOrchestrator.GetSchemaAsync(setup), Setup = setup, Name = "ALL" };
+                await localOrchestrator.ProvisionAsync(scope);
+
+                // make a synchronization to get all rows from server
+                var s = await agent.SynchronizeAsync("UserAccount", progress: progress);
+                Console.WriteLine(s);
+
+                // Get all scope info clients to get minimum Timestamp
+                // --------------------------------------
+                List<ScopeInfoClient> allScopeInfoClients = await localOrchestrator.GetAllScopeInfoClientsAsync();
+
+                var minServerTimeStamp = allScopeInfoClients.Min(sic => sic.LastServerSyncTimestamp);
+                var minClientTimeStamp = allScopeInfoClients.Min(sic => sic.LastSyncTimestamp);
+                var minLastSync = allScopeInfoClients.Min(sic => sic.LastSync);
+
+                // Get (and create) the scope info client for scope ALL
+                // --------------------------------------
+                ScopeInfoClient scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync("ALL");
+
+                if (scopeInfoClient.IsNewScope)
+                {
+                    scopeInfoClient.IsNewScope = false;
+                    scopeInfoClient.LastSync = minLastSync;
+                    scopeInfoClient.LastSyncTimestamp = minClientTimeStamp;
+                    scopeInfoClient.LastServerSyncTimestamp = minServerTimeStamp;
+                    await localOrchestrator.SaveScopeInfoClientAsync(scopeInfoClient);
+                }
+
+                using (var sqlConnection = new SqlConnection(DBHelper.GetDatabaseConnectionString(serverDbName)))
+                {
+                    await sqlConnection.OpenAsync();
+                    var sqliteCommand = new SqlCommand($@"UPDATE UserAccount SET DateStamp=GETDATE()", sqlConnection);
+                    await sqliteCommand.ExecuteNonQueryAsync();
+                    await sqlConnection.CloseAsync();
+                }
+
+                s = await agent.SynchronizeAsync("ALL", progress: progress);
+                Console.WriteLine(s);
+            }
+            catch (SyncException e)
+            {
+                Console.WriteLine(e.ToString());
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+
+        });
+        await server.Run(serverHandler, clientHandler);
+
+
+
     }
 
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
-        // Using the Progress pattern to handle progession during the synchronization
+        // Using the Progress pattern to handle progression during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
             Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
 
@@ -650,6 +832,8 @@ internal class Program
         {
             args.Resolution = ConflictResolution.ClientWins;
             var conflict = await args.GetSyncConflictAsync();
+
+            Debug.WriteLine(conflict.Type);
         });
 
         Console.WriteLine(await agent.SynchronizeAsync(setup, progress: progress));

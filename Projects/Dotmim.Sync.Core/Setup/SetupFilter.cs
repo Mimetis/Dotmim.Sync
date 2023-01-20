@@ -65,6 +65,7 @@ namespace Dotmim.Sync
 
         /// <summary>
         /// Add a parameter as input to stored procedure
+        /// <paramref name="parameterName" /> can be anything and later used to compare to a column of the same type with <see cref="AddWhere"/>
         /// For SQL Server, parameter will be added as @{parameterName}
         /// For MySql, parameter will be added as in_{parameterName}
         /// </summary>
@@ -81,6 +82,7 @@ namespace Dotmim.Sync
 
         /// <summary>
         /// Add a parameter based on a column. 
+        /// <paramref name="columnName" /> refers to both the name of the parameter and column
         /// For SQL Server, parameter will be added as @{parameterName}
         /// For MySql, parameter will be added as in_{parameterName}
         /// </summary>
@@ -96,6 +98,7 @@ namespace Dotmim.Sync
 
         /// <summary>
         /// Add a parameter based on a column. 
+        /// <paramref name="columnName" /> refers to both the name of the parameter and column
         /// For SQL Server, parameter will be added as @{parameterName}
         /// For MySql, parameter will be added as in_{parameterName}
         /// </summary>

@@ -1214,23 +1214,19 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (filter != null)
                 CreateFilterParameters(sqlCommand, filter);
 
-            //Determine if table contains any non-comparable columns (xml, text, ntext)
-            var mutableColumns = this.tableDescription.GetMutableColumns(false, true).ToArray();
-
-            //The below types cannot be used in a SELECT DISTICT query unless first converted to an NVARCHAR(MAX)
-            var nonComparableTypes = new[] { "Xml", "Text", "NText" };
-            var nonComparableColumns = mutableColumns.Where(mc => nonComparableTypes.Contains(mc.OriginalDbType, StringComparer.InvariantCultureIgnoreCase)).ToArray();
-            var hasNoncomparableColumns = nonComparableColumns.Length > 0;
-
-            var stringBuilder = new StringBuilder((hasNoncomparableColumns ? "WITH DistinctHack AS (\r\n":"") +"SELECT DISTINCT");
+            var stringBuilder = new StringBuilder("SELECT DISTINCT");
 
             // ----------------------------------
             // Add all columns
             // ----------------------------------
-            foreach (var mutableColumn in mutableColumns)
+            //foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            //{
+            //    var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+            //    stringBuilder.AppendLine($"\t[side].{columnName}, ");
+            //}
+            foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                var isNoncomparable = nonComparableColumns.Contains(mutableColumn);
                 var isPrimaryKey = this.tableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
                 if (isPrimaryKey)
                     stringBuilder.AppendLine($"\t[side].{columnName}, ");
@@ -1288,26 +1284,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t[side].[timestamp] > @sync_min_timestamp");
             stringBuilder.AppendLine("\tAND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL)");
             stringBuilder.AppendLine(")");
-            
-            if (hasNoncomparableColumns)
-            {
-                stringBuilder.AppendLine(")");
-                stringBuilder.Append("SELECT ");
-                //Select the distinct values and return them to their original datatype
-                foreach(var mutableColumn in mutableColumns)
-                {
-                    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                    var isNoncomparable = nonComparableColumns.Contains(mutableColumn);
-                    stringBuilder.Append("\t");
-                    if (isNoncomparable)
-                        stringBuilder.Append("CAST(");
-                    stringBuilder.Append(columnName);
-                    if (isNoncomparable)
-                        stringBuilder.Append($" AS {mutableColumn.OriginalDbType}) AS {columnName}");
-                    stringBuilder.AppendLine(mutableColumn != mutableColumns.Last()?", ":"");
-                }
-                stringBuilder.AppendLine("FROM DistinctHack");
-            }
 
             sqlCommand.CommandText = stringBuilder.ToString();
 
@@ -1343,14 +1319,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             var pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt) { Value = "NULL", IsNullable = true };
             sqlCommand.Parameters.Add(pTimestamp);
 
-            //Determine if table contains any non-comparable columns (xml, text, ntext)
-            var mutableColumns = this.tableDescription.GetMutableColumns(false, true).ToArray();
-
-            //The below types cannot be used in a SELECT DISTICT query unless first converted to an NVARCHAR(MAX)
-            var nonComparableTypes = new[] { "Xml", "Text", "NText" };
-            var nonComparableColumns = mutableColumns.Where(mc => nonComparableTypes.Contains(mc.OriginalDbType, StringComparer.InvariantCultureIgnoreCase)).ToArray();
-            var hasNoncomparableColumns = nonComparableColumns.Length > 0;
-
             // Add filter parameters
             if (filter != null)
                 this.CreateFilterParameters(sqlCommand, filter);
@@ -1358,10 +1326,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             var stringBuilder = new StringBuilder();
 
             // if we have a filter we may have joins that will duplicate lines
-            if (filter != null) {
-                if (hasNoncomparableColumns)
-                    stringBuilder.AppendLine("  DistinctHack AS (");
-                stringBuilder.AppendLine("SELECT DISTINCT"); }
+            if (filter != null)
+                stringBuilder.AppendLine("SELECT DISTINCT ");
             else
                 stringBuilder.AppendLine("SELECT ");
 
@@ -1452,28 +1418,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE ([side].[timestamp] > @sync_min_timestamp AND [side].[sync_row_is_tombstone] = 1);");
 
-
-            
-            if (hasNoncomparableColumns && filter != null)
-            {
-                stringBuilder.AppendLine(")");
-                stringBuilder.Append("SELECT ");
-                //Select the distinct values and return them to their original datatype
-                foreach(var mutableColumn in mutableColumns)
-                {
-                    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                    var isNoncomparable = nonComparableColumns.Contains(mutableColumn);
-                    stringBuilder.Append("\t");
-                    if (isNoncomparable)
-                        stringBuilder.Append("CAST(");
-                    stringBuilder.Append(columnName);
-                    if (isNoncomparable)
-                        stringBuilder.Append($" AS {mutableColumn.OriginalDbType}) AS {columnName}");
-                    stringBuilder.AppendLine(mutableColumn != mutableColumns.Last()?", ":"");
-                }
-                stringBuilder.AppendLine("FROM DistinctHack");
-            }
-            sqlCommand.CommandText = stringBuilder.ToString();
 
             sqlCommand.CommandText = stringBuilder.ToString();
 

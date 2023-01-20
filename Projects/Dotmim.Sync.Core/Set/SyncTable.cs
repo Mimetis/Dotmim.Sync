@@ -224,11 +224,16 @@ namespace Dotmim.Sync
         {
             foreach (var column in this.Columns.OrderBy(c => c.Ordinal))
             {
-                var isPrimaryKey = this.PrimaryKeys.Any(pkey => column.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
+                var isPrimaryKey = IsPrimaryKey(column);
 
                 if (isPrimaryKey)
                     yield return column;
             }
+        }
+
+        public bool IsPrimaryKey(SyncColumn column)
+        {
+            return this.PrimaryKeys.Any(primaryKey => column.ColumnName.Equals(primaryKey, SyncGlobalization.DataSourceStringComparison));
         }
 
         /// <summary>

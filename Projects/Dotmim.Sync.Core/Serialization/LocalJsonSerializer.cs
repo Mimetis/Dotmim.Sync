@@ -85,7 +85,7 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Open the file and write header
         /// </summary>
-        public void OpenFile(string path, SyncTable shemaTable, SyncRowState state, bool append = false)
+        public void OpenFile(string path, SyncTable schemaTable, SyncRowState state, bool append = false)
         {
             if (this.writer != null)
             {
@@ -114,21 +114,26 @@ namespace Dotmim.Sync.Serialization
             this.writer.WriteStartArray();
             this.writer.WriteStartObject();
             this.writer.WritePropertyName("n");
-            this.writer.WriteValue(shemaTable.TableName);
+            this.writer.WriteValue(schemaTable.TableName);
             this.writer.WritePropertyName("s");
-            this.writer.WriteValue(shemaTable.SchemaName);
+            this.writer.WriteValue(schemaTable.SchemaName);
             this.writer.WritePropertyName("st");
             this.writer.WriteValue((int)state);
 
             this.writer.WritePropertyName("c");
             this.writer.WriteStartArray();
-            foreach (var c in shemaTable.Columns)
+            foreach (var c in schemaTable.Columns)
             {
                 this.writer.WriteStartObject();
                 this.writer.WritePropertyName("n");
                 this.writer.WriteValue(c.ColumnName);
                 this.writer.WritePropertyName("t");
                 this.writer.WriteValue(c.DataType);
+                if (schemaTable.IsPrimaryKey(c.ColumnName))
+                {
+                    this.writer.WritePropertyName("p");
+                    this.writer.WriteValue(1);
+                }
                 this.writer.WriteEndObject();
             }
 
@@ -137,11 +142,11 @@ namespace Dotmim.Sync.Serialization
             this.writer.WriteStartArray();
             this.writer.WriteWhitespace(Environment.NewLine);
         }
-
+        
         /// <summary>
-        /// Append a syncrow to the writer
+        /// Append a sync row to the writer
         /// </summary>
-        public async Task WriteRowToFileAsync(SyncRow row, SyncTable shemaTable)
+        public async Task WriteRowToFileAsync(SyncRow row, SyncTable schemaTable)
         {
             writer.WriteStartArray();
 
@@ -149,7 +154,7 @@ namespace Dotmim.Sync.Serialization
 
             if (this.writingRowAsync != null)
             {
-                var str = await this.writingRowAsync(shemaTable, innerRow);
+                var str = await this.writingRowAsync(schemaTable, innerRow);
                 writer.WriteValue(str);
             }
             else
@@ -308,8 +313,11 @@ namespace Dotmim.Sync.Serialization
                 {
                     var tmpTable = GetSchemaTableFromReader(reader, serializer, schemaTable != null ? schemaTable.TableName : tableName, schemaTable != null ? schemaTable.SchemaName : schemaName);
 
-                    if (schemaTable == null && tmpTable != null)
+                    if (tmpTable != null)
                         schemaTable = tmpTable;
+
+                    //if (schemaTable == null && tmpTable != null)
+                    //    schemaTable = tmpTable;
 
                     continue;
                 }
@@ -423,7 +431,7 @@ namespace Dotmim.Sync.Serialization
             // get columns from array
             var includedColumns = serializer.Deserialize<List<JObject>>(reader);
 
-            // if we dont have columns specified, we are assuming it's the same columns
+            // if we don't have columns specified, we are assuming it's the same columns
             if (includedColumns == null || includedColumns.Count == 0)
                 return null;
 
@@ -434,9 +442,13 @@ namespace Dotmim.Sync.Serialization
                 // column name & type from file
                 var includedColumnName = includedColumns[i]["n"].Value<string>();
                 var includedColumnType = SyncColumn.GetTypeFromAssemblyQualifiedName(includedColumns[i]["t"].Value<string>());
+                var isPrimaryKey = includedColumns[i].ContainsKey("p");
 
                 // Adding the column 
                 schemaTable.Columns.Add(new SyncColumn(includedColumnName, includedColumnType));
+
+                if (isPrimaryKey)
+                    schemaTable.PrimaryKeys.Add(includedColumnName);
             }
 
             return schemaTable;
