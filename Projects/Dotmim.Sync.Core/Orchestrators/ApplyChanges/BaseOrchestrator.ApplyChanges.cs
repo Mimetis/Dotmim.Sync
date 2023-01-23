@@ -419,15 +419,25 @@ namespace Dotmim.Sync
                             }
                             else
                             {
+                                var transientError = this.Provider.ShouldRetryOn(errorException);
+                                
+                                if (transientError)
+                                    throw errorException;
+
                                 // we have an error in the entire batch
                                 // try to fallback to row per row
                                 // and see if we can still continue to insert rows (excepted the error one) and manage the error
-                                this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. Using per line apply since we had an error on batch mode : {{errorException}}", errorException.Message);
+                                this.Logger.LogInformation($"[InternalApplyTableChangesAsync]. Using per line apply since we had an error on batch mode : {{errorException}}", errorException.Message);
 
                                 // fallback to row per row
+                                var fallbackArgs = new RowsChangesFallbackFromBatchToSingleRowApplyingArgs(context, errorException, message.Changes, batchRows, schemaChangesTable, applyType, command,
+                                    runner.Connection, runner.Transaction);
+                                await this.InterceptAsync(fallbackArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+
                                 syncAdapter.UseBulkOperations = false;
                                 (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType,
                                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+
                                 cmdText = command.CommandText;
 
 
@@ -623,7 +633,7 @@ namespace Dotmim.Sync
                         await this.InternalEnableConstraintsAsync(scopeInfo, context, schemaTable, runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
 
                     if (shouldRollbackTransaction)
-                        await runnerError.RollbackAsync().ConfigureAwait(false);
+                        await runnerError.RollbackAsync($"Rollback because we can't resolve errors. Failure:{failureException.Message}").ConfigureAwait(false);
                     else
                         await runnerError.CommitAsync().ConfigureAwait(false);
                 }
@@ -775,8 +785,30 @@ namespace Dotmim.Sync
 
             try
             {
-                // execute the batch, through the provider
-                await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, conflictRowsTable, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
+                //// Make an interceptor when retrying to connect
+                //var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
+                //    this.InterceptAsync(new ReConnectArgs(context, connection, ex, cpt, ts), progress, cancellationToken));
+
+                //// Defining my retry policy
+                //var policy = SyncPolicy.WaitAndRetry(
+                //                    5,
+                //                    retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt),
+                //                    (ex, arg) =>
+                //                    {
+                //                        var shouldRetry = this.Provider.ShouldRetryOn(ex);
+                //                        Console.WriteLine("During Batch Insert Error: {0}", ex.Message);
+                //                        Console.WriteLine("ShouldRetry: {0}", shouldRetry);
+                //                        return shouldRetry;
+                //                    },
+                //                    onRetry);
+
+                //// Execute my OpenAsync in my policy context
+                //await policy.ExecuteAsync(ct =>
+                //{
+                //    return syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, conflictRowsTable, message.LastTimestamp, connection, transaction);
+
+                //});
+                await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, conflictRowsTable, message.LastTimestamp, connection, transaction);
             }
             catch (Exception ex)
             {

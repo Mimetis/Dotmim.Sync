@@ -213,10 +213,6 @@ namespace Dotmim.Sync
 
                 if (command == null) return context;
 
-                // Parametrized command timeout established if exist
-                if (this.Options.DbCommandTimeout.HasValue)
-                    command.CommandTimeout = this.Options.DbCommandTimeout.Value;
-
                 await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DisableConstraints, runner.Connection, runner.Transaction)).ConfigureAwait(false);
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 command.Dispose();
@@ -251,14 +247,7 @@ namespace Dotmim.Sync
 
                 if (command == null) return context;
 
-                // Parametrized command timeout established if exist
-                if (this.Options.DbCommandTimeout.HasValue)
-                    command.CommandTimeout = this.Options.DbCommandTimeout.Value;
-
                 await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.EnableConstraints, runner.Connection, runner.Transaction)).ConfigureAwait(false);
-
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                command.Dispose();
 
                 return context;
             }
@@ -295,10 +284,6 @@ namespace Dotmim.Sync
 
                 if (command != null)
                 {
-                    // Parametrized command timeout established if exist
-                    if (this.Options.DbCommandTimeout.HasValue)
-                        command.CommandTimeout = this.Options.DbCommandTimeout.Value;
-
                     await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.Reset, runner.Connection, runner.Transaction)).ConfigureAwait(false);
                     await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                     command.Dispose();

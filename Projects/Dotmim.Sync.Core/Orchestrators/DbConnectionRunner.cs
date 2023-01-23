@@ -123,12 +123,17 @@ namespace Dotmim.Sync
         /// <summary>
         /// Rollback a transaction
         /// </summary>
-        public Task RollbackAsync() => Task.Run(() =>
+        public Task RollbackAsync(string reason) => Task.Run(() =>
         {
             if (this.Orchestrator == null || this.Transaction == null || this.AlreadyInTransaction)
                 return;
 
-            this.Transaction.Rollback();
+            try
+            {
+                Console.WriteLine($"Transaction rollback:{reason}");
+                this.Transaction.Rollback();
+            }
+            catch { }
         });
 
         /// <summary>

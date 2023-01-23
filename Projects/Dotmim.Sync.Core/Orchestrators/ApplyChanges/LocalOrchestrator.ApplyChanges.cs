@@ -34,193 +34,211 @@ namespace Dotmim.Sync
                               DbConnection connection = default, DbTransaction transaction = default,
                               CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            // Connection & Transaction runner
-            DbConnectionRunner runner = null;
 
-            try
+            // Make an interceptor when retrying to connect
+            var onRetry = new Func<Exception, int, TimeSpan, object, Task>(async (ex, cpt, ts, arg) =>
             {
-                var serverBatchInfo = serverSyncChanges.ServerBatchInfo;
-                var remoteClientTimestamp = serverSyncChanges.RemoteClientTimestamp;
+               await this.InterceptAsync(new ReConnectArgs(context, connection, ex, cpt, ts), progress, cancellationToken);
+                Console.WriteLine($"Retry in InternalApplyChanges beacause of error {ex.Message}");
+            });
+            
+            // Defining my retry policy
+            SyncPolicy retryPolicy;
+            if (Options.TransactionMode == TransactionMode.AllOrNothing)
+                retryPolicy = SyncPolicy.WaitAndRetry(5, retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry);
+            else
+                retryPolicy = SyncPolicy.WaitAndRetry(0, TimeSpan.Zero);
 
-                // applied changes to clients
-                DatabaseChangesApplied clientChangesApplied = new DatabaseChangesApplied();
-
-                // Create a message containing everything needed to apply errors rows
-                BatchInfo lastSyncErrorsBatchInfo = null;
-
-
-                // Storeing all failed rows in a Set
-                SyncSet failedRows = cScopeInfo.Schema.Clone();
-
-                // if not null, rollback
-                Exception failureException = null;
-
-                // BatchInfo containing errors
-                BatchInfo errorsBatchInfo = null;
-
-                // Gets the existing errors from past sync
-                if (cScopeInfoClient != null && !string.IsNullOrEmpty(cScopeInfoClient.Errors))
+            // Execute my OpenAsync in my policy context
+            var v = await retryPolicy.ExecuteAsync<(SyncContext context, ClientSyncChanges clientSyncChange, ScopeInfoClient CScopeInfoClient)>(async ct =>
+            {
+                // Connection & Transaction runner
+                DbConnectionRunner runner = null;
+                try
                 {
-                    try
+                    var serverBatchInfo = serverSyncChanges.ServerBatchInfo;
+                    var remoteClientTimestamp = serverSyncChanges.RemoteClientTimestamp;
+
+                    // applied changes to clients
+                    DatabaseChangesApplied clientChangesApplied = new DatabaseChangesApplied();
+
+                    // Create a message containing everything needed to apply errors rows
+                    BatchInfo lastSyncErrorsBatchInfo = null;
+
+                    // Storeing all failed rows in a Set
+                    SyncSet failedRows = cScopeInfo.Schema.Clone();
+
+                    // if not null, rollback
+                    Exception failureException = null;
+
+                    // BatchInfo containing errors
+                    BatchInfo errorsBatchInfo = null;
+
+                    // Gets the existing errors from past sync
+                    if (cScopeInfoClient != null && !string.IsNullOrEmpty(cScopeInfoClient.Errors))
                     {
-                        lastSyncErrorsBatchInfo = !string.IsNullOrEmpty(cScopeInfoClient.Errors) ? JsonConvert.DeserializeObject<BatchInfo>(cScopeInfoClient.Errors) : null;
-                    }
-                    catch (Exception) { }
-                }
-
-                context.SyncWay = SyncWay.Download;
-
-                // Transaction mode
-                if (Options.TransactionMode == TransactionMode.AllOrNothing)
-                {
-                    runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    // affect connection and transaction to reaffect later on save scope
-                    connection = runner.Connection;
-                    transaction = runner.Transaction;
-                    cancellationToken = runner.CancellationToken;
-                    progress = runner.Progress;
-                }
-
-                // Create the message containing everything needed to apply changes
-                var applyChanges = new MessageApplyChanges(cScopeInfoClient.Id, Guid.Empty, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp,
-                    cScopeInfo.Schema, policy, snapshotApplied, this.Options.BatchDirectory, serverBatchInfo, failedRows, clientChangesApplied);
-
-                // call interceptor
-                var databaseChangesApplyingArgs = new DatabaseChangesApplyingArgs(context, applyChanges, connection, transaction);
-                await this.InterceptAsync(databaseChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
-
-                // If we have existing errors happened last sync, we should try to apply them now
-                if (lastSyncErrorsBatchInfo != null && lastSyncErrorsBatchInfo.HasData())
-                {
-                    // Try to clean errors before trying
-                    applyChanges.Changes = serverBatchInfo;
-                    await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, lastSyncErrorsBatchInfo, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-
-                    // Call apply errors on provider
-                    applyChanges.Changes = lastSyncErrorsBatchInfo;
-                    failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                }
-
-                if (failureException != null)
-                    throw failureException;
-
-                if (serverBatchInfo != null && serverBatchInfo.HasData())
-                {
-                    // Call apply changes on provider
-                    applyChanges.Changes = serverBatchInfo;
-                    failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                }
-
-                if (failureException != null)
-                    throw failureException;
-
-                if (cancellationToken.IsCancellationRequested)
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                // check if we need to delete metadatas
-                if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0 && cScopeInfoClient.LastSyncTimestamp.HasValue)
-                {
-                    using (var runnerMetadata = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
-                    {
-                        var allScopeHistories = await this.InternalLoadAllScopeInfoClientsAsync(context, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
-
-                        List<ScopeInfo> allClientScopes;
-                        (context, allClientScopes) = await this.InternalLoadAllScopeInfosAsync(context, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
-
-                        if (allScopeHistories.Count > 0 && allClientScopes.Count > 0)
+                        try
                         {
-                            // Get the min value from LastSyncTimestamp from all scopes
-                            var minLastTimeStamp = allScopeHistories.Min(scope => scope.LastSyncTimestamp.HasValue ? scope.LastSyncTimestamp.Value : Int64.MaxValue);
-                            minLastTimeStamp = minLastTimeStamp > cScopeInfoClient.LastSyncTimestamp.Value ? cScopeInfoClient.LastSyncTimestamp.Value : minLastTimeStamp;
-
-                            (context, _) = await this.InternalDeleteMetadatasAsync(allClientScopes, context, minLastTimeStamp, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
+                            lastSyncErrorsBatchInfo = !string.IsNullOrEmpty(cScopeInfoClient.Errors) ? JsonConvert.DeserializeObject<BatchInfo>(cScopeInfoClient.Errors) : null;
                         }
-                    };
-                }
-
-                // now the sync is complete, remember the time
-                this.CompleteTime = DateTime.UtcNow;
-
-                if (failedRows.Tables.Any(st => st.HasRows))
-                {
-                    // Create a batch info for error rows
-                    string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_ERRORS" : "ERRORS";
-                    errorsBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
-
-                    int batchIndex = 0;
-                    foreach (var table in failedRows.Tables)
-                    {
-                        if (!table.HasRows)
-                            continue;
-
-                        var localSerializer = new LocalJsonSerializer(this, context);
-
-                        var (filePath, fileName) = errorsBatchInfo.GetNewBatchPartInfoPath(table, batchIndex, "json", info);
-                        var batchPartInfo = new BatchPartInfo(fileName, table.TableName, table.SchemaName, SyncRowState.None, table.Rows.Count, batchIndex);
-                        errorsBatchInfo.BatchPartsInfo.Add(batchPartInfo);
-
-                        localSerializer.OpenFile(filePath, table, SyncRowState.None);
-
-                        foreach (var row in table.Rows)
-                            await localSerializer.WriteRowToFileAsync(row, table).ConfigureAwait(false);
-
-                        localSerializer.CloseFile();
-                        batchIndex++;
+                        catch (Exception) { }
                     }
-                    failedRows.Dispose();
+
+                    context.SyncWay = SyncWay.Download;
+
+                    // Transaction mode
+                    if (Options.TransactionMode == TransactionMode.AllOrNothing)
+                    {
+                        runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                        // affect connection and transaction to reaffect later on save scope
+                        connection = runner.Connection;
+                        transaction = runner.Transaction;
+                        cancellationToken = runner.CancellationToken;
+                        progress = runner.Progress;
+                    }
+
+                    // Create the message containing everything needed to apply changes
+                    var applyChanges = new MessageApplyChanges(cScopeInfoClient.Id, Guid.Empty, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp,
+                        cScopeInfo.Schema, policy, snapshotApplied, this.Options.BatchDirectory, serverBatchInfo, failedRows, clientChangesApplied);
+
+                    // call interceptor
+                    var databaseChangesApplyingArgs = new DatabaseChangesApplyingArgs(context, applyChanges, connection, transaction);
+                    await this.InterceptAsync(databaseChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                    // If we have existing errors happened last sync, we should try to apply them now
+                    if (lastSyncErrorsBatchInfo != null && lastSyncErrorsBatchInfo.HasData())
+                    {
+                        // Try to clean errors before trying
+                        applyChanges.Changes = serverBatchInfo;
+                        await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, lastSyncErrorsBatchInfo, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+
+                        // Call apply errors on provider
+                        applyChanges.Changes = lastSyncErrorsBatchInfo;
+                        failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    }
+
+                    if (failureException != null)
+                        throw failureException;
+
+                    if (serverBatchInfo != null && serverBatchInfo.HasData())
+                    {
+                        // Call apply changes on provider
+                        applyChanges.Changes = serverBatchInfo;
+                        failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    }
+
+                    if (failureException != null)
+                        throw failureException;
+
+                    if (cancellationToken.IsCancellationRequested)
+                        cancellationToken.ThrowIfCancellationRequested();
+
+                    // check if we need to delete metadatas
+                    if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0 && cScopeInfoClient.LastSyncTimestamp.HasValue)
+                    {
+                        using (var runnerMetadata = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
+                        {
+                            var allScopeHistories = await this.InternalLoadAllScopeInfoClientsAsync(context, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
+
+                            List<ScopeInfo> allClientScopes;
+                            (context, allClientScopes) = await this.InternalLoadAllScopeInfosAsync(context, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
+
+                            if (allScopeHistories.Count > 0 && allClientScopes.Count > 0)
+                            {
+                                // Get the min value from LastSyncTimestamp from all scopes
+                                var minLastTimeStamp = allScopeHistories.Min(scope => scope.LastSyncTimestamp.HasValue ? scope.LastSyncTimestamp.Value : Int64.MaxValue);
+                                minLastTimeStamp = minLastTimeStamp > cScopeInfoClient.LastSyncTimestamp.Value ? cScopeInfoClient.LastSyncTimestamp.Value : minLastTimeStamp;
+
+                                (context, _) = await this.InternalDeleteMetadatasAsync(allClientScopes, context, minLastTimeStamp, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
+                            }
+                        };
+                    }
+
+                    // now the sync is complete, remember the time
+                    this.CompleteTime = DateTime.UtcNow;
+
+                    // Save all failed rows to disk
+                    if (failedRows.Tables.Any(st => st.HasRows))
+                    {
+                        // Create a batch info for error rows
+                        string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_ERRORS" : "ERRORS";
+                        errorsBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
+
+                        int batchIndex = 0;
+                        foreach (var table in failedRows.Tables)
+                        {
+                            if (!table.HasRows)
+                                continue;
+
+                            var localSerializer = new LocalJsonSerializer(this, context);
+
+                            var (filePath, fileName) = errorsBatchInfo.GetNewBatchPartInfoPath(table, batchIndex, "json", info);
+                            var batchPartInfo = new BatchPartInfo(fileName, table.TableName, table.SchemaName, SyncRowState.None, table.Rows.Count, batchIndex);
+                            errorsBatchInfo.BatchPartsInfo.Add(batchPartInfo);
+
+                            localSerializer.OpenFile(filePath, table, SyncRowState.None);
+
+                            foreach (var row in table.Rows)
+                                await localSerializer.WriteRowToFileAsync(row, table).ConfigureAwait(false);
+
+                            localSerializer.CloseFile();
+                            batchIndex++;
+                        }
+                        failedRows.Dispose();
+                    }
+
+                    // generate the new scope item
+                    var newCScopeInfoClient = new ScopeInfoClient
+                    {
+                        Hash = cScopeInfoClient.Hash,
+                        Name = cScopeInfoClient.Name,
+                        Parameters = cScopeInfoClient.Parameters,
+                        Id = cScopeInfoClient.Id,
+                        IsNewScope = cScopeInfoClient.IsNewScope,
+                        LastSyncTimestamp = clientSyncChanges.ClientTimestamp,
+                        LastSync = this.CompleteTime,
+                        LastServerSyncTimestamp = remoteClientTimestamp,
+                        LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks,
+                        Properties = cScopeInfoClient.Properties,
+                        Errors = errorsBatchInfo != null && errorsBatchInfo.BatchPartsInfo != null && errorsBatchInfo.BatchPartsInfo.Count > 0 ? JsonConvert.SerializeObject(errorsBatchInfo) : null,
+                    };
+
+                    // Write scopes locally
+                    using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
+                    {
+                        (context, cScopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(newCScopeInfoClient, context,
+                            runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
+                    };
+
+                    var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, clientChangesApplied, connection ??= this.Provider.CreateConnection(), transaction);
+                    await this.InterceptAsync(databaseChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                    if (Options.TransactionMode == TransactionMode.AllOrNothing && runner != null)
+                        await runner.CommitAsync().ConfigureAwait(false);
+
+                    clientSyncChanges.ClientChangesApplied = clientChangesApplied;
+
+                    return (context, clientSyncChanges, cScopeInfoClient);
+
                 }
-
-
-                // generate the new scope item
-                var newCScopeInfoClient = new ScopeInfoClient
+                catch (Exception ex)
                 {
-                    Hash = cScopeInfoClient.Hash,
-                    Name = cScopeInfoClient.Name,
-                    Parameters = cScopeInfoClient.Parameters,
-                    Id = cScopeInfoClient.Id,
-                    IsNewScope = cScopeInfoClient.IsNewScope,
-                    LastSyncTimestamp = clientSyncChanges.ClientTimestamp,
-                    LastSync = this.CompleteTime,
-                    LastServerSyncTimestamp = remoteClientTimestamp,
-                    LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks,
-                    Properties = cScopeInfoClient.Properties,
-                    Errors = errorsBatchInfo != null && errorsBatchInfo.BatchPartsInfo != null && errorsBatchInfo.BatchPartsInfo.Count > 0 ? JsonConvert.SerializeObject(errorsBatchInfo) : null,
-                };
+                    if (runner != null)
+                        await runner.RollbackAsync($"InternalApplyChangesAsync Rollback. Error:{ex.Message}").ConfigureAwait(false);
 
-                // Write scopes locally
-                using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeWriting, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
+                    throw GetSyncError(context, ex);
+                }
+                finally
                 {
-                    (context, cScopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(newCScopeInfoClient, context,
-                        runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
-                };
+                    if (runner != null)
+                        await runner.DisposeAsync().ConfigureAwait(false);
+                }
+            });
 
-                var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, clientChangesApplied, connection ??= this.Provider.CreateConnection(), transaction);
-                await this.InterceptAsync(databaseChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
-
-                if (Options.TransactionMode == TransactionMode.AllOrNothing && runner != null)
-                    await runner.CommitAsync().ConfigureAwait(false);
-
-                clientSyncChanges.ClientChangesApplied = clientChangesApplied;
-
-                return (context, clientSyncChanges, cScopeInfoClient);
-            }
-            catch (Exception ex)
-            {
-                if (runner != null)
-                    await runner.RollbackAsync().ConfigureAwait(false);
-
-                throw GetSyncError(context, ex);
-            }
-            finally
-            {
-                if (runner != null)
-                    await runner.DisposeAsync().ConfigureAwait(false);
-            }
-
+            return v;
         }
-
 
         /// <summary>
         /// Apply a snapshot locally
