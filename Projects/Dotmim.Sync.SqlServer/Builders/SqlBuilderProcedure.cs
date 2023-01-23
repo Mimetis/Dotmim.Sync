@@ -1382,7 +1382,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 comma = ", ";
                 if (isNoncomparable)
                     stringBuilder.Append("CAST(");
-                stringBuilder.Append($"{comma}[base].{columnName}");
+                stringBuilder.Append($"[base].{columnName}");
                 if (isNoncomparable)
                     stringBuilder.Append($" AS NVARCHAR(MAX)) AS {columnName}");
                 stringBuilder.AppendLine();
