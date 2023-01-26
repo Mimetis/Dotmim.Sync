@@ -61,6 +61,42 @@ namespace Dotmim.Sync
     }
 
     /// <summary>
+    /// Event args generated when a transient error is happenning
+    /// </summary>
+    public class TransientErrorOccuredArgs : ProgressArgs
+    {
+        public TransientErrorOccuredArgs(SyncContext context, DbConnection connection, Exception handledException, int retry, TimeSpan waitingTimeSpan)
+            : base(context, connection)
+        {
+            this.HandledException = handledException;
+            this.Retry = retry;
+            this.WaitingTimeSpan = waitingTimeSpan;
+        }
+
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
+
+        public override string Message => $"Transient error: {this.HandledException?.Message}";
+
+        /// <summary>
+        /// Gets the handled exception
+        /// </summary>
+        public Exception HandledException { get; }
+
+        /// <summary>
+        /// Gets the retry count
+        /// </summary>
+        public int Retry { get; }
+
+        /// <summary>
+        /// Gets the waiting timespan duration
+        /// </summary>
+        public TimeSpan WaitingTimeSpan { get; }
+        public override int EventId => SyncEventsId.ReConnect.Id;
+    }
+
+
+
+    /// <summary>
     /// Event args generated when a connection is closed 
     /// </summary>
     public class ConnectionClosedArgs : ProgressArgs
@@ -231,6 +267,18 @@ namespace Dotmim.Sync
         /// Intercept the provider action when session end is called
         /// </summary>
         public static Guid OnSessionEnd(this BaseOrchestrator orchestrator, Func<SessionEndArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a transient error is happening
+        /// </summary>
+        public static Guid OnTransientErrorOccured(this BaseOrchestrator orchestrator, Action<TransientErrorOccuredArgs> action)
+            => orchestrator.AddInterceptor(action);
+
+        /// <summary>
+        /// Intercept the provider action when a transient error is happening
+        /// </summary>
+        public static Guid OnTransientErrorOccured(this BaseOrchestrator orchestrator, Func<TransientErrorOccuredArgs, Task> action)
             => orchestrator.AddInterceptor(action);
     }
 

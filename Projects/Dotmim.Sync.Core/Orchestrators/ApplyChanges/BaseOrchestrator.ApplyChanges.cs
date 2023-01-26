@@ -23,107 +23,6 @@ namespace Dotmim.Sync
     public abstract partial class BaseOrchestrator
     {
 
-        internal virtual async Task InternalApplyCleanErrorsAsync(ScopeInfo scopeInfo, SyncContext context,
-                             BatchInfo lastSyncErrorsBatchInfo, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
-                             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
-        {
-            if (lastSyncErrorsBatchInfo == null)
-                return;
-            try
-            {
-                context.SyncStage = SyncStage.ChangesApplying;
-
-                var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
-
-                this.Logger.LogInformation($@"[InternalApplyCleanErrorsAsync]. Directory name {{directoryName}}. BatchParts count {{BatchPartsInfoCount}}", lastSyncErrorsBatchInfo.DirectoryName, lastSyncErrorsBatchInfo.BatchPartsInfo.Count);
-
-                foreach (var schemaTable in schemaTables)
-                {
-                    var tableChangesApplied = message.ChangesApplied?.TableChangesApplied?.FirstOrDefault(tca =>
-                    {
-                        var sc = SyncGlobalization.DataSourceStringComparison;
-
-                        var sn = tca.SchemaName == null ? string.Empty : tca.SchemaName;
-                        var otherSn = schemaTable.SchemaName == null ? string.Empty : schemaTable.SchemaName;
-
-                        return tca.TableName.Equals(schemaTable.TableName, sc) &&
-                                sn.Equals(otherSn, sc);
-                    });
-
-                    // tmp sync table with only writable columns
-                    var changesSet = schemaTable.Schema.Clone(false);
-                    var schemaChangesTable = CreateChangesTable(schemaTable, changesSet);
-
-                    // get bpi from changes to be applied
-                    var bpiTables = message.Changes.GetBatchPartsInfo(schemaTable);
-
-                    if (bpiTables == null || !bpiTables.Any())
-                        continue;
-
-                    var tableBpis = lastSyncErrorsBatchInfo.GetBatchPartsInfo(schemaTable);
-
-                    if (tableBpis == null || !tableBpis.Any())
-                        continue;
-
-                    var localSerializerReader = new LocalJsonSerializer(this, context);
-                    var localSerializerWriter = new LocalJsonSerializer(this, context);
-
-                    // Load in memory failed rows for this table
-                    var failedRows = new List<SyncRow>();
-
-                    // Read already present lines
-                    var lastSyncErrorsBpiFullPath = lastSyncErrorsBatchInfo.GetBatchPartInfoPath(tableBpis.ToList()[0]);
-
-                    foreach (var syncRow in localSerializerReader.GetRowsFromFile(lastSyncErrorsBpiFullPath, schemaChangesTable))
-                        failedRows.Add(syncRow);
-
-                    // Open again the same file
-                    localSerializerWriter.OpenFile(lastSyncErrorsBpiFullPath, schemaChangesTable, SyncRowState.None);
-
-                    foreach (var batchPartInfo in bpiTables)
-                    {
-                        // Get full path of my batchpartinfo
-                        var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo);
-
-                        foreach (var syncRow in localSerializerReader.GetRowsFromFile(fullPath, schemaChangesTable))
-                        {
-                            var rowIsInBatch = SyncRows.GetRowByPrimaryKeys(syncRow, failedRows, schemaTable);
-
-                            // we found the row in the batch, that means the failed row is currently in a progress of being updated
-                            // we can remove it from failedRowsTable
-                            if (rowIsInBatch != null)
-                            {
-                                failedRows.Remove(rowIsInBatch);
-
-                                if (tableChangesApplied != null && tableChangesApplied.Failed > 0)
-                                    tableChangesApplied.Failed--;
-                            }
-
-                            if (failedRows.Count <= 0)
-                                break;
-                        }
-
-                        if (failedRows.Count <= 0)
-                            break;
-                    }
-
-                    foreach (var row in failedRows)
-                        await localSerializerWriter.WriteRowToFileAsync(row, schemaChangesTable).ConfigureAwait(false);
-
-                    localSerializerWriter.CloseFile();
-
-                    if (failedRows.Count <= 0 && File.Exists(lastSyncErrorsBpiFullPath))
-                        File.Delete(lastSyncErrorsBpiFullPath);
-
-                    this.Logger.LogInformation($@"[InternalApplyCleanErrorsAsync]. schemaTable {{schemaTableName}} failedRows count {{failedRowsCount}}", schemaTable.GetFullName(), failedRows.Count);
-                }
-            }
-            catch (Exception ex)
-            {
-                throw GetSyncError(context, ex);
-            }
-        }
-
         /// <summary>
         /// Apply changes : Delete / Insert / Update
         /// the fromScope is local client scope when this method is called from server
@@ -324,222 +223,231 @@ namespace Dotmim.Sync
             bool isBatch = false;
             string cmdText;
 
-            try
+            bpiTables = message.Changes.GetBatchPartsInfo(schemaTable);
+
+            // launch interceptor if any
+            var args = new TableChangesApplyingArgs(context, message.Changes, bpiTables, schemaTable, applyType, command, connection, transaction);
+            await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+
+            foreach (var batchPartInfo in bpiTables)
             {
+                // Get full path of my batchpartinfo
+                var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo);
 
-                bpiTables = message.Changes.GetBatchPartsInfo(schemaTable);
+                if (batchPartInfo.State != SyncRowState.None && batchPartInfo.State != applyType)
+                    continue;
 
-                // launch interceptor if any
-                var args = new TableChangesApplyingArgs(context, message.Changes, bpiTables, schemaTable, applyType, command, connection, transaction);
-                await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+                var batchChangesApplyingArgs = new BatchChangesApplyingArgs(context, message.Changes, batchPartInfo, schemaTable, applyType, command, connection, transaction);
+                // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
+                await this.InterceptAsync(batchChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
 
-                foreach (var batchPartInfo in bpiTables)
+                // for error handling
+                batchPartInfoFileName = batchPartInfo.FileName;
+
+                // Rows fetch (either of the good state or not) from the BPI
+                var rowsFetched = 0;
+
+                this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. Directory name {{directoryName}}. BatchParts count {{BatchPartsInfoCount}}", message.Changes.DirectoryName, message.Changes.BatchPartsInfo.Count);
+
+                // If we have a transient error happening, and we are rerunning the tranaction,
+                // raising an interceptor
+                var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
+                    this.InterceptAsync(new TransientErrorOccuredArgs(context, connection, ex, cpt, ts), progress, cancellationToken));
+
+                // Defining my retry policy
+                SyncPolicy retryPolicy = Options.TransactionMode != TransactionMode.AllOrNothing
+                 ? retryPolicy = SyncPolicy.WaitAndRetry(5, retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry)
+                 : retryPolicy = SyncPolicy.WaitAndRetry(0, TimeSpan.Zero);
+
+                await retryPolicy.ExecuteAsync(async () =>
                 {
-                    // Get full path of my batchpartinfo
-                    var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo);
+                    // Connection & Transaction runner
+                    DbConnectionRunner runner = null;
 
-                    if (batchPartInfo.State != SyncRowState.None && batchPartInfo.State != applyType)
-                        continue;
-
-                    var batchChangesApplyingArgs = new BatchChangesApplyingArgs(context, message.Changes, batchPartInfo, schemaTable, applyType, command, connection, transaction);
-                    // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
-                    await this.InterceptAsync(batchChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
-
-                    // for error handling
-                    batchPartInfoFileName = batchPartInfo.FileName;
-
-                    // Rows fetch (either of the good state or not) from the BPI
-                    var rowsFetched = 0;
-
-                    this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. Directory name {{directoryName}}. BatchParts count {{BatchPartsInfoCount}}", message.Changes.DirectoryName, message.Changes.BatchPartsInfo.Count);
-
-                    // accumulating rows
-                    var batchRows = new List<SyncRow>();
-
-                    await using var runner = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.PerBatch ? SyncMode.WithTransaction : SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    // Disable check constraints for provider supporting only at table level
-                    if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
-                        await this.InternalDisableConstraintsAsync(scopeInfo, context, schemaTable, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                    // Pre command if exists
-                    var (preCommand, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbPreCommandType,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                    if (preCommand != null)
+                    try
                     {
-                        await this.InterceptAsync(new ExecuteCommandArgs(context, preCommand, dbPreCommandType, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-                        await preCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
-                        preCommand.Dispose();
-                    }
+                        runner = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.PerBatch ? SyncMode.WithTransaction : SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+                        // Disable check constraints for provider supporting only at table level
+                        if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
+                            await this.InternalDisableConstraintsAsync(scopeInfo, context, schemaTable, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                    if (command == null)
-                        return default;
+                        // Pre command if exists
+                        var (preCommand, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbPreCommandType,
+                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                    if (isBatch)
-                    {
-                        foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, schemaChangesTable))
+                        if (preCommand != null)
                         {
-                            rowsFetched++;
+                            await this.InterceptAsync(new ExecuteCommandArgs(context, preCommand, dbPreCommandType, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                            await preCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+                            preCommand.Dispose();
+                        }
 
-                            // Adding rows to the batch rows
-                            if (batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
+                        (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType,
+                                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+
+                        if (command == null)
+                            return;
+
+                        // accumulating rows
+                        var batchRows = new List<SyncRow>();
+
+                        if (isBatch)
+                        {
+                            foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, schemaChangesTable))
                             {
-                                if (applyType == SyncRowState.Modified && (syncRow.RowState == SyncRowState.RetryModifiedOnNextSync || syncRow.RowState == SyncRowState.Modified))
-                                    batchRows.Add(syncRow);
-                                else if (applyType == SyncRowState.Deleted && (syncRow.RowState == SyncRowState.RetryDeletedOnNextSync || syncRow.RowState == SyncRowState.Deleted))
-                                    batchRows.Add(syncRow);
-                                else if (syncRow.RowState == SyncRowState.ApplyModifiedFailed || syncRow.RowState == SyncRowState.ApplyDeletedFailed)
-                                    errorsRows.Add((syncRow, new Exception("Row failed to be applied on last sync")));
+                                rowsFetched++;
 
-                                if (rowsFetched < batchPartInfo.RowsCount && batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
-                                    continue;
-                            }
-                            if (batchRows.Count <= 0)
-                                continue;
-
-                            command.Connection = runner.Connection;
-                            command.Transaction = runner.Transaction;
-
-                            var (rowAppliedCount, conflictSyncRows, errorException) = await this.InternalApplyBatchRowsAsync(context, command, batchRows, schemaChangesTable, applyType, message, dbCommandType, syncAdapter,
-                                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                            if (errorException == null)
-                            {
-                                // Add applied rows
-                                appliedRows += rowAppliedCount;
-
-                                // Check conflicts
-                                if (conflictSyncRows != null && conflictSyncRows.Count > 0)
-                                    foreach (var conflictRow in conflictSyncRows)
-                                        conflictRows.Add(conflictRow);
-                            }
-                            else
-                            {
-                                var transientError = this.Provider.ShouldRetryOn(errorException);
-                                
-                                if (transientError)
-                                    throw errorException;
-
-                                // we have an error in the entire batch
-                                // try to fallback to row per row
-                                // and see if we can still continue to insert rows (excepted the error one) and manage the error
-                                this.Logger.LogInformation($"[InternalApplyTableChangesAsync]. Using per line apply since we had an error on batch mode : {{errorException}}", errorException.Message);
-
-                                // fallback to row per row
-                                var fallbackArgs = new RowsChangesFallbackFromBatchToSingleRowApplyingArgs(context, errorException, message.Changes, batchRows, schemaChangesTable, applyType, command,
-                                    runner.Connection, runner.Transaction);
-                                await this.InterceptAsync(fallbackArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-
-                                syncAdapter.UseBulkOperations = false;
-                                (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType,
-                                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
-
-                                cmdText = command.CommandText;
-
-
-                                foreach (var batchRow in batchRows)
+                                // Adding rows to the batch rows
+                                if (batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
                                 {
-                                    if (batchRow.RowState == SyncRowState.ApplyModifiedFailed || batchRow.RowState == SyncRowState.ApplyDeletedFailed)
-                                    {
-                                        errorsRows.Add((batchRow, new Exception("Row failed to be applied on last sync")));
+                                    if (applyType == SyncRowState.Modified && (syncRow.RowState == SyncRowState.RetryModifiedOnNextSync || syncRow.RowState == SyncRowState.Modified))
+                                        batchRows.Add(syncRow);
+                                    else if (applyType == SyncRowState.Deleted && (syncRow.RowState == SyncRowState.RetryDeletedOnNextSync || syncRow.RowState == SyncRowState.Deleted))
+                                        batchRows.Add(syncRow);
+                                    else if (syncRow.RowState == SyncRowState.ApplyModifiedFailed || syncRow.RowState == SyncRowState.ApplyDeletedFailed)
+                                        errorsRows.Add((syncRow, new Exception("Row failed to be applied on last sync")));
+
+                                    if (rowsFetched < batchPartInfo.RowsCount && batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
                                         continue;
-                                    }
+                                }
+                                if (batchRows.Count <= 0)
+                                    continue;
 
-                                    if (applyType == SyncRowState.Modified && batchRow.RowState != SyncRowState.RetryModifiedOnNextSync && batchRow.RowState != SyncRowState.Modified)
-                                        continue;
+                                command.Connection = runner.Connection;
+                                command.Transaction = runner.Transaction;
 
-                                    if (applyType == SyncRowState.Deleted && batchRow.RowState != SyncRowState.RetryDeletedOnNextSync && batchRow.RowState != SyncRowState.Deleted)
-                                        continue;
-
-                                    command.CommandText = cmdText;
-                                    command.Connection = runner.Connection;
-                                    command.Transaction = runner.Transaction;
-
-                                    var (singleRowAppliedCount, singleErrorException) = await this.InternalApplySingleRowAsync(context, command, batchRow, schemaChangesTable, syncAdapter, applyType, message, dbCommandType,
+                                var (rowAppliedCount, conflictSyncRows, errorException) = await this.InternalApplyBatchRowsAsync(context, command, batchRows, schemaChangesTable, applyType, message, dbCommandType, syncAdapter,
                                                 runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                                    if (singleRowAppliedCount > 0)
-                                        appliedRows++;
-                                    else if (singleErrorException != null)
-                                        errorsRows.Add((batchRow, singleErrorException));
-                                    else
-                                        conflictRows.Add(batchRow);
+                                if (errorException == null)
+                                {
+                                    // Add applied rows
+                                    appliedRows += rowAppliedCount;
+
+                                    // Check conflicts
+                                    if (conflictSyncRows != null && conflictSyncRows.Count > 0)
+                                        foreach (var conflictRow in conflictSyncRows)
+                                            conflictRows.Add(conflictRow);
+                                }
+                                else
+                                {
+                                    //if transient error, let the policy tries again, instead of going for 1 by 1 row
+                                    var transientError = this.Provider.ShouldRetryOn(errorException);
+
+                                    if (transientError)
+                                        throw errorException;
+
+                                    // we have an error in the entire batch
+                                    // try to fallback to row per row
+                                    // and see if we can still continue to insert rows (excepted the error one) and manage the error
+                                    this.Logger.LogInformation($"[InternalApplyTableChangesAsync]. Using per line apply since we had an error on batch mode : {{errorException}}", errorException.Message);
+
+                                    // fallback to row per row
+                                    var fallbackArgs = new RowsChangesFallbackFromBatchToSingleRowApplyingArgs(context, errorException, message.Changes, batchRows, schemaChangesTable, applyType, command,
+                                            runner.Connection, runner.Transaction);
+                                    
+                                    await this.InterceptAsync(fallbackArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+
+                                    syncAdapter.UseBulkOperations = false;
+                                    (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType,
+                                                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+
+                                    cmdText = command.CommandText;
+
+
+                                    foreach (var batchRow in batchRows)
+                                    {
+                                        if (batchRow.RowState == SyncRowState.ApplyModifiedFailed || batchRow.RowState == SyncRowState.ApplyDeletedFailed)
+                                        {
+                                            errorsRows.Add((batchRow, new Exception("Row failed to be applied on last sync")));
+                                            continue;
+                                        }
+
+                                        if (applyType == SyncRowState.Modified && batchRow.RowState != SyncRowState.RetryModifiedOnNextSync && batchRow.RowState != SyncRowState.Modified)
+                                            continue;
+
+                                        if (applyType == SyncRowState.Deleted && batchRow.RowState != SyncRowState.RetryDeletedOnNextSync && batchRow.RowState != SyncRowState.Deleted)
+                                            continue;
+
+                                        command.CommandText = cmdText;
+                                        command.Connection = runner.Connection;
+                                        command.Transaction = runner.Transaction;
+
+                                        var (singleRowAppliedCount, singleErrorException) = await this.InternalApplySingleRowAsync(context, command, batchRow, schemaChangesTable, syncAdapter, applyType, message, dbCommandType,
+                                                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                                        if (singleRowAppliedCount > 0)
+                                            appliedRows++;
+                                        else if (singleErrorException != null && this.Provider.ShouldRetryOn(singleErrorException))
+                                            throw singleErrorException;
+                                        else if (singleErrorException != null)
+                                            errorsRows.Add((batchRow, singleErrorException));
+                                        else
+                                            conflictRows.Add(batchRow);
+                                    }
+
+                                    // revert back bulk operation
+                                    syncAdapter.UseBulkOperations = true;
+                                }
+                                batchRows.Clear();
+                            }
+                        }
+                        else
+                        {
+                            foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, schemaChangesTable))
+                            {
+                                if (syncRow.RowState == SyncRowState.ApplyModifiedFailed || syncRow.RowState == SyncRowState.ApplyDeletedFailed)
+                                {
+                                    errorsRows.Add((syncRow, new Exception("Row failed to be applied on last sync")));
+                                    continue;
                                 }
 
-                                // revert back bulk operation
-                                syncAdapter.UseBulkOperations = true;
+                                if (applyType == SyncRowState.Modified && syncRow.RowState != SyncRowState.RetryModifiedOnNextSync && syncRow.RowState != SyncRowState.Modified)
+                                    continue;
+
+                                if (applyType == SyncRowState.Deleted && syncRow.RowState != SyncRowState.RetryDeletedOnNextSync && syncRow.RowState != SyncRowState.Deleted)
+                                    continue;
+
+                                command.Connection = runner.Connection;
+                                command.Transaction = runner.Transaction;
+
+                                var (rowAppliedCount, errorException) = await this.InternalApplySingleRowAsync(context, command, syncRow, schemaChangesTable, syncAdapter, applyType, message, dbCommandType,
+                                        runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                                if (rowAppliedCount > 0)
+                                    appliedRows++;
+                                else if (errorException != null && this.Provider.ShouldRetryOn(errorException))
+                                    throw errorException;
+                                else if (errorException != null)
+                                    errorsRows.Add((syncRow, errorException));
+                                else
+                                    conflictRows.Add(syncRow);
                             }
-                            batchRows.Clear();
                         }
+
+                        // Enable check constraints for provider supporting only at table level
+                        if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
+                            await this.InternalEnableConstraintsAsync(scopeInfo, context, schemaTable, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+
+                        await runner.CommitAsync().ConfigureAwait(false);
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, schemaChangesTable))
+                        if (runner != null)
                         {
-                            if (syncRow.RowState == SyncRowState.ApplyModifiedFailed || syncRow.RowState == SyncRowState.ApplyDeletedFailed)
-                            {
-                                errorsRows.Add((syncRow, new Exception("Row failed to be applied on last sync")));
-                                continue;
-                            }
-
-                            if (applyType == SyncRowState.Modified && syncRow.RowState != SyncRowState.RetryModifiedOnNextSync && syncRow.RowState != SyncRowState.Modified)
-                                continue;
-
-                            if (applyType == SyncRowState.Deleted && syncRow.RowState != SyncRowState.RetryDeletedOnNextSync && syncRow.RowState != SyncRowState.Deleted)
-                                continue;
-
-                            command.Connection = runner.Connection;
-                            command.Transaction = runner.Transaction;
-
-                            var (rowAppliedCount, errorException) = await this.InternalApplySingleRowAsync(context, command, syncRow, schemaChangesTable, syncAdapter, applyType, message, dbCommandType,
-                                runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                            if (rowAppliedCount > 0)
-                                appliedRows++;
-                            else if (errorException != null)
-                                errorsRows.Add((syncRow, errorException));
-                            else
-                                conflictRows.Add(syncRow);
+                            await runner.RollbackAsync($"InternalApplyTableChangesAsync during apply changes. Error:{ex.Message}").ConfigureAwait(false);
+                            await runner.DisposeAsync().ConfigureAwait(false);
                         }
+                        throw GetSyncError(context, ex);
                     }
 
-                    // Enable check constraints for provider supporting only at table level
-                    if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
-                        await this.InternalEnableConstraintsAsync(scopeInfo, context, schemaTable, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                });
 
-
-                    await runner.CommitAsync().ConfigureAwait(false);
-
-                    var batchChangesAppliedArgs = new BatchChangesAppliedArgs(context, message.Changes, batchPartInfo, schemaTable, applyType, command, connection, transaction);
-                    // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
-                    await this.InterceptAsync(batchChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
-                }
-
-            }
-            catch (Exception ex)
-            {
-                string errorMessage = null;
-
-                if (message != null && message.Changes != null && message.Changes.DirectoryRoot != null)
-                    errorMessage += $"DirectoryName:{message.Changes.DirectoryRoot}.";
-
-                if (message != null && message.Changes != null && message.Changes.DirectoryName != null)
-                    errorMessage += $"FolderName:{message.Changes.DirectoryName}.";
-
-                if (batchPartInfoFileName != null)
-                    errorMessage += $"FileName:{batchPartInfoFileName}.";
-
-                errorMessage += $"IsBatch:{isBatch}.";
-                errorMessage += $"CommandType:{dbCommandType}.";
-
-                if (command != null && command.CommandText != null)
-                    errorMessage += $"CommandText:{command.CommandText}.";
-
-                throw GetSyncError(context, ex);
+                var batchChangesAppliedArgs = new BatchChangesAppliedArgs(context, message.Changes, batchPartInfo, schemaTable, applyType, command, connection, transaction);
+                // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
+                await this.InterceptAsync(batchChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
             }
 
             try
@@ -785,29 +693,6 @@ namespace Dotmim.Sync
 
             try
             {
-                //// Make an interceptor when retrying to connect
-                //var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
-                //    this.InterceptAsync(new ReConnectArgs(context, connection, ex, cpt, ts), progress, cancellationToken));
-
-                //// Defining my retry policy
-                //var policy = SyncPolicy.WaitAndRetry(
-                //                    5,
-                //                    retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt),
-                //                    (ex, arg) =>
-                //                    {
-                //                        var shouldRetry = this.Provider.ShouldRetryOn(ex);
-                //                        Console.WriteLine("During Batch Insert Error: {0}", ex.Message);
-                //                        Console.WriteLine("ShouldRetry: {0}", shouldRetry);
-                //                        return shouldRetry;
-                //                    },
-                //                    onRetry);
-
-                //// Execute my OpenAsync in my policy context
-                //await policy.ExecuteAsync(ct =>
-                //{
-                //    return syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, conflictRowsTable, message.LastTimestamp, connection, transaction);
-
-                //});
                 await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, conflictRowsTable, message.LastTimestamp, connection, transaction);
             }
             catch (Exception ex)
@@ -822,5 +707,110 @@ namespace Dotmim.Sync
 
             return (rowAppliedCount, conflictRowsTable.Rows, errorException);
         }
+
+
+        internal virtual async Task InternalApplyCleanErrorsAsync(ScopeInfo scopeInfo, SyncContext context,
+                         BatchInfo lastSyncErrorsBatchInfo, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
+                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+            if (lastSyncErrorsBatchInfo == null)
+                return;
+            try
+            {
+                context.SyncStage = SyncStage.ChangesApplying;
+
+                var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
+
+                this.Logger.LogInformation($@"[InternalApplyCleanErrorsAsync]. Directory name {{directoryName}}. BatchParts count {{BatchPartsInfoCount}}", lastSyncErrorsBatchInfo.DirectoryName, lastSyncErrorsBatchInfo.BatchPartsInfo.Count);
+
+                foreach (var schemaTable in schemaTables)
+                {
+                    var tableChangesApplied = message.ChangesApplied?.TableChangesApplied?.FirstOrDefault(tca =>
+                    {
+                        var sc = SyncGlobalization.DataSourceStringComparison;
+
+                        var sn = tca.SchemaName == null ? string.Empty : tca.SchemaName;
+                        var otherSn = schemaTable.SchemaName == null ? string.Empty : schemaTable.SchemaName;
+
+                        return tca.TableName.Equals(schemaTable.TableName, sc) &&
+                                sn.Equals(otherSn, sc);
+                    });
+
+                    // tmp sync table with only writable columns
+                    var changesSet = schemaTable.Schema.Clone(false);
+                    var schemaChangesTable = CreateChangesTable(schemaTable, changesSet);
+
+                    // get bpi from changes to be applied
+                    var bpiTables = message.Changes.GetBatchPartsInfo(schemaTable);
+
+                    if (bpiTables == null || !bpiTables.Any())
+                        continue;
+
+                    var tableBpis = lastSyncErrorsBatchInfo.GetBatchPartsInfo(schemaTable);
+
+                    if (tableBpis == null || !tableBpis.Any())
+                        continue;
+
+                    var localSerializerReader = new LocalJsonSerializer(this, context);
+                    var localSerializerWriter = new LocalJsonSerializer(this, context);
+
+                    // Load in memory failed rows for this table
+                    var failedRows = new List<SyncRow>();
+
+                    // Read already present lines
+                    var lastSyncErrorsBpiFullPath = lastSyncErrorsBatchInfo.GetBatchPartInfoPath(tableBpis.ToList()[0]);
+
+                    foreach (var syncRow in localSerializerReader.GetRowsFromFile(lastSyncErrorsBpiFullPath, schemaChangesTable))
+                        failedRows.Add(syncRow);
+
+                    // Open again the same file
+                    localSerializerWriter.OpenFile(lastSyncErrorsBpiFullPath, schemaChangesTable, SyncRowState.None);
+
+                    foreach (var batchPartInfo in bpiTables)
+                    {
+                        // Get full path of my batchpartinfo
+                        var fullPath = message.Changes.GetBatchPartInfoPath(batchPartInfo);
+
+                        foreach (var syncRow in localSerializerReader.GetRowsFromFile(fullPath, schemaChangesTable))
+                        {
+                            var rowIsInBatch = SyncRows.GetRowByPrimaryKeys(syncRow, failedRows, schemaTable);
+
+                            // we found the row in the batch, that means the failed row is currently in a progress of being updated
+                            // we can remove it from failedRowsTable
+                            if (rowIsInBatch != null)
+                            {
+                                failedRows.Remove(rowIsInBatch);
+
+                                if (tableChangesApplied != null && tableChangesApplied.Failed > 0)
+                                    tableChangesApplied.Failed--;
+                            }
+
+                            if (failedRows.Count <= 0)
+                                break;
+                        }
+
+                        if (failedRows.Count <= 0)
+                            break;
+                    }
+
+                    foreach (var row in failedRows)
+                        await localSerializerWriter.WriteRowToFileAsync(row, schemaChangesTable).ConfigureAwait(false);
+
+                    localSerializerWriter.CloseFile();
+
+                    if (failedRows.Count <= 0 && File.Exists(lastSyncErrorsBpiFullPath))
+                        File.Delete(lastSyncErrorsBpiFullPath);
+
+                    this.Logger.LogInformation($@"[InternalApplyCleanErrorsAsync]. schemaTable {{schemaTableName}} failedRows count {{failedRowsCount}}", schemaTable.GetFullName(), failedRows.Count);
+                }
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
+
+
+
     }
 }

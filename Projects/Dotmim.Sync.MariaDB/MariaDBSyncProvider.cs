@@ -41,7 +41,7 @@ namespace Dotmim.Sync.MariaDB
             }
         }
         public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnTableLevel;
-        
+
         static string shortProviderType;
         public override string GetShortProviderTypeName() => ShortProviderType;
         public static string ShortProviderType
@@ -132,6 +132,25 @@ namespace Dotmim.Sync.MariaDB
 
             return;
         }
+
+
+#if NETCOREAPP3_1_OR_GREATER
+        /// <summary>
+        /// Gets a chance to make a retry if the error is a transient error
+        /// </summary>
+        public override bool ShouldRetryOn(Exception exception)
+        {
+            Exception ex = exception;
+            while (ex != null)
+            {
+                if (ex is MySqlException)
+                    return ((MySqlException)ex).IsTransient;
+                else
+                    ex = ex.InnerException;
+            }
+            return false;
+        }
+#endif
 
         public override DbConnection CreateConnection() => new MySqlConnection(this.ConnectionString);
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)

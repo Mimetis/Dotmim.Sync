@@ -105,6 +105,24 @@ namespace Dotmim.Sync.Sqlite
                 this.builder = new SqliteConnectionStringBuilder(value);
             }
         }
+
+#if NET6_0_OR_GREATER
+        /// <summary>
+        /// Gets a chance to make a retry if the error is a transient error
+        /// </summary>
+        public override bool ShouldRetryOn(Exception exception)
+        {
+            Exception ex = exception;
+            while (ex != null)
+            {
+                if (ex is SqliteException)
+                    return ((SqliteException)ex).IsTransient;
+                else
+                    ex = ex.InnerException;
+            }
+            return false;
+        }
+#endif
         public SqliteSyncProvider(string filePath) : this()
         {
             if (filePath.ToLowerInvariant().StartsWith("data source"))

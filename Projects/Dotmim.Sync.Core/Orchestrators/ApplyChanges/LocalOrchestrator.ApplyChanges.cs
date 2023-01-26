@@ -35,22 +35,18 @@ namespace Dotmim.Sync
                               CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
 
-            // Make an interceptor when retrying to connect
-            var onRetry = new Func<Exception, int, TimeSpan, object, Task>(async (ex, cpt, ts, arg) =>
-            {
-               await this.InterceptAsync(new ReConnectArgs(context, connection, ex, cpt, ts), progress, cancellationToken);
-                Console.WriteLine($"Retry in InternalApplyChanges beacause of error {ex.Message}");
-            });
-            
+            // If we have a transient error happening, and we are rerunning the tranaction,
+            // raising an interceptor
+            var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
+                this.InterceptAsync(new TransientErrorOccuredArgs(context, connection, ex, cpt, ts), progress, cancellationToken));
+
             // Defining my retry policy
-            SyncPolicy retryPolicy;
-            if (Options.TransactionMode == TransactionMode.AllOrNothing)
-                retryPolicy = SyncPolicy.WaitAndRetry(5, retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry);
-            else
-                retryPolicy = SyncPolicy.WaitAndRetry(0, TimeSpan.Zero);
+            SyncPolicy retryPolicy = Options.TransactionMode == TransactionMode.AllOrNothing
+             ? retryPolicy = SyncPolicy.WaitAndRetry(5, retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry)
+             : retryPolicy = SyncPolicy.WaitAndRetry(0, TimeSpan.Zero);
 
             // Execute my OpenAsync in my policy context
-            var v = await retryPolicy.ExecuteAsync<(SyncContext context, ClientSyncChanges clientSyncChange, ScopeInfoClient CScopeInfoClient)>(async ct =>
+            var applyChangesResult = await retryPolicy.ExecuteAsync<(SyncContext context, ClientSyncChanges clientSyncChange, ScopeInfoClient CScopeInfoClient)>(async ct =>
             {
                 // Connection & Transaction runner
                 DbConnectionRunner runner = null;
@@ -112,7 +108,6 @@ namespace Dotmim.Sync
                         // Try to clean errors before trying
                         applyChanges.Changes = serverBatchInfo;
                         await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, lastSyncErrorsBatchInfo, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
 
                         // Call apply errors on provider
                         applyChanges.Changes = lastSyncErrorsBatchInfo;
@@ -237,7 +232,7 @@ namespace Dotmim.Sync
                 }
             });
 
-            return v;
+            return applyChangesResult;
         }
 
         /// <summary>

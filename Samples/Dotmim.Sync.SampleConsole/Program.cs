@@ -334,6 +334,7 @@ internal class Program
             {
                 Console.Clear();
                 Console.ForegroundColor = ConsoleColor.Green;
+
                 var s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
                 Console.WriteLine(s);
             }

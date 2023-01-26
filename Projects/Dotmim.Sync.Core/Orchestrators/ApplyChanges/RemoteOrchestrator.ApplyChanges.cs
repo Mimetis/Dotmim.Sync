@@ -53,20 +53,15 @@ namespace Dotmim.Sync
                 // Previous sync errors
                 BatchInfo lastSyncErrorsBatchInfo = null;
 
-
-                // Make an interceptor when retrying to connect
-                var onRetry = new Func<Exception, int, TimeSpan, object, Task>(async (ex, cpt, ts, arg) =>
-                {
-                    await this.InterceptAsync(new ReConnectArgs(context, connection, ex, cpt, ts), progress, cancellationToken);
-                    Console.WriteLine($"Retry in InternalApplyChanges beacause of error {ex.Message}");
-                });
+                // If we have a transient error happening, and we are rerunning the tranaction,
+                // raising an interceptor
+                var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
+                    this.InterceptAsync(new TransientErrorOccuredArgs(context, connection, ex, cpt, ts), progress, cancellationToken));
 
                 // Defining my retry policy
-                SyncPolicy retryPolicy;
-                if (Options.TransactionMode == TransactionMode.AllOrNothing)
-                    retryPolicy = SyncPolicy.WaitAndRetry(5, retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry);
-                else
-                    retryPolicy = SyncPolicy.WaitAndRetry(0, TimeSpan.Zero);
+                SyncPolicy retryPolicy = Options.TransactionMode == TransactionMode.AllOrNothing
+                 ? retryPolicy = SyncPolicy.WaitAndRetry(5, retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry)
+                 : retryPolicy = SyncPolicy.WaitAndRetry(0, TimeSpan.Zero);
 
                 await retryPolicy.ExecuteAsync(async () =>
                 {
@@ -200,7 +195,7 @@ namespace Dotmim.Sync
                     }
 
                 });
-                
+
                 try
                 {
 

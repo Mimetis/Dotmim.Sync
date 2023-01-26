@@ -61,7 +61,7 @@ namespace Dotmim.Sync
         public override string Message => 
             this.ChangesSelected == null
             ? $"DatabaseChangesSelectedArgs progress."
-            : $"[Total] Upserts:{this.ChangesSelected.TotalChangesSelectedUpdates}. Deletes:{this.ChangesSelected.TotalChangesSelectedDeletes}. Total:{this.ChangesSelected.TotalChangesSelected}. [{this.BatchInfo.GetDirectoryFullPath()}]";
+            : $"[Total] Upserts:{this.ChangesSelected.TotalChangesSelectedUpdates}. Deletes:{this.ChangesSelected.TotalChangesSelectedDeletes}. Total:{this.ChangesSelected.TotalChangesSelected}. [{this.BatchInfo.DirectoryName}]";
 
         /// <summary>
         /// Get the batch info. Always null when raised from a call from GetEstimatedChangesCount
