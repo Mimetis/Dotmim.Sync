@@ -910,7 +910,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 // Disable bulk operations to have the same results for SQL as others providers
                 clientProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider);
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
 
                 // Generate error on foreign key on second row
                 agent.LocalOrchestrator.OnRowsChangesApplying(args =>
