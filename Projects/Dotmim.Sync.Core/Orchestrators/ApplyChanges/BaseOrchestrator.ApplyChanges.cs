@@ -16,6 +16,7 @@ using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Transactions;
 using System.Xml;
 
 namespace Dotmim.Sync
@@ -197,6 +198,9 @@ namespace Dotmim.Sync
 
             var localSerializer = new LocalJsonSerializer(this, context);
 
+            // conflict resolved count
+            int conflictsResolvedCount = 0;
+
             // Failure exception if any
             Exception failureException = null;
 
@@ -211,9 +215,6 @@ namespace Dotmim.Sync
 
             // Applied row for this particular BPI
             var appliedRows = 0;
-
-            // conflict resolved count
-            int conflictsResolvedCount = 0;
 
             string batchPartInfoFileName = null;
 
@@ -244,9 +245,6 @@ namespace Dotmim.Sync
                 // for error handling
                 batchPartInfoFileName = batchPartInfo.FileName;
 
-                // Rows fetch (either of the good state or not) from the BPI
-                var rowsFetched = 0;
-
                 this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. Directory name {{directoryName}}. BatchParts count {{BatchPartsInfoCount}}", message.Changes.DirectoryName, message.Changes.BatchPartsInfo.Count);
 
                 // If we have a transient error happening, and we are rerunning the tranaction,
@@ -259,10 +257,22 @@ namespace Dotmim.Sync
                  ? retryPolicy = SyncPolicy.WaitAndRetry(5, retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry)
                  : retryPolicy = SyncPolicy.WaitAndRetry(0, TimeSpan.Zero);
 
-                await retryPolicy.ExecuteAsync(async () =>
+                var applyChangesPolicyResult = await retryPolicy.ExecuteAsync(async () =>
                 {
                     // Connection & Transaction runner
                     DbConnectionRunner runner = null;
+
+                    // Conflicts occured when trying to apply rows
+                    var conflictRows = new List<SyncRow>();
+
+                    // failed rows that were ignored
+                    var failedRows = 0;
+
+                    // Errors occured when trying to apply rows
+                    var errorsRows = new List<(SyncRow SyncRow, Exception Exception)>();
+
+                    // Applied row for this particular BPI
+                    var appliedRows = 0;
 
                     try
                     {
@@ -287,7 +297,10 @@ namespace Dotmim.Sync
                                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
 
                         if (command == null)
-                            return;
+                            return (0, default, default, 0);
+
+                        // Rows fetch from the BPI
+                        var rowsFetched = 0;
 
                         // accumulating rows
                         var batchRows = new List<SyncRow>();
@@ -311,6 +324,7 @@ namespace Dotmim.Sync
                                     if (rowsFetched < batchPartInfo.RowsCount && batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
                                         continue;
                                 }
+
                                 if (batchRows.Count <= 0)
                                     continue;
 
@@ -346,7 +360,7 @@ namespace Dotmim.Sync
                                     // fallback to row per row
                                     var fallbackArgs = new RowsChangesFallbackFromBatchToSingleRowApplyingArgs(context, errorException, message.Changes, batchRows, schemaChangesTable, applyType, command,
                                             runner.Connection, runner.Transaction);
-                                    
+
                                     await this.InterceptAsync(fallbackArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                                     syncAdapter.UseBulkOperations = false;
@@ -354,7 +368,6 @@ namespace Dotmim.Sync
                                                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
 
                                     cmdText = command.CommandText;
-
 
                                     foreach (var batchRow in batchRows)
                                     {
@@ -430,8 +443,9 @@ namespace Dotmim.Sync
                         if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
                             await this.InternalEnableConstraintsAsync(scopeInfo, context, schemaTable, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-
                         await runner.CommitAsync().ConfigureAwait(false);
+
+                        return (appliedRows, conflictRows, errorsRows, failedRows);
                     }
                     catch (Exception ex)
                     {
@@ -442,109 +456,37 @@ namespace Dotmim.Sync
                         }
                         throw GetSyncError(context, ex);
                     }
+                    finally
+                    {
+                        // Close file
+                        if (localSerializer.IsOpen)
+                            localSerializer.CloseFile();
+                    }
 
                 });
 
                 var batchChangesAppliedArgs = new BatchChangesAppliedArgs(context, message.Changes, batchPartInfo, schemaTable, applyType, command, connection, transaction);
                 // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
                 await this.InterceptAsync(batchChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                appliedRows += applyChangesPolicyResult.appliedRows;
+                failedRows += applyChangesPolicyResult.failedRows;
+
+                if (applyChangesPolicyResult.conflictRows != null && applyChangesPolicyResult.conflictRows.Count > 0)
+                    applyChangesPolicyResult.conflictRows.ForEach(sr => conflictRows.Add(sr));
+                if (applyChangesPolicyResult.errorsRows != null && applyChangesPolicyResult.errorsRows.Count > 0)
+                    applyChangesPolicyResult.errorsRows.ForEach(sr => errorsRows.Add(sr));
             }
 
             try
             {
-                if ((conflictRows != null && conflictRows.Count > 0) || (errorsRows != null && errorsRows.Count > 0))
-                {
-                    await using var runnerError = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.None ? SyncMode.NoTransaction : SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                var ce = await InternalApplyConflictsAndErrorsAsync(scopeInfo, context, schemaChangesTable, applyType, errorsTable, conflictRows, errorsRows, message,
+                      connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    // Disable check constraints for provider supporting only at table level
-                    if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
-                        await this.InternalDisableConstraintsAsync(scopeInfo, context, schemaTable, runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
-
-                    // If conflicts occured
-                    foreach (var conflictRow in conflictRows)
-                    {
-                        this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. Handle {{conflictsCount}} conflitcts", conflictRows.Count);
-
-
-                        var (applied, conflictResolved, exception) =
-                            await this.HandleConflictAsync(scopeInfo, context, message.Changes, message.LocalScopeId, message.SenderScopeId, conflictRow, schemaChangesTable,
-                                                           message.Policy, message.LastTimestamp,
-                                                           runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
-
-                        if (exception != null)
-                        {
-                            errorsRows.Add((conflictRow, exception));
-                        }
-                        else
-                        {
-                            conflictsResolvedCount += conflictResolved ? 1 : 0;
-                            appliedRows += applied ? 1 : 0;
-                        }
-                    }
-
-                    // If errors occured
-                    bool shouldRollbackTransaction = false;
-                    foreach (var errorRow in errorsRows)
-                    {
-                        this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. Handle {{errorsRowsCount}} errors", errorsRows.Count);
-
-                        if ((errorRow.SyncRow.RowState == SyncRowState.ApplyModifiedFailed || errorRow.SyncRow.RowState == SyncRowState.Modified || errorRow.SyncRow.RowState == SyncRowState.RetryModifiedOnNextSync)
-                            && applyType == SyncRowState.Deleted)
-                            continue;
-
-                        if ((errorRow.SyncRow.RowState == SyncRowState.ApplyDeletedFailed || errorRow.SyncRow.RowState == SyncRowState.Deleted || errorRow.SyncRow.RowState == SyncRowState.RetryDeletedOnNextSync)
-                            && applyType == SyncRowState.Modified)
-                            continue;
-
-                        ErrorAction errorAction;
-                        (errorAction, failureException) = await this.HandleErrorAsync(
-                                            scopeInfo, context, message.Changes, errorRow.SyncRow, applyType, schemaChangesTable,
-                                            errorRow.Exception, message.SenderScopeId, message.LastTimestamp,
-                                            runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
-
-
-                        // check if we have already the row in errorsTable
-                        var existingRow = SyncRows.GetRowByPrimaryKeys(errorRow.SyncRow, errorsTable.Rows, errorsTable);
-
-                        if (existingRow != null)
-                            errorsTable.Rows.Remove(existingRow);
-
-                        // User decides error should be logged
-                        if (errorAction != ErrorAction.Resolved)
-                            errorsTable.Rows.Add(errorRow.SyncRow);
-
-                        // final throw if any error coming back from HandleErrorAsync
-                        if (errorAction != ErrorAction.Ignore)
-                        {
-                            if (errorAction == ErrorAction.Throw)
-                            {
-                                failedRows++;
-                                shouldRollbackTransaction = true;
-                                // Break because a critical error has been raised and we don't want to continue
-                                break;
-                            }
-                            else
-                            {
-                                failedRows += errorAction == ErrorAction.Log ? 1 : 0;
-                                appliedRows += errorAction == ErrorAction.Resolved ? 1 : 0;
-                            }
-
-                        }
-                    }
-
-                    // Close file
-                    if (localSerializer.IsOpen)
-                        localSerializer.CloseFile();
-
-                    // Enable check constraints for provider supporting only at table level
-                    if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
-                        await this.InternalEnableConstraintsAsync(scopeInfo, context, schemaTable, runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
-
-                    if (shouldRollbackTransaction)
-                        await runnerError.RollbackAsync($"Rollback because we can't resolve errors. Failure:{failureException.Message}").ConfigureAwait(false);
-                    else
-                        await runnerError.CommitAsync().ConfigureAwait(false);
-                }
+                appliedRows += ce.appliedRows;
+                failedRows += ce.failedRows;
+                conflictsResolvedCount += ce.conflictsResolvedCount;
+                failureException = ce.failureException;
 
                 // Only Upsert DatabaseChangesApplied if we make an upsert/ delete from the batch or resolved any conflict
                 if (appliedRows > 0 || conflictsResolvedCount > 0 || failedRows > 0)
@@ -603,10 +545,8 @@ namespace Dotmim.Sync
                 changesSet.Dispose();
                 changesSet = null;
 
-
                 if (command != null)
                     command.Dispose();
-
             }
             catch (Exception ex)
             {
@@ -617,6 +557,7 @@ namespace Dotmim.Sync
 
             return failureException;
         }
+
 
 
         internal virtual async Task<(int rowAppliedCount, Exception errorException)> InternalApplySingleRowAsync(SyncContext context, DbCommand command,
@@ -708,6 +649,113 @@ namespace Dotmim.Sync
             return (rowAppliedCount, conflictRowsTable.Rows, errorException);
         }
 
+
+        internal virtual async Task<(int appliedRows, int conflictsResolvedCount, int failedRows, Exception failureException)> InternalApplyConflictsAndErrorsAsync(ScopeInfo scopeInfo, SyncContext context,
+            SyncTable schemaChangesTable, SyncRowState applyType, SyncTable errorsTable,
+            List<SyncRow> conflictRows, List<(SyncRow SyncRow, Exception Exception)> errorsRows, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
+                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        {
+
+            int conflictsResolvedCount = 0;
+            int appliedRows = 0;
+            int failedRows = 0;
+            Exception failureException = null;
+
+            if ((conflictRows != null && conflictRows.Count > 0) || (errorsRows != null && errorsRows.Count > 0))
+            {
+
+                await using var runnerError = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.None ? SyncMode.NoTransaction : SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                // Disable check constraints for provider supporting only at table level
+                if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
+                    await this.InternalDisableConstraintsAsync(scopeInfo, context, schemaChangesTable, runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
+
+                // If conflicts occured
+                foreach (var conflictRow in conflictRows)
+                {
+                    this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. Handle {{conflictsCount}} conflitcts", conflictRows.Count);
+
+
+                    var (applied, conflictResolved, exception) =
+                        await this.HandleConflictAsync(scopeInfo, context, message.Changes, message.LocalScopeId, message.SenderScopeId, conflictRow, schemaChangesTable,
+                                                       message.Policy, message.LastTimestamp,
+                                                       runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
+
+                    if (exception != null)
+                    {
+                        errorsRows.Add((conflictRow, exception));
+                    }
+                    else
+                    {
+                        conflictsResolvedCount += conflictResolved ? 1 : 0;
+                        appliedRows += applied ? 1 : 0;
+                    }
+                }
+
+                // If errors occured
+                bool shouldRollbackTransaction = false;
+                foreach (var errorRow in errorsRows)
+                {
+                    this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. Handle {{errorsRowsCount}} errors", errorsRows.Count);
+
+                    if ((errorRow.SyncRow.RowState == SyncRowState.ApplyModifiedFailed || errorRow.SyncRow.RowState == SyncRowState.Modified || errorRow.SyncRow.RowState == SyncRowState.RetryModifiedOnNextSync)
+                        && applyType == SyncRowState.Deleted)
+                        continue;
+
+                    if ((errorRow.SyncRow.RowState == SyncRowState.ApplyDeletedFailed || errorRow.SyncRow.RowState == SyncRowState.Deleted || errorRow.SyncRow.RowState == SyncRowState.RetryDeletedOnNextSync)
+                        && applyType == SyncRowState.Modified)
+                        continue;
+
+                    ErrorAction errorAction;
+                    (errorAction, failureException) = await this.HandleErrorAsync(
+                                        scopeInfo, context, message.Changes, errorRow.SyncRow, applyType, schemaChangesTable,
+                                        errorRow.Exception, message.SenderScopeId, message.LastTimestamp,
+                                        runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
+
+
+                    // check if we have already the row in errorsTable
+                    var existingRow = SyncRows.GetRowByPrimaryKeys(errorRow.SyncRow, errorsTable.Rows, errorsTable);
+
+                    if (existingRow != null)
+                        errorsTable.Rows.Remove(existingRow);
+
+                    // User decides error should be logged
+                    if (errorAction != ErrorAction.Resolved)
+                        errorsTable.Rows.Add(errorRow.SyncRow);
+
+                    // final throw if any error coming back from HandleErrorAsync
+                    if (errorAction != ErrorAction.Ignore)
+                    {
+                        if (errorAction == ErrorAction.Throw)
+                        {
+                            failedRows++;
+                            shouldRollbackTransaction = true;
+                            // Break because a critical error has been raised and we don't want to continue
+                            break;
+                        }
+                        else
+                        {
+                            failedRows += errorAction == ErrorAction.Log ? 1 : 0;
+                            appliedRows += errorAction == ErrorAction.Resolved ? 1 : 0;
+                        }
+
+                    }
+                }
+
+
+                // Enable check constraints for provider supporting only at table level
+                if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
+                    await this.InternalEnableConstraintsAsync(scopeInfo, context, schemaChangesTable, runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
+
+                if (shouldRollbackTransaction)
+                    await runnerError.RollbackAsync($"Rollback because we can't resolve errors. Failure:{failureException?.Message}").ConfigureAwait(false);
+                else
+                    await runnerError.CommitAsync().ConfigureAwait(false);
+            }
+
+
+            return (appliedRows, conflictsResolvedCount, failedRows, failureException);
+        }
 
         internal virtual async Task InternalApplyCleanErrorsAsync(ScopeInfo scopeInfo, SyncContext context,
                          BatchInfo lastSyncErrorsBatchInfo, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,

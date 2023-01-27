@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -204,6 +205,7 @@ namespace Dotmim.Sync
         {
             try
             {
+                Debug.WriteLine($"Disabling constraints on table {schemaTable.GetFullName()}");
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
@@ -238,6 +240,7 @@ namespace Dotmim.Sync
         {
             try
             {
+                Debug.WriteLine($"Enabling constraints on table {schemaTable.GetFullName()}");
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
@@ -248,6 +251,8 @@ namespace Dotmim.Sync
                 if (command == null) return context;
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.EnableConstraints, runner.Connection, runner.Transaction)).ConfigureAwait(false);
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                command.Dispose();
 
                 return context;
             }
