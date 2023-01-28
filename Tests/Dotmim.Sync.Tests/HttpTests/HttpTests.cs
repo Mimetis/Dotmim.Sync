@@ -1397,7 +1397,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
 
-                var exception = await Assert.ThrowsAsync<SyncException>(async () =>
+                var exception = await Assert.ThrowsAsync<HttpSyncWebException>(async () =>
                 {
                     var s = await agent.SynchronizeAsync();
                 });
@@ -1912,6 +1912,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 {
                     var webServerAgent = context.RequestServices.GetService(typeof(WebServerAgent)) as WebServerAgent;
 
+                    // Tracing http request received by server side
                     webServerAgent.OnHttpGettingRequest(args =>
                     {
                         var cScopeInfoClientId = args.HttpContext.GetClientScopeId();
@@ -1921,6 +1922,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                         Debug.WriteLine($"RECEIVE Session Id:{cScopeInfoClientSessionId} ClientId:{cScopeInfoClientId} Step:{(HttpStep)Convert.ToInt32(cStep)}");
                     });
 
+                    // Tracing http response sent by server side, and drop session to generate a session lost
                     webServerAgent.OnHttpSendingResponse(async args =>
                     {
                         // SendChangesInProgress is occuring when server is receiving data from client
@@ -1963,7 +1965,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
 
-                var ex = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync());
+                var ex = await Assert.ThrowsAsync<HttpSyncWebException>(() => agent.SynchronizeAsync());
 
                 // Assert
                 Assert.NotNull(ex); //"exception required!"
@@ -2054,7 +2056,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 });
 
                 var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
-                var ex = await Assert.ThrowsAsync<SyncException>(() =>agent.SynchronizeAsync());
+                var ex = await Assert.ThrowsAsync<HttpSyncWebException>(() =>agent.SynchronizeAsync());
                 Assert.Equal("HttpSessionLostException", ex.TypeName);
 
                 await kestrell.StopAsync();

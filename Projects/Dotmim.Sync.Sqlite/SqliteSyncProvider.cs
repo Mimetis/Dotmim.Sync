@@ -5,8 +5,6 @@ using System.Data.Common;
 using Microsoft.Data.Sqlite;
 using System.IO;
 using Dotmim.Sync.Sqlite.Builders;
-using SQLitePCL;
-using System.Reflection;
 using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.Sqlite
@@ -116,7 +114,7 @@ namespace Dotmim.Sync.Sqlite
             while (ex != null)
             {
                 if (ex is SqliteException)
-                    return ((SqliteException)ex).IsTransient;
+                    return SqliteTransientExceptionDetector.ShouldRetryOn((SqliteException)ex);
                 else
                     ex = ex.InnerException;
             }
