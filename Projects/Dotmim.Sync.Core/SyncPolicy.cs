@@ -98,7 +98,7 @@ namespace Dotmim.Sync
                     catch (Exception ex)
                     {
                         // Did we excesseed the retry count ?
-                        var canRetry = tryCount < this.RetryCount;
+                        var canRetry = tryCount < this.RetryCount || this.RetryCount == -1;
 
                         if (!canRetry)
                             throw;
@@ -190,11 +190,13 @@ namespace Dotmim.Sync
                                                               Func<Exception, object, bool> isRetriable,
                                                               Func<Exception, int, TimeSpan, object, Task> onRetry = null)
         {
-            var policy = new SyncPolicy { RetryCount = retryCount };
-
-            policy.isRetriable = isRetriable ?? new Func<Exception, object, bool>((ex,arg) => true);
-            policy.SleepDuration = sleepDurationProvider ?? new Func<int, TimeSpan>(_ => TimeSpan.Zero);
-            policy.onRetryAsync = onRetry ?? new Func<Exception, int, TimeSpan, object, Task>((ex, rc, waitDuration, arg) => Task.CompletedTask);
+            var policy = new SyncPolicy
+            {
+                RetryCount = retryCount,
+                isRetriable = isRetriable ?? new Func<Exception, object, bool>((ex, arg) => true),
+                SleepDuration = sleepDurationProvider ?? new Func<int, TimeSpan>(_ => TimeSpan.Zero),
+                onRetryAsync = onRetry ?? new Func<Exception, int, TimeSpan, object, Task>((ex, rc, waitDuration, arg) => Task.CompletedTask)
+            };
             return policy;
         }
     }

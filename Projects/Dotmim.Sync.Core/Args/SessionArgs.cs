@@ -75,7 +75,7 @@ namespace Dotmim.Sync
 
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
-        public override string Message => $"Transient error: {this.HandledException?.Message}";
+        public override string Message => $"Transient error:{this.HandledException?.Message}. Retry:{this.Retry}";
 
         /// <summary>
         /// Gets the handled exception

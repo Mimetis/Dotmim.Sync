@@ -42,7 +42,7 @@ namespace Dotmim.Sync
 
             // Defining my retry policy
             SyncPolicy retryPolicy = Options.TransactionMode == TransactionMode.AllOrNothing
-             ? retryPolicy = SyncPolicy.WaitAndRetry(5, retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry)
+             ? retryPolicy = SyncPolicy.WaitAndRetryForever(retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry)
              : retryPolicy = SyncPolicy.WaitAndRetry(0, TimeSpan.Zero);
 
             // Execute my OpenAsync in my policy context
