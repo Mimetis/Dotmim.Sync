@@ -41,7 +41,7 @@ namespace Dotmim.Sync.MariaDB
             }
         }
         public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnTableLevel;
-        
+
         static string shortProviderType;
         public override string GetShortProviderTypeName() => ShortProviderType;
         public static string ShortProviderType
@@ -131,6 +131,19 @@ namespace Dotmim.Sync.MariaDB
             syncException.Number = mySqlException.Number;
 
             return;
+        }
+
+        public override bool ShouldRetryOn(Exception exception)
+        {
+            Exception ex = exception;
+            while (ex != null)
+            {
+                if (ex is MySqlException)
+                    return MySqlTransientExceptionDetector.ShouldRetryOn((MySqlException)ex);
+                else
+                    ex = ex.InnerException;
+            }
+            return false;
         }
 
         public override DbConnection CreateConnection() => new MySqlConnection(this.ConnectionString);

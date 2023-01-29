@@ -222,43 +222,34 @@ namespace Dotmim.Sync
 
 
         //[DebuggerStepThrough]
-        internal SyncException GetSyncError(SyncContext context, Exception innerException, string message = default, [CallerMemberName] string methodName = null)
+        internal SyncException GetSyncError(SyncContext context, Exception exception, string message = default,
+            [CallerMemberName] string methodName = null)
         {
             // First we log the error before adding a new layer
             if (this.Logger != null)
-                this.Logger.LogError(SyncEventsId.Exception, innerException, innerException.Message);
+                this.Logger.LogError(SyncEventsId.Exception, exception, exception.Message);
 
+            // Get SyncStage, scopeName, methodName and message
             var strSyncStage = context == null ? SyncStage.None : context.SyncStage;
-            var strScopeName = context == null ? null : $"[{context.ScopeName}].";
             var strMethodName = string.IsNullOrEmpty(methodName) ? "" : $"[{methodName}].";
-            var strMessage = string.IsNullOrEmpty(message) ? "" : message;
 
-            var strDataSource = innerException is SyncException se ? se.DataSource : "";
-            strDataSource = string.IsNullOrEmpty(strDataSource) ? "" : $"[{strDataSource}].";
+            message = $"{strMethodName}{message}.{exception.Message}";
 
-            var strInitialCatalog = innerException is SyncException se2 ? se2.InitialCatalog : "";
-            strInitialCatalog = string.IsNullOrEmpty(strInitialCatalog) ? "" : $"[{strInitialCatalog}].";
+            SyncException syncException;
 
-            message = $"{strDataSource}{strInitialCatalog}{strScopeName}{strMethodName}{strMessage}";
-
-            var baseMessage = innerException.Message;
-
-            if (innerException is SyncException se3)
+            if (exception is SyncException)
             {
-                if (!string.IsNullOrEmpty(se3.BaseMessage))
-                    baseMessage = se3.BaseMessage;
+                syncException = new SyncException(exception.InnerException, message, strSyncStage);
+            }
+            else
+            {
+                syncException = new SyncException(exception, message, strSyncStage);
+
+                // try to let the provider enrich the exception
+                if (this.Provider != null)
+                    this.Provider.EnsureSyncException(syncException);
             }
 
-            message += $":{baseMessage}";
-
-            var syncException = new SyncException(innerException, message, strSyncStage)
-            {
-                BaseMessage = baseMessage
-            };
-
-            // try to let the provider enrich the exception
-            if (this.Provider != null)
-                this.Provider.EnsureSyncException(syncException);
 
             return syncException;
         }

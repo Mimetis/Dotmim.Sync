@@ -59,7 +59,7 @@ namespace Dotmim.Sync.SqlServer
         }
 
         public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnSessionLevel;
-        
+
         static string shortProviderType;
         public override string GetShortProviderTypeName() => ShortProviderType;
         public static string ShortProviderType
@@ -98,7 +98,20 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Gets a chance to make a retry connection
         /// </summary>
-        public override bool ShouldRetryOn(Exception exception) => SqlServerTransientExceptionDetector.ShouldRetryOn(exception);
+        public override bool ShouldRetryOn(Exception exception)
+        {
+            Exception ex = exception;
+            while (ex != null)
+            {
+                if (ex is SqlException)
+                    return SqlServerTransientExceptionDetector.ShouldRetryOn(ex);
+                else
+                    ex = ex.InnerException;
+            }
+
+            return false;
+
+        }
 
         public override void EnsureSyncException(SyncException syncException)
         {
@@ -162,6 +175,6 @@ namespace Dotmim.Sync.SqlServer
             => new SqlSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName, this.UseBulkOperations);
 
         public override DbBuilder GetDatabaseBuilder() => new SqlBuilder();
-        
+
     }
 }

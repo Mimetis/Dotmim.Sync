@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -204,6 +205,7 @@ namespace Dotmim.Sync
         {
             try
             {
+                Debug.WriteLine($"Disabling constraints on table {schemaTable.GetFullName()}");
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
@@ -212,10 +214,6 @@ namespace Dotmim.Sync
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 if (command == null) return context;
-
-                // Parametrized command timeout established if exist
-                if (this.Options.DbCommandTimeout.HasValue)
-                    command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DisableConstraints, runner.Connection, runner.Transaction)).ConfigureAwait(false);
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -242,6 +240,7 @@ namespace Dotmim.Sync
         {
             try
             {
+                Debug.WriteLine($"Enabling constraints on table {schemaTable.GetFullName()}");
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
@@ -251,12 +250,7 @@ namespace Dotmim.Sync
 
                 if (command == null) return context;
 
-                // Parametrized command timeout established if exist
-                if (this.Options.DbCommandTimeout.HasValue)
-                    command.CommandTimeout = this.Options.DbCommandTimeout.Value;
-
                 await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.EnableConstraints, runner.Connection, runner.Transaction)).ConfigureAwait(false);
-
                 await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 command.Dispose();
 
@@ -295,10 +289,6 @@ namespace Dotmim.Sync
 
                 if (command != null)
                 {
-                    // Parametrized command timeout established if exist
-                    if (this.Options.DbCommandTimeout.HasValue)
-                        command.CommandTimeout = this.Options.DbCommandTimeout.Value;
-
                     await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.Reset, runner.Connection, runner.Transaction)).ConfigureAwait(false);
                     await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                     command.Dispose();

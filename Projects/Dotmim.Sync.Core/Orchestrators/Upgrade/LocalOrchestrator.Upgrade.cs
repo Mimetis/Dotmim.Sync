@@ -719,7 +719,7 @@ namespace Dotmim.Sync
 
 
                 if (evaluateOnly)
-                    await runner.RollbackAsync().ConfigureAwait(false);
+                    await runner.RollbackAsync("Evaluate only").ConfigureAwait(false);
                 else
                     await runner.CommitAsync().ConfigureAwait(false);
 
@@ -1070,10 +1070,6 @@ namespace Dotmim.Sync
                     command.CommandText = commandText;
                     command.Transaction = runner.Transaction;
 
-                    // Parametrized command timeout established if exist
-                    if (Options.DbCommandTimeout.HasValue)
-                        command.CommandTimeout = Options.DbCommandTimeout.Value;
-
                     await command.ExecuteNonQueryAsync();
 
                     await this.InterceptAsync(new UpgradeProgressArgs(context, $"{scopeClientInfoTableName} primary keys updated on SQL Server", newVersion, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
@@ -1088,12 +1084,6 @@ namespace Dotmim.Sync
                     var command = runner.Connection.CreateCommand();
                     command.CommandText = commandText;
                     command.Transaction = runner.Transaction;
-
-                    // Parametrized command timeout established if exist
-                    if (Options.DbCommandTimeout.HasValue)
-                    {
-                        command.CommandTimeout = Options.DbCommandTimeout.Value;
-                    }
 
                     await command.ExecuteNonQueryAsync();
                 }
@@ -1120,12 +1110,6 @@ namespace Dotmim.Sync
                     var command = runner.Connection.CreateCommand();
                     command.CommandText = commandText;
                     command.Transaction = runner.Transaction;
-
-                    // Parametrized command timeout established if exist
-                    if (Options.DbCommandTimeout.HasValue)
-                    {
-                        command.CommandTimeout = Options.DbCommandTimeout.Value;
-                    }
 
                     await command.ExecuteNonQueryAsync();
                 }

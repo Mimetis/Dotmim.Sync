@@ -21,6 +21,8 @@ namespace Dotmim.Sync.SqlServer
                 {
                     switch (err.Number)
                     {
+                        // Timeout expired. The timeout period elapsed prior to completion of the operation or the server is not responding. The statement has been terminated.
+                        case -2:
                         // SQL error code : 4060 & so on..
                         // login failed
                         case 4060:
@@ -121,9 +123,6 @@ namespace Dotmim.Sync.SqlServer
                         case 20:
                             return true;
                             // This exception can be thrown even if the operation completed successfully, so it's safer to let the application fail.
-                            // DBNETLIB Error Code: -2
-                            // Timeout expired. The timeout period elapsed prior to completion of the operation or the server is not responding. The statement has been terminated.
-                            //case -2:
                     }
                 }
 

@@ -6,6 +6,7 @@ using System;
 using Dotmim.Sync.PostgreSql.Scope;
 using Dotmim.Sync.PostgreSql.Builders;
 using Dotmim.Sync.Enumerations;
+using System.Net.NetworkInformation;
 
 namespace Dotmim.Sync.PostgreSql
 {
@@ -73,6 +74,22 @@ namespace Dotmim.Sync.PostgreSql
             return connection;
         }
 
+
+        /// <summary>
+        /// Gets a chance to make a retry if the error is a transient error
+        /// </summary>
+        public override bool ShouldRetryOn(Exception exception)
+        {
+            Exception ex = exception;
+            while (ex != null)
+            {
+                if (ex is NpgsqlException)
+                    return ((NpgsqlException)ex).IsTransient;
+                else
+                    ex = ex.InnerException;
+            }
+            return false;
+        }
         public override DbBuilder GetDatabaseBuilder() => new NpgsqlBuilder();
 
         public override string GetDatabaseName()

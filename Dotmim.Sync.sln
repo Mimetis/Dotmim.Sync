@@ -27,11 +27,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.SqlServer.Chang
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.MariaDB", "Projects\Dotmim.Sync.MariaDB\Dotmim.Sync.MariaDB.csproj", "{89D71A50-501D-4142-9133-FCCD267E1A26}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{3F2D6A12-CB62-4BA4-8CB2-DC573C33C2E6}"
-	ProjectSection(SolutionItems) = preProject
-		Todo.txt = Todo.txt
-	EndProjectSection
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.PostgreSql", "Projects\Dotmim.Sync.PostgreSql\Dotmim.Sync.PostgreSql.csproj", "{2A908822-8731-4174-AD12-569531E4E33D}"
 EndProject
 Global
@@ -230,8 +225,8 @@ Global
 		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5} = {2E7CD7E6-8D9F-47E0-B5E3-4CF58C85F273}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
 		BuildVersion_StartDate = 2000/1/1
+		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true

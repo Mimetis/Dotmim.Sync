@@ -99,6 +99,39 @@ namespace Dotmim.Sync
     }
 
 
+    public class RowsChangesFallbackFromBatchToSingleRowApplyingArgs : ProgressArgs
+    {
+        public bool Cancel { get; set; } = false;
+        public DbCommand Command { get; set; }
+
+        public RowsChangesFallbackFromBatchToSingleRowApplyingArgs(SyncContext context, Exception exception, BatchInfo batchInfo, List<SyncRow> syncRows, SyncTable schemaTable, SyncRowState state, DbCommand command, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+            this.State = state;
+            this.Command = command;
+            this.Exception = exception;
+            this.BatchInfo = batchInfo;
+            this.SyncRows = syncRows;
+            this.SchemaTable = schemaTable;
+        }
+
+        /// <summary>
+        /// Gets the RowState of the applied rows
+        /// </summary>
+        public SyncRowState State { get; }
+        public Exception Exception { get; }
+        public BatchInfo BatchInfo { get; }
+        public List<SyncRow> SyncRows { get; }
+
+        public SyncTable SchemaTable { get; }
+
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
+        public override string Message => $"Fallback from Batch to Row per Row on table [{this.SchemaTable.GetFullName()}]. Error:{Exception?.Message}. State:{this.State}. Count:{this.SyncRows.Count()}";
+
+        public override int EventId => SyncEventsId.RowsChangesApplying.Id;
+    }
+
+
     public static partial class InterceptorsExtensions
     {
         /// <summary>
@@ -130,6 +163,26 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="OnRowsChangesApplying(BaseOrchestrator, Action{RowsChangesApplyingArgs})"/>
         public static Guid OnRowsChangesApplying(this BaseOrchestrator orchestrator, Func<RowsChangesApplyingArgs, Task> action)
+            => orchestrator.AddInterceptor(action);
+
+        /// <summary>
+        /// Occurs when a batch was not applied successfully and DMS tries to fallback to one row per row applying
+        /// <example>
+        /// <code>
+        /// localOrchestrator.OnRowsChangesFallbackFromBatchToSingleRowApplying(async args =>
+        /// {
+        ///     Console.WriteLine($"- In memory rows that are going to be Applied one by one because of an error occured during batch applying");
+        ///     Console.WriteLine($"- Error raised causing the fallback: {args.Exception.Message}");
+        ///     Console.WriteLine($"- Rows count to apply one by one: {args.SyncRows.Count}");
+        /// });
+        /// </code>
+        /// </example>
+        /// </summary>
+        public static Guid OnRowsChangesFallbackFromBatchToSingleRowApplying(this BaseOrchestrator orchestrator, Action<RowsChangesFallbackFromBatchToSingleRowApplyingArgs> action)
+            => orchestrator.AddInterceptor(action);
+
+        /// <inheritdoc cref="OnRowsChangesFallbackFromBatchToSingleRowApplying(BaseOrchestrator, Action{RowsChangesFallbackFromBatchToSingleRowApplyingArgs})"/>
+        public static Guid OnRowsChangesFallbackFromBatchToSingleRowApplying(this BaseOrchestrator orchestrator, Func<RowsChangesFallbackFromBatchToSingleRowApplyingArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
 

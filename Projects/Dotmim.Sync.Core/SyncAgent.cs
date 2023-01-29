@@ -474,28 +474,11 @@ namespace Dotmim.Sync
                 if (this.Options.Logger != null)
                     this.Options.Logger.LogError(SyncEventsId.Exception, exception, exception.Message);
 
-                string message = exception is SyncException se && se.BaseMessage != null ? se.BaseMessage : exception.Message;
-                if (this.Options.UseVerboseErrors)
-                {
-                    var innerException = exception.InnerException;
-                    int cpt = 1;
-                    while (innerException != null)
-                    {
-                        message += Environment.NewLine;
-                        var sign = innerException.InnerException != null ? "├" : "└";
-                        message += sign;
+                if (exception is SyncException)
+                    syncException = (SyncException)exception;
+                else
+                    syncException = new SyncException(exception);
 
-                        for (int i = 0; i < cpt; i++)
-                            message += "─";
-
-                        message += $" {innerException.Message}";
-
-                        innerException = innerException.InnerException;
-                        cpt++;
-                    }
-                }
-
-                syncException = new SyncException(exception, message);
                 throw syncException;
             }
             finally
