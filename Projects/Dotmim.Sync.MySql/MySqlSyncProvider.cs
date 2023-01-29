@@ -85,7 +85,6 @@ namespace Dotmim.Sync.MySql
             this.ConnectionString = builder.ConnectionString;
         }
 
-#if NETCOREAPP3_1_OR_GREATER
         /// <summary>
         /// Gets a chance to make a retry if the error is a transient error
         /// </summary>
@@ -95,13 +94,12 @@ namespace Dotmim.Sync.MySql
             while (ex != null)
             {
                 if (ex is MySqlException)
-                    return ((MySqlException)ex).IsTransient;
+                    return MySqlTransientExceptionDetector.ShouldRetryOn((MySqlException)ex);
                 else
                     ex = ex.InnerException;
             }
             return false;
         }
-#endif
 
         public MySqlSyncProvider(MySqlConnectionStringBuilder builder) : base()
         {

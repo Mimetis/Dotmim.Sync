@@ -55,6 +55,7 @@
 		<Compile Include="..\Dotmim.Sync.MySql\MySqlManagementUtils.cs" Link="MySqlManagementUtils.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\MySqlSyncAdapter.cs" Link="MySqlSyncAdapter.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\MySqlTokenizer.cs" Link="MySqlTokenizer.cs" />
+		<Compile Include="..\Dotmim.Sync.MySql\MySqlTransientExceptionDetector.cs" Link="MySqlTransientExceptionDetector.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

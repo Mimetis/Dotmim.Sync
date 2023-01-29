@@ -104,7 +104,6 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-#if NET6_0_OR_GREATER
         /// <summary>
         /// Gets a chance to make a retry if the error is a transient error
         /// </summary>
@@ -120,7 +119,6 @@ namespace Dotmim.Sync.Sqlite
             }
             return false;
         }
-#endif
         public SqliteSyncProvider(string filePath) : this()
         {
             if (filePath.ToLowerInvariant().StartsWith("data source"))
