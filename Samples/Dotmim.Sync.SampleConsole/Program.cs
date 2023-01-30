@@ -76,32 +76,18 @@ internal class Program
         // var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
         //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        // var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        //var setup = new SyncSetup(allTables);
-        var setup = new SyncSetup(oneTable);
-
-        //var setup = new SyncSetup("SaleInvoices");
-        //setup.Tables["SaleInvoices"].Columns.AddRange("Id", "Uuid", "IssuedDate", "CustomerId", 
-        //    "PaymentCompletionDate", "Total", "GrossTotal", "NetTotal", "AmountPaid", "ReturnAmount", "DiscountAmount", 
-        //    "DiscountPercentage", "TotalVAT", "TotalCost", "PaymentMethod", "PaymentType", "SaleInvoiceType", 
-        //    "VatPercentage", "TaxTreatmentNarration", "CustomerName", "CustomerAddress", "CustomerVATNumber", 
-        //    "CustomerGroupVATNumber", "SellerNameEnglish", "SellerNameArabic", "SellerAddress", "SellerVATNumber", 
-        //    "SellerGroupVATNumber", "QrCode", "Status", "ProjectId", "TaxId", "VatRate", "VatCategoryCode", 
-        //    "TaxExemptionReason", "ReceiveAs", "ReceiveType",  "InvoiceCounter", "InvoiceHash", 
-        //    "SupplyDate", "InvoiceType", "SaleInvoiceClearenceStatus", "SaleInvoiceSpecialBillingAgreement", "SaleInvoiceSpecialTransactionType", 
-        //    "IsScheduled", "CreatedBy", "CreatedAt", "LastUpdatedBy", "LastUpdatedAt", "IsDeleted", "DeletedAt", "BranchId");
-
-        //var setup = new SyncSetup("SalesOrderHeader");
+        var setup = new SyncSetup(allTables);
+        //var setup = new SyncSetup(oneTable);
 
         var options = new SyncOptions();
         //options.Logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Information);
         //options.UseVerboseErrors = true;
-
 
         //setup.Tables["ProductCategory"].Columns.AddRange(new string[] { "ProductCategoryID", "ParentProductCategoryID", "Name" });
         //setup.Tables["ProductDescription"].Columns.AddRange(new string[] { "ProductDescriptionID", "Description" });
@@ -118,23 +104,12 @@ internal class Program
         //options.Logger = logger;
         //options.SnapshotsDirectory = Path.Combine("C:\\Tmp\\Snapshots");
 
-        //await GetChangesAsync(clientProvider, serverProvider, setup, options);
-        //await ProvisionAsync(serverProvider, setup, options);
-        //await CreateSnapshotAsync(serverProvider, setup, options);
-
-        // await ScenarioAddColumnSyncAsync(clientProvider, serverProvider, setup, options);
-
 
         // await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        //await ScenarioPluginLogsAsync(clientProvider, serverProvider, setup, options, "all");
-
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("CliProduct"));
-        //clientProvider.UseBulkOperations = false;
-       // await MiltenAsync();
-        await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
     }
- 
+
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
         // Using the Progress pattern to handle progression during the synchronization
@@ -152,9 +127,6 @@ internal class Program
             {
                 Console.Clear();
                 Console.ForegroundColor = ConsoleColor.Green;
-
-              
-
                 var s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
                 Console.WriteLine(s);
             }
@@ -173,7 +145,7 @@ internal class Program
 
     }
 
- 
+
     static async Task ScenarioPluginLogsAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
         // Creating an agent that will handle all the process
@@ -480,9 +452,9 @@ internal class Program
 
 
     }
-  
- 
-  
+
+
+
     private static async Task AddColumnsToProductCategoryAsync(CoreProvider provider)
     {
         var commandText = @"ALTER TABLE dbo.ProductCategory ADD CreatedDate datetime NULL;";
@@ -619,7 +591,7 @@ internal class Program
 
     }
 
-    
+
 
     public static async Task SyncHttpThroughKestrellAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
@@ -691,7 +663,7 @@ internal class Program
                     //entries.Add(entry);
 
                     //var (scopeInfos, scopeInfoClients) = await agent.LocalOrchestrator.ManualUpgradeWithFiltersParameterAsync(entries, progress);
-                    
+
                     // make a synchronization to get all rows between backup and now
                     var s = await agent.SynchronizeAsync(progress: localProgress);
 
