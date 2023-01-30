@@ -724,6 +724,7 @@ namespace Dotmim.Sync.PostgreSql
         {
             bool tableExist;
             var tableName = ParserName.Parse(quotedTableName, "\"").ObjectName;
+            var pSchemaName = string.IsNullOrEmpty(schemaName) ? "public" : schemaName;
 
             using (DbCommand dbCommand = connection.CreateCommand())
             {
@@ -734,6 +735,7 @@ namespace Dotmim.Sync.PostgreSql
                 NpgsqlParameter sqlParameter = new NpgsqlParameter()
                 {
                     ParameterName = "@tableName",
+                    DbType = DbType.String,
                     Value = tableName
                 };
                 dbCommand.Parameters.Add(sqlParameter);
@@ -741,8 +743,8 @@ namespace Dotmim.Sync.PostgreSql
                 sqlParameter = new NpgsqlParameter()
                 {
                     ParameterName = "@schemaName",
-                    //Value = GetUnquotedSqlSchemaName(ParserName.Parse(quotedTableName, "\""))
-                    Value = schemaName
+                    DbType = DbType.String,
+                    Value = pSchemaName
                 };
                 dbCommand.Parameters.Add(sqlParameter);
 
@@ -819,8 +821,8 @@ namespace Dotmim.Sync.PostgreSql
             string str1 = "";
             foreach (var column in primaryKeys)
             {
-                var unquotedColumn = ParserName.Parse(column,"\"").Quoted().Normalized().ToString();
-                var paramUnquotedColumn = ParserName.Parse($"{mysql_prefix}{column.ColumnName}","\"").Quoted().Normalized().ToString();
+                var unquotedColumn = ParserName.Parse(column, "\"").Quoted().Normalized().ToString();
+                var paramUnquotedColumn = ParserName.Parse($"{mysql_prefix}{column.ColumnName}", "\"").Quoted().Normalized().ToString();
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);
