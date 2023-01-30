@@ -23,16 +23,16 @@ namespace Dotmim.Sync
     public partial class BaseOrchestrator
     {
 
-     
+
         internal async Task<bool> IsScopeInfoSchemaValidAsync(SyncContext context, DbConnection connection = default, DbTransaction transaction = default,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
             await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating,
                 connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            var scopeInfoTableName = this.Provider.GetParsers(new SyncTable(this.Options.ScopeInfoTableName)).tableName;
+            var scopeInfoTableName = this.Provider.GetParsers(new SyncTable(this.Options.ScopeInfoTableName), new SyncSetup()).tableName;
             var tableName = scopeInfoTableName.Unquoted().Normalized().ToString();
-            var tableBuilder = this.GetTableBuilder(new SyncTable(tableName), new ScopeInfo());
+            var tableBuilder = this.GetTableBuilder(new SyncTable(tableName), new ScopeInfo { Setup = new SyncSetup() });
 
             // check columns
             var columns = (await tableBuilder.GetColumnsAsync(runner.Connection, runner.Transaction).ConfigureAwait(false)).ToList();
@@ -62,9 +62,9 @@ namespace Dotmim.Sync
             await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating,
                 connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            var scopeInfoTableName = this.Provider.GetParsers(new SyncTable(this.Options.ScopeInfoTableName)).tableName;
+            var scopeInfoTableName = this.Provider.GetParsers(new SyncTable(this.Options.ScopeInfoTableName), new SyncSetup()).tableName;
             var tableName = $"{scopeInfoTableName.Unquoted().Normalized()}_client";
-            var tableBuilder = this.GetTableBuilder(new SyncTable(tableName), new ScopeInfo());
+            var tableBuilder = this.GetTableBuilder(new SyncTable(tableName), new ScopeInfo { Setup = new SyncSetup() });
 
             // check columns
             var columns = (await tableBuilder.GetColumnsAsync(runner.Connection, runner.Transaction).ConfigureAwait(false)).ToList();
@@ -96,7 +96,7 @@ namespace Dotmim.Sync
             return true;
         }
 
-    
+
         internal virtual async Task<SyncTable> MigrateScopeInfoClientTableAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 

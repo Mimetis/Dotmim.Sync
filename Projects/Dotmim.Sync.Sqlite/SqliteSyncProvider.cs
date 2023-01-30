@@ -205,8 +205,8 @@ namespace Dotmim.Sync.Sqlite
             string tableAndPrefixName = tableDescription.TableName;
             var originalTableName = ParserName.Parse(tableDescription);
 
-            var pref = setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : "";
-            var suf = setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : "";
+            var pref = setup != null && setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : "";
+            var suf = setup != null && setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : "";
 
             // be sure, at least, we have a suffix if we have empty values. 
             // othewise, we have the same name for both table and tracking table
