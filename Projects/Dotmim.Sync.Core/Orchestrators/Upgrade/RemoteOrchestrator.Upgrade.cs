@@ -25,9 +25,8 @@ namespace Dotmim.Sync
         /// <summary>
         /// Check if we need to upgrade the Database Structure
         /// </summary>
-        public virtual async Task<bool> NeedsToUpgradeAsync()
+        public virtual async Task<bool> NeedsToUpgradeAsync(SyncContext context)
         {
-            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
             {
                 var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
@@ -91,14 +90,13 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </summary>
-        /// <param name="progress">Progress of upgrade</param>
-        /// <param name="evaluateOnly">if set to True, the upgrade will not be applied at the end. Usefull to test your upgrade and see if anything is breaking at some point.</param>
         /// <returns>
         /// The new scopeInfos and scopeInfoClients rows from your new upgrade sync config tables.
         /// </returns>
-        public virtual async Task<(List<ScopeInfo> scopeInfos, List<ScopeInfoClient> scopeInfoClients)> UpgradeAsync(IProgress<ProgressArgs> progress = default, bool evaluateOnly = false)
+        internal virtual async Task<(List<ScopeInfo> scopeInfos, List<ScopeInfoClient> scopeInfoClients)> InternalUpgradeAsync(
+            SyncContext context, DbConnection connection = default, DbTransaction transaction = default,
+                        CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
-            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
             {
                 var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
@@ -286,11 +284,7 @@ namespace Dotmim.Sync
                 var sFinalScopeInfoClients = await this.InternalLoadAllScopeInfoClientsAsync(context,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-
-                if (evaluateOnly)
-                    await runner.RollbackAsync("Evaluate Only").ConfigureAwait(false);
-                else
-                    await runner.CommitAsync().ConfigureAwait(false);
+                await runner.CommitAsync().ConfigureAwait(false);
 
                 return (sFinalScopeInfos, sFinalScopeInfoClients);
             }
@@ -299,322 +293,6 @@ namespace Dotmim.Sync
                 throw GetSyncError(context, ex);
             }
         }
-
-
-
-        private async Task<Version> UpgdrateTo601Async(ScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
-                        CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
-        {
-
-            var newVersion = new Version(0, 6, 1);
-            // Sorting tables based on dependencies between them
-            var schemaTables = serverScopeInfo.Schema.Tables
-                .SortByDependencies(tab => tab.GetRelations()
-                    .Select(r => r.GetParentTable()));
-
-            foreach (var schemaTable in schemaTables)
-            {
-                var tableBuilder = this.GetTableBuilder(schemaTable, serverScopeInfo);
-                (context, _) = await InternalCreateStoredProceduresAsync(serverScopeInfo, context, true, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                await this.InterceptAsync(new UpgradeProgressArgs(context, $"ALL Stored procedures for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-            }
-
-            var message = $"Upgrade to 0.6.1 done for scope {serverScopeInfo.Name}";
-            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
-
-            return newVersion;
-        }
-
-
-        private async Task<Version> UpgdrateTo602Async(ScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
-        {
-            var newVersion = new Version(0, 6, 2);
-
-            // Sorting tables based on dependencies between them
-            var schemaTables = serverScopeInfo.Schema.Tables
-                .SortByDependencies(tab => tab.GetRelations()
-                    .Select(r => r.GetParentTable()));
-
-            foreach (var schemaTable in schemaTables)
-            {
-                var tableBuilder = this.GetTableBuilder(schemaTable, serverScopeInfo);
-
-                // Upgrade Select Initial Changes
-                bool exists;
-                (context, exists) = await InternalExistsTriggerAsync(serverScopeInfo, context, tableBuilder, DbTriggerType.Update, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (exists)
-                    (context, _) = await InternalDropTriggerAsync(serverScopeInfo, context, tableBuilder, DbTriggerType.Update, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                (context, _) = await InternalCreateTriggerAsync(serverScopeInfo, context, tableBuilder, DbTriggerType.Update, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                await this.InterceptAsync(new UpgradeProgressArgs(context, $"Update Trigger for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-            }
-
-            var message = $"Upgrade to {newVersion} for scope {serverScopeInfo.Name}.";
-            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
-
-            return newVersion;
-        }
-
-        private async Task<Version> UpgdrateTo700Async(ScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
-                     CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
-        {
-
-            var newVersion = new Version(0, 7, 0);
-            // Sorting tables based on dependencies between them
-
-            var schemaTables = serverScopeInfo.Schema.Tables
-                .SortByDependencies(tab => tab.GetRelations()
-                    .Select(r => r.GetParentTable()));
-
-            var message = $"Upgrade to {newVersion}:";
-            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
-
-            foreach (var schemaTable in schemaTables)
-            {
-                var tableBuilder = this.GetTableBuilder(schemaTable, serverScopeInfo);
-
-                // Upgrade Reset stored procedure
-                bool exists;
-                (context, exists) = await InternalExistsStoredProcedureAsync(serverScopeInfo, context, tableBuilder,
-                    DbStoredProcedureType.Reset, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (exists)
-                    (context, _) = await InternalDropStoredProcedureAsync(serverScopeInfo, context, tableBuilder, DbStoredProcedureType.Reset, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                (context, _) = await InternalCreateStoredProcedureAsync(serverScopeInfo, context, tableBuilder, DbStoredProcedureType.Reset, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                await this.InterceptAsync(new UpgradeProgressArgs(context, $"Reset stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-                // Upgrade Update stored procedure
-                bool existsUpdateSP;
-                (context, existsUpdateSP) = await InternalExistsStoredProcedureAsync(serverScopeInfo, context, tableBuilder,
-                    DbStoredProcedureType.UpdateRow, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (existsUpdateSP)
-                    (context, _) = await InternalDropStoredProcedureAsync(serverScopeInfo, context, tableBuilder, DbStoredProcedureType.UpdateRow, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                (context, _) = await InternalCreateStoredProcedureAsync(serverScopeInfo, context, tableBuilder, DbStoredProcedureType.UpdateRow, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                await this.InterceptAsync(new UpgradeProgressArgs(context, $"Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-                bool existsBulkUpdateSP;
-                (context, existsBulkUpdateSP) = await InternalExistsStoredProcedureAsync(serverScopeInfo, context, tableBuilder,
-                    DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (existsBulkUpdateSP)
-                {
-                    (context, _) = await InternalDropStoredProcedureAsync(serverScopeInfo, context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    (context, _) = await InternalCreateStoredProcedureAsync(serverScopeInfo, context, tableBuilder, DbStoredProcedureType.BulkUpdateRows, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    await this.InterceptAsync(new UpgradeProgressArgs(context, $"Bulk Update stored procedure for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-                }
-            }
-            message = $"Upgrade to {newVersion} for scope {serverScopeInfo.Name}.";
-            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
-            return newVersion;
-        }
-
-
-        private async Task<Version> UpgdrateTo801Async(ScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
-               CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
-        {
-
-            var newVersion = new Version(0, 8, 1);
-            // Sorting tables based on dependencies between them
-
-            var schemaTables = serverScopeInfo.Schema.Tables
-                .SortByDependencies(tab => tab.GetRelations()
-                    .Select(r => r.GetParentTable()));
-
-            var message = $"Upgrade to {newVersion}:";
-            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
-
-            foreach (var schemaTable in schemaTables)
-            {
-                var tableBuilder = this.GetTableBuilder(schemaTable, serverScopeInfo);
-                await InternalCreateStoredProceduresAsync(serverScopeInfo, context, true, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                await this.InterceptAsync(new UpgradeProgressArgs(context, $"ALL Stored procedures for table {tableBuilder.TableDescription.GetFullName()} updated", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-            }
-            message = $"Upgrade to {newVersion} for scope {serverScopeInfo.Name}.";
-            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
-
-            return newVersion;
-        }
-
-
-        private async Task<Version> UpgdrateTo093Async(ScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
-               CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
-        {
-
-            var newVersion = new Version(0, 9, 3);
-            // Sorting tables based on dependencies between them
-
-            var schemaTables = serverScopeInfo.Schema.Tables
-                .SortByDependencies(tab => tab.GetRelations()
-                    .Select(r => r.GetParentTable()));
-
-            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Upgrade to {newVersion}:", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-            var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
-
-            await this.DeprovisionAsync(serverScopeInfo.Name, provision).ConfigureAwait(false);
-            await this.ProvisionAsync(serverScopeInfo.Name, provision, false).ConfigureAwait(false);
-
-            var message = $"Upgrade to {newVersion} for scope {serverScopeInfo.Name}.";
-            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
-
-            return newVersion;
-        }
-
-        private async Task<Version> UpgdrateTo094Async(ScopeInfo serverScopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
-       CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
-        {
-
-            var newVersion = new Version(0, 9, 4);
-            // Sorting tables based on dependencies between them
-
-            var schemaTables = serverScopeInfo.Schema.Tables
-                .SortByDependencies(tab => tab.GetRelations()
-                    .Select(r => r.GetParentTable()));
-
-            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Upgrade to {newVersion}:", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-            var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
-
-            await this.DeprovisionAsync(serverScopeInfo.Name, provision).ConfigureAwait(false);
-            await this.ProvisionAsync(serverScopeInfo.Name, provision, false).ConfigureAwait(false);
-
-            var message = $"Upgrade to {newVersion} for scope {serverScopeInfo.Name}.";
-            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
-
-            return newVersion;
-        }
-
-        private async Task<Version> UpgdrateTo095Async(ScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
-               CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
-
-        {
-            var newVersion = new Version(0, 9, 5);
-
-            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Upgrade to {newVersion}:", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-            // get scope info table name
-            var scopeInfoTableName = ParserName.Parse(this.Options.ScopeInfoTableName);
-            var tableName = $"{scopeInfoTableName.Unquoted().Normalized().ToString()}";
-            var historyTableName = $"{tableName}_history";
-
-            var syncTable = new SyncTable(historyTableName);
-            var historyTableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
-
-            var pkeys = await historyTableBuilder.GetPrimaryKeysAsync(connection, transaction).ConfigureAwait(false);
-
-            if (pkeys.Count() == 1)
-            {
-                if (this.Provider.GetProviderTypeName().Contains("Dotmim.Sync.SqlServer.SqlSyncProvider"))
-                {
-                    var commandText = @$"ALTER TABLE dbo.{historyTableName} DROP CONSTRAINT PK_{historyTableName};
-                                        ALTER TABLE dbo.{historyTableName} ADD CONSTRAINT 
-                                        PK_{historyTableName} PRIMARY KEY CLUSTERED (sync_scope_id, sync_scope_name);";
-
-
-                    var command = connection.CreateCommand();
-                    command.CommandText = commandText;
-                    command.Transaction = transaction;
-
-                    await command.ExecuteNonQueryAsync();
-                    await this.InterceptAsync(new UpgradeProgressArgs(context, $"{historyTableName} primary keys updated on SQL Server", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-                }
-
-                if (this.Provider.GetProviderTypeName().Contains("MySqlSyncProvider"))
-                {
-                    var commandText = @$"ALTER TABLE `{historyTableName}` 
-                                        CHANGE COLUMN `sync_scope_name` `sync_scope_name` VARCHAR(100) NOT NULL ,
-                                        DROP PRIMARY KEY,
-                                        ADD PRIMARY KEY (`sync_scope_id`, `sync_scope_name`);";
-
-                    var command = connection.CreateCommand();
-                    command.CommandText = commandText;
-                    command.Transaction = transaction;
-
-                    await command.ExecuteNonQueryAsync();
-                    await this.InterceptAsync(new UpgradeProgressArgs(context, $"{historyTableName} primary keys updated on MySql", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-                }
-
-
-            }
-
-            var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
-            await this.DeprovisionAsync(scopeInfo.Name, provision);
-            // simulate 0.94 scope without scopename in sp
-            await this.DeprovisionAsync(SyncOptions.DefaultScopeName, scopeInfo.Setup, provision);
-            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Deprovision scope {scopeInfo.Name}", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-            await this.ProvisionAsync(scopeInfo.Name, provision, true);
-            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Provision scope {scopeInfo.Name}", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-            return newVersion;
-        }
-
-
-        private async Task<Version> UpgdrateTo096Async(ScopeInfo scopeInfo, SyncContext context, DbConnection connection, DbTransaction transaction,
-             CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
-
-        {
-            var newVersion = new Version(0, 9, 6);
-
-            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Upgrade to {newVersion}:", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-            // get scope info table name
-            var scopeInfoTableName = ParserName.Parse(this.Options.ScopeInfoTableName);
-            var tableName = $"{scopeInfoTableName.Unquoted().Normalized().ToString()}";
-            var historyTableName = $"{tableName}_history";
-
-            var syncTable = new SyncTable(historyTableName);
-            var historyTableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
-
-            if (this.Provider.GetProviderTypeName().Contains("Dotmim.Sync.SqlServer.SqlSyncProvider"))
-            {
-                var commandText = @$"IF NOT EXISTS(SELECT col.name AS name FROM sys.columns as col
-                                        INNER join sys.tables as tbl on tbl.object_id = col.object_id 
-                                        WHERE tbl.name = '{historyTableName}' and col.name = 'scope_properties')
-                                            ALTER TABLE {historyTableName} ADD scope_properties nvarchar(MAX) NULL;";
-
-
-                var command = connection.CreateCommand();
-                command.CommandText = commandText;
-                command.Transaction = transaction;
-
-                await command.ExecuteNonQueryAsync();
-
-                await this.InterceptAsync(new UpgradeProgressArgs(context, $"{historyTableName} primary keys updated on SQL Server", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-            }
-
-            if (this.Provider.GetProviderTypeName().Contains("MySqlSyncProvider"))
-            {
-                var commandText = @$"";
-
-                var command = connection.CreateCommand();
-                command.CommandText = commandText;
-                command.Transaction = transaction;
-
-                await command.ExecuteNonQueryAsync();
-                await this.InterceptAsync(new UpgradeProgressArgs(context, $"{historyTableName} primary keys updated on MySql", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-            }
-
-            var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
-            await this.DeprovisionAsync(scopeInfo.Name, provision);
-            // simulate 0.94 scope without scopename in sp
-            await this.DeprovisionAsync(SyncOptions.DefaultScopeName, scopeInfo.Setup, provision);
-            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Deprovision scope {scopeInfo.Name}", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-            await this.ProvisionAsync(scopeInfo.Name, provision, true);
-            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Provision scope {scopeInfo.Name}", newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-            return newVersion;
-        }
-
 
         private async Task<Version> AutoUpgdrateToNewVersionAsync(ScopeInfo scopeInfo, SyncContext context, Version newVersion, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
