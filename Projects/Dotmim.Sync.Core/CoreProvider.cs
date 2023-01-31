@@ -135,7 +135,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get naming tables
         /// </summary>
-        public abstract (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup = null);
+        public abstract (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup);
 
         /// <summary>
         /// Let a chance to provider to enrich SyncExecption

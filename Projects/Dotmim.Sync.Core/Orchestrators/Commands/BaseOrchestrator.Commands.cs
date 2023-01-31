@@ -33,6 +33,10 @@ namespace Dotmim.Sync
             if (command == null)
                 return (null, false);
 
+            // Command Timeout if set in Options
+            if (this.Options.DbCommandTimeout.HasValue)
+                command.CommandTimeout = Options.DbCommandTimeout.Value;
+
             // Create the key
             var commandKey = $"{connection.DataSource}-{connection.Database}-{syncAdapter.TableDescription.GetFullName()}-{commandType}";
 

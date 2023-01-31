@@ -516,6 +516,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 //entity.Property(e => e.ModifiedDate).HasColumnType("datetime");
 
+
                 if (this.ProviderType == ProviderType.Sql)
                     entity.Property(e => e.ModifiedDate).HasDefaultValueSql("(getdate())");
                 else if (this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
@@ -611,6 +612,7 @@ namespace Dotmim.Sync.Tests.Models
                     .IsUnicode(false);
 
                 entity.Property(e => e.CustomerId).HasColumnName("CustomerID");
+
 
                 //entity.Property(e => e.DueDate).HasColumnType("datetime");
 

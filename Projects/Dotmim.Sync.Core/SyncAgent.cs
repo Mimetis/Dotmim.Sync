@@ -251,14 +251,15 @@ namespace Dotmim.Sync
                 // no need to check on every call to SynchronizeAsync
                 if (!checkUpgradeDone)
                 {
-                    //var (version, scopeInfos) = await this.LocalOrchestrator.GetVersionAsync();
-                    //if (version != null && version < SyncVersion.Current)
-                    //{
-                    //    await this.LocalOrchestrator.InternalUpgradeAsync(context, scopeInfos, version, default, default, cancellationToken, progress).ConfigureAwait(false);
-                    //}
-                    //var needToUpgrade = await this.LocalOrchestrator.NeedsToUpgradeAsync().ConfigureAwait(false);
-                    //if (needToUpgrade)
-                    //    throw new Exception("This version needs a client manual upgrade.");
+                    var needToUpgrade = await this.LocalOrchestrator.NeedsToUpgradeAsync(context).ConfigureAwait(false);
+
+                    if (needToUpgrade)
+                        await this.LocalOrchestrator.InternalUpgradeAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
+
+                    needToUpgrade = await this.RemoteOrchestrator.NeedsToUpgradeAsync(context).ConfigureAwait(false);
+
+                    if (needToUpgrade)
+                        await this.RemoteOrchestrator.InternalUpgradeAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
 
                     checkUpgradeDone = true;
                 }
@@ -474,28 +475,11 @@ namespace Dotmim.Sync
                 if (this.Options.Logger != null)
                     this.Options.Logger.LogError(SyncEventsId.Exception, exception, exception.Message);
 
-                string message = exception is SyncException se && se.BaseMessage != null ? se.BaseMessage : exception.Message;
-                if (this.Options.UseVerboseErrors)
-                {
-                    var innerException = exception.InnerException;
-                    int cpt = 1;
-                    while (innerException != null)
-                    {
-                        message += Environment.NewLine;
-                        var sign = innerException.InnerException != null ? "├" : "└";
-                        message += sign;
+                if (exception is SyncException)
+                    syncException = (SyncException)exception;
+                else
+                    syncException = new SyncException(exception);
 
-                        for (int i = 0; i < cpt; i++)
-                            message += "─";
-
-                        message += $" {innerException.Message}";
-
-                        innerException = innerException.InnerException;
-                        cpt++;
-                    }
-                }
-
-                syncException = new SyncException(exception, message);
                 throw syncException;
             }
             finally

@@ -35,6 +35,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 {
     public abstract partial class TcpTests
     {
+
+        
         /// <summary>
         /// Check if a multi parameters value sync can work. 
         /// With only 1 Setup and multiple parameters values
@@ -175,6 +177,127 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(2, r.TotalChangesDownloadedFromServer);
             }
         }
+
+
+        [Fact]
+        public virtual async Task MultiScopesMigrationWithChangesToUpload()
+        {
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // Deletes all tables in client
+            foreach (var clientProvider in clientsProvider)
+                await clientProvider.DropAllTablesAsync(true);
+
+            // Get tables I need (with or without schema)
+            var productCategoryTable = setup.Tables.First(t => t.TableName == "ProductCategory");
+            var productTable = setup.Tables.First(t => t.TableName == "Product");
+
+            // --------------------------
+            // Step 1: Create a default scope and Sync clients
+            // Note we are not including the [Attribute With Space] column
+
+            var setupV1 = new SyncSetup(productCategoryTable.GetFullName());
+            setupV1.Tables[productCategoryTable.GetFullName()].Columns.AddRange(
+                new string[] { "ProductCategoryId", "ParentProductCategoryId", "Name", "rowguid", "ModifiedDate" });
+
+            int productCategoryRowsCount = 0;
+            using (var readCtx = new AdventureWorksContext(serverProvider))
+                productCategoryRowsCount = readCtx.ProductCategory.AsNoTracking().Count();
+
+            // First sync to initialiaze client database, create table and fill product categories
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var r = await agent.SynchronizeAsync("v1", setupV1);
+
+                Assert.Equal(productCategoryRowsCount, r.TotalChangesDownloadedFromServer);
+            }
+
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+
+            // Adding a new scope on the server with this new column and a new table
+            // Creating a new scope called "v2" on server
+            var setupV2 = new SyncSetup(productCategoryTable.GetFullName(), productTable.GetFullName());
+
+            setupV2.Tables[productCategoryTable.GetFullName()].Columns.AddRange(
+            new string[] { "ProductCategoryId", "ParentProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space" });
+
+            var serverScopeV2 = await remoteOrchestrator.ProvisionAsync("v2", setupV2);
+
+            // Add rows on server
+            await serverProvider.AddProductCategoryAsync();
+            await serverProvider.AddProductAsync();
+
+            HelperDatabase.ClearAllPools();
+
+            // Add this new column on the client, with default value as null
+            var d = 2;
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientProviderType, _) = HelperDatabase.GetDatabaseType(clientProvider);
+
+                // exception on postgres
+                string schema = clientProviderType == ProviderType.Postgres && clientProvider.UseFallbackSchema() ? "SalesLT" : "public";
+
+                var commandText = clientProviderType switch
+                {
+                    ProviderType.Sql => $"ALTER TABLE {productCategoryTable.GetFullName()} ADD [Attribute With Space] nvarchar(250) NULL;",
+                    ProviderType.Sqlite => $"ALTER TABLE {productCategoryTable.TableName} ADD [Attribute With Space] text NULL;",
+                    ProviderType.MySql => $"ALTER TABLE `{productCategoryTable.TableName}` ADD `Attribute With Space` nvarchar(250) NULL;",
+                    ProviderType.MariaDB => $"ALTER TABLE `{productCategoryTable.TableName}` ADD `Attribute With Space` nvarchar(250) NULL;",
+                    ProviderType.Postgres => $"ALTER TABLE \"{schema}\".\"{productCategoryTable.TableName}\" ADD \"Attribute With Space\" character varying(250) NULL;",
+                    _ => throw new NotImplementedException()
+                };
+
+                var connection = clientProvider.CreateConnection();
+
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = commandText;
+                command.Connection = connection;
+                await command.ExecuteNonQueryAsync();
+
+                connection.Close();
+
+                // Creating a new table is quite easier since DMS can do it for us
+                // Get scope from server (v1 because it contains the new table schema)
+                // we already have it, but you cand call GetServerScopInfoAsync("v1") if needed
+                // var serverScope = await remoteOrchestrator.GetScopeInfoAsync("v1");
+
+                var localOrchestrator = new LocalOrchestrator(clientProvider);
+                await localOrchestrator.CreateTableAsync(serverScopeV2, productTable.TableName, string.IsNullOrEmpty(productTable.SchemaName) ? null : productTable.SchemaName);
+
+                HelperDatabase.ClearAllPools();
+
+                // Once created we can provision the new scope, thanks to the serverScope instance we already have
+                var clientScopeV1 = await localOrchestrator.ProvisionAsync(serverScopeV2);
+                var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync("v2");
+
+                // Add rows on Client before updating scopes
+                await clientProvider.AddProductCategoryAsync();
+                await clientProvider.AddProductAsync();
+
+                // IF we launch synchronize on this new scope, it will get all the rows from the server
+                // We are making a shadow copy of previous scope to get the last synchronization metadata
+                var oldCScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync("v1");
+                cScopeInfoClient.ShadowScope(oldCScopeInfoClient);
+                await localOrchestrator.SaveScopeInfoClientAsync(cScopeInfoClient);
+
+                // We are ready to sync this new scope !
+                var agent = new SyncAgent(clientProvider, serverProvider);
+                var r = await agent.SynchronizeAsync("v2");
+
+                Assert.Equal(2, r.TotalChangesUploadedToServer);
+                Assert.Equal(2, r.TotalChangesAppliedOnServer);
+
+                Assert.Equal(d, r.TotalChangesDownloadedFromServer);
+                Assert.Equal(d, r.TotalChangesAppliedOnClient);
+                d += 2;
+            }
+        }
+
+
 
         [Fact]
         public virtual async Task AddingOneColumnInOneTableUsingTwoScopesButOneClientStillOnOldScopeAndOneClientOnNewScope()

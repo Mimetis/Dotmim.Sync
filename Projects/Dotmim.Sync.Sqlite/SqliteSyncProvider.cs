@@ -5,8 +5,6 @@ using System.Data.Common;
 using Microsoft.Data.Sqlite;
 using System.IO;
 using Dotmim.Sync.Sqlite.Builders;
-using SQLitePCL;
-using System.Reflection;
 using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.Sqlite
@@ -105,6 +103,22 @@ namespace Dotmim.Sync.Sqlite
                 this.builder = new SqliteConnectionStringBuilder(value);
             }
         }
+
+        /// <summary>
+        /// Gets a chance to make a retry if the error is a transient error
+        /// </summary>
+        public override bool ShouldRetryOn(Exception exception)
+        {
+            Exception ex = exception;
+            while (ex != null)
+            {
+                if (ex is SqliteException)
+                    return SqliteTransientExceptionDetector.ShouldRetryOn((SqliteException)ex);
+                else
+                    ex = ex.InnerException;
+            }
+            return false;
+        }
         public SqliteSyncProvider(string filePath) : this()
         {
             if (filePath.ToLowerInvariant().StartsWith("data source"))
@@ -191,8 +205,8 @@ namespace Dotmim.Sync.Sqlite
             string tableAndPrefixName = tableDescription.TableName;
             var originalTableName = ParserName.Parse(tableDescription);
 
-            var pref = setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : "";
-            var suf = setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : "";
+            var pref = setup != null && setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : "";
+            var suf = setup != null && setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : "";
 
             // be sure, at least, we have a suffix if we have empty values. 
             // othewise, we have the same name for both table and tracking table

@@ -337,10 +337,6 @@ namespace Dotmim.Sync
                 if (action.Cancel || action.Command == null)
                     return (context, false);
 
-                // Parametrized command timeout established if exist
-                if (Options.DbCommandTimeout.HasValue)
-                    action.Command.CommandTimeout = Options.DbCommandTimeout.Value;
-
                 await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 await action.Command.ExecuteNonQueryAsync();
@@ -430,10 +426,6 @@ namespace Dotmim.Sync
                 if (action.Cancel || action.Command == null)
                     return (context, false);
 
-                // Parametrized command timeout established if exist
-                if (Options.DbCommandTimeout.HasValue)
-                    action.Command.CommandTimeout = Options.DbCommandTimeout.Value;
-
                 await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 await action.Command.ExecuteNonQueryAsync();
@@ -507,10 +499,6 @@ namespace Dotmim.Sync
 
                 if (existsCommand == null)
                     return (context, false);
-
-                // Parametrized command timeout established if exist
-                if (Options.DbCommandTimeout.HasValue)
-                    existsCommand.CommandTimeout = Options.DbCommandTimeout.Value;
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 

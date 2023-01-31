@@ -23,6 +23,8 @@ namespace Dotmim.Sync
             InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, ClientSyncChanges clientChanges,
             DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
+
+
             try
             {
                 if (Provider == null)
@@ -51,135 +53,148 @@ namespace Dotmim.Sync
                 // Previous sync errors
                 BatchInfo lastSyncErrorsBatchInfo = null;
 
-                try
+                // If we have a transient error happening, and we are rerunning the tranaction,
+                // raising an interceptor
+                var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
+                    this.InterceptAsync(new TransientErrorOccuredArgs(context, connection, ex, cpt, ts), progress, cancellationToken));
+
+                // Defining my retry policy
+                SyncPolicy retryPolicy = Options.TransactionMode == TransactionMode.AllOrNothing
+                 ? retryPolicy = SyncPolicy.WaitAndRetryForever(retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry)
+                 : retryPolicy = SyncPolicy.WaitAndRetry(0, TimeSpan.Zero);
+
+                await retryPolicy.ExecuteAsync(async () =>
                 {
-                    // Should we ?
-                    if (cScopeInfo == null || cScopeInfo.Schema == null)
-                        throw new MissingRemoteOrchestratorSchemaException();
-
-                    // Deserialiaze schema
-                    var schema = cScopeInfo.Schema;
-
-                    // Transaction mode
-                    if (Options.TransactionMode == TransactionMode.AllOrNothing)
+                    try
                     {
-                        runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ChangesApplying,
-                            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        // Should we ?
+                        if (cScopeInfo == null || cScopeInfo.Schema == null)
+                            throw new MissingRemoteOrchestratorSchemaException();
 
-                        connection = runner.Connection;
-                        transaction = runner.Transaction;
-                        cancellationToken = runner.CancellationToken;
-                        progress = runner.Progress;
-                    }
+                        // Deserialiaze schema
+                        var schema = cScopeInfo.Schema;
 
-                    // Create message containing everything we need to apply on server side
-                    var applyChanges = new MessageApplyChanges(Guid.Empty, cScopeInfoClient.Id, false, cScopeInfoClient.LastServerSyncTimestamp, schema,
-                        this.Options.ConflictResolutionPolicy, false, this.Options.BatchDirectory, clientChanges.ClientBatchInfo, failedRows, serverChangesApplied);
-
-                    // call interceptor
-                    var databaseChangesApplyingArgs = new DatabaseChangesApplyingArgs(context, applyChanges, connection, transaction);
-                    await this.InterceptAsync(databaseChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
-
-                    ScopeInfoClient sScopeInfoClient = null;
-                    // Get scope info client from server, to get errors if any
-                    await using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading,
-                        connection, transaction, cancellationToken, progress).ConfigureAwait(false))
-                    {
-                        (context, sScopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context,
-                            runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
-                    }
-
-                    // Getting errors batch info path, saved in scope_info_client table
-                    if (sScopeInfoClient != null && !string.IsNullOrEmpty(sScopeInfoClient.Errors))
-                    {
-                        try
+                        // Transaction mode
+                        if (Options.TransactionMode == TransactionMode.AllOrNothing)
                         {
-                            lastSyncErrorsBatchInfo = !string.IsNullOrEmpty(sScopeInfoClient.Errors) ? JsonConvert.DeserializeObject<BatchInfo>(sScopeInfoClient.Errors) : null;
+                            runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ChangesApplying,
+                                connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                            connection = runner.Connection;
+                            transaction = runner.Transaction;
+                            cancellationToken = runner.CancellationToken;
+                            progress = runner.Progress;
                         }
-                        catch (Exception) { }
-                    }
 
-                    //------------------------------------------------------------
-                    // STEP 1: Remove errors that are part of batch info, then Try to reapply previous errors from last sync, if any
-                    //------------------------------------------------------------
+                        // Create message containing everything we need to apply on server side
+                        var applyChanges = new MessageApplyChanges(Guid.Empty, cScopeInfoClient.Id, false, cScopeInfoClient.LastServerSyncTimestamp, schema,
+                            this.Options.ConflictResolutionPolicy, false, this.Options.BatchDirectory, clientChanges.ClientBatchInfo, failedRows, serverChangesApplied);
 
+                        // call interceptor
+                        var databaseChangesApplyingArgs = new DatabaseChangesApplyingArgs(context, applyChanges, connection, transaction);
+                        await this.InterceptAsync(databaseChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
 
-                    // If we have existing errors happened last sync, we should try to apply them now
-                    if (lastSyncErrorsBatchInfo != null && lastSyncErrorsBatchInfo.HasData())
-                    {
-                        // Try to clean errors
+                        ScopeInfoClient sScopeInfoClient = null;
+                        // Get scope info client from server, to get errors if any
+                        await using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading,
+                            connection, transaction, cancellationToken, progress).ConfigureAwait(false))
+                        {
+                            (context, sScopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context,
+                                runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
+                        }
+
+                        // Getting errors batch info path, saved in scope_info_client table
+                        if (sScopeInfoClient != null && !string.IsNullOrEmpty(sScopeInfoClient.Errors))
+                        {
+                            try
+                            {
+                                lastSyncErrorsBatchInfo = !string.IsNullOrEmpty(sScopeInfoClient.Errors) ? JsonConvert.DeserializeObject<BatchInfo>(sScopeInfoClient.Errors) : null;
+                            }
+                            catch (Exception) { }
+                        }
+
+                        //------------------------------------------------------------
+                        // STEP 1: Remove errors that are part of batch info, then Try to reapply previous errors from last sync, if any
+                        //------------------------------------------------------------
+
+                        // If we have existing errors happened last sync, we should try to apply them now
+                        if (lastSyncErrorsBatchInfo != null && lastSyncErrorsBatchInfo.HasData())
+                        {
+                            // Try to clean errors
+                            applyChanges.Changes = clientChanges.ClientBatchInfo;
+                            await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, lastSyncErrorsBatchInfo, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                            // Call apply errors on provider
+                            applyChanges.Changes = lastSyncErrorsBatchInfo;
+                            failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        }
+
+                        if (failureException != null)
+                            throw failureException;
+
+                        //------------------------------------------------------------
+                        // STEP 2: Try to apply changes coming from client, if any
+                        //------------------------------------------------------------
                         applyChanges.Changes = clientChanges.ClientBatchInfo;
-                        await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, lastSyncErrorsBatchInfo, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                        // Call apply errors on provider
-                        applyChanges.Changes = lastSyncErrorsBatchInfo;
-                        failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
-
-                    if (failureException != null)
-                        throw failureException;
-
-                    //------------------------------------------------------------
-                    // STEP 2: Try to apply changes coming from client, if any
-                    //------------------------------------------------------------
-                    applyChanges.Changes = clientChanges.ClientBatchInfo;
-
-                    if (clientChanges.ClientBatchInfo != null && clientChanges.ClientBatchInfo.HasData())
-                    {
-                        // Call provider to apply changes
-                        failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    }
-
-                    if (failureException != null)
-                        throw failureException;
-
-                    // Write failed rows to disk
-                    if (failedRows.Tables.Any(st => st.HasRows))
-                    {
-                        string info = runner?.Connection != null && !string.IsNullOrEmpty(runner?.Connection.Database) ? $"{runner?.Connection.Database}_ERRORS" : "ERRORS";
-                        errorsBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
-
-                        int batchIndex = 0;
-                        foreach (var table in failedRows.Tables)
+                        if (clientChanges.ClientBatchInfo != null && clientChanges.ClientBatchInfo.HasData())
                         {
-                            if (!table.HasRows)
-                                continue;
-
-                            var localSerializer = new LocalJsonSerializer(this, context);
-
-                            var (filePath, fileName) = errorsBatchInfo.GetNewBatchPartInfoPath(table, batchIndex, "json", info);
-                            var batchPartInfo = new BatchPartInfo(fileName, table.TableName, table.SchemaName, SyncRowState.None, table.Rows.Count, batchIndex);
-                            errorsBatchInfo.BatchPartsInfo.Add(batchPartInfo);
-
-                            localSerializer.OpenFile(filePath, table, SyncRowState.None);
-
-                            foreach (var row in table.Rows)
-                                await localSerializer.WriteRowToFileAsync(row, table).ConfigureAwait(false);
-
-                            localSerializer.CloseFile();
-                            batchIndex++;
+                            // Call provider to apply changes
+                            failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                         }
 
-                        failedRows.Dispose();
+                        if (failureException != null)
+                            throw failureException;
+
+                        // Write failed rows to disk
+                        if (failedRows.Tables.Any(st => st.HasRows))
+                        {
+                            string info = runner?.Connection != null && !string.IsNullOrEmpty(runner?.Connection.Database) ? $"{runner?.Connection.Database}_ERRORS" : "ERRORS";
+                            errorsBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
+
+                            int batchIndex = 0;
+                            foreach (var table in failedRows.Tables)
+                            {
+                                if (!table.HasRows)
+                                    continue;
+
+                                var localSerializer = new LocalJsonSerializer(this, context);
+
+                                var (filePath, fileName) = errorsBatchInfo.GetNewBatchPartInfoPath(table, batchIndex, "json", info);
+                                var batchPartInfo = new BatchPartInfo(fileName, table.TableName, table.SchemaName, SyncRowState.None, table.Rows.Count, batchIndex);
+                                errorsBatchInfo.BatchPartsInfo.Add(batchPartInfo);
+
+                                localSerializer.OpenFile(filePath, table, SyncRowState.None);
+
+                                foreach (var row in table.Rows)
+                                    await localSerializer.WriteRowToFileAsync(row, table).ConfigureAwait(false);
+
+                                localSerializer.CloseFile();
+                                batchIndex++;
+                            }
+
+                            failedRows.Dispose();
+                        }
+
+
+                        var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, serverChangesApplied, connection, transaction);
+                        await this.InterceptAsync(databaseChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                        if (Options.TransactionMode == TransactionMode.AllOrNothing && runner != null)
+                            await runner.CommitAsync().ConfigureAwait(false);
+
                     }
-
-
-                    var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, serverChangesApplied, connection, transaction);
-                    await this.InterceptAsync(databaseChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
-
-                    if (Options.TransactionMode == TransactionMode.AllOrNothing && runner != null)
-                        await runner.CommitAsync().ConfigureAwait(false);
-
-                }
-                catch (Exception ex)
-                {
-                    if (runner != null)
+                    catch (Exception ex)
                     {
-                        await runner.RollbackAsync().ConfigureAwait(false);
-                        await runner.DisposeAsync().ConfigureAwait(false);
+                        if (runner != null)
+                        {
+                            await runner.RollbackAsync($"InternalApplyThenGetChangesAsync during apply changes Rollback. Error:{ex.Message}").ConfigureAwait(false);
+                            await runner.DisposeAsync().ConfigureAwait(false);
+                        }
+                        throw GetSyncError(context, ex);
                     }
-                    throw GetSyncError(context, ex);
-                }
+
+                });
 
                 try
                 {
@@ -221,7 +236,7 @@ namespace Dotmim.Sync
                     // When we get the chnages from server, we create the batches if it's requested by the client
                     // the batch decision comes from batchsize from client
                     serverChangesSelected = await this.InternalGetChangesAsync(cScopeInfo, context, fromScratch, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp, cScopeInfoClient.Id,
-                        this.Provider.SupportsMultipleActiveResultSets, serverBatchInfo, 
+                        this.Provider.SupportsMultipleActiveResultSets, serverBatchInfo,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     if (runner.CancellationToken.IsCancellationRequested)
@@ -264,7 +279,7 @@ namespace Dotmim.Sync
                 catch (Exception ex)
                 {
                     if (runner != null)
-                        await runner.RollbackAsync().ConfigureAwait(false);
+                        await runner.RollbackAsync($"InternalApplyChangesAsync Rollback during getchanges. Error:{ex.Message}").ConfigureAwait(false);
 
                     throw GetSyncError(context, ex);
                 }

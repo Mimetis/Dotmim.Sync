@@ -77,10 +77,6 @@ namespace Dotmim.Sync
                 if (action.Cancel || action.Command == null)
                     return (context, 0L);
 
-                // Parametrized command timeout established if exist
-                if (this.Options.DbCommandTimeout.HasValue)
-                    action.Command.CommandTimeout = this.Options.DbCommandTimeout.Value;
-
                 await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                 long result = Convert.ToInt64(await action.Command.ExecuteScalarAsync().ConfigureAwait(false));
