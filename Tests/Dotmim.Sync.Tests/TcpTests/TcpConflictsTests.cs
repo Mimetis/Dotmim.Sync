@@ -15,6 +15,7 @@ using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 #if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
 using MySqlConnector;
@@ -1183,108 +1184,679 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-        //[Theory]
-        //[ClassData(typeof(SyncOptionsData))]
-        //public virtual async Task Error_ForeignKey_OnSameTable_RetryOnNextSync(SyncOptions options)
-        //{
-        //    // create a server schema without seeding
-        //    await this.EnsureDatabaseSchemaAndSeedAsync(serverProvider, false, UseFallbackSchema);
+        //// ------------------------------------------------------------------------
+        //// Transient Errors
+        //// ------------------------------------------------------------------------
 
-        //    await Generate_ForeignKeyError();
 
-        //    foreach (var clientProvider in clientsProvider)
-        //    {
-        //        // Get a random directory to be sure we are not conflicting with another test
-        //        var directoryName = HelperDatabase.GetRandomName();
-        //        options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectoryName(), directoryName);
+        private void HookExceptionToTransient(Exception ex, ProviderType providerType)
+        {
+            if (providerType == ProviderType.Sql)
+            {
+                var exception = ex as SqlException;
+                var error = exception.Errors[0];
+                var errorType = typeof(SqlError);
+                var errorNumber = errorType.GetField("_number", BindingFlags.Default | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                errorNumber.SetValue(error, 64);
+            }
+            if (providerType == ProviderType.Sqlite)
+            {
+                var exception = ex as SqliteException;
+                var errorType = typeof(SqliteException);
+                var errorNumber = errorType.GetRuntimeFields().FirstOrDefault(f => f.Name.Contains("SqliteErrorCode"));
+                errorNumber.SetValue(exception, 11);
 
-        //        // create empty client databases
-        //        await this.EnsureDatabaseSchemaAndSeedAsync(client, false, UseFallbackSchema);
+            }
+        }
 
-        //        // Disable bulk operations to generate the fk constraint failure
-        //        clientProvider.UseBulkOperations = false;
+        [Fact]
+        public virtual async Task ErrorTransientOnServerWithoutTransactionShouldWork()
+        {
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
 
-        //        var agent = new SyncAgent(clientProvider, serverProvider, options);
+            if (serverProviderType != ProviderType.Sql)
+                return;
 
-        //        // Generate the foreignkey error
-        //        agent.LocalOrchestrator.OnRowsChangesApplying(args =>
-        //        {
-        //            if (args.SyncRows == null || args.SyncRows.Count <= 0)
-        //                return;
-        //            var row = args.SyncRows[0];
-        //            if (row["ParentProductCategoryId"] != null && row["ParentProductCategoryId"].ToString() == "ZZZZ")
-        //                row["ParentProductCategoryId"] = "BBBBB";
-        //        });
+            var options = new SyncOptions
+            {
+                DisableConstraintsOnApplyChanges = true,
+                TransactionMode = TransactionMode.None
+            };
 
-        //        agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
-        //        {
-        //            // Continue On Error
-        //            args.Resolution = ErrorResolution.RetryOnNextSync;
-        //            Assert.NotNull(args.Exception);
-        //            Assert.NotNull(args.ErrorRow);
-        //            Assert.NotNull(args.SchemaTable);
-        //            Assert.Equal(SyncRowState.Modified, args.ApplyType);
-        //        });
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-        //        var s = await agent.SynchronizeAsync(setup);
+            var upload = 0;
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
-        //        // Download 2 rows
-        //        // But applied only 1
-        //        // The other one is a failed inserted row
-        //        Assert.Equal(2, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(1, s.TotalChangesAppliedOnClient);
-        //        Assert.Equal(1, s.TotalChangesFailedToApplyOnClient);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
+                // Adding one row
+                var str = HelperDatabase.GetRandomName().ToUpper()[..9];
+                await clientProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
 
-        //        var batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-        //        Assert.NotNull(batchInfos);
-        //        Assert.Single(batchInfos);
-        //        Assert.Single(batchInfos[0].BatchPartsInfo);
-        //        Assert.Contains("ERRORS", batchInfos[0].BatchPartsInfo[0].FileName);
-        //        Assert.Equal("ProductCategory", batchInfos[0].BatchPartsInfo[0].TableName);
+                var transientErrorHappened = false;
+                string commandText = null;
+                agent.RemoteOrchestrator.OnTransientErrorOccured(args =>
+                {
+                    transientErrorHappened = true;
+                });
 
-        //        var batchInfo = batchInfos[0];
+                // generating a transient error
+                agent.RemoteOrchestrator.OnRowsChangesApplying(args =>
+                {
+                    if (!transientErrorHappened)
+                    {
+                        commandText = args.Command.CommandText;
+                        args.Command.CommandText = "spNonExistantProcedure";
+                    }
+                });
 
-        //        var syncTables = agent.LocalOrchestrator.LoadTablesFromBatchInfo(batchInfo);
+                agent.RemoteOrchestrator.OnRowsChangesApplied(args =>
+                {
+                    if (args.Exception == null)
+                        return;
 
-        //        foreach (var syncTable in syncTables)
-        //        {
-        //            Assert.Equal("ProductCategory", syncTable.TableName);
-        //            Assert.True(syncTable.HasRows);
+                    HookExceptionToTransient(args.Exception, serverProviderType);
+                });
 
-        //            Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
-        //        }
 
-        //        // clear interceptors
-        //        agent.LocalOrchestrator.ClearInterceptors();
+                var r = await agent.SynchronizeAsync(setup);
+                Assert.Equal(1, r.TotalChangesUploadedToServer);
+                Assert.Equal(1, r.TotalChangesAppliedOnServer);
+                Assert.Equal(upload, r.TotalChangesDownloadedFromServer);
+                Assert.Equal(upload, r.TotalChangesAppliedOnClient);
+                upload++;
+                Assert.True(transientErrorHappened);
+            }
+        }
 
-        //        // Resolve the conflict
-        //        agent.LocalOrchestrator.OnRowsChangesApplying(args =>
-        //        {
-        //            if (args.SyncRows == null || args.SyncRows.Count <= 0)
-        //                return;
-        //            var row = args.SyncRows[0];
+        [Fact]
+        public virtual async Task ErrorTransientOnServerOnFullTransactionShouldWork()
+        {
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
 
-        //            if (row["ParentProductCategoryId"] != null && row["ParentProductCategoryId"].ToString() == "BBBBB")
-        //                row["ParentProductCategoryId"] = "ZZZZ";
+            if (serverProviderType != ProviderType.Sql)
+                return;
 
-        //        });
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
-        //        s = await agent.SynchronizeAsync(setup);
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-        //        Assert.Equal(0, s.TotalChangesDownloadedFromServer);
-        //        Assert.Equal(0, s.TotalChangesUploadedToServer);
-        //        Assert.Equal(1, s.TotalChangesAppliedOnClient);
-        //        Assert.Equal(0, s.TotalChangesFailedToApplyOnClient);
-        //        Assert.Equal(0, s.TotalResolvedConflicts);
+            var upload = 0;
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
-        //        batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
+                // Adding one row
+                var str = HelperDatabase.GetRandomName().ToUpper()[..9];
+                await clientProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
 
-        //        Assert.Empty(batchInfos);
-        //    }
-        //}
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                var transientErrorHappened = false;
+                string commandText = null;
+                agent.RemoteOrchestrator.OnTransientErrorOccured(args =>
+                {
+                    transientErrorHappened = true;
+                });
+
+                // generating a transient error
+                agent.RemoteOrchestrator.OnRowsChangesApplying(args =>
+                {
+                    if (!transientErrorHappened)
+                    {
+                        commandText = args.Command.CommandText;
+                        args.Command.CommandText = "spNonExistantProcedure";
+                    }
+                });
+
+                agent.RemoteOrchestrator.OnRowsChangesApplied(args =>
+                {
+                    if (args.Exception == null)
+                        return;
+
+                    HookExceptionToTransient(args.Exception, serverProviderType);
+                });
+
+
+                var r = await agent.SynchronizeAsync(setup);
+                Assert.Equal(1, r.TotalChangesUploadedToServer);
+                Assert.Equal(1, r.TotalChangesAppliedOnServer);
+                Assert.Equal(upload, r.TotalChangesDownloadedFromServer);
+                Assert.Equal(upload, r.TotalChangesAppliedOnClient);
+                upload++;
+                Assert.True(transientErrorHappened);
+            }
+        }
+
+        [Fact]
+        public virtual async Task ErrorTransientOnServerOnBatchTransactionShouldWork()
+        {
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+
+            if (serverProviderType != ProviderType.Sql)
+                return;
+
+            var options = new SyncOptions
+            {
+                DisableConstraintsOnApplyChanges = true,
+                TransactionMode = TransactionMode.PerBatch
+            };
+
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            var upload = 0;
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+
+                // Adding one row
+                var str = HelperDatabase.GetRandomName().ToUpper()[..9];
+                await clientProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
+
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                var transientErrorHappened = false;
+                string commandText = null;
+                agent.RemoteOrchestrator.OnTransientErrorOccured(args =>
+                {
+                    transientErrorHappened = true;
+                });
+
+                // generating a transient error
+                agent.RemoteOrchestrator.OnRowsChangesApplying(args =>
+                {
+                    if (!transientErrorHappened)
+                    {
+                        commandText = args.Command.CommandText;
+                        args.Command.CommandText = "spNonExistantProcedure";
+                    }
+                });
+
+                agent.RemoteOrchestrator.OnRowsChangesApplied(args =>
+                {
+                    if (args.Exception == null)
+                        return;
+
+                    HookExceptionToTransient(args.Exception, serverProviderType);
+                });
+
+
+                var r = await agent.SynchronizeAsync(setup);
+                Assert.Equal(1, r.TotalChangesUploadedToServer);
+                Assert.Equal(1, r.TotalChangesAppliedOnServer);
+                Assert.Equal(upload, r.TotalChangesDownloadedFromServer);
+                Assert.Equal(upload, r.TotalChangesAppliedOnClient);
+                upload++;
+                Assert.True(transientErrorHappened);
+            }
+        }
+
+        [Fact]
+        public virtual async Task ErrorTransientOnServerOnFullTransactionLineByLineShouldWork()
+        {
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+
+            if (serverProviderType != ProviderType.Sql)
+                return;
+
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            var upload = 0;
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+
+                // Adding one row
+                var str = HelperDatabase.GetRandomName().ToUpper()[..9];
+                await clientProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
+
+                // Disabling bulk operations
+                serverProvider.UseBulkOperations = false;
+
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                var transientErrorHappened = false;
+                string commandText = null;
+                agent.RemoteOrchestrator.OnTransientErrorOccured(args =>
+                {
+                    transientErrorHappened = true;
+                });
+
+                // generating a transient error
+                agent.RemoteOrchestrator.OnRowsChangesApplying(args =>
+                {
+                    if (!transientErrorHappened)
+                    {
+                        commandText = args.Command.CommandText;
+                        args.Command.CommandText = "spNonExistantProcedure";
+                    }
+                });
+
+                agent.RemoteOrchestrator.OnRowsChangesApplied(args =>
+                {
+                    if (args.Exception == null)
+                        return;
+                    HookExceptionToTransient(args.Exception, serverProviderType);
+                });
+
+
+                var r = await agent.SynchronizeAsync(setup);
+                Assert.Equal(1, r.TotalChangesUploadedToServer);
+                Assert.Equal(1, r.TotalChangesAppliedOnServer);
+                Assert.Equal(upload, r.TotalChangesDownloadedFromServer);
+                Assert.Equal(upload, r.TotalChangesAppliedOnClient);
+                upload++;
+                Assert.True(transientErrorHappened);
+            }
+        }
+
+        [Fact]
+        public virtual async Task ErrorTransientOnServerOnBatchTransactionLineByLineShouldWork()
+        {
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+
+            if (serverProviderType != ProviderType.Sql)
+                return;
+
+            var options = new SyncOptions
+            {
+                DisableConstraintsOnApplyChanges = true,
+                TransactionMode = TransactionMode.PerBatch
+            };
+
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            var download = 0;
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+
+                // Adding 10 rows
+                await clientProvider.AddProductCategoryAsync();
+                await clientProvider.AddProductCategoryAsync();
+                await clientProvider.AddProductCategoryAsync();
+                await clientProvider.AddProductCategoryAsync();
+                await clientProvider.AddProductCategoryAsync();
+                await clientProvider.AddProductCategoryAsync();
+                await clientProvider.AddProductCategoryAsync();
+                await clientProvider.AddProductCategoryAsync();
+                await clientProvider.AddProductCategoryAsync();
+                await clientProvider.AddProductCategoryAsync();
+
+                // Disabling bulk operations
+                serverProvider.UseBulkOperations = false;
+
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                var transientErrorHappened = false;
+                string commandText = null;
+                int transientErrorsCount = 0;
+                int applyingCount = 0;
+                agent.RemoteOrchestrator.OnTransientErrorOccured(args =>
+                {
+                    transientErrorsCount++;
+                    transientErrorHappened = true;
+                });
+
+                // generating a transient error
+                agent.RemoteOrchestrator.OnRowsChangesApplying(args =>
+                {
+                    applyingCount++;
+
+                    // simulate a transient error on the second apply
+                    if (applyingCount == 2 && !transientErrorHappened)
+                    {
+                        commandText = args.Command.CommandText;
+                        args.Command.CommandText = "spNonExistantProcedure";
+                    }
+                });
+
+                agent.RemoteOrchestrator.OnRowsChangesApplied(args =>
+                {
+                    if (args.Exception == null)
+                        return;
+
+                    HookExceptionToTransient(args.Exception, serverProviderType);
+                });
+
+
+                var r = await agent.SynchronizeAsync(setup);
+                Assert.Equal(10, r.TotalChangesUploadedToServer);
+                Assert.Equal(10, r.TotalChangesAppliedOnServer);
+                Assert.Equal(download, r.TotalChangesDownloadedFromServer);
+                Assert.Equal(download, r.TotalChangesAppliedOnClient);
+                download += 10;
+                Assert.True(transientErrorHappened);
+            }
+        }
+
+        [Fact]
+        public virtual async Task ErrorTransientOnClientWithoutTransactionShouldWork()
+        {
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+
+            if (serverProviderType != ProviderType.Sql)
+                return;
+
+            var options = new SyncOptions { 
+                DisableConstraintsOnApplyChanges = true,
+                TransactionMode = TransactionMode.None
+            };
+
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Adding one row
+            await serverProvider.AddProductCategoryAsync();
+
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                var transientErrorHappened = false;
+                string commandText = null;
+
+                agent.LocalOrchestrator.OnTransientErrorOccured(args =>
+                {
+                    transientErrorHappened = true;
+                });
+
+                // generating a transient error
+                agent.LocalOrchestrator.OnRowsChangesApplying(args =>
+                {
+                    if (!transientErrorHappened)
+                    {
+                        commandText = args.Command.CommandText;
+                        args.Command.CommandText = "spNonExistantProcedure";
+                    }
+                });
+
+                agent.LocalOrchestrator.OnRowsChangesApplied(args =>
+                {
+                    if (args.Exception == null)
+                        return;
+
+                    HookExceptionToTransient(args.Exception, clientProviderType);
+                });
+
+
+                var r = await agent.SynchronizeAsync(setup);
+                Assert.Equal(0, r.TotalChangesUploadedToServer);
+                Assert.Equal(0, r.TotalChangesAppliedOnServer);
+                Assert.Equal(1, r.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, r.TotalChangesAppliedOnClient);
+                Assert.True(transientErrorHappened);
+            }
+        }
+
+        [Fact]
+        public virtual async Task ErrorTransientOnClientOnFullTransactionShouldWork()
+        {
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+
+            if (serverProviderType != ProviderType.Sql)
+                return;
+
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Adding one row
+            await serverProvider.AddProductCategoryAsync();
+
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                var transientErrorHappened = false;
+                string commandText = null;
+
+                agent.LocalOrchestrator.OnTransientErrorOccured(args =>
+                {
+                    transientErrorHappened = true;
+                });
+
+                // generating a transient error
+                agent.LocalOrchestrator.OnRowsChangesApplying(args =>
+                {
+                    if (!transientErrorHappened)
+                    {
+                        commandText = args.Command.CommandText;
+                        args.Command.CommandText = "spNonExistantProcedure";
+                    }
+                });
+
+                agent.LocalOrchestrator.OnRowsChangesApplied(args =>
+                {
+                    if (args.Exception == null)
+                        return;
+
+                    HookExceptionToTransient(args.Exception, clientProviderType);
+                });
+
+
+                var r = await agent.SynchronizeAsync(setup);
+                Assert.Equal(0, r.TotalChangesUploadedToServer);
+                Assert.Equal(0, r.TotalChangesAppliedOnServer);
+                Assert.Equal(1, r.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, r.TotalChangesAppliedOnClient);
+                Assert.True(transientErrorHappened);
+            }
+        }
+
+        [Fact]
+        public virtual async Task ErrorTransientOnClientOnBatchTransactionShouldWork()
+        {
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+
+            if (serverProviderType != ProviderType.Sql)
+                return;
+
+            var options = new SyncOptions
+            {
+                DisableConstraintsOnApplyChanges = true,
+                TransactionMode = TransactionMode.PerBatch
+            };
+
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Adding one row
+            await serverProvider.AddProductCategoryAsync();
+
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                var transientErrorHappened = false;
+                string commandText = null;
+
+                agent.LocalOrchestrator.OnTransientErrorOccured(args =>
+                {
+                    transientErrorHappened = true;
+                });
+
+                // generating a transient error
+                agent.LocalOrchestrator.OnRowsChangesApplying(args =>
+                {
+                    if (!transientErrorHappened)
+                    {
+                        commandText = args.Command.CommandText;
+                        args.Command.CommandText = "spNonExistantProcedure";
+                    }
+                });
+
+                agent.LocalOrchestrator.OnRowsChangesApplied(args =>
+                {
+                    if (args.Exception == null)
+                        return;
+
+                    HookExceptionToTransient(args.Exception, clientProviderType);
+                });
+
+
+                var r = await agent.SynchronizeAsync(setup);
+                Assert.Equal(0, r.TotalChangesUploadedToServer);
+                Assert.Equal(0, r.TotalChangesAppliedOnServer);
+                Assert.Equal(1, r.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, r.TotalChangesAppliedOnClient);
+                Assert.True(transientErrorHappened);
+            }
+        }
+
+        [Fact]
+        public virtual async Task ErrorTransientOnClientOnFullTransactionLineByLineShouldWork()
+        {
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+
+            if (serverProviderType != ProviderType.Sql)
+                return;
+
+            var options = new SyncOptions
+            {
+                DisableConstraintsOnApplyChanges = true,
+            };
+
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Adding one row
+            await serverProvider.AddProductCategoryAsync();
+
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+
+                // disable bulk operation
+                clientProvider.UseBulkOperations = false;
+
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                var transientErrorHappened = false;
+                string commandText = null;
+
+                agent.LocalOrchestrator.OnTransientErrorOccured(args =>
+                {
+                    transientErrorHappened = true;
+                });
+
+                // generating a transient error
+                agent.LocalOrchestrator.OnRowsChangesApplying(args =>
+                {
+                    if (!transientErrorHappened)
+                    {
+                        commandText = args.Command.CommandText;
+                        args.Command.CommandText = "spNonExistantProcedure";
+                    }
+                });
+
+                agent.LocalOrchestrator.OnRowsChangesApplied(args =>
+                {
+                    if (args.Exception == null)
+                        return;
+
+                    HookExceptionToTransient(args.Exception, clientProviderType);
+                });
+
+
+                var r = await agent.SynchronizeAsync(setup);
+                Assert.Equal(0, r.TotalChangesUploadedToServer);
+                Assert.Equal(0, r.TotalChangesAppliedOnServer);
+                Assert.Equal(1, r.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, r.TotalChangesAppliedOnClient);
+                Assert.True(transientErrorHappened);
+            }
+        }
+
+        [Fact]
+        public virtual async Task ErrorTransientOnClientOnBatchTransactionLineByLineShouldWork()
+        {
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+
+            if (serverProviderType != ProviderType.Sql)
+                return;
+
+            var options = new SyncOptions
+            {
+                DisableConstraintsOnApplyChanges = true,
+                TransactionMode = TransactionMode.PerBatch
+            };
+
+            // make a first sync to init the two databases
+            foreach (var clientProvider in clientsProvider)
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+            // Adding one row
+            await serverProvider.AddProductCategoryAsync();
+
+            foreach (var clientProvider in clientsProvider)
+            {
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+
+                // disable bulk operation
+                clientProvider.UseBulkOperations = false;
+
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+                var transientErrorHappened = false;
+                string commandText = null;
+
+                agent.LocalOrchestrator.OnTransientErrorOccured(args =>
+                {
+                    transientErrorHappened = true;
+                });
+
+                // generating a transient error
+                agent.LocalOrchestrator.OnRowsChangesApplying(args =>
+                {
+                    if (!transientErrorHappened)
+                    {
+                        commandText = args.Command.CommandText;
+                        args.Command.CommandText = "spNonExistantProcedure";
+                    }
+                });
+
+                agent.LocalOrchestrator.OnRowsChangesApplied(args =>
+                {
+                    if (args.Exception == null)
+                        return;
+
+                    HookExceptionToTransient(args.Exception, clientProviderType);
+                });
+
+
+                var r = await agent.SynchronizeAsync(setup);
+                Assert.Equal(0, r.TotalChangesUploadedToServer);
+                Assert.Equal(0, r.TotalChangesAppliedOnServer);
+                Assert.Equal(1, r.TotalChangesDownloadedFromServer);
+                Assert.Equal(1, r.TotalChangesAppliedOnClient);
+                Assert.True(transientErrorHappened);
+            }
+        }
+
 
         // ------------------------------------------------------------------------
         // InsertClient - InsertServer
@@ -2575,7 +3147,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             return productId;
         }
-        
+
         [Fact]
         public virtual async Task Conflict_DC_DS_ServerShouldWins()
         {
@@ -2770,7 +3342,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             // So far we have a row marked as deleted in the tracking table.
             return productCategory.ProductCategoryId;
         }
-        
+
         [Fact]
         public virtual async Task Conflict_DC_NULLS_ServerShouldWins()
         {
@@ -2798,7 +3370,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
 
         }
-        
+
         [Fact]
         public virtual async Task Conflict_DC_NULLS_ServerShouldWins_CozHandler()
         {
@@ -2875,7 +3447,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(1, s.TotalResolvedConflicts);
-                
+
                 var pcClient = await clientProvider.GetProductCategoryAsync(productCategoryId);
                 Assert.Null(pcClient);
                 var pcServer = await clientProvider.GetProductCategoryAsync(productCategoryId);
@@ -2957,7 +3529,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             // make a first sync to init the two databases
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
-            
+
             var download = 1;
             foreach (var clientProvider in clientsProvider)
             {

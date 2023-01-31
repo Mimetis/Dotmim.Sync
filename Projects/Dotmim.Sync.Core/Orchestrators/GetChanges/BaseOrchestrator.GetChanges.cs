@@ -209,16 +209,11 @@ namespace Dotmim.Sync
                 BatchPartInfo batchPartInfoUpserts = null;
                 BatchPartInfo batchPartInfoDeleted = null;
 
-
                 // launch interceptor if any
                 var args = await this.InterceptAsync(new TableChangesSelectingArgs(context, schemaChangesTable, selectIncrementalChangesCommand, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 if (!args.Cancel && args.Command != null)
                 {
-                    // Parametrized command timeout established if exist
-                    if (Options.DbCommandTimeout.HasValue)
-                        args.Command.CommandTimeout = Options.DbCommandTimeout.Value;
-
                     await this.InterceptAsync(new ExecuteCommandArgs(context, args.Command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                     // Get the reader
@@ -417,10 +412,6 @@ namespace Dotmim.Sync
 
                     if (command == null) return;
 
-                    // set the paramater values
-                    //await this.InternalSetSelectChangesCommonParametersAsync(context, syncTable, excludingScopeId, isNew, fromLastTimestamp, 
-                    //    dbCommandType, command, syncAdapter, connection, transaction).ConfigureAwait(false);
-
                     this.InternalSetCommandParametersValues(context, command, dbCommandType, syncAdapter, connection, transaction, cancellationToken, progress,
                         sync_scope_id: excludingScopeId, sync_min_timestamp: fromLastTimestamp);
 
@@ -433,10 +424,6 @@ namespace Dotmim.Sync
 
                     // Statistics
                     var tableChangesSelected = new TableChangesSelected(syncTable.TableName, syncTable.SchemaName);
-
-                    // Parametrized command timeout established if exist
-                    if (this.Options.DbCommandTimeout.HasValue)
-                        command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
                     await this.InterceptAsync(new ExecuteCommandArgs(context, args.Command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                     // Get the reader

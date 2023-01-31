@@ -47,6 +47,11 @@ namespace Dotmim.Sync.Web.Server
             this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, this.Options);
         }
 
+
+        private static object locker = new object();
+        private static bool s_CheckUpgradeDone;
+
+
         /// Client Converter
         private IConverter clientConverter;
 
@@ -121,6 +126,9 @@ namespace Dotmim.Sync.Web.Server
 
             try
             {
+                // check if we need to upgrade
+                await UpgradeAsync(this.RemoteOrchestrator);
+
                 // Copty stream to a readable and seekable stream
                 // HttpRequest.Body is a HttpRequestStream that is readable but can't be Seek
                 await httpRequest.Body.CopyToAsync(readableStream);
@@ -333,6 +341,21 @@ namespace Dotmim.Sync.Web.Server
                 readableStream.Close();
                 readableStream.Dispose();
             }
+        }
+
+
+        private static async Task UpgradeAsync(RemoteOrchestrator remoteOrchestrator)
+        {
+            if (s_CheckUpgradeDone)
+                return;
+
+            var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
+            var needToUpgrade = await remoteOrchestrator.NeedsToUpgradeAsync(context).ConfigureAwait(false);
+
+            if (needToUpgrade)
+                await remoteOrchestrator.InternalUpgradeAsync(context).ConfigureAwait(false);
+
+            s_CheckUpgradeDone = true;
         }
 
         /// <summary>
@@ -686,7 +709,7 @@ namespace Dotmim.Sync.Web.Server
 
                     if (this.clientConverter != null && syncRow.Length > 0)
                         this.clientConverter.AfterDeserialized(syncRow, schemaTable);
-                    
+
                     await localSerializer.WriteRowToFileAsync(syncRow, schemaTable).ConfigureAwait(false);
                 }
 
@@ -884,7 +907,7 @@ namespace Dotmim.Sync.Web.Server
             {
                 if (row != null && row.Length > 0 && this.clientConverter != null)
                     this.clientConverter.BeforeSerialize(row, schemaTable);
-                
+
                 containerTable.Rows.Add(row.ToArray());
             }
 

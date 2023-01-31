@@ -438,20 +438,9 @@ namespace Dotmim.Sync.PostgreSql
 
         public static async Task<SyncTable> GetTableAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string tableName, string schemaName)
         {
-            var command = @"
-                            SELECT *
-                            FROM INFORMATION_SCHEMA.TABLES
-                            WHERE TABLE_TYPE = 'BASE TABLE'
-	                            AND TABLE_SCHEMA != 'pg_catalog'
-	                            AND TABLE_SCHEMA != 'information_schema'
-	                            AND TABLE_NAME = @TABLENAME
-	                            AND TABLE_SCHEMA = @SCHEMANAME
-                            ORDER BY TABLE_SCHEMA,
-	                            TABLE_NAME
-                            LIMIT 1";
 
             var tableNameNormalized = ParserName.Parse(tableName, "\"").Quoted().Normalized().ToString();
-            var tableNameString = ParserName.Parse(tableName, "\"").ToString();
+            var tableNameString = ParserName.Parse(tableName, "\"");
 
             var schemaNameString = "public";
             if (!string.IsNullOrEmpty(schemaName))
@@ -460,35 +449,25 @@ namespace Dotmim.Sync.PostgreSql
                 schemaNameString = string.IsNullOrWhiteSpace(schemaNameString) ? "public" : schemaNameString;
             }
 
+            var command = $"Select * from \"{schemaNameString}\".\"{tableNameString}\"";
+
             var syncTable = new SyncTable(tableNameNormalized, schemaNameString);
 
-            using (var sqlCommand = new NpgsqlCommand(command, connection))
-            {
-                var parameter = sqlCommand.CreateParameter();
-                parameter.ParameterName = "@tableName";
-                parameter.Value = tableNameString;
-                sqlCommand.Parameters.Add(parameter);
+            using var npgCommand = new NpgsqlCommand(command, connection);
 
-                parameter = sqlCommand.CreateParameter();
-                parameter.ParameterName = "@schemaName";
-                parameter.Value = schemaNameString;
-                sqlCommand.Parameters.Add(parameter);
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-                bool alreadyOpened = connection.State == ConnectionState.Open;
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
 
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+            npgCommand.Transaction = transaction;
 
-                if (transaction != null)
-                    sqlCommand.Transaction = transaction;
+            using (var reader = await npgCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                syncTable.Load(reader);
 
-                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
-                    syncTable.Load(reader);
+            if (!alreadyOpened)
+                connection.Close();
 
-                if (!alreadyOpened)
-                    connection.Close();
-
-            }
             return syncTable;
         }
         public static async Task<SyncTable> GetTableDefinitionAsync(string tableName, string schemaName, NpgsqlConnection connection, NpgsqlTransaction transaction)
@@ -724,6 +703,7 @@ namespace Dotmim.Sync.PostgreSql
         {
             bool tableExist;
             var tableName = ParserName.Parse(quotedTableName, "\"").ObjectName;
+            var pSchemaName = string.IsNullOrEmpty(schemaName) ? "public" : schemaName;
 
             using (DbCommand dbCommand = connection.CreateCommand())
             {
@@ -734,6 +714,7 @@ namespace Dotmim.Sync.PostgreSql
                 NpgsqlParameter sqlParameter = new NpgsqlParameter()
                 {
                     ParameterName = "@tableName",
+                    DbType = DbType.String,
                     Value = tableName
                 };
                 dbCommand.Parameters.Add(sqlParameter);
@@ -741,8 +722,8 @@ namespace Dotmim.Sync.PostgreSql
                 sqlParameter = new NpgsqlParameter()
                 {
                     ParameterName = "@schemaName",
-                    //Value = GetUnquotedSqlSchemaName(ParserName.Parse(quotedTableName, "\""))
-                    Value = schemaName
+                    DbType = DbType.String,
+                    Value = pSchemaName
                 };
                 dbCommand.Parameters.Add(sqlParameter);
 
@@ -819,8 +800,8 @@ namespace Dotmim.Sync.PostgreSql
             string str1 = "";
             foreach (var column in primaryKeys)
             {
-                var unquotedColumn = ParserName.Parse(column,"\"").Quoted().Normalized().ToString();
-                var paramUnquotedColumn = ParserName.Parse($"{mysql_prefix}{column.ColumnName}","\"").Quoted().Normalized().ToString();
+                var unquotedColumn = ParserName.Parse(column, "\"").Quoted().Normalized().ToString();
+                var paramUnquotedColumn = ParserName.Parse($"{mysql_prefix}{column.ColumnName}", "\"").Quoted().Normalized().ToString();
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);

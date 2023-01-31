@@ -85,6 +85,21 @@ namespace Dotmim.Sync.MySql
             this.ConnectionString = builder.ConnectionString;
         }
 
+        /// <summary>
+        /// Gets a chance to make a retry if the error is a transient error
+        /// </summary>
+        public override bool ShouldRetryOn(Exception exception)
+        {
+            Exception ex = exception;
+            while (ex != null)
+            {
+                if (ex is MySqlException)
+                    return MySqlTransientExceptionDetector.ShouldRetryOn((MySqlException)ex);
+                else
+                    ex = ex.InnerException;
+            }
+            return false;
+        }
 
         public MySqlSyncProvider(MySqlConnectionStringBuilder builder) : base()
         {
