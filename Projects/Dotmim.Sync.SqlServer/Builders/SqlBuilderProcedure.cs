@@ -1434,7 +1434,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             stringBuilder.AppendLine("\t([side].[timestamp] > @sync_min_timestamp OR  @sync_min_timestamp IS NULL)");
             stringBuilder.AppendLine(")");
-            stringBuilder.AppendLine("UNION");
+            stringBuilder.AppendLine("UNION ALL");
             stringBuilder.AppendLine("SELECT");
             comma = "  ";
             foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))

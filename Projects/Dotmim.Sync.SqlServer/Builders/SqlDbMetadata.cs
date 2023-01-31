@@ -41,7 +41,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             "smallmoney" => DbType.Currency,
             "nchar" => DbType.StringFixedLength,
             "numeric" => DbType.VarNumeric,
-            "nvarchar" => DbType.String,
+            "nvarchar" => column.MaxLength <= 0 ? DbType.String : DbType.StringFixedLength,
             "real" => DbType.Decimal,
             "smalldatetime" => DbType.DateTime,
             "smallint" => DbType.Int16,
@@ -52,8 +52,10 @@ namespace Dotmim.Sync.SqlServer.Manager
             "tinyint" => DbType.Int16,
             "uniqueidentifier" => DbType.Guid,
             "varbinary" => DbType.Binary,
-            "varchar" => DbType.AnsiString,
+            "varchar" => column.MaxLength <= 0 ? DbType.AnsiString : DbType.AnsiStringFixedLength,
             "xml" => DbType.String,
+            "text" => DbType.String,
+            "ntext" => DbType.String,
             _ => throw new Exception($"this type {column.OriginalTypeName} for column {column.ColumnName} is not supported")
         };
 
@@ -90,6 +92,8 @@ namespace Dotmim.Sync.SqlServer.Manager
             "varbinary" => SqlDbType.VarBinary,
             "varchar" => SqlDbType.VarChar,
             "xml" => SqlDbType.Xml,
+            "text" => SqlDbType.Text,
+            "ntext" => SqlDbType.NText,
             _ => throw new Exception($"Type '{column.OriginalTypeName.ToLowerInvariant()}' (column {column.ColumnName}) is not supported"),
         };
 
@@ -166,6 +170,8 @@ namespace Dotmim.Sync.SqlServer.Manager
             SqlDbType.VarChar => Type.GetType("System.String"),
             SqlDbType.Variant => Type.GetType("System.Object"),
             SqlDbType.Xml => Type.GetType("System.String"),
+            SqlDbType.Text => Type.GetType("System.String"),
+            SqlDbType.NText => Type.GetType("System.String"),
             _ => throw new Exception($"In Column {column.ColumnName}, the type {GetSqlDbType(column)} is not supported"),
         };
 
@@ -220,7 +226,7 @@ namespace Dotmim.Sync.SqlServer.Manager
         {
             "bigint" or "binary" or "bit" or "char" or "date" or "datetime" or "datetime2" or "datetimeoffset" or "decimal"
             or "float" or "int" or "money" or "nchar" or "numeric" or "nvarchar" or "real" or "smalldatetime" or "smallint" or "smallmoney"
-            or "sql_variant" or "variant" or "time" or "timestamp" or "tinyint" or "uniqueidentifier" or "varbinary" or "varchar" or "xml" => true,
+            or "sql_variant" or "variant" or "time" or "timestamp" or "tinyint" or "uniqueidentifier" or "varbinary" or "varchar" or "xml" or "text" or "ntext" => true,
             _ => false,
         };
         public override bool IsReadonly(SyncColumn columnDefinition)

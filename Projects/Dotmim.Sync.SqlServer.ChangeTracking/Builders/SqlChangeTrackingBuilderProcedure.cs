@@ -546,7 +546,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine("\t[CT].[SYS_CHANGE_VERSION] as [sync_timestamp],");
             stringBuilder.AppendLine("\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted()}, @sync_min_timestamp) AS [CT]");
-            stringBuilder.AppendLine("\t)" + (hasNoncomparableColumns ? ", " : ""));
+            stringBuilder.AppendLine("\t)" + (hasNoncomparableColumns && filter != null ? ", " : ""));
 
             // if we have a filter we may have joins that will duplicate lines
             if (filter != null)
@@ -624,7 +624,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             stringBuilder.AppendLine("\t([side].[sync_timestamp] > @sync_min_timestamp OR @sync_min_timestamp IS NULL)");
             stringBuilder.AppendLine(")");
-            stringBuilder.AppendLine("UNION");
+            stringBuilder.AppendLine("UNION ALL");
             stringBuilder.AppendLine("SELECT");
             comma = "  ";
             foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
