@@ -655,7 +655,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 empty = " AND ";
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine("WHERE ([side].[sync_timestamp] > @sync_min_timestamp AND [side].[sync_row_is_tombstone] = 1);");
+            stringBuilder.AppendLine("WHERE ([side].[sync_timestamp] > @sync_min_timestamp AND [side].[sync_row_is_tombstone] = 1)");
             if (hasNoncomparableColumns && filter != null)
             {
                 stringBuilder.AppendLine(")");

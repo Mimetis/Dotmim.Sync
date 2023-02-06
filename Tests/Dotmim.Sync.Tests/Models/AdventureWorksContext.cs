@@ -594,6 +594,8 @@ namespace Dotmim.Sync.Tests.Models
             {
                 if (this.useSchema)
                     entity.ToTable("SalesOrderHeader", "SalesLT");
+                if (this.ProviderType == ProviderType.Sql)
+                    entity.Property(e => e.Comment).HasColumnType("ntext");
 
                 entity.HasKey(e => e.SalesOrderId);
 

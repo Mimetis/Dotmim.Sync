@@ -1465,7 +1465,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 empty = " AND ";
             }
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine("WHERE ([side].[timestamp] > @sync_min_timestamp AND [side].[sync_row_is_tombstone] = 1);");
+            stringBuilder.AppendLine("WHERE ([side].[timestamp] > @sync_min_timestamp AND [side].[sync_row_is_tombstone] = 1)");
 
 
 
@@ -1488,8 +1488,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                 }
                 stringBuilder.AppendLine("FROM DistinctHack");
             }
-            sqlCommand.CommandText = stringBuilder.ToString();
-
             sqlCommand.CommandText = stringBuilder.ToString();
 
             return sqlCommand;
