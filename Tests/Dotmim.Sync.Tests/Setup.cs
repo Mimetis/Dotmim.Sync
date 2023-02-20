@@ -245,11 +245,11 @@ namespace Dotmim.Sync.Tests
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sqlite_");
         private string postgreClientRandomDatabaseName = HelperDatabase.GetRandomName("tcp_npg_");
-
+        
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, postgreClientRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, postgreClientRandomDatabaseName, true);
         }
     }
 
@@ -266,7 +266,7 @@ namespace Dotmim.Sync.Tests
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, postgreClientRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, postgreClientRandomDatabaseName, true);
         }
     }
 
@@ -283,7 +283,7 @@ namespace Dotmim.Sync.Tests
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, postgreClientRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, postgreClientRandomDatabaseName, true);
         }
     }
 
@@ -300,7 +300,7 @@ namespace Dotmim.Sync.Tests
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, postgreClientRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, postgreClientRandomDatabaseName, true);
         }
     }
 

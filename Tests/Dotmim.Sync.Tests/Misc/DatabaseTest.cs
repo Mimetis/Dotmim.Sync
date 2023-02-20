@@ -105,7 +105,7 @@ namespace Dotmim.Sync.Tests.Misc
 
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("sqlite_");
-        private string sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("sql_");
+        private string sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("server_");
         /// <summary>
         /// Get the server provider
         /// </summary>
@@ -119,7 +119,7 @@ namespace Dotmim.Sync.Tests.Misc
         /// </summary>
         public virtual CoreProvider GetServerProvider()
         {
-           return HelperDatabase.GetSyncProvider(ServerProviderType, sqlServerRandomDatabaseName, true);
+           return HelperDatabase.GetSyncProvider(ServerProviderType, sqlServerRandomDatabaseName, ServerProviderType == ProviderType.Sql || ServerProviderType == ProviderType.Postgres);
         }
 
         public abstract ProviderType ServerProviderType { get; }
