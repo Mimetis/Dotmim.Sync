@@ -188,7 +188,8 @@ namespace Dotmim.Sync.Tests.Misc
 
             foreach (var clientProvider in GetClientProviders())
             {
-                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+                HelperDatabase.GetDatabaseType(clientProvider);
+                //var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
                 //HelperDatabase.DropDatabase(clientProviderType, clientDatabaseName);
             }
 
