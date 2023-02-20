@@ -103,15 +103,26 @@ namespace Dotmim.Sync.Tests.Misc
             return setup;
         }
 
+
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("sqlite_");
+        private string sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("sql_");
         /// <summary>
         /// Get the server provider
         /// </summary>
-        public abstract CoreProvider GetServerProvider();
+        public virtual IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, true);
+        }
 
         /// <summary>
-        /// Gets all the client providers
+        /// Gets all the client providers. By default, SQLIte is always required
         /// </summary>
-        public abstract IEnumerable<CoreProvider> GetClientProviders();
+        public virtual CoreProvider GetServerProvider()
+        {
+           return HelperDatabase.GetSyncProvider(ServerProviderType, sqlServerRandomDatabaseName, true);
+        }
+
+        public abstract ProviderType ServerProviderType { get; }
 
         /// <summary>
         /// Get filters parameters
