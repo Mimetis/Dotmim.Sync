@@ -42,13 +42,6 @@ namespace Dotmim.Sync.Batch
         public bool IsLastBatch { get; set; }
 
         /// <summary>
-        /// Tables contained in the batchpart (NEW v0.9.3 : Only One table per file)
-        /// </summary>
-        [Obsolete]
-        [DataMember(Name = "tables", IsRequired = true, Order = 4)]
-        public BatchPartTableInfo[] Tables { get; set; }
-
-        /// <summary>
         /// Tables contained rows count
         /// </summary>
         [DataMember(Name = "rc", IsRequired = false, Order = 5)]
@@ -106,19 +99,7 @@ namespace Dotmim.Sync.Batch
                     return $"{this.TableName} [{this.RowsCount}]";
 
             }
-            else
-            {
-
-                if (this.Tables == null || this.Tables.Length <= 0)
-                    return base.ToString();
-
-                var table = this.Tables[0];
-
-                if (!string.IsNullOrEmpty(table.SchemaName))
-                    return $"{table.SchemaName}.{table.TableName}";
-                else
-                    return table.TableName;
-            }
+            return base.ToString();
         }
 
         /// <summary>

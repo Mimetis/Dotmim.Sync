@@ -65,10 +65,10 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_ut_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("tcp_cli_ut_adv"), true);
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_ut_adv", true);
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("tcp_srv_ut_adv"), true);
 
     }
 
@@ -80,10 +80,10 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_lut_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("tcp_cli_lut_adv"), true);
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_lut_adv", true);
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("tcp_srv_lut_adv"), true);
 
     }
 
@@ -95,10 +95,10 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_rut_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("tcp_cli_rut_adv"), true);
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_rut_adv", true);
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("tcp_srv_rut_adv"), true);
 
     }
 
@@ -110,13 +110,13 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_adv", false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_sqlct_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("tcp_cli_sqlite_adv"), false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("tcp_cli_sqlct_adv"), true);
         }
 
         public override CoreProvider GetServerProvider()
         {
-            var cstring = HelperDatabase.GetSqlDatabaseConnectionString("tcp_srv_sqlct_adv");
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(HelperDatabase.GetRandomName("tcp_srv_sqlct_adv"));
             var provider = new SqlSyncChangeTrackingProvider(cstring);
             provider.UseFallbackSchema(true);
             return provider;
@@ -131,13 +131,13 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_fil_sqlite_adv", false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_fil_sqlct_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("tcp_cli_fil_sqlite_adv"), false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("tcp_cli_fil_sqlct_adv"), true);
         }
 
         public override CoreProvider GetServerProvider()
         {
-            var cstring = HelperDatabase.GetSqlDatabaseConnectionString("tcp_srv_fil_sqlct_adv");
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(HelperDatabase.GetRandomName("tcp_srv_fil_sqlct_adv"));
             var provider = new SqlSyncChangeTrackingProvider(cstring);
             provider.UseFallbackSchema(true);
             return provider;
@@ -152,13 +152,13 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "http_cli_sqlite_adv", false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "http_cli_sqlct_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("http_cli_sqlite_adv"), false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("http_cli_sqlct_adv"), true);
         }
 
         public override CoreProvider GetServerProvider()
         {
-            var cstring = HelperDatabase.GetSqlDatabaseConnectionString("http_srv_sqlct_adv");
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(HelperDatabase.GetRandomName("http_srv_sqlct_adv"));
             var provider = new SqlSyncChangeTrackingProvider(cstring);
             provider.UseFallbackSchema(true);
             return provider;
@@ -173,11 +173,11 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_adv");
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_sql_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("tcp_cli_sqlite_adv"));
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("tcp_cli_sql_adv"), true);
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_sql_adv", true);
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("tcp_srv_sql_adv"), true);
     }
 
     public class SqlServerTcpFilterTests : TcpFilterTests
@@ -188,11 +188,11 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_fil_sqlite_adv");
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_filt_sql_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("tcp_cli_fil_sqlite_adv"));
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("tcp_cli_filt_sql_adv"), true);
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_filt_sql_adv", true);
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("tcp_srv_filt_sql_adv"), true);
     }
     
     public class SqlServerHttpTests : HttpTests
@@ -203,11 +203,11 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "http_cli_sqlite_adv");
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "http_cli_sql_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("http_cli_sqlite_adv"));
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("http_cli_sql_adv"), true);
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "http_srv_sql_adv", true);
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("http_srv_sql_adv"), true);
     }
 
     public class SqlServerConflictTests : TcpConflictsTests
@@ -218,11 +218,11 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_cli_sql_co_adv", true);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_co_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("tcp_cli_sql_co_adv"), true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("tcp_cli_sqlite_co_adv"));
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, "tcp_srv_sql_co_adv", true);
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Sql, HelperDatabase.GetRandomName("tcp_srv_sql_co_adv"), true);
     }
 
     public class PostgresConflictTests : TcpConflictsTests
@@ -233,11 +233,11 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_cli_npg_co_adv", true);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_npg_co_adv", false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, HelperDatabase.GetRandomName("tcp_cli_npg_co_adv"), true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("tcp_cli_npg_co_adv"), false);
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_srv_npg_co_adv", true);
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, HelperDatabase.GetRandomName("tcp_srv_npg_co_adv"), true);
     }
 
     public class PostgresTcpTests : TcpTests
@@ -248,11 +248,11 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_adv", false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_cli_npg_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("tcp_cli_sqlite_adv"), false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, HelperDatabase.GetRandomName("tcp_cli_npg_adv"), true);
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_srv_npg_adv", true);
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, HelperDatabase.GetRandomName("tcp_srv_npg_adv"), true);
     }
 
     public class PostgresTcpFilterTests : TcpFilterTests
@@ -263,11 +263,11 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_fil_sqlite_adv", false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_cli_fil_npg_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("tcp_cli_fil_sqlite_adv"), false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, HelperDatabase.GetRandomName("tcp_cli_fil_npg_adv"), true);
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_srv_fil_npg_adv", true);
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, HelperDatabase.GetRandomName("tcp_srv_fil_npg_adv"), true);
     }
 
     public class PostgresHttpTests : HttpTests
@@ -278,11 +278,11 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "http_cli_sqlite_adv", false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "http_cli_npg_adv", true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("http_cli_sqlite_adv"), false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, HelperDatabase.GetRandomName("http_cli_npg_adv"), true);
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, "http_srv_npg_adv", true);
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, HelperDatabase.GetRandomName("http_srv_npg_adv"), true);
     }
 
 
@@ -295,10 +295,10 @@ namespace Dotmim.Sync.Tests
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
             //yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_adv");
-            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, "tcp_cli_mysql_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, HelperDatabase.GetRandomName("tcp_cli_mysql_adv"));
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MySql, "tcp_srv_mysql_adv");
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MySql, HelperDatabase.GetRandomName("tcp_srv_mysql_adv"));
     }
 
     public class MySqlTcpFilterTests : TcpFilterTests
@@ -309,11 +309,11 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_fil_sqlite_adv");
-            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, "tcp_cli_fil_mysql_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("tcp_cli_fil_sqlite_adv"));
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, HelperDatabase.GetRandomName("tcp_cli_fil_mysql_adv"));
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MySql, "tcp_srv_fil_mysql_adv");
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MySql, HelperDatabase.GetRandomName("tcp_srv_fil_mysql_adv"));
     }
 
     public class MySqlHttpTests : HttpTests
@@ -324,11 +324,11 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "http_cli_sqlite_adv");
-            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, "http_cli_mysql_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("http_cli_sqlite_adv"));
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, HelperDatabase.GetRandomName("http_cli_mysql_adv"));
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MySql, "http_srv_mysql_adv");
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MySql, HelperDatabase.GetRandomName("http_srv_mysql_adv"));
     }
 
     public class MySqlConflictTests : TcpConflictsTests
@@ -339,11 +339,11 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_cli_mysql_co_adv", true);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_mysql_co_adv", false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, HelperDatabase.GetRandomName("tcp_cli_mysql_co_adv"), true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("tcp_cli_mysql_co_adv"), false);
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, "tcp_srv_mysql_co_adv", true);
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.Postgres, HelperDatabase.GetRandomName("tcp_srv_mysql_co_adv"), true);
     }
 
 
@@ -356,11 +356,11 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_sqlite_adv");
-            yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "tcp_cli_maria_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("tcp_cli_sqlite_adv"));
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, HelperDatabase.GetRandomName("tcp_cli_maria_adv"));
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "tcp_srv_maria_adv");
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MariaDB, HelperDatabase.GetRandomName("tcp_srv_maria_adv"));
     }
    
     public class MariaDBTcpFilterTests : TcpFilterTests
@@ -371,11 +371,11 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "tcp_cli_fil_sqlite_adv");
-            yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "tcp_cli_fil_maria_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("tcp_cli_fil_sqlite_adv"));
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, HelperDatabase.GetRandomName("tcp_cli_fil_maria_adv"));
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "tcp_srv_fil_maria_adv");
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MariaDB, HelperDatabase.GetRandomName("tcp_srv_fil_maria_adv"));
     }
 
     public class MariaDBHttpTests : TcpTests
@@ -386,10 +386,10 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, "http_cli_sqlite_adv");
-            yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "http_cli_maria_adv");
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, HelperDatabase.GetRandomName("http_cli_sqlite_adv"));
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, HelperDatabase.GetRandomName("http_cli_maria_adv"));
         }
 
-        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MariaDB, "http_srv_maria_adv");
+        public override CoreProvider GetServerProvider() => HelperDatabase.GetSyncProvider(ProviderType.MariaDB, HelperDatabase.GetRandomName("http_srv_maria_adv"));
     }
 }

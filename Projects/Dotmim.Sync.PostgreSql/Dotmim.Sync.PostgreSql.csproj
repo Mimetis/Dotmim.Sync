@@ -26,7 +26,9 @@
 		<GenerateDocumentationFile>False</GenerateDocumentationFile>
 
 	</PropertyGroup>
-
+	<PropertyGroup>
+		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+	</PropertyGroup>
 	<!--generate NUGET package including symbols ans source on each release build -->
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>

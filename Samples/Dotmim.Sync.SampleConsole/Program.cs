@@ -69,15 +69,16 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        //var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var serverProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString("Wasim"));
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         // var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
         //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
         //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
@@ -107,8 +108,94 @@ internal class Program
 
         // await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        
+        await AddRemoveRemoveAsync();
     }
+
+
+    private static async Task AddRemoveRemoveAsync()
+    {
+        // Using the Progress pattern to handle progression during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  " +
+            $"\t[{s?.Source[..Math.Min(4, s.Source.Length)]}] " +
+            $"{s.TypeName}: {s.Message}"));
+
+        // Server provider
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        
+        // Clients 1 & 2 providers
+        var clientProvider1 = new SqliteSyncProvider(
+            Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+        var clientProvider2 = new SqliteSyncProvider(
+            Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+
+        var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+        var setup = new SyncSetup(oneTable);
+
+        try
+        {
+            var agent1 = new SyncAgent(clientProvider1, serverProvider, options);
+            var agent2 = new SyncAgent(clientProvider2, serverProvider, options);
+
+            // Sync client 1 to create table and gell all product categories
+            var result1 = await agent1.SynchronizeAsync(setup, progress: progress);
+            Console.WriteLine(result1);
+            // Total changes  uploaded: 0
+            // Total changes  downloaded: 42
+            // Total changes  applied on client: 42
+
+            // Sync client 2 to create table and get all product categories
+            var result2 = await agent2.SynchronizeAsync(setup, progress: progress);
+            Console.WriteLine(result2);
+            // Total changes  uploaded: 0
+            // Total changes  downloaded: 42
+            // Total changes  applied on client: 42
+
+            // Add a product category on server
+            var productCategoryId = await DBHelper.AddProductCategoryRowAsync(serverProvider);
+
+            // Sync client 1 to get this new created server product category on client 1
+            result1 = await agent1.SynchronizeAsync(setup, progress: progress);
+            Console.WriteLine(result1);
+            // Total changes  uploaded: 0
+            // Total changes  downloaded: 1
+            // Total changes  applied on client: 1
+
+            // Sync client 2 to get this new created server product category on client 2
+            result2 = await agent2.SynchronizeAsync(setup, progress: progress);
+            Console.WriteLine(result2);
+            // Total changes  uploaded: 0
+            // Total changes  downloaded: 1
+            // Total changes  applied on client: 1
+
+            // Now delete server product category
+            await DBHelper.DeleteProductCategoryRowAsync(serverProvider, productCategoryId);
+
+            // Sync client 1 to sync the deleted product category from server
+            result1 = await agent1.SynchronizeAsync(setup, progress: progress);
+            Console.WriteLine(result1);
+            // Total changes  uploaded: 0
+            // Total changes  downloaded: 1
+            // Total changes  applied on client: 1
+
+            // Sync client 1 to sync the deleted product category from server
+            result2 = await agent2.SynchronizeAsync(setup, progress: progress);
+            Console.WriteLine(result2);
+            // Total changes  uploaded: 0
+            // Total changes  downloaded: 1
+            // Total changes  applied on client: 1
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+        }
+        Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+
+    }
+
 
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
@@ -118,8 +205,11 @@ internal class Program
 
         //options.ProgressLevel = SyncProgressLevel.Debug;
         options.DisableConstraintsOnApplyChanges = true;
+        options.TransactionMode = TransactionMode.PerBatch;
 
         var agent = new SyncAgent(clientProvider, serverProvider, options);
+        agent.LocalOrchestrator.OnSessionBegin(args => Console.WriteLine(args.Message));
+        agent.LocalOrchestrator.OnSessionEnd(args => Console.WriteLine(args.SyncResult));
 
         do
         {

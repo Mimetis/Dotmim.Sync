@@ -173,12 +173,12 @@ namespace Dotmim.Sync.Tests.Misc
         private void CreateDatabases()
         {
             var (serverProviderType, serverDatabaseName) = HelperDatabase.GetDatabaseType(GetServerProvider());
-            HelperDatabase.DropDatabase(serverProviderType, serverDatabaseName);
+            //HelperDatabase.DropDatabase(serverProviderType, serverDatabaseName);
 
             foreach (var clientProvider in GetClientProviders())
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
-                HelperDatabase.DropDatabase(clientProviderType, clientDatabaseName);
+                //HelperDatabase.DropDatabase(clientProviderType, clientDatabaseName);
             }
 
             new AdventureWorksContext(GetServerProvider(), true).Database.EnsureCreated();

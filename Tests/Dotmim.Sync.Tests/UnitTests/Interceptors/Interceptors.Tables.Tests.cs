@@ -248,7 +248,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(4, onDropping);
             Assert.Equal(4, onDropped);
 
-            HelperDatabase.DropDatabase(clientProviderType, dbName);
+            //HelperDatabase.DropDatabase(clientProviderType, dbName);
         }
     }
 }

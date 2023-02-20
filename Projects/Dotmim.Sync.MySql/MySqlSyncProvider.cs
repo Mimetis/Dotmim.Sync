@@ -19,7 +19,6 @@ namespace Dotmim.Sync.MySql
         DbMetadata dbMetadata;
         static string providerType;
         private MySqlConnectionStringBuilder builder;
-
         public override string GetProviderTypeName() => ProviderType;
 
         public static string ProviderType

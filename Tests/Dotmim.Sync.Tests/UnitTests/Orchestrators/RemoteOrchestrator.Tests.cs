@@ -98,7 +98,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Null(sScopeInfo.Schema);
             Assert.Null(sScopeInfo.Setup);
 
-            HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
+            //HelperDatabase.DropDatabase(ProviderType.Sql, dbName);
 
         }
 

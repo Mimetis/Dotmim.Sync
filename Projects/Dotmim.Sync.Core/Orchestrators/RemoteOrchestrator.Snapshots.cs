@@ -110,35 +110,16 @@ namespace Dotmim.Sync
 
                             foreach (var bpi in serverBatchInfo.BatchPartsInfo)
                             {
-                                // Backward compatibility
-                                if (bpi.Tables != null)
-                                {
-                                    var tmpBptis = bpi.Tables.Where(t =>
-                                    {
-                                        var sc = SyncGlobalization.DataSourceStringComparison;
 
-                                        var sn = t.SchemaName == null ? string.Empty : t.SchemaName;
-                                        var otherSn = table.SchemaName == null ? string.Empty : table.SchemaName;
+                                var sc = SyncGlobalization.DataSourceStringComparison;
 
-                                        return table.TableName.Equals(t.TableName, sc) && sn.Equals(otherSn, sc);
+                                var sn = bpi.SchemaName == null ? string.Empty : bpi.SchemaName;
+                                var otherSn = table.SchemaName == null ? string.Empty : table.SchemaName;
 
-                                    });
-
-                                    if (tmpBptis != null)
-                                        upserts += tmpBptis.Sum(bpti => bpti.RowsCount);
-                                }
-                                else
-                                {
-                                    var sc = SyncGlobalization.DataSourceStringComparison;
-
-                                    var sn = bpi.SchemaName == null ? string.Empty : bpi.SchemaName;
-                                    var otherSn = table.SchemaName == null ? string.Empty : table.SchemaName;
-
-                                    if(table.TableName.Equals(bpi.TableName, sc) && sn.Equals(otherSn, sc))
-                                        upserts += bpi.RowsCount;
-                                }
+                                if (table.TableName.Equals(bpi.TableName, sc) && sn.Equals(otherSn, sc))
+                                    upserts += bpi.RowsCount;
                             }
-                            
+
                             if (upserts > 0)
                             {
                                 // Statistics
@@ -276,7 +257,7 @@ namespace Dotmim.Sync
             var serverBatchInfo = new BatchInfo(rootDirectory, nameDirectory);
 
             await this.InternalGetChangesAsync(sScopeInfo, context, true, null, null, Guid.Empty,
-                    this.Provider.SupportsMultipleActiveResultSets, serverBatchInfo, 
+                    this.Provider.SupportsMultipleActiveResultSets, serverBatchInfo,
                     connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
             // since we explicitely defined remote client timestamp to null, to get all rows, just reaffect here
