@@ -119,7 +119,7 @@ namespace Dotmim.Sync.Tests.Misc
         /// </summary>
         public virtual CoreProvider GetServerProvider()
         {
-           return HelperDatabase.GetSyncProvider(ServerProviderType, sqlServerRandomDatabaseName, ServerProviderType == ProviderType.Sql || ServerProviderType == ProviderType.Postgres);
+            return HelperDatabase.GetSyncProvider(ServerProviderType, sqlServerRandomDatabaseName, ServerProviderType == ProviderType.Sql || ServerProviderType == ProviderType.Postgres);
         }
 
         public abstract ProviderType ServerProviderType { get; }
@@ -184,16 +184,21 @@ namespace Dotmim.Sync.Tests.Misc
         private void CreateDatabases()
         {
             var (serverProviderType, serverDatabaseName) = HelperDatabase.GetDatabaseType(GetServerProvider());
-            //HelperDatabase.DropDatabase(serverProviderType, serverDatabaseName);
+
+            if (!Setup.IsOnAzureDev)
+                HelperDatabase.DropDatabase(serverProviderType, serverDatabaseName);
 
             foreach (var clientProvider in GetClientProviders())
             {
-                HelperDatabase.GetDatabaseType(clientProvider);
-                //var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
-                //HelperDatabase.DropDatabase(clientProviderType, clientDatabaseName);
+                // HelperDatabase.GetDatabaseType(clientProvider);
+                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+
+                if (!Setup.IsOnAzureDev)
+                    HelperDatabase.DropDatabase(clientProviderType, clientDatabaseName);
             }
 
             new AdventureWorksContext(GetServerProvider(), true).Database.EnsureCreated();
+            
             if (serverProviderType == ProviderType.Sql)
                 HelperDatabase.ActivateChangeTracking(serverDatabaseName).GetAwaiter().GetResult();
 
