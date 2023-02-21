@@ -64,6 +64,13 @@ namespace Dotmim.Sync.Tests
         }
 
         public override ProviderType ServerProviderType => ProviderType.Sql;
+
+        private string sqlRandomDatabaseName = HelperDatabase.GetRandomName("ut1_sql_");
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlRandomDatabaseName, false);
+        }
+
     }
 
     public class SqlServerUnitLocalOrchestratorTests : LocalOrchestratorTests
@@ -73,6 +80,11 @@ namespace Dotmim.Sync.Tests
         }
         public override ProviderType ServerProviderType => ProviderType.Sql;
 
+        private string sqlRandomDatabaseName = HelperDatabase.GetRandomName("ut2_sql_");
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlRandomDatabaseName, false);
+        }
     }
 
     public class SqlServerUnitRemoteOrchestratorTests : RemoteOrchestratorTests
@@ -81,6 +93,12 @@ namespace Dotmim.Sync.Tests
         {
         }
         public override ProviderType ServerProviderType => ProviderType.Sql;
+        
+        private string sqlRandomDatabaseName = HelperDatabase.GetRandomName("ut3_sql_");
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlRandomDatabaseName, false);
+        }
 
     }
 
@@ -91,9 +109,9 @@ namespace Dotmim.Sync.Tests
         }
         public override ProviderType ServerProviderType => ProviderType.Sql;
 
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sqlite_");
-        private string sqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sql_");
-        private string sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sql_");
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpct_sqlite_");
+        private string sqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpct_sql_");
+        private string sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("tcpct_sql_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
@@ -118,9 +136,9 @@ namespace Dotmim.Sync.Tests
 
         public override ProviderType ServerProviderType => ProviderType.Sql;
 
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sqlite_");
-        private string sqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sql_");
-        private string sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sql_");
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpctf_sqlite_");
+        private string sqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpctf_sql_");
+        private string sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("tcpctf_sql_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
@@ -146,9 +164,9 @@ namespace Dotmim.Sync.Tests
 
         public override ProviderType ServerProviderType => ProviderType.Sql;
 
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("http_sqlite_");
-        private string sqlClientRandomDatabaseName = HelperDatabase.GetRandomName("http_sql_");
-        private string sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("http_sql_");
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("httpctf_sqlite_");
+        private string sqlClientRandomDatabaseName = HelperDatabase.GetRandomName("httpctf_sql_");
+        private string sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("httpctf_sql_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
@@ -191,8 +209,8 @@ namespace Dotmim.Sync.Tests
         }
         public override ProviderType ServerProviderType => ProviderType.Sql;
 
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sqlite_");
-        private string sqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sql_");
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpf_sqlite_");
+        private string sqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpf_sql_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
@@ -226,8 +244,8 @@ namespace Dotmim.Sync.Tests
         }
         public override ProviderType ServerProviderType => ProviderType.Sql;
 
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sqlite_");
-        private string sqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sql_");
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpc_sqlite_");
+        private string sqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpc_sql_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
@@ -243,8 +261,8 @@ namespace Dotmim.Sync.Tests
         }
         public override ProviderType ServerProviderType => ProviderType.Postgres;
 
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sqlite_");
-        private string postgreClientRandomDatabaseName = HelperDatabase.GetRandomName("tcp_npg_");
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpc_npg_sqlite_");
+        private string postgreClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpc_npg_");
         
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
@@ -260,7 +278,7 @@ namespace Dotmim.Sync.Tests
         }
         public override ProviderType ServerProviderType => ProviderType.Postgres;
 
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sqlite_");
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_npg_sqlite_");
         private string postgreClientRandomDatabaseName = HelperDatabase.GetRandomName("tcp_npg_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
@@ -277,8 +295,8 @@ namespace Dotmim.Sync.Tests
         }
         public override ProviderType ServerProviderType => ProviderType.Postgres;
 
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sqlite_");
-        private string postgreClientRandomDatabaseName = HelperDatabase.GetRandomName("tcp_npg_");
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcfp_npg_sqlite_");
+        private string postgreClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpf_npg_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
@@ -294,7 +312,7 @@ namespace Dotmim.Sync.Tests
         }
         public override ProviderType ServerProviderType => ProviderType.Postgres;
 
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("http_sqlite_");
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("http_npg_sqlite_");
         private string postgreClientRandomDatabaseName = HelperDatabase.GetRandomName("http_npg_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
@@ -312,7 +330,7 @@ namespace Dotmim.Sync.Tests
         }
         public override ProviderType ServerProviderType => ProviderType.MySql;
 
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sqlite_");
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_mysql_sqlite_");
         private string mysqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcp_mysql_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
@@ -330,8 +348,8 @@ namespace Dotmim.Sync.Tests
 
         public override ProviderType ServerProviderType => ProviderType.MySql;
 
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sqlite_");
-        private string mysqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcp_mysql_");
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpf_mysql_sqlite_");
+        private string mysqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpf_mysql_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
@@ -348,7 +366,7 @@ namespace Dotmim.Sync.Tests
 
         public override ProviderType ServerProviderType => ProviderType.MySql;
 
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("http_sqlite_");
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("http_mysql_sqlite_");
         private string mysqlClientRandomDatabaseName = HelperDatabase.GetRandomName("http_mysql_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
@@ -365,8 +383,8 @@ namespace Dotmim.Sync.Tests
         }
         public override ProviderType ServerProviderType => ProviderType.MySql;
 
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sqlite_");
-        private string mysqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcp_mysql_");
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpc_mysql_sqlite_");
+        private string mysqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpc_mysql_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
@@ -384,7 +402,7 @@ namespace Dotmim.Sync.Tests
         }
         public override ProviderType ServerProviderType => ProviderType.MariaDB;
 
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sqlite_");
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_maria_sqlite_");
         private string mariaClientRandomDatabaseName = HelperDatabase.GetRandomName("tcp_maria_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
@@ -402,8 +420,8 @@ namespace Dotmim.Sync.Tests
 
         public override ProviderType ServerProviderType => ProviderType.MariaDB;
 
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sqlite_");
-        private string mariaClientRandomDatabaseName = HelperDatabase.GetRandomName("tcp_maria_");
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpf_maria_sqlite_");
+        private string mariaClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpf_maria_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
@@ -420,7 +438,7 @@ namespace Dotmim.Sync.Tests
 
         public override ProviderType ServerProviderType => ProviderType.MariaDB;
 
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("http_sqlite_");
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("http_maria_sqlite_");
         private string mariaClientRandomDatabaseName = HelperDatabase.GetRandomName("http_maria_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
