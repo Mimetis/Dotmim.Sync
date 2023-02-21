@@ -225,8 +225,16 @@ namespace Dotmim.Sync.Tests.Misc
             var preparationTime = $"[Prework :{this.initializeStopwatch.Elapsed.Minutes}:{this.initializeStopwatch.Elapsed.Seconds}.{this.initializeStopwatch.Elapsed.Milliseconds}]";
             var testClass = this.Test.TestCase.TestMethod.TestClass.Class as ReflectionTypeInfo;
 
+            string clientsDbName = "";
+            string comma = "";
+            foreach (var cliProvider in GetClientProviders())
+            {
+                clientsDbName += $"{comma}{cliProvider.GetDatabaseName()}";
+                comma = "-";
+            }
+
             var serverDbName = $"[Server {GetServerProvider().GetDatabaseName()}]";
-            var clientsDbName = $"[Clients {string.Concat(GetClientProviders().Select(cp => cp.GetDatabaseName()), "-")}]";
+            clientsDbName = $"[Clients {clientsDbName}]";
 
             t = $"{testClass.Type.Name}.{this.Test.TestCase.Method.Name}{t}: {serverDbName} - {clientsDbName} - {overallTime} - {preparationTime} - {this.Stopwatch.Elapsed.Minutes}:{this.Stopwatch.Elapsed.Seconds}.{this.Stopwatch.Elapsed.Milliseconds}.";
             Console.WriteLine(t);
