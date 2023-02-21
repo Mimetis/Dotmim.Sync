@@ -135,12 +135,14 @@ namespace Dotmim.Sync.Tests.Misc
         {
             string newGeneratedRandomName =$"{pref}{Path.GetRandomFileName().Replace(".", "").ToLowerInvariant()}";
             
-            while (names.TryGetValue(newGeneratedRandomName, out _))
+            while (names.TryGetValue(newGeneratedRandomName, out var existsDbName))
             {
-                Thread.Sleep(100);
+                Console.WriteLine($"Database {existsDbName} already exists. try another name");
+                Thread.Sleep(1000);
                 newGeneratedRandomName = $"{pref}{Path.GetRandomFileName().Replace(".", "").ToLowerInvariant()}";
             }
-            
+
+
             names.TryAdd(newGeneratedRandomName, newGeneratedRandomName);
             
             return newGeneratedRandomName;
