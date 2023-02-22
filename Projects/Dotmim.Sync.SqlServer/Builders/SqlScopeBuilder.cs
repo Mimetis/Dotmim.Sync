@@ -217,7 +217,7 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             var p0 = command.CreateParameter();
             p0.ParameterName = "@sync_scope_id";
-            p0.DbType = DbType.String;
+            p0.DbType = DbType.Guid;
             p0.Size = -1;
             command.Parameters.Add(p0);
 
@@ -469,7 +469,7 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_id";
-            p.DbType = DbType.String;
+            p.DbType = DbType.Guid;
             p.Size = -1;
             command.Parameters.Add(p);
 
@@ -544,7 +544,7 @@ namespace Dotmim.Sync.SqlServer.Scope
 
             var p = command.CreateParameter();
             p.ParameterName = "@sync_scope_id";
-            p.DbType = DbType.String;
+            p.DbType = DbType.Guid;
             p.Size = -1;
             command.Parameters.Add(p);
 
