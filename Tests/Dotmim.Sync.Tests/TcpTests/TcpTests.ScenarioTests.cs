@@ -769,11 +769,24 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         {
             // create all clients database with seeding.
             // we are "mimic" here the backup restore
+
+            var newClientsProviders = new List<CoreProvider>();
+
             foreach (var clientProvider in clientsProvider)
             {
-                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
-                HelperDatabase.DropDatabase(clientProviderType, clientDatabaseName);
-                await clientProvider.EnsureTablesAreCreatedAsync(true);
+                var (clientProviderType, _) = HelperDatabase.GetDatabaseType(clientProvider);
+                
+                var clientDatabaseName = HelperDatabase.GetRandomName("cli_start_restored");
+
+                var newClientProvider = HelperDatabase.GetSyncProvider(clientProviderType, clientDatabaseName, clientProviderType == ProviderType.Sql || clientProviderType == ProviderType.Postgres);
+
+                new AdventureWorksContext(newClientProvider).Database.EnsureCreated();
+                if (clientProviderType == ProviderType.Sql)
+                    await HelperDatabase.ActivateChangeTracking(clientDatabaseName);
+
+                await newClientProvider.EnsureTablesAreCreatedAsync(true);
+
+                newClientsProviders.Add(newClientProvider);
             }
 
             // Get tables I need (with or without schema)
@@ -795,7 +808,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             await serverProvider.AddProductCategoryAsync();
 
             // First sync to initialiaze client database, create table and fill product categories
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in newClientsProviders)
             {
                 // get orchestrator
                 var localOrchestrator = new LocalOrchestrator(clientProvider);

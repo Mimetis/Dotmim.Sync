@@ -55,7 +55,7 @@ namespace Dotmim.Sync.Tests
         private string sqlRandomDatabaseName = HelperDatabase.GetRandomName("ut1_sql_");
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlRandomDatabaseName, true);
         }
 
     }
@@ -70,7 +70,7 @@ namespace Dotmim.Sync.Tests
         private string sqlRandomDatabaseName = HelperDatabase.GetRandomName("ut2_sql_");
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlRandomDatabaseName, true);
         }
     }
 
@@ -84,7 +84,7 @@ namespace Dotmim.Sync.Tests
         private string sqlRandomDatabaseName = HelperDatabase.GetRandomName("ut3_sql_");
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlRandomDatabaseName, true);
         }
 
     }
