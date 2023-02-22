@@ -1,5 +1,4 @@
 jobs:
-
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "Unit tests"
@@ -92,6 +91,12 @@ jobs:
 
   - template: azure-pipelines-template.yml
     parameters:
+      displayName: "MySQL Conflicts .net 7.0"
+      dotnetfx: "net7.0"
+      filter: "Dotmim.Sync.Tests.MySqlConflictTests"
+
+  - template: azure-pipelines-template.yml
+    parameters:
       displayName: "MariaDB Tcp .net core 3.1"
       dotnetfx: "netcoreapp3.1"
       filter: "Dotmim.Sync.Tests.MariaDBTcp"
@@ -101,6 +106,18 @@ jobs:
       displayName: "MariaDB Tcp .net 7.0"
       dotnetfx: "net7.0"
       filter: "Dotmim.Sync.Tests.MariaDBTcp"
+
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: "MariaDB Fiter Tests .net 7.0"
+      dotnetfx: "net7.0"
+      filter: "Dotmim.Sync.Tests.MariaDBTcpFilterTests"
+
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: "MariaDB Http Tests .net 7.0"
+      dotnetfx: "net7.0"
+      filter: "Dotmim.Sync.Tests.MariaDBHttpTests"
 
   - template: azure-pipelines-template.yml
     parameters:
@@ -140,22 +157,21 @@ jobs:
       AZUREDEV: "true"
 
     steps:
-
       - script: printenv
         displayName: Get env variables
 
       # Use the latest .NET SDK
       - task: UseDotNet@2
-        displayName: 'Use .Net Sdk 7.x'
+        displayName: "Use .Net Sdk 7.x"
         inputs:
-          packageType: 'sdk'
+          packageType: "sdk"
           version: 7.0.x
           includePreviewVersions: true
 
       - task: UseDotNet@2
-        displayName: 'Use .Net Sdk 6.x'
+        displayName: "Use .Net Sdk 6.x"
         inputs:
-          packageType: 'sdk'
+          packageType: "sdk"
           version: 6.0.x
           includePreviewVersions: true
 

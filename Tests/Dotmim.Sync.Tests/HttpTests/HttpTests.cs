@@ -325,7 +325,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var agent = new SyncAgent(badClientProvider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () => await agent.SynchronizeAsync(setup));
-                Console.WriteLine($"Exception correctly raised for provider {t}");
             }
         }
 
