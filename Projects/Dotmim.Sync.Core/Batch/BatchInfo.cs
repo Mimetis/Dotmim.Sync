@@ -81,14 +81,6 @@ namespace Dotmim.Sync.Batch
         [DataMember(Name = "ser", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public string SerializerFactoryKey { get; set; }
 
-
-        /// <summary>
-        /// Only Used for Backward compatibility for version before 0.9.6
-        /// </summary>
-        [Obsolete]
-        [DataMember(Name = "schema", IsRequired = false, EmitDefaultValue = false, Order = 7)]
-        public SyncSet SanitizedSchema { get; set; }
-
         /// <summary>
         /// Get the full path of the Batch directory
         /// </summary>

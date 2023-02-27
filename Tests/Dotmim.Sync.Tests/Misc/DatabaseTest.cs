@@ -103,15 +103,26 @@ namespace Dotmim.Sync.Tests.Misc
             return setup;
         }
 
+
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("sqlite_");
+        private string sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("server_");
         /// <summary>
         /// Get the server provider
         /// </summary>
-        public abstract CoreProvider GetServerProvider();
+        public virtual IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, true);
+        }
 
         /// <summary>
-        /// Gets all the client providers
+        /// Gets all the client providers. By default, SQLIte is always required
         /// </summary>
-        public abstract IEnumerable<CoreProvider> GetClientProviders();
+        public virtual CoreProvider GetServerProvider()
+        {
+            return HelperDatabase.GetSyncProvider(ServerProviderType, sqlServerRandomDatabaseName, ServerProviderType == ProviderType.Sql || ServerProviderType == ProviderType.Postgres);
+        }
+
+        public abstract ProviderType ServerProviderType { get; }
 
         /// <summary>
         /// Get filters parameters
@@ -173,15 +184,21 @@ namespace Dotmim.Sync.Tests.Misc
         private void CreateDatabases()
         {
             var (serverProviderType, serverDatabaseName) = HelperDatabase.GetDatabaseType(GetServerProvider());
-            HelperDatabase.DropDatabase(serverProviderType, serverDatabaseName);
+
+            if (!Setup.IsOnAzureDev)
+                HelperDatabase.DropDatabase(serverProviderType, serverDatabaseName);
 
             foreach (var clientProvider in GetClientProviders())
             {
+                // HelperDatabase.GetDatabaseType(clientProvider);
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
-                HelperDatabase.DropDatabase(clientProviderType, clientDatabaseName);
+
+                if (!Setup.IsOnAzureDev)
+                    HelperDatabase.DropDatabase(clientProviderType, clientDatabaseName);
             }
 
             new AdventureWorksContext(GetServerProvider(), true).Database.EnsureCreated();
+            
             if (serverProviderType == ProviderType.Sql)
                 HelperDatabase.ActivateChangeTracking(serverDatabaseName).GetAwaiter().GetResult();
 
@@ -208,7 +225,18 @@ namespace Dotmim.Sync.Tests.Misc
             var preparationTime = $"[Prework :{this.initializeStopwatch.Elapsed.Minutes}:{this.initializeStopwatch.Elapsed.Seconds}.{this.initializeStopwatch.Elapsed.Milliseconds}]";
             var testClass = this.Test.TestCase.TestMethod.TestClass.Class as ReflectionTypeInfo;
 
-            t = $"{testClass.Type.Name}.{this.Test.TestCase.Method.Name}{t}: {overallTime} - {preparationTime} - {this.Stopwatch.Elapsed.Minutes}:{this.Stopwatch.Elapsed.Seconds}.{this.Stopwatch.Elapsed.Milliseconds}.";
+            string clientsDbName = "";
+            string comma = "";
+            foreach (var cliProvider in GetClientProviders())
+            {
+                clientsDbName += $"{comma}{cliProvider.GetDatabaseName()}";
+                comma = "-";
+            }
+
+            var serverDbName = $"[Server {GetServerProvider().GetDatabaseName()}]";
+            clientsDbName = $"[Clients {clientsDbName}]";
+
+            t = $"{testClass.Type.Name}.{this.Test.TestCase.Method.Name}{t}: {serverDbName} - {clientsDbName} - {overallTime} - {preparationTime} - {this.Stopwatch.Elapsed.Minutes}:{this.Stopwatch.Elapsed.Seconds}.{this.Stopwatch.Elapsed.Milliseconds}.";
             Console.WriteLine(t);
             Debug.WriteLine(t);
             this.Output.WriteLine(t);

@@ -10,7 +10,9 @@
 		<!--<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>-->
 		<LangVersion>8.0</LangVersion>
 	</PropertyGroup>
-	<ItemGroup>
+	<PropertyGroup>
+		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+	</PropertyGroup><ItemGroup>
 	  <Compile Remove="UnitTests\Mock\**" />
 	  <Compile Remove="UnitTests\Orchestrators\**" />
 	  <EmbeddedResource Remove="UnitTests\Mock\**" />

@@ -253,29 +253,6 @@ namespace Dotmim.Sync.Web.Server
                     case HttpStep.SendChangesInProgress:
                         var sendChangesRequest = (HttpMessageSendChangesRequest)messsageRequest;
                         await this.RemoteOrchestrator.InterceptAsync(new HttpGettingClientChangesArgs(sendChangesRequest, httpContext.Request.Host.Host, sessionCache), progress, cancellationToken).ConfigureAwait(false);
-
-                        //----------------------------------------------------------------------------------
-                        // RETRO COMPATIBILITY PRE 0.9.6
-                        //----------------------------------------------------------------------------------
-                        var oldVersion = sendChangesRequest.OldScopeInfo != null && sendChangesRequest.ScopeInfoClient == null;
-
-                        if (oldVersion)
-                        {
-                            var cScopeInfoClient = new ScopeInfoClient
-                            {
-                                Id = sendChangesRequest.OldScopeInfo.Id,
-                                IsNewScope = sendChangesRequest.OldScopeInfo.IsNewScope,
-                                LastServerSyncTimestamp = sendChangesRequest.OldScopeInfo.LastServerSyncTimestamp,
-                                LastSync = sendChangesRequest.OldScopeInfo.LastSync,
-                                LastSyncTimestamp = sendChangesRequest.OldScopeInfo.LastSyncTimestamp,
-                                Parameters = sendChangesRequest.SyncContext.Parameters,
-                                Hash = sendChangesRequest.SyncContext.Hash,
-                                Name = sendChangesRequest.SyncContext.ScopeName,
-                            };
-
-                            sendChangesRequest.ScopeInfoClient = cScopeInfoClient;
-                        }
-
                         messageResponse = await this.ApplyThenGetChangesAsync2(httpContext, sendChangesRequest, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
                         break;
                     case HttpStep.GetMoreChanges:
@@ -724,8 +701,6 @@ namespace Dotmim.Sync.Web.Server
                     RowsCount = containerTable.Rows.Count,
                     IsLastBatch = httpMessage.IsLastBatch,
                     Index = httpMessage.BatchIndex,
-                    // For backward compatibility version < v0.9.6
-                    Tables = new[] { new BatchPartTableInfo { TableName = containerTable.TableName, SchemaName = containerTable.SchemaName, RowsCount = containerTable.Rows.Count } }
                 };
 
                 sessionCache.ClientBatchInfo.RowsCount += bpi.RowsCount;
@@ -789,47 +764,6 @@ namespace Dotmim.Sync.Web.Server
                 ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy,
             };
 
-
-            //----------------------------------------------------------------------------------
-            // RETRO COMPATIBILITY PRE 0.9.5
-            //----------------------------------------------------------------------------------
-            // Compatibility with last versions where InMemory is set
-            // Should be removed once all clients are upgraded to 0.9.6 (or at least 0.9.5)
-            if (clientBatchSize <= 0)
-            {
-                var containerSet = new ContainerSet();
-
-                // tmp sync table with only writable columns
-                var changesSet = sScopeInfo.Schema.Clone(false);
-                foreach (var schemaTable in sScopeInfo.Schema.Tables)
-                    BaseOrchestrator.CreateChangesTable(schemaTable, changesSet);
-
-                var sanitizedSchema = sScopeInfo.Schema;
-
-                serverSyncChanges.ServerBatchInfo.SanitizedSchema = sanitizedSchema;
-                foreach (var table in serverSyncChanges.ServerBatchInfo.SanitizedSchema.Tables)
-                {
-                    var containerTable = new ContainerTable(table);
-                    foreach (var part in serverSyncChanges.ServerBatchInfo.GetBatchPartsInfo(table))
-                    {
-                        var path = serverSyncChanges.ServerBatchInfo.GetBatchPartInfoPath(part);
-                        var localSerializer = new LocalJsonSerializer(this.RemoteOrchestrator, context);
-                        foreach (var syncRow in localSerializer.GetRowsFromFile(path, table))
-                        {
-                            containerTable.Rows.Add(syncRow.ToArray());
-                        }
-                    }
-                    if (containerTable.Rows.Count > 0)
-                        containerSet.Tables.Add(containerTable);
-                }
-
-                summaryResponse.Changes = containerSet;
-                summaryResponse.BatchInfo.BatchPartsInfo.Clear();
-                summaryResponse.BatchInfo.BatchPartsInfo = null;
-
-            }
-            //----------------------------------------------------------------------------------
-
             // Get the firt response to send back to client
             return summaryResponse;
 
@@ -888,12 +822,7 @@ namespace Dotmim.Sync.Web.Server
             var batchPartInfo = serverBatchInfo.BatchPartsInfo.First(d => d.Index == batchIndexRequested);
 
             // Get the updatable schema for the only table contained in the batchpartinfo
-
-            // Backward compatibility
-            var batchPartInfoTableName = batchPartInfo.Tables != null && batchPartInfo.Tables.Length >= 1 ? batchPartInfo.Tables[0].TableName : batchPartInfo.TableName;
-            var batchPartInfoSchemaName = batchPartInfo.Tables != null && batchPartInfo.Tables.Length >= 1 ? batchPartInfo.Tables[0].SchemaName : batchPartInfo.SchemaName;
-
-            var schemaTable = BaseOrchestrator.CreateChangesTable(sScopeInfo.Schema.Tables[batchPartInfoTableName, batchPartInfoSchemaName]);
+            var schemaTable = BaseOrchestrator.CreateChangesTable(sScopeInfo.Schema.Tables[batchPartInfo.TableName, batchPartInfo.SchemaName]);
 
             // Generate the ContainerSet containing rows to send to the user
             var containerSet = new ContainerSet();

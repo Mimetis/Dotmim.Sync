@@ -257,12 +257,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             }
 
-            // Delete all clients databases
-            foreach (var clientProvider in newClientsProvider)
-            {
-                var (dt, n) = HelperDatabase.GetDatabaseType(clientProvider);
-                HelperDatabase.DropDatabase(dt, n);
-            }
+            //// Delete all clients databases
+            //foreach (var clientProvider in newClientsProvider)
+            //{
+            //    var (dt, n) = HelperDatabase.GetDatabaseType(clientProvider);
+            //    HelperDatabase.DropDatabase(dt, n);
+            //}
 
         }
 
@@ -351,7 +351,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var agent = new SyncAgent(badClientProvider, serverProvider, options);
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () => await agent.SynchronizeAsync(setup));
-                Console.WriteLine($"Exception correctly raised for provider {t}");
             }
         }
 
@@ -2011,14 +2010,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(0, s.Result.TotalResolvedConflicts);
             }
 
-            foreach (var db in createdDatabases)
-            {
-                try
-                {
-                    HelperDatabase.DropDatabase(db.ProviderType, db.DatabaseName);
-                }
-                catch (Exception) { }
-            }
+            //foreach (var db in createdDatabases)
+            //{
+            //    try
+            //    {
+            //        HelperDatabase.DropDatabase(db.ProviderType, db.DatabaseName);
+            //    }
+            //    catch (Exception) { }
+            //}
         }
 
 

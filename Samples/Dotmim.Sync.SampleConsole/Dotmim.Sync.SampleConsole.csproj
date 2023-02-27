@@ -7,9 +7,9 @@
 		<TargetFrameworks>$(TargetFrameworkNetCore);$(TargetFrameworkNet6);$(TargetFrameworkNet7)</TargetFrameworks>
 		<LangVersion>9.0</LangVersion>
 	</PropertyGroup>
-	<ItemGroup>
-		<None Remove="C:\Users\spertus\.nuget\packages\nlog.config\4.7.15\contentFiles\any\any\NLog.config" />
-	</ItemGroup>
+	<PropertyGroup>
+		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+	</PropertyGroup>
 	<ItemGroup>
 		<PackageReference Include="MessagePack" Version="2.4.59" />
 		<PackageReference Include="Microsoft.AspNetCore" Version="2.2.0" />

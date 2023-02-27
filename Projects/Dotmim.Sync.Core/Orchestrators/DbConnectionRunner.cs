@@ -134,7 +134,6 @@ namespace Dotmim.Sync
 
             try
             {
-                Console.WriteLine($"Transaction rollback:{reason}");
                 this.Transaction.Rollback();
                 return;
             }

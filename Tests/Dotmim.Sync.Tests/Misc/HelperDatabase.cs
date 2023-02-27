@@ -24,6 +24,8 @@ using Dotmim.Sync.PostgreSql;
 using Dotmim.Sync.Tests.Fixtures;
 using Dotmim.Sync.Tests.Models;
 using Microsoft.Extensions.Configuration;
+using System.Collections.Concurrent;
+using System.Threading;
 
 namespace Dotmim.Sync.Tests.Misc
 {
@@ -127,10 +129,23 @@ namespace Dotmim.Sync.Tests.Misc
             return cn;
         }
 
+        public static ConcurrentDictionary<string, string> names = new ConcurrentDictionary<string, string>();
+
         public static string GetRandomName(string pref = default)
         {
-            var str1 = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-            return $"{pref}{str1}";
+            string newGeneratedRandomName =$"{pref}{Path.GetRandomFileName().Replace(".", "").ToLowerInvariant()}";
+            
+            while (names.TryGetValue(newGeneratedRandomName, out var existsDbName))
+            {
+                Console.WriteLine($"Database {existsDbName} already exists. try another name");
+                Thread.Sleep(1000);
+                newGeneratedRandomName = $"{pref}{Path.GetRandomFileName().Replace(".", "").ToLowerInvariant()}";
+            }
+
+
+            names.TryAdd(newGeneratedRandomName, newGeneratedRandomName);
+            
+            return newGeneratedRandomName;
         }
 
         /// <summary>
@@ -494,9 +509,33 @@ namespace Dotmim.Sync.Tests.Misc
             {
                 Debug.WriteLine(ex.Message);
             }
-
-
         }
+
+
+
+        /// <summary>
+        /// Drop a database, depending the Provider type
+        /// </summary>
+        [DebuggerStepThrough]
+        public static bool ExistsDatabase(ProviderType providerType, string dbName)
+        {
+            switch (providerType)
+            {
+                case ProviderType.Sql:
+                    return ExistsSqlDatabase(dbName);
+                case ProviderType.MySql:
+                    return ExistsMySqlDatabase(dbName);
+                case ProviderType.MariaDB:
+                    return ExistsMariaDbDatabase(dbName);
+                case ProviderType.Sqlite:
+                    return ExistsSqliteDatabase(dbName);
+                case ProviderType.Postgres:
+                    return ExistsPostgresDatabase(dbName);
+            }
+
+            return false;
+        }
+
 
         /// <summary>
         /// Drop a mysql database
@@ -521,6 +560,21 @@ namespace Dotmim.Sync.Tests.Misc
                 cmdDb.ExecuteNonQuery();
 
             connection.Close();
+        }
+
+        /// <summary>
+        /// Check if a mysql database exists
+        /// </summary>
+        /// <param name="dbName"></param>
+        private static bool ExistsMySqlDatabase(string dbName)
+        {
+            using var sysConnection = new MySqlConnection(GetMySqlDatabaseConnectionString("information_schema"));
+            sysConnection.Open();
+            using var cmdDb = new MySqlCommand($"SELECT 1 FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '{dbName}';", sysConnection);
+            var exists = cmdDb.ExecuteScalar();
+            sysConnection.Close();
+
+            return exists != null && exists != DBNull.Value && (long)exists == 1;
         }
 
         /// <summary>
@@ -556,6 +610,21 @@ namespace Dotmim.Sync.Tests.Misc
             connection.Close();
         }
 
+        /// <summary>
+        /// Check if a Postgres database exists
+        /// </summary>
+        private static bool ExistsPostgresDatabase(string dbName)
+        {
+            using var sysConnection = new NpgsqlConnection(GetPostgresDatabaseConnectionString("postgres"));
+            sysConnection.Open();
+
+            using var cmdDb = new NpgsqlCommand($"SELECT 1 FROM pg_database WHERE datname='{dbName}'");
+
+            var exists = cmdDb.ExecuteScalar();
+            sysConnection.Close();
+
+            return exists != null && exists != DBNull.Value && (long)exists == 1;
+        }
 
         /// <summary>
         /// Drop a MariaDB database
@@ -580,6 +649,21 @@ namespace Dotmim.Sync.Tests.Misc
                 cmdDb.ExecuteNonQuery();
 
             connection.Close();
+        }
+
+        /// <summary>
+        /// Check if a mariadb database exists
+        /// </summary>
+        /// <param name="dbName"></param>
+        private static bool ExistsMariaDbDatabase(string dbName)
+        {
+            using var sysConnection = new MySqlConnection(GetMySqlDatabaseConnectionString("information_schema"));
+            sysConnection.Open();
+            using var cmdDb = new MySqlCommand($"SELECT 1 FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '{dbName}';", sysConnection);
+            var exists = cmdDb.ExecuteScalar();
+            sysConnection.Close();
+
+            return exists != null && exists != DBNull.Value && (long)exists == 1;
         }
 
         /// <summary>
@@ -620,6 +704,16 @@ namespace Dotmim.Sync.Tests.Misc
         }
 
         /// <summary>
+        /// Drop a sqlite database
+        /// </summary>
+        [DebuggerStepThrough]
+        private static bool ExistsSqliteDatabase(string dbName)
+        {
+            var filePath = GetSqliteFilePath(dbName);
+            return File.Exists(filePath);
+        }
+
+        /// <summary>
         /// Delete a database
         /// </summary>
         private static void DropSqlDatabase(string dbName)
@@ -654,7 +748,21 @@ namespace Dotmim.Sync.Tests.Misc
             connection.Close();
         }
 
+        /// <summary>
+        /// Delete a database
+        /// </summary>
+        private static bool ExistsSqlDatabase(string dbName)
+        {
+            using var masterConnection = new SqlConnection(GetSqlDatabaseConnectionString("master"));
+            masterConnection.Open();
 
+            using var cmdDb = new SqlCommand($"Select * from sys.databases where name = '{dbName}'", masterConnection);
+
+            var exists = cmdDb.ExecuteScalar();
+
+            masterConnection.Close();
+            return exists != null && exists != DBNull.Value && (long)exists == 1;
+        }
 
         public static Task ExecuteScriptAsync(ProviderType providerType, string dbName, string script)
         {
