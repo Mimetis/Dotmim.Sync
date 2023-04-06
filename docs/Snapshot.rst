@@ -150,11 +150,12 @@ To generate a filtered snapshot, just add the ``SyncParameters`` values to the n
     setup.Filters.Add("Customer", "CustomerId");
 
     // Create a filtered snapshot
-    var snapshotCustomer1001 = new SyncContext();
-    snapshotCustomer1001.Parameters = new SyncParameters();
-    snapshotCustomer1001.Parameters.Add("CustomerId", "1001");
-
-    await Server.RemoteOrchestrator.CreateSnapshotAsync(setup, snapshotCustomer1001);
+    SyncParameters parameters = new()
+       {
+          new("CustomerId", "1001"),
+       };
+       
+    await Server.RemoteOrchestrator.CreateSnapshotAsync(setup, parameters);
 
 
 Activate the snapshot option for all new clients
