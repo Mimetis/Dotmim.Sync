@@ -241,6 +241,36 @@ namespace Dotmim.Sync.Tests
         }
     }
 
+    public class SqlServerChangeTrackingConflictTests : TcpConflictsTests
+    {
+        public SqlServerChangeTrackingConflictTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        {
+        }
+        public override ProviderType ServerProviderType => ProviderType.Sql;
+
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpctc_sqlite_");
+        private string sqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpctc_sql_");
+        private string sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("httpctf_sql_");
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
+
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(sqlClientRandomDatabaseName);
+            var provider = new SqlSyncChangeTrackingProvider(cstring);
+            provider.UseFallbackSchema(true);
+            yield return provider;
+        }
+
+        public override CoreProvider GetServerProvider()
+        {
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(sqlServerRandomDatabaseName);
+            var provider = new SqlSyncChangeTrackingProvider(cstring);
+            provider.UseFallbackSchema(true);
+            return provider;
+        }
+    }
+
     public class PostgresConflictTests : TcpConflictsTests
     {
         public PostgresConflictTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)

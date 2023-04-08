@@ -376,8 +376,17 @@ namespace Dotmim.Sync.Web.Client
             if (!string.IsNullOrEmpty(contentType) && !requestMessage.Content.Headers.Contains("content-type"))
                 requestMessage.Content.Headers.Add("content-type", contentType);
 
-            // Eventually, send the request
-            var response = await this.HttpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            HttpResponseMessage response;
+            try
+            {
+                // Eventually, send the request
+                response = await this.HttpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                throw new HttpSyncWebException(ex.Message);
+            }
+
 
             if (cancellationToken.IsCancellationRequested)
                 cancellationToken.ThrowIfCancellationRequested();
