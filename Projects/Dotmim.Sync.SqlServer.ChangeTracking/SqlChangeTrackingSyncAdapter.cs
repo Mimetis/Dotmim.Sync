@@ -52,7 +52,7 @@ namespace Dotmim.Sync.SqlServer
             var sqlCommand = new SqlCommand();
             var stringBuilder1 = new StringBuilder();
 
-            var stringBuilder = new StringBuilder("");
+            var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine(";WITH ");
             stringBuilder.AppendLine($"  {this.trackingName.Quoted()} AS (");
             stringBuilder.Append("\tSELECT ");
