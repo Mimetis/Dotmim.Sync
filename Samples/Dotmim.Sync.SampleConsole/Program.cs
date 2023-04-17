@@ -43,6 +43,7 @@ using MessagePack;
 using System.Runtime.Serialization;
 using System.Reflection.Metadata;
 using Microsoft.AspNetCore.Hosting.Server;
+using System.Threading;
 
 #if NET5_0 || NET6_0 || NET7_0
 using MySqlConnector;
@@ -69,15 +70,15 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        //var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var serverProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString("Wasim"));
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         // var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
         //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
@@ -108,9 +109,9 @@ internal class Program
 
         // await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
-        
-        await AddRemoveRemoveAsync();
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+
+        //await AddRemoveRemoveAsync();
     }
 
 
@@ -124,7 +125,7 @@ internal class Program
 
         // Server provider
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        
+
         // Clients 1 & 2 providers
         var clientProvider1 = new SqliteSyncProvider(
             Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
@@ -199,25 +200,36 @@ internal class Program
 
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
-        // Using the Progress pattern to handle progression during the synchronization
         var progress = new SynchronousProgress<ProgressArgs>(s =>
-            Console.WriteLine($"{s.ProgressPercentage:p}:  \t[{s?.Source[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+            Console.WriteLine($"{s.ProgressPercentage:p}:  " +
+            $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
 
-        //options.ProgressLevel = SyncProgressLevel.Debug;
         options.DisableConstraintsOnApplyChanges = true;
         options.TransactionMode = TransactionMode.PerBatch;
 
         var agent = new SyncAgent(clientProvider, serverProvider, options);
-        agent.LocalOrchestrator.OnSessionBegin(args => Console.WriteLine(args.Message));
-        agent.LocalOrchestrator.OnSessionEnd(args => Console.WriteLine(args.SyncResult));
+
+        CancellationTokenSource cts = null;
+        
+        agent.LocalOrchestrator.OnRowsChangesSelected(rcsa =>
+        {
+            Console.WriteLine($"OnRowsChangesSelected: {rcsa.SyncRow}");
+
+            Console.Write("Cancel sync ? [Y] / [N]: ");
+            var key = Console.ReadKey();
+            Console.WriteLine();
+            
+            if (key != null && key.Key == ConsoleKey.Y)
+                cts.Cancel();
+        });
 
         do
         {
             try
             {
-                Console.Clear();
                 Console.ForegroundColor = ConsoleColor.Green;
-                var s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
+                cts = new CancellationTokenSource();
+                var s = await agent.SynchronizeAsync(scopeName, setup, SyncType.Normal, null, cts.Token, progress);
                 Console.WriteLine(s);
             }
             catch (SyncException e)
@@ -230,7 +242,7 @@ internal class Program
                 Console.ResetColor();
                 Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
             }
-            Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+            Console.WriteLine("--------------------");
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
     }
