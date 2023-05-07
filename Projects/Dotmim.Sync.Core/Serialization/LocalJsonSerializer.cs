@@ -4,7 +4,6 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 
 
@@ -21,6 +20,8 @@ namespace Dotmim.Sync.Serialization
         private JsonTextWriter writer;
         private Func<SyncTable, object[], Task<string>> writingRowAsync;
         private Func<SyncTable, string, Task<object[]>> readingRowAsync;
+        private bool isOpen;
+
         private readonly object writerLock = new object();
 
 
@@ -51,7 +52,23 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Returns if the file is opened
         /// </summary>
-        public bool IsOpen { get; set; }
+        public bool IsOpen
+        {
+            get
+            {
+                lock (writerLock)
+                {
+                    return isOpen;
+                }
+            }
+            set
+            {
+                lock (writerLock)
+                {
+                    isOpen = value;
+                }
+            }
+        }
 
         /// <summary>
         /// Gets the file extension
@@ -109,64 +126,80 @@ namespace Dotmim.Sync.Serialization
             this.sw = new StreamWriter(path, append);
             this.writer = new JsonTextWriter(sw) { CloseOutput = true, AutoCompleteOnClose = false };
 
-            this.writer.WriteStartObject();
-            this.writer.WritePropertyName("t");
-            this.writer.WriteStartArray();
-            this.writer.WriteStartObject();
-            this.writer.WritePropertyName("n");
-            this.writer.WriteValue(schemaTable.TableName);
-            this.writer.WritePropertyName("s");
-            this.writer.WriteValue(schemaTable.SchemaName);
-            this.writer.WritePropertyName("st");
-            this.writer.WriteValue((int)state);
-
-            this.writer.WritePropertyName("c");
-            this.writer.WriteStartArray();
-            foreach (var c in schemaTable.Columns)
+            lock (writerLock)
             {
                 this.writer.WriteStartObject();
-                this.writer.WritePropertyName("n");
-                this.writer.WriteValue(c.ColumnName);
                 this.writer.WritePropertyName("t");
-                this.writer.WriteValue(c.DataType);
-                if (schemaTable.IsPrimaryKey(c.ColumnName))
-                {
-                    this.writer.WritePropertyName("p");
-                    this.writer.WriteValue(1);
-                }
-                this.writer.WriteEndObject();
-            }
+                this.writer.WriteStartArray();
+                this.writer.WriteStartObject();
+                this.writer.WritePropertyName("n");
+                this.writer.WriteValue(schemaTable.TableName);
+                this.writer.WritePropertyName("s");
+                this.writer.WriteValue(schemaTable.SchemaName);
+                this.writer.WritePropertyName("st");
+                this.writer.WriteValue((int)state);
 
-            this.writer.WriteEndArray();
-            this.writer.WritePropertyName("r");
-            this.writer.WriteStartArray();
-            this.writer.WriteWhitespace(Environment.NewLine);
+                this.writer.WritePropertyName("c");
+                this.writer.WriteStartArray();
+                foreach (var c in schemaTable.Columns)
+                {
+                    this.writer.WriteStartObject();
+                    this.writer.WritePropertyName("n");
+                    this.writer.WriteValue(c.ColumnName);
+                    this.writer.WritePropertyName("t");
+                    this.writer.WriteValue(c.DataType);
+                    if (schemaTable.IsPrimaryKey(c.ColumnName))
+                    {
+                        this.writer.WritePropertyName("p");
+                        this.writer.WriteValue(1);
+                    }
+                    this.writer.WriteEndObject();
+                }
+
+                this.writer.WriteEndArray();
+                this.writer.WritePropertyName("r");
+                this.writer.WriteStartArray();
+                this.writer.WriteWhitespace(Environment.NewLine);
+            }
         }
-        
+
         /// <summary>
         /// Append a sync row to the writer
         /// </summary>
         public async Task WriteRowToFileAsync(SyncRow row, SyncTable schemaTable)
         {
-            writer.WriteStartArray();
-
             var innerRow = row.ToArray();
+
+            string str;
 
             if (this.writingRowAsync != null)
             {
-                var str = await this.writingRowAsync(schemaTable, innerRow);
-                writer.WriteValue(str);
+                str = await this.writingRowAsync(schemaTable, innerRow);
             }
             else
             {
-                for (var i = 0; i < innerRow.Length; i++)
-                    writer.WriteValue(innerRow[i]);
-
+                str = string.Empty; // This won't ever be used, but is need to compile.
             }
 
-            writer.WriteEndArray();
-            writer.WriteWhitespace(Environment.NewLine);
-            writer.Flush();
+            lock (writerLock)
+            {
+                writer.WriteStartArray();
+
+                if (this.writingRowAsync != null)
+                {
+                    writer.WriteValue(str);
+                }
+                else
+                {
+                    for (var i = 0; i < innerRow.Length; i++)
+                        writer.WriteValue(innerRow[i]);
+
+                }
+
+                writer.WriteEndArray();
+                writer.WriteWhitespace(Environment.NewLine);
+                writer.Flush();
+            }
         }
 
         /// <summary>
@@ -179,17 +212,24 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public void OnReadingRow(Func<SyncTable, string, Task<object[]>> func) => this.readingRowAsync = func;
 
-
         /// <summary>
         /// Gets the file size
         /// </summary>
         /// <returns></returns>
         public Task<long> GetCurrentFileSizeAsync()
-            => this.sw != null && this.sw.BaseStream != null ?
-                Task.FromResult(this.sw.BaseStream.Position / 1024L) :
-                Task.FromResult(0L);
+        {
+            long position = 0L;
 
+            lock (writerLock)
+            {
+                if (this.sw != null && this.sw.BaseStream != null)
+                {
+                    position = this.sw.BaseStream.Position / 1024L;
+                }
+            }
 
+            return Task.FromResult(position);
+        }
 
         /// <summary>
         /// Get the table contained in a serialized file
