@@ -1,9 +1,7 @@
-﻿using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
-using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
@@ -125,10 +123,7 @@ namespace Dotmim.Sync
             outputWriter.ResetColor();
         }
 
-
-        private static Dictionary<Type, List<PropertyInfo>> MembersInfo = new Dictionary<Type, List<PropertyInfo>>();
-
-
+        private static readonly ConcurrentDictionary<Type, List<PropertyInfo>> MembersInfo = new();
 
         internal static (string Message, object[] Args) GetLogMessageFrom<T>(T value, EventId id)
         {
@@ -138,10 +133,10 @@ namespace Dotmim.Sync
 
             List<PropertyInfo> membersInfos;
 
-            if (MembersInfo.ContainsKey(typeofT))
-                membersInfos = MembersInfo[typeofT];
-            else
+            if (!MembersInfo.TryGetValue(typeofT, out membersInfos))
+            {
                 membersInfos = GetProperties(typeof(T));
+            }
 
             var args = new List<object>(membersInfos.Count + 1);
 
@@ -163,10 +158,7 @@ namespace Dotmim.Sync
                 args.Add(typeofT.Name);
             }
 
-            if (!MembersInfo.ContainsKey(typeofT))
-                lock (MembersInfo)
-                    if (!MembersInfo.ContainsKey(typeofT))
-                        MembersInfo.Add(typeofT, membersInfos);
+            MembersInfo.TryAdd(typeofT, membersInfos);
 
             return (sb.ToString(), args.ToArray());
         }
