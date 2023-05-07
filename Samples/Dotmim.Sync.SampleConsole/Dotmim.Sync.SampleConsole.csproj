@@ -5,7 +5,7 @@
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
 		<TargetFrameworkNet7>net7.0</TargetFrameworkNet7>
 		<TargetFrameworks>$(TargetFrameworkNetCore);$(TargetFrameworkNet6);$(TargetFrameworkNet7)</TargetFrameworks>
-		<LangVersion>9.0</LangVersion>
+		<LangVersion>11.0</LangVersion>
 	</PropertyGroup>
 	<PropertyGroup>
 		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
