@@ -148,13 +148,25 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public async Task WriteRowToFileAsync(SyncRow row, SyncTable schemaTable)
         {
-            writer.WriteStartArray();
-
             var innerRow = row.ToArray();
+
+            string str;
 
             if (this.writingRowAsync != null)
             {
-                var str = await this.writingRowAsync(schemaTable, innerRow);
+                str = await this.writingRowAsync(schemaTable, innerRow);
+            }
+            else
+            {
+                str = string.Empty; // This won't ever be used, but is need to compile.
+            }
+
+            lock (writerLock)
+            {
+                writer.WriteStartArray();
+
+                if (this.writingRowAsync != null)
+                {
                 writer.WriteValue(str);
             }
             else
@@ -167,6 +179,7 @@ namespace Dotmim.Sync.Serialization
             writer.WriteEndArray();
             writer.WriteWhitespace(Environment.NewLine);
             writer.Flush();
+            }
         }
 
         /// <summary>
