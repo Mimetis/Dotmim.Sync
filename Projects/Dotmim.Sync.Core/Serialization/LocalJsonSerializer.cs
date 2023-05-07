@@ -109,6 +109,8 @@ namespace Dotmim.Sync.Serialization
             this.sw = new StreamWriter(path, append);
             this.writer = new JsonTextWriter(sw) { CloseOutput = true, AutoCompleteOnClose = false };
 
+            lock (writerLock)
+            {
             this.writer.WriteStartObject();
             this.writer.WritePropertyName("t");
             this.writer.WriteStartArray();
@@ -141,6 +143,7 @@ namespace Dotmim.Sync.Serialization
             this.writer.WritePropertyName("r");
             this.writer.WriteStartArray();
             this.writer.WriteWhitespace(Environment.NewLine);
+            }
         }
         
         /// <summary>
