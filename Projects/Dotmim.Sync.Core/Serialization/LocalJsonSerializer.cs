@@ -179,17 +179,24 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public void OnReadingRow(Func<SyncTable, string, Task<object[]>> func) => this.readingRowAsync = func;
 
-
         /// <summary>
         /// Gets the file size
         /// </summary>
         /// <returns></returns>
         public Task<long> GetCurrentFileSizeAsync()
-            => this.sw != null && this.sw.BaseStream != null ?
-                Task.FromResult(this.sw.BaseStream.Position / 1024L) :
-                Task.FromResult(0L);
+        {
+            long position = 0L;
 
+            lock (writerLock)
+            {
+                if (this.sw != null && this.sw.BaseStream != null)
+                {
+                    position = this.sw.BaseStream.Position / 1024L;
+                }
+            }
 
+            return Task.FromResult(position);
+        }
 
         /// <summary>
         /// Get the table contained in a serialized file
