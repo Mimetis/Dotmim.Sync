@@ -252,10 +252,10 @@ namespace Dotmim.Sync
             foreach (var c in orderedNames)
                 changesTable.Columns.Add(c.Clone());
 
-            if (owner == null)
-                owner = new SyncSet();
-
-            owner.Tables.Add(changesTable);
+            if (owner != null)
+            {
+                owner.Tables.Add(changesTable);
+            }
 
             return changesTable;
         }
