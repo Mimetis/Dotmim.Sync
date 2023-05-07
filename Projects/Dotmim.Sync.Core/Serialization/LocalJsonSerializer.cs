@@ -4,7 +4,6 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
 using System.Threading.Tasks;
 
 
@@ -21,6 +20,8 @@ namespace Dotmim.Sync.Serialization
         private JsonTextWriter writer;
         private Func<SyncTable, object[], Task<string>> writingRowAsync;
         private Func<SyncTable, string, Task<object[]>> readingRowAsync;
+        private bool isOpen;
+
         private readonly object writerLock = new object();
 
 
@@ -51,7 +52,23 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Returns if the file is opened
         /// </summary>
-        public bool IsOpen { get; set; }
+        public bool IsOpen
+        {
+            get
+            {
+                lock (writerLock)
+                {
+                    return isOpen;
+                }
+            }
+            set
+            {
+                lock (writerLock)
+                {
+                    isOpen = value;
+                }
+            }
+        }
 
         /// <summary>
         /// Gets the file extension
@@ -111,41 +128,41 @@ namespace Dotmim.Sync.Serialization
 
             lock (writerLock)
             {
-            this.writer.WriteStartObject();
-            this.writer.WritePropertyName("t");
-            this.writer.WriteStartArray();
-            this.writer.WriteStartObject();
-            this.writer.WritePropertyName("n");
-            this.writer.WriteValue(schemaTable.TableName);
-            this.writer.WritePropertyName("s");
-            this.writer.WriteValue(schemaTable.SchemaName);
-            this.writer.WritePropertyName("st");
-            this.writer.WriteValue((int)state);
-
-            this.writer.WritePropertyName("c");
-            this.writer.WriteStartArray();
-            foreach (var c in schemaTable.Columns)
-            {
+                this.writer.WriteStartObject();
+                this.writer.WritePropertyName("t");
+                this.writer.WriteStartArray();
                 this.writer.WriteStartObject();
                 this.writer.WritePropertyName("n");
-                this.writer.WriteValue(c.ColumnName);
-                this.writer.WritePropertyName("t");
-                this.writer.WriteValue(c.DataType);
-                if (schemaTable.IsPrimaryKey(c.ColumnName))
-                {
-                    this.writer.WritePropertyName("p");
-                    this.writer.WriteValue(1);
-                }
-                this.writer.WriteEndObject();
-            }
+                this.writer.WriteValue(schemaTable.TableName);
+                this.writer.WritePropertyName("s");
+                this.writer.WriteValue(schemaTable.SchemaName);
+                this.writer.WritePropertyName("st");
+                this.writer.WriteValue((int)state);
 
-            this.writer.WriteEndArray();
-            this.writer.WritePropertyName("r");
-            this.writer.WriteStartArray();
-            this.writer.WriteWhitespace(Environment.NewLine);
+                this.writer.WritePropertyName("c");
+                this.writer.WriteStartArray();
+                foreach (var c in schemaTable.Columns)
+                {
+                    this.writer.WriteStartObject();
+                    this.writer.WritePropertyName("n");
+                    this.writer.WriteValue(c.ColumnName);
+                    this.writer.WritePropertyName("t");
+                    this.writer.WriteValue(c.DataType);
+                    if (schemaTable.IsPrimaryKey(c.ColumnName))
+                    {
+                        this.writer.WritePropertyName("p");
+                        this.writer.WriteValue(1);
+                    }
+                    this.writer.WriteEndObject();
+                }
+
+                this.writer.WriteEndArray();
+                this.writer.WritePropertyName("r");
+                this.writer.WriteStartArray();
+                this.writer.WriteWhitespace(Environment.NewLine);
             }
         }
-        
+
         /// <summary>
         /// Append a sync row to the writer
         /// </summary>
@@ -170,18 +187,18 @@ namespace Dotmim.Sync.Serialization
 
                 if (this.writingRowAsync != null)
                 {
-                writer.WriteValue(str);
-            }
-            else
-            {
-                for (var i = 0; i < innerRow.Length; i++)
-                    writer.WriteValue(innerRow[i]);
+                    writer.WriteValue(str);
+                }
+                else
+                {
+                    for (var i = 0; i < innerRow.Length; i++)
+                        writer.WriteValue(innerRow[i]);
 
-            }
+                }
 
-            writer.WriteEndArray();
-            writer.WriteWhitespace(Environment.NewLine);
-            writer.Flush();
+                writer.WriteEndArray();
+                writer.WriteWhitespace(Environment.NewLine);
+                writer.Flush();
             }
         }
 
