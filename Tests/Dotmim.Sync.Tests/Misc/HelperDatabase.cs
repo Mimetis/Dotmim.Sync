@@ -26,6 +26,7 @@ using Dotmim.Sync.Tests.Models;
 using Microsoft.Extensions.Configuration;
 using System.Collections.Concurrent;
 using System.Threading;
+using System.Linq;
 
 namespace Dotmim.Sync.Tests.Misc
 {
@@ -129,23 +130,35 @@ namespace Dotmim.Sync.Tests.Misc
             return cn;
         }
 
-        public static ConcurrentDictionary<string, string> names = new ConcurrentDictionary<string, string>();
+        public static readonly ConcurrentDictionary<string, string> names = new ConcurrentDictionary<string, string>();
 
         public static string GetRandomName(string pref = default)
         {
-            string newGeneratedRandomName =$"{pref}{Path.GetRandomFileName().Replace(".", "").ToLowerInvariant()}";
-            
+            string newGeneratedRandomName = GenerateRandomName(pref);
+
             while (names.TryGetValue(newGeneratedRandomName, out var existsDbName))
             {
                 Console.WriteLine($"Database {existsDbName} already exists. try another name");
                 Thread.Sleep(1000);
-                newGeneratedRandomName = $"{pref}{Path.GetRandomFileName().Replace(".", "").ToLowerInvariant()}";
+                newGeneratedRandomName = GenerateRandomName(pref);
             }
 
-
             names.TryAdd(newGeneratedRandomName, newGeneratedRandomName);
-            
+
             return newGeneratedRandomName;
+        }
+
+        private static readonly Random random = new Random();
+
+        private static string GenerateRandomName(string prefix)
+        {
+            const string chars = "abcdefghijklmnopqrztuvwxyz";
+
+            // Generates an alphanumeric suffix that is 12 characters long.
+            var suffix = new string(Enumerable.Repeat(chars, 12)
+                .Select(s => s[random.Next(s.Length)]).ToArray());
+
+            return prefix + suffix;
         }
 
         /// <summary>
