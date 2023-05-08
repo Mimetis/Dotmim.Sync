@@ -393,7 +393,7 @@ namespace Dotmim.Sync.Serialization
                                     schemaEmpty = false;
                                 }
 
-                                if ((schemaTable.Columns.Count + 1) != array.Length)
+                                if (array.Length != (schemaTable.Columns.Count + 1))
                                 {
                                     string rowStr = "[" + string.Join(",", array) + "]";
 
