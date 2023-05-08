@@ -257,7 +257,7 @@ namespace Dotmim.Sync
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 // Creating a fake scope info
-                var serverScopeInfo = this.InternalCreateScopeInfo(scopeName);
+                var serverScopeInfo = InternalCreateScopeInfo(scopeName);
                 serverScopeInfo.Setup = setup;
                 serverScopeInfo.Schema = new SyncSet(setup);
 

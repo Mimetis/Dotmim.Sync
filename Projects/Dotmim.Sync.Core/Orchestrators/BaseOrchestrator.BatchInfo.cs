@@ -55,7 +55,7 @@ namespace Dotmim.Sync
 
                 foreach (var file in directory.GetFiles())
                 {
-                    var (schemaTable, rowsCount, state) = localSerializer.GetSchemaTableFromFile(file.FullName);
+                    var (schemaTable, rowsCount, state) = LocalJsonSerializer.GetSchemaTableFromFile(file.FullName);
                     batchInfo.BatchPartsInfo.Add(new BatchPartInfo(file.Name, schemaTable.TableName, schemaTable.SchemaName, state, rowsCount));
                 }
                 batchInfos.Add(batchInfo);
@@ -116,7 +116,7 @@ namespace Dotmim.Sync
                         if (!File.Exists(fullPath))
                             continue;
 
-                        var (syncTable, _, _) = localSerializer.GetSchemaTableFromFile(fullPath);
+                        var (syncTable, _, _) = LocalJsonSerializer.GetSchemaTableFromFile(fullPath);
 
                         // on first iteration, creating the return table
                         currentTable ??= syncTable.Clone();
@@ -198,7 +198,7 @@ namespace Dotmim.Sync
 
                 // Get table from file
                 if (syncTable == null)
-                    (syncTable, _, _) = localSerializer.GetSchemaTableFromFile(fullPath);
+                    (syncTable, _, _) = LocalJsonSerializer.GetSchemaTableFromFile(fullPath);
 
                 foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, syncTable))
                     if (!syncRowState.HasValue || syncRowState == default || (syncRowState.HasValue && syncRowState.Value.HasFlag(syncRow.RowState)))
@@ -245,7 +245,7 @@ namespace Dotmim.Sync
             var localSerializer = new LocalJsonSerializer(this, context);
 
             // Get table from file
-            var (syncTable, _, _) = localSerializer.GetSchemaTableFromFile(fullPath);
+            var (syncTable, _, _) = LocalJsonSerializer.GetSchemaTableFromFile(fullPath);
 
             foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, syncTable))
                 if (!syncRowState.HasValue || syncRowState == default || (syncRowState.HasValue && syncRowState.Value.HasFlag(syncRow.RowState)))

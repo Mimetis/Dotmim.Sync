@@ -106,7 +106,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Write a messages without returning to new line
         /// </summary>
-        internal void Write(OutputWriter outputWriter, string message, ConsoleColor? background = default, ConsoleColor? foreground = default)
+        internal static void Write(OutputWriter outputWriter, string message, ConsoleColor? background = default, ConsoleColor? foreground = default)
         {
             outputWriter.SetColor(background, foreground);
             outputWriter.Write(message);
@@ -116,7 +116,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Write a messages and returns to new line
         /// </summary>
-        internal void WriteLine(OutputWriter outputWriter, string message, ConsoleColor? background = default, ConsoleColor? foreground = default)
+        internal static void WriteLine(OutputWriter outputWriter, string message, ConsoleColor? background = default, ConsoleColor? foreground = default)
         {
             outputWriter.SetColor(background, foreground);
             outputWriter.WriteLine(message);
@@ -222,7 +222,7 @@ namespace Dotmim.Sync
                        && (type.Attributes & TypeAttributes.NotPublic) == TypeAttributes.NotPublic;
         }
 
-        private ConsoleColors GetLogLevelConsoleColors(LogLevel logLevel)
+        private static ConsoleColors GetLogLevelConsoleColors(LogLevel logLevel)
         {
             // We must explicitly set the background color if we are setting the foreground color,
             // since just setting one can look bad on the users console.

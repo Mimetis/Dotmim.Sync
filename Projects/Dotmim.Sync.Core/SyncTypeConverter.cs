@@ -8,7 +8,7 @@ using System.Text;
 
 namespace Dotmim.Sync
 {
-    public class SyncTypeConverter
+    public static class SyncTypeConverter
     {
         public static T TryConvertTo<T>(dynamic value, CultureInfo provider = default)
         {

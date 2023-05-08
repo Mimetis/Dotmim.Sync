@@ -234,7 +234,7 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Get the table contained in a serialized file
         /// </summary>
-        public (SyncTable schemaTable, int rowsCount, SyncRowState state) GetSchemaTableFromFile(string path)
+        public static (SyncTable schemaTable, int rowsCount, SyncRowState state) GetSchemaTableFromFile(string path)
         {
             if (!File.Exists(path))
                 return default;
@@ -457,7 +457,7 @@ namespace Dotmim.Sync.Serialization
 
         }
 
-        private SyncTable GetSchemaTableFromReader(JsonTextReader reader, JsonSerializer serializer, string tableName, string schemaName)
+        private static SyncTable GetSchemaTableFromReader(JsonTextReader reader, JsonSerializer serializer, string tableName, string schemaName)
         {
             SyncTable schemaTable;
 
