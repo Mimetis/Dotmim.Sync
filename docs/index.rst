@@ -6,7 +6,7 @@
 Welcome to Dotmim.Sync
 =============================================
 
-.. image:: assets/Smallicon.png
+.. image:: assets/Smallicon.svg
    :align: center
    :alt: icon
 
