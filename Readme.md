@@ -1,4 +1,4 @@
-![DMS](docs/assets/Smallicon.png)
+![DMS](docs/assets/Smallicon.svg)
 
 [![Build Status](https://dev.azure.com/dotmim/Dotmim.Sync/_apis/build/status/Tests)](https://dev.azure.com/dotmim/Dotmim.Sync/_build/latest?definitionId=9) [![Documentation Status](https://readthedocs.org/projects/dotmimsync/badge/?version=master)](https://dotmimsync.readthedocs.io/?badge=master)
 
@@ -20,7 +20,7 @@ Multi Databases | Cross Plaform |  .Net Standard 2.0
 -------------|---------------------|--------------------
 ![](docs/assets/CrossPlatform.png) | ![](docs/assets/MultiOS.png) | ![](docs/assets/NetCore.png)
 
-![](docs/assets/Architecture01.png)
+![](docs/assets/Architecture01.svg)
 
 ## TL;DR
 

@@ -16,7 +16,7 @@ Overview
 
 Here is the big picture of the components used in a simple synchronization, over **TCP**:
 
-.. image:: assets/Architecture01.png
+.. image:: assets/Architecture01.svg
   :align: center
   :alt: Architecture
 

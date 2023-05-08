@@ -6,7 +6,7 @@
 Welcome to Dotmim.Sync
 =============================================
 
-.. image:: assets/Smallicon.png
+.. image:: assets/Smallicon.svg
    :align: center
    :alt: icon
 
@@ -23,7 +23,7 @@ Available for syncing **SQL Server**, **MySQL**, **MariaDB**, **PostgreSQL** and
    :align: center
    :alt: all in one
 
-.. image:: assets/Architecture01.png
+.. image:: assets/Architecture01.svg
    :alt: Architecture
 
 Starting from scratch

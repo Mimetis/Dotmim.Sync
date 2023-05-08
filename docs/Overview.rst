@@ -1,7 +1,7 @@
 Overview
 =============================================
 
-.. image:: assets/Smallicon.png
+.. image:: assets/Smallicon.svg
     :align: center
 
 
