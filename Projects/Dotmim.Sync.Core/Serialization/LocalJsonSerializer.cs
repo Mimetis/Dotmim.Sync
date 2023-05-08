@@ -15,6 +15,7 @@ namespace Dotmim.Sync.Serialization
     /// </summary>
     public class LocalJsonSerializer
     {
+        private static readonly JsonSerializer serializer = new() { DateParseHandling = DateParseHandling.DateTimeOffset };
 
         private StreamWriter sw;
         private JsonTextWriter writer;
@@ -245,7 +246,6 @@ namespace Dotmim.Sync.Serialization
             SyncTable schemaTable = null;
             SyncRowState state = SyncRowState.None;
 
-            var serializer = new JsonSerializer { DateParseHandling = DateParseHandling.DateTimeOffset };
             using var reader = new JsonTextReader(new StreamReader(path));
 
             while (reader.Read())
@@ -321,8 +321,6 @@ namespace Dotmim.Sync.Serialization
         {
             if (!File.Exists(path))
                 yield break;
-
-            JsonSerializer serializer = new JsonSerializer { DateParseHandling = DateParseHandling.DateTimeOffset };
 
             using var reader = new JsonTextReader(new StreamReader(path));
             reader.DateParseHandling = DateParseHandling.DateTimeOffset;
