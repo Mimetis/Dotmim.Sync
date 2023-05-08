@@ -83,8 +83,8 @@ namespace Dotmim.Sync.PostgreSql
             Exception ex = exception;
             while (ex != null)
             {
-                if (ex is NpgsqlException)
-                    return ((NpgsqlException)ex).IsTransient;
+                if (ex is NpgsqlException npgsqlException)
+                    return npgsqlException.IsTransient;
                 else
                     ex = ex.InnerException;
             }

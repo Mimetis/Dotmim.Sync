@@ -92,8 +92,8 @@ namespace Dotmim.Sync.MySql
             Exception ex = exception;
             while (ex != null)
             {
-                if (ex is MySqlException)
-                    return MySqlTransientExceptionDetector.ShouldRetryOn((MySqlException)ex);
+                if (ex is MySqlException mySqlException)
+                    return MySqlTransientExceptionDetector.ShouldRetryOn(mySqlException);
                 else
                     ex = ex.InnerException;
             }
@@ -132,9 +132,7 @@ namespace Dotmim.Sync.MySql
                 syncException.InitialCatalog = builder.Database;
             }
 
-            var mySqlException = syncException.InnerException as MySqlException;
-
-            if (mySqlException == null)
+            if (syncException.InnerException is not MySqlException mySqlException)
                 return;
 
             syncException.Number = mySqlException.Number;

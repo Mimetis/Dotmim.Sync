@@ -123,9 +123,7 @@ namespace Dotmim.Sync.MariaDB
                 syncException.InitialCatalog = builder.Database;
             }
 
-            var mySqlException = syncException.InnerException as MySqlException;
-
-            if (mySqlException == null)
+            if (syncException.InnerException is not MySqlException mySqlException)
                 return;
 
             syncException.Number = mySqlException.Number;
@@ -138,8 +136,8 @@ namespace Dotmim.Sync.MariaDB
             Exception ex = exception;
             while (ex != null)
             {
-                if (ex is MySqlException)
-                    return MySqlTransientExceptionDetector.ShouldRetryOn((MySqlException)ex);
+                if (ex is MySqlException mySqlException)
+                    return MySqlTransientExceptionDetector.ShouldRetryOn(mySqlException);
                 else
                     ex = ex.InnerException;
             }

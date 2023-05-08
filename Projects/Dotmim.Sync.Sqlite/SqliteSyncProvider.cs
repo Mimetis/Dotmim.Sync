@@ -112,8 +112,8 @@ namespace Dotmim.Sync.Sqlite
             Exception ex = exception;
             while (ex != null)
             {
-                if (ex is SqliteException)
-                    return SqliteTransientExceptionDetector.ShouldRetryOn((SqliteException)ex);
+                if (ex is SqliteException sqliteException)
+                    return SqliteTransientExceptionDetector.ShouldRetryOn(sqliteException);
                 else
                     ex = ex.InnerException;
             }
@@ -163,13 +163,10 @@ namespace Dotmim.Sync.Sqlite
 
         public override void EnsureSyncException(SyncException syncException)
         {
-
             if (builder != null)
                 syncException.DataSource = builder.DataSource;
 
-            var sqliteException = syncException.InnerException as SqliteException;
-
-            if (sqliteException == null)
+            if (syncException.InnerException is not SqliteException sqliteException)
                 return;
 
             syncException.Number = sqliteException.SqliteErrorCode;

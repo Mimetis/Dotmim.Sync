@@ -286,8 +286,8 @@ namespace Dotmim.Sync.Web.Server
                 httpContext.Session.Set(sessionId, sessionCache);
                 await httpContext.Session.CommitAsync(cancellationToken);
 
-                if (messageResponse is HttpMessageSendChangesResponse)
-                    await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs((HttpMessageSendChangesResponse)messageResponse, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
+                if (messageResponse is HttpMessageSendChangesResponse httpMessageSendChangesResponse)
+                    await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(httpMessageSendChangesResponse, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
 
                 await this.RemoteOrchestrator.InterceptAsync(new HttpSendingResponseArgs(httpContext, messageResponse.SyncContext, sessionCache, messageResponse, responseSerializerType, step), progress, cancellationToken).ConfigureAwait(false);
 
