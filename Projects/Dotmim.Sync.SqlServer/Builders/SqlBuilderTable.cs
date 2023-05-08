@@ -293,7 +293,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
 
             if (schema == "dbo")
-                return null;
+                return Task.FromResult<DbCommand>(null);
 
             var command = connection.CreateCommand();
 
