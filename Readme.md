@@ -20,7 +20,7 @@ Multi Databases | Cross Plaform |  .Net Standard 2.0
 -------------|---------------------|--------------------
 ![](docs/assets/CrossPlatform.png) | ![](docs/assets/MultiOS.png) | ![](docs/assets/NetCore.png)
 
-![](docs/assets/Architecture01.png)
+![](docs/assets/Architecture01.svg)
 
 ## TL;DR
 
