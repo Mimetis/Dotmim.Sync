@@ -251,9 +251,9 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 textParser = $"{source}-{textParser}";
 
-                if (derivingParameters.ContainsKey(textParser))
+                if (derivingParameters.TryGetValue(textParser, out var parameters))
                 {
-                    foreach (var p in derivingParameters[textParser])
+                    foreach (var p in parameters)
                         command.Parameters.Add(p.Clone());
                 }
                 else

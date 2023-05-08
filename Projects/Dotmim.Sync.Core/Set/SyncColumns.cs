@@ -59,8 +59,8 @@ namespace Dotmim.Sync
             get
             {
                 //InnerCollection.FirstOrDefault(c => string.Equals(c.ColumnName, columnName, SyncGlobalization.DataSourceStringComparison));
-                if (indexes.ContainsKey(columnName.ToLowerInvariant()))
-                    return InnerCollection[indexes[columnName.ToLowerInvariant()]];
+                if (indexes.TryGetValue(columnName.ToLowerInvariant(), out var index))
+                    return InnerCollection[index];
 
                 return null;
             }

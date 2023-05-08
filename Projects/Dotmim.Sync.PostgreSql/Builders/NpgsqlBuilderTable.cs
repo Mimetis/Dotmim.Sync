@@ -417,10 +417,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
         /// </summary>
         public string NormalizeRelationName(string relation)
         {
-            if (createdRelationNames.ContainsKey(relation))
-                return createdRelationNames[relation];
+            if (createdRelationNames.TryGetValue(relation, out var name))
+                return name;
 
-            var name = relation;
+            name = relation;
 
             if (relation.Length > 128)
                 name = $"{relation.Substring(0, 110)}_{GetRandomString()}";
