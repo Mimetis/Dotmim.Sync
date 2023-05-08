@@ -475,8 +475,8 @@ namespace Dotmim.Sync
                 if (this.Options.Logger != null)
                     this.Options.Logger.LogError(SyncEventsId.Exception, exception, exception.Message);
 
-                if (exception is SyncException)
-                    syncException = (SyncException)exception;
+                if (exception is SyncException ex)
+                    syncException = ex;
                 else
                     syncException = new SyncException(exception);
 

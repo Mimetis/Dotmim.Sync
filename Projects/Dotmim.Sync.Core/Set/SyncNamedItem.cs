@@ -26,15 +26,13 @@ namespace Dotmim.Sync
             if (otherInstance == null)
                 return false;
 
-            var namedOhterInstance = otherInstance as SyncNamedItem<T>;
-
-            if (namedOhterInstance == null)
+            if (otherInstance is not SyncNamedItem<T> namedOtherInstance)
                 return false;
 
             var sc = SyncGlobalization.DataSourceStringComparison;
 
             var props1 = this.GetAllNamesProperties().GetEnumerator();
-            var props2 = namedOhterInstance.GetAllNamesProperties().GetEnumerator();
+            var props2 = namedOtherInstance.GetAllNamesProperties().GetEnumerator();
 
 
             while (props1.MoveNext())

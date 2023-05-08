@@ -124,9 +124,7 @@ namespace Dotmim.Sync.SqlServer
             }
 
             // Can add more info from SqlException
-            var sqlException = syncException.InnerException as SqlException;
-
-            if (sqlException == null)
+            if (syncException.InnerException is not SqlException sqlException)
                 return;
 
             syncException.Number = sqlException.Number;

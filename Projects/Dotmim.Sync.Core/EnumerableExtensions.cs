@@ -25,9 +25,9 @@ namespace Dotmim.Sync
             , int defaultCapacity = 10)
         {
 
-            if (source is ICollection<T>)
+            if (source is ICollection<T> collections)
             {
-                defaultCapacity = ((ICollection<T>)source).Count + 1;
+                defaultCapacity = collections.Count + 1;
             }
             var sorted = new List<T>(defaultCapacity);
             var visited = new HashSet<T>();

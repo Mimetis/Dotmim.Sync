@@ -39,8 +39,8 @@ namespace Dotmim.Sync
                 return Convert.ToUInt64(value);
             else if (typeOfT == typeof(DateTime))
             {
-                if (value is DateTimeOffset)
-                    return (T)Convert.ChangeType(((DateTimeOffset)value).DateTime, typeOfT, provider);
+                if (value is DateTimeOffset dateTimeOffset)
+                    return (T)Convert.ChangeType(dateTimeOffset.DateTime, typeOfT, provider);
 
                 string valueStr = value.ToString(); // IOS bug ????
                 if (DateTime.TryParse(valueStr, provider, DateTimeStyles.None, out DateTime dateTime))
@@ -52,10 +52,10 @@ namespace Dotmim.Sync
             }
             else if (typeOfT == typeof(DateTimeOffset))
             {
-                if (value is DateTime)
-                    return (T)Convert.ChangeType(new DateTimeOffset((DateTime)value), typeOfT, provider);
-                else if (DateTimeOffset.TryParse(value.ToString(), provider, DateTimeStyles.None, out DateTimeOffset dateTime))
-                    return (T)Convert.ChangeType(dateTime, typeOfT, provider);
+                if (value is DateTime dateTime)
+                    return (T)Convert.ChangeType(new DateTimeOffset(dateTime), typeOfT, provider);
+                else if (DateTimeOffset.TryParse(value.ToString(), provider, DateTimeStyles.None, out DateTimeOffset dateTimeOffset))
+                    return (T)Convert.ChangeType(dateTimeOffset, typeOfT, provider);
                 else if (typeOfU == typeof(long))
                     return (T)Convert.ChangeType(new DateTimeOffset(new DateTime(value)), typeOfT, provider);
                 else
