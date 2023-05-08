@@ -295,14 +295,13 @@ namespace Dotmim.Sync.Serialization
                                     }
                                     schemaEmpty = false;
                                 }
-                                rowsCount += 1;
+                                rowsCount++;
                             }
                         }
 
                         break;
                 }
             }
-
 
             return (schemaTable, rowsCount, state);
         }
