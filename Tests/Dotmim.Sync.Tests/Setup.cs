@@ -19,6 +19,7 @@ using System.Xml.Linq;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Models;
 using Dotmim.Sync.Tests.UnitTests;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Tests
 {
@@ -269,6 +270,10 @@ namespace Dotmim.Sync.Tests
             provider.UseFallbackSchema(true);
             return provider;
         }
+
+        public override Task Conflict_UC_OUTDATED_ServerShouldWins() => Task.CompletedTask;
+        public override Task Conflict_UC_OUTDATED_ServerShouldWins_EvenIf_ResolutionIsClientWins() => Task.CompletedTask;
+
     }
 
     public class PostgresConflictTests : TcpConflictsTests

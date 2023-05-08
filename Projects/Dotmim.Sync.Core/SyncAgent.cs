@@ -487,8 +487,8 @@ namespace Dotmim.Sync
                 context.ProgressPercentage = 1;
                 try
                 {
-                    this.LocalOrchestrator.InternalEndSessionAsync(context, result, clientSyncChanges, syncException, cancellationToken, progress);
-                    this.RemoteOrchestrator.InternalEndSessionAsync(context, result, serverSyncChanges, syncException, cancellationToken, progress);
+                    this.LocalOrchestrator.InternalEndSessionAsync(context, result, clientSyncChanges, syncException, cancellationToken, progress).Forget();
+                    this.RemoteOrchestrator.InternalEndSessionAsync(context, result, serverSyncChanges, syncException, cancellationToken, progress).Forget();
                 }
                 catch { }
 
