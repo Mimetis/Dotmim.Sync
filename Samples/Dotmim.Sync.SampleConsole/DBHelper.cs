@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SampleConsole
 {
-    public class DBHelper
+    public static class DBHelper
     {
         private static IConfiguration configuration;
 

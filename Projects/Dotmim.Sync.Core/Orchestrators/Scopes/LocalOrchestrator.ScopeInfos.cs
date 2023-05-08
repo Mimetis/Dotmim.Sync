@@ -88,7 +88,7 @@ namespace Dotmim.Sync
 
                 if (!cScopeInfoExists)
                 {
-                    cScopeInfo = this.InternalCreateScopeInfo(context.ScopeName);
+                    cScopeInfo = InternalCreateScopeInfo(context.ScopeName);
                     (context, cScopeInfo) = await this.InternalSaveScopeInfoAsync(cScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                 }
                 else

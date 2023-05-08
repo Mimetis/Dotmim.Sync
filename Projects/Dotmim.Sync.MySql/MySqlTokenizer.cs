@@ -293,17 +293,17 @@ namespace Dotmim.Sync.MySql
             stopIndex = pos;
         }
 
-        private bool IsQuoteChar(char c)
+        private static bool IsQuoteChar(char c)
         {
             return c == '`' || c == '\'' || c == '\"';
         }
 
-        private bool IsParameterMarker(char c)
+        private static bool IsParameterMarker(char c)
         {
             return c == '@' || c == '?';
         }
 
-        private bool IsSpecialCharacter(char c)
+        private static bool IsSpecialCharacter(char c)
         {
             if (Char.IsLetterOrDigit(c) ||
                 c == '$' || c == '_' || c == '.') return false;
