@@ -75,7 +75,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             stringBuilder.AppendLine("SET FOREIGN_KEY_CHECKS=0;");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"CREATE TABLE {this.tableName.Quoted().ToString()} (");
+            stringBuilder.Append("CREATE TABLE ").Append(this.tableName.Quoted().ToString()).AppendLine(" (");
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
             {
@@ -109,7 +109,7 @@ namespace Dotmim.Sync.MySql.Builders
                     nullString = "";
                 }
 
-                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {defaultValue} {nullString}");
+                stringBuilder.Append('\t').Append(empty).Append(columnName).Append(' ').Append(columnType).Append(' ').Append(identity).Append(' ').Append(defaultValue).Append(' ').AppendLine(nullString);
                 empty = ",";
             }
 
@@ -120,7 +120,7 @@ namespace Dotmim.Sync.MySql.Builders
             foreach (var column in this.tableDescription.GetMutableColumns().Where(c => c.IsAutoIncrement))
             {
                 var columnName = ParserName.Parse(column, "`").Quoted().ToString();
-                stringBuilder.Append($"{empty} {columnName}");
+                stringBuilder.Append(empty).Append(' ').Append(columnName);
                 empty = ",";
             }
 
@@ -153,13 +153,13 @@ namespace Dotmim.Sync.MySql.Builders
                 var referencesColumns = constraint.ParentKeys;
                 stringBuilder.Append($"\t,CONSTRAINT ");
 
-                stringBuilder.Append($"`{relationName}` ");
+                stringBuilder.Append('`').Append(relationName).Append("` ");
                 stringBuilder.Append("FOREIGN KEY (");
                 empty = string.Empty;
                 foreach (var keyColumn in keyColumns)
                 {
                     var foreignKeyColumnName = ParserName.Parse(keyColumn.ColumnName, "`").Quoted().ToString();
-                    stringBuilder.Append($"{empty} {foreignKeyColumnName}");
+                    stringBuilder.Append(empty).Append(' ').Append(foreignKeyColumnName);
                     empty = ", ";
                 }
                 stringBuilder.Append(" ) ");
@@ -169,7 +169,7 @@ namespace Dotmim.Sync.MySql.Builders
                 foreach (var referencesColumn in referencesColumns)
                 {
                     var referencesColumnName = ParserName.Parse(referencesColumn.ColumnName, "`").Quoted().ToString();
-                    stringBuilder.Append($"{empty} {referencesColumnName}");
+                    stringBuilder.Append(empty).Append(' ').Append(referencesColumnName);
                     empty = ", ";
                 }
                 stringBuilder.AppendLine(" )");
@@ -252,7 +252,7 @@ namespace Dotmim.Sync.MySql.Builders
             if (column.IsReadOnly)
                 nullString = "NULL";
 
-            stringBuilder.AppendLine($"ADD {columnNameString} {columnType} {identity} {nullString};");
+            stringBuilder.Append("ADD ").Append(columnNameString).Append(' ').Append(columnType).Append(' ').Append(identity).Append(' ').Append(nullString).AppendLine(";");
 
             command.CommandText = stringBuilder.ToString();
 

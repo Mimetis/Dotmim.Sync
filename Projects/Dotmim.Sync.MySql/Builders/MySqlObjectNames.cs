@@ -260,7 +260,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             var parameterName = ParserName.Parse(param.ParameterName, "`").Quoted().ToString();
 
-            stringBuilder3.Append($"{output}{parameterName} {columnDeclarationString} {isNull} {defaultValue}");
+            stringBuilder3.Append(output).Append(parameterName).Append(' ').Append(columnDeclarationString).Append(' ').Append(isNull).Append(' ').Append(defaultValue);
 
             return stringBuilder3.ToString();
 
@@ -278,8 +278,8 @@ namespace Dotmim.Sync.MySql.Builders
             {
                 var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
                 var unquotedColumnName = ParserName.Parse(mutableColumn, "`").Unquoted().ToString();
-                pkeySelect.Append($"{argComma}{columnName}");
-                pkeyValues.Append($"{argAnd} {columnName} = @{unquotedColumnName}");
+                pkeySelect.Append(argComma).Append(columnName);
+                pkeyValues.Append(argAnd).Append(' ').Append(columnName).Append(" = @").Append(unquotedColumnName);
 
                 argComma = ",";
                 argAnd = " AND ";
@@ -287,9 +287,9 @@ namespace Dotmim.Sync.MySql.Builders
 
             StringBuilder stringBuilder = new StringBuilder();
 
-            stringBuilder.AppendLine($"\tSELECT {pkeySelect}, `update_scope_id`, `timestamp`, `sync_row_is_tombstone`");
-            stringBuilder.AppendLine($"\tFROM {trackingName.Quoted().ToString()} ");
-            stringBuilder.AppendLine($"\tWHERE {pkeyValues};");
+            stringBuilder.Append("\tSELECT ").Append(pkeySelect).AppendLine(", `update_scope_id`, `timestamp`, `sync_row_is_tombstone`");
+            stringBuilder.Append("\tFROM ").Append(trackingName.Quoted()).AppendLine(" ");
+            stringBuilder.Append("\tWHERE ").Append(pkeyValues).AppendLine(";");
 
             var commandText = stringBuilder.ToString();
             return commandText;
@@ -298,7 +298,7 @@ namespace Dotmim.Sync.MySql.Builders
         {
             StringBuilder stringBuilder = new StringBuilder();
 
-            stringBuilder.AppendLine($"\tINSERT INTO {trackingName.Quoted().ToString()} (");
+            stringBuilder.Append("\tINSERT INTO ").Append(trackingName.Quoted()).AppendLine(" (");
 
             var pkeySelect = new StringBuilder();
             var pkeyValues = new StringBuilder();
@@ -311,10 +311,10 @@ namespace Dotmim.Sync.MySql.Builders
                 var unquotedColumnName = ParserName.Parse(mutableColumn, "`").Unquoted().ToString();
 
                 // Select
-                pkeySelect.AppendLine($"\t\t{argComma}{columnName}");
+                pkeySelect.Append("\t\t").Append(argComma).AppendLine(columnName);
 
                 // Values
-                pkeyValues.AppendLine($"\t\t{argComma}@{unquotedColumnName}");
+                pkeyValues.Append("\t\t").Append(argComma).Append('@').AppendLine(unquotedColumnName);
                 
                 argComma = ",";
                 argAnd = " AND ";
@@ -356,7 +356,7 @@ namespace Dotmim.Sync.MySql.Builders
             var str3 = new StringBuilder();
             var str4 = MySqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.GetPrimaryKeysColumns(), "`side`", "`base`");
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Quoted().ToString()} (");
+            stringBuilder.Append("INSERT INTO ").Append(trackingName.Quoted()).AppendLine(" (");
 
 
             var comma = "";
@@ -364,9 +364,9 @@ namespace Dotmim.Sync.MySql.Builders
             {
                 var pkeyColumnName = ParserName.Parse(pkeyColumn, "`").Quoted().ToString();
 
-                str1.Append($"{comma}{pkeyColumnName}");
-                str2.Append($"{comma}`base`.{pkeyColumnName}");
-                str3.Append($"{comma}`side`.{pkeyColumnName}");
+                str1.Append(comma).Append(pkeyColumnName);
+                str2.Append(comma).Append("`base`.").Append(pkeyColumnName);
+                str3.Append(comma).Append("`side`.").Append(pkeyColumnName);
 
                 comma = ", ";
             }
@@ -376,11 +376,11 @@ namespace Dotmim.Sync.MySql.Builders
             stringBuilder.Append($"SELECT ");
             stringBuilder.Append(str2.ToString());
             stringBuilder.AppendLine($", NULL, 0, {TimestampValue}, now()");
-            stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} as `base` WHERE NOT EXISTS");
+            stringBuilder.Append("FROM ").Append(tableName.Quoted()).AppendLine(" as `base` WHERE NOT EXISTS");
             stringBuilder.Append($"(SELECT ");
             stringBuilder.Append(str3.ToString());
-            stringBuilder.AppendLine($" FROM {trackingName.Quoted().ToString()} as `side` ");
-            stringBuilder.AppendLine($"WHERE {str4})");
+            stringBuilder.Append(" FROM ").Append(trackingName.Quoted()).AppendLine(" as `side` ");
+            stringBuilder.Append("WHERE ").Append(str4).AppendLine(")");
 
             var r = stringBuilder.ToString();
 
@@ -393,8 +393,8 @@ namespace Dotmim.Sync.MySql.Builders
 
            
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()};");
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()};");
+            stringBuilder.Append("DELETE FROM ").Append(tableName.Quoted()).AppendLine(";");
+            stringBuilder.Append("DELETE FROM ").Append(trackingName.Quoted()).AppendLine(";");
             stringBuilder.AppendLine();
 
            return stringBuilder.ToString();
@@ -413,7 +413,7 @@ namespace Dotmim.Sync.MySql.Builders
                 var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn, "`").Unquoted().Normalized().ToString();
 
-                stringBuilder1.Append($"{empty}`side`.{columnName} = @{parameterName}");
+                stringBuilder1.Append(empty).Append("`side`.").Append(columnName).Append(" = @").Append(parameterName);
                 empty = " AND ";
             }
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
@@ -423,22 +423,22 @@ namespace Dotmim.Sync.MySql.Builders
                 var isPrimaryKey = this.TableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
                 if (isPrimaryKey)
-                    stringBuilder.AppendLine($"\t`side`.{nonPkColumnName}, ");
+                    stringBuilder.Append("\t`side`.").Append(nonPkColumnName).AppendLine(", ");
                 else
-                    stringBuilder.AppendLine($"\t`base`.{nonPkColumnName}, ");
+                    stringBuilder.Append("\t`base`.").Append(nonPkColumnName).AppendLine(", ");
             }
 
             stringBuilder.AppendLine("\t`side`.`sync_row_is_tombstone`, ");
             stringBuilder.AppendLine("\t`side`.`update_scope_id` as `sync_update_scope_id`");
-            stringBuilder.AppendLine($"FROM {tableName.Quoted()} `base`");
-            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Quoted()} `side` ON");
+            stringBuilder.Append("FROM ").Append(tableName.Quoted()).AppendLine(" `base`");
+            stringBuilder.Append("RIGHT JOIN ").Append(trackingName.Quoted()).AppendLine(" `side` ON");
 
             string str = string.Empty;
             foreach (var pkColumn in this.TableDescription.PrimaryKeys)
             {
                 var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
 
-                stringBuilder.Append($"{str}`base`.{columnName} = `side`.{columnName}");
+                stringBuilder.Append(str).Append("`base`.").Append(columnName).Append(" = `side`.").Append(columnName);
                 str = " AND ";
             }
             stringBuilder.AppendLine();
@@ -455,8 +455,8 @@ namespace Dotmim.Sync.MySql.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("DECLARE ts BIGINT;");
             stringBuilder.AppendLine("DECLARE t_update_scope_id VARCHAR(36);");
-            stringBuilder.AppendLine($"SELECT `timestamp`, `update_scope_id` FROM {trackingName.Quoted()} WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), trackingName.Quoted().ToString(), "@")} LIMIT 1 INTO ts, t_update_scope_id;");
-            stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted()} WHERE");
+            stringBuilder.Append("SELECT `timestamp`, `update_scope_id` FROM ").Append(trackingName.Quoted()).Append(" WHERE ").Append(MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), trackingName.Quoted().ToString(), "@")).AppendLine(" LIMIT 1 INTO ts, t_update_scope_id;");
+            stringBuilder.Append("DELETE FROM ").Append(tableName.Quoted()).AppendLine(" WHERE");
             stringBuilder.AppendLine(MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), ""));
             stringBuilder.AppendLine("AND (ts <= @sync_min_timestamp OR ts IS NULL OR t_update_scope_id = @sync_scope_id OR @sync_force_write = 1);");
 
@@ -466,12 +466,12 @@ namespace Dotmim.Sync.MySql.Builders
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"IF (@sync_row_count > 0) THEN");
-            stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted()}");
+            stringBuilder.Append("\tUPDATE ").Append(trackingName.Quoted()).AppendLine();
             stringBuilder.AppendLine($"\tSET `update_scope_id` = @sync_scope_id, ");
             stringBuilder.AppendLine($"\t\t `sync_row_is_tombstone` = 1, ");
             stringBuilder.AppendLine($"\t\t `timestamp` = {TimestampValue}, ");
             stringBuilder.AppendLine($"\t\t `last_change_datetime` = now() ");
-            stringBuilder.AppendLine($"\tWHERE {MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), "", "@")};");
+            stringBuilder.Append("\tWHERE ").Append(MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), "", "@")).AppendLine(";");
             stringBuilder.AppendLine($"END IF;");
 
             return stringBuilder.ToString();
@@ -498,16 +498,16 @@ namespace Dotmim.Sync.MySql.Builders
                 var parameterNameQuoted = ParserName.Parse(param.ParameterName, "`").Quoted().ToString();
 
                 // Primary keys column name, with quote
-                listColumnsTmp.Append($"{columnNameQuoted}, ");
+                listColumnsTmp.Append(columnNameQuoted).Append(", ");
 
                 // param name without type
-                listColumnsTmp2.Append($"{parameterNameQuoted}, ");
+                listColumnsTmp2.Append(parameterNameQuoted).Append(", ");
 
                 // param name with type
-                stringBuilder.AppendLine($"DECLARE {declar};");
+                stringBuilder.Append("DECLARE ").Append(declar).AppendLine(";");
 
                 // Param equal IS NULL
-                listColumnsTmp3.Append($"{and}{parameterNameQuoted} IS NULL");
+                listColumnsTmp3.Append(and).Append(parameterNameQuoted).Append(" IS NULL");
 
                 and = " AND ";
 
@@ -515,16 +515,16 @@ namespace Dotmim.Sync.MySql.Builders
 
             stringBuilder.AppendLine("DECLARE ts BIGINT;");
             stringBuilder.AppendLine("DECLARE t_update_scope_id VARCHAR(36);");
-            stringBuilder.AppendLine($"SELECT {listColumnsTmp}`timestamp`, `update_scope_id` FROM {trackingName.Quoted()} ");
-            stringBuilder.AppendLine($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), trackingName.Quoted().ToString(), "@")} LIMIT 1 ");
-            stringBuilder.AppendLine($"INTO {listColumnsTmp2} ts, t_update_scope_id;");
+            stringBuilder.Append("SELECT ").Append(listColumnsTmp).Append("`timestamp`, `update_scope_id` FROM ").Append(trackingName.Quoted()).AppendLine(" ");
+            stringBuilder.Append("WHERE ").Append(MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), trackingName.Quoted().ToString(), "@")).AppendLine(" LIMIT 1 ");
+            stringBuilder.Append("INTO ").Append(listColumnsTmp2).AppendLine(" ts, t_update_scope_id;");
             stringBuilder.AppendLine();
 
             if (hasMutableColumns)
             {
-                stringBuilder.AppendLine($"UPDATE {tableName.Quoted()}");
-                stringBuilder.Append($"SET {MySqlManagementUtils.CommaSeparatedUpdateFromParameters(this.TableDescription, "", "@")}");
-                stringBuilder.Append($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), "", "@")}");
+                stringBuilder.Append("UPDATE ").Append(tableName.Quoted()).AppendLine();
+                stringBuilder.Append("SET ").Append(MySqlManagementUtils.CommaSeparatedUpdateFromParameters(this.TableDescription, "", "@"));
+                stringBuilder.Append("WHERE ").Append(MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), "", "@"));
                 stringBuilder.AppendLine($" AND (ts <= @sync_min_timestamp OR ts IS NULL OR t_update_scope_id  = @sync_scope_id OR @sync_force_write = 1);");
                 stringBuilder.AppendLine();
                 stringBuilder.AppendLine($"SELECT ROW_COUNT() INTO @sync_row_count;"); //[AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
@@ -550,10 +550,10 @@ namespace Dotmim.Sync.MySql.Builders
             // If we don't have any mutable column, we can't update, and the Insert
             // will fail if we don't ignore the insert (on Reinitialize for example)
             var ignoreKeyWord = hasMutableColumns ? "" : "IGNORE";
-            stringBuilder.AppendLine($"\tINSERT {ignoreKeyWord} INTO {tableName.Quoted()}");
-            stringBuilder.AppendLine($"\t({stringBuilderArguments})");
-            stringBuilder.AppendLine($"\tSELECT * FROM ( SELECT {stringBuilderParameters}) as TMP ");
-            stringBuilder.AppendLine($"\tWHERE ( {listColumnsTmp3} )");
+            stringBuilder.Append("\tINSERT ").Append(ignoreKeyWord).Append(" INTO ").Append(tableName.Quoted()).AppendLine();
+            stringBuilder.Append("\t(").Append(stringBuilderArguments).AppendLine(")");
+            stringBuilder.Append("\tSELECT * FROM ( SELECT ").Append(stringBuilderParameters).AppendLine(") as TMP ");
+            stringBuilder.Append("\tWHERE ( ").Append(listColumnsTmp3).AppendLine(" )");
             stringBuilder.AppendLine($"\tOR (ts <= @sync_min_timestamp OR ts IS NULL OR t_update_scope_id = @sync_scope_id OR @sync_force_write = 1)");
             stringBuilder.AppendLine($"\tLIMIT 1;");
             stringBuilder.AppendLine($"");
@@ -565,12 +565,12 @@ namespace Dotmim.Sync.MySql.Builders
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"IF (@sync_row_count > 0) THEN");
-            stringBuilder.AppendLine($"\tUPDATE {trackingName.Quoted()}");
+            stringBuilder.Append("\tUPDATE ").Append(trackingName.Quoted()).AppendLine();
             stringBuilder.AppendLine($"\tSET `update_scope_id` = @sync_scope_id, ");
             stringBuilder.AppendLine($"\t\t `sync_row_is_tombstone` = 0, ");
             stringBuilder.AppendLine($"\t\t `timestamp` = {TimestampValue}, ");
             stringBuilder.AppendLine($"\t\t `last_change_datetime` = now() ");
-            stringBuilder.AppendLine($"\tWHERE {MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), "", "@")};");
+            stringBuilder.Append("\tWHERE ").Append(MySqlManagementUtils.WhereColumnAndParameters(this.TableDescription.GetPrimaryKeysColumns(), "", "@")).AppendLine(";");
             stringBuilder.AppendLine($"END IF;");
 
             return stringBuilder.ToString();

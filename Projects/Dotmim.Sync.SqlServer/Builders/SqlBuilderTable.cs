@@ -69,7 +69,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var tbl = tableName.ToString();
             var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
 
-            stringBuilder.AppendLine($"CREATE TABLE {tableName.Schema().Quoted().ToString()} (");
+            stringBuilder.Append("CREATE TABLE ").Append(tableName.Schema().Quoted().ToString()).AppendLine(" (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
@@ -98,14 +98,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                     }
                 }
 
-                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {nullString} {defaultValue}");
+                stringBuilder.Append('\t').Append(empty).Append(columnName).Append(' ').Append(columnType).Append(' ').Append(identity).Append(' ').Append(nullString).Append(' ').AppendLine(defaultValue);
                 empty = ",";
             }
             stringBuilder.AppendLine(");");
 
             // Primary Keys
             var primaryKeyNameString = tableName.Schema().Unquoted().Normalized().ToString();
-            stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted().ToString()} ADD CONSTRAINT [PK_{primaryKeyNameString}] PRIMARY KEY(");
+            stringBuilder.Append("ALTER TABLE ").Append(tableName.Schema().Quoted().ToString()).Append(" ADD CONSTRAINT [PK_").Append(primaryKeyNameString).AppendLine("] PRIMARY KEY(");
             for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
                 var pkColumn = this.tableDescription.PrimaryKeys[i];
@@ -128,13 +128,13 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append(tableName);
                 stringBuilder.AppendLine(" WITH NOCHECK");
                 stringBuilder.Append("ADD CONSTRAINT ");
-                stringBuilder.AppendLine($"[{relationName}]");
+                stringBuilder.Append('[').Append(relationName).AppendLine("]");
                 stringBuilder.Append("FOREIGN KEY (");
                 empty = string.Empty;
                 foreach (var column in constraint.Keys)
                 {
                     var childColumnName = ParserName.Parse(column.ColumnName).Quoted().ToString();
-                    stringBuilder.Append($"{empty} {childColumnName}");
+                    stringBuilder.Append(empty).Append(' ').Append(childColumnName);
                     empty = ", ";
                 }
                 stringBuilder.AppendLine(" )");
@@ -144,7 +144,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 foreach (var parentdColumn in constraint.ParentKeys)
                 {
                     var parentColumnName = ParserName.Parse(parentdColumn.ColumnName).Quoted().ToString();
-                    stringBuilder.Append($"{empty} {parentColumnName}");
+                    stringBuilder.Append(empty).Append(' ').Append(parentColumnName);
                     empty = ", ";
                 }
                 stringBuilder.Append(" ) ");
@@ -394,7 +394,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 }
             }
 
-            stringBuilder.AppendLine($"ADD {columnNameString} {columnType} {identity} {nullString} {defaultValue}");
+            stringBuilder.Append("ADD ").Append(columnNameString).Append(' ').Append(columnType).Append(' ').Append(identity).Append(' ').Append(nullString).Append(' ').AppendLine(defaultValue);
 
             command.CommandText = stringBuilder.ToString();
 

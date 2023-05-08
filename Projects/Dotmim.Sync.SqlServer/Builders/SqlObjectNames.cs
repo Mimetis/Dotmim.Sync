@@ -186,17 +186,17 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
-                pkeysSelect.Append($"{comma}[side].{columnName}");
+                pkeysSelect.Append(comma).Append("[side].").Append(columnName);
 
-                pkeysWhere.Append($"{and}[side].{columnName} = @{parameterName}");
+                pkeysWhere.Append(and).Append("[side].").Append(columnName).Append(" = @").Append(parameterName);
 
                 and = " AND ";
                 comma = ", ";
             }
 
-            stringBuilder.AppendLine($"SELECT {pkeysSelect}, [side].[update_scope_id], [side].[timestamp_bigint] as [timestamp], [side].[sync_row_is_tombstone]");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
-            stringBuilder.AppendLine($"WHERE {pkeysWhere}");
+            stringBuilder.Append("SELECT ").Append(pkeysSelect).AppendLine(", [side].[update_scope_id], [side].[timestamp_bigint] as [timestamp], [side].[sync_row_is_tombstone]");
+            stringBuilder.Append("FROM ").Append(trackingName.Schema().Quoted().ToString()).AppendLine(" [side]");
+            stringBuilder.Append("WHERE ").Append(pkeysWhere).AppendLine();
 
             return stringBuilder.ToString();
         }
@@ -219,13 +219,13 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
 
-                pkeysForUpdate.Append($"{and}[side].{columnName} = @{parameterName}");
+                pkeysForUpdate.Append(and).Append("[side].").Append(columnName).Append(" = @").Append(parameterName);
 
-                pkeySelectForInsert.Append($"{comma}{columnName}");
-                pkeyISelectForInsert.Append($"{comma}[i].{columnName}");
-                pkeyAliasSelectForInsert.Append($"{comma}@{parameterName} as {columnName}");
-                pkeysLeftJoinForInsert.Append($"{and}[side].{columnName} = [i].{columnName}");
-                pkeysIsNullForInsert.Append($"{and}[side].{columnName} IS NULL");
+                pkeySelectForInsert.Append(comma).Append(columnName);
+                pkeyISelectForInsert.Append(comma).Append("[i].").Append(columnName);
+                pkeyAliasSelectForInsert.Append(comma).Append('@').Append(parameterName).Append(" as ").Append(columnName);
+                pkeysLeftJoinForInsert.Append(and).Append("[side].").Append(columnName).Append(" = [i].").Append(columnName);
+                pkeysIsNullForInsert.Append(and).Append("[side].").Append(columnName).Append(" IS NULL");
                 and = " AND ";
                 comma = ", ";
             }
@@ -235,22 +235,22 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($" [update_scope_id] = @sync_scope_id, ");
             stringBuilder.AppendLine($" [sync_row_is_tombstone] = @sync_row_is_tombstone, ");
             stringBuilder.AppendLine($" [last_change_datetime] = GETUTCDATE() ");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.Append("FROM ").Append(trackingName.Schema().Quoted()).AppendLine(" [side]");
             stringBuilder.Append($"WHERE ");
             stringBuilder.Append(pkeysForUpdate.ToString());
             stringBuilder.AppendLine($";");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.Append("INSERT INTO ").Append(trackingName.Schema().Quoted()).AppendLine(" (");
             stringBuilder.AppendLine(pkeySelectForInsert.ToString());
             stringBuilder.AppendLine(",[update_scope_id], [sync_row_is_tombstone],[last_change_datetime] )");
-            stringBuilder.AppendLine($"SELECT {pkeyISelectForInsert.ToString()} ");
+            stringBuilder.Append("SELECT ").Append(pkeyISelectForInsert).AppendLine(" ");
             stringBuilder.AppendLine($"   , i.sync_scope_id, i.sync_row_is_tombstone, i.UtcDate");
             stringBuilder.AppendLine("FROM (");
-            stringBuilder.AppendLine($"  SELECT {pkeyAliasSelectForInsert}");
+            stringBuilder.Append("  SELECT ").Append(pkeyAliasSelectForInsert).AppendLine();
             stringBuilder.AppendLine($"          ,@sync_scope_id as sync_scope_id, @sync_row_is_tombstone as sync_row_is_tombstone, GETUTCDATE() as UtcDate) as i");
-            stringBuilder.AppendLine($"LEFT JOIN  {trackingName.Schema().Quoted().ToString()} [side] ON {pkeysLeftJoinForInsert.ToString()} ");
-            stringBuilder.AppendLine($"WHERE {pkeysIsNullForInsert.ToString()};");
+            stringBuilder.Append("LEFT JOIN  ").Append(trackingName.Schema().Quoted()).Append(" [side] ON ").Append(pkeysLeftJoinForInsert).AppendLine(" ");
+            stringBuilder.Append("WHERE ").Append(pkeysIsNullForInsert).AppendLine(";");
 
 
             return stringBuilder.ToString();
@@ -264,7 +264,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var str3 = new StringBuilder();
             var str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[side]", "[base]");
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.Append("INSERT INTO ").Append(trackingName.Schema().Quoted().ToString()).AppendLine(" (");
 
 
             var comma = "";
@@ -272,9 +272,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 var pkeyColumnName = ParserName.Parse(pkeyColumn).Quoted().ToString();
 
-                str1.Append($"{comma}{pkeyColumnName}");
-                str2.Append($"{comma}[base].{pkeyColumnName}");
-                str3.Append($"{comma}[side].{pkeyColumnName}");
+                str1.Append(comma).Append(pkeyColumnName);
+                str2.Append(comma).Append("[base].").Append(pkeyColumnName);
+                str3.Append(comma).Append("[side].").Append(pkeyColumnName);
 
                 comma = ", ";
             }
@@ -284,11 +284,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append($"SELECT ");
             stringBuilder.Append(str2.ToString());
             stringBuilder.AppendLine($", NULL, 0, GetUtcDate()");
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} as [base] WHERE NOT EXISTS");
+            stringBuilder.Append("FROM ").Append(tableName.Schema().Quoted().ToString()).AppendLine(" as [base] WHERE NOT EXISTS");
             stringBuilder.Append($"(SELECT ");
             stringBuilder.Append(str3.ToString());
-            stringBuilder.AppendLine($" FROM {trackingName.Schema().Quoted().ToString()} as [side] ");
-            stringBuilder.AppendLine($"WHERE {str4})");
+            stringBuilder.Append(" FROM ").Append(trackingName.Schema().Quoted().ToString()).AppendLine(" as [side] ");
+            stringBuilder.Append("WHERE ").Append(str4).AppendLine(")");
 
             var r = stringBuilder.ToString();
 
@@ -307,7 +307,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
 
-                stringBuilder1.Append($"{empty}[side].{columnName} = @{parameterName}");
+                stringBuilder1.Append(empty).Append("[side].").Append(columnName).Append(" = @").Append(parameterName);
                 empty = " AND ";
             }
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
@@ -317,21 +317,21 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var isPrimaryKey = this.TableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
                 if (isPrimaryKey)
-                    stringBuilder.AppendLine($"\t[side].{columnName}, ");
+                    stringBuilder.Append("\t[side].").Append(columnName).AppendLine(", ");
                 else
-                    stringBuilder.AppendLine($"\t[base].{columnName}, ");
+                    stringBuilder.Append("\t[base].").Append(columnName).AppendLine(", ");
             }
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone] as [sync_row_is_tombstone], ");
             stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id]");
 
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
-            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON");
+            stringBuilder.Append("FROM ").Append(tableName.Schema().Quoted()).AppendLine(" [base]");
+            stringBuilder.Append("RIGHT JOIN ").Append(trackingName.Schema().Quoted()).AppendLine(" [side] ON");
 
             string str = string.Empty;
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.Append($"{str}[base].{columnName} = [side].{columnName}");
+                stringBuilder.Append(str).Append("[base].").Append(columnName).Append(" = [side].").Append(columnName);
                 str = " AND ";
             }
             stringBuilder.AppendLine();
@@ -351,16 +351,16 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"SET @sync_row_count = 0;");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"DISABLE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted()};");
-            stringBuilder.AppendLine($"DISABLE TRIGGER {insTriggerName} ON {tableName.Schema().Quoted()};");
-            stringBuilder.AppendLine($"DISABLE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted()};");
+            stringBuilder.Append("DISABLE TRIGGER ").Append(updTriggerName).Append(" ON ").Append(tableName.Schema().Quoted()).AppendLine(";");
+            stringBuilder.Append("DISABLE TRIGGER ").Append(insTriggerName).Append(" ON ").Append(tableName.Schema().Quoted()).AppendLine(";");
+            stringBuilder.Append("DISABLE TRIGGER ").Append(delTriggerName).Append(" ON ").Append(tableName.Schema().Quoted()).AppendLine(";");
 
-            stringBuilder.AppendLine($"DELETE FROM {tableName.Schema().Quoted()};");
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.Schema().Quoted()};");
+            stringBuilder.Append("DELETE FROM ").Append(tableName.Schema().Quoted()).AppendLine(";");
+            stringBuilder.Append("DELETE FROM ").Append(trackingName.Schema().Quoted()).AppendLine(";");
 
-            stringBuilder.AppendLine($"ENABLE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted()};");
-            stringBuilder.AppendLine($"ENABLE TRIGGER {insTriggerName} ON {tableName.Schema().Quoted()};");
-            stringBuilder.AppendLine($"ENABLE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted()};");
+            stringBuilder.Append("ENABLE TRIGGER ").Append(updTriggerName).Append(" ON ").Append(tableName.Schema().Quoted()).AppendLine(";");
+            stringBuilder.Append("ENABLE TRIGGER ").Append(insTriggerName).Append(" ON ").Append(tableName.Schema().Quoted()).AppendLine(";");
+            stringBuilder.Append("ENABLE TRIGGER ").Append(delTriggerName).Append(" ON ").Append(tableName.Schema().Quoted()).AppendLine(";");
 
 
             stringBuilder.AppendLine();

@@ -46,9 +46,9 @@ namespace Dotmim.Sync.Web.Server
             }
 
             var debug = new StringBuilder();
-            debug.Append($" \"RemoteClientTimestamp\":\"{RemoteClientTimestamp}\",");
-            debug.Append($" \"ClientBatchInfo\":\"{clientBatchInfoStr}\",");
-            debug.Append($" \"ServerBatchInfo\":\"{serverBatchInfoStr}\"");
+            debug.Append(" \"RemoteClientTimestamp\":\"").Append(RemoteClientTimestamp).Append("\",");
+            debug.Append(" \"ClientBatchInfo\":\"").Append(clientBatchInfoStr).Append("\",");
+            debug.Append(" \"ServerBatchInfo\":\"").Append(serverBatchInfoStr).Append('\"');
 
             return debug.ToString();
 

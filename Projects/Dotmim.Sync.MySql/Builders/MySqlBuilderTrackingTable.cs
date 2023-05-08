@@ -42,14 +42,14 @@ namespace Dotmim.Sync.MySql.Builders
         public Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TABLE {trackingName.Quoted().ToString()} (");
+            stringBuilder.Append("CREATE TABLE ").Append(trackingName.Quoted()).AppendLine(" (");
 
             // Adding the primary key
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
                 var columnType = this.dbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, this.tableDescription.OriginalProvider);
-                stringBuilder.AppendLine($"{columnName} {columnType} NOT NULL, ");
+                stringBuilder.Append(columnName).Append(' ').Append(columnType).AppendLine(" NOT NULL, ");
             }
 
             // adding the tracking columns

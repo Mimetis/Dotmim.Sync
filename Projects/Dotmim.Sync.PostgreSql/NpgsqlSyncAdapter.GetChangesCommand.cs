@@ -36,28 +36,28 @@ namespace Dotmim.Sync.PostgreSql
             foreach (var pkColumn in this.TableDescription.PrimaryKeys)
             {
                 var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
-                stringBuilder.AppendLine($"\tside.{columnName}, ");
+                stringBuilder.Append("\tside.").Append(columnName).AppendLine(", ");
             }
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns())
             {
                 var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
-                stringBuilder.AppendLine($"\tbase.{columnName}, ");
+                stringBuilder.Append("\tbase.").Append(columnName).AppendLine(", ");
             }
             stringBuilder.AppendLine($"\tside.\"sync_row_is_tombstone\", ");
             stringBuilder.AppendLine($"\tside.\"update_scope_id\" as \"sync_update_scope_id\" ");
             // ----------------------------------
-            stringBuilder.AppendLine($"FROM \"{schema}\".{TableName.Quoted()} base");
+            stringBuilder.Append("FROM \"").Append(schema).Append("\".").Append(TableName.Quoted()).AppendLine(" base");
 
             // ----------------------------------
             // Make Right Join
             // ----------------------------------
-            stringBuilder.Append($"RIGHT JOIN \"{schema}\".{TrackingTableName.Quoted()} side ON ");
+            stringBuilder.Append("RIGHT JOIN \"").Append(schema).Append("\".").Append(TrackingTableName.Quoted()).Append(" side ON ");
 
             string empty = "";
             foreach (var pkColumn in this.TableDescription.PrimaryKeys)
             {
                 var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
-                stringBuilder.Append($"{empty}base.{columnName} = side.{columnName}");
+                stringBuilder.Append(empty).Append("base.").Append(columnName).Append(" = side.").Append(columnName);
                 empty = " AND ";
             }
 
@@ -121,22 +121,22 @@ namespace Dotmim.Sync.PostgreSql
             var comma = "  ";
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
             {
-                stringBuilder.AppendLine($"\t{comma}base.{ParserName.Parse(mutableColumn, "\"").Quoted()}");
+                stringBuilder.Append('\t').Append(comma).Append("base.").Append(ParserName.Parse(mutableColumn, "\"").Quoted()).AppendLine();
                 comma = ", ";
             }
             stringBuilder.AppendLine($"\t, side.\"sync_row_is_tombstone\" as \"sync_row_is_tombstone\"");
-            stringBuilder.AppendLine($"FROM \"{schema}\".{TableName.Quoted()} base");
+            stringBuilder.Append("FROM \"").Append(schema).Append("\".").Append(TableName.Quoted()).AppendLine(" base");
 
             // ----------------------------------
             // Make Left Join
             // ----------------------------------
-            stringBuilder.Append($"LEFT JOIN \"{schema}\".{TrackingTableName.Quoted()} side ON ");
+            stringBuilder.Append("LEFT JOIN \"").Append(schema).Append("\".").Append(TrackingTableName.Quoted()).Append(" side ON ");
 
             string empty = "";
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
-                stringBuilder.Append($"{empty}base.{columnName} = side.{columnName}");
+                stringBuilder.Append(empty).Append("base.").Append(columnName).Append(" = side.").Append(columnName);
                 empty = " AND ";
             }
 
@@ -180,25 +180,25 @@ namespace Dotmim.Sync.PostgreSql
                 var isPrimaryKey = this.TableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
                 if (isPrimaryKey)
-                    stringBuilder.AppendLine($"\t{comma}side.{columnName}");
+                    stringBuilder.Append('\t').Append(comma).Append("side.").AppendLine(columnName);
                 else
-                    stringBuilder.AppendLine($"\t{comma}base.{columnName}");
+                    stringBuilder.Append('\t').Append(comma).Append("base.").AppendLine(columnName);
 
                 comma = ", ";
             }
             stringBuilder.AppendLine($"\t, side.\"sync_row_is_tombstone\" as \"sync_row_is_tombstone\"");
-            stringBuilder.AppendLine($"FROM \"{schema}\".{TableName.Quoted()} base");
+            stringBuilder.Append("FROM \"").Append(schema).Append("\".").Append(TableName.Quoted()).AppendLine(" base");
 
             // ----------------------------------
             // Make Left Join
             // ----------------------------------
-            stringBuilder.Append($"RIGHT JOIN \"{schema}\".{TrackingTableName.Quoted()} side ON ");
+            stringBuilder.Append("RIGHT JOIN \"").Append(schema).Append("\".").Append(TrackingTableName.Quoted()).Append(" side ON ");
 
             empty = "";
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
-                stringBuilder.Append($"{empty}base.{columnName} = side.{columnName}");
+                stringBuilder.Append(empty).Append("base.").Append(columnName).Append(" = side.").Append(columnName);
                 empty = " AND ";
             }
             stringBuilder.AppendLine();
@@ -260,7 +260,7 @@ namespace Dotmim.Sync.PostgreSql
                 var leftColumName = ParserName.Parse(customJoin.LeftColumnName, "\"").Quoted().ToString();
                 var rightColumName = ParserName.Parse(customJoin.RightColumnName, "\"").Quoted().ToString();
 
-                stringBuilder.AppendLine($"{joinTableName} ON {leftTableName}.{leftColumName} = {rightTableName}.{rightColumName}");
+                stringBuilder.Append(joinTableName).Append(" ON ").Append(leftTableName).Append('.').Append(leftColumName).Append(" = ").Append(rightTableName).Append('.').AppendLine(rightColumName);
             }
 
             return stringBuilder.ToString();
@@ -284,7 +284,7 @@ namespace Dotmim.Sync.PostgreSql
                 customWhereIteration = customWhereIteration.Replace("{{{", "\"");
                 customWhereIteration = customWhereIteration.Replace("}}}", "\"");
 
-                stringBuilder.Append($"{and2}{customWhereIteration}");
+                stringBuilder.Append(and2).Append(customWhereIteration);
                 and2 = " AND ";
             }
 
@@ -336,10 +336,10 @@ namespace Dotmim.Sync.PostgreSql
                 if (param == null)
                     throw new FilterParamColumnNotExistsException(columnName, whereFilter.TableName);
 
-                stringBuilder.Append($"{and2}({tableName}.{columnName} = @{parameterName}");
+                stringBuilder.Append(and2).Append('(').Append(tableName).Append('.').Append(columnName).Append(" = @").Append(parameterName);
 
                 if (param.AllowNull)
-                    stringBuilder.Append($" OR @{parameterName} IS NULL");
+                    stringBuilder.Append(" OR @").Append(parameterName).Append(" IS NULL");
 
                 stringBuilder.Append($")");
 

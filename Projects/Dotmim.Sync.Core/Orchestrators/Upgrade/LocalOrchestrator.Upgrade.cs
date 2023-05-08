@@ -155,8 +155,8 @@ namespace Dotmim.Sync
                     if (hasFilters)
                     {
                         StringBuilder stringBuilder = new StringBuilder();
-                        stringBuilder.AppendLine($"Your version is {version} and you need to manually upgrade your client to be able to use the current verison {SyncVersion.Current}.");
-                        stringBuilder.AppendLine($"Your {this.Options.ScopeInfoTableName} table contains setup with filters that need to be migrated manually, as new version needs the parameters values saved in the {this.Options.ScopeInfoTableName} table and they are not present in the {this.Options.ScopeInfoTableName} table version {version}.");
+                        stringBuilder.Append("Your version is ").Append(version).Append(" and you need to manually upgrade your client to be able to use the current verison ").Append(SyncVersion.Current).AppendLine(".");
+                        stringBuilder.Append("Your ").Append(this.Options.ScopeInfoTableName).Append(" table contains setup with filters that need to be migrated manually, as new version needs the parameters values saved in the ").Append(this.Options.ScopeInfoTableName).Append(" table and they are not present in the ").Append(this.Options.ScopeInfoTableName).Append(" table version ").Append(version).AppendLine(".");
                         stringBuilder.AppendLine($"Please see this discussion on how to migrate to your version to the last one : https://github.com/Mimetis/Dotmim.Sync/discussions/802#discussioncomment-3594681");
                         throw new Exception(stringBuilder.ToString());
 

@@ -54,18 +54,18 @@ namespace Dotmim.Sync.SqlServer
 
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine(";WITH ");
-            stringBuilder.AppendLine($"  {this.trackingName.Quoted()} AS (");
+            stringBuilder.Append("  ").Append(this.trackingName.Quoted()).AppendLine(" AS (");
             stringBuilder.Append("\tSELECT ");
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.Append($"[CT].{columnName}, ");
+                stringBuilder.Append("[CT].").Append(columnName).Append(", ");
             }
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("\tCAST([CT].[SYS_CHANGE_CONTEXT] as uniqueidentifier) AS [sync_update_scope_id], ");
             stringBuilder.AppendLine("\t[CT].[SYS_CHANGE_VERSION] as [sync_timestamp],");
             stringBuilder.AppendLine("\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
-            stringBuilder.AppendLine($"\tFROM CHANGETABLE(CHANGES {tableName.Schema().Quoted()}, NULL) AS [CT]");
+            stringBuilder.Append("\tFROM CHANGETABLE(CHANGES ").Append(tableName.Schema().Quoted()).AppendLine(", NULL) AS [CT]");
             stringBuilder.AppendLine("\t)");
 
                 stringBuilder.AppendLine("SELECT ");
@@ -76,15 +76,15 @@ namespace Dotmim.Sync.SqlServer
                 var isPrimaryKey = this.TableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
                 if (isPrimaryKey)
-                    stringBuilder.AppendLine($"\t[side].{columnName}, ");
+                    stringBuilder.Append("\t[side].").Append(columnName).AppendLine(", ");
                 else
-                    stringBuilder.AppendLine($"\t[base].{columnName}, ");
+                    stringBuilder.Append("\t[base].").Append(columnName).AppendLine(", ");
 
             }
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone] as [sync_row_is_tombstone], ");
             stringBuilder.AppendLine($"\t[side].[sync_update_scope_id] as [sync_update_scope_id] ");
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted()} [base]");
-            stringBuilder.Append($"RIGHT JOIN {trackingName.Quoted()} [side] ");
+            stringBuilder.Append("FROM ").Append(tableName.Schema().Quoted()).AppendLine(" [base]");
+            stringBuilder.Append("RIGHT JOIN ").Append(trackingName.Quoted()).Append(" [side] ");
             stringBuilder.Append("ON ");
 
             string empty = string.Empty;
@@ -93,8 +93,8 @@ namespace Dotmim.Sync.SqlServer
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
 
-                stringBuilder.Append($"{empty}[base].{columnName} = [side].{columnName}");
-                stringBuilder1.Append($"{empty}[side].{columnName} = @{parameterName}");
+                stringBuilder.Append(empty).Append("[base].").Append(columnName).Append(" = [side].").Append(columnName);
+                stringBuilder1.Append(empty).Append("[side].").Append(columnName).Append(" = @").Append(parameterName);
                 empty = " AND ";
             }
 

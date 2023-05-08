@@ -798,7 +798,7 @@ namespace Dotmim.Sync.SqlServer
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"@{unquotedColumn}");
+                stringBuilder.Append('@').Append(unquotedColumn);
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
@@ -814,7 +814,7 @@ namespace Dotmim.Sync.SqlServer
                 var quotedColumn = ParserName.Parse(mutableColumn).Quoted().ToString();
                 var unquotedColumn = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
 
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn} = @{unquotedColumn}");
+                stringBuilder.Append(strSeparator).Append(' ').Append(strFromPrefix).Append(quotedColumn).Append(" = @").AppendLine(unquotedColumn);
                 strSeparator = ", ";
             }
             return stringBuilder.ToString();

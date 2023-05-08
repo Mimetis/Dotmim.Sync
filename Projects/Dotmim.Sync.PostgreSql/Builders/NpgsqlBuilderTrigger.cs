@@ -130,31 +130,31 @@ namespace Dotmim.Sync.PostgreSql.Builders
             foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
-                idColumns.Append($"{argComma}{columnName}");
-                idColumnsSelects.Append($"{argComma}NEW.{columnName}");
+                idColumns.Append(argComma).Append(columnName);
+                idColumnsSelects.Append(argComma).Append("NEW.").Append(columnName);
                 argComma = ",";
                 argAnd = " AND ";
             }
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION \"{schema}\".{commandTriggerName.Unquoted().Normalized().ToString().ToLower()}_function()");
+            stringBuilder.Append("CREATE OR REPLACE FUNCTION \"").Append(schema).Append("\".").Append(commandTriggerName.Unquoted().Normalized().ToString().ToLower()).AppendLine("_function()");
             stringBuilder.AppendLine($"  RETURNS trigger");
             stringBuilder.AppendLine($"  LANGUAGE 'plpgsql'");
             stringBuilder.AppendLine($"  COST 100");
             stringBuilder.AppendLine($"  VOLATILE NOT LEAKPROOF");
             stringBuilder.AppendLine($"AS $new$");
             stringBuilder.AppendLine($"BEGIN");
-            stringBuilder.AppendLine($"  INSERT INTO \"{schema}\".{trackingName.Quoted()} ");
-            stringBuilder.AppendLine($"  ({idColumns}, \"update_scope_id\", \"timestamp\" ,\"sync_row_is_tombstone\" ,\"last_change_datetime\")");
-            stringBuilder.AppendLine($"  VALUES( {idColumnsSelects}, null, {this.timestampValue}, 0, now())");
-            stringBuilder.AppendLine($"  ON CONFLICT({idColumns}) DO UPDATE");
-            stringBuilder.AppendLine($"  SET \"timestamp\" = {this.timestampValue}, \"sync_row_is_tombstone\" = 0, \"update_scope_id\" = null ,\"last_change_datetime\" = now();");
+            stringBuilder.Append("  INSERT INTO \"").Append(schema).Append("\".").Append(trackingName.Quoted()).AppendLine(" ");
+            stringBuilder.Append("  (").Append(idColumns).AppendLine(", \"update_scope_id\", \"timestamp\" ,\"sync_row_is_tombstone\" ,\"last_change_datetime\")");
+            stringBuilder.Append("  VALUES( ").Append(idColumnsSelects).Append(", null, ").Append(this.timestampValue).AppendLine(", 0, now())");
+            stringBuilder.Append("  ON CONFLICT(").Append(idColumns).AppendLine(") DO UPDATE");
+            stringBuilder.Append("  SET \"timestamp\" = ").Append(this.timestampValue).AppendLine(", \"sync_row_is_tombstone\" = 0, \"update_scope_id\" = null ,\"last_change_datetime\" = now();");
             stringBuilder.AppendLine($"return NEW;");
             stringBuilder.AppendLine($"END;");
             stringBuilder.AppendLine($"$new$;");
-            stringBuilder.AppendLine($"CREATE OR REPLACE TRIGGER {commandTriggerName.Quoted()}");
-            stringBuilder.AppendLine($"AFTER {triggerFor} ON \"{schema}\".{tableName.Quoted()}");
-            stringBuilder.AppendLine($"FOR EACH ROW EXECUTE FUNCTION \"{schema}\".{commandTriggerName.Unquoted().Normalized().ToString().ToLower()}_function()");
+            stringBuilder.Append("CREATE OR REPLACE TRIGGER ").Append(commandTriggerName.Quoted()).AppendLine();
+            stringBuilder.Append("AFTER ").Append(triggerFor).Append(" ON \"").Append(schema).Append("\".").Append(tableName.Quoted()).AppendLine();
+            stringBuilder.Append("FOR EACH ROW EXECUTE FUNCTION \"").Append(schema).Append("\".").Append(commandTriggerName.Unquoted().Normalized().ToString().ToLower()).AppendLine("_function()");
 
             return stringBuilder.ToString(); ;
         }
@@ -173,31 +173,31 @@ namespace Dotmim.Sync.PostgreSql.Builders
             foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
-                idColumns.Append($"{argComma}{columnName}");
-                idColumnsSelects.Append($"{argComma}OLD.{columnName}");
+                idColumns.Append(argComma).Append(columnName);
+                idColumnsSelects.Append(argComma).Append("OLD.").Append(columnName);
                 argComma = ",";
                 argAnd = " AND ";
             }
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION \"{schema}\".{commandTriggerName.Unquoted().Normalized().ToString().ToLower()}_function()");
+            stringBuilder.Append("CREATE OR REPLACE FUNCTION \"").Append(schema).Append("\".").Append(commandTriggerName.Unquoted().Normalized().ToString().ToLower()).AppendLine("_function()");
             stringBuilder.AppendLine($"  RETURNS trigger");
             stringBuilder.AppendLine($"  LANGUAGE 'plpgsql'");
             stringBuilder.AppendLine($"  COST 100");
             stringBuilder.AppendLine($"  VOLATILE NOT LEAKPROOF");
             stringBuilder.AppendLine($"AS $new$");
             stringBuilder.AppendLine($"BEGIN");
-            stringBuilder.AppendLine($"  INSERT INTO \"{schema}\".{trackingName.Quoted()} ");
-            stringBuilder.AppendLine($"  ({idColumns}, \"update_scope_id\", \"timestamp\" ,\"sync_row_is_tombstone\" ,\"last_change_datetime\")");
-            stringBuilder.AppendLine($"  VALUES( {idColumnsSelects}, null, {this.timestampValue}, 1, now())");
-            stringBuilder.AppendLine($"  ON CONFLICT({idColumns}) DO UPDATE");
-            stringBuilder.AppendLine($"  SET \"timestamp\" = {this.timestampValue}, \"sync_row_is_tombstone\" = 1, \"update_scope_id\" = null ,\"last_change_datetime\" = now();");
+            stringBuilder.Append("  INSERT INTO \"").Append(schema).Append("\".").Append(trackingName.Quoted()).AppendLine(" ");
+            stringBuilder.Append("  (").Append(idColumns).AppendLine(", \"update_scope_id\", \"timestamp\" ,\"sync_row_is_tombstone\" ,\"last_change_datetime\")");
+            stringBuilder.Append("  VALUES( ").Append(idColumnsSelects).Append(", null, ").Append(this.timestampValue).AppendLine(", 1, now())");
+            stringBuilder.Append("  ON CONFLICT(").Append(idColumns).AppendLine(") DO UPDATE");
+            stringBuilder.Append("  SET \"timestamp\" = ").Append(this.timestampValue).AppendLine(", \"sync_row_is_tombstone\" = 1, \"update_scope_id\" = null ,\"last_change_datetime\" = now();");
             stringBuilder.AppendLine($"return OLD;");
             stringBuilder.AppendLine($"END;");
             stringBuilder.AppendLine($"$new$;");
-            stringBuilder.AppendLine($"CREATE OR REPLACE TRIGGER {commandTriggerName.Quoted()}");
-            stringBuilder.AppendLine($"AFTER DELETE ON \"{schema}\".{tableName.Quoted()}");
-            stringBuilder.AppendLine($"FOR EACH ROW EXECUTE FUNCTION \"{schema}\".{commandTriggerName.Unquoted().Normalized().ToString().ToLower()}_function()");
+            stringBuilder.Append("CREATE OR REPLACE TRIGGER ").Append(commandTriggerName.Quoted()).AppendLine();
+            stringBuilder.Append("AFTER DELETE ON \"").Append(schema).Append("\".").Append(tableName.Quoted()).AppendLine();
+            stringBuilder.Append("FOR EACH ROW EXECUTE FUNCTION \"").Append(schema).Append("\".").Append(commandTriggerName.Unquoted().Normalized().ToString().ToLower()).AppendLine("_function()");
             return stringBuilder.ToString();
 
         }

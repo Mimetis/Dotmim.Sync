@@ -468,7 +468,7 @@ namespace Dotmim.Sync
                     var cleanValue = new string(p.Value.ToString().Where(char.IsLetterOrDigit).ToArray());
                     var cleanName = new string(p.Name.Where(char.IsLetterOrDigit).ToArray());
 
-                    sb.Append($"{underscore}{cleanName}_{cleanValue}");
+                    sb.Append(underscore).Append(cleanName).Append('_').Append(cleanValue);
                     underscore = "_";
                 }
             }

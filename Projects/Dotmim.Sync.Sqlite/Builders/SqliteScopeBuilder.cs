@@ -363,13 +363,13 @@ namespace Dotmim.Sync.Sqlite
                       $"@sync_scope_last_clean_timestamp, @sync_scope_properties);");
 
 
-            stmtText.AppendLine(@$"SELECT sync_scope_name
+            stmtText.Append(@"SELECT sync_scope_name
                            , sync_scope_schema
                            , sync_scope_setup
                            , sync_scope_version
                            , sync_scope_last_clean_timestamp
                            , sync_scope_properties
-                    FROM  {tableName}
+                    FROM  ").Append(tableName).AppendLine(@"
                     WHERE sync_scope_name=@sync_scope_name;");
 
             var command = new SqliteCommand(stmtText.ToString(), (SqliteConnection)connection, (SqliteTransaction)transaction);
@@ -438,7 +438,7 @@ namespace Dotmim.Sync.Sqlite
                       $"@scope_last_sync, @scope_last_sync_duration, @sync_scope_errors, @sync_scope_properties);");
 
 
-            stmtText.AppendLine(@$"SELECT sync_scope_id
+            stmtText.Append(@"SELECT sync_scope_id
                            , sync_scope_name
                            , sync_scope_hash
                            , sync_scope_parameters
@@ -448,7 +448,7 @@ namespace Dotmim.Sync.Sqlite
                            , scope_last_sync_duration
                            , sync_scope_errors
                            , sync_scope_properties
-                    FROM  {tableName}
+                    FROM  ").Append(tableName).AppendLine(@"
                     WHERE sync_scope_name=@sync_scope_name and sync_scope_id=@sync_scope_id and sync_scope_hash=@sync_scope_hash;");
 
             var command = new SqliteCommand(stmtText.ToString(), (SqliteConnection)connection, (SqliteTransaction)transaction);

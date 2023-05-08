@@ -148,7 +148,7 @@ namespace Dotmim.Sync
             {
                 var member = membersInfos[i];
                 object memberValue = GetValue(member, value);
-                sb.Append($@"{member.Name}={{{member.Name}}} ");
+                sb.Append(member.Name).Append(@"={").Append(member.Name).Append(@"} ");
                 args.Add(memberValue);
             }
 

@@ -74,7 +74,7 @@ namespace Dotmim.Sync.Sqlite
                 else if (column.IsReadOnly)
                     nullString = "NULL";
 
-                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {nullString} {casesensitive}");
+                stringBuilder.Append('\t').Append(empty).Append(columnName).Append(' ').Append(columnType).Append(' ').Append(identity).Append(' ').Append(nullString).Append(' ').AppendLine(casesensitive);
                 empty = ",";
             }
             stringBuilder.Append("\t,PRIMARY KEY (");
@@ -107,16 +107,16 @@ namespace Dotmim.Sync.Sqlite
                 foreach (var column in constraint.Keys)
                 {
                     var columnName = ParserName.Parse(column.ColumnName).Quoted().ToString();
-                    stringBuilder.Append($"{empty} {columnName}");
+                    stringBuilder.Append(empty).Append(' ').Append(columnName);
                     empty = ", ";
                 }
                 stringBuilder.Append($") ");
-                stringBuilder.Append($"REFERENCES {parentTableName}(");
+                stringBuilder.Append("REFERENCES ").Append(parentTableName).Append('(');
                 empty = string.Empty;
                 foreach (var column in constraint.ParentKeys)
                 {
                     var columnName = ParserName.Parse(column.ColumnName).Quoted().ToString();
-                    stringBuilder.Append($"{empty} {columnName}");
+                    stringBuilder.Append(empty).Append(' ').Append(columnName);
                     empty = ", ";
                 }
                 stringBuilder.AppendLine(" )");
@@ -128,14 +128,14 @@ namespace Dotmim.Sync.Sqlite
         private string BuildTrackingTableCommandText()
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TABLE IF NOT EXISTS {this.TrackingTableName.Quoted().ToString()} (");
+            stringBuilder.Append("CREATE TABLE IF NOT EXISTS ").Append(this.TrackingTableName.Quoted().ToString()).AppendLine(" (");
 
             // Adding the primary key
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 var columnType = this.sqliteDbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, TableDescription.OriginalProvider);
-                stringBuilder.AppendLine($"{quotedColumnName} {columnType} NOT NULL COLLATE NOCASE, ");
+                stringBuilder.Append(quotedColumnName).Append(' ').Append(columnType).AppendLine(" NOT NULL COLLATE NOCASE, ");
             }
 
             // adding the tracking columns
@@ -160,14 +160,14 @@ namespace Dotmim.Sync.Sqlite
 
             stringBuilder.Append(");");
 
-            stringBuilder.AppendLine($"CREATE INDEX IF NOT EXISTS [{this.TrackingTableName.Unquoted().Normalized().ToString()}_timestamp_index] ON {this.TrackingTableName.Quoted().ToString()} (");
+            stringBuilder.Append("CREATE INDEX IF NOT EXISTS [").Append(this.TrackingTableName.Unquoted().Normalized().ToString()).Append("_timestamp_index] ON ").Append(this.TrackingTableName.Quoted().ToString()).AppendLine(" (");
             stringBuilder.AppendLine($"\t [timestamp] ASC");
             stringBuilder.AppendLine($"\t,[update_scope_id] ASC");
             stringBuilder.AppendLine($"\t,[sync_row_is_tombstone] ASC");
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.AppendLine($"\t,{columnName} ASC");
+                stringBuilder.Append("\t,").Append(columnName).AppendLine(" ASC");
             }
             stringBuilder.Append(");");
             return stringBuilder.ToString();
@@ -310,14 +310,14 @@ namespace Dotmim.Sync.Sqlite
             createTrigger.AppendLine("BEGIN");
             createTrigger.AppendLine("-- If row was deleted before, it already exists, so just make an update");
 
-            createTrigger.AppendLine($"\tINSERT OR REPLACE INTO {this.TrackingTableName.Quoted().ToString()} (");
+            createTrigger.Append("\tINSERT OR REPLACE INTO ").Append(this.TrackingTableName.Quoted().ToString()).AppendLine(" (");
             foreach (var mutableColumn in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
 
-                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
-                stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName}");
-                stringPkAreNull.Append($"{argAnd}{TrackingTableName.Quoted().ToString()}.{columnName} IS NULL");
+                stringBuilderArguments.Append("\t\t").Append(argComma).AppendLine(columnName);
+                stringBuilderArguments2.Append("\t\t").Append(argComma).Append("new.").AppendLine(columnName);
+                stringPkAreNull.Append(argAnd).Append(TrackingTableName.Quoted().ToString()).Append('.').Append(columnName).Append(" IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
@@ -357,14 +357,14 @@ namespace Dotmim.Sync.Sqlite
             createTrigger.AppendLine();
             createTrigger.AppendLine("BEGIN");
 
-            createTrigger.AppendLine($"\tINSERT OR REPLACE INTO {TrackingTableName.Quoted().ToString()} (");
+            createTrigger.Append("\tINSERT OR REPLACE INTO ").Append(TrackingTableName.Quoted().ToString()).AppendLine(" (");
             foreach (var mutableColumn in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
 
-                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
-                stringBuilderArguments2.AppendLine($"\t\t{argComma}old.{columnName}");
-                stringPkAreNull.Append($"{argAnd}{TrackingTableName.Quoted().ToString()}.{columnName} IS NULL");
+                stringBuilderArguments.Append("\t\t").Append(argComma).AppendLine(columnName);
+                stringBuilderArguments2.Append("\t\t").Append(argComma).Append("old.").AppendLine(columnName);
+                stringPkAreNull.Append(argAnd).Append(TrackingTableName.Quoted().ToString()).Append('.').Append(columnName).Append(" IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
@@ -400,7 +400,7 @@ namespace Dotmim.Sync.Sqlite
             createTrigger.AppendLine();
             createTrigger.AppendLine($"Begin ");
 
-            createTrigger.AppendLine($"\tUPDATE {TrackingTableName.Quoted().ToString()} ");
+            createTrigger.Append("\tUPDATE ").Append(TrackingTableName.Quoted().ToString()).AppendLine(" ");
             createTrigger.AppendLine("\tSET [update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             createTrigger.AppendLine($"\t\t,[timestamp] = {SqliteObjectNames.TimestampValue}");
             createTrigger.AppendLine("\t\t,[last_change_datetime] = datetime('now')");
@@ -451,14 +451,14 @@ namespace Dotmim.Sync.Sqlite
             string argComma = string.Empty;
             string argAnd = string.Empty;
 
-            createTrigger.AppendLine($"\tINSERT OR IGNORE INTO {TrackingTableName.Quoted().ToString()} (");
+            createTrigger.Append("\tINSERT OR IGNORE INTO ").Append(TrackingTableName.Quoted().ToString()).AppendLine(" (");
             foreach (var mutableColumn in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
 
-                stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
-                stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName}");
-                stringPkAreNull.Append($"{argAnd}{TrackingTableName.Quoted().ToString()}.{columnName} IS NULL");
+                stringBuilderArguments.Append("\t\t").Append(argComma).AppendLine(columnName);
+                stringBuilderArguments2.Append("\t\t").Append(argComma).Append("new.").AppendLine(columnName);
+                stringPkAreNull.Append(argAnd).Append(TrackingTableName.Quoted().ToString()).Append('.').Append(columnName).Append(" IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
@@ -477,13 +477,13 @@ namespace Dotmim.Sync.Sqlite
             createTrigger.AppendLine("\t\t,0");
             createTrigger.AppendLine("\t\t,datetime('now')");
 
-            createTrigger.Append($"\tWHERE (SELECT COUNT(*) FROM {TrackingTableName.Quoted().ToString()} WHERE ");
+            createTrigger.Append("\tWHERE (SELECT COUNT(*) FROM ").Append(TrackingTableName.Quoted().ToString()).Append(" WHERE ");
             var pkeys = this.TableDescription.GetPrimaryKeysColumns();
             var str1 = "";
             foreach (var pkey in pkeys)
             {
                 var quotedColumn = ParserName.Parse(pkey).Quoted().ToString();
-                createTrigger.Append($"{str1}{quotedColumn}=new.{quotedColumn}");
+                createTrigger.Append(str1).Append(quotedColumn).Append("=new.").Append(quotedColumn);
                 str1 = " AND ";
             }
             createTrigger.AppendLine(")=0");
@@ -711,7 +711,7 @@ namespace Dotmim.Sync.Sqlite
             else if (column.IsReadOnly)
                 nullString = "NULL";
 
-            stringBuilder.AppendLine($" {columnNameString} {columnType} {identity} {nullString} {casesensitive};");
+            stringBuilder.Append(' ').Append(columnNameString).Append(' ').Append(columnType).Append(' ').Append(identity).Append(' ').Append(nullString).Append(' ').Append(casesensitive).AppendLine(";");
 
 
             command.CommandText = stringBuilder.ToString();

@@ -28,7 +28,7 @@ namespace Dotmim.Sync.PostgreSql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"\"{sql_prefix}{unquotedColumn}\"");
+                stringBuilder.Append('\"').Append(sql_prefix).Append(unquotedColumn).Append('\"');
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
@@ -807,7 +807,7 @@ namespace Dotmim.Sync.PostgreSql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(unquotedColumn);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"{paramUnquotedColumn}");
+                stringBuilder.Append(paramUnquotedColumn);
                 str1 = " AND ";
             }
             return stringBuilder.ToString();

@@ -42,12 +42,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 1");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.Append("FROM ").Append(trackingName.Schema().Quoted()).AppendLine(" [side]");
             stringBuilder.Append($"JOIN DELETED AS [d] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[d]"));
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.Append("INSERT INTO ").Append(trackingName.Schema().Quoted()).AppendLine(" (");
 
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderArguments2 = new StringBuilder();
@@ -60,9 +60,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilderArguments.AppendLine($"\t{argComma}[d].{columnName}");
-                stringBuilderArguments2.AppendLine($"\t{argComma}{columnName}");
-                stringPkAreNull.Append($"{argAnd}[side].{columnName} IS NULL");
+                stringBuilderArguments.Append('\t').Append(argComma).Append("[d].").AppendLine(columnName);
+                stringBuilderArguments2.Append('\t').Append(argComma).AppendLine(columnName);
+                stringPkAreNull.Append(argAnd).Append("[side].").Append(columnName).Append(" IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
@@ -78,7 +78,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t,1");
             stringBuilder.AppendLine("\t,GetUtcDate()");
             stringBuilder.AppendLine("FROM DELETED [d]");
-            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.Append("LEFT JOIN ").Append(trackingName.Schema().Quoted().ToString()).Append(" [side] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[side]"));
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
@@ -98,12 +98,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 0");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.Append("FROM ").Append(trackingName.Schema().Quoted().ToString()).AppendLine(" [side]");
             stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[i]"));
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.Append("INSERT INTO ").Append(trackingName.Schema().Quoted().ToString()).AppendLine(" (");
 
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderArguments2 = new StringBuilder();
@@ -116,9 +116,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilderArguments.AppendLine($"\t{argComma}[i].{columnName}");
-                stringBuilderArguments2.AppendLine($"\t{argComma}{columnName}");
-                stringPkAreNull.Append($"{argAnd}[side].{columnName} IS NULL");
+                stringBuilderArguments.Append('\t').Append(argComma).Append("[i].").AppendLine(columnName);
+                stringBuilderArguments2.Append('\t').Append(argComma).AppendLine(columnName);
+                stringPkAreNull.Append(argAnd).Append("[side].").Append(columnName).Append(" IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
@@ -134,7 +134,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t,0");
             stringBuilder.AppendLine("\t,GetUtcDate()");
             stringBuilder.AppendLine("FROM INSERTED [i]");
-            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.Append("LEFT JOIN ").Append(trackingName.Schema().Quoted().ToString()).Append(" [side] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[i]", "[side]"));
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
@@ -156,7 +156,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.Append("FROM ").Append(trackingName.Schema().Quoted().ToString()).AppendLine(" [side]");
             stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[i]"));
 
@@ -196,7 +196,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             //    stringBuilder.AppendLine(") ");
             //}
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.Append("INSERT INTO ").Append(trackingName.Schema().Quoted().ToString()).AppendLine(" (");
 
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderArguments2 = new StringBuilder();
@@ -209,9 +209,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilderArguments.AppendLine($"\t{argComma}[i].{columnName}");
-                stringBuilderArguments2.AppendLine($"\t{argComma}{columnName}");
-                stringPkAreNull.Append($"{argAnd}[side].{columnName} IS NULL");
+                stringBuilderArguments.Append('\t').Append(argComma).Append("[i].").AppendLine(columnName);
+                stringBuilderArguments2.Append('\t').Append(argComma).AppendLine(columnName);
+                stringPkAreNull.Append(argAnd).Append("[side].").Append(columnName).Append(" IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
@@ -229,7 +229,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("FROM INSERTED [i]");
             stringBuilder.Append($"JOIN DELETED AS [d] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[i]"));
-            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.Append("LEFT JOIN ").Append(trackingName.Schema().Quoted().ToString()).Append(" [side] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[i]", "[side]"));
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
@@ -333,7 +333,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var commandTriggerName = this.sqlObjectNames.GetTriggerCommandName(triggerType);
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TRIGGER {commandTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR {triggerFor} AS");
+            stringBuilder.Append("CREATE TRIGGER ").Append(commandTriggerName).Append(" ON ").Append(tableName.Schema().Quoted()).Append(" FOR ").Append(triggerFor).AppendLine(" AS");
             stringBuilder.AppendLine(commandTriggerCommandString);
 
             var command = connection.CreateCommand();

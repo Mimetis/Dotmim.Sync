@@ -35,7 +35,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var stringBuilder = new StringBuilder();
             var tbl = trackingName.ToString();
             var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
-            stringBuilder.AppendLine($"CREATE TABLE {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.Append("CREATE TABLE ").Append(trackingName.Schema().Quoted()).AppendLine(" (");
 
             // Adding the primary key
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
@@ -44,7 +44,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, this.tableDescription.OriginalProvider);
 
                 var nullableColumn = pkColumn.AllowDBNull ? "NULL" : "NOT NULL";
-                stringBuilder.AppendLine($"{quotedColumnName} {columnType} {nullableColumn}, ");
+                stringBuilder.Append(quotedColumnName).Append(' ').Append(columnType).Append(' ').Append(nullableColumn).AppendLine(", ");
             }
 
             // adding the tracking columns
@@ -56,7 +56,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine(");");
 
             // Primary Keys
-            stringBuilder.Append($"ALTER TABLE {trackingName.Schema().Quoted().ToString()} ADD CONSTRAINT [PK_{trackingName.Schema().Unquoted().Normalized().ToString()}] PRIMARY KEY (");
+            stringBuilder.Append("ALTER TABLE ").Append(trackingName.Schema().Quoted()).Append(" ADD CONSTRAINT [PK_").Append(trackingName.Schema().Unquoted().Normalized()).Append("] PRIMARY KEY (");
 
             var primaryKeysColumns = this.tableDescription.GetPrimaryKeysColumns().ToList();
             for (int i = 0; i < primaryKeysColumns.Count; i++)
@@ -74,14 +74,14 @@ namespace Dotmim.Sync.SqlServer.Builders
             // Index
             var indexName = trackingName.Schema().Unquoted().Normalized().ToString();
 
-            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{indexName}_timestamp_index] ON {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.Append("CREATE NONCLUSTERED INDEX [").Append(indexName).Append("_timestamp_index] ON ").Append(trackingName.Schema().Quoted()).AppendLine(" (");
             stringBuilder.AppendLine($"\t  [timestamp_bigint] ASC");
             stringBuilder.AppendLine($"\t, [update_scope_id] ASC");
             stringBuilder.AppendLine($"\t, [sync_row_is_tombstone] ASC");
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.AppendLine($"\t,{columnName} ASC");
+                stringBuilder.Append("\t,").Append(columnName).AppendLine(" ASC");
             }
             stringBuilder.Append(");");
 
@@ -109,7 +109,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"ALTER TABLE {trackingName.Schema().Quoted().ToString()} NOCHECK CONSTRAINT ALL; DROP TABLE {trackingName.Schema().Quoted().ToString()};");
+            stringBuilder.Append("ALTER TABLE ").Append(trackingName.Schema().Quoted().ToString()).Append(" NOCHECK CONSTRAINT ALL; DROP TABLE ").Append(trackingName.Schema().Quoted()).AppendLine(";");
 
             var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
 
@@ -142,13 +142,13 @@ namespace Dotmim.Sync.SqlServer.Builders
             var oldFullName = $"{oldSchemaNameString}.{oldTableName}";
 
             // First of all, renaming the table   
-            stringBuilder.Append($"EXEC sp_rename '{oldFullName}', '{tableName}'; ");
+            stringBuilder.Append("EXEC sp_rename '").Append(oldFullName).Append("', '").Append(tableName).Append("'; ");
 
             // then if necessary, move to another schema
             if (!string.Equals(oldSchemaNameString, schemaName, SyncGlobalization.DataSourceStringComparison))
             {
                 var tmpName = $"[{oldSchemaNameString}].[{tableName}]";
-                stringBuilder.Append($"ALTER SCHEMA {schemaName} TRANSFER {tmpName};");
+                stringBuilder.Append("ALTER SCHEMA ").Append(schemaName).Append(" TRANSFER ").Append(tmpName).Append(';');
             }
             var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
 

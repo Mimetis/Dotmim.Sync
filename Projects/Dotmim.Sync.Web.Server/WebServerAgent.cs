@@ -1002,7 +1002,7 @@ namespace Dotmim.Sync.Web.Server
                     stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                     stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Exception occured</li>");
                     stringBuilder.AppendLine($"<li class='list-group-item list-group-item-danger'>");
-                    stringBuilder.AppendLine($"{exceptionMessage}");
+                    stringBuilder.AppendLine(exceptionMessage);
                     stringBuilder.AppendLine("</li>");
                     stringBuilder.AppendLine("</ul>");
                 }
@@ -1011,20 +1011,20 @@ namespace Dotmim.Sync.Web.Server
                     stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                     stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Database</li>");
                     stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
-                    stringBuilder.AppendLine($"Check database {dbName}: Done.");
+                    stringBuilder.Append("Check database ").Append(dbName).AppendLine(": Done.");
                     stringBuilder.AppendLine("</li>");
                     stringBuilder.AppendLine("</ul>");
 
                     stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                     stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Engine version</li>");
                     stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
-                    stringBuilder.AppendLine($"{version}");
+                    stringBuilder.AppendLine(version);
                     stringBuilder.AppendLine("</li>");
                     stringBuilder.AppendLine("</ul>");
                 }
 
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
-                stringBuilder.AppendLine($"<li class='list-group-item active'>ScopeName: {webServerAgent.ScopeName}</li>");
+                stringBuilder.Append("<li class='list-group-item active'>ScopeName: ").Append(webServerAgent.ScopeName).AppendLine("</li>");
                 stringBuilder.AppendLine("</ul>");
 
                 var s = JsonConvert.SerializeObject(webServerAgent.Setup, Formatting.Indented);

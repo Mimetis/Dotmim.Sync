@@ -143,7 +143,7 @@ namespace Dotmim.Sync
 
             var sb = new StringBuilder();
 
-            sb.Append($"[Sync state]:{this.RowState}");
+            sb.Append("[Sync state]:").Append(this.RowState);
 
             var columns = this.RowState == SyncRowState.Deleted ? this.SchemaTable.GetPrimaryKeysColumns() : this.SchemaTable.Columns;
 
@@ -152,7 +152,7 @@ namespace Dotmim.Sync
                 var o = this[c.ColumnName];
                 var os = o == null ? "<NULL />" : o.ToString();
 
-                sb.Append($", [{c.ColumnName}]:{os}");
+                sb.Append(", [").Append(c.ColumnName).Append("]:").Append(os);
             }
 
             return sb.ToString();

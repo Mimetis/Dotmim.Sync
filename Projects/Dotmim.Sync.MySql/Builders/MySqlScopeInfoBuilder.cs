@@ -255,10 +255,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             stmtText.AppendLine();
 
-            stmtText.AppendLine($"SELECT sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, " +
-                $"sync_scope_last_clean_timestamp, sync_scope_properties " +
-                $"FROM `{tableName}` " +
-                $"WHERE sync_scope_name=@sync_scope_name;");
+            stmtText.Append("SELECT sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, ").Append("sync_scope_last_clean_timestamp, sync_scope_properties ").Append("FROM `").Append(tableName).Append("` ").AppendLine("WHERE sync_scope_name=@sync_scope_name;");
 
             var command = connection.CreateCommand();
 
@@ -318,11 +315,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             stmtText.AppendLine();
 
-            stmtText.AppendLine($"SELECT sync_scope_id, sync_scope_name, sync_scope_hash, " +
-                $"sync_scope_parameters, scope_last_sync_timestamp, scope_last_server_sync_timestamp, " +
-                $"scope_last_sync, scope_last_sync_duration, sync_scope_errors, sync_scope_properties " +
-                $"FROM `{tableName}` " +
-                $"WHERE sync_scope_id=@sync_scope_id AND sync_scope_name=@sync_scope_name AND sync_scope_hash=@sync_scope_hash;");
+            stmtText.Append($"SELECT sync_scope_id, sync_scope_name, sync_scope_hash, ").Append($"sync_scope_parameters, scope_last_sync_timestamp, scope_last_server_sync_timestamp, ").Append($"scope_last_sync, scope_last_sync_duration, sync_scope_errors, sync_scope_properties ").Append("FROM `").Append(tableName).Append("` ").AppendLine($"WHERE sync_scope_id=@sync_scope_id AND sync_scope_name=@sync_scope_name AND sync_scope_hash=@sync_scope_hash;");
 
             var command = connection.CreateCommand();
 
@@ -406,11 +399,8 @@ namespace Dotmim.Sync.MySql.Builders
                 $"WHERE sync_scope_name=@sync_scope_name;");
             stmtText.AppendLine();
             stmtText.AppendLine();
-            stmtText.AppendLine(
-                $"SELECT sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, " +
-                $"sync_scope_last_clean_timestamp, sync_scope_properties " +
-                $"FROM `{tableName}` " +
-                $"WHERE sync_scope_name=@sync_scope_name;");
+            stmtText.Append(
+                $"SELECT sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, ").Append($"sync_scope_last_clean_timestamp, sync_scope_properties ").Append("FROM `").Append(tableName).Append("` ").AppendLine($"WHERE sync_scope_name=@sync_scope_name;");
 
             var command = connection.CreateCommand();
 
@@ -473,12 +463,8 @@ namespace Dotmim.Sync.MySql.Builders
 
             stmtText.AppendLine();
 
-            stmtText.AppendLine(
-                $"SELECT sync_scope_id, sync_scope_name, sync_scope_hash, sync_scope_parameters, " +
-                $"scope_last_sync_timestamp, scope_last_server_sync_timestamp, scope_last_sync, " +
-                $"scope_last_sync_duration, sync_scope_errors, sync_scope_properties " +
-                $"FROM  `{tableName}` " +
-                $"WHERE sync_scope_name=@sync_scope_name and sync_scope_id=@sync_scope_id and sync_scope_hash=@sync_scope_hash; ");
+            stmtText.Append(
+                $"SELECT sync_scope_id, sync_scope_name, sync_scope_hash, sync_scope_parameters, ").Append($"scope_last_sync_timestamp, scope_last_server_sync_timestamp, scope_last_sync, ").Append($"scope_last_sync_duration, sync_scope_errors, sync_scope_properties ").Append("FROM  `").Append(tableName).Append("` ").AppendLine($"WHERE sync_scope_name=@sync_scope_name and sync_scope_id=@sync_scope_id and sync_scope_hash=@sync_scope_hash; ");
 
             var command = connection.CreateCommand();
 

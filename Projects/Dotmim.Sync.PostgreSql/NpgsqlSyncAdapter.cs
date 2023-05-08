@@ -196,10 +196,10 @@ namespace Dotmim.Sync.PostgreSql
             stringBuilder.AppendLine($"DO $$");
             stringBuilder.AppendLine($"");
             stringBuilder.AppendLine("BEGIN");
-            stringBuilder.AppendLine($"ALTER TABLE \"{schema}\".{TableName.Quoted()} DISABLE TRIGGER ALL;");
-            stringBuilder.AppendLine($"DELETE FROM \"{schema}\".{TableName.Quoted()};");
-            stringBuilder.AppendLine($"DELETE FROM \"{schema}\".{TrackingTableName.Quoted()};");
-            stringBuilder.AppendLine($"ALTER TABLE \"{schema}\".{TableName.Quoted()} ENABLE TRIGGER ALL;");
+            stringBuilder.Append("ALTER TABLE \"").Append(schema).Append("\".").Append(TableName.Quoted()).AppendLine(" DISABLE TRIGGER ALL;");
+            stringBuilder.Append("DELETE FROM \"").Append(schema).Append("\".").Append(TableName.Quoted()).AppendLine(";");
+            stringBuilder.Append("DELETE FROM \"").Append(schema).Append("\".").Append(TrackingTableName.Quoted()).AppendLine(";");
+            stringBuilder.Append("ALTER TABLE \"").Append(schema).Append("\".").Append(TableName.Quoted()).AppendLine(" ENABLE TRIGGER ALL;");
             stringBuilder.AppendLine("END $$;");
 
             var command = new NpgsqlCommand
@@ -267,7 +267,7 @@ namespace Dotmim.Sync.PostgreSql
             //strCommand.AppendLine();
             //strCommand.AppendLine($"END $$;");
 
-            strCommand.AppendLine($"ALTER TABLE \"{schema}\".{TableName.Quoted()}  ENABLE TRIGGER ALL;");
+            strCommand.Append("ALTER TABLE \"").Append(schema).Append("\".").Append(TableName.Quoted()).AppendLine("  ENABLE TRIGGER ALL;");
 
             var command = new NpgsqlCommand
             {
@@ -311,7 +311,7 @@ namespace Dotmim.Sync.PostgreSql
             //strCommand.AppendLine($"close cur_trg;");
             //strCommand.AppendLine($"END $$;");
 
-            strCommand.AppendLine($"ALTER TABLE \"{schema}\".{TableName.Quoted()}  DISABLE TRIGGER ALL;");
+            strCommand.Append("ALTER TABLE \"").Append(schema).Append("\".").Append(TableName.Quoted()).AppendLine("  DISABLE TRIGGER ALL;");
 
             var command = new NpgsqlCommand
             {

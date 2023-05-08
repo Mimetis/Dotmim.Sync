@@ -38,7 +38,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var trackingTableUnquoted = trackingName.Unquoted().ToString();
             var stringBuilder = new StringBuilder();
             var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
-            stringBuilder.AppendLine($"CREATE TABLE \"{schema}\".{trackingTableQuoted} (");
+            stringBuilder.Append("CREATE TABLE \"").Append(schema).Append("\".").Append(trackingTableQuoted).AppendLine(" (");
 
             // Adding the primary key
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
@@ -48,7 +48,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 var columnType = this.dbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, this.tableDescription.OriginalProvider);
 
                 var nullableColumn = pkColumn.AllowDBNull ? "NULL" : "NOT NULL";
-                stringBuilder.AppendLine($"{quotedColumnName} {columnType} {nullableColumn}, ");
+                stringBuilder.Append(quotedColumnName).Append(' ').Append(columnType).Append(' ').Append(nullableColumn).AppendLine(", ");
             }
 
             // adding the tracking columns
@@ -59,7 +59,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine(");");
 
             // Primary Keys
-            stringBuilder.Append($"ALTER TABLE \"{schema}\".{trackingTableQuoted} ADD CONSTRAINT PK_{trackingTableUnquoted} PRIMARY KEY (");
+            stringBuilder.Append("ALTER TABLE \"").Append(schema).Append("\".").Append(trackingTableQuoted).Append(" ADD CONSTRAINT PK_").Append(trackingTableUnquoted).Append(" PRIMARY KEY (");
 
             var primaryKeysColumns = this.tableDescription.GetPrimaryKeysColumns().ToList();
             for (int i = 0; i < primaryKeysColumns.Count; i++)
@@ -77,14 +77,14 @@ namespace Dotmim.Sync.PostgreSql.Builders
             // Index
             var indexName = trackingName.Schema().Quoted().Normalized().ToString();
 
-            stringBuilder.AppendLine($"CREATE INDEX {trackingTableUnquoted}_timestamp_index ON \"{schema}\".{trackingTableQuoted} (");
+            stringBuilder.Append("CREATE INDEX ").Append(trackingTableUnquoted).Append("_timestamp_index ON \"").Append(schema).Append("\".").Append(trackingTableQuoted).AppendLine(" (");
             stringBuilder.AppendLine($"\t  \"timestamp\" ASC");
             stringBuilder.AppendLine($"\t, \"update_scope_id\" ASC");
             stringBuilder.AppendLine($"\t, \"sync_row_is_tombstone\" ASC");
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
-                stringBuilder.AppendLine($"\t,{columnName} ASC");
+                stringBuilder.Append("\t,").Append(columnName).AppendLine(" ASC");
             }
             stringBuilder.Append(");");
 
@@ -114,7 +114,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"DROP TABLE \"{schema}\".{trackingTableQuoted};");
+            stringBuilder.Append("DROP TABLE \"").Append(schema).Append("\".").Append(trackingTableQuoted).AppendLine(";");
 
             var command = new NpgsqlCommand(stringBuilder.ToString(), (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
 

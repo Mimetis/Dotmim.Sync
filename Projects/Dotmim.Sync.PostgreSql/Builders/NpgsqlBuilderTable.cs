@@ -63,7 +63,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 if (!string.IsNullOrEmpty(column.DefaultValue))
                     defaultValue = "DEFAULT " + column.DefaultValue;
 
-            stringBuilder.AppendLine($"ADD {columnNameString} {columnType} {identity} {nullString} {defaultValue}");
+            stringBuilder.Append("ADD ").Append(columnNameString).Append(' ').Append(columnType).Append(' ').Append(identity).Append(' ').Append(nullString).Append(' ').AppendLine(defaultValue);
 
             command.CommandText = stringBuilder.ToString();
 
@@ -345,7 +345,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                         defaultValue = "DEFAULT " + column.DefaultValue;
                 }
 
-                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {nullString} {defaultValue}");
+                stringBuilder.Append('\t').Append(empty).Append(columnName).Append(' ').Append(columnType).Append(' ').Append(nullString).Append(' ').AppendLine(defaultValue);
                 empty = ",";
             }
             stringBuilder.Append(");");
@@ -354,12 +354,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var primaryKeyNameString = tableName.Unquoted().Normalized().ToString();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"ALTER TABLE \"{schema}\".\"{table}\" ADD CONSTRAINT \"PK_{primaryKeyNameString}\" PRIMARY KEY(");
+            stringBuilder.Append("ALTER TABLE \"").Append(schema).Append("\".\"").Append(table).Append("\" ADD CONSTRAINT \"PK_").Append(primaryKeyNameString).AppendLine("\" PRIMARY KEY(");
             for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
                 var pkColumn = this.tableDescription.PrimaryKeys[i];
                 var quotedColumnName = ParserName.Parse(pkColumn).Unquoted().ToString();
-                stringBuilder.Append($"\"{quotedColumnName}\"");
+                stringBuilder.Append('\"').Append(quotedColumnName).Append('\"');
 
                 if (i < this.tableDescription.PrimaryKeys.Count - 1)
                     stringBuilder.Append(", ");
@@ -380,25 +380,25 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 //var relationName = NormalizeRelationName(constraint.RelationName);
                 var relationName = constraint.RelationName;
                 stringBuilder.AppendLine();
-                stringBuilder.Append($"ALTER TABLE \"{schemaName}\".\"{tableName}\" ");
+                stringBuilder.Append("ALTER TABLE \"").Append(schemaName).Append("\".\"").Append(tableName).Append("\" ");
                 stringBuilder.Append("ADD CONSTRAINT ");
-                stringBuilder.AppendLine($"\"{relationName}\"");
+                stringBuilder.Append('\"').Append(relationName).AppendLine("\"");
                 stringBuilder.Append("FOREIGN KEY (");
                 empty = string.Empty;
                 foreach (var column in constraint.Keys)
                 {
                     var childColumnName = ParserName.Parse(column.ColumnName, "\"").Quoted().ToString();
-                    stringBuilder.Append($"{empty} {childColumnName}");
+                    stringBuilder.Append(empty).Append(' ').Append(childColumnName);
                     empty = ", ";
                 }
                 stringBuilder.AppendLine(" )");
                 stringBuilder.Append("REFERENCES ");
-                stringBuilder.Append($"\"{parentSchemaName}\".\"{parentTableName}\"").Append(" (");
+                stringBuilder.Append('\"').Append(parentSchemaName).Append("\".\"").Append(parentTableName).Append('\"').Append(" (");
                 empty = string.Empty;
                 foreach (var parentdColumn in constraint.ParentKeys)
                 {
                     var parentColumnName = ParserName.Parse(parentdColumn.ColumnName, "\"").Quoted().ToString();
-                    stringBuilder.Append($"{empty} {parentColumnName}");
+                    stringBuilder.Append(empty).Append(' ').Append(parentColumnName);
                     empty = ", ";
                 }
                 stringBuilder.Append(" ); ");

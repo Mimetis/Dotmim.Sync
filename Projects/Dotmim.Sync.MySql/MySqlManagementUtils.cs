@@ -459,7 +459,7 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn.Quoted().ToString());
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"{prefix_parameter}{quotedColumn.Unquoted().Normalized().ToString()}");
+                stringBuilder.Append(prefix_parameter).Append(quotedColumn.Unquoted().Normalized().ToString());
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
@@ -479,7 +479,7 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn.Quoted().ToString());
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"{paramQuotedColumn.Quoted()}");
+                stringBuilder.Append(paramQuotedColumn.Quoted());
                 str1 = " AND ";
             }
             return stringBuilder.ToString();
@@ -494,7 +494,7 @@ namespace Dotmim.Sync.MySql
             {
                 var quotedColumn = ParserName.Parse(mutableColumn.ColumnName, "`");
                 var argQuotedColumn = ParserName.Parse($"{mysql_prefix}{mutableColumn.ColumnName}", "`");
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.Quoted().ToString()} = {argQuotedColumn.Quoted().Normalized().ToString()}");
+                stringBuilder.Append(strSeparator).Append(' ').Append(strFromPrefix).Append(quotedColumn.Quoted().ToString()).Append(" = ").AppendLine(argQuotedColumn.Quoted().Normalized().ToString());
                 strSeparator = ", ";
             }
             return stringBuilder.ToString();

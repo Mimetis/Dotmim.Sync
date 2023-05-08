@@ -125,8 +125,8 @@ namespace Dotmim.Sync.Sqlite
         {
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()};");
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()};");
+            stringBuilder.Append("DELETE FROM ").Append(tableName.Quoted().ToString()).AppendLine(";");
+            stringBuilder.Append("DELETE FROM ").Append(trackingName.Quoted().ToString()).AppendLine(";");
             this.AddCommandName(DbCommandType.Reset, stringBuilder.ToString());
         }
 
@@ -143,17 +143,17 @@ namespace Dotmim.Sync.Sqlite
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
-                pkeysSelect.Append($"{comma}[side].{columnName}");
+                pkeysSelect.Append(comma).Append("[side].").Append(columnName);
 
-                pkeysWhere.Append($"{and}[side].{columnName} = @{parameterName}");
+                pkeysWhere.Append(and).Append("[side].").Append(columnName).Append(" = @").Append(parameterName);
 
                 and = " AND ";
                 comma = ", ";
             }
 
-            stringBuilder.AppendLine($"SELECT {pkeysSelect}, [side].[update_scope_id], [side].[timestamp], [side].[sync_row_is_tombstone]");
-            stringBuilder.AppendLine($"FROM {trackingName.Quoted().ToString()} [side]");
-            stringBuilder.AppendLine($"WHERE {pkeysWhere}");
+            stringBuilder.Append("SELECT ").Append(pkeysSelect).AppendLine(", [side].[update_scope_id], [side].[timestamp], [side].[sync_row_is_tombstone]");
+            stringBuilder.Append("FROM ").Append(trackingName.Quoted().ToString()).AppendLine(" [side]");
+            stringBuilder.Append("WHERE ").Append(pkeysWhere).AppendLine();
 
             var commandText = stringBuilder.ToString();
 
@@ -178,22 +178,22 @@ namespace Dotmim.Sync.Sqlite
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
 
-                pkeySelectForInsert.Append($"{comma}{columnName}");
-                pkeyISelectForInsert.Append($"{comma}[i].{columnName}");
-                pkeyAliasSelectForInsert.Append($"{comma}@{parameterName} as {columnName}");
-                pkeysLeftJoinForInsert.Append($"{and}[side].{columnName} = [i].{columnName}");
-                pkeysIsNullForInsert.Append($"{and}[side].{columnName} IS NULL");
+                pkeySelectForInsert.Append(comma).Append(columnName);
+                pkeyISelectForInsert.Append(comma).Append("[i].").Append(columnName);
+                pkeyAliasSelectForInsert.Append(comma).Append('@').Append(parameterName).Append(" as ").Append(columnName);
+                pkeysLeftJoinForInsert.Append(and).Append("[side].").Append(columnName).Append(" = [i].").Append(columnName);
+                pkeysIsNullForInsert.Append(and).Append("[side].").Append(columnName).Append(" IS NULL");
                 and = " AND ";
                 comma = ", ";
             }
 
-            stringBuilder.AppendLine($"INSERT OR REPLACE INTO {trackingName.Quoted().ToString()} (");
+            stringBuilder.Append("INSERT OR REPLACE INTO ").Append(trackingName.Quoted().ToString()).AppendLine(" (");
             stringBuilder.AppendLine(pkeySelectForInsert.ToString());
             stringBuilder.AppendLine(",[update_scope_id], [sync_row_is_tombstone], [timestamp], [last_change_datetime] )");
-            stringBuilder.AppendLine($"SELECT {pkeyISelectForInsert} ");
+            stringBuilder.Append("SELECT ").Append(pkeyISelectForInsert).AppendLine(" ");
             stringBuilder.AppendLine($"   , i.sync_scope_id, i.sync_row_is_tombstone, i.sync_timestamp, i.UtcDate");
             stringBuilder.AppendLine("FROM (");
-            stringBuilder.AppendLine($"  SELECT {pkeyAliasSelectForInsert}");
+            stringBuilder.Append("  SELECT ").Append(pkeyAliasSelectForInsert).AppendLine();
             stringBuilder.AppendLine($"          ,@sync_scope_id as sync_scope_id, @sync_row_is_tombstone as sync_row_is_tombstone, {SqliteObjectNames.TimestampValue} as sync_timestamp, datetime('now') as UtcDate) as i;");
 
 
@@ -217,23 +217,23 @@ namespace Dotmim.Sync.Sqlite
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
                 var columnParameterName = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
-                stringBuilderParametersValues.Append($"{empty}@{columnParameterName} as {columnName}");
-                stringBuilderParametersValues2.Append($"{empty}@{columnParameterName}");
-                stringBuilderArguments.Append($"{empty}{columnName}");
-                stringBuilderParameters.Append($"{empty}[c].{columnName}");
+                stringBuilderParametersValues.Append(empty).Append('@').Append(columnParameterName).Append(" as ").Append(columnName);
+                stringBuilderParametersValues2.Append(empty).Append('@').Append(columnParameterName);
+                stringBuilderArguments.Append(empty).Append(columnName);
+                stringBuilderParameters.Append(empty).Append("[c].").Append(columnName);
                 empty = ", ";
             }
 
-            stringBuilder.AppendLine($"INSERT OR REPLACE INTO {tableName.Quoted()}");
-            stringBuilder.AppendLine($"({stringBuilderArguments})");
-            stringBuilder.Append($"VALUES ({stringBuilderParametersValues2}) ");
+            stringBuilder.Append("INSERT OR REPLACE INTO ").Append(tableName.Quoted()).AppendLine();
+            stringBuilder.Append('(').Append(stringBuilderArguments).AppendLine(")");
+            stringBuilder.Append("VALUES (").Append(stringBuilderParametersValues2).Append(") ");
             stringBuilder.AppendLine($";");
 
-            stringBuilder.AppendLine($"UPDATE {trackingName.Quoted()} SET ");
+            stringBuilder.Append("UPDATE ").Append(trackingName.Quoted()).AppendLine(" SET ");
             stringBuilder.AppendLine("[update_scope_id] = @sync_scope_id,");
             stringBuilder.AppendLine("[sync_row_is_tombstone] = 0,");
             stringBuilder.AppendLine("[last_change_datetime] = datetime('now')");
-            stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
+            stringBuilder.Append("WHERE ").AppendLine(SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, ""));
             stringBuilder.Append($" AND (select changes()) > 0");
             stringBuilder.AppendLine($";");
             var cmdtext = stringBuilder.ToString();
@@ -260,9 +260,9 @@ namespace Dotmim.Sync.Sqlite
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
                 var columnParameterName = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
 
-                stringBuilderParametersValues.Append($"{empty}@{columnParameterName} as {columnName}");
-                stringBuilderArguments.Append($"{empty}{columnName}");
-                stringBuilderParameters.Append($"{empty}[c].{columnName}");
+                stringBuilderParametersValues.Append(empty).Append('@').Append(columnParameterName).Append(" as ").Append(columnName);
+                stringBuilderArguments.Append(empty).Append(columnName);
+                stringBuilderParameters.Append(empty).Append("[c].").Append(columnName);
                 empty = "\n, ";
             }
 
@@ -273,7 +273,7 @@ namespace Dotmim.Sync.Sqlite
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, false))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilderUpdateSet.Append($"{emptyUpdate}{columnName}=excluded.{columnName}");
+                stringBuilderUpdateSet.Append(emptyUpdate).Append(columnName).Append("=excluded.").Append(columnName);
                 emptyUpdate = "\n, ";
 
                 columnsToUpdate = true;
@@ -283,18 +283,18 @@ namespace Dotmim.Sync.Sqlite
                 this.TableDescription.PrimaryKeys.Select(name => ParserName.Parse(name).Quoted().ToString()));
 
             // add CTE
-            stringBuilder.AppendLine($"WITH CHANGESET as (SELECT {stringBuilderParameters} ");
-            stringBuilder.AppendLine($"FROM (SELECT {stringBuilderParametersValues}) as [c]");
-            stringBuilder.AppendLine($"LEFT JOIN {trackingName.Quoted().ToString()} AS [side] ON {str1}");
-            stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} AS [base] ON {str2}");
+            stringBuilder.Append("WITH CHANGESET as (SELECT ").Append(stringBuilderParameters).AppendLine(" ");
+            stringBuilder.Append("FROM (SELECT ").Append(stringBuilderParametersValues).AppendLine(") as [c]");
+            stringBuilder.Append("LEFT JOIN ").Append(trackingName.Quoted().ToString()).Append(" AS [side] ON ").AppendLine(str1);
+            stringBuilder.Append("LEFT JOIN ").Append(tableName.Quoted().ToString()).Append(" AS [base] ON ").AppendLine(str2);
             stringBuilder.AppendLine($"WHERE ([side].[timestamp] < @sync_min_timestamp OR [side].[update_scope_id] = @sync_scope_id) ");
-            stringBuilder.Append($"OR ({SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[base]")} ");
+            stringBuilder.Append("OR (").Append(SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[base]")).Append(' ');
             stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[timestamp] IS NULL)) ");
             stringBuilder.Append($"OR @sync_force_write = 1");
             stringBuilder.AppendLine($")");
 
-            stringBuilder.AppendLine($"INSERT INTO {tableName.Quoted().ToString()}");
-            stringBuilder.AppendLine($"({stringBuilderArguments})");
+            stringBuilder.Append("INSERT INTO ").AppendLine(tableName.Quoted().ToString());
+            stringBuilder.Append('(').Append(stringBuilderArguments).AppendLine(")");
             // use CTE here. The CTE is required in order to make the "ON CONFLICT" statement work. Otherwise SQLite cannot parse it
             // Note, that we have to add the pseudo WHERE TRUE clause here, as otherwise the SQLite parser may confuse the following ON
             // with a join clause, thus, throwing a parsing error
@@ -302,20 +302,20 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($" SELECT * from CHANGESET WHERE TRUE");
             if (columnsToUpdate)
             {
-                stringBuilder.AppendLine($" ON CONFLICT ({primaryKeys}) DO UPDATE SET ");
+                stringBuilder.Append(" ON CONFLICT (").Append(primaryKeys).AppendLine(") DO UPDATE SET ");
                 stringBuilder.Append(stringBuilderUpdateSet.ToString()).AppendLine(";");
             }
             else
-                stringBuilder.AppendLine($" ON CONFLICT ({primaryKeys}) DO NOTHING; ");
+                stringBuilder.Append(" ON CONFLICT (").Append(primaryKeys).AppendLine(") DO NOTHING; ");
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"UPDATE OR IGNORE {trackingName.Quoted().ToString()} SET ");
+            stringBuilder.Append("UPDATE OR IGNORE ").Append(trackingName.Quoted().ToString()).AppendLine(" SET ");
             stringBuilder.AppendLine($"[update_scope_id] = @sync_scope_id,");
             stringBuilder.AppendLine($"[sync_row_is_tombstone] = 0,");
             stringBuilder.AppendLine($"[timestamp] = {SqliteObjectNames.TimestampValue},");
             stringBuilder.AppendLine($"[last_change_datetime] = datetime('now')");
-            stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
+            stringBuilder.Append("WHERE ").AppendLine(SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, ""));
             stringBuilder.AppendLine($" AND (select changes()) > 0;");
 
             var cmdtext = stringBuilder.ToString();
@@ -329,7 +329,7 @@ namespace Dotmim.Sync.Sqlite
         {
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()} WHERE [timestamp] < @sync_row_timestamp;");
+            stringBuilder.Append("DELETE FROM ").Append(trackingName.Quoted().ToString()).AppendLine(" WHERE [timestamp] < @sync_row_timestamp;");
 
             this.AddCommandName(DbCommandType.DeleteMetadata, stringBuilder.ToString());
         }
@@ -344,7 +344,7 @@ namespace Dotmim.Sync.Sqlite
             foreach (var c in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(c).Quoted().ToString();
-                stringBuilder.Append($"[p].{columnName}, ");
+                stringBuilder.Append("[p].").Append(columnName).Append(", ");
             }
             stringBuilder.AppendLine($"[side].[update_scope_id] as [sync_update_scope_id], [side].[timestamp] as [sync_timestamp], [side].[sync_row_is_tombstone]");
             stringBuilder.Append($"\tFROM (SELECT ");
@@ -354,28 +354,28 @@ namespace Dotmim.Sync.Sqlite
                 var columnName = ParserName.Parse(c).Quoted().ToString();
                 var columnParameterName = ParserName.Parse(c).Unquoted().Normalized().ToString();
 
-                stringBuilder.Append($"{comma}@{columnParameterName} as {columnName}");
+                stringBuilder.Append(comma).Append('@').Append(columnParameterName).Append(" as ").Append(columnName);
                 comma = ", ";
             }
             stringBuilder.AppendLine($") AS [p]");
-            stringBuilder.Append($"\tLEFT JOIN {trackingName.Quoted().ToString()} [side] ON ");
-            stringBuilder.AppendLine($"\t{str7}");
+            stringBuilder.Append("\tLEFT JOIN ").Append(trackingName.Quoted().ToString()).Append(" [side] ON ");
+            stringBuilder.Append('\t').AppendLine(str7);
             stringBuilder.AppendLine($"\t)");
 
-            stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted().ToString()} ");
-            stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
+            stringBuilder.Append("DELETE FROM ").Append(tableName.Quoted().ToString()).AppendLine(" ");
+            stringBuilder.Append("WHERE ").AppendLine(SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, ""));
             stringBuilder.AppendLine($"AND (EXISTS (");
             stringBuilder.AppendLine($"     SELECT * FROM [c] ");
-            stringBuilder.AppendLine($"     WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[c]")}");
+            stringBuilder.Append("     WHERE ").AppendLine(SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "[c]"));
             stringBuilder.AppendLine($"     AND ([sync_timestamp] < @sync_min_timestamp OR [sync_timestamp] IS NULL OR [sync_update_scope_id] = @sync_scope_id))");
             stringBuilder.AppendLine($"  OR @sync_force_write = 1");
             stringBuilder.AppendLine($" );");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"UPDATE OR IGNORE {trackingName.Quoted().ToString()} SET ");
+            stringBuilder.Append("UPDATE OR IGNORE ").Append(trackingName.Quoted().ToString()).AppendLine(" SET ");
             stringBuilder.AppendLine("[update_scope_id] = @sync_scope_id,");
             stringBuilder.AppendLine("[sync_row_is_tombstone] = 1,");
             stringBuilder.AppendLine("[last_change_datetime] = datetime('now')");
-            stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")}");
+            stringBuilder.Append("WHERE ").AppendLine(SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, ""));
             stringBuilder.AppendLine($" AND (select changes()) > 0");
 
             var cmdText = stringBuilder.ToString();
@@ -393,7 +393,7 @@ namespace Dotmim.Sync.Sqlite
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 var unquotedColumnName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
-                stringBuilder1.Append($"{empty}[side].{columnName} = @{unquotedColumnName}");
+                stringBuilder1.Append(empty).Append("[side].").Append(columnName).Append(" = @").Append(unquotedColumnName);
                 empty = " AND ";
             }
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
@@ -403,22 +403,22 @@ namespace Dotmim.Sync.Sqlite
                 var isPrimaryKey = this.TableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
                 if (isPrimaryKey)
-                    stringBuilder.AppendLine($"\t[side].{nonPkColumnName}, ");
+                    stringBuilder.Append("\t[side].").Append(nonPkColumnName).AppendLine(", ");
                 else
-                    stringBuilder.AppendLine($"\t[base].{nonPkColumnName}, ");
+                    stringBuilder.Append("\t[base].").Append(nonPkColumnName).AppendLine(", ");
 
             }
             stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone], ");
             stringBuilder.AppendLine("\t[side].[update_scope_id] as [sync_update_scope_id]");
 
-            stringBuilder.AppendLine($"FROM {trackingName.Quoted().ToString()} [side] ");
-            stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted().ToString()} [base] ON ");
+            stringBuilder.Append("FROM ").Append(trackingName.Quoted().ToString()).AppendLine(" [side] ");
+            stringBuilder.Append("LEFT JOIN ").Append(tableName.Quoted().ToString()).AppendLine(" [base] ON ");
 
             string str = string.Empty;
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.Append($"{str}[base].{columnName} = [side].{columnName}");
+                stringBuilder.Append(str).Append("[base].").Append(columnName).Append(" = [side].").Append(columnName);
                 str = " AND ";
             }
             stringBuilder.AppendLine();
@@ -437,14 +437,14 @@ namespace Dotmim.Sync.Sqlite
                 var isPrimaryKey = this.TableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
                 if (isPrimaryKey)
-                    stringBuilder.AppendLine($"\t[side].{columnName}, ");
+                    stringBuilder.Append("\t[side].").Append(columnName).AppendLine(", ");
                 else
-                    stringBuilder.AppendLine($"\t[base].{columnName}, ");
+                    stringBuilder.Append("\t[base].").Append(columnName).AppendLine(", ");
             }
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone], ");
             stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id] ");
-            stringBuilder.AppendLine($"FROM {trackingName.Quoted()} [side]");
-            stringBuilder.AppendLine($"LEFT JOIN {tableName.Quoted()} [base]");
+            stringBuilder.Append("FROM ").Append(trackingName.Quoted()).AppendLine(" [side]");
+            stringBuilder.Append("LEFT JOIN ").Append(tableName.Quoted()).AppendLine(" [base]");
             stringBuilder.Append($"ON ");
 
             string empty = "";
@@ -452,7 +452,7 @@ namespace Dotmim.Sync.Sqlite
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
 
-                stringBuilder.Append($"{empty}[base].{columnName} = [side].{columnName}");
+                stringBuilder.Append(empty).Append("[base].").Append(columnName).Append(" = [side].").Append(columnName);
                 empty = " AND ";
             }
             stringBuilder.AppendLine();
@@ -478,7 +478,7 @@ namespace Dotmim.Sync.Sqlite
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.AppendLine($"\t[base].{columnName}, ");
+                stringBuilder.Append("\t[base].").Append(columnName).AppendLine(", ");
             }
             var columns = this.TableDescription.GetMutableColumns().ToList();
 
@@ -486,12 +486,12 @@ namespace Dotmim.Sync.Sqlite
             {
                 var mutableColumn = columns[i];
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilder.Append($"\t[base].{columnName}");
+                stringBuilder.Append("\t[base].").Append(columnName);
 
                 if (i < columns.Count - 1)
                     stringBuilder.AppendLine(", ");
             }
-            stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} [base]");
+            stringBuilder.Append("FROM ").Append(tableName.Quoted().ToString()).AppendLine(" [base]");
 
 
             this.AddCommandName(DbCommandType.SelectInitializedChanges, stringBuilder.ToString());
@@ -506,7 +506,7 @@ namespace Dotmim.Sync.Sqlite
             var str3 = new StringBuilder();
             var str4 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[side]", "[base]");
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Quoted().ToString()} (");
+            stringBuilder.Append("INSERT INTO ").Append(trackingName.Quoted().ToString()).AppendLine(" (");
 
 
             var comma = "";
@@ -514,9 +514,9 @@ namespace Dotmim.Sync.Sqlite
             {
                 var pkeyColumnName = ParserName.Parse(pkeyColumn).Quoted().ToString();
 
-                str1.Append($"{comma}{pkeyColumnName}");
-                str2.Append($"{comma}[base].{pkeyColumnName}");
-                str3.Append($"{comma}[side].{pkeyColumnName}");
+                str1.Append(comma).Append(pkeyColumnName);
+                str2.Append(comma).Append("[base].").Append(pkeyColumnName);
+                str3.Append(comma).Append("[side].").Append(pkeyColumnName);
 
                 comma = ", ";
             }
@@ -526,11 +526,11 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.Append($"SELECT ");
             stringBuilder.Append(str2.ToString());
             stringBuilder.AppendLine($", NULL, 0, {SqliteObjectNames.TimestampValue}, datetime('now')");
-            stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} as [base] WHERE NOT EXISTS");
+            stringBuilder.Append("FROM ").Append(tableName.Quoted().ToString()).AppendLine(" as [base] WHERE NOT EXISTS");
             stringBuilder.Append($"(SELECT ");
             stringBuilder.Append(str3.ToString());
-            stringBuilder.AppendLine($" FROM {trackingName.Quoted().ToString()} as [side] ");
-            stringBuilder.AppendLine($"WHERE {str4})");
+            stringBuilder.Append(" FROM ").Append(trackingName.Quoted().ToString()).AppendLine(" as [side] ");
+            stringBuilder.Append("WHERE ").Append(str4).AppendLine(")");
 
             var r = stringBuilder.ToString();
 
