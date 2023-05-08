@@ -367,8 +367,8 @@ namespace Dotmim.Sync
         {
             var type = this.GetDataType();
 
-            if (StorageClassType.ContainsKey(type))
-                return StorageClassType[type];
+            if (StorageClassType.TryGetValue(type, out var storageClassType))
+                return storageClassType;
 
             return type.GetTypeInfo().IsValueType;
         }
