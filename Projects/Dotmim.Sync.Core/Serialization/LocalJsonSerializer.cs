@@ -288,7 +288,7 @@ namespace Dotmim.Sync.Serialization
 
                                 if (schemaEmpty && array.Length >= 2) // array[0] contains the state, not a column
                                 {
-                                    for (int i = 1; i <= array.Length - 1; i++)
+                                    for (int i = 1; i < array.Length; i++)
                                     {
                                         var t = array[i] == null ? typeof(object) : array[i].GetType();
                                         schemaTable.Columns.Add($"C{i}", t);
@@ -394,8 +394,10 @@ namespace Dotmim.Sync.Serialization
 
                                 if (schemaEmpty) // array[0] contains the state, not a column
                                 {
-                                    for (int i = 1; i <= array.Length - 1; i++)
+                                    for (int i = 1; i < array.Length; i++)
+                                    {
                                         schemaTable.Columns.Add($"C{i}", array[i].GetType());
+                                    }
 
                                     schemaEmpty = false;
                                 }
