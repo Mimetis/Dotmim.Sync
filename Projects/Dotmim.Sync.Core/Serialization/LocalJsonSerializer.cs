@@ -378,15 +378,7 @@ namespace Dotmim.Sync.Serialization
 
                                 if (array == null || array.Length < 2)
                                 {
-                                    string rowStr = "";
-
-                                    if (array != null)
-                                    {
-                                        rowStr = "[";
-                                        for (var o = 0; o < array.Length; o++)
-                                            rowStr += array[o].ToString() + ",";
-                                        rowStr += "]";
-                                    }
+                                    string rowStr = "[" + string.Join(",", array) + "]";
 
                                     throw new Exception($"Can't read row {rowStr} from file {path}");
                                 }
@@ -401,22 +393,11 @@ namespace Dotmim.Sync.Serialization
                                     schemaEmpty = false;
                                 }
 
-
                                 if ((schemaTable.Columns.Count + 1) != array.Length)
                                 {
-                                    string rowStr = "";
-                                    string rowsCount = "0";
-                                    if (array != null)
-                                    {
-                                        rowStr = "[";
-                                        for (var o = 0; o < array.Length; o++)
-                                            rowStr += array[o].ToString() + ",";
-                                        rowStr += "]";
+                                    string rowStr = "[" + string.Join(",", array) + "]";
 
-                                        rowsCount = (array.Length - 1).ToString();
-                                    }
-
-                                    throw new Exception($"Table {schemaTable.GetFullName()} with {schemaTable.Columns.Count} columns does not have the same columns count as the row read {rowStr} which have {rowsCount} values.");
+                                    throw new Exception($"Table {schemaTable.GetFullName()} with {schemaTable.Columns.Count} columns does not have the same columns count as the row read {rowStr} which have {array.Length - 1} values.");
                                 }
 
                                 // if we have some columns, we check the date time thing
