@@ -24,7 +24,7 @@ namespace Dotmim.Sync.SqlServer
             var command = $"Select tbl.name as TableName, " +
                           $"sch.name as SchemaName " +
                           $"  from sys.tables as tbl  " +
-                          $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id;";
+                          $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id where tbl.is_ms_shipped = 0;";
 
             var syncSetup = new SyncSetup();
 
