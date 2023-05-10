@@ -271,11 +271,10 @@ namespace Dotmim.Sync.Serialization
                         // go to children
                         reader.Read();
 
-                        bool schemaEmpty = false;
+                        bool schemaEmpty = schemaTable == null;
 
-                        if (schemaTable == null)
+                        if (schemaEmpty)
                         {
-                            schemaEmpty = true;
                             schemaTable = new SyncTable(tableName, schemaName);
                         }
 
@@ -349,14 +348,12 @@ namespace Dotmim.Sync.Serialization
                     case "r":
                         reader.Read();
 
-                        bool schemaEmpty = false;
+                        bool schemaEmpty = schemaTable == null;
 
-                        if (schemaTable == null)
+                        if (schemaEmpty)
                         {
-                            schemaEmpty = true;
                             schemaTable = new SyncTable(tableName, schemaName);
                         }
-
 
                         // read all array
                         while (reader.Read() && reader.TokenType != JsonToken.EndArray)
