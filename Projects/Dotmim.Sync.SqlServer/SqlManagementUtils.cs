@@ -21,10 +21,14 @@ namespace Dotmim.Sync.SqlServer
         /// </summary>
         public static async Task<SyncSetup> GetAllTablesAsync(SqlConnection connection, SqlTransaction transaction)
         {
-            var command = $"Select tbl.name as TableName, " +
-                          $"sch.name as SchemaName " +
-                          $"  from sys.tables as tbl  " +
-                          $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id where tbl.is_ms_shipped = 0;";
+            const string command = """
+                                   SELECT tbl.name AS TableName,
+                                       sch.name AS SchemaName
+                                   FROM sys.tables AS tbl
+                                       INNER JOIN sys.schemas AS sch
+                                           ON tbl.schema_id = sch.schema_id
+                                   WHERE tbl.is_ms_shipped = 0;
+                                   """;
 
             var syncSetup = new SyncSetup();
 
@@ -69,11 +73,16 @@ namespace Dotmim.Sync.SqlServer
         /// </summary>
         public static async Task<SyncTable> GetTableDefinitionAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
-            var command = $"Select top 1 tbl.name as TableName, " +
-                          $"sch.name as SchemaName " +
-                          $"  from sys.tables as tbl  " +
-                          $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id " +
-                          $"  Where tbl.name = @tableName and sch.name = @schemaName ";
+            const string command = """
+                                   SELECT TOP 1
+                                       tbl.name AS TableName,
+                                       sch.name AS SchemaName
+                                   FROM sys.tables AS tbl
+                                       INNER JOIN sys.schemas AS sch
+                                           ON tbl.schema_id = sch.schema_id
+                                   WHERE tbl.name = @tableName
+                                         AND sch.name = @schemaName
+                                   """;
 
             var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();
@@ -118,7 +127,7 @@ namespace Dotmim.Sync.SqlServer
             var name = $"{pTableName.Quoted()}";
             var sName = String.IsNullOrEmpty(schemaName) ? "[dbo]" : $"{pSchemaName.Quoted()}";
 
-            var command = $"Select * from {sName}.{name};";
+            var command = $"SELECT * FROM {sName}.{name};";
 
             var syncTable = new SyncTable(name, sName);
 
@@ -151,7 +160,7 @@ namespace Dotmim.Sync.SqlServer
             var quotedTableName = string.IsNullOrEmpty(pSchemaName) ? pTableName : $"{pSchemaName}.{pTableName}";
             var quotedNewTableName = string.IsNullOrEmpty(pNewSchemaName) ? pNewTableName : $"{pNewSchemaName}.{pNewTableName}";
 
-            var commandText = $"exec sp_rename '{quotedTableName}', '{quotedNewTableName}';";
+            var commandText = $"EXEC sp_rename '{quotedTableName}', '{quotedNewTableName}';";
 
             using var sqlCommand = new SqlCommand(commandText, connection);
 
@@ -174,10 +183,16 @@ namespace Dotmim.Sync.SqlServer
         /// </summary>
         public static async Task<SyncTable> GetTriggerAsync(string triggerName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
-            var command = $"SELECT tr.name FROM sys.triggers tr " +
-                           "JOIN sys.tables t ON tr.parent_id = t.object_id " +
-                           "JOIN sys.schemas s ON t.schema_id = s.schema_id " +
-                           "WHERE tr.name = @triggerName and s.name = @schemaName";
+            const string command = """
+                                   SELECT tr.name
+                                   FROM sys.triggers tr
+                                       JOIN sys.tables t
+                                           ON tr.parent_id = t.object_id
+                                       JOIN sys.schemas s
+                                           ON t.schema_id = s.schema_id
+                                   WHERE tr.name = @triggerName
+                                         and s.name = @schemaName
+                                   """;
 
             var triggerNameNormalized = ParserName.Parse(triggerName).Unquoted().Normalized().ToString();
             var triggerNameString = ParserName.Parse(triggerName).ToString();
@@ -219,25 +234,33 @@ namespace Dotmim.Sync.SqlServer
         public static async Task<SyncTable> GetColumnsForTableAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
 
-            var commandColumn = $"Select col.name as name, " +
-                                $"col.column_id,  " +
-                                $"typ.name as [type],  " +
-                                $"col.max_length,  " +
-                                $"col.precision,  " +
-                                $"col.scale,  " +
-                                $"col.is_nullable,  " +
-                                $"col.is_computed,  " +
-                                $"col.is_identity,  " +
-                                $"ind.is_unique,  " +
-                                $"ident_seed(sch.name + '.' + tbl.name) AS seed, " +
-                                $"ident_incr(sch.name + '.' + tbl.name) AS step, " +
-                                $"object_definition(col.default_object_id) AS defaultvalue " +
-                                $"  from sys.columns as col " +
-                                $"  Inner join sys.tables as tbl on tbl.object_id = col.object_id " +
-                                $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id " +
-                                $"  Inner Join sys.systypes typ on typ.xusertype = col.system_type_id " +
-                                $"  Left outer join sys.indexes ind on ind.object_id = col.object_id and ind.index_id = col.column_id " +
-                                $"  Where tbl.name = @tableName and sch.name = @schemaName ";
+            const string commandColumn = """
+                                        SELECT col.name AS name, 
+                                         col.column_id,
+                                         typ.name AS [type],
+                                         col.max_length,
+                                         col.precision,
+                                         col.scale,
+                                         col.is_nullable,
+                                         col.is_computed,
+                                         col.is_identity,
+                                         ind.is_unique,
+                                         ident_seed(sch.name + '.' + tbl.name) AS seed,
+                                         ident_incr(sch.name + '.' + tbl.name) AS step,
+                                         object_definition(col.default_object_id) AS defaultvalue
+                                        FROM sys.columns AS col
+                                            INNER JOIN sys.tables AS tbl
+                                                ON tbl.object_id = col.object_id
+                                            INNER JOIN sys.schemas AS sch
+                                                ON tbl.schema_id = sch.schema_id
+                                            INNER JOIN sys.systypes typ
+                                                ON typ.xusertype = col.system_type_id
+                                            LEFT JOIN sys.indexes ind
+                                                ON ind.object_id = col.object_id
+                                        	AND ind.index_id = col.column_id
+                                        WHERE tbl.name = @tableName
+                                        	AND sch.name = @schemaName
+                                        """;
 
             var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();
@@ -278,14 +301,31 @@ namespace Dotmim.Sync.SqlServer
         public static async Task<SyncTable> GetPrimaryKeysForTableAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
 
-            var commandColumn = @"select ind.name, col.name as columnName, ind_col.column_id, ind_col.key_ordinal 
-                                  from sys.indexes ind
-                                  left outer join sys.index_columns ind_col on ind_col.object_id = ind.object_id and ind_col.index_id = ind.index_id
-                                  inner join sys.columns col on col.object_id = ind_col.object_id and col.column_id = ind_col.column_id
-                                  inner join sys.tables tbl on tbl.object_id = ind.object_id
-                                  inner join sys.schemas as sch on tbl.schema_id = sch.schema_id
-                                  where tbl.name = @tableName and sch.name = @schemaName and ind.index_id >= 0 and ind.type <> 3 and ind.type <> 4 and ind.is_hypothetical = 0 and ind.is_primary_key = 1
-                                  order by ind_col.column_id";
+            const string commandColumn = """
+                                         SELECT ind.name,
+                                                col.name AS columnName,
+                                                ind_col.column_id,
+                                                ind_col.key_ordinal
+                                         FROM sys.indexes ind
+                                             LEFT OUTER JOIN sys.index_columns ind_col
+                                                 ON ind_col.object_id = ind.object_id
+                                                    AND ind_col.index_id = ind.index_id
+                                             INNER JOIN sys.columns col
+                                                 ON col.object_id = ind_col.object_id
+                                                    AND col.column_id = ind_col.column_id
+                                             INNER JOIN sys.tables tbl
+                                                 ON tbl.object_id = ind.object_id
+                                             INNER JOIN sys.schemas AS sch
+                                                 ON tbl.schema_id = sch.schema_id
+                                         WHERE tbl.name = @tableName
+                                               AND sch.name = @schemaName
+                                               AND ind.index_id >= 0
+                                               AND ind.type <> 3
+                                               AND ind.type <> 4
+                                               AND ind.is_hypothetical = 0
+                                               AND ind.is_primary_key = 1
+                                         ORDER BY ind_col.column_id
+                                         """;
 
             var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();
@@ -325,19 +365,23 @@ namespace Dotmim.Sync.SqlServer
         public static async Task<SyncTable> GetRelationsForTableAsync(SqlConnection connection, SqlTransaction transaction, string tableName, string schemaName)
         {
 
-            var commandRelations = @"
-                SELECT f.name AS ForeignKey,
-                    constraint_column_id as ForeignKeyOrder,
-                    SCHEMA_NAME (f.schema_id)  AS SchemaName,
-                    OBJECT_NAME(f.parent_object_id) AS TableName,
-                    COL_NAME(fc.parent_object_id, fc.parent_column_id) AS ColumnName,
-                    SCHEMA_NAME (reft.schema_id) AS ReferenceSchemaName,
-                    OBJECT_NAME (f.referenced_object_id)  AS ReferenceTableName,
-                    COL_NAME(fc.referenced_object_id, fc.referenced_column_id) AS ReferenceColumnName
-                FROM sys.foreign_keys AS f
-                INNER JOIN sys.foreign_key_columns AS fc ON f.OBJECT_ID = fc.constraint_object_id
-                INNER JOIN sys.tables reft on reft.object_id =  f.referenced_object_id
-                WHERE OBJECT_NAME(f.parent_object_id) = @tableName AND SCHEMA_NAME(f.schema_id) = @schemaName";
+            const string commandRelations = """
+                                            SELECT f.name AS ForeignKey,
+                                                   constraint_column_id as ForeignKeyOrder,
+                                                   SCHEMA_NAME(f.schema_id) AS SchemaName,
+                                                   OBJECT_NAME(f.parent_object_id) AS TableName,
+                                                   COL_NAME(fc.parent_object_id, fc.parent_column_id) AS ColumnName,
+                                                   SCHEMA_NAME(reft.schema_id) AS ReferenceSchemaName,
+                                                   OBJECT_NAME(f.referenced_object_id) AS ReferenceTableName,
+                                                   COL_NAME(fc.referenced_object_id, fc.referenced_column_id) AS ReferenceColumnName
+                                            FROM sys.foreign_keys AS f
+                                                INNER JOIN sys.foreign_key_columns AS fc
+                                                    ON f.OBJECT_ID = fc.constraint_object_id
+                                                INNER JOIN sys.tables reft
+                                                    ON reft.object_id = f.referenced_object_id
+                                            WHERE OBJECT_NAME(f.parent_object_id) = @tableName
+                                                  AND SCHEMA_NAME(f.schema_id) = @schemaName
+                                            """;
 
             var tableNameNormalized = ParserName.Parse(tableName).Unquoted().Normalized().ToString();
             var tableNameString = ParserName.Parse(tableName).ToString();
@@ -403,9 +447,11 @@ namespace Dotmim.Sync.SqlServer
 
             var quotedTableName = $"{pSchemaName}.{pTableName}";
 
-            var commandText = $"IF EXISTS " +
-                $"(SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) " +
-                $"DROP TABLE {quotedTableName}";
+            string commandText = $$$"""
+                                    IF EXISTS 
+                                    (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) 
+                                    DROP TABLE {{{quotedTableName}}}
+                                    """;
 
             using var sqlCommand = new SqlCommand(commandText, connection);
 
@@ -490,11 +536,20 @@ namespace Dotmim.Sync.SqlServer
         public static async Task<bool> IsChangeTrackingEnabledAsync(SqlConnection connection, SqlTransaction transaction)
         {
             bool flag;
-            string commandText = @"if (exists(
-                                Select* from sys.change_tracking_databases ct
-                                Inner join sys.databases d on d.database_id = ct.database_id
-                                where d.name = @databaseName)) 
-                                Select 1 Else Select 0";
+            const string commandText = """
+                                       IF (EXISTS
+                                       (
+                                           SELECT *
+                                               FROM sys.change_tracking_databases AS ct
+                                               INNER JOIN sys.databases AS d
+                                                   ON d.database_id = ct.database_id
+                                           WHERE d.name = @databaseName
+                                       )
+                                          )
+                                           SELECT 1
+                                       ELSE
+                                           SELECT 0
+                                       """;
 
             using (var sqlCommand = new SqlCommand(commandText, connection))
             {
@@ -524,9 +579,16 @@ namespace Dotmim.Sync.SqlServer
             string dbName = null;
             string dbVersion = null;
 
+            const string commandText = """
+                                       SELECT name,
+                                              @@VERSION AS version
+                                       FROM sys.databases
+                                       WHERE name = @databaseName;
+                                       """;
+
             using (DbCommand dbCommand = connection.CreateCommand())
             {
-                dbCommand.CommandText = "SELECT name, @@VERSION as version FROM sys.databases WHERE name = @databaseName;";
+                dbCommand.CommandText = commandText;
 
                 var sqlParameter = new SqlParameter()
                 {
@@ -563,9 +625,16 @@ namespace Dotmim.Sync.SqlServer
         {
             bool tableExist;
 
+            const string commandText = """
+                                       IF EXISTS (SELECT * FROM sys.databases WHERE name = @databaseName)
+                                           SELECT 1
+                                       ELSE
+                                           SELECT 0
+                                       """;
+
             using (DbCommand dbCommand = connection.CreateCommand())
             {
-                dbCommand.CommandText = "IF EXISTS (SELECT * FROM sys.databases WHERE name = @databaseName) SELECT 1 ELSE SELECT 0";
+                dbCommand.CommandText = commandText;
 
                 var sqlParameter = new SqlParameter()
                 {
@@ -596,7 +665,22 @@ namespace Dotmim.Sync.SqlServer
             bool flag;
             var procedureName = ParserName.Parse(quotedProcedureName).ToString();
 
-            using (var sqlCommand = new SqlCommand("IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0", connection))
+            const string commandText = """
+                                       IF EXISTS
+                                       (
+                                           SELECT *
+                                           FROM sys.procedures p
+                                               JOIN sys.schemas s
+                                                   ON s.schema_id = p.schema_id
+                                           WHERE p.name = @procName
+                                                   AND s.name = @schemaName
+                                       )
+                                           SELECT 1
+                                       ELSE
+                                           SELECT 0
+                                       """;
+
+            using (var sqlCommand = new SqlCommand(commandText, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@procName", procedureName);
                 sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedProcedureName)));
@@ -626,9 +710,24 @@ namespace Dotmim.Sync.SqlServer
             var pSchemaName = ParserName.Parse(schemaName).Unquoted().ToString();
             pSchemaName = string.IsNullOrEmpty(schemaName) ? "dbo" : pSchemaName;
 
+            const string commandText = """
+                                       IF EXISTS
+                                       (
+                                           SELECT t.name
+                                           FROM sys.tables t
+                                               JOIN sys.schemas s
+                                                   ON s.schema_id = t.schema_id
+                                           WHERE t.name = @tableName
+                                                 AND s.name = @schemaName
+                                       )
+                                           SELECT 1
+                                       ELSE
+                                           SELECT 0
+                                       """;
+
             using DbCommand dbCommand = connection.CreateCommand();
 
-            dbCommand.CommandText = "IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0";
+            dbCommand.CommandText = commandText;
 
             SqlParameter sqlParameter = new SqlParameter()
             {
@@ -673,9 +772,21 @@ namespace Dotmim.Sync.SqlServer
             var pSchemaName = ParserName.Parse(schemaName);
             var sName = pSchemaName.Quoted();
 
+            const string commandText = """
+                                       IF EXISTS
+                                       (
+                                           SELECT sch.name
+                                           FROM sys.schemas sch
+                                           WHERE sch.name = @schemaName
+                                       )
+                                           SELECT 1
+                                       ELSE
+                                           SELECT 0
+                                       """;
 
             using DbCommand dbCommand = connection.CreateCommand();
-            dbCommand.CommandText = "IF EXISTS (SELECT sch.name FROM sys.schemas sch WHERE sch.name = @schemaName) SELECT 1 ELSE SELECT 0";
+
+            dbCommand.CommandText = commandText;
 
             var sqlParameter = new SqlParameter()
             {
@@ -707,7 +818,24 @@ namespace Dotmim.Sync.SqlServer
             bool triggerExist;
             var triggerName = ParserName.Parse(quotedTriggerName).ToString();
 
-            using (var sqlCommand = new SqlCommand("IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and s.name = @schemaName) SELECT 1 ELSE SELECT 0", connection))
+            const string commandText = """
+                                       IF EXISTS
+                                       (
+                                           SELECT tr.name
+                                           FROM sys.triggers tr
+                                               JOIN sys.tables t
+                                                   ON tr.parent_id = t.object_id
+                                               JOIN sys.schemas s
+                                                   ON t.schema_id = s.schema_id
+                                           WHERE tr.name = @triggerName
+                                                 and s.name = @schemaName
+                                       )
+                                           SELECT 1
+                                       ELSE
+                                           SELECT 0
+                                       """;
+
+            using (var sqlCommand = new SqlCommand(commandText, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@triggerName", triggerName);
                 sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTriggerName)));
@@ -737,7 +865,22 @@ namespace Dotmim.Sync.SqlServer
 
             var columnName = ParserName.Parse(quotedTypeName).ToString();
 
-            using (SqlCommand sqlCommand = new SqlCommand("IF EXISTS (SELECT * FROM sys.types t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @typeName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0", connection))
+            const string commandText = """
+                                       IF EXISTS
+                                       (
+                                           SELECT *
+                                           FROM sys.types t
+                                               JOIN sys.schemas s
+                                                   ON s.schema_id = t.schema_id
+                                           WHERE t.name = @typeName
+                                                 AND s.name = @schemaName
+                                       )
+                                           SELECT 1
+                                       ELSE
+                                           SELECT 0
+                                       """;
+
+            using (SqlCommand sqlCommand = new SqlCommand(commandText, connection))
             {
                 sqlCommand.Parameters.AddWithValue("@typeName", columnName);
                 sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTypeName)));
