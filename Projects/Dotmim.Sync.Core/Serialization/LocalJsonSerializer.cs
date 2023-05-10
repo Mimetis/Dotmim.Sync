@@ -6,10 +6,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
-
 namespace Dotmim.Sync.Serialization
 {
-
     /// <summary>
     /// Serialize json rows locally
     /// </summary>
@@ -97,7 +95,6 @@ namespace Dotmim.Sync.Serialization
                 this.sw.Close();
                 this.IsOpen = false;
             }
-
         }
 
         /// <summary>
@@ -441,10 +438,12 @@ namespace Dotmim.Sync.Serialization
 
             for (int i = 0; i < includedColumns.Count; i++)
             {
+                var includedColumn = includedColumns[i];
+
                 // column name & type from file
-                var includedColumnName = includedColumns[i]["n"].Value<string>();
-                var includedColumnType = SyncColumn.GetTypeFromAssemblyQualifiedName(includedColumns[i]["t"].Value<string>());
-                var isPrimaryKey = includedColumns[i].ContainsKey("p");
+                var includedColumnName = includedColumn["n"].Value<string>();
+                var includedColumnType = SyncColumn.GetTypeFromAssemblyQualifiedName(includedColumn["t"].Value<string>());
+                var isPrimaryKey = includedColumn.ContainsKey("p");
 
                 // Adding the column 
                 schemaTable.Columns.Add(new SyncColumn(includedColumnName, includedColumnType));
@@ -454,8 +453,6 @@ namespace Dotmim.Sync.Serialization
             }
 
             return schemaTable;
-
         }
-
     }
 }
