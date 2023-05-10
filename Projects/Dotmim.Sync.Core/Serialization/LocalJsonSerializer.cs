@@ -71,7 +71,6 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Close the current file, close the writer
         /// </summary>
-        /// <returns></returns>
         public void CloseFile()
         {
             // Close file
@@ -185,7 +184,6 @@ namespace Dotmim.Sync.Serialization
                 {
                     for (var i = 0; i < innerRow.Length; i++)
                         writer.WriteValue(innerRow[i]);
-
                 }
 
                 writer.WriteEndArray();
@@ -205,9 +203,9 @@ namespace Dotmim.Sync.Serialization
         public void OnReadingRow(Func<SyncTable, string, Task<object[]>> func) => this.readingRowAsync = func;
 
         /// <summary>
-        /// Gets the file size
+        /// Gets the current file size
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Current file size as long</returns>
         public Task<long> GetCurrentFileSizeAsync()
         {
             long position = 0L;
