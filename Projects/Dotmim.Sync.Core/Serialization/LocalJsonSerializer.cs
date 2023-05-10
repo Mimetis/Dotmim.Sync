@@ -23,12 +23,6 @@ namespace Dotmim.Sync.Serialization
 
         private readonly object writerLock = new object();
 
-
-        public LocalJsonSerializer()
-        {
-
-        }
-
         public LocalJsonSerializer(BaseOrchestrator orchestrator, SyncContext context)
         {
             if (orchestrator.HasInterceptors<DeserializingRowArgs>())
