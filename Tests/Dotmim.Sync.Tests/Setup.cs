@@ -38,7 +38,7 @@ namespace Dotmim.Sync.Tests
             {
                 // check if we are running on appveyor or not
                 string isOnAzureDev = Environment.GetEnvironmentVariable("AZUREDEV");
-                return !string.IsNullOrEmpty(isOnAzureDev) && isOnAzureDev.ToLowerInvariant() == "true";
+                return !string.IsNullOrEmpty(isOnAzureDev) && string.Equals(isOnAzureDev, "true", SyncGlobalization.DataSourceStringComparison);
             }
         }
 

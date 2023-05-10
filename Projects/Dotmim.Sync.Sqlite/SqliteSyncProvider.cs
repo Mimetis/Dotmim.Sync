@@ -121,7 +121,7 @@ namespace Dotmim.Sync.Sqlite
         }
         public SqliteSyncProvider(string filePath) : this()
         {
-            if (filePath.ToLowerInvariant().StartsWith("data source"))
+            if (filePath.StartsWith("data source", SyncGlobalization.DataSourceStringComparison))
             {
                 this.builder = new SqliteConnectionStringBuilder(filePath);
             }

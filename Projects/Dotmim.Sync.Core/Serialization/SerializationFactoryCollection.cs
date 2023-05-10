@@ -34,7 +34,7 @@ namespace Dotmim.Sync.Serialization
                 if (string.IsNullOrEmpty(key))
                     throw new ArgumentNullException("key");
 
-                return collection.FirstOrDefault(c => c.Key.ToLowerInvariant() == key.ToLowerInvariant());
+                return collection.FirstOrDefault(c => string.Equals(c.Key, key, SyncGlobalization.DataSourceStringComparison));
             }
         }
 

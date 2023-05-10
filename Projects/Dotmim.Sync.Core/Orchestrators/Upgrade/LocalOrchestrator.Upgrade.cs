@@ -466,11 +466,11 @@ namespace Dotmim.Sync
                                 throw new Exception("Your setup to migrate contains one or more filters. Please use a SyncParameters argument when calling ManualUpgradeWithFiltersParameterAsync() (or SynchronizeAsync()).");
 
                             foreach (var setupParameter in setupParameters)
-                                if (!parameters.Any(p => p.Name.ToLowerInvariant() == setupParameter.ToLowerInvariant()))
+                                if (!parameters.Any(p => string.Equals(p.Name, setupParameter, SyncGlobalization.DataSourceStringComparison)))
                                     throw new Exception("Your setup filters contains at least one parameter that is not available from SyncParameters argument.");
 
                             foreach (var parameter in parameters)
-                                if (!setupParameters.Any(n => n.ToLowerInvariant() == parameter.Name.ToLowerInvariant()))
+                                if (!setupParameters.Any(n => string.Equals(n, parameter.Name, SyncGlobalization.DataSourceStringComparison)))
                                     throw new Exception("Your SyncParameters argument contains a parameter that is not contained in your setup filters.");
                         }
                     }

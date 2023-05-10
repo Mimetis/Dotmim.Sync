@@ -163,13 +163,21 @@ namespace Dotmim.Sync.MySql.Builders
         public override int GetMaxLength(SyncColumn columnDefinition)
         {
             // blob
-            if (columnDefinition.OriginalTypeName.ToLowerInvariant() == "longblob" || columnDefinition.OriginalTypeName.ToLowerInvariant() == "mediumblob" || columnDefinition.OriginalTypeName.ToLowerInvariant() == "tinyblob")
+            if (string.Equals(columnDefinition.OriginalTypeName, "longblob", SyncGlobalization.DataSourceStringComparison)
+                || string.Equals(columnDefinition.OriginalTypeName, "mediumblob", SyncGlobalization.DataSourceStringComparison)
+                || string.Equals(columnDefinition.OriginalTypeName, "tinyblob", SyncGlobalization.DataSourceStringComparison))
+            {
                 return 0;
+            }
 
             // text
-            if (columnDefinition.OriginalTypeName.ToLowerInvariant() == "longtext" || columnDefinition.OriginalTypeName.ToLowerInvariant() == "mediumtext"
-                || columnDefinition.OriginalTypeName.ToLowerInvariant() == "tinytext" || columnDefinition.OriginalTypeName.ToLowerInvariant() == "json")
+            if (string.Equals(columnDefinition.OriginalTypeName, "longtext", SyncGlobalization.DataSourceStringComparison)
+                || string.Equals(columnDefinition.OriginalTypeName, "mediumtext", SyncGlobalization.DataSourceStringComparison)
+                || string.Equals(columnDefinition.OriginalTypeName, "tinytext", SyncGlobalization.DataSourceStringComparison)
+                || string.Equals(columnDefinition.OriginalTypeName, "json", SyncGlobalization.DataSourceStringComparison))
+            {
                 return 0;
+            }
 
             var iMaxLength = columnDefinition.MaxLength > 8000 ? 8000 : Convert.ToInt32(columnDefinition.MaxLength);
             return iMaxLength;
