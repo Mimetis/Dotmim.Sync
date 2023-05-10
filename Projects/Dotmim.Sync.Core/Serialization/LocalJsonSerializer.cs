@@ -223,7 +223,7 @@ namespace Dotmim.Sync.Serialization
 
             lock (writerLock)
             {
-                if (this.sw != null && this.sw.BaseStream != null)
+                if (this.sw?.BaseStream != null)
                 {
                     position = this.sw.BaseStream.Position / 1024L;
                 }
@@ -290,8 +290,8 @@ namespace Dotmim.Sync.Serialization
                                 {
                                     for (int i = 1; i < array.Length; i++)
                                     {
-                                        var t = array[i] == null ? typeof(object) : array[i].GetType();
-                                        schemaTable.Columns.Add($"C{i}", t);
+                                        var type = array[i]?.GetType() ?? typeof(object);
+                                        schemaTable.Columns.Add($"C{i}", type);
                                     }
                                     schemaEmpty = false;
                                 }
@@ -337,7 +337,7 @@ namespace Dotmim.Sync.Serialization
                         state = (SyncRowState)reader.ReadAsInt32();
                         break;
                     case "c":
-                        var tmpTable = GetSchemaTableFromReader(reader, serializer, schemaTable != null ? schemaTable.TableName : tableName, schemaTable != null ? schemaTable.SchemaName : schemaName);
+                        var tmpTable = GetSchemaTableFromReader(reader, serializer, schemaTable?.TableName ?? tableName, schemaTable?.SchemaName ?? schemaName);
 
                         if (tmpTable != null)
                             schemaTable = tmpTable;
@@ -401,7 +401,7 @@ namespace Dotmim.Sync.Serialization
                                 }
 
                                 // if we have some columns, we check the date time thing
-                                if (schemaTable.Columns != null && schemaTable.Columns.HasSyncColumnOfType(typeof(DateTime)))
+                                if (schemaTable.Columns?.HasSyncColumnOfType(typeof(DateTime)) == true)
                                 {
                                     for (var index = 1; index < array.Length; index++)
                                     {
