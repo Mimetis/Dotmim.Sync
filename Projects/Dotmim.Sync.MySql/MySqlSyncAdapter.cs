@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -27,9 +27,8 @@ namespace Dotmim.Sync.MySql
 
     public class MySqlSyncAdapter : DbSyncAdapter
     {
-
-        public MySqlObjectNames MySqlObjectNames { get; set; }
-        public MySqlDbMetadata MySqlDbMetadata { get; set; }
+        public MySqlObjectNames MySqlObjectNames { get; }
+        public MySqlDbMetadata MySqlDbMetadata { get; }
 
         public MySqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName) : base(tableDescription, setup, scopeName)
         {

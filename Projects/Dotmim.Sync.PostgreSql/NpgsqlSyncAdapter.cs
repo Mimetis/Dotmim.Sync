@@ -41,7 +41,7 @@ namespace Dotmim.Sync.PostgreSql
         internal const string resetMetadataProcName = @"{0}.""{1}{2}reset""";
         private bool legacyTimestampBehavior = true;
 
-        public NpgsqlDbMetadata NpgsqlDbMetadata { get; private set; }
+        public NpgsqlDbMetadata NpgsqlDbMetadata { get; }
         public ParserName TableName { get; }
         public ParserName TrackingTableName { get; }
 
