@@ -13,14 +13,12 @@ namespace Dotmim.Sync.SqlServer.Builders
 {
     public partial class SqlSyncAdapter : DbSyncAdapter
     {
-
         // Derive Parameters cache
         // Be careful, we can have collision between databases
         // this static class could be shared accross databases with same command name
         // but different table schema
         // So the string should contains the connection string as well
-        private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters
-            = new ConcurrentDictionary<string, List<SqlParameter>>();
+        private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters = new();
 
         public static readonly DateTime SqlDateMin = new DateTime(1753, 1, 1);
         public static readonly DateTime SqlSmallDateMin = new DateTime(1900, 1, 1);
