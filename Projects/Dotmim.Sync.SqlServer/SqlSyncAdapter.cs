@@ -27,9 +27,9 @@ namespace Dotmim.Sync.SqlServer.Builders
         private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters
             = new ConcurrentDictionary<string, List<SqlParameter>>();
 
-        public static DateTime SqlDateMin = new DateTime(1753, 1, 1);
+        public static readonly DateTime SqlDateMin = new DateTime(1753, 1, 1);
+        public static readonly DateTime SqlSmallDateMin = new DateTime(1900, 1, 1);
 
-        public static DateTime SqlSmallDateMin = new DateTime(1900, 1, 1);
         public SqlObjectNames SqlObjectNames { get; set; }
         public SqlDbMetadata SqlMetadata { get; set; }
 
