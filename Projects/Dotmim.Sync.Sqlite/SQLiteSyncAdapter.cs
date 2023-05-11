@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -23,13 +23,14 @@ namespace Dotmim.Sync.Sqlite
 
         public override (DbCommand, bool) GetCommand(DbCommandType commandType, SyncFilter filter = null)
         {
-            var command = new SqliteCommand();
-            string text;
-            text = this.sqliteObjectNames.GetCommandName(commandType, filter);
+            string text = this.sqliteObjectNames.GetCommandName(commandType, filter);
 
             // on Sqlite, everything is text :)
-            command.CommandType = CommandType.Text;
-            command.CommandText = text;
+            var command = new SqliteCommand
+            {
+                CommandType = CommandType.Text,
+                CommandText = text
+            };
 
             return (command, false);
         }
