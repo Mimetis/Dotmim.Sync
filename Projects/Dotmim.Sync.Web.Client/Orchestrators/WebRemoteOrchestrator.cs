@@ -102,11 +102,7 @@ namespace Dotmim.Sync.Web.Client
         /// </summary>
         public void AddScopeParameter(string key, string value)
         {
-            if (this.ScopeParameters.ContainsKey(key))
-                this.ScopeParameters[key] = value;
-            else
-                this.ScopeParameters.Add(key, value);
-
+            this.ScopeParameters[key] = value;
         }
 
         /// <summary>
@@ -114,11 +110,7 @@ namespace Dotmim.Sync.Web.Client
         /// </summary>
         public void AddCustomHeader(string key, string value)
         {
-            if (this.CustomHeaders.ContainsKey(key))
-                this.CustomHeaders[key] = value;
-            else
-                this.CustomHeaders.Add(key, value);
-
+            this.CustomHeaders[key] = value;
         }
 
         /// <summary>
