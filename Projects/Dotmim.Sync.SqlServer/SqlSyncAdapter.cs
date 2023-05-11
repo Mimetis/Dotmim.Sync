@@ -37,12 +37,16 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.trackingName = trackingName;
         }
 
-
-        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(DbConnection connection, DbCommandType commandType, SyncFilter filter)
         {
+            var cacheKey = GetCacheKey(connection, commandType, filter);
+
+            if (commandCache.TryGetValue(cacheKey, out var result))
+                return result;
+
             var command = new SqlCommand();
             bool isBatch;
-            switch (nameType)
+            switch (commandType)
             {
                 case DbCommandType.SelectChanges:
                     command.CommandType = CommandType.StoredProcedure;
@@ -175,7 +179,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 case DbCommandType.PreUpdateRows:
                     return (default, false);
                 default:
-                    throw new NotImplementedException($"This command type {nameType} is not implemented");
+                    throw new NotImplementedException($"This command type {commandType} is not implemented");
             }
 
             return (command, isBatch);

@@ -1,14 +1,9 @@
 ﻿using Dotmim.Sync.Builders;
-using System;
-using System.Collections.Generic;
+using Dotmim.Sync.SqlServer.Builders;
+using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Data.Common;
-using Microsoft.Data.SqlClient;
-using System.Diagnostics;
 using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.Data.SqlClient.Server;
-using Dotmim.Sync.SqlServer.Builders;
 using System.Text;
 
 namespace Dotmim.Sync.SqlServer
@@ -18,33 +13,40 @@ namespace Dotmim.Sync.SqlServer
         private readonly ParserName tableName;
         private readonly ParserName trackingName;
 
-
         public SqlChangeTrackingSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool useBulkOperations) 
             : base(tableDescription, tableName, trackingName, setup, scopeName, useBulkOperations)
         {
             this.tableName = tableName;
             this.trackingName = trackingName;
-
         }
 
         /// <summary>
         /// Overriding adapter since the update metadata is not a stored proc that we can override
         /// </summary>
-        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(DbConnection connection, DbCommandType commandType, SyncFilter filter)
         {
-            if (nameType == DbCommandType.UpdateMetadata)
+            var cacheKey = GetCacheKey(connection, commandType, filter);
+
+            if (commandCache.TryGetValue(cacheKey, out var result))
+                return result;
+
+            if (commandType == DbCommandType.UpdateMetadata)
             {
                 var c = new SqlCommand("Set @sync_row_count = 1;");
                 c.Parameters.Add("@sync_row_count", SqlDbType.Int);
                 return (c, false);
             }
 
-            if (nameType == DbCommandType.SelectRow)
+            if (commandType == DbCommandType.SelectRow)
             {
                 return (BuildSelectInitializedChangesCommand(), false);
             }
 
-            return base.GetCommand(nameType, filter);
+            var (command, isBatch) = base.GetCommand(connection, commandType, filter);
+
+            commandCache.TryAdd(cacheKey, (command, isBatch));
+
+            return (command, isBatch);
         }
 
         private SqlCommand BuildSelectInitializedChangesCommand()

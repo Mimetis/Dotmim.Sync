@@ -27,7 +27,7 @@ namespace Dotmim.Sync
             if (this.Provider != null && this.Provider.CanBeServerProvider) // Sqlite can't be server
                 filter = syncAdapter.TableDescription.GetFilter();
 
-            var (command, isBatch) = syncAdapter.GetCommand(commandType, filter);
+            var (command, isBatch) = syncAdapter.GetCommand(connection, commandType, filter);
 
             // IF we do not have any command associated, just return
             if (command == null)

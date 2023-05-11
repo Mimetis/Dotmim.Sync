@@ -1,11 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
-using System.Data.Common;
-using System.Data;
 using Dotmim.Sync.Builders;
 using Microsoft.Data.Sqlite;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Common;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
@@ -21,8 +19,13 @@ namespace Dotmim.Sync.Sqlite
             this.sqliteObjectNames = new SqliteObjectNames(this.TableDescription, tableName, trackingName, this.Setup, scopeName);
         }
 
-        public override (DbCommand, bool) GetCommand(DbCommandType commandType, SyncFilter filter = null)
+        public override (DbCommand, bool) GetCommand(DbConnection connection, DbCommandType commandType, SyncFilter filter = null)
         {
+            var cacheKey = GetCacheKey(connection, commandType, filter);
+
+            if (commandCache.TryGetValue(cacheKey, out var result))
+                return result;
+
             string text = this.sqliteObjectNames.GetCommandName(commandType, filter);
 
             // on Sqlite, everything is text :)
@@ -31,6 +34,8 @@ namespace Dotmim.Sync.Sqlite
                 CommandType = CommandType.Text,
                 CommandText = text
             };
+
+            commandCache.TryAdd(cacheKey, (command, false));
 
             return (command, false);
         }

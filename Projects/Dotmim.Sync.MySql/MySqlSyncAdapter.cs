@@ -105,11 +105,16 @@ namespace Dotmim.Sync.MySql
         public override string QuoteSuffix => "`";
         public override bool SupportsOutputParameters => true;
 
-        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter = null)
+        public override (DbCommand, bool) GetCommand(DbConnection connection, DbCommandType commandType, SyncFilter filter = null)
         {
+            var cacheKey = GetCacheKey(connection, commandType, filter);
+
+            if (commandCache.TryGetValue(cacheKey, out var result))
+                return result;
+
             var command = new MySqlCommand();
             var isBatch = false;
-            switch (nameType)
+            switch (commandType)
             {
                 case DbCommandType.SelectChanges:
                     command.CommandType = CommandType.Text;
@@ -195,12 +200,13 @@ namespace Dotmim.Sync.MySql
                 case DbCommandType.PreDeleteRow:
                     return (default, false);
                 default:
-                    throw new NotImplementedException($"This command type {nameType} is not implemented");
+                    throw new NotImplementedException($"This command type {commandType} is not implemented");
             }
+
+            commandCache.TryAdd(cacheKey, (command, isBatch));
 
             return (command, isBatch);
         }
-
 
         public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
             => throw new NotImplementedException();

@@ -1,4 +1,4 @@
-using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Builders;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -13,6 +13,7 @@ namespace Dotmim.Sync
     /// </summary>
     public abstract class DbSyncAdapter
     {
+        protected static ConcurrentDictionary<string, (DbCommand, bool)> commandCache = new();
 
         /// <summary>
         /// Gets the table description
@@ -71,7 +72,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets a command from the current table in the adapter
         /// </summary>
-        public abstract (DbCommand Command, bool IsBatchCommand) GetCommand(DbCommandType commandType, SyncFilter filter = null);
+        public abstract (DbCommand Command, bool IsBatchCommand) GetCommand(DbConnection connection, DbCommandType commandType, SyncFilter filter = null);
 
         /// <summary>
         /// Adding a parameter value to a command
@@ -129,14 +130,15 @@ namespace Dotmim.Sync
             return command.Parameters[parameterName];
         }
 
-
         /// <summary>
         /// Execute a batch command
         /// </summary>
         public abstract Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable,
                                                       SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction);
 
-
-
+        protected static string GetCacheKey(DbConnection connection, DbCommandType commandType, SyncFilter filter)
+        {
+            return $"{connection.Database}|{commandType}|{filter?.GetFilterName()}";
+        }
     }
 }

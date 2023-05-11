@@ -1,4 +1,4 @@
-using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.PostgreSql.Builders;
 using Npgsql;
 using NpgsqlTypes;
@@ -57,26 +57,38 @@ namespace Dotmim.Sync.PostgreSql
 #endif
         }
 
-        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter = null) => nameType switch
+        public override (DbCommand, bool) GetCommand(DbConnection connection, DbCommandType commandType, SyncFilter filter = null)
         {
-            DbCommandType.SelectChanges => GetSelectChangesCommand(),
-            DbCommandType.SelectInitializedChanges => GetSelectInitializedChangesCommand(),
-            DbCommandType.SelectInitializedChangesWithFilters => GetSelectInitializedChangesCommand(filter),
-            DbCommandType.SelectChangesWithFilters => GetSelectChangesCommand(filter),
-            DbCommandType.SelectRow => GetSelectRowCommand(),
-            DbCommandType.UpdateRow or DbCommandType.InsertRow or DbCommandType.UpdateRows or DbCommandType.InsertRows => GetUpdateRowCommand(),
-            DbCommandType.DeleteRow or DbCommandType.DeleteRows => GetDeleteRowCommand(),
-            DbCommandType.DisableConstraints => GetDisableConstraintCommand(),
-            DbCommandType.EnableConstraints => GetEnableConstraintCommand(),
-            DbCommandType.DeleteMetadata => GetDeleteMetadataCommand(),
-            DbCommandType.UpdateMetadata => CreateUpdateMetadataCommand(),
-            DbCommandType.SelectMetadata => CreateSelectMetadataCommand(),
-            DbCommandType.UpdateUntrackedRows => CreateUpdateUntrackedRowsCommand(),
-            DbCommandType.Reset => GetResetCommand(),
-            DbCommandType.PreDeleteRow or DbCommandType.PreDeleteRows => CreatePreDeleteCommand(),
-            DbCommandType.PreInsertRow or DbCommandType.PreInsertRows or DbCommandType.PreUpdateRow or DbCommandType.PreUpdateRows => CreatePreUpdateCommand(),
-            _ => throw new NotImplementedException($"This command type {nameType} is not implemented"),
-        };
+            var cacheKey = GetCacheKey(connection, commandType, filter);
+
+            if (commandCache.TryGetValue(cacheKey, out var result))
+                return result;
+
+            var (command, isBatch) = commandType switch
+            {
+                DbCommandType.SelectChanges => GetSelectChangesCommand(),
+                DbCommandType.SelectInitializedChanges => GetSelectInitializedChangesCommand(),
+                DbCommandType.SelectInitializedChangesWithFilters => GetSelectInitializedChangesCommand(filter),
+                DbCommandType.SelectChangesWithFilters => GetSelectChangesCommand(filter),
+                DbCommandType.SelectRow => GetSelectRowCommand(),
+                DbCommandType.UpdateRow or DbCommandType.InsertRow or DbCommandType.UpdateRows or DbCommandType.InsertRows => GetUpdateRowCommand(),
+                DbCommandType.DeleteRow or DbCommandType.DeleteRows => GetDeleteRowCommand(),
+                DbCommandType.DisableConstraints => GetDisableConstraintCommand(),
+                DbCommandType.EnableConstraints => GetEnableConstraintCommand(),
+                DbCommandType.DeleteMetadata => GetDeleteMetadataCommand(),
+                DbCommandType.UpdateMetadata => CreateUpdateMetadataCommand(),
+                DbCommandType.SelectMetadata => CreateSelectMetadataCommand(),
+                DbCommandType.UpdateUntrackedRows => CreateUpdateUntrackedRowsCommand(),
+                DbCommandType.Reset => GetResetCommand(),
+                DbCommandType.PreDeleteRow or DbCommandType.PreDeleteRows => CreatePreDeleteCommand(),
+                DbCommandType.PreInsertRow or DbCommandType.PreInsertRows or DbCommandType.PreUpdateRow or DbCommandType.PreUpdateRows => CreatePreUpdateCommand(),
+                _ => throw new NotImplementedException($"This command type {commandType} is not implemented"),
+            };
+
+            commandCache.TryAdd(cacheKey, (command, isBatch));
+
+            return (command, isBatch);
+        }
 
         /// <summary>
         /// Check that parameters set from DMS core are correct.
