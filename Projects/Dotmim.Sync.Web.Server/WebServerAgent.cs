@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
@@ -340,10 +340,8 @@ namespace Dotmim.Sync.Web.Server
         /// </summary>
         public virtual byte[] EnsureCompression(HttpRequest httpRequest, HttpResponse httpResponse, byte[] binaryData)
         {
-            string encoding = httpRequest.Headers["Accept-Encoding"];
-
             // Compress data if client accept Gzip / Deflate
-            if (!string.IsNullOrEmpty(encoding) && (encoding.Contains("gzip") || encoding.Contains("deflate")))
+            if (httpRequest.Headers.TryGetValue("Accept-Encoding", out var encoding) && (encoding.Contains("gzip") || encoding.Contains("deflate")))
             {
                 if (!httpResponse.Headers.ContainsKey("Content-Encoding"))
                     httpResponse.Headers.Add("Content-Encoding", "gzip");
