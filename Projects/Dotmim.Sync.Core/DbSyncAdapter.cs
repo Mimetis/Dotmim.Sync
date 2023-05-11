@@ -17,7 +17,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the table description
         /// </summary>
-        public SyncTable TableDescription { get; private set; }
+        public SyncTable TableDescription { get; }
 
         /// <summary>
         /// Gets the setup used 
