@@ -2229,8 +2229,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 // When Server Orchestrator send back the response, we will make an interruption
                 webServerAgent.OnHttpGettingRequest(args =>
                 {
-                    if (!interrupted.ContainsKey(args.HttpStep))
-                        interrupted.Add(args.HttpStep, false);
+                    interrupted.TryAdd(args.HttpStep, false);
 
                     // interrupt each step to see if it's working
                     if (!interrupted[args.HttpStep])
@@ -2300,8 +2299,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 // When Server Orchestrator send back the response, we will make an interruption
                 webServerAgent.OnHttpSendingResponse(args =>
                 {
-                    if (!interrupted.ContainsKey(args.HttpStep))
-                        interrupted.Add(args.HttpStep, false);
+                    interrupted.TryAdd(args.HttpStep, false);
 
                     // interrupt each step to see if it's working
                     if (!interrupted[args.HttpStep])

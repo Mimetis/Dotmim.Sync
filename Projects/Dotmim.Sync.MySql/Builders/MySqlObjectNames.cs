@@ -67,12 +67,11 @@ namespace Dotmim.Sync.MySql.Builders
 
             commandNames.Add(objectType, name);
         }
+
         public string GetCommandName(DbCommandType objectType, SyncFilter filter = null)
         {
-            if (!commandNames.ContainsKey(objectType))
+            if (!commandNames.TryGetValue(objectType, out var commandName))
                 throw new NotSupportedException($"MySql provider does not support the command type {objectType.ToString()}");
-
-            var commandName = commandNames[objectType];
 
             // concat filter name
             if (filter != null)
@@ -88,12 +87,11 @@ namespace Dotmim.Sync.MySql.Builders
 
             storedProceduresNames.Add(objectType, name);
         }
+
         public string GetStoredProcedureCommandName(DbStoredProcedureType storedProcedureType, SyncFilter filter = null)
         {
-            if (!storedProceduresNames.ContainsKey(storedProcedureType))
+            if (!storedProceduresNames.TryGetValue(storedProcedureType, out var commandName))
                 throw new Exception("Yous should provide a value for all DbCommandName");
-
-            var commandName = storedProceduresNames[storedProcedureType];
 
             // concat filter name
             if (filter != null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
@@ -109,12 +107,11 @@ namespace Dotmim.Sync.MySql.Builders
 
             triggersNames.Add(objectType, name);
         }
+
         public string GetTriggerCommandName(DbTriggerType objectType, SyncFilter filter = null)
         {
-            if (!triggersNames.ContainsKey(objectType))
+            if (!triggersNames.TryGetValue(objectType, out var commandName))
                 throw new Exception("Yous should provide a value for all DbCommandName");
-
-            var commandName = triggersNames[objectType];
 
             // concat filter name
             if (filter != null)
@@ -122,7 +119,6 @@ namespace Dotmim.Sync.MySql.Builders
 
             return commandName;
         }
-
 
         public MySqlObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
         {

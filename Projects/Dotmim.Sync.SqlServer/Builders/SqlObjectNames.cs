@@ -58,12 +58,11 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             storedProceduresNames.Add(objectType, name);
         }
+
         public string GetStoredProcedureCommandName(DbStoredProcedureType storedProcedureType, SyncFilter filter = null)
         {
-            if (!storedProceduresNames.ContainsKey(storedProcedureType))
+            if (!storedProceduresNames.TryGetValue(storedProcedureType, out var commandName))
                 throw new Exception("Yous should provide a value for all DbCommandName");
-
-            var commandName = storedProceduresNames[storedProcedureType];
 
             // concat filter name
             if (filter != null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
@@ -79,12 +78,11 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             triggersNames.Add(objectType, name);
         }
+
         public string GetTriggerCommandName(DbTriggerType objectType, SyncFilter filter = null)
         {
-            if (!triggersNames.ContainsKey(objectType))
+            if (!triggersNames.TryGetValue(objectType, out var commandName))
                 throw new Exception("Yous should provide a value for all DbCommandName");
-
-            var commandName = triggersNames[objectType];
 
             // concat filter name
             if (filter != null)
@@ -92,6 +90,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return commandName;
         }
+
         public void AddCommandName(DbCommandType objectType, string name)
         {
             if (commandNames.ContainsKey(objectType))
@@ -99,12 +98,11 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             commandNames.Add(objectType, name);
         }
+
         public string GetCommandName(DbCommandType objectType, SyncFilter filter = null)
         {
-            if (!commandNames.ContainsKey(objectType))
+            if (!commandNames.TryGetValue(objectType, out var commandName))
                 throw new Exception("Yous should provide a value for all DbCommandName");
-
-            var commandName = commandNames[objectType];
 
             // concat filter name
             if (filter != null)

@@ -34,12 +34,11 @@ namespace Dotmim.Sync.Sqlite
 
             commandNames.Add(objectType, name);
         }
+
         public string GetCommandName(DbCommandType objectType, SyncFilter filter = null)
         {
-            if (!commandNames.ContainsKey(objectType))
+            if (!commandNames.TryGetValue(objectType, out var commandName))
                 throw new NotSupportedException($"Sqlite provider does not support the command type {objectType.ToString()}");
-
-            var commandName = commandNames[objectType];
 
             // concat filter name
             //if (filter != null)
@@ -48,7 +47,6 @@ namespace Dotmim.Sync.Sqlite
             return commandName;
         }
 
-
         public void AddTriggerName(DbTriggerType objectType, string name)
         {
             if (triggersNames.ContainsKey(objectType))
@@ -56,12 +54,11 @@ namespace Dotmim.Sync.Sqlite
 
             triggersNames.Add(objectType, name);
         }
+
         public string GetTriggerCommandName(DbTriggerType objectType, SyncFilter filter = null)
         {
-            if (!triggersNames.ContainsKey(objectType))
+            if (!triggersNames.TryGetValue(objectType, out var commandName))
                 throw new Exception("Yous should provide a value for all DbCommandName");
-
-            var commandName = triggersNames[objectType];
 
             //// concat filter name
             //if (filter != null)
@@ -69,8 +66,6 @@ namespace Dotmim.Sync.Sqlite
 
             return commandName;
         }
-
-
 
         public SqliteObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
         {

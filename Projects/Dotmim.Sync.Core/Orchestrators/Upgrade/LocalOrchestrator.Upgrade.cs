@@ -148,9 +148,9 @@ namespace Dotmim.Sync
                 JObject setup = JToken.Parse(setupJson) as JObject;
 
                 // Raise an error if we have more than one scope with filters
-                if (setup != null && setup.ContainsKey("fils"))
+                if (setup != null && setup.TryGetValue("fils", out var fils))
                 {
-                    var filters = setup["fils"].ToObject<List<SetupFilter>>();
+                    var filters = fils.ToObject<List<SetupFilter>>();
                     hasFilters = filters != null && filters.Count > 0;
                     if (hasFilters)
                     {
