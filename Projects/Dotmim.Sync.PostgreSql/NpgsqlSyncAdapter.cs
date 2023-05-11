@@ -1,19 +1,13 @@
-﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Builders;
 using Dotmim.Sync.PostgreSql.Builders;
-using Newtonsoft.Json.Linq;
 using Npgsql;
 using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Transactions;
-using static Npgsql.Replication.PgOutput.Messages.RelationMessage;
 
 namespace Dotmim.Sync.PostgreSql
 {

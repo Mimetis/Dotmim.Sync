@@ -1,20 +1,9 @@
-﻿using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Manager;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.Common;
-using System.Globalization;
-using System.Linq;
 using Dotmim.Sync.Builders;
-using System.Diagnostics;
-using System.ComponentModel;
-using System.Threading.Tasks;
-
-using System.Reflection;
+using System;
 using System.Collections.Concurrent;
-using System.Text;
-using System.Threading;
+using System.Collections.Generic;
+using System.Data.Common;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
