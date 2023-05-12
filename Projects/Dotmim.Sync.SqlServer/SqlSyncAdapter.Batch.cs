@@ -63,61 +63,50 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                         if (rowValue != null)
                         {
-                            var columnType = rowValue.GetType();
-
                             switch (sqlMetadataType)
                             {
                                 case SqlDbType.BigInt:
-                                    if (columnType != typeof(long))
-                                        rowValue = SyncTypeConverter.TryConvertTo<long>(rowValue);
+                                    rowValue = SyncTypeConverter.TryConvertTo<long>(rowValue);
                                     break;
                                 case SqlDbType.Bit:
-                                    if (columnType != typeof(bool))
-                                        rowValue = SyncTypeConverter.TryConvertTo<bool>(rowValue);
+                                    rowValue = SyncTypeConverter.TryConvertTo<bool>(rowValue);
                                     break;
                                 case SqlDbType.Date:
                                 case SqlDbType.DateTime:
                                 case SqlDbType.DateTime2:
                                 case SqlDbType.SmallDateTime:
-                                    if (columnType != typeof(DateTime))
-                                        rowValue = SyncTypeConverter.TryConvertTo<DateTime>(rowValue);
                                     if (sqlMetadataType == SqlDbType.DateTime && rowValue < SqlDateMin)
                                         rowValue = SqlDateMin;
-                                    if (sqlMetadataType == SqlDbType.SmallDateTime && rowValue < SqlSmallDateMin)
+                                    else if (sqlMetadataType == SqlDbType.SmallDateTime && rowValue < SqlSmallDateMin)
                                         rowValue = SqlSmallDateMin;
+                                    else
+                                        rowValue = SyncTypeConverter.TryConvertTo<DateTime>(rowValue);
                                     break;
                                 case SqlDbType.DateTimeOffset:
-                                    if (columnType != typeof(DateTimeOffset))
-                                        rowValue = SyncTypeConverter.TryConvertTo<DateTimeOffset>(rowValue);
+                                    rowValue = SyncTypeConverter.TryConvertTo<DateTimeOffset>(rowValue);
                                     break;
                                 case SqlDbType.Decimal:
-                                    if (columnType != typeof(decimal))
-                                        rowValue = SyncTypeConverter.TryConvertTo<decimal>(rowValue);
+                                    rowValue = SyncTypeConverter.TryConvertTo<decimal>(rowValue);
                                     break;
                                 case SqlDbType.Float:
-                                    if (columnType != typeof(double))
-                                        rowValue = SyncTypeConverter.TryConvertTo<double>(rowValue);
+                                    rowValue = SyncTypeConverter.TryConvertTo<double>(rowValue);
                                     break;
                                 case SqlDbType.Real:
-                                    if (columnType != typeof(float))
-                                        rowValue = SyncTypeConverter.TryConvertTo<float>(rowValue);
+                                    rowValue = SyncTypeConverter.TryConvertTo<float>(rowValue);
                                     break;
                                 case SqlDbType.Image:
                                 case SqlDbType.Binary:
                                 case SqlDbType.VarBinary:
-                                    if (columnType != typeof(byte[]))
-                                        rowValue = SyncTypeConverter.TryConvertTo<byte[]>(rowValue);
+                                    rowValue = SyncTypeConverter.TryConvertTo<byte[]>(rowValue);
                                     break;
                                 case SqlDbType.Variant:
                                     break;
                                 case SqlDbType.Int:
-                                    if (columnType != typeof(int))
-                                        rowValue = SyncTypeConverter.TryConvertTo<int>(rowValue);
+                                    rowValue = SyncTypeConverter.TryConvertTo<int>(rowValue);
                                     break;
                                 case SqlDbType.Money:
                                 case SqlDbType.SmallMoney:
-                                    if (columnType != typeof(decimal))
-                                        rowValue = SyncTypeConverter.TryConvertTo<decimal>(rowValue);
+                                    rowValue = SyncTypeConverter.TryConvertTo<decimal>(rowValue);
                                     break;
                                 case SqlDbType.NChar:
                                 case SqlDbType.NText:
@@ -126,28 +115,23 @@ namespace Dotmim.Sync.SqlServer.Builders
                                 case SqlDbType.NVarChar:
                                 case SqlDbType.Text:
                                 case SqlDbType.Char:
-                                    if (columnType != typeof(string))
-                                        rowValue = SyncTypeConverter.TryConvertTo<string>(rowValue);
+                                    rowValue = SyncTypeConverter.TryConvertTo<string>(rowValue);
                                     break;
                                 case SqlDbType.SmallInt:
-                                    if (columnType != typeof(short))
-                                        rowValue = SyncTypeConverter.TryConvertTo<short>(rowValue);
+                                    rowValue = SyncTypeConverter.TryConvertTo<short>(rowValue);
                                     break;
                                 case SqlDbType.Time:
-                                    if (columnType != typeof(TimeSpan))
-                                        rowValue = SyncTypeConverter.TryConvertTo<TimeSpan>(rowValue);
+                                    rowValue = SyncTypeConverter.TryConvertTo<TimeSpan>(rowValue);
                                     break;
                                 case SqlDbType.Timestamp:
                                     break;
                                 case SqlDbType.TinyInt:
-                                    if (columnType != typeof(byte))
-                                        rowValue = SyncTypeConverter.TryConvertTo<byte>(rowValue);
+                                    rowValue = SyncTypeConverter.TryConvertTo<byte>(rowValue);
                                     break;
                                 case SqlDbType.Udt:
                                     throw new ArgumentException($"Can't use UDT as SQL Type");
                                 case SqlDbType.UniqueIdentifier:
-                                    if (columnType != typeof(Guid))
-                                        rowValue = SyncTypeConverter.TryConvertTo<Guid>(rowValue);
+                                    rowValue = SyncTypeConverter.TryConvertTo<Guid>(rowValue);
                                     break;
                             }
                         }
