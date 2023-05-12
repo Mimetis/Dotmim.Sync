@@ -1,18 +1,12 @@
-﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.SqlServer.Manager;
+﻿using Dotmim.Sync.Enumerations;
+using Microsoft.Data.SqlClient;
+using Microsoft.Data.SqlClient.Server;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
-using Microsoft.Data.SqlClient;
-using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Data.SqlClient.Server;
-using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
