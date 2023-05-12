@@ -12,14 +12,12 @@ namespace Dotmim.Sync.SqlServer.Builders
 {
     public partial class SqlSyncAdapter : DbSyncAdapter
     {
-
         /// <summary>
         /// Executing a batch command
         /// </summary>
         public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable,
                                                             SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
         {
-
             var applyRowsCount = applyRows.Count();
 
             if (applyRowsCount <= 0)
@@ -190,7 +188,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                 }
 
                 dataReader.Close();
-
             }
             catch (DbException ex)
             {
@@ -202,11 +199,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 if (!alreadyOpened && connection.State != ConnectionState.Closed)
                     connection.Close();
-
             }
         }
-
-
 
         private SqlMetaData GetSqlMetadaFromType(SyncColumn column)
         {
@@ -229,7 +223,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
             }
-
 
             if (dataType == typeof(char))
                 return new SqlMetaData(column.ColumnName, sqlDbType, 1);
@@ -269,12 +262,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                         s = Math.Min((byte)(p - 1), (byte)6);
                     return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
                 }
-
             }
 
             return new SqlMetaData(column.ColumnName, sqlDbType);
-
         }
-
     }
 }
