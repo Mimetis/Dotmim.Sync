@@ -177,11 +177,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         var columnValueObject = dataReader.GetValue(i);
                         var columnName = dataReader.GetName(i);
 
-                        var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
-
-                        var failedColumn = failedRows.Columns[columnName];
-                        var failedIndexColumn = failedRows.Columns.IndexOf(failedColumn);
-                        failedRow[failedIndexColumn] = columnValue;
+                        failedRow[columnName] = columnValueObject == DBNull.Value ? null : columnValueObject;
                     }
 
                     // don't care about row state 
