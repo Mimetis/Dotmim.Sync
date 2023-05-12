@@ -168,8 +168,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 while (dataReader.Read())
                 {
-                    //var itemArray = new object[dataReader.FieldCount];
-                    //var itemArray = new object[failedRows.Columns.Count];
                     var failedRow = new SyncRow(schemaChangesTable, syncRowState);
 
                     for (var i = 0; i < dataReader.FieldCount; i++)
