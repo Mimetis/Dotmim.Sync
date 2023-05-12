@@ -150,7 +150,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlParameters["@changeTable"].Value = records;
 
             if (sqlParameters.Contains("@sync_min_timestamp"))
-                sqlParameters["@sync_min_timestamp"].Value = lastTimestamp.HasValue ? (object)lastTimestamp.Value : DBNull.Value;
+                sqlParameters["@sync_min_timestamp"].Value = lastTimestamp.HasValue ? lastTimestamp.Value : DBNull.Value;
 
             if (sqlParameters.Contains("@sync_scope_id"))
                 sqlParameters["@sync_scope_id"].Value = senderScopeId;
