@@ -189,10 +189,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 dataReader.Close();
             }
-            catch (DbException ex)
-            {
-                throw;
-            }
             finally
             {
                 records.Clear();
