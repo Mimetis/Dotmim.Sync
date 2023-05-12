@@ -26,6 +26,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var syncRowState = SyncRowState.None;
 
             var records = new List<SqlDataRecord>(applyRowsCount);
+
             SqlMetaData[] metadatas = new SqlMetaData[schemaChangesTable.Columns.Count];
 
             for (int i = 0; i < schemaChangesTable.Columns.Count; i++)
@@ -169,7 +170,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                 {
                     //var itemArray = new object[dataReader.FieldCount];
                     //var itemArray = new object[failedRows.Columns.Count];
-                    var itemArray = new SyncRow(schemaChangesTable, syncRowState);
+                    var failedRow = new SyncRow(schemaChangesTable, syncRowState);
+
                     for (var i = 0; i < dataReader.FieldCount; i++)
                     {
                         var columnValueObject = dataReader.GetValue(i);
@@ -179,12 +181,12 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                         var failedColumn = failedRows.Columns[columnName];
                         var failedIndexColumn = failedRows.Columns.IndexOf(failedColumn);
-                        itemArray[failedIndexColumn] = columnValue;
+                        failedRow[failedIndexColumn] = columnValue;
                     }
 
                     // don't care about row state 
                     // Since it will be requested by next request from GetConflict()
-                    failedRows.Rows.Add(itemArray);
+                    failedRows.Rows.Add(failedRow);
                 }
 
                 dataReader.Close();
