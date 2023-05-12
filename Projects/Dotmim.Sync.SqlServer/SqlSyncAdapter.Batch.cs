@@ -202,7 +202,6 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlMetaData GetSqlMetadaFromType(SyncColumn column)
         {
             long maxLength = column.MaxLength;
-            var dataType = column.GetDataType();
 
             var sqlDbType = GetSqlDbType(column);
 
@@ -235,6 +234,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                     }
                     return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
                 default:
+                    var dataType = column.GetDataType();
+
                     if (dataType != typeof(char))
                     {
                         return new SqlMetaData(column.ColumnName, sqlDbType);
