@@ -204,8 +204,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             long maxLength = column.MaxLength;
             var dataType = column.GetDataType();
 
-            var sqlDbType = this.TableDescription.OriginalProvider == SqlSyncProvider.ProviderType ?
-                this.SqlMetadata.GetSqlDbType(column) : this.SqlMetadata.GetOwnerDbTypeFromDbType(column);
+            var sqlDbType = GetSqlDbType(column);
 
             // Since we validate length before, it's not mandatory here.
             // let's say.. just in case..
@@ -246,6 +245,16 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
             return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
+        }
+
+        private SqlDbType GetSqlDbType(SyncColumn column)
+        {
+            if (this.TableDescription.OriginalProvider == SqlSyncProvider.ProviderType)
+            {
+                return this.SqlMetadata.GetSqlDbType(column);
+            }
+
+            return this.SqlMetadata.GetOwnerDbTypeFromDbType(column);
         }
     }
 }
