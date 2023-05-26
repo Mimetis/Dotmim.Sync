@@ -1,31 +1,23 @@
-﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.SqlServer.Manager;
+﻿using Dotmim.Sync.Enumerations;
+using Microsoft.Data.SqlClient;
+using Microsoft.Data.SqlClient.Server;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
-using Microsoft.Data.SqlClient;
-using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Data.SqlClient.Server;
-using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
     public partial class SqlSyncAdapter : DbSyncAdapter
     {
-
         /// <summary>
         /// Executing a batch command
         /// </summary>
         public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable,
                                                             SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
         {
-
             var applyRowsCount = applyRows.Count();
 
             if (applyRowsCount <= 0)
@@ -34,6 +26,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var syncRowState = SyncRowState.None;
 
             var records = new List<SqlDataRecord>(applyRowsCount);
+
             SqlMetaData[] metadatas = new SqlMetaData[schemaChangesTable.Columns.Count];
 
             for (int i = 0; i < schemaChangesTable.Columns.Count; i++)
@@ -56,104 +49,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                         // Get the default value
                         //var columnType = schemaColumn.GetDataType();
                         dynamic defaultValue = schemaColumn.GetDefaultValue();
-                        dynamic rowValue = row[i];
 
                         // metadatas don't have readonly values, so get from sqlMetadataIndex
                         var sqlMetadataType = metadatas[sqlMetadataIndex].SqlDbType;
 
-                        if (rowValue != null)
-                        {
-                            var columnType = rowValue.GetType();
-
-                            switch (sqlMetadataType)
-                            {
-                                case SqlDbType.BigInt:
-                                    if (columnType != typeof(long))
-                                        rowValue = SyncTypeConverter.TryConvertTo<long>(rowValue);
-                                    break;
-                                case SqlDbType.Bit:
-                                    if (columnType != typeof(bool))
-                                        rowValue = SyncTypeConverter.TryConvertTo<bool>(rowValue);
-                                    break;
-                                case SqlDbType.Date:
-                                case SqlDbType.DateTime:
-                                case SqlDbType.DateTime2:
-                                case SqlDbType.SmallDateTime:
-                                    if (columnType != typeof(DateTime))
-                                        rowValue = SyncTypeConverter.TryConvertTo<DateTime>(rowValue);
-                                    if (sqlMetadataType == SqlDbType.DateTime && rowValue < SqlDateMin)
-                                        rowValue = SqlDateMin;
-                                    if (sqlMetadataType == SqlDbType.SmallDateTime && rowValue < SqlSmallDateMin)
-                                        rowValue = SqlSmallDateMin;
-                                    break;
-                                case SqlDbType.DateTimeOffset:
-                                    if (columnType != typeof(DateTimeOffset))
-                                        rowValue = SyncTypeConverter.TryConvertTo<DateTimeOffset>(rowValue);
-                                    break;
-                                case SqlDbType.Decimal:
-                                    if (columnType != typeof(decimal))
-                                        rowValue = SyncTypeConverter.TryConvertTo<decimal>(rowValue);
-                                    break;
-                                case SqlDbType.Float:
-                                    if (columnType != typeof(double))
-                                        rowValue = SyncTypeConverter.TryConvertTo<double>(rowValue);
-                                    break;
-                                case SqlDbType.Real:
-                                    if (columnType != typeof(float))
-                                        rowValue = SyncTypeConverter.TryConvertTo<float>(rowValue);
-                                    break;
-                                case SqlDbType.Image:
-                                case SqlDbType.Binary:
-                                case SqlDbType.VarBinary:
-                                    if (columnType != typeof(byte[]))
-                                        rowValue = SyncTypeConverter.TryConvertTo<byte[]>(rowValue);
-                                    break;
-                                case SqlDbType.Variant:
-                                    break;
-                                case SqlDbType.Int:
-                                    if (columnType != typeof(int))
-                                        rowValue = SyncTypeConverter.TryConvertTo<int>(rowValue);
-                                    break;
-                                case SqlDbType.Money:
-                                case SqlDbType.SmallMoney:
-                                    if (columnType != typeof(decimal))
-                                        rowValue = SyncTypeConverter.TryConvertTo<decimal>(rowValue);
-                                    break;
-                                case SqlDbType.NChar:
-                                case SqlDbType.NText:
-                                case SqlDbType.VarChar:
-                                case SqlDbType.Xml:
-                                case SqlDbType.NVarChar:
-                                case SqlDbType.Text:
-                                case SqlDbType.Char:
-                                    if (columnType != typeof(string))
-                                        rowValue = SyncTypeConverter.TryConvertTo<string>(rowValue);
-                                    break;
-                                case SqlDbType.SmallInt:
-                                    if (columnType != typeof(short))
-                                        rowValue = SyncTypeConverter.TryConvertTo<short>(rowValue);
-                                    break;
-                                case SqlDbType.Time:
-                                    if (columnType != typeof(TimeSpan))
-                                        rowValue = SyncTypeConverter.TryConvertTo<TimeSpan>(rowValue);
-                                    break;
-                                case SqlDbType.Timestamp:
-                                    break;
-                                case SqlDbType.TinyInt:
-                                    if (columnType != typeof(byte))
-                                        rowValue = SyncTypeConverter.TryConvertTo<byte>(rowValue);
-                                    break;
-                                case SqlDbType.Udt:
-                                    throw new ArgumentException($"Can't use UDT as SQL Type");
-                                case SqlDbType.UniqueIdentifier:
-                                    if (columnType != typeof(Guid))
-                                        rowValue = SyncTypeConverter.TryConvertTo<Guid>(rowValue);
-                                    break;
-                            }
-                        }
-
-                        if (rowValue == null)
-                            rowValue = DBNull.Value;
+                        dynamic rowValue = SetRowValue(row, i, sqlMetadataType);
 
                         record.SetValue(sqlMetadataIndex, rowValue);
                         sqlMetadataIndex++;
@@ -173,7 +73,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlParameters["@changeTable"].Value = records;
 
             if (sqlParameters.Contains("@sync_min_timestamp"))
-                sqlParameters["@sync_min_timestamp"].Value = lastTimestamp.HasValue ? (object)lastTimestamp.Value : DBNull.Value;
+                sqlParameters["@sync_min_timestamp"].Value = lastTimestamp.HasValue ? lastTimestamp.Value : DBNull.Value;
 
             if (sqlParameters.Contains("@sync_scope_id"))
                 sqlParameters["@sync_scope_id"].Value = senderScopeId;
@@ -191,32 +91,22 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 while (dataReader.Read())
                 {
-                    //var itemArray = new object[dataReader.FieldCount];
-                    //var itemArray = new object[failedRows.Columns.Count];
-                    var itemArray = new SyncRow(schemaChangesTable, syncRowState);
+                    var failedRow = new SyncRow(schemaChangesTable, syncRowState);
+
                     for (var i = 0; i < dataReader.FieldCount; i++)
                     {
                         var columnValueObject = dataReader.GetValue(i);
                         var columnName = dataReader.GetName(i);
 
-                        var columnValue = columnValueObject == DBNull.Value ? null : columnValueObject;
-
-                        var failedColumn = failedRows.Columns[columnName];
-                        var failedIndexColumn = failedRows.Columns.IndexOf(failedColumn);
-                        itemArray[failedIndexColumn] = columnValue;
+                        failedRow[columnName] = columnValueObject == DBNull.Value ? null : columnValueObject;
                     }
 
                     // don't care about row state 
                     // Since it will be requested by next request from GetConflict()
-                    failedRows.Rows.Add(itemArray);
+                    failedRows.Rows.Add(failedRow);
                 }
 
                 dataReader.Close();
-
-            }
-            catch (DbException ex)
-            {
-                throw;
             }
             finally
             {
@@ -224,79 +114,148 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 if (!alreadyOpened && connection.State != ConnectionState.Closed)
                     connection.Close();
-
             }
         }
 
+        private static dynamic SetRowValue(SyncRow row, int i, SqlDbType sqlMetadataType)
+        {
+            dynamic rowValue = row[i];
 
+            if (rowValue != null)
+            {
+                switch (sqlMetadataType)
+                {
+                    case SqlDbType.BigInt:
+                        rowValue = SyncTypeConverter.TryConvertTo<long>(rowValue);
+                        break;
+                    case SqlDbType.Bit:
+                        rowValue = SyncTypeConverter.TryConvertTo<bool>(rowValue);
+                        break;
+                    case SqlDbType.Date:
+                    case SqlDbType.DateTime:
+                    case SqlDbType.DateTime2:
+                    case SqlDbType.SmallDateTime:
+                        if (sqlMetadataType == SqlDbType.DateTime && rowValue < SqlDateMin)
+                            rowValue = SqlDateMin;
+                        else if (sqlMetadataType == SqlDbType.SmallDateTime && rowValue < SqlSmallDateMin)
+                            rowValue = SqlSmallDateMin;
+                        else
+                            rowValue = SyncTypeConverter.TryConvertTo<DateTime>(rowValue);
+                        break;
+                    case SqlDbType.DateTimeOffset:
+                        rowValue = SyncTypeConverter.TryConvertTo<DateTimeOffset>(rowValue);
+                        break;
+                    case SqlDbType.Decimal:
+                        rowValue = SyncTypeConverter.TryConvertTo<decimal>(rowValue);
+                        break;
+                    case SqlDbType.Float:
+                        rowValue = SyncTypeConverter.TryConvertTo<double>(rowValue);
+                        break;
+                    case SqlDbType.Real:
+                        rowValue = SyncTypeConverter.TryConvertTo<float>(rowValue);
+                        break;
+                    case SqlDbType.Image:
+                    case SqlDbType.Binary:
+                    case SqlDbType.VarBinary:
+                        rowValue = SyncTypeConverter.TryConvertTo<byte[]>(rowValue);
+                        break;
+                    case SqlDbType.Variant:
+                        break;
+                    case SqlDbType.Int:
+                        rowValue = SyncTypeConverter.TryConvertTo<int>(rowValue);
+                        break;
+                    case SqlDbType.Money:
+                    case SqlDbType.SmallMoney:
+                        rowValue = SyncTypeConverter.TryConvertTo<decimal>(rowValue);
+                        break;
+                    case SqlDbType.NChar:
+                    case SqlDbType.NText:
+                    case SqlDbType.VarChar:
+                    case SqlDbType.Xml:
+                    case SqlDbType.NVarChar:
+                    case SqlDbType.Text:
+                    case SqlDbType.Char:
+                        rowValue = SyncTypeConverter.TryConvertTo<string>(rowValue);
+                        break;
+                    case SqlDbType.SmallInt:
+                        rowValue = SyncTypeConverter.TryConvertTo<short>(rowValue);
+                        break;
+                    case SqlDbType.Time:
+                        rowValue = SyncTypeConverter.TryConvertTo<TimeSpan>(rowValue);
+                        break;
+                    case SqlDbType.Timestamp:
+                        break;
+                    case SqlDbType.TinyInt:
+                        rowValue = SyncTypeConverter.TryConvertTo<byte>(rowValue);
+                        break;
+                    case SqlDbType.Udt:
+                        throw new ArgumentException($"Can't use UDT as SQL Type");
+                    case SqlDbType.UniqueIdentifier:
+                        rowValue = SyncTypeConverter.TryConvertTo<Guid>(rowValue);
+                        break;
+                }
+            }
+
+            return rowValue ?? DBNull.Value;
+        }
 
         private SqlMetaData GetSqlMetadaFromType(SyncColumn column)
         {
             long maxLength = column.MaxLength;
-            var dataType = column.GetDataType();
 
-            var sqlDbType = this.TableDescription.OriginalProvider == SqlSyncProvider.ProviderType ?
-                this.SqlMetadata.GetSqlDbType(column) : this.SqlMetadata.GetOwnerDbTypeFromDbType(column);
+            var sqlDbType = GetSqlDbType(column);
 
             // Since we validate length before, it's not mandatory here.
             // let's say.. just in case..
-            if (sqlDbType == SqlDbType.VarChar || sqlDbType == SqlDbType.NVarChar)
+            switch (sqlDbType)
             {
-                // set value for (MAX) 
-                maxLength = maxLength <= 0 ? SqlMetaData.Max : maxLength;
-
-                // If max length is specified (not (MAX) )
-                if (maxLength > 0)
-                    maxLength = sqlDbType == SqlDbType.NVarChar ? Math.Min(maxLength, 4000) : Math.Min(maxLength, 8000);
-
-                return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
-            }
-
-
-            if (dataType == typeof(char))
-                return new SqlMetaData(column.ColumnName, sqlDbType, 1);
-
-            if (sqlDbType == SqlDbType.Char || sqlDbType == SqlDbType.NChar)
-            {
-                maxLength = maxLength <= 0 ? (sqlDbType == SqlDbType.NChar ? 4000 : 8000) : maxLength;
-                return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
-            }
-
-            if (sqlDbType == SqlDbType.Binary)
-            {
-                maxLength = maxLength <= 0 ? 8000 : maxLength;
-                return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
-            }
-
-            if (sqlDbType == SqlDbType.VarBinary)
-            {
-                // set value for (MAX) 
-                maxLength = maxLength <= 0 ? SqlMetaData.Max : maxLength;
-
-                return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
-            }
-
-            if (sqlDbType == SqlDbType.Decimal)
-            {
-                var (p, s) = this.SqlMetadata.GetPrecisionAndScale(column);
-                if (p > 0 && p > s)
-                {
+                case SqlDbType.NVarChar:
+                    maxLength = maxLength <= 0 ? SqlMetaData.Max : Math.Min(maxLength, 4000);
+                    break;
+                case SqlDbType.VarChar:
+                case SqlDbType.VarBinary:
+                    maxLength = maxLength <= 0 ? SqlMetaData.Max : Math.Min(maxLength, 8000);
+                    break;
+                case SqlDbType.NChar:
+                    maxLength = maxLength <= 0 ? 4000 : maxLength;
+                    break;
+                case SqlDbType.Char:
+                case SqlDbType.Binary:
+                    maxLength = maxLength <= 0 ? 8000 : maxLength;
+                    break;
+                case SqlDbType.Decimal:
+                    var (p, s) = this.SqlMetadata.GetPrecisionAndScale(column);
+                    if (p <= 0 || p <= s)
+                    {
+                        if (p == 0)
+                            p = 18;
+                        if (s == 0)
+                            s = Math.Min((byte)(p - 1), (byte)6);
+                    }
                     return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
-                }
-                else
-                {
-                    if (p == 0)
-                        p = 18;
-                    if (s == 0)
-                        s = Math.Min((byte)(p - 1), (byte)6);
-                    return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
-                }
+                default:
+                    var dataType = column.GetDataType();
 
+                    if (dataType != typeof(char))
+                    {
+                        return new SqlMetaData(column.ColumnName, sqlDbType);
+                    }
+
+                    maxLength = 1;
+                    break;
             }
 
-            return new SqlMetaData(column.ColumnName, sqlDbType);
-
+            return new SqlMetaData(column.ColumnName, sqlDbType, maxLength);
         }
 
+        private SqlDbType GetSqlDbType(SyncColumn column)
+        {
+            if (this.TableDescription.OriginalProvider == SqlSyncProvider.ProviderType)
+            {
+                return this.SqlMetadata.GetSqlDbType(column);
+            }
+
+            return this.SqlMetadata.GetOwnerDbTypeFromDbType(column);
+        }
     }
 }
