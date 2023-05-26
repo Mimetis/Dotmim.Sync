@@ -237,7 +237,7 @@ namespace Dotmim.Sync
                 {
                     var remoteOrchestratorType = this.RemoteOrchestrator.GetType();
                     var providerType = remoteOrchestratorType.Name;
-                    if (providerType.ToLowerInvariant() == "webclientorchestrator" || providerType.ToLowerInvariant() == "webremotetorchestrator")
+                    if (string.Equals(providerType, "webclientorchestrator", SyncGlobalization.DataSourceStringComparison) || string.Equals(providerType, "webremotetorchestrator", SyncGlobalization.DataSourceStringComparison))
                         throw new Exception("Do not set Tables (or SyncSetup) from your client. Please use SyncAgent, without any Tables or SyncSetup. The tables will come from the server side");
                 }
 

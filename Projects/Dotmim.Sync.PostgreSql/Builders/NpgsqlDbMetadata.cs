@@ -397,7 +397,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             }
             return false;
         }
-        public override bool IsReadonly(SyncColumn columnDefinition) => columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp" || columnDefinition.IsCompute;
+        public override bool IsReadonly(SyncColumn columnDefinition) => string.Equals(columnDefinition.OriginalTypeName, "timestamp", SyncGlobalization.DataSourceStringComparison) || columnDefinition.IsCompute;
         public override bool IsSupportingScale(SyncColumn columnDefinition)
         {
             switch (columnDefinition.OriginalTypeName.ToLowerInvariant())

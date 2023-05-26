@@ -340,8 +340,11 @@ namespace Dotmim.Sync.MySql.Builders
                     DefaultValue = c["COLUMN_DEFAULT"].ToString(),
                     ExtraProperty1 = c["column_type"] != DBNull.Value ? c["column_type"].ToString() : null,
                     IsUnsigned = c["column_type"] != DBNull.Value && ((string)c["column_type"]).Contains("unsigned"),
+#if NETSTANDARD2_0
                     IsUnique = c["column_key"] != DBNull.Value && ((string)c["column_key"]).ToLowerInvariant().Contains("uni")
-
+#else
+                    IsUnique = c["column_key"] != DBNull.Value && ((string)c["column_key"]).Contains("uni", SyncGlobalization.DataSourceStringComparison)
+#endif
                 };
 
                 var extra = c["extra"] != DBNull.Value ? ((string)c["extra"]).ToLowerInvariant() : null;

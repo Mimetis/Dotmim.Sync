@@ -224,7 +224,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             _ => false,
         };
         public override bool IsReadonly(SyncColumn columnDefinition)
-            => columnDefinition.OriginalTypeName.ToLowerInvariant() == "timestamp" || columnDefinition.IsCompute;
+            => string.Equals(columnDefinition.OriginalTypeName, "timestamp", SyncGlobalization.DataSourceStringComparison) || columnDefinition.IsCompute;
 
         //------------------------------------------------------------------------
 

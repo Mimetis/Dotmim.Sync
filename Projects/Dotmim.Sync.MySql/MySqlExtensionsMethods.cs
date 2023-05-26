@@ -291,9 +291,13 @@ namespace Dotmim.Sync.MySql
                 row["NUMERIC_PRECISION"] = 10;
                 row["NUMERIC_SCALE"] = 0;
 
-                if (type.ToLowerInvariant() == "numeric" || type.ToLowerInvariant() == "decimal" ||
-                    type.ToLowerInvariant() == "dec" || type.ToLowerInvariant() == "real")
+                if (string.Equals(type, "numeric", SyncGlobalization.DataSourceStringComparison)
+                    || string.Equals(type, "decimal", SyncGlobalization.DataSourceStringComparison)
+                    || string.Equals(type, "dec", SyncGlobalization.DataSourceStringComparison)
+                    || string.Equals(type, "real", SyncGlobalization.DataSourceStringComparison))
+                {
                     format = "({0})";
+                }
 
                 return String.Format(format, row["NUMERIC_PRECISION"],
                     row["NUMERIC_SCALE"]);
