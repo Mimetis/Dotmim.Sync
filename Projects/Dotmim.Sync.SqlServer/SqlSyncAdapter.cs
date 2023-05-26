@@ -30,8 +30,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         public static DateTime SqlDateMin = new DateTime(1753, 1, 1);
 
         public static DateTime SqlSmallDateMin = new DateTime(1900, 1, 1);
-        public SqlObjectNames SqlObjectNames { get; set; }
-        public SqlDbMetadata SqlMetadata { get; set; }
+        public SqlObjectNames SqlObjectNames { get; }
+        public SqlDbMetadata SqlMetadata { get; }
 
         private readonly ParserName tableName;
         private readonly ParserName trackingName;
