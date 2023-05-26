@@ -39,10 +39,10 @@ namespace Dotmim.Sync.MySql.Builders
         /// </summary>
         public static string NormalizeRelationName(string relation)
         {
-            if (createdRelationNames.ContainsKey(relation))
-                return createdRelationNames[relation];
+            if (createdRelationNames.TryGetValue(relation, out var name))
+                return name;
 
-            var name = relation;
+            name = relation;
 
             if (relation.Length > 65)
                 name = $"{relation.Substring(0, 50)}_{GetRandomString()}";
@@ -51,6 +51,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             return name;
         }
+
         public MySqlBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
             this.tableDescription = tableDescription;
