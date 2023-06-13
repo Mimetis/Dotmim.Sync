@@ -34,10 +34,10 @@ namespace Dotmim.Sync
         public bool IsAutoIncrement { get; set; }
 
         [DataMember(Name = "seed", IsRequired = false, EmitDefaultValue = false, Order = 7)]
-        public int AutoIncrementSeed { get; set; }
+        public long AutoIncrementSeed { get; set; }
 
         [DataMember(Name = "step", IsRequired = false, EmitDefaultValue = false, Order = 8)]
-        public int AutoIncrementStep { get; set; }
+        public long AutoIncrementStep { get; set; }
 
         [DataMember(Name = "ius", IsRequired = false, EmitDefaultValue = false, Order = 9)]
         public bool IsUnsigned { get; set; }
@@ -338,7 +338,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get auto inc values, coercing Step
         /// </summary>
-        public (int Seed, int Step) GetAutoIncrementSeedAndStep()
+        public (long Seed, long Step) GetAutoIncrementSeedAndStep()
         {
             var seed = this.AutoIncrementSeed;
             var step = this.AutoIncrementStep <= 0 ? 1 : this.AutoIncrementStep;

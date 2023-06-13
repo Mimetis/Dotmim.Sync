@@ -209,27 +209,13 @@ internal class Program
 
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-        CancellationTokenSource cts = null;
-        
-        agent.LocalOrchestrator.OnRowsChangesSelected(rcsa =>
-        {
-            Console.WriteLine($"OnRowsChangesSelected: {rcsa.SyncRow}");
-
-            Console.Write("Cancel sync ? [Y] / [N]: ");
-            var key = Console.ReadKey();
-            Console.WriteLine();
-            
-            if (key != null && key.Key == ConsoleKey.Y)
-                cts.Cancel();
-        });
-
+        setup = new SyncSetup("Items");
         do
         {
             try
             {
                 Console.ForegroundColor = ConsoleColor.Green;
-                cts = new CancellationTokenSource();
-                var s = await agent.SynchronizeAsync(scopeName, setup, SyncType.Normal, null, cts.Token, progress);
+                var s = await agent.SynchronizeAsync(scopeName, setup, SyncType.Normal, default, default, progress);
                 Console.WriteLine(s);
             }
             catch (SyncException e)

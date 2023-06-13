@@ -265,8 +265,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 if (sColumn.IsAutoIncrement)
                 {
-                    sColumn.AutoIncrementSeed = Convert.ToInt32(c["seed"]);
-                    sColumn.AutoIncrementStep = Convert.ToInt32(c["step"]);
+                    sColumn.AutoIncrementSeed = Convert.ToInt64(c["seed"]);
+                    sColumn.AutoIncrementStep = Convert.ToInt64(c["step"]);
                 }
 
                 switch (sColumn.OriginalTypeName.ToLowerInvariant())
