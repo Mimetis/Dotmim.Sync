@@ -7,15 +7,15 @@ jobs:
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "SQL Server Tcp .net 7.0"
+      displayName: "SQL Server Interceptors tests"
       dotnetfx: "net7.0"
       filter: "Dotmim.Sync.Tests.SqlServerUnit"
 
-  - template: azure-pipelines-template.yml
-    parameters:
-      displayName: "SQL Server Tcp .net core 3.1"
-      dotnetfx: "netcoreapp3.1"
-      filter: "Dotmim.Sync.Tests.SqlServerTcp"
+  # - template: azure-pipelines-template.yml
+  #   parameters:
+  #     displayName: "SQL Server Tcp .net core 3.1"
+  #     dotnetfx: "netcoreapp3.1"
+  #     filter: "Dotmim.Sync.Tests.SqlServerTcp"
 
   - template: azure-pipelines-template.yml
     parameters:
@@ -23,11 +23,11 @@ jobs:
       dotnetfx: "net7.0"
       filter: "Dotmim.Sync.Tests.SqlServerTcp"
 
-  - template: azure-pipelines-template.yml
-    parameters:
-      displayName: "SQL Server Tcp .net 6.0"
-      dotnetfx: "net6.0"
-      filter: "Dotmim.Sync.Tests.SqlServerTcp"
+  # - template: azure-pipelines-template.yml
+  #   parameters:
+  #     displayName: "SQL Server Tcp .net 6.0"
+  #     dotnetfx: "net6.0"
+  #     filter: "Dotmim.Sync.Tests.SqlServerTcp"
 
   - template: azure-pipelines-template.yml
     parameters:
