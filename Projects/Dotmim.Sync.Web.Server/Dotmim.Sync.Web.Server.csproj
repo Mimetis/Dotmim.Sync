@@ -19,7 +19,7 @@
 		<AssemblyName>Dotmim.Sync.Web.Server</AssemblyName>
 		<RootNamespace>Dotmim.Sync.Web.Server</RootNamespace>
 		<VersionSuffix>$(VersionSuffix)</VersionSuffix>
-		<Version>0.9.9</Version>
+		<Version>1.0.0</Version>
 		<Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
