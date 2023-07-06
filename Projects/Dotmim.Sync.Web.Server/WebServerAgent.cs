@@ -29,9 +29,8 @@ namespace Dotmim.Sync.Web.Server
             this.Setup = setup;
             this.WebServerOptions = webServerOptions ?? new WebServerOptions();
             this.ScopeName = scopeName;
-            this.Options = options ?? new SyncOptions();
             this.Provider = provider;
-            this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, this.Options);
+            this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, options ?? new SyncOptions());
         }
 
         /// <summary>
@@ -42,14 +41,12 @@ namespace Dotmim.Sync.Web.Server
             this.Setup = new SyncSetup(tables);
             this.WebServerOptions = webServerOptions ?? new WebServerOptions();
             this.ScopeName = scopeName;
-            this.Options = options ?? new SyncOptions();
             this.Provider = provider;
-            this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, this.Options);
+            this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, options ?? new SyncOptions());
         }
 
 
-        private static object locker = new object();
-        private static bool s_CheckUpgradeDone;
+        private static bool checkUpgradeDone;
 
 
         /// Client Converter
@@ -63,7 +60,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Gets or Sets the options used in this webServerAgent
         /// </summary>
-        public SyncOptions Options { get; set; }
+        public SyncOptions Options => this.RemoteOrchestrator?.Options;
 
         /// <summary>
         /// Gets or Sets the options used in this webServerAgent
@@ -323,7 +320,7 @@ namespace Dotmim.Sync.Web.Server
 
         private static async Task UpgradeAsync(RemoteOrchestrator remoteOrchestrator)
         {
-            if (s_CheckUpgradeDone)
+            if (checkUpgradeDone)
                 return;
 
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
@@ -332,7 +329,7 @@ namespace Dotmim.Sync.Web.Server
             if (needToUpgrade)
                 await remoteOrchestrator.InternalUpgradeAsync(context).ConfigureAwait(false);
 
-            s_CheckUpgradeDone = true;
+            checkUpgradeDone = true;
         }
 
         /// <summary>
