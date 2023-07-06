@@ -13,7 +13,11 @@ namespace Dotmim.Sync.Serialization
     /// </summary>
     public class LocalJsonSerializer
     {
-        private static readonly JsonSerializer serializer = new() { DateParseHandling = DateParseHandling.DateTimeOffset };
+        private static readonly JsonSerializer serializer = new()
+        {
+            DateParseHandling = DateParseHandling.DateTimeOffset,
+            FloatParseHandling = FloatParseHandling.Decimal
+        };
 
         private StreamWriter sw;
         private JsonTextWriter writer;
@@ -304,6 +308,7 @@ namespace Dotmim.Sync.Serialization
 
             using var reader = new JsonTextReader(new StreamReader(path));
             reader.DateParseHandling = DateParseHandling.DateTimeOffset;
+            reader.FloatParseHandling = FloatParseHandling.Decimal;
             SyncRowState state = SyncRowState.None;
 
             string tableName = null, schemaName = null;

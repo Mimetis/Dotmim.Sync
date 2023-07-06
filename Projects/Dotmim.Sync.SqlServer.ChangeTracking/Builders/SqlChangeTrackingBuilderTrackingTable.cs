@@ -57,15 +57,16 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         {
             var command = connection.CreateCommand();
 
-            if (setup.HasTableWithColumns(tableDescription.TableName))
-            {
-                command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = ON);";
-            }
-            else
-            {
-                command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);";
-            }
+            //if (setup.HasTableWithColumns(tableDescription.TableName))
+            //{
+            //    command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = ON);";
+            //}
+            //else
+            //{
+            //    command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);";
+            //}
 
+            command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted()} ENABLE CHANGE_TRACKING;";
             command.Connection = connection;
             command.Transaction = transaction;
 
