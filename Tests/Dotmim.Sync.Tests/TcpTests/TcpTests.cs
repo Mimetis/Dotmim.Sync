@@ -1706,7 +1706,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
+#pragma warning disable SYSLIB0022 // Type or member is obsolete
             var myRijndael = new RijndaelManaged();
+#pragma warning restore SYSLIB0022 // Type or member is obsolete
             myRijndael.GenerateKey();
             myRijndael.GenerateIV();
 

@@ -84,10 +84,11 @@ internal class Program
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        var setup = new SyncSetup(allTables);
-        //var setup = new SyncSetup(oneTable);
+        //var setup = new SyncSetup(allTables);
+        var setup = new SyncSetup(oneTable);
 
         var options = new SyncOptions();
+        options.CleanFolder = false;
         //options.Logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Information);
         //options.UseVerboseErrors = true;
 
@@ -107,9 +108,9 @@ internal class Program
         //options.SnapshotsDirectory = Path.Combine("C:\\Tmp\\Snapshots");
 
 
-        // await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
+        await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        // await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
         //await AddRemoveRemoveAsync();
     }
@@ -196,8 +197,6 @@ internal class Program
         Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
 
     }
-
-
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -232,8 +231,6 @@ internal class Program
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
     }
-
-
     static async Task ScenarioPluginLogsAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
         // Creating an agent that will handle all the process
@@ -540,9 +537,6 @@ internal class Program
 
 
     }
-
-
-
     private static async Task AddColumnsToProductCategoryAsync(CoreProvider provider)
     {
         var commandText = @"ALTER TABLE dbo.ProductCategory ADD CreatedDate datetime NULL;";
@@ -559,7 +553,6 @@ internal class Program
 
         connection.Close();
     }
-
     private static async Task UpdateAllProductCategoryAsync(CoreProvider provider, string addedString)
     {
         string commandText = "Update ProductCategory Set Name = Name + @addedString";
@@ -581,8 +574,6 @@ internal class Program
 
         connection.Close();
     }
-
-
     private static async Task AddProductRowAsync(CoreProvider provider)
     {
 
@@ -630,7 +621,6 @@ internal class Program
         connection.Close();
 
     }
-
     private static async Task AddProductCategoryRowWithOneMoreColumnAsync(CoreProvider provider)
     {
 
@@ -678,8 +668,6 @@ internal class Program
         connection.Close();
 
     }
-
-
 
     public static async Task SyncHttpThroughKestrellAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {

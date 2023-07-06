@@ -26,6 +26,12 @@ namespace Dotmim.Sync.Sqlite
             return dbMetadata;
         }
 
+        public override string ConnectionString
+        {
+            get => builder == null || string.IsNullOrEmpty(builder.ConnectionString) ? null : builder.ConnectionString;
+            set => this.builder = string.IsNullOrEmpty(value) ? null : new SqliteConnectionStringBuilder(value);
+        }
+
         public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnDatabaseLevel;
 
         /// <summary>
@@ -85,22 +91,7 @@ namespace Dotmim.Sync.Sqlite
 
                     return null;
                 }
-                
-            }
-        }
 
-        public override string ConnectionString
-        {
-            get
-            {
-                if (builder == null)
-                    return null;
-
-                return builder.ConnectionString;
-            }
-            set
-            {
-                this.builder = new SqliteConnectionStringBuilder(value);
             }
         }
 
@@ -147,7 +138,7 @@ namespace Dotmim.Sync.Sqlite
 
         public override string GetDatabaseName()
         {
-            if (builder != null && !String.IsNullOrEmpty(builder.DataSource))
+            if (builder != null && !string.IsNullOrEmpty(builder.DataSource))
                 return builder.DataSource;
 
             return string.Empty;

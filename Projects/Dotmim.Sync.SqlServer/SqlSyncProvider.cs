@@ -20,24 +20,26 @@ namespace Dotmim.Sync.SqlServer
         public SqlSyncProvider() : base()
         { }
 
-        public SqlSyncProvider(string connectionString) : base()
+        public override string ConnectionString
         {
-            this.ConnectionString = connectionString;
-
-            if (!string.IsNullOrEmpty(this.ConnectionString))
+            get => builder == null || string.IsNullOrEmpty(builder.ConnectionString) ? null : builder.ConnectionString;
+            set
             {
-                this.builder = new SqlConnectionStringBuilder(this.ConnectionString);
-                this.SupportsMultipleActiveResultSets = this.builder.MultipleActiveResultSets;
+                this.builder = string.IsNullOrEmpty(value) ? null : new SqlConnectionStringBuilder(value);
+                this.SupportsMultipleActiveResultSets = this.builder != null && this.builder.MultipleActiveResultSets;
             }
         }
 
+        public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
+
+        public SqlSyncProvider(string connectionString) : base() => this.ConnectionString = connectionString;
+
         public SqlSyncProvider(SqlConnectionStringBuilder builder) : base()
         {
-            if (string.IsNullOrEmpty(builder.ConnectionString))
+            if (builder == null || string.IsNullOrEmpty(builder.ConnectionString))
                 throw new Exception("You have to provide parameters to the Sql builder to be able to construct a valid connection string.");
 
             this.builder = builder;
-            this.ConnectionString = builder.ConnectionString;
             this.SupportsMultipleActiveResultSets = builder.MultipleActiveResultSets;
         }
 
@@ -115,12 +117,10 @@ namespace Dotmim.Sync.SqlServer
 
         public override void EnsureSyncException(SyncException syncException)
         {
-            if (!string.IsNullOrEmpty(this.ConnectionString))
+            if (this.builder != null && !string.IsNullOrEmpty(this.builder.ConnectionString))
             {
-                var builder = new SqlConnectionStringBuilder(this.ConnectionString);
-
-                syncException.DataSource = builder.DataSource;
-                syncException.InitialCatalog = builder.InitialCatalog;
+                syncException.DataSource = this.builder.DataSource;
+                syncException.InitialCatalog = this.builder.InitialCatalog;
             }
 
             // Can add more info from SqlException
@@ -160,7 +160,6 @@ namespace Dotmim.Sync.SqlServer
             return (originalTableName, trackingTableName);
         }
 
-        public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqlScopeBuilder(scopeInfoTableName);
 
         /// <summary>

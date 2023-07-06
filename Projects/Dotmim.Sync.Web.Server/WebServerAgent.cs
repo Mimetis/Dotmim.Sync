@@ -145,7 +145,7 @@ namespace Dotmim.Sync.Web.Server
                 await httpContext.Session.LoadAsync(cancellationToken);
 
                 // Get schema and clients batch infos / summaries, from session
-                var schema = httpContext.Session.Get<SyncSet>(scopeName);
+                //var schema = httpContext.Session.Get<SyncSet>(scopeName);
                 var sessionCache = httpContext.Session.Get<SessionCache>(sessionId);
 
                 // HttpStep.EnsureSchema is the first call from client when client is new
@@ -282,7 +282,7 @@ namespace Dotmim.Sync.Web.Server
                         break;
                 }
 
-                httpContext.Session.Set(scopeName, schema);
+                //httpContext.Session.Set(scopeName, schema);
                 httpContext.Session.Set(sessionId, sessionCache);
                 await httpContext.Session.CommitAsync(cancellationToken);
 
