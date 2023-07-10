@@ -137,7 +137,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var kestrell = new KestrellTestServer(false);
 
             // configure server orchestrator
-            kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, scopeName, setup);
+            kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup);
 
             var serviceUri = kestrell.Run();
 
@@ -191,7 +191,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var kestrell = new KestrellTestServer(false);
 
             // configure server orchestrator
-            kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, scopeName, setup);
+            kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup);
             var serviceUri = kestrell.Run();
 
             var remoteOrchestrator = new WebRemoteOrchestrator(serviceUri);

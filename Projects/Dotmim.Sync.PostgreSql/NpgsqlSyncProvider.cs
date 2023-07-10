@@ -20,20 +20,19 @@ namespace Dotmim.Sync.PostgreSql
 
 
         public NpgsqlSyncProvider() : base() { }
-        public NpgsqlSyncProvider(string connectionString) : base()
-        {
-            this.ConnectionString = connectionString;
 
-            if (!string.IsNullOrEmpty(this.ConnectionString))
-                this.builder = new NpgsqlConnectionStringBuilder(this.ConnectionString);
+        public override string ConnectionString
+        {
+            get => builder == null || string.IsNullOrEmpty(builder.ConnectionString) ? null : builder.ConnectionString;
+            set => this.builder = string.IsNullOrEmpty(value) ? null : new NpgsqlConnectionStringBuilder(value);
         }
+        public NpgsqlSyncProvider(string connectionString) : base() => this.ConnectionString = connectionString;
         public NpgsqlSyncProvider(NpgsqlConnectionStringBuilder builder) : base()
         {
-            if (String.IsNullOrEmpty(builder.ConnectionString))
+            if (builder == null || string.IsNullOrEmpty(builder.ConnectionString))
                 throw new Exception("You have to provide parameters to the Npgsql builder to be able to construct a valid connection string.");
 
             this.builder = builder;
-            this.ConnectionString = builder.ConnectionString;
         }
         public static string ProviderType
         {
@@ -68,11 +67,7 @@ namespace Dotmim.Sync.PostgreSql
             }
         }
 
-        public override DbConnection CreateConnection()
-        {
-            var connection = new NpgsqlConnection(this.ConnectionString);
-            return connection;
-        }
+        public override DbConnection CreateConnection() => new NpgsqlConnection(this.ConnectionString);
 
 
         /// <summary>

@@ -20,7 +20,8 @@ namespace Dotmim.Sync.Tests.Misc
 {
     public abstract class DatabaseTest : IDisposable
     {
-        private Stopwatch initializeStopwatch;
+        private Stopwatch preWorkStopwatch;
+        private Stopwatch postWorkStopwatch;
 
         /// <summary>
         /// Gets the tables used for sync
@@ -156,7 +157,7 @@ namespace Dotmim.Sync.Tests.Misc
             // Create a kestrell server
             this.Kestrell = new KestrellTestServer(this.UseFiddler);
 
-            initializeStopwatch = Stopwatch.StartNew();
+            preWorkStopwatch = Stopwatch.StartNew();
 
             SqlConnection.ClearAllPools();
             MySqlConnection.ClearAllPools();
@@ -164,7 +165,7 @@ namespace Dotmim.Sync.Tests.Misc
 
             CreateDatabases();
 
-            initializeStopwatch.Stop();
+            preWorkStopwatch.Stop();
 
             this.Stopwatch = Stopwatch.StartNew();
         }
@@ -185,20 +186,8 @@ namespace Dotmim.Sync.Tests.Misc
         {
             var (serverProviderType, serverDatabaseName) = HelperDatabase.GetDatabaseType(GetServerProvider());
 
-            if (!Setup.IsOnAzureDev)
-                HelperDatabase.DropDatabase(serverProviderType, serverDatabaseName);
-
-            foreach (var clientProvider in GetClientProviders())
-            {
-                // HelperDatabase.GetDatabaseType(clientProvider);
-                var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
-
-                if (!Setup.IsOnAzureDev)
-                    HelperDatabase.DropDatabase(clientProviderType, clientDatabaseName);
-            }
-
             new AdventureWorksContext(GetServerProvider(), true).Database.EnsureCreated();
-            
+
             if (serverProviderType == ProviderType.Sql)
                 HelperDatabase.ActivateChangeTracking(serverDatabaseName).GetAwaiter().GetResult();
 
@@ -221,8 +210,10 @@ namespace Dotmim.Sync.Tests.Misc
             //    foreach (ReflectionParameterInfo methodParameter in methodParameters)
             //        parameters.Append($"{methodParameter.Name}:{methodParameter.ParameterInfo.DefaultValue}. ");
 
-            var overallTime = $"[Overall :{Fixture.OverallStopwatch.Elapsed.Minutes}:{Fixture.OverallStopwatch.Elapsed.Seconds}.{Fixture.OverallStopwatch.Elapsed.Milliseconds}]";
-            var preparationTime = $"[Prework :{this.initializeStopwatch.Elapsed.Minutes}:{this.initializeStopwatch.Elapsed.Seconds}.{this.initializeStopwatch.Elapsed.Milliseconds}]";
+            //var overallTime = $"[Overall :{Fixture.OverallStopwatch.Elapsed.Minutes}:{Fixture.OverallStopwatch.Elapsed.Seconds}.{Fixture.OverallStopwatch.Elapsed.Milliseconds}]";
+            var preWorkEllapsedTime = $"[Pre :{this.preWorkStopwatch.Elapsed.Minutes}:{this.preWorkStopwatch.Elapsed.Seconds}.{this.preWorkStopwatch.Elapsed.Milliseconds}]";
+            var postWorkEllapsedTime = $"[Post :{this.postWorkStopwatch.Elapsed.Minutes}:{this.postWorkStopwatch.Elapsed.Seconds}.{this.postWorkStopwatch.Elapsed.Milliseconds}]";
+            var workEllapsedTime = $"[Test: {this.Stopwatch.Elapsed.Minutes}:{this.Stopwatch.Elapsed.Seconds}.{this.Stopwatch.Elapsed.Milliseconds}]";
             var testClass = this.Test.TestCase.TestMethod.TestClass.Class as ReflectionTypeInfo;
 
             string clientsDbName = "";
@@ -236,7 +227,7 @@ namespace Dotmim.Sync.Tests.Misc
             var serverDbName = $"[Server {GetServerProvider().GetDatabaseName()}]";
             clientsDbName = $"[Clients {clientsDbName}]";
 
-            t = $"{testClass.Type.Name}.{this.Test.TestCase.Method.Name}{t}: {serverDbName} - {clientsDbName} - {overallTime} - {preparationTime} - {this.Stopwatch.Elapsed.Minutes}:{this.Stopwatch.Elapsed.Seconds}.{this.Stopwatch.Elapsed.Milliseconds}.";
+            t = $"{testClass.Type.Name}.{this.Test.TestCase.Method.Name}{t}: {serverDbName}-{clientsDbName} - {preWorkEllapsedTime}-{postWorkEllapsedTime} - {workEllapsedTime}.";
             Console.WriteLine(t);
             Debug.WriteLine(t);
             this.Output.WriteLine(t);
@@ -244,8 +235,29 @@ namespace Dotmim.Sync.Tests.Misc
 
         public void Dispose()
         {
-
             this.Stopwatch.Stop();
+
+            this.postWorkStopwatch = Stopwatch.StartNew();
+
+            var serverProvider = GetServerProvider();
+            if (serverProvider.UseShouldDropDatabase())
+            {
+                var (serverProviderType, serverDatabaseName) = HelperDatabase.GetDatabaseType(serverProvider);
+                HelperDatabase.DropDatabase(serverProviderType, serverDatabaseName);
+            }
+
+            foreach (var clientProvider in GetClientProviders())
+            {
+                if (clientProvider.UseShouldDropDatabase())
+                {
+                    // HelperDatabase.GetDatabaseType(clientProvider);
+                    var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+
+                    HelperDatabase.DropDatabase(clientProviderType, clientDatabaseName);
+                }
+            }
+
+            this.postWorkStopwatch.Stop();
 
             OutputCurrentState();
         }

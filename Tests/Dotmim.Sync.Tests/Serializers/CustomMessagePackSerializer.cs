@@ -22,7 +22,9 @@ namespace Dotmim.Sync.Tests.Serializers
     {
         public CustomMessagePackSerializer() { }
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
         public async Task<T> DeserializeAsync<T>(Stream ms)
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
         {
             var val = (T)MessagePackSerializer.Typeless.Deserialize(ms);
             return val;

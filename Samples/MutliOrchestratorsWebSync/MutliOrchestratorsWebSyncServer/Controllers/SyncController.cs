@@ -18,7 +18,7 @@ namespace MutliOrchestratorsWebSyncServer.Controllers
         private IEnumerable<WebServerAgent> webserverAgents;
 
         // Injected thanks to Dependency Injection
-        public SyncController(IEnumerable<WebServerAgent> webServerAgents) 
+        public SyncController(IEnumerable<WebServerAgent> webServerAgents)
             => this.webserverAgents = webServerAgents;
 
         /// <summary>
@@ -28,9 +28,9 @@ namespace MutliOrchestratorsWebSyncServer.Controllers
         [HttpPost]
         public async Task Post()
         {
-            var scopeName = HttpContext.GetScopeName();
+            var identifier = HttpContext.GetIdentifier();
 
-            var webserverAgent = webserverAgents.FirstOrDefault(c => c.ScopeName == scopeName);
+            var webserverAgent = webserverAgents.FirstOrDefault(wsa => wsa.Identifier == identifier);
 
             await webserverAgent.HandleRequestAsync(HttpContext).ConfigureAwait(false);
 

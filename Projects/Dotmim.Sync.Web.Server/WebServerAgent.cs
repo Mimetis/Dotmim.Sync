@@ -21,36 +21,32 @@ namespace Dotmim.Sync.Web.Server
 {
     public class WebServerAgent
     {
+        private static bool checkUpgradeDone;
+
         /// <summary>
         /// Default ctor. Using default options and schema
         /// </summary>
-        public WebServerAgent(CoreProvider provider, SyncSetup setup, SyncOptions options = null, WebServerOptions webServerOptions = null, string scopeName = SyncOptions.DefaultScopeName)
+        public WebServerAgent(CoreProvider provider, SyncSetup setup, SyncOptions options = null, WebServerOptions webServerOptions = null, string identifier = null)
         {
             this.Setup = setup;
             this.WebServerOptions = webServerOptions ?? new WebServerOptions();
-            this.ScopeName = scopeName;
-            this.Options = options ?? new SyncOptions();
             this.Provider = provider;
-            this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, this.Options);
+            this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, options ?? new SyncOptions());
+            this.Identifier = identifier;
         }
 
         /// <summary>
         /// Default ctor. Using default options and schema
         /// </summary>
-        public WebServerAgent(CoreProvider provider, string[] tables, SyncOptions options = null, WebServerOptions webServerOptions = null, string scopeName = SyncOptions.DefaultScopeName)
+        public WebServerAgent(CoreProvider provider, string[] tables, SyncOptions options = null, WebServerOptions webServerOptions = null, string identifier = null)
         {
             this.Setup = new SyncSetup(tables);
             this.WebServerOptions = webServerOptions ?? new WebServerOptions();
-            this.ScopeName = scopeName;
-            this.Options = options ?? new SyncOptions();
             this.Provider = provider;
-            this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, this.Options);
+            this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, options ?? new SyncOptions());
+            this.Identifier = identifier;
+
         }
-
-
-        private static object locker = new object();
-        private static bool s_CheckUpgradeDone;
-
 
         /// Client Converter
         private IConverter clientConverter;
@@ -63,7 +59,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Gets or Sets the options used in this webServerAgent
         /// </summary>
-        public SyncOptions Options { get; set; }
+        public SyncOptions Options => this.RemoteOrchestrator?.Options;
 
         /// <summary>
         /// Gets or Sets the options used in this webServerAgent
@@ -76,9 +72,10 @@ namespace Dotmim.Sync.Web.Server
         public WebServerOptions WebServerOptions { get; set; }
 
         /// <summary>
-        /// Gets or Sets the scope name used in this webServerAgent
+        /// Gets or Sets an identifier used to identify your webServerAgent.
+        /// Can be really usefull in multi sync scenarios
         /// </summary>
-        public string ScopeName { get; set; }
+        public string Identifier { get; set; }
 
         /// <summary>
         /// Gets or sets the RemoteOrchestrator used in this webServerAgent
@@ -145,7 +142,7 @@ namespace Dotmim.Sync.Web.Server
                 await httpContext.Session.LoadAsync(cancellationToken);
 
                 // Get schema and clients batch infos / summaries, from session
-                var schema = httpContext.Session.Get<SyncSet>(scopeName);
+                //var schema = httpContext.Session.Get<SyncSet>(scopeName);
                 var sessionCache = httpContext.Session.Get<SessionCache>(sessionId);
 
                 // HttpStep.EnsureSchema is the first call from client when client is new
@@ -256,33 +253,33 @@ namespace Dotmim.Sync.Web.Server
                         messageResponse = await this.ApplyThenGetChangesAsync2(httpContext, sendChangesRequest, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
                         break;
                     case HttpStep.GetMoreChanges:
-                        messageResponse = await this.GetMoreChangesAsync(httpContext, (HttpMessageGetMoreChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false); ;
+                        messageResponse = await this.GetMoreChangesAsync(httpContext, (HttpMessageGetMoreChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false);
                         break;
                     case HttpStep.GetSnapshot:
                         messageResponse = await this.GetSnapshotAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, sessionCache, cancellationToken, progress);
                         break;
                     // version >= 0.8    
                     case HttpStep.GetSummary:
-                        messageResponse = await this.GetSnapshotSummaryAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false); ;
+                        messageResponse = await this.GetSnapshotSummaryAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false);
                         break;
                     case HttpStep.SendEndDownloadChanges:
-                        messageResponse = await this.SendEndDownloadChangesAsync(httpContext, (HttpMessageGetMoreChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false); ;
+                        messageResponse = await this.SendEndDownloadChangesAsync(httpContext, (HttpMessageGetMoreChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false);
                         break;
                     case HttpStep.GetEstimatedChangesCount:
-                        messageResponse = await this.GetEstimatedChangesCountAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false); ;
+                        messageResponse = await this.GetEstimatedChangesCountAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false);
                         break;
                     case HttpStep.GetRemoteClientTimestamp:
-                        messageResponse = await this.GetRemoteClientTimestampAsync(httpContext, (HttpMessageRemoteTimestampRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false); ;
+                        messageResponse = await this.GetRemoteClientTimestampAsync(httpContext, (HttpMessageRemoteTimestampRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false);
                         break;
                     case HttpStep.GetOperation:
-                        messageResponse = await this.GetOperationAsync(httpContext, (HttpMessageOperationRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false); ;
+                        messageResponse = await this.GetOperationAsync(httpContext, (HttpMessageOperationRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false);
                         break;
                     case HttpStep.EndSession:
-                        messageResponse = await this.EndSessionAsync(httpContext, (HttpMessageEndSessionRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false); ;
+                        messageResponse = await this.EndSessionAsync(httpContext, (HttpMessageEndSessionRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false);
                         break;
                 }
 
-                httpContext.Session.Set(scopeName, schema);
+                //httpContext.Session.Set(scopeName, schema);
                 httpContext.Session.Set(sessionId, sessionCache);
                 await httpContext.Session.CommitAsync(cancellationToken);
 
@@ -323,7 +320,7 @@ namespace Dotmim.Sync.Web.Server
 
         private static async Task UpgradeAsync(RemoteOrchestrator remoteOrchestrator)
         {
-            if (s_CheckUpgradeDone)
+            if (checkUpgradeDone)
                 return;
 
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
@@ -332,7 +329,7 @@ namespace Dotmim.Sync.Web.Server
             if (needToUpgrade)
                 await remoteOrchestrator.InternalUpgradeAsync(context).ConfigureAwait(false);
 
-            s_CheckUpgradeDone = true;
+            checkUpgradeDone = true;
         }
 
         /// <summary>
@@ -738,7 +735,7 @@ namespace Dotmim.Sync.Web.Server
             var cleanFolder = this.Options.CleanFolder;
 
             if (cleanFolder)
-                cleanFolder = await this.RemoteOrchestrator.InternalCanCleanFolderAsync(ScopeName,
+                cleanFolder = await this.RemoteOrchestrator.InternalCanCleanFolderAsync(httpMessage.SyncContext.ScopeName,
                     context.Parameters, sessionCache.ClientBatchInfo, default).ConfigureAwait(false);
 
             if (cleanFolder)
@@ -859,7 +856,7 @@ namespace Dotmim.Sync.Web.Server
             var cleanFolder = (batchPartInfo == null || batchPartInfo.IsLastBatch) && this.Options.CleanFolder;
 
             if (cleanFolder)
-                cleanFolder = await this.RemoteOrchestrator.InternalCanCleanFolderAsync(ScopeName, httpMessage.SyncContext.Parameters, sessionCache.ServerBatchInfo, default).ConfigureAwait(false);
+                cleanFolder = await this.RemoteOrchestrator.InternalCanCleanFolderAsync(httpMessage.SyncContext.ScopeName, httpMessage.SyncContext.Parameters, sessionCache.ServerBatchInfo, default).ConfigureAwait(false);
 
             if (cleanFolder)
                 sessionCache.ServerBatchInfo.TryRemoveDirectory();
@@ -1020,10 +1017,6 @@ namespace Dotmim.Sync.Web.Server
                     stringBuilder.AppendLine("</li>");
                     stringBuilder.AppendLine("</ul>");
                 }
-
-                stringBuilder.AppendLine("<ul class='list-group mb-2'>");
-                stringBuilder.AppendLine($"<li class='list-group-item active'>ScopeName: {webServerAgent.ScopeName}</li>");
-                stringBuilder.AppendLine("</ul>");
 
                 var s = JsonConvert.SerializeObject(webServerAgent.Setup, Formatting.Indented);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
