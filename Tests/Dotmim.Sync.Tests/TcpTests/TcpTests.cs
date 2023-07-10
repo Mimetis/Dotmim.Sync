@@ -336,10 +336,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             foreach (var clientProvider in clientsProvider)
             {
-                var (dbtype, _) = HelperDatabase.GetDatabaseType(clientProvider);
+                var (clientProviderType, _) = HelperDatabase.GetDatabaseType(clientProvider);
 
-                var badClientProvider = HelperDatabase.GetSyncProvider(dbtype, HelperDatabase.GetRandomName("tcp_bad_cli"));
-                badClientProvider.ConnectionString = $@"/dev/null/foo;";
+                var badClientProvider = HelperDatabase.GetSyncProvider(clientProviderType, HelperDatabase.GetRandomName("tcp_bad_cli"));
+                if (clientProviderType == ProviderType.Sqlite)
+                    badClientProvider.ConnectionString = $@"Data Source=/dev/null/foo;";
+                else
+                    badClientProvider.ConnectionString = $@"Server=unknown;Database=unknown;UID=sa;PWD=unknown";
+
                 badClientsProviders.Add(badClientProvider);
             }
 

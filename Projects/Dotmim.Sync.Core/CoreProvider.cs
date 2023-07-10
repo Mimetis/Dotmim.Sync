@@ -96,7 +96,6 @@ namespace Dotmim.Sync
         /// </summary>
         public abstract bool CanBeServerProvider { get; }
 
-
         /// <summary>
         /// Gets a value indicating on which level constraints disabling and enabling should be applied
         /// </summary>

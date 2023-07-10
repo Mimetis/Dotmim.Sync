@@ -32,6 +32,24 @@ namespace Dotmim.Sync.Tests.Models
             return false;
         }
 
+        public static bool UseShouldDropDatabase(this CoreProvider coreProvider, bool? defaultValue = null)
+        {
+            if (defaultValue.HasValue)
+            {
+                coreProvider.AdditionalProperties["UseShouldDropDatabase"] = defaultValue.Value.ToString();
+                return defaultValue.Value;
+            }
+
+            if (coreProvider.AdditionalProperties.TryGetValue("UseShouldDropDatabase", out var useShouldDropDatabase))
+            {
+                if (bool.TryParse(useShouldDropDatabase, out var isUseShouldDropDatabase))
+                    return isUseShouldDropDatabase;
+            }
+
+            return false;
+        }
+
+
 
         public static async Task<ProductCategory> GetProductCategoryAsync(this CoreProvider provider, string productCategoryId, DbConnection connection = null, DbTransaction transaction = null)
         {

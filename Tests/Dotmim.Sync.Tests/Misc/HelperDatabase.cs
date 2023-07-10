@@ -230,6 +230,9 @@ namespace Dotmim.Sync.Tests.Misc
                 _ => null,
             };
 
+            // Can't drop postgres sql databases on azure devops for ... some reasons...
+            provider.UseShouldDropDatabase(providerType != ProviderType.Postgres);
+
             if (useFallbackSchema)
                 provider.UseFallbackSchema(true);
 
