@@ -139,7 +139,7 @@ namespace Dotmim.Sync.Sqlite
         public override string GetDatabaseName()
         {
             if (builder != null && !string.IsNullOrEmpty(builder.DataSource))
-                return builder.DataSource;
+                return new FileInfo(builder.DataSource).Name;
 
             return string.Empty;
         }
