@@ -12,6 +12,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Http;
 using System.Text;
+using Microsoft.Extensions.Configuration;
+using System.IO;
+using Dotmim.Sync.SqlServer;
 
 namespace HelloWebSyncServer.Controllers
 {
@@ -34,7 +37,7 @@ namespace HelloWebSyncServer.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpPost]
-        public Task Post() 
+        public Task Post()
             => webServerAgent.HandleRequestAsync(this.HttpContext);
 
         /// <summary>

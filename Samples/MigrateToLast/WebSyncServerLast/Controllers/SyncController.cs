@@ -18,8 +18,8 @@ namespace WebSyncServerLast.Controllers
         private IEnumerable<WebServerAgent> webServerAgents;
 
         // Injected thanks to Dependency Injection
-        public SyncController(IEnumerable<WebServerAgent> webServerOrchestrators)
-            => this.webServerAgents = webServerOrchestrators;
+        public SyncController(IEnumerable<WebServerAgent> webServerAgents)
+            => this.webServerAgents = webServerAgents;
 
         /// <summary>
         /// This POST handler is mandatory to handle all the sync process
@@ -28,12 +28,11 @@ namespace WebSyncServerLast.Controllers
         [HttpPost]
         public async Task Post()
         {
-            var scopeName = HttpContext.GetScopeName();
+            var identifier = HttpContext.GetIdentifier();
 
-            var orchestrator = webServerAgents.FirstOrDefault(c => c.ScopeName == scopeName);
+            var webserverAgent = webServerAgents.FirstOrDefault(c => c.Identifier == identifier);
 
-            await orchestrator.HandleRequestAsync(HttpContext).ConfigureAwait(false);
-
+            await webserverAgent.HandleRequestAsync(HttpContext).ConfigureAwait(false);
         }
 
         /// <summary>

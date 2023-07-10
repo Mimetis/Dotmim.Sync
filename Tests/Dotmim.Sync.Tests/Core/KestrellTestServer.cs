@@ -57,7 +57,7 @@ namespace Dotmim.Sync.Tests
         {
             this.builder.ConfigureServices(services =>
             {
-                services.AddSyncServer(providerType, connectionString, scopeName, setup, options, webServerOptions);
+                services.AddSyncServer(providerType, connectionString, setup, options, webServerOptions);
             });
         }
 
@@ -68,9 +68,9 @@ namespace Dotmim.Sync.Tests
             serverHandler ??= new RequestDelegate(async context =>
                 {
                     var webServerAgents = context.RequestServices.GetService(typeof(IEnumerable<WebServerAgent>)) as IEnumerable<WebServerAgent>;
-                    var scopeName = context.GetScopeName();
+                    var identifier = context.GetIdentifier();
 
-                    var webserverAgent = webServerAgents.FirstOrDefault(c => c.ScopeName == scopeName);
+                    var webserverAgent = webServerAgents.FirstOrDefault();
                     
                     await webserverAgent.HandleRequestAsync(context);
                 });

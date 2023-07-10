@@ -20,8 +20,14 @@ namespace Dotmim.Sync.Web.Client
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
 
-        public Dictionary<string, string> CustomHeaders  = new Dictionary<string, string>();
+        public Dictionary<string, string> CustomHeaders = new Dictionary<string, string>();
         public Dictionary<string, string> ScopeParameters = new Dictionary<string, string>();
+
+
+        /// <summary>
+        /// Gets or Sets a custom identifier, that can be used on server side to choose the correct web server agent
+        /// </summary>
+        public string Identifier { get; set; }
 
         /// <summary>
         /// Gets or Sets custom converter for all rows
@@ -70,9 +76,11 @@ namespace Dotmim.Sync.Web.Client
             IConverter customConverter = null,
             HttpClient client = null,
             SyncPolicy syncPolicy = null,
-            int maxDownladingDegreeOfParallelism = 4)
+            int maxDownladingDegreeOfParallelism = 4,
+            string identifier = null)
             : base(null, new SyncOptions())
         {
+
 
             // if no HttpClient provisionned, create a new one
             if (client == null)
@@ -95,6 +103,7 @@ namespace Dotmim.Sync.Web.Client
             this.MaxDownladingDegreeOfParallelism = maxDownladingDegreeOfParallelism <= 0 ? -1 : maxDownladingDegreeOfParallelism;
             this.ServiceUri = serviceUri;
             this.SerializerFactory = SerializersCollection.JsonSerializerFactory;
+            this.Identifier = identifier;
         }
 
         /// <summary>
@@ -252,7 +261,7 @@ namespace Dotmim.Sync.Web.Client
         /// This ProcessRequestAsync will not deserialize the message and then send back directly the HttpResponseMessage
         /// </summary>
 
-        public async Task<HttpResponseMessage> ProcessRequestAsync(IScopeMessage message, HttpStep step,int batchSize, 
+        public async Task<HttpResponseMessage> ProcessRequestAsync(IScopeMessage message, HttpStep step, int batchSize,
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
             if (this.HttpClient is null)
@@ -336,6 +345,9 @@ namespace Dotmim.Sync.Web.Client
             requestMessage.Headers.Add("dotmim-sync-step", ((int)step).ToString());
             requestMessage.Headers.Add("dotmim-sync-serialization-format", ser);
             requestMessage.Headers.Add("dotmim-sync-version", SyncVersion.Current.ToString());
+
+            if (!string.IsNullOrEmpty(this.Identifier))
+                requestMessage.Headers.Add("dotmim-sync-identifier", this.Identifier);
 
             // if client specifies a converter, add it as header
             if (this.Converter != null)

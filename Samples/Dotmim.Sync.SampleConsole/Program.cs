@@ -674,7 +674,7 @@ internal class Program
 
         var configureServices = new Action<IServiceCollection>(services =>
         {
-            services.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup: setup, options: options);
+            services.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup: setup, options: options, identifier: "01");
         });
 
         var serverHandler = new RequestDelegate(async context =>
@@ -684,9 +684,11 @@ internal class Program
                 var webServerAgents = context.RequestServices.GetService(typeof(IEnumerable<WebServerAgent>)) as IEnumerable<WebServerAgent>;
 
                 var scopeName = context.GetScopeName();
+                var identifier = context.GetIdentifier();
+
                 var clientScopeId = context.GetClientScopeId();
 
-                var webServerAgent = webServerAgents.First(wsa => wsa.ScopeName == scopeName);
+                var webServerAgent = webServerAgents.First(wsa => wsa.Identifier == identifier);
 
                 await webServerAgent.HandleRequestAsync(context);
 
@@ -728,17 +730,11 @@ internal class Program
 
                     options.ProgressLevel = SyncProgressLevel.Debug;
 
+                    var remoteOrchestrator = new WebRemoteOrchestrator(serviceUri, identifier: "01");
+
                     // create the agent
-                    var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+                    var agent = new SyncAgent(clientProvider, remoteOrchestrator, options);
 
-                    //var entries = new List<ScopeInfoClientUpgrade>();
-                    //var entry = new ScopeInfoClientUpgrade
-                    //{
-                    //    Parameters = new SyncParameters(("ParentProductCategoryId", new Guid("C657828D-D808-4ABA-91A3-AF2CE02300E9"))),
-                    //};
-                    //entries.Add(entry);
-
-                    //var (scopeInfos, scopeInfoClients) = await agent.LocalOrchestrator.ManualUpgradeWithFiltersParameterAsync(entries, progress);
 
                     // make a synchronization to get all rows between backup and now
                     var s = await agent.SynchronizeAsync(progress: localProgress);

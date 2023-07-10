@@ -22,12 +22,12 @@ namespace ServerConsole
 
             do
             {
-                var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.ProgressPercentage:p}:\t{args.Message}"));
+                //var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.ProgressPercentage:p}:\t{args.Message}"));
 
-                await remoteOrchestrator.UpgradeAsync();
+                //await remoteOrchestrator.UpgradeAsync();
 
-                // Write results
-                Console.WriteLine("Upgrade to last version done");
+                //// Write results
+                //Console.WriteLine("Upgrade to last version done");
 
             } while (Console.ReadKey().Key != ConsoleKey.Escape);
 

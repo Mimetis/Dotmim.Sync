@@ -112,8 +112,8 @@ namespace WebSyncServerLast
             services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
 
             // add a SqlSyncProvider with another scope
-            services.AddSyncServer<SqlSyncProvider>(connectionString, "logs",
-                new string[] { "BuildVersion", "ErrorLog" }, options);
+            services.AddSyncServer<SqlSyncProvider>(connectionString,
+                new string[] { "BuildVersion", "ErrorLog" }, options, null, "logs");
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
