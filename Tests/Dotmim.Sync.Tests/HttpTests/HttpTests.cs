@@ -1725,6 +1725,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(4, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(4, s.TotalChangesAppliedOnClient);
 
+                agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri, identifier: "c1"), options);
+
                 s = await agent.SynchronizeAsync();
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
