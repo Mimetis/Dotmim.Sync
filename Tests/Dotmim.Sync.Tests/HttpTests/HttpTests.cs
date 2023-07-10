@@ -55,7 +55,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             clientsProvider = GetClientProviders();
             setup = GetSetup();
 
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, new SyncOptions { DisableConstraintsOnApplyChanges = true });
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, new SyncOptions { DisableConstraintsOnApplyChanges = true });
             serviceUri = this.Kestrell.Run();
         }
 
@@ -99,7 +99,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             await this.Kestrell.StopAsync();
 
             // Add again the serverprovider
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, options);
 
             // override server handler to use OnHttpGettingRequest and OnHttpSendingResponse
             var serverHandler = new RequestDelegate(async context =>
@@ -176,7 +176,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             await this.Kestrell.StopAsync();
 
             // Add again the serverprovider
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, options);
 
             // override server handler to use OnHttpGettingRequest and OnHttpSendingResponse
             var serverHandler = new RequestDelegate(async context =>
@@ -247,8 +247,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             await this.Kestrell.StopAsync();
 
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "v1", setup, new SyncOptions { DisableConstraintsOnApplyChanges = true });
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "v2", setup, new SyncOptions { DisableConstraintsOnApplyChanges = true });
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, new SyncOptions { DisableConstraintsOnApplyChanges = true }, identifier: "db1");
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, new SyncOptions { DisableConstraintsOnApplyChanges = true }, identifier: "db2");
 
             var serviceUri = this.Kestrell.Run();
 
@@ -256,7 +256,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             {
                 var (clientProviderType, _) = HelperDatabase.GetDatabaseType(clientProvider);
 
-                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri, identifier: "db1"), options);
 
                 // On first sync, even tables with only primary keys are inserted
                 var s = await agent.SynchronizeAsync("v1", setup);
@@ -296,7 +296,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var clientProvider = clientsProvider.First();
 
             using var kestrell = new KestrellTestServer(this.UseFiddler);
-            kestrell.AddSyncServer(badServerProvider.GetType(), badServerProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+            kestrell.AddSyncServer(badServerProvider.GetType(), badServerProvider.ConnectionString, setup, options);
             var serviceUri = kestrell.Run();
 
             var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
@@ -1139,7 +1139,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             await this.Kestrell.StopAsync();
 
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "uploadonly", setupV2, new SyncOptions { DisableConstraintsOnApplyChanges = true });
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setupV2, new SyncOptions { DisableConstraintsOnApplyChanges = true });
 
 
             var serviceUri = this.Kestrell.Run();
@@ -1186,7 +1186,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             await this.Kestrell.StopAsync();
 
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "downloadonly", setupV2, new SyncOptions { DisableConstraintsOnApplyChanges = true });
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setupV2, new SyncOptions { DisableConstraintsOnApplyChanges = true });
 
             var serviceUri = this.Kestrell.Run();
 
@@ -1577,7 +1577,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             await this.Kestrell.StopAsync();
 
             // Add again the serverprovider
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options, webServerOptions);
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, options, webServerOptions);
 
             // Create server web proxy
             var serverHandler = new RequestDelegate(async context =>
@@ -1706,14 +1706,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             await this.Kestrell.StopAsync();
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, "customScope1", new SyncSetup("Customer"), options);
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, options, identifier: "c1");
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, new SyncSetup("Customer"), options, identifier: "c2");
             var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
+                var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri, identifier: "c2"), options);
 
                 var s = await agent.SynchronizeAsync("customScope1");
 
@@ -1902,7 +1902,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 using var kestrell = new KestrellTestServer(this.UseFiddler);
 
                 // Configure server orchestrator
-                kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+                kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, options);
 
                 var batchIndex = 0;
 
@@ -1979,7 +1979,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 using var kestrell = new KestrellTestServer(this.UseFiddler);
 
                 // Configure server orchestrator
-                kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+                kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, options);
 
                 var serviceUri = kestrell.Run();
 
@@ -2041,7 +2041,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 using var kestrell = new KestrellTestServer(this.UseFiddler);
 
                 // Configure server orchestrator
-                kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+                kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, options);
 
                 var serviceUri = kestrell.Run();
 
@@ -2055,7 +2055,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 });
 
                 var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
-                var ex = await Assert.ThrowsAsync<HttpSyncWebException>(() =>agent.SynchronizeAsync());
+                var ex = await Assert.ThrowsAsync<HttpSyncWebException>(() => agent.SynchronizeAsync());
                 Assert.Equal("HttpSessionLostException", ex.TypeName);
 
                 await kestrell.StopAsync();
@@ -2066,7 +2066,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 using var kestrell = new KestrellTestServer(this.UseFiddler);
 
                 // Configure server orchestrator
-                kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+                kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, options);
 
                 var serviceUri = kestrell.Run();
 
@@ -2218,7 +2218,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             await this.Kestrell.StopAsync();
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, options);
 
 
             // Create server web proxy
@@ -2289,7 +2289,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             await this.Kestrell.StopAsync();
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, options);
 
             // Create server web proxy
             var serverHandler = new RequestDelegate(async context =>
@@ -2351,7 +2351,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             await this.Kestrell.StopAsync();
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, SyncOptions.DefaultScopeName, setup, options);
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, options);
 
             var interruptedBatch = false;
 
