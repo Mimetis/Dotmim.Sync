@@ -108,13 +108,76 @@ internal class Program
         //options.SnapshotsDirectory = Path.Combine("C:\\Tmp\\Snapshots");
 
 
-        await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
+        //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
         // await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
         //await AddRemoveRemoveAsync();
+
+        await SynchronizeWithFiltersJoinsAsync();
     }
 
+
+
+
+    private static async Task SynchronizeWithFiltersJoinsAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        var setup = new SyncSetup("SalesLT.ProductCategory", "SalesLT.Product");
+
+        var productCategoryFilter = new SetupFilter("ProductCategory", "SalesLT");
+        productCategoryFilter.AddParameter("ProductCategoryID", "ProductCategory", "SalesLT");
+        productCategoryFilter.AddWhere("ProductCategoryID", "ProductCategory", "ProductCategoryID", "SalesLT");
+        setup.Filters.Add(productCategoryFilter);
+
+        var productFilter = new SetupFilter("Product", "SalesLT");
+        productFilter.AddParameter("ProductCategoryID", "ProductCategory", "SalesLT");
+        productFilter.AddJoin(Join.Left, "ProductCategory", "SalesLT").On("ProductCategory", "ProductCategoryID", "Product", "ProductCategoryId", "SalesLT", "SalesLT");
+        productFilter.AddWhere("ProductCategoryID", "ProductCategory", "ProductCategoryID", "SalesLT");
+        setup.Filters.Add(productFilter);
+
+
+        var options = new SyncOptions();
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        // Using the Progress pattern to handle progession during the synchronization
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Message}");
+            Console.ResetColor();
+        });
+
+        do
+        {
+            // Console.Clear();
+            Console.WriteLine("Sync Start");
+            try
+            {
+                var p = new SyncParameters { { "ProductCategoryId", "ROADFR" } };
+
+                var s1 = await agent.SynchronizeAsync(setup, p, progress);
+
+                // Write results
+                Console.WriteLine(s1);
+
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+
+            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+    }
 
     private static async Task AddRemoveRemoveAsync()
     {
@@ -668,7 +731,6 @@ internal class Program
         connection.Close();
 
     }
-
     public static async Task SyncHttpThroughKestrellAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
 

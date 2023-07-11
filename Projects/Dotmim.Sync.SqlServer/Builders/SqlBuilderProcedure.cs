@@ -1082,13 +1082,18 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var fullTableName = string.IsNullOrEmpty(filter.SchemaName) ? filter.TableName : $"{filter.SchemaName}.{filter.TableName}";
                 var filterTableName = ParserName.Parse(fullTableName).Quoted().Schema().ToString();
 
-                var joinTableName = ParserName.Parse(customJoin.TableName).Quoted().Schema().ToString();
+                var fullJoinTableName = string.IsNullOrEmpty(customJoin.TableSchemaName) ? customJoin.TableName : $"{customJoin.TableSchemaName}.{customJoin.TableName}";
+                var joinTableName = ParserName.Parse(fullJoinTableName).Quoted().Schema().ToString();
 
-                var leftTableName = ParserName.Parse(customJoin.LeftTableName).Quoted().Schema().ToString();
+                var fullLeftTableName = string.IsNullOrEmpty(customJoin.LeftTableSchemaName) ? customJoin.LeftTableName : $"{customJoin.LeftTableSchemaName}.{customJoin.LeftTableName}";
+                var leftTableName = ParserName.Parse(fullLeftTableName).Quoted().Schema().ToString();
+
                 if (string.Equals(filterTableName, leftTableName, SyncGlobalization.DataSourceStringComparison))
                     leftTableName = "[base]";
 
-                var rightTableName = ParserName.Parse(customJoin.RightTableName).Quoted().Schema().ToString();
+                var fullRightTableName = string.IsNullOrEmpty(customJoin.RightTableSchemaName) ? customJoin.RightTableName : $"{customJoin.RightTableSchemaName}.{customJoin.RightTableName}";
+                var rightTableName = ParserName.Parse(fullRightTableName).Quoted().Schema().ToString();
+                
                 if (string.Equals(filterTableName, rightTableName, SyncGlobalization.DataSourceStringComparison))
                     rightTableName = "[base]";
 

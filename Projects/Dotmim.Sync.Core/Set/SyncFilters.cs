@@ -74,6 +74,7 @@ namespace Dotmim.Sync
                 item.Wheres.Add(new SyncFilterWhereSideItem { ColumnName = s.ColumnName, TableName = s.TableName, SchemaName = s.SchemaName, ParameterName = s.ParameterName });
 
             foreach (var s in setupFilter.Joins)
+            {
                 item.Joins.Add(new SyncFilterJoin
                 {
                     TableName = s.TableName,
@@ -82,7 +83,11 @@ namespace Dotmim.Sync
                     LeftColumnName = s.LeftColumnName,
                     RightTableName = s.RightTableName,
                     RightColumnName = s.RightColumnName,
+                    TableSchemaName = s.TableSchemaName,
+                    LeftTableSchemaName = s.LeftTableSchemaName,
+                    RightTableSchemaName = s.RightTableSchemaName,
                 });
+            }
 
             foreach (var s in setupFilter.CustomWheres)
                 item.CustomWheres.Add(s);

@@ -41,6 +41,15 @@ namespace Dotmim.Sync
         [DataMember(Name = "rcol", IsRequired = true, Order = 6)]
         public string RightColumnName { get; set; }
 
+        [DataMember(Name = "tblsn", IsRequired = false, Order = 7)]
+        public string TableSchemaName { get; set; }
+
+        [DataMember(Name = "ltblsn", IsRequired = false, Order = 8)]
+        public string LeftTableSchemaName { get; set; }
+
+        [DataMember(Name = "rtblsn", IsRequired = false, Order = 9)]
+        public string RightTableSchemaName { get; set; }
+
         public SyncFilterJoin()
         {
 
@@ -53,7 +62,9 @@ namespace Dotmim.Sync
             yield return this.LeftColumnName;
             yield return this.LeftTableName;
             yield return this.RightColumnName;
-            yield return this.RightTableName;
+            yield return this.TableSchemaName;
+            yield return this.LeftTableSchemaName;
+            yield return this.RightTableSchemaName;
         }
 
     }

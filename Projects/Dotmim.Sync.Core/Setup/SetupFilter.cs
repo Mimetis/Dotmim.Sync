@@ -114,15 +114,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Add a custom filter clause
         /// </summary>
-        public SetupFilterOn AddJoin(Join join, string tableName) => new SetupFilterOn(this, join, tableName);
+        public SetupFilterOn AddJoin(Join join, string tableName, string schemaName = null) => new(this, join, tableName, schemaName);
 
         /// <summary>
         /// Internal add custom join
         /// </summary>
-        internal void AddJoin(SetupFilterJoin setupFilterJoin)
-        {
-            this.Joins.Add(setupFilterJoin);
-        }
+        internal void AddJoin(SetupFilterJoin setupFilterJoin) => this.Joins.Add(setupFilterJoin);
 
 
         /// <summary>

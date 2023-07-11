@@ -26,6 +26,7 @@ namespace Dotmim.Sync
     {
         private Join joinEnum;
         private string tableName;
+        private string schemaName;
         private SetupFilter filter;
 
         public SetupFilterOn()
@@ -33,26 +34,19 @@ namespace Dotmim.Sync
 
         }
 
-        public SetupFilterOn(SetupFilter filter, Join joinEnum, string tableName)
+        public SetupFilterOn(SetupFilter filter, Join joinEnum, string tableName, string schemaName = null)
         {
             this.filter = filter;
             this.joinEnum = joinEnum;
             this.tableName = tableName;
+            this.schemaName = schemaName;
         }
-
-        public SetupFilterOn On(string leftTableName, string leftColumnName, string rightTableName, string rightColumnName)
+        public SetupFilterOn On(string leftTableName, string leftColumnName, string rightTableName, string rightColumnName, string leftTableSchemaName = null, string rightTableSchemaName = null)
         {
-            var join = new SetupFilterJoin(this.joinEnum, this.tableName, leftTableName, leftColumnName, rightTableName, rightColumnName);
+            var join = new SetupFilterJoin(this.joinEnum, this.tableName, leftTableName, leftColumnName, rightTableName, rightColumnName, this.schemaName, leftTableSchemaName, rightTableSchemaName);
             this.filter.AddJoin(join);
             return this;
         }
-
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override bool Equals(object obj) => base.Equals(obj);
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override int GetHashCode() => base.GetHashCode();
-        [EditorBrowsable(EditorBrowsableState.Never)]
-        public override string ToString() => base.ToString();
     }
 
 
@@ -77,6 +71,16 @@ namespace Dotmim.Sync
         [DataMember(Name = "rcn", IsRequired = true, Order = 6)]
         public string RightColumnName { get; set; }
 
+        [DataMember(Name = "tsn", IsRequired = false, Order = 7, EmitDefaultValue = false)]
+        public string TableSchemaName { get; set; }
+
+        [DataMember(Name = "ltsn", IsRequired = false, Order = 8, EmitDefaultValue = false)]
+        public string LeftTableSchemaName { get; set; }
+
+        [DataMember(Name = "rtsn", IsRequired = false, Order = 9, EmitDefaultValue = false)]
+        public string RightTableSchemaName { get; set; }
+
+
         /// <summary>
         /// ctor for serializer, don't use as it, prefer the second ctor
         /// </summary>
@@ -95,6 +99,21 @@ namespace Dotmim.Sync
             this.RightColumnName = rightColumnName;
         }
 
+        public SetupFilterJoin(Join joinEnum, string tableName, 
+            string leftTableName, string leftColumnName, 
+            string rightTableName, string rightColumnName,
+            string tableSchemaName, string leftTableSchemaName, string rightTableSchemaName)
+        {
+            this.JoinEnum = joinEnum;
+            this.TableName = tableName;
+            this.LeftTableName = leftTableName;
+            this.LeftColumnName = leftColumnName;
+            this.RightTableName = rightTableName;
+            this.RightColumnName = rightColumnName;
+            this.TableSchemaName = tableSchemaName;
+            this.LeftTableSchemaName = leftTableSchemaName;
+            this.RightTableSchemaName = rightTableSchemaName;
+        }
         /// <summary>
         /// Get all comparable fields to determine if two instances are identifed are same by name
         /// </summary>
@@ -106,6 +125,9 @@ namespace Dotmim.Sync
             yield return this.LeftTableName;
             yield return this.RightColumnName;
             yield return this.RightTableName;
+            yield return this.TableSchemaName;
+            yield return this.LeftTableSchemaName;
+            yield return this.RightTableSchemaName;
         }
     }
 }
