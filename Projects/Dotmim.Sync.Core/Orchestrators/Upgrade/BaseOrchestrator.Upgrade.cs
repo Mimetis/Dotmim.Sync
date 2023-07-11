@@ -206,12 +206,51 @@ namespace Dotmim.Sync
         }
 
 
-        private async Task<Version> AutoUpgdrateToNewVersionAsync(ScopeInfo scopeInfo, SyncContext context, Version newVersion, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
-        {
-            var message = $"Upgrade to {newVersion}:";
+        internal virtual async Task<Version> UpgradeAutoToLastVersion(SyncContext context, Version version, SyncTable scopeInfos,
+                DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
 
-            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+        {
+            await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+            var newVersion = SyncVersion.Current;
+
+            // Create scope_info and scope_info_client for each pre version scope_info lines
+            foreach (var scopeInfoRow in scopeInfos.Rows)
+            {
+                // Get setup schema and scope name from old scope info table
+                var scopeName = scopeInfoRow["sync_scope_name"] as string;
+                var schema = JsonConvert.DeserializeObject<SyncSet>(scopeInfoRow["sync_scope_schema"].ToString());
+                var setup = JsonConvert.DeserializeObject<SyncSetup>(scopeInfoRow["sync_scope_setup"].ToString());
+                var lastCleanUpTimestamp = scopeInfoRow["sync_scope_last_clean_timestamp"] != null && scopeInfoRow["sync_scope_last_clean_timestamp"] != DBNull.Value ? (long?)scopeInfoRow["sync_scope_last_clean_timestamp"] : null;
+                var scopeProperties = scopeInfoRow["sync_scope_properties"] as string;
+
+                // Create new scope_info and scope_info_client
+                var cScopeInfo = new ScopeInfo
+                {
+                    Name = scopeName,
+                    Setup = setup,
+                    Schema = schema,
+                    LastCleanupTimestamp = lastCleanUpTimestamp,
+                    Properties = scopeProperties,
+                    Version = SyncVersion.Current.ToString()
+                };
+
+                // Save this scope to new scope info table
+                await this.InternalSaveScopeInfoAsync(cScopeInfo, context,
+                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                // Raise message about migrating current scope
+                var message = $"- Saved scope_info {scopeName} with version {SyncVersion.Current} with a setup containing {setup.Tables.Count} tables.";
+                await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, runner.Connection, runner.Transaction),
+                    runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+
+            }
+            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Upgrade from version {version} to {SyncVersion.Current} done.", newVersion, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+
+            await runner.CommitAsync().ConfigureAwait(false);
+
             return newVersion;
         }
+
     }
 }

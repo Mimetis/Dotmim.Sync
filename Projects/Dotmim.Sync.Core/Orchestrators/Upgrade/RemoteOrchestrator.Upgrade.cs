@@ -29,42 +29,76 @@ namespace Dotmim.Sync
         {
             try
             {
-                var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
-                var scopeInfoServerTableName = $"{parsedName.Unquoted().Normalized()}_server";
-                var scopeInfoServerHistoryTableName = $"{parsedName.Unquoted().Normalized()}_history";
-
-                var sScopeInfoTableName = $"{parsedName.Unquoted().Normalized()}";
-                var sScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
-
 
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating).ConfigureAwait(false);
                 // get Database builder
                 var dbBuilder = this.Provider.GetDatabaseBuilder();
 
-                // Initialize database if needed
-                await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
-
-                // check old and new scopes tables
-                var exist1 = await dbBuilder.ExistsTableAsync(scopeInfoServerTableName, null, runner.Connection, runner.Transaction);
-                var exist2 = await dbBuilder.ExistsTableAsync(scopeInfoServerHistoryTableName, null, runner.Connection, runner.Transaction);
-                var exist3 = await dbBuilder.ExistsTableAsync(sScopeInfoTableName, null, runner.Connection, runner.Transaction);
-                var exist4 = await dbBuilder.ExistsTableAsync(sScopeInfoClientTableName, null, runner.Connection, runner.Transaction);
-
-                if (!exist1 && !exist2 && !exist3 && !exist4)
-                    return false;
-
-                // Check if scope_info exists
-                // If exists then we have already upgraded to last version
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
+                bool cScopeInfoExists;
+                (context, cScopeInfoExists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (exists)
+                // no scopes info table. Just a new sync
+                if (!cScopeInfoExists)
                     return false;
 
-                await runner.CommitAsync().ConfigureAwait(false);
+                // get lines
+                var scopeInfos = await dbBuilder.GetTableAsync(this.Options.ScopeInfoTableName, default,
+                    runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-                return true;
+                // if empty, no need to upgrade
+                if (scopeInfos == null || scopeInfos.Rows.Count == 0)
+                    return false;
+
+                // If we have a scope info, we can get the version
+                if (scopeInfos != null && scopeInfos.Rows.Count > 0)
+                {
+                    // Get the first row and check sync_scope_version value
+                    var row = scopeInfos.Rows[0];
+                    var versionString = row["sync_scope_version"] == DBNull.Value ? null : row["sync_scope_version"].ToString();
+                    var version = SyncVersion.EnsureVersion(versionString);
+
+                    if (version != SyncVersion.Current)
+                        return true;
+                }
+
+                return false;
+                //await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating).ConfigureAwait(false);
+
+                //var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
+                //var scopeInfoServerTableName = $"{parsedName.Unquoted().Normalized()}_server";
+                //var scopeInfoServerHistoryTableName = $"{parsedName.Unquoted().Normalized()}_history";
+
+                //var sScopeInfoTableName = $"{parsedName.Unquoted().Normalized()}";
+                //var sScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
+
+                //// get Database builder
+                //var dbBuilder = this.Provider.GetDatabaseBuilder();
+
+                //// Initialize database if needed
+                //await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                //// check old and new scopes tables
+                //var exist1 = await dbBuilder.ExistsTableAsync(scopeInfoServerTableName, null, runner.Connection, runner.Transaction);
+                //var exist2 = await dbBuilder.ExistsTableAsync(scopeInfoServerHistoryTableName, null, runner.Connection, runner.Transaction);
+                //var exist3 = await dbBuilder.ExistsTableAsync(sScopeInfoTableName, null, runner.Connection, runner.Transaction);
+                //var exist4 = await dbBuilder.ExistsTableAsync(sScopeInfoClientTableName, null, runner.Connection, runner.Transaction);
+
+                //if (!exist1 && !exist2 && !exist3 && !exist4)
+                //    return false;
+
+                //// Check if scope_info exists
+                //// If exists then we have already upgraded to last version
+                //bool exists;
+                //(context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
+                //    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                //if (exists)
+                //    return false;
+
+                //await runner.CommitAsync().ConfigureAwait(false);
+
+                // return true;
             }
             catch (Exception ex)
             {
@@ -93,9 +127,54 @@ namespace Dotmim.Sync
         /// <returns>
         /// The new scopeInfos and scopeInfoClients rows from your new upgrade sync config tables.
         /// </returns>
-        internal virtual async Task<(List<ScopeInfo> scopeInfos, List<ScopeInfoClient> scopeInfoClients)> InternalUpgradeAsync(
+        internal virtual async Task<bool> InternalUpgradeAsync(
             SyncContext context, DbConnection connection = default, DbTransaction transaction = default,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
+        {
+
+            try
+            {
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating,
+                    connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                // get Database builder
+                var dbBuilder = this.Provider.GetDatabaseBuilder();
+
+                // get the scope info lines
+                var scopeInfos = await dbBuilder.GetTableAsync(this.Options.ScopeInfoTableName, default,
+                    runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                // if empty, no need to upgrade
+                if (scopeInfos == null || scopeInfos.Rows.Count == 0)
+                    return true;
+
+                Version version = SyncVersion.Current;
+
+                // If we have a scope info, we can get the version
+                if (scopeInfos != null && scopeInfos.Rows.Count > 0)
+                {
+                    // Get the first row and check sync_scope_version value
+                    var versionString = scopeInfos.Rows[0]["sync_scope_version"] == DBNull.Value ? null : scopeInfos.Rows[0]["sync_scope_version"].ToString();
+                    version = SyncVersion.EnsureVersion(versionString);
+                }
+
+                if (version.Major == 0 && version.Minor == 9 && version.Build >= 6)
+                    await UpgradeAutoToLastVersion(context, version, scopeInfos, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                else if (version.Major == 0 && (version.Minor <= 9 && version.Build <= 5 || version.Minor <= 8))
+                    await UpgradeOldestVersions(context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+
+
+        }
+        internal virtual async Task<bool> UpgradeOldestVersions(
+         SyncContext context, DbConnection connection = default, DbTransaction transaction = default,
+                     CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
             try
             {
@@ -286,7 +365,7 @@ namespace Dotmim.Sync
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
-                return (sFinalScopeInfos, sFinalScopeInfoClients);
+                return true;
             }
             catch (Exception ex)
             {
@@ -294,12 +373,6 @@ namespace Dotmim.Sync
             }
         }
 
-        private async Task<Version> AutoUpgdrateToNewVersionAsync(ScopeInfo scopeInfo, SyncContext context, Version newVersion, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
-        {
-            var message = $"Upgrade to {newVersion} for scope {scopeInfo.Name}.";
-            await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, connection, transaction), progress, cancellationToken);
 
-            return newVersion;
-        }
     }
 }

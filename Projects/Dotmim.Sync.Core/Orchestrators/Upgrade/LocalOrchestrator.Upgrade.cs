@@ -96,40 +96,47 @@ namespace Dotmim.Sync
                         DbConnection connection = default, DbTransaction transaction = default,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
-
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating,
-                connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            // get Database builder
-            var dbBuilder = this.Provider.GetDatabaseBuilder();
-
-            // get the scope info lines
-            var scopeInfos = await dbBuilder.GetTableAsync(this.Options.ScopeInfoTableName, default,
-                runner.Connection, runner.Transaction).ConfigureAwait(false);
-
-            // if empty, no need to upgrade
-            if (scopeInfos == null || scopeInfos.Rows.Count == 0)
-                return true;
-
-            Version version = SyncVersion.Current;
-
-            // If we have a scope info, we can get the version
-            if (scopeInfos != null && scopeInfos.Rows.Count > 0)
+            try
             {
-                // Get the first row and check sync_scope_version value
-                var versionString = scopeInfos.Rows[0]["sync_scope_version"] == DBNull.Value ? null : scopeInfos.Rows[0]["sync_scope_version"].ToString();
-                version = SyncVersion.EnsureVersion(versionString);
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating,
+                    connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                // get Database builder
+                var dbBuilder = this.Provider.GetDatabaseBuilder();
+
+                // get the scope info lines
+                var scopeInfos = await dbBuilder.GetTableAsync(this.Options.ScopeInfoTableName, default,
+                    runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                // if empty, no need to upgrade
+                if (scopeInfos == null || scopeInfos.Rows.Count == 0)
+                    return true;
+
+                Version version = SyncVersion.Current;
+
+                // If we have a scope info, we can get the version
+                if (scopeInfos != null && scopeInfos.Rows.Count > 0)
+                {
+                    // Get the first row and check sync_scope_version value
+                    var versionString = scopeInfos.Rows[0]["sync_scope_version"] == DBNull.Value ? null : scopeInfos.Rows[0]["sync_scope_version"].ToString();
+                    version = SyncVersion.EnsureVersion(versionString);
+                }
+
+                if (version.Major == 0 && version.Minor == 9 && version.Build >= 6)
+                    await UpgradeAutoToLastVersion(context, version, scopeInfos, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                else if (version.Major == 0 && (version.Minor <= 9 && version.Build <= 5 || version.Minor <= 8))
+                    await UpgdrateFromNoWhereTo098Async(context, version, scopeInfos, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                return true;
             }
-
-            if (version.Major == 0 && (version.Minor <= 9 && version.Revision <= 5 || version.Minor <= 8))
-                await UpgdrateFromNoWhereTo098Async(context, version, scopeInfos, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            return true;
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
         }
-
-
+  
         private async Task<Version> UpgdrateFromNoWhereTo098Async(SyncContext context, Version version, SyncTable scopeInfos,
-                DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
 
         {
             await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);

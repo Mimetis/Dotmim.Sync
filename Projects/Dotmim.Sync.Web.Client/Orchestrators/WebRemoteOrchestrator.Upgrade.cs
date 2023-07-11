@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Not Allowed from WebRemoteOrchestrator
         /// </summary>
-        internal override Task<(List<ScopeInfo> scopeInfos, List<ScopeInfoClient> scopeInfoClients)> InternalUpgradeAsync(
+        internal override Task<bool> InternalUpgradeAsync(
             SyncContext context, DbConnection connection = default, DbTransaction transaction = default,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
             => throw new NotImplementedException();
