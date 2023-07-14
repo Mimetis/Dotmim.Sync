@@ -465,7 +465,12 @@ namespace Dotmim.Sync
             {
                 foreach (var p in parameters.OrderBy(p => p.Name))
                 {
-                    var cleanValue = new string(p.Value.ToString().Where(char.IsLetterOrDigit).ToArray());
+                    var value = "null";
+                    if (p.Value is not null)
+                    {
+                        value = p.Value.ToString();
+                    }
+                    var cleanValue = new string(value.Where(char.IsLetterOrDigit).ToArray());
                     var cleanName = new string(p.Name.Where(char.IsLetterOrDigit).ToArray());
 
                     sb.Append($"{underscore}{cleanName}_{cleanValue}");
