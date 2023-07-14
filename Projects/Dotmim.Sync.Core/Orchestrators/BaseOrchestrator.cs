@@ -468,7 +468,7 @@ namespace Dotmim.Sync
                     var value = "null";
                     if (p.Value is not null)
                     {
-                        value = p.ToString();
+                        value = p.Value.ToString();
                     }
                     var cleanValue = new string(value.Where(char.IsLetterOrDigit).ToArray());
                     var cleanName = new string(p.Name.Where(char.IsLetterOrDigit).ToArray());
