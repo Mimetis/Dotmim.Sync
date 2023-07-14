@@ -114,12 +114,43 @@ internal class Program
 
         //await AddRemoveRemoveAsync();
 
-        await SynchronizeWithFiltersJoinsAsync();
+        //await SynchronizeWithFiltersJoinsAsync();
+
+        await CreateSnapshotAsync();
     }
 
+    private static async Task CreateSnapshotAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
+        var setup = new SyncSetup("SalesLT.ProductCategory", "SalesLT.Product");
 
+        var productCategoryFilter = new SetupFilter("ProductCategory", "SalesLT");
+        productCategoryFilter.AddParameter("ProductCategoryID", "ProductCategory", "SalesLT", true);
+        productCategoryFilter.AddWhere("ProductCategoryID", "ProductCategory", "ProductCategoryID", "SalesLT");
+        setup.Filters.Add(productCategoryFilter);
 
+        // snapshot directory
+        var snapshotDirectoryName = "Snapshots";
+        var directory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), snapshotDirectoryName);
+
+        // snapshot directory
+        var options = new SyncOptions
+        {
+            SnapshotsDirectory = directory,
+            BatchSize = 3000
+        };
+
+        SyncParameters parameters = new() { new("ProductCategoryID", default) };
+
+        // Create a remote orchestrator
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+
+        // Create a snapshot
+        await remoteOrchestrator.CreateSnapshotAsync(setup, parameters);
+    }
     private static async Task SynchronizeWithFiltersJoinsAsync()
     {
         // Create 2 Sql Sync providers
@@ -159,6 +190,15 @@ internal class Program
             Console.WriteLine("Sync Start");
             try
             {
+                agent.LocalOrchestrator.OnExecuteCommand(eca =>
+                {
+                    if (eca.CommandType == DbCommandType.UpdateRow || eca.CommandType == DbCommandType.UpdateRows
+                    || eca.CommandType == DbCommandType.InsertRow || eca.CommandType == DbCommandType.InsertRows)
+                    {
+                        var command = eca.Command;
+                    }
+                });
+
                 var p = new SyncParameters { { "ProductCategoryId", "ROADFR" } };
 
                 var s1 = await agent.SynchronizeAsync(setup, p, progress);

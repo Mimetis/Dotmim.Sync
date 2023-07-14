@@ -31,8 +31,6 @@ namespace Dotmim.Sync
             {
 
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating).ConfigureAwait(false);
-                // get Database builder
-                var dbBuilder = this.Provider.GetDatabaseBuilder();
 
                 bool cScopeInfoExists;
                 (context, cScopeInfoExists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
@@ -41,6 +39,9 @@ namespace Dotmim.Sync
                 // no scopes info table. Just a new sync
                 if (!cScopeInfoExists)
                     return false;
+
+                // get Database builder
+                var dbBuilder = this.Provider.GetDatabaseBuilder();
 
                 // get lines
                 var scopeInfos = await dbBuilder.GetTableAsync(this.Options.ScopeInfoTableName, default,
@@ -201,18 +202,9 @@ namespace Dotmim.Sync
                 var message = $"- Drop {scopeInfoServerHistoryTableName} table.";
                 await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
 
-                // ----------------------------------------------------
-                // Step 2 : Get Rows form old scope_info_server table
-                // ----------------------------------------------------
-                var scopeInfoServerTable = await dbBuilder.GetTableAsync(scopeInfoServerTableName, default,
-                    runner.Connection, runner.Transaction).ConfigureAwait(false);
-
-                message = $"- Getting rows from old {scopeInfoServerTableName} table.";
-                await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
-
 
                 // ----------------------------------------------------
-                // Step 3 : Create scope_info 
+                // Step 2 : Create scope_info 
                 // ----------------------------------------------------
                 bool existsCScopeInfo;
                 (context, existsCScopeInfo) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
@@ -226,7 +218,7 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
 
                 // ----------------------------------------------------
-                // Step 4 : Create scope_info_client 
+                // Step 3 : Create scope_info_client 
                 // ----------------------------------------------------
                 bool existsCScopeInfoClient;
                 (context, existsCScopeInfoClient) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
@@ -241,32 +233,48 @@ namespace Dotmim.Sync
 
 
                 // ----------------------------------------------------
-                // Step 5 : Migrate each scope to new table
+                // Step 4 : Migrate each scope to new table
                 // ----------------------------------------------------
-                foreach (var scopeInfoServerRow in scopeInfoServerTable.Rows)
+
+                // ----------------------------------------------------
+                // Step 2 : Get Rows form old scope_info_server table
+                // ----------------------------------------------------
+                var existScopeInfoServerTable = await dbBuilder.ExistsTableAsync(scopeInfoServerTableName, null, runner.Connection, runner.Transaction);
+
+                if (existScopeInfoServerTable)
                 {
-                    var setup = JsonConvert.DeserializeObject<SyncSetup>(scopeInfoServerRow["sync_scope_setup"].ToString());
-                    var schema = JsonConvert.DeserializeObject<SyncSet>(scopeInfoServerRow["sync_scope_schema"].ToString());
-                    var lastCleanup = (long)scopeInfoServerRow["sync_scope_last_clean_timestamp"];
-                    var name = scopeInfoServerRow["sync_scope_name"].ToString();
-                    name = string.IsNullOrEmpty(name) ? "DefaultScope" : name;
 
-                    var sScopeInfo = new ScopeInfo
-                    {
-                        Name = name,
-                        Setup = setup,
-                        Schema = schema,
-                        Version = SyncVersion.Current.ToString(),
-                        LastCleanupTimestamp = lastCleanup,
-                    };
+                    var scopeInfoServerTable = await dbBuilder.GetTableAsync(scopeInfoServerTableName, default,
+                        runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-                    await this.InternalSaveScopeInfoAsync(sScopeInfo, context,
-                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                    message = $"- Saved scope_info {name} in {sScopeInfoTableName} table with a setup containing {setup.Tables.Count} tables.";
+                    message = $"- Getting rows from old {scopeInfoServerTableName} table.";
                     await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
-                }
 
+                    foreach (var scopeInfoServerRow in scopeInfoServerTable.Rows)
+                    {
+                        var setup = JsonConvert.DeserializeObject<SyncSetup>(scopeInfoServerRow["sync_scope_setup"].ToString());
+                        var schema = JsonConvert.DeserializeObject<SyncSet>(scopeInfoServerRow["sync_scope_schema"].ToString());
+                        var lastCleanup = (long)scopeInfoServerRow["sync_scope_last_clean_timestamp"];
+                        var name = scopeInfoServerRow["sync_scope_name"].ToString();
+                        name = string.IsNullOrEmpty(name) ? "DefaultScope" : name;
+
+                        var sScopeInfo = new ScopeInfo
+                        {
+                            Name = name,
+                            Setup = setup,
+                            Schema = schema,
+                            Version = SyncVersion.Current.ToString(),
+                            LastCleanupTimestamp = lastCleanup,
+                        };
+
+                        await this.InternalSaveScopeInfoAsync(sScopeInfo, context,
+                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                        message = $"- Saved scope_info {name} in {sScopeInfoTableName} table with a setup containing {setup.Tables.Count} tables.";
+                        await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+                    }
+
+                }
                 // ----------------------------------------------------
                 // Step 6 : Drop old scope_info_server table
                 // ----------------------------------------------------
@@ -343,6 +351,8 @@ namespace Dotmim.Sync
                 {
                     if (sScopeInfo == null || sScopeInfo.Setup == null || sScopeInfo.Setup.Tables == null || sScopeInfo.Setup.Tables.Count <= 0)
                         continue;
+
+                    sScopeInfo.Version = SyncVersion.Current.ToString();
 
                     (context, _) = await InternalProvisionServerAsync(sScopeInfo, context, provision, false,
                         runner.Connection, runner.Transaction, runner.CancellationToken, default).ConfigureAwait(false);
