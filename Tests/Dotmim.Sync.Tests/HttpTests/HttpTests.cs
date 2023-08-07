@@ -55,7 +55,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             clientsProvider = GetClientProviders();
             setup = GetSetup();
 
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, new SyncOptions { DisableConstraintsOnApplyChanges = true });
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, 
+                new SyncOptions { DisableConstraintsOnApplyChanges = true });
             serviceUri = this.Kestrell.Run();
         }
 
@@ -247,8 +248,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             await this.Kestrell.StopAsync();
 
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, new SyncOptions { DisableConstraintsOnApplyChanges = true }, identifier: "db1");
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, new SyncOptions { DisableConstraintsOnApplyChanges = true }, identifier: "db2");
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, 
+                new SyncOptions { DisableConstraintsOnApplyChanges = true }, identifier: "db1");
+
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, 
+                new SyncOptions { DisableConstraintsOnApplyChanges = true }, identifier: "db2");
 
             var serviceUri = this.Kestrell.Run();
 
@@ -1144,7 +1148,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             await this.Kestrell.StopAsync();
 
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setupV2, new SyncOptions { DisableConstraintsOnApplyChanges = true });
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setupV2,
+                new SyncOptions { DisableConstraintsOnApplyChanges = true }, null, "uploadonly");
 
 
             var serviceUri = this.Kestrell.Run();
@@ -1191,7 +1196,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             await this.Kestrell.StopAsync();
 
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setupV2, new SyncOptions { DisableConstraintsOnApplyChanges = true });
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setupV2, 
+                new SyncOptions { DisableConstraintsOnApplyChanges = true }, null, "downloadonly");
 
             var serviceUri = this.Kestrell.Run();
 
@@ -1704,7 +1710,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         }
 
         [Fact]
-        public virtual async Task HandlingDifferentScopeNames()
+        public virtual async Task HandlingDifferentIdentifiers()
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
@@ -1712,7 +1718,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             await this.Kestrell.StopAsync();
             this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, options, identifier: "c1");
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, new SyncSetup("Customer"), options, identifier: "c2");
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, new SyncSetup("Customer"), options, scopeName: "customScope1", identifier: "c2");
             var serviceUri = this.Kestrell.Run();
 
             // Execute a sync on all clients and check results

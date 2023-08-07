@@ -52,11 +52,12 @@ namespace Dotmim.Sync.Tests
             this.builder = hostBuilder;
         }
 
-        public void AddSyncServer(Type providerType, string connectionString, SyncSetup setup = null, SyncOptions options = null, WebServerOptions webServerOptions = null, string identifier = null)
+        public void AddSyncServer(Type providerType, string connectionString, SyncSetup setup = null, SyncOptions options = null,
+            WebServerOptions webServerOptions = null, string scopeName = null, string identifier = null)
         {
             this.builder.ConfigureServices(services =>
             {
-                services.AddSyncServer(providerType, connectionString, setup, options, webServerOptions, identifier);
+                services.AddSyncServer(providerType, connectionString, setup, options, webServerOptions, scopeName, identifier);
             });
         }
 
