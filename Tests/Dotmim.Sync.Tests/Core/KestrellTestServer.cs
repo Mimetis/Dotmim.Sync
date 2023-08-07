@@ -67,9 +67,18 @@ namespace Dotmim.Sync.Tests
             // Create server web proxy
             serverHandler ??= new RequestDelegate(async context =>
                 {
-                    var webServerAgents = context.RequestServices.GetService(typeof(IEnumerable<WebServerAgent>)) as IEnumerable<WebServerAgent>;
+                    var allWebServerAgents = context.RequestServices.GetService(typeof(IEnumerable<WebServerAgent>)) as IEnumerable<WebServerAgent>;
                     var identifier = context.GetIdentifier();
-                    var webServerAgent = string.IsNullOrEmpty(identifier) ? webServerAgents.FirstOrDefault() : webServerAgents.FirstOrDefault(wsa => wsa.Identifier == identifier);
+                    var scopeName = context.GetScopeName();
+
+                    IEnumerable<WebServerAgent> webServerAgents = null;
+
+                    if (string.IsNullOrEmpty(identifier))
+                        webServerAgents = allWebServerAgents.Where(wsa => string.IsNullOrEmpty(wsa.Identifier));
+                    else
+                        webServerAgents = allWebServerAgents.Where(wsa => wsa.Identifier == identifier);
+
+                    var webServerAgent = webServerAgents.FirstOrDefault(wsa => wsa.ScopeName == scopeName);
 
                     await webServerAgent.HandleRequestAsync(context);
                 });

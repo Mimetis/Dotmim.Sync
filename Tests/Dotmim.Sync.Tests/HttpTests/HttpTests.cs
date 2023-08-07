@@ -248,8 +248,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             await this.Kestrell.StopAsync();
 
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, 
-                new SyncOptions { DisableConstraintsOnApplyChanges = true }, identifier: "db1");
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup,
+                new SyncOptions { DisableConstraintsOnApplyChanges = true }, null, "v1", "db1");
+
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup,
+                new SyncOptions { DisableConstraintsOnApplyChanges = true }, null, "v2", "db1");
 
             this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, 
                 new SyncOptions { DisableConstraintsOnApplyChanges = true }, identifier: "db2");
