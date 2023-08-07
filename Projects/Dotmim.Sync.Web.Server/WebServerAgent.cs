@@ -26,11 +26,13 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Default ctor. Using default options and schema
         /// </summary>
-        public WebServerAgent(CoreProvider provider, SyncSetup setup, SyncOptions options = null, WebServerOptions webServerOptions = null, string identifier = null)
+        public WebServerAgent(CoreProvider provider, SyncSetup setup, SyncOptions options = null, WebServerOptions webServerOptions = null,
+            string scopeName = null, string identifier = null)
         {
             this.Setup = setup;
             this.WebServerOptions = webServerOptions ?? new WebServerOptions();
             this.Provider = provider;
+            this.ScopeName = string.IsNullOrEmpty(scopeName) ? SyncOptions.DefaultScopeName : scopeName;
             this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, options ?? new SyncOptions());
             this.Identifier = identifier;
         }
@@ -38,12 +40,15 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Default ctor. Using default options and schema
         /// </summary>
-        public WebServerAgent(CoreProvider provider, string[] tables, SyncOptions options = null, WebServerOptions webServerOptions = null, string identifier = null)
+        public WebServerAgent(CoreProvider provider, string[] tables, SyncOptions options = null, WebServerOptions webServerOptions = null,
+            string scopeName = null,
+            string identifier = null)
         {
             this.Setup = new SyncSetup(tables);
             this.WebServerOptions = webServerOptions ?? new WebServerOptions();
             this.Provider = provider;
             this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, options ?? new SyncOptions());
+            this.ScopeName = string.IsNullOrEmpty(scopeName) ? SyncOptions.DefaultScopeName : scopeName;
             this.Identifier = identifier;
 
         }
@@ -76,6 +81,12 @@ namespace Dotmim.Sync.Web.Server
         /// Can be really usefull in multi sync scenarios
         /// </summary>
         public string Identifier { get; set; }
+
+        /// <summary>
+        /// Gets or Sets a scope name used when multiple SyncSetup in one server.
+        /// Can be really usefull in multi sync scenarios
+        /// </summary>
+        public string ScopeName { get; set; }
 
         /// <summary>
         /// Gets or sets the RemoteOrchestrator used in this webServerAgent
@@ -137,6 +148,9 @@ namespace Dotmim.Sync.Web.Server
                     HashAlgorithm.SHA256.EnsureHash(readableStream, hashStringRequest);
                 else
                     readableStream.Seek(0, SeekOrigin.Begin);
+
+                if (!string.Equals(scopeName, this.ScopeName, SyncGlobalization.DataSourceStringComparison))
+                    throw new HttpScopeNameFromClientIsInvalidException(scopeName, this.ScopeName);
 
                 // load session
                 await httpContext.Session.LoadAsync(cancellationToken);
@@ -279,7 +293,6 @@ namespace Dotmim.Sync.Web.Server
                         break;
                 }
 
-                //httpContext.Session.Set(scopeName, schema);
                 httpContext.Session.Set(sessionId, sessionCache);
                 await httpContext.Session.CommitAsync(cancellationToken);
 

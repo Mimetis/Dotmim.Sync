@@ -38,6 +38,7 @@ namespace MutliOrchestratorsWebSyncServer
             var mysqlConnectionString = Configuration.GetSection("ConnectionStrings")["MySqlConnection"];
 
             var options = new SyncOptions { };
+            
 
             // [Required] Tables involved in the sync process:
             var tables = new string[] {"ProductCategory", "ProductModel", "Product",
