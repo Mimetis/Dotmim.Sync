@@ -1154,6 +1154,51 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task DeleteOneRowInOneTableOnClientSideThatIsNotTrackedYetOne(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+            {
+                // generate a random server name
+                 var sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("server_");
+
+                // create a server provider
+                var provider = HelperDatabase.GetSyncProvider(ServerProviderType, sqlServerRandomDatabaseName,
+                    ServerProviderType == ProviderType.Sql || ServerProviderType == ProviderType.Postgres);
+
+                // Create database and schema on server side (+ seeding)
+                new AdventureWorksContext(provider, true).Database.EnsureCreated();
+
+                if (ServerProviderType == ProviderType.Sql)
+                    await HelperDatabase.ActivateChangeTracking(sqlServerRandomDatabaseName);
+
+                // before 1st sync, adding a server product categgory
+                var pc = await serverProvider.AddProductCategoryAsync(name: $"SRV_{HelperDatabase.GetRandomName()}");
+
+                // Sync to initialize client
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+                // now on client delete this product category that is not tracked on server as it's a default row
+                await clientProvider.DeleteProductCategoryAsync(pc.ProductCategoryId);
+                    
+                // sync and check
+                var s = await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync();
+
+                // we are uploading deleted rows from client
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                // nothing downloaded
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                // but we should not have any rows applied locally
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                // anyway we are always uploading our deleted rows and should be applied on server
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                // w may have resolved conflicts locally
+                Assert.Equal(0, s.TotalResolvedConflicts);
+            }
+        }
+
         [Fact]
         public async Task ProvisionAndDeprovision()
         {

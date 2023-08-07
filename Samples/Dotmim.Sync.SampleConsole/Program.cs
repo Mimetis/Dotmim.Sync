@@ -70,16 +70,16 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        //var serverProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString("Wasim"));
+        var serverProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(serverDbName));
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         // var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
         //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-        //var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
+        var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
@@ -88,7 +88,8 @@ internal class Program
         var setup = new SyncSetup(oneTable);
 
         var options = new SyncOptions();
-        options.CleanFolder = false;
+        options.ErrorResolutionPolicy = ErrorResolution.RetryOneMoreTimeAndThrowOnError;
+        //options.CleanFolder = false;
         //options.Logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Information);
         //options.UseVerboseErrors = true;
 
@@ -110,7 +111,7 @@ internal class Program
 
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        // await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
         //await AddRemoveRemoveAsync();
 
@@ -151,73 +152,73 @@ internal class Program
         // Create a snapshot
         await remoteOrchestrator.CreateSnapshotAsync(setup, parameters);
     }
-    private static async Task SynchronizeWithFiltersJoinsAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+    //private static async Task SynchronizeWithFiltersJoinsAsync()
+    //{
+    //    // Create 2 Sql Sync providers
+    //    var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+    //    var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
-        var setup = new SyncSetup("SalesLT.ProductCategory", "SalesLT.Product");
+    //    var setup = new SyncSetup("SalesLT.ProductCategory", "SalesLT.Product");
 
-        var productCategoryFilter = new SetupFilter("ProductCategory", "SalesLT");
-        productCategoryFilter.AddParameter("ProductCategoryID", "ProductCategory", "SalesLT");
-        productCategoryFilter.AddWhere("ProductCategoryID", "ProductCategory", "ProductCategoryID", "SalesLT");
-        setup.Filters.Add(productCategoryFilter);
+    //    var productCategoryFilter = new SetupFilter("ProductCategory", "SalesLT");
+    //    productCategoryFilter.AddParameter("ProductCategoryID", "ProductCategory", "SalesLT");
+    //    productCategoryFilter.AddWhere("ProductCategoryID", "ProductCategory", "ProductCategoryID", "SalesLT");
+    //    setup.Filters.Add(productCategoryFilter);
 
-        var productFilter = new SetupFilter("Product", "SalesLT");
-        productFilter.AddParameter("ProductCategoryID", "ProductCategory", "SalesLT");
-        productFilter.AddJoin(Join.Left, "ProductCategory", "SalesLT").On("ProductCategory", "ProductCategoryID", "Product", "ProductCategoryId", "SalesLT", "SalesLT");
-        productFilter.AddWhere("ProductCategoryID", "ProductCategory", "ProductCategoryID", "SalesLT");
-        setup.Filters.Add(productFilter);
-
-
-        var options = new SyncOptions();
-
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        // Using the Progress pattern to handle progession during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Message}");
-            Console.ResetColor();
-        });
-
-        do
-        {
-            // Console.Clear();
-            Console.WriteLine("Sync Start");
-            try
-            {
-                agent.LocalOrchestrator.OnExecuteCommand(eca =>
-                {
-                    if (eca.CommandType == DbCommandType.UpdateRow || eca.CommandType == DbCommandType.UpdateRows
-                    || eca.CommandType == DbCommandType.InsertRow || eca.CommandType == DbCommandType.InsertRows)
-                    {
-                        var command = eca.Command;
-                    }
-                });
-
-                var p = new SyncParameters { { "ProductCategoryId", "ROADFR" } };
-
-                var s1 = await agent.SynchronizeAsync(setup, p, progress);
-
-                // Write results
-                Console.WriteLine(s1);
-
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
+    //    var productFilter = new SetupFilter("Product", "SalesLT");
+    //    productFilter.AddParameter("ProductCategoryID", "ProductCategory", "SalesLT");
+    //    productFilter.AddJoin(Join.Left, "ProductCategory", "SalesLT").On("ProductCategory", "ProductCategoryID", "Product", "ProductCategoryId", "SalesLT", "SalesLT");
+    //    productFilter.AddWhere("ProductCategoryID", "ProductCategory", "ProductCategoryID", "SalesLT");
+    //    setup.Filters.Add(productFilter);
 
 
-            //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+    //    var options = new SyncOptions();
 
-        Console.WriteLine("End");
-    }
+    //    // Creating an agent that will handle all the process
+    //    var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+    //    // Using the Progress pattern to handle progession during the synchronization
+    //    var progress = new SynchronousProgress<ProgressArgs>(s =>
+    //    {
+    //        Console.ForegroundColor = ConsoleColor.Green;
+    //        Console.WriteLine($"{s.ProgressPercentage:p}:\t{s.Message}");
+    //        Console.ResetColor();
+    //    });
+
+    //    do
+    //    {
+    //        // Console.Clear();
+    //        Console.WriteLine("Sync Start");
+    //        try
+    //        {
+    //            agent.LocalOrchestrator.OnExecuteCommand(eca =>
+    //            {
+    //                if (eca.CommandType == DbCommandType.UpdateRow || eca.CommandType == DbCommandType.UpdateRows
+    //                || eca.CommandType == DbCommandType.InsertRow || eca.CommandType == DbCommandType.InsertRows)
+    //                {
+    //                    var command = eca.Command;
+    //                }
+    //            });
+
+    //            var p = new SyncParameters { { "ProductCategoryId", "ROADFR" } };
+
+    //            var s1 = await agent.SynchronizeAsync(setup, p, progress);
+
+    //            // Write results
+    //            Console.WriteLine(s1);
+
+    //        }
+    //        catch (Exception e)
+    //        {
+    //            Console.WriteLine(e.Message);
+    //        }
+
+
+    //        //Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
+    //    } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+    //    Console.WriteLine("End");
+    //}
 
     private static async Task AddRemoveRemoveAsync()
     {
@@ -306,12 +307,9 @@ internal class Program
             Console.WriteLine($"{s.ProgressPercentage:p}:  " +
             $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
 
-        options.DisableConstraintsOnApplyChanges = true;
-        options.TransactionMode = TransactionMode.PerBatch;
 
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-        setup = new SyncSetup("Items");
         do
         {
             try

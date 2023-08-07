@@ -216,6 +216,7 @@ namespace Dotmim.Sync.PostgreSql
             var procName = string.Format(deleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope);
             var procNameQuoted = ParserName.Parse(procName, "\"").Quoted().ToString();
 
+            var fullTableName = $"\"{schema}\".{TableName.Quoted()}";
             var sqlCommand = new NpgsqlCommand();
             var stringBuilder = new StringBuilder();
 
@@ -227,6 +228,7 @@ namespace Dotmim.Sync.PostgreSql
                 var columnType = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.TableDescription.OriginalProvider);
                 stringBuilder.AppendLine($"\t\"in_{columnName}\" {columnType} = NULL,");
             }
+
             stringBuilder.AppendLine($"\tsync_scope_id Uuid = NULL,");
             stringBuilder.AppendLine($"\tsync_force_write Bigint = NULL,");
             stringBuilder.AppendLine($"\tsync_min_timestamp Bigint = NULL,");
@@ -236,9 +238,10 @@ namespace Dotmim.Sync.PostgreSql
             stringBuilder.AppendLine($"DECLARE sync_error_sqlcontext text;");
             stringBuilder.AppendLine($"BEGIN");
             stringBuilder.AppendLine($"");
-            stringBuilder.AppendLine($"DELETE from \"{schema}\".{TableName.Quoted()} base");
-            stringBuilder.AppendLine($"USING \"{schema}\".{TrackingTableName.Quoted()} side ");
-            stringBuilder.AppendLine($"WHERE {NpgsqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "base", "side")} ");
+            stringBuilder.AppendLine($"DELETE from {fullTableName} ");
+            stringBuilder.AppendLine($"USING {fullTableName} base");
+            stringBuilder.AppendLine($"LEFT JOIN \"{schema}\".{TrackingTableName.Quoted()} side ON {NpgsqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "base", "side")} ");
+            stringBuilder.AppendLine($"WHERE {NpgsqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "base", fullTableName)}  ");
             stringBuilder.AppendLine($"AND (side.timestamp <= sync_min_timestamp OR side.timestamp IS NULL OR side.update_scope_id = sync_scope_id OR sync_force_write = 1)");
             stringBuilder.AppendLine($"AND ({NpgsqlManagementUtils.ColumnsAndParameters(this.TableDescription.PrimaryKeys, "base", NpgsqlSyncProvider.NPGSQL_PREFIX_PARAMETER)});");
             stringBuilder.AppendLine($"");
