@@ -191,7 +191,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var kestrell = new KestrellTestServer(false);
 
             // configure server orchestrator
-            kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup);
+            kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, options, null, scopeName);
             var serviceUri = kestrell.Run();
 
             var remoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
@@ -199,9 +199,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Make a first sync to be sure everything is in place
             var agent = new SyncAgent(clientProvider, remoteOrchestrator, options);
 
+            var r1 = await agent.SynchronizeAsync(scopeName, parameters);
+            Assert.Equal(rowsCount, r1.TotalChangesDownloadedFromServer);
             // Making a first sync, will initialize everything we need
-            var r = await agent.SynchronizeAsync(scopeName, parameters);
-            Assert.Equal(rowsCount, r.TotalChangesDownloadedFromServer);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
@@ -214,7 +214,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var sod3 = await serverProvider.AddSalesOrderDetailAsync(soh.SalesOrderId, products[0].ProductId);
 
             // Making a second sync, with these new rows
-            r = await agent.SynchronizeAsync(scopeName, parameters);
+            var r = await agent.SynchronizeAsync(scopeName, parameters);
             Assert.Equal(4, r.TotalChangesDownloadedFromServer);
 
             // now delete these lines on server

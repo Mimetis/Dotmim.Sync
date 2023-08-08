@@ -6,10 +6,13 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Session;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -80,7 +83,15 @@ namespace Dotmim.Sync.Tests
 
                     var webServerAgent = webServerAgents.FirstOrDefault(wsa => wsa.ScopeName == scopeName);
 
-                    await webServerAgent.HandleRequestAsync(context);
+                    if (webServerAgent == null)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                        await HttpResponseWritingExtensions.WriteAsync(context.Response, $"There is no web server agent configured for this scope name {scopeName} and identifier {identifier}.");
+                    }
+                    else
+                    {
+                        await webServerAgent.HandleRequestAsync(context);
+                    }
                 });
 
             this.builder.Configure(app =>
