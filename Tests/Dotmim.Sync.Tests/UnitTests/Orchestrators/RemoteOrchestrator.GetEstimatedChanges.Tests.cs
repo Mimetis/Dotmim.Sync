@@ -145,7 +145,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var kestrell = new KestrellTestServer(false);
 
             // configure server orchestrator
-            kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup);
+            kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, options, null, scopeName);
             var serviceUri = kestrell.Run();
 
 
