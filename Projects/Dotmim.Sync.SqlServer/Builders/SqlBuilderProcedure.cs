@@ -1224,11 +1224,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             // ----------------------------------
             // Add all columns
             // ----------------------------------
-            //foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-            //{
-            //    var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-            //    stringBuilder.AppendLine($"\t[side].{columnName}, ");
-            //}
             foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();

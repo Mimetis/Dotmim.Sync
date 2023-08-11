@@ -24,7 +24,8 @@ namespace Dotmim.Sync
         {
             SyncFilter filter = null;
 
-            if (this.Provider != null && this.Provider.CanBeServerProvider) // Sqlite can't be server
+            //if (this.Provider != null && this.Provider.CanBeServerProvider) // Sqlite can't be server
+            if (this.Provider != null) // trying for Sqlite too
                 filter = syncAdapter.TableDescription.GetFilter();
 
             var (command, isBatch) = syncAdapter.GetCommand(commandType, filter);
@@ -126,8 +127,9 @@ namespace Dotmim.Sync
             SyncFilter tableFilter = null;
 
             // Sqlite does not have any filter, since he can't be server side
-            if (this.Provider != null && this.Provider.CanBeServerProvider)
-                tableFilter = schemaTable.GetFilter();
+            //if (this.Provider != null && this.Provider.CanBeServerProvider)
+            if (this.Provider != null)
+                    tableFilter = schemaTable.GetFilter();
 
             // if row is not null, fill the parameters
             if (row != null)
@@ -151,7 +153,7 @@ namespace Dotmim.Sync
             }
 
             // if we have a filter, set the filter parameters
-            
+
             if (tableFilter != null && tableFilter.Parameters != null && tableFilter.Parameters.Count > 0)
             {
                 // context parameters can be null at some point.
