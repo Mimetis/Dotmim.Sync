@@ -115,51 +115,141 @@ internal class Program
 
         //await AddRemoveRemoveAsync();
 
-        await SynchronizeWithFiltersJoinsAsync();
+        await TestSyncSqliteWithFiftyColumnsAndOneThousandRowsAsync();
 
         //await CreateSnapshotAsync();
     }
 
-    private static async Task CreateSnapshotAsync()
-    {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
-        var setup = new SyncSetup("SalesLT.ProductCategory", "SalesLT.Product");
-
-        var productCategoryFilter = new SetupFilter("ProductCategory", "SalesLT");
-        productCategoryFilter.AddParameter("ProductCategoryID", "ProductCategory", "SalesLT", true);
-        productCategoryFilter.AddWhere("ProductCategoryID", "ProductCategory", "ProductCategoryID", "SalesLT");
-        setup.Filters.Add(productCategoryFilter);
-
-        // snapshot directory
-        var snapshotDirectoryName = "Snapshots";
-        var directory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), snapshotDirectoryName);
-
-        // snapshot directory
-        var options = new SyncOptions
-        {
-            SnapshotsDirectory = directory,
-            BatchSize = 3000
-        };
-
-        SyncParameters parameters = new() { new("ProductCategoryID", default) };
-
-        // Create a remote orchestrator
-        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
-
-        // Create a snapshot
-        await remoteOrchestrator.CreateSnapshotAsync(setup, parameters);
-    }
-
-    private static async Task SynchronizeWithFiltersJoinsAsync()
+    private static async Task TestSyncSqliteWithFiftyColumnsAndOneThousandRowsAsync()
     {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
 
-        //var clientProvider = new SqliteSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var index = 0;
+        var rowsNumber = 20000;
+
+        var setup = new SyncSetup("Codes");
+
+        var options = new SyncOptions();
+        // big payload to ensure we have only 1 file serialized on disk
+        options.BatchSize = 5000;
+
+        // Creating an agent that will handle all the process
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        // 1st sync: No rows in tables Codes.
+        // Will allow to create the whole schema on sqlite, with tables and triggers
+        // Also will create everything on server side
+        var s1 = await agent.SynchronizeAsync(setup);
+        var durationTs = TimeSpan.FromTicks(s1.CompleteTime.Ticks).Subtract(TimeSpan.FromTicks(s1.StartTime.Ticks));
+        Console.WriteLine($"Create SQLite db and configure everything. No rows synced : {durationTs:hh\\.mm\\:ss\\.fff}");
+        Console.WriteLine($"----------------------------------------");
+
+        // Now insert N rows in server side
+        var result = InsertNCodesInProvider(serverProvider, index, rowsNumber);
+        Console.WriteLine($"Insert {rowsNumber} rows into server (SQL Server): {result:hh\\.mm\\:ss\\.fff}");
+        Console.WriteLine($"----------------------------------------");
+
+        // Now making another sync where we can have a better measurement
+        var sqliteWatch = new Stopwatch();
+        agent.LocalOrchestrator.OnTableChangesApplying(args => sqliteWatch.Start());
+        agent.LocalOrchestrator.OnTableChangesApplied(args =>sqliteWatch.Stop());
+
+        s1 = await agent.SynchronizeAsync(setup);
+        durationTs = TimeSpan.FromTicks(s1.CompleteTime.Ticks).Subtract(TimeSpan.FromTicks(s1.StartTime.Ticks));
+        Console.WriteLine($"Sync {rowsNumber} rows from Server in SQLite: {durationTs:hh\\.mm\\:ss\\.fff}");
+        Console.WriteLine($"Pure Merge in SQLite: {sqliteWatch.Elapsed:hh\\.mm\\:ss\\.fff}");
+        Console.WriteLine($"----------------------------------------");
+
+        // Now Insert N rows in sqlite
+        result = InsertNCodesInProvider(clientProvider, index + rowsNumber, rowsNumber);
+        Console.WriteLine($"Insert {rowsNumber} rows into client (SQLite): {result:hh\\.mm\\:ss\\.fff}");
+        Console.WriteLine($"----------------------------------------");
+
+        // Sync back to server
+        s1 = await agent.SynchronizeAsync(setup);
+        durationTs = TimeSpan.FromTicks(s1.CompleteTime.Ticks).Subtract(TimeSpan.FromTicks(s1.StartTime.Ticks));
+        Console.WriteLine($"Sync {rowsNumber} rows from SQLite to SQL Server: {durationTs:hh\\.mm\\:ss\\.fff}");
+        Console.WriteLine($"----------------------------------------");
+    }
+
+    private static TimeSpan InsertNCodesInProvider(CoreProvider coreProvider, int startIndex, int count)
+    {
+
+        using var connection = coreProvider.CreateConnection();
+
+        string sql = @"Insert into Codes(Code, 
+Name1 , Name2 , Name3 , Name4 , Name5 , Name6 , Name7 , Name8 , Name9 , Date1 , Date2 , Date3 , Date4 , Date5 , Date6 , Date7 , Date8 , Date9 , Date10, Date11, Date12, Date13, Date14, Date15, Date16, Date17, Date18, Date19, Date20, Date30, Date31, Date32, Date33, Date34, Date35, Date36, Date37, Date38, Date39, Date40
+) VALUES(@Code,
+@Name1 , @Name2 , @Name3 , @Name4 , @Name5 , @Name6 , @Name7 , @Name8 , @Name9 , @Date1 , @Date2 , @Date3 , @Date4 , @Date5 , @Date6 , @Date7 , @Date8 , @Date9 , @Date10, @Date11, @Date12, @Date13, @Date14, @Date15, @Date16, @Date17, @Date18, @Date19, @Date20, @Date30, @Date31, @Date32, @Date33, @Date34, @Date35, @Date36, @Date37, @Date38, @Date39, @Date40
+)";
+
+        var stopWatch = new Stopwatch();
+        stopWatch.Start();
+
+        var command = connection.CreateCommand();
+        command.Connection = connection;
+        command.CommandText = sql;
+
+        DbParameter p;
+
+        p = command.CreateParameter();
+        p.DbType = DbType.Int32;
+        p.ParameterName = "@Code";
+        command.Parameters.Add(p);
+
+        for (int i = 1; i < 10; i++)
+        {
+            p = command.CreateParameter();
+            p.DbType = DbType.String;
+            p.Size = 36;
+            p.ParameterName = "@Name" + i.ToString();
+            command.Parameters.Add(p);
+        }
+
+        for (int i = 1; i < 41; i++)
+        {
+            p = command.CreateParameter();
+            p.DbType = DbType.DateTime;
+            p.ParameterName = "@Date" + i.ToString();
+            command.Parameters.Add(p);
+        }
+
+        connection.Open();
+
+        command.Prepare();
+        using (var transaction = connection.BeginTransaction())
+        {
+            for (var i = startIndex; i < count + startIndex; i++)
+            {
+                command.Transaction = transaction;
+                command.Parameters[0].Value = i;
+
+                for (int k = 1; k < 10; k++)
+                    command.Parameters[k].Value = "Product " + i.ToString() + k.ToString();
+                for (int k = 10; k < 50; k++)
+                    command.Parameters[k].Value = DateTime.Now;
+                command.ExecuteNonQuery();
+            }
+            transaction.Commit();
+        }
+
+        connection.Close();
+
+        stopWatch.Stop();
+
+        return stopWatch.Elapsed;
+    }
+
+
+    private static async Task SynchronizeWithFiltersJoinsAsync()
+    {
+        // Create 2 Sql Sync providers
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        // var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
 
         var setup = new SyncSetup("SalesLT.ProductCategory");
 
@@ -168,15 +258,8 @@ internal class Program
         productCategoryFilter.AddWhere("ProductCategoryID", "ProductCategory", "ProductCategoryID", "SalesLT");
         setup.Filters.Add(productCategoryFilter);
 
-        //var productFilter = new SetupFilter("Product", "SalesLT");
-        //productFilter.AddParameter("ProductCategoryID", "ProductCategory", "SalesLT");
-        //productFilter.AddJoin(Join.Left, "ProductCategory", "SalesLT").On("ProductCategory", "ProductCategoryID", "Product", "ProductCategoryId", "SalesLT", "SalesLT");
-        //productFilter.AddWhere("ProductCategoryID", "ProductCategory", "ProductCategoryID", "SalesLT");
-        //setup.Filters.Add(productFilter);
-
 
         var options = new SyncOptions();
-        options.ErrorResolutionPolicy = ErrorResolution.RetryOneMoreTimeAndThrowOnError;
 
         // Creating an agent that will handle all the process
         var agent = new SyncAgent(clientProvider, serverProvider, options);
@@ -189,16 +272,6 @@ internal class Program
             Console.ResetColor();
         });
 
-        agent.LocalOrchestrator.OnExecuteCommand(eca =>
-        {
-            if (eca.CommandType == DbCommandType.SelectChanges || eca.CommandType == DbCommandType.SelectChangesWithFilters
-            || eca.CommandType == DbCommandType.SelectInitializedChanges || eca.CommandType == DbCommandType.SelectInitializedChangesWithFilters)
-            {
-                var command = eca.Command;
-                Debug.WriteLine(command.ToString());
-            }
-        });
-
         do
         {
             // Console.Clear();
@@ -206,12 +279,38 @@ internal class Program
             try
             {
 
-                var p = new SyncParameters { { "ProductCategoryId", "A_COMPT" } };
+                // classic sync for A_BIKES
+                var paramsABikes = new SyncParameters { { "ProductCategoryId", "A_BIKES" } };
 
-                var s1 = await agent.SynchronizeAsync(setup, p, progress);
+                // Sync server. Create the local schema, Get all the A_BIKES rows, and apply them locally
+                var s1 = await agent.SynchronizeAsync(setup, paramsABikes, progress);
+                Console.WriteLine(s1);
+
+                // Adding a R_BIKES product category, and we want to upload it, despite the fact we don't have yet a correct scope
+                await DBHelper.AddProductCategoryRowAsync(agent.LocalOrchestrator.Provider, "R_BIKES", default, "R Bikes category");
+
+                // the params to use                
+                var paramsRBikes = new SyncParameters { { "ProductCategoryId", "R_BIKES" } };
+
+                // You need to do this trick only ONE TIME.
+                // Once it's done, you don't have to do it on every sync, of course
+                // -----------------------------------------------------------------
+                // Get the scope client for R_BIKES from local storage
+                // The GetScopeInfoClientAsync method will create the scope if it does not exists in the local database
+                var scopeClientRBikes = await agent.LocalOrchestrator.GetScopeInfoClientAsync(syncParameters: paramsRBikes);
+                // hack the last sync datetime
+                scopeClientRBikes.LastSyncTimestamp = 0;
+                scopeClientRBikes.LastSync = DateTime.Now.AddDays(-1);
+                // Save it
+                await agent.LocalOrchestrator.SaveScopeInfoClientAsync(scopeClientRBikes);
+                // -----------------------------------------------------------------
+
+                // now sync
+                var s2 = await agent.SynchronizeAsync(setup, paramsRBikes, progress);
+                Console.WriteLine(s2);
+
 
                 // Write results
-                Console.WriteLine(s1);
 
             }
             catch (Exception e)
@@ -224,88 +323,6 @@ internal class Program
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
         Console.WriteLine("End");
-    }
-
-    private static async Task AddRemoveRemoveAsync()
-    {
-        // Using the Progress pattern to handle progression during the synchronization
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-            Console.WriteLine($"{s.ProgressPercentage:p}:  " +
-            $"\t[{s?.Source[..Math.Min(4, s.Source.Length)]}] " +
-            $"{s.TypeName}: {s.Message}"));
-
-        // Server provider
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-
-        // Clients 1 & 2 providers
-        var clientProvider1 = new SqliteSyncProvider(
-            Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        var clientProvider2 = new SqliteSyncProvider(
-            Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-
-        var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
-
-        var setup = new SyncSetup(oneTable);
-
-        try
-        {
-            var agent1 = new SyncAgent(clientProvider1, serverProvider, options);
-            var agent2 = new SyncAgent(clientProvider2, serverProvider, options);
-
-            // Sync client 1 to create table and gell all product categories
-            var result1 = await agent1.SynchronizeAsync(setup, progress: progress);
-            Console.WriteLine(result1);
-            // Total changes  uploaded: 0
-            // Total changes  downloaded: 42
-            // Total changes  applied on client: 42
-
-            // Sync client 2 to create table and get all product categories
-            var result2 = await agent2.SynchronizeAsync(setup, progress: progress);
-            Console.WriteLine(result2);
-            // Total changes  uploaded: 0
-            // Total changes  downloaded: 42
-            // Total changes  applied on client: 42
-
-            // Add a product category on server
-            var productCategoryId = await DBHelper.AddProductCategoryRowAsync(serverProvider);
-
-            // Sync client 1 to get this new created server product category on client 1
-            result1 = await agent1.SynchronizeAsync(setup, progress: progress);
-            Console.WriteLine(result1);
-            // Total changes  uploaded: 0
-            // Total changes  downloaded: 1
-            // Total changes  applied on client: 1
-
-            // Sync client 2 to get this new created server product category on client 2
-            result2 = await agent2.SynchronizeAsync(setup, progress: progress);
-            Console.WriteLine(result2);
-            // Total changes  uploaded: 0
-            // Total changes  downloaded: 1
-            // Total changes  applied on client: 1
-
-            // Now delete server product category
-            await DBHelper.DeleteProductCategoryRowAsync(serverProvider, productCategoryId);
-
-            // Sync client 1 to sync the deleted product category from server
-            result1 = await agent1.SynchronizeAsync(setup, progress: progress);
-            Console.WriteLine(result1);
-            // Total changes  uploaded: 0
-            // Total changes  downloaded: 1
-            // Total changes  applied on client: 1
-
-            // Sync client 1 to sync the deleted product category from server
-            result2 = await agent2.SynchronizeAsync(setup, progress: progress);
-            Console.WriteLine(result2);
-            // Total changes  uploaded: 0
-            // Total changes  downloaded: 1
-            // Total changes  applied on client: 1
-        }
-        catch (Exception e)
-        {
-            Console.WriteLine(e.Message);
-        }
-        Console.WriteLine("Sync Ended. Press a key to start again, or Escapte to end");
-
     }
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
@@ -336,443 +353,6 @@ internal class Program
             }
             Console.WriteLine("--------------------");
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
-
-    }
-    static async Task ScenarioPluginLogsAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
-    {
-        // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        //agent.LocalOrchestrator.OnApplyChangesErrorOccured(args => args.Resolution = ErrorResolution.ContinueOnError);
-
-        var showHelp = new Action(() =>
-        {
-            Console.WriteLine("+ :\t\t Add 1 Product & 1 Product Category to server");
-            Console.WriteLine("a :\t\t Add 1 Product & 1 Product Category to client");
-            Console.WriteLine("c :\t\t Generate Product Category Conflict");
-            Console.WriteLine("h :\t\t Show Help");
-            Console.WriteLine("r :\t\t Reinitialize");
-            Console.WriteLine("Esc :\t\t End");
-            Console.WriteLine("Default :\t Synchronize");
-
-        });
-
-        await InteruptRemoteOrchestratorInterceptors(agent.RemoteOrchestrator);
-
-        var parameters = scopeName == "filter" ? new SyncParameters(("ParentProductCategoryID", new Guid("10A7C342-CA82-48D4-8A38-46A2EB089B74"))) : null;
-
-        ConsoleKey key;
-
-        showHelp();
-        do
-        {
-            key = Console.ReadKey().Key;
-
-            try
-            {
-                if (key != ConsoleKey.Escape)
-                {
-                    switch (key)
-                    {
-                        case ConsoleKey.H:
-                        case ConsoleKey.Help:
-                            showHelp();
-                            break;
-                        case ConsoleKey.C:
-                            Console.WriteLine("Generating 1 conflict on Product Category");
-                            var pId = Guid.NewGuid();
-                            await DBHelper.AddProductCategoryRowAsync(serverProvider, pId);
-                            await DBHelper.AddProductCategoryRowAsync(clientProvider, pId);
-                            break;
-                        case ConsoleKey.Add:
-                            Console.WriteLine("Adding 1 product & 1 product category to server");
-                            await DBHelper.AddProductCategoryRowAsync(serverProvider);
-                            await AddProductRowAsync(serverProvider);
-                            break;
-                        case ConsoleKey.A:
-                            Console.WriteLine("Adding 1 product & 1 product category to client");
-                            await DBHelper.AddProductCategoryRowAsync(clientProvider);
-                            await AddProductRowAsync(clientProvider);
-                            break;
-                        case ConsoleKey.R:
-                            Console.WriteLine("Reinitialiaze");
-                            var reinitResut = await agent.SynchronizeAsync(scopeName, setup, SyncType.Reinitialize, parameters);
-                            Console.WriteLine(reinitResut);
-                            showHelp();
-                            break;
-                        default:
-                            var r = await agent.SynchronizeAsync(scopeName, setup, parameters);
-                            Console.WriteLine(r);
-                            showHelp();
-                            break;
-                    }
-
-                }
-            }
-            catch (SyncException e)
-            {
-                Console.WriteLine(e.ToString());
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-            }
-
-
-            Console.WriteLine("---");
-            Console.WriteLine();
-        } while (key != ConsoleKey.Escape);
-    }
-    static async Task InteruptRemoteOrchestratorInterceptors(RemoteOrchestrator remoteOrchestrator)
-    {
-
-        var network = remoteOrchestrator.GetType().Name == "WebRemoteOrchestrator" ? "Http" : "Tcp";
-
-        using (var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString))
-        {
-            await syncLogContext.Database.EnsureCreatedAsync();
-            syncLogContext.EnsureTablesCreated();
-        }
-
-
-        var ensureSyncLog = new Func<SyncContext, SyncLogsContext, SyncLog>((syncContext, ctx) =>
-        {
-            var log = ctx.SyncLog.Find(syncContext.SessionId);
-
-            if (log != null)
-                return log;
-
-            log = new SyncLog
-            {
-                SessionId = syncContext.SessionId,
-                ClientScopeId = syncContext.ClientId.Value,
-                ScopeParameters = syncContext.Parameters != null ? JsonConvert.SerializeObject(syncContext.Parameters) : null,
-                Network = network,
-            };
-
-            ctx.SyncLog.Add(log);
-
-            return log;
-        });
-
-        var ensureSyncLogTable = new Func<SyncContext, string, SyncLogsContext, SyncLogTable>((syncContext, fullTableName, ctx) =>
-        {
-            var logTable = ctx.SyncLogTable.Find(syncContext.SessionId, fullTableName);
-
-            if (logTable != null)
-                return logTable;
-
-            logTable = new SyncLogTable
-            {
-                SessionId = syncContext.SessionId,
-                ScopeName = syncContext.ScopeName,
-                ClientScopeId = syncContext.ClientId.Value,
-                TableName = fullTableName,
-                ScopeParameters = syncContext.Parameters != null ? JsonConvert.SerializeObject(syncContext.Parameters) : null
-            };
-            ctx.SyncLogTable.Add(logTable);
-
-            return logTable;
-        });
-
-
-        remoteOrchestrator.OnSessionEnd(args =>
-        {
-            using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
-            //syncLogContext.Database.UseTransaction(args.Transaction);
-
-            var log = ensureSyncLog(args.Context, syncLogContext);
-
-            log.ScopeName = args.Context.ScopeName;
-            log.SyncType = args.Context.SyncType;
-
-            log.StartTime = args.SyncResult.StartTime;
-            log.EndTime = args.SyncResult.CompleteTime;
-
-
-            if (args.SyncResult.ChangesAppliedOnServer != null && args.SyncResult.ChangesAppliedOnServer.TableChangesApplied != null && args.SyncResult.ChangesAppliedOnServer.TableChangesApplied.Count > 0)
-                log.ChangesAppliedOnServer = JsonConvert.SerializeObject(args.SyncResult?.ChangesAppliedOnServer);
-            else
-                log.ChangesAppliedOnServer = null;
-
-            if (args.SyncResult.ChangesAppliedOnClient != null && args.SyncResult.ChangesAppliedOnClient.TableChangesApplied != null && args.SyncResult.ChangesAppliedOnClient.TableChangesApplied.Count > 0)
-                log.ChangesAppliedOnClient = JsonConvert.SerializeObject(args.SyncResult?.ChangesAppliedOnClient);
-            else
-                log.ChangesAppliedOnClient = null;
-
-            if (args.SyncResult.ClientChangesSelected != null && args.SyncResult.ClientChangesSelected.TableChangesSelected != null && args.SyncResult.ClientChangesSelected.TableChangesSelected.Count > 0)
-                log.ClientChangesSelected = JsonConvert.SerializeObject(args.SyncResult?.ClientChangesSelected);
-            else
-                log.ClientChangesSelected = null;
-
-            if (args.SyncResult.ServerChangesSelected != null && args.SyncResult.ServerChangesSelected.TableChangesSelected != null && args.SyncResult.ServerChangesSelected.TableChangesSelected.Count > 0)
-                log.ServerChangesSelected = JsonConvert.SerializeObject(args.SyncResult?.ServerChangesSelected);
-            else
-                log.ServerChangesSelected = null;
-
-            if (args.SyncResult.SnapshotChangesAppliedOnClient != null && args.SyncResult.SnapshotChangesAppliedOnClient.TableChangesApplied != null && args.SyncResult.ServerChangesSelected.TableChangesSelected.Count > 0)
-                log.SnapshotChangesAppliedOnClient = JsonConvert.SerializeObject(args.SyncResult?.SnapshotChangesAppliedOnClient);
-            else
-                log.SnapshotChangesAppliedOnClient = null;
-
-
-            if (args.SyncException != null)
-            {
-                log.State = "Error";
-                log.Error = args.SyncException.Message;
-            }
-            else
-            {
-                if (args.SyncResult?.TotalChangesFailedToApplyOnClient > 0 || args.SyncResult?.TotalChangesFailedToApplyOnServer > 0)
-                    log.State = "Partial";
-                else
-                    log.State = "Success";
-            }
-
-
-            syncLogContext.SaveChanges();
-        });
-
-        remoteOrchestrator.OnDatabaseChangesApplying(args =>
-        {
-            using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
-            //syncLogContext.Database.UseTransaction(args.Transaction);
-
-            var log = ensureSyncLog(args.Context, syncLogContext);
-
-            log.StartTime = args.Context.StartTime;
-            log.ScopeName = args.Context.ScopeName;
-            log.SyncType = args.Context.SyncType;
-            log.ScopeParameters = args.Context.Parameters != null ? JsonConvert.SerializeObject(args.Context.Parameters) : null;
-            log.State = "DatabaseApplyingChanges";
-
-            syncLogContext.SaveChanges();
-
-        });
-
-        remoteOrchestrator.OnDatabaseChangesApplied(args =>
-        {
-            using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
-            //syncLogContext.Database.UseTransaction(args.Transaction);
-
-            var log = ensureSyncLog(args.Context, syncLogContext);
-
-            log.ChangesAppliedOnServer = args.ChangesApplied != null ? JsonConvert.SerializeObject(args.ChangesApplied) : null;
-            log.State = "DatabaseChangesApplied";
-
-            syncLogContext.SaveChanges();
-
-
-        });
-
-        remoteOrchestrator.OnDatabaseChangesSelecting(args =>
-        {
-            using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
-            //syncLogContext.Database.UseTransaction(args.Transaction);
-
-            var log = ensureSyncLog(args.Context, syncLogContext);
-
-            log.StartTime = args.Context.StartTime;
-            log.ScopeName = args.Context.ScopeName;
-            log.FromTimestamp = args.FromTimestamp;
-            log.ToTimestamp = args.ToTimestamp;
-            log.SyncType = args.Context.SyncType;
-            log.IsNew = args.IsNew;
-            log.State = "DatabaseChangesSelecting";
-
-            syncLogContext.SaveChanges();
-
-        });
-
-        remoteOrchestrator.OnDatabaseChangesSelected(args =>
-        {
-            using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
-            ////syncLogContext.Database.UseTransaction(args.Transaction);
-
-            var log = ensureSyncLog(args.Context, syncLogContext);
-
-            log.ServerChangesSelected = args.ChangesSelected != null ? JsonConvert.SerializeObject(args.ChangesSelected) : null;
-
-            syncLogContext.SaveChanges();
-        });
-
-        remoteOrchestrator.OnTableChangesSelecting(args =>
-        {
-            using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
-            //syncLogContext.Database.UseTransaction(args.Transaction);
-
-            var logTable = ensureSyncLogTable(args.Context, args.SchemaTable.GetFullName(), syncLogContext);
-
-            logTable.State = "TableChangesSelecting";
-            logTable.Command = args.Command.CommandText;
-            syncLogContext.SaveChanges();
-        });
-
-        remoteOrchestrator.OnTableChangesSelected(args =>
-        {
-            using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
-            //syncLogContext.Database.UseTransaction(args.Transaction);
-
-            var logTable = ensureSyncLogTable(args.Context, args.SchemaTable.GetFullName(), syncLogContext);
-
-            logTable.State = "TableChangesSelected";
-            logTable.TableChangesSelected = args.TableChangesSelected != null ? JsonConvert.SerializeObject(args.TableChangesSelected) : null;
-            syncLogContext.SaveChanges();
-
-        });
-
-
-        remoteOrchestrator.OnTableChangesApplied(args =>
-        {
-            using var syncLogContext = new SyncLogsContext(remoteOrchestrator.Provider.ConnectionString);
-            // syncLogContext.Database.UseTransaction(args.Transaction);
-
-            var fullName = string.IsNullOrEmpty(args.TableChangesApplied.SchemaName) ? args.TableChangesApplied.TableName : $"{args.TableChangesApplied.SchemaName}.{args.TableChangesApplied.TableName}";
-
-            var logTable = ensureSyncLogTable(args.Context, fullName, syncLogContext);
-
-            logTable.State = "TableChangesApplied";
-
-            if (args.TableChangesApplied.State == SyncRowState.Modified)
-                logTable.TableChangesUpsertsApplied = args.TableChangesApplied != null ? JsonConvert.SerializeObject(args.TableChangesApplied) : null;
-            else if (args.TableChangesApplied.State == SyncRowState.Deleted)
-                logTable.TableChangesDeletesApplied = args.TableChangesApplied != null ? JsonConvert.SerializeObject(args.TableChangesApplied) : null;
-
-            syncLogContext.SaveChanges();
-
-        });
-
-
-    }
-    private static async Task AddColumnsToProductCategoryAsync(CoreProvider provider)
-    {
-        var commandText = @"ALTER TABLE dbo.ProductCategory ADD CreatedDate datetime NULL;";
-
-        var connection = provider.CreateConnection();
-
-        connection.Open();
-
-        var command = connection.CreateCommand();
-        command.CommandText = commandText;
-        command.Connection = connection;
-
-        await command.ExecuteNonQueryAsync();
-
-        connection.Close();
-    }
-    private static async Task UpdateAllProductCategoryAsync(CoreProvider provider, string addedString)
-    {
-        string commandText = "Update ProductCategory Set Name = Name + @addedString";
-        var connection = provider.CreateConnection();
-
-        connection.Open();
-
-        var command = connection.CreateCommand();
-        command.CommandText = commandText;
-        command.Connection = connection;
-
-        var p = command.CreateParameter();
-        p.DbType = DbType.String;
-        p.ParameterName = "@addedString";
-        p.Value = addedString;
-        command.Parameters.Add(p);
-
-        await command.ExecuteNonQueryAsync();
-
-        connection.Close();
-    }
-    private static async Task AddProductRowAsync(CoreProvider provider)
-    {
-
-        string commandText = "Insert into Product (Name, ProductNumber, StandardCost, ListPrice, SellStartDate) Values (@Name, @ProductNumber, @StandardCost, @ListPrice, @SellStartDate)";
-        var connection = provider.CreateConnection();
-
-        connection.Open();
-
-        var command = connection.CreateCommand();
-        command.CommandText = commandText;
-        command.Connection = connection;
-
-        var p = command.CreateParameter();
-        p.DbType = DbType.String;
-        p.ParameterName = "@Name";
-        p.Value = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.DbType = DbType.String;
-        p.ParameterName = "@ProductNumber";
-        p.Value = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant().Substring(0, 6).ToUpperInvariant();
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.DbType = DbType.Double;
-        p.ParameterName = "@StandardCost";
-        p.Value = 100;
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.DbType = DbType.Double;
-        p.ParameterName = "@ListPrice";
-        p.Value = 100;
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.DbType = DbType.DateTime;
-        p.ParameterName = "@SellStartDate";
-        p.Value = DateTime.UtcNow;
-        command.Parameters.Add(p);
-
-        await command.ExecuteNonQueryAsync();
-
-        connection.Close();
-
-    }
-    private static async Task AddProductCategoryRowWithOneMoreColumnAsync(CoreProvider provider)
-    {
-
-        string commandText = "Insert into ProductCategory (ProductCategoryId, Name, ModifiedDate, CreatedDate, rowguid) Values (@ProductCategoryId, @Name, @ModifiedDate, @CreatedDate, @rowguid)";
-        var connection = provider.CreateConnection();
-
-        connection.Open();
-
-        var command = connection.CreateCommand();
-        command.CommandText = commandText;
-        command.Connection = connection;
-
-        var p = command.CreateParameter();
-        p.DbType = DbType.String;
-        p.ParameterName = "@Name";
-        p.Value = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.DbType = DbType.Guid;
-        p.ParameterName = "@ProductCategoryId";
-        p.Value = Guid.NewGuid();
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.DbType = DbType.DateTime;
-        p.ParameterName = "@ModifiedDate";
-        p.Value = DateTime.UtcNow;
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.DbType = DbType.DateTime;
-        p.ParameterName = "@CreatedDate";
-        p.Value = DateTime.UtcNow;
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.DbType = DbType.Guid;
-        p.ParameterName = "@rowguid";
-        p.Value = Guid.NewGuid();
-        command.Parameters.Add(p);
-
-        await command.ExecuteNonQueryAsync();
-
-        connection.Close();
 
     }
     public static async Task SyncHttpThroughKestrellAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)

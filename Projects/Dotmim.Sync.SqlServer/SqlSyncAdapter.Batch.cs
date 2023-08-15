@@ -135,13 +135,12 @@ namespace Dotmim.Sync.SqlServer.Builders
                     case SqlDbType.DateTime:
                     case SqlDbType.DateTime2:
                     case SqlDbType.SmallDateTime:
+                        rowValue = SyncTypeConverter.TryConvertTo<DateTime>(rowValue);
                         if (sqlMetadataType == SqlDbType.DateTime && rowValue < SqlDateMin)
                             rowValue = SqlDateMin;
                         else if (sqlMetadataType == SqlDbType.SmallDateTime && rowValue < SqlSmallDateMin)
                             rowValue = SqlSmallDateMin;
-                        else
-                            rowValue = SyncTypeConverter.TryConvertTo<DateTime>(rowValue);
-                        break;
+                            break;
                     case SqlDbType.DateTimeOffset:
                         rowValue = SyncTypeConverter.TryConvertTo<DateTimeOffset>(rowValue);
                         break;

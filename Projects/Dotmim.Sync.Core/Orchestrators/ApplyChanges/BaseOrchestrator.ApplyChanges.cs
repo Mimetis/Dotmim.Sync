@@ -582,7 +582,7 @@ namespace Dotmim.Sync
 
                 // Set the parameters value from row 
                 this.InternalSetCommandParametersValues(context, command, dbCommandType, syncAdapter, connection, transaction, cancellationToken, progress,
-                    batchArgs.SyncRows.First(), message.SenderScopeId, message.LastTimestamp, applyType == SyncRowState.Deleted, false);
+                    batchArgs.SyncRows[0], message.SenderScopeId, message.LastTimestamp, applyType == SyncRowState.Deleted, false);
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, command, dbCommandType, connection, transaction),
                     progress, cancellationToken).ConfigureAwait(false);
@@ -606,7 +606,7 @@ namespace Dotmim.Sync
                 errorException = ex;
             }
 
-            var rowAppliedArgs = new RowsChangesAppliedArgs(context, message.Changes, new List<SyncRow> { syncRow }, schemaChangesTable, applyType, rowAppliedCount, errorException, connection, transaction);
+            var rowAppliedArgs = new RowsChangesAppliedArgs(context, message.Changes, new List<SyncRow> { batchArgs.SyncRows[0] }, schemaChangesTable, applyType, rowAppliedCount, errorException, connection, transaction);
             await this.InterceptAsync(rowAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             return (rowAppliedCount, errorException);

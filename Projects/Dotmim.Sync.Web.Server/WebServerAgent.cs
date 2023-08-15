@@ -69,29 +69,29 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Gets or Sets the options used in this webServerAgent
         /// </summary>
-        public CoreProvider Provider { get; }
+        public CoreProvider Provider { get; private set; }
 
         /// <summary>
         /// Gets or Sets Web server options parameters
         /// </summary>
-        public WebServerOptions WebServerOptions { get; set; }
+        public WebServerOptions WebServerOptions { get; private set; }
 
         /// <summary>
         /// Gets or Sets an identifier used to identify your webServerAgent.
         /// Can be really usefull in multi sync scenarios
         /// </summary>
-        public string Identifier { get; set; }
+        public string Identifier { get; private set; }
 
         /// <summary>
         /// Gets or Sets a scope name used when multiple SyncSetup in one server.
         /// Can be really usefull in multi sync scenarios
         /// </summary>
-        public string ScopeName { get; set; }
+        public string ScopeName { get; private set; }
 
         /// <summary>
         /// Gets or sets the RemoteOrchestrator used in this webServerAgent
         /// </summary>
-        public RemoteOrchestrator RemoteOrchestrator { get; set; }
+        public RemoteOrchestrator RemoteOrchestrator { get; private set; }
 
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client

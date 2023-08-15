@@ -125,32 +125,32 @@ namespace Dotmim.Sync.SampleConsole
         }
 
 
-        internal static async Task<Guid> AddProductCategoryRowAsync(CoreProvider provider,
-            Guid? productId = default, Guid? parentProductId = default, string name = default)
+        internal static async Task<string> AddProductCategoryRowAsync(CoreProvider provider,
+            string productCategoryId = default, string parentProductCategoryId = default, string name = default)
         {
-            string commandText = $"Insert into ProductCategory (ProductCategoryId, ParentProductCategoryID, Name, ModifiedDate, rowguid) " +
+            string commandText = $"Insert into SalesLT.ProductCategory (ProductCategoryId, ParentProductCategoryID, Name, ModifiedDate, rowguid) " +
                                  $"Values (@ProductCategoryId, @ParentProductCategoryID, @Name, @ModifiedDate, @rowguid)";
 
             var connection = provider.CreateConnection();
 
             connection.Open();
 
-            var pId = productId.HasValue ? productId.Value : Guid.NewGuid();
+            var pId = string.IsNullOrEmpty(productCategoryId) ? GetRandomName().Replace(".", "").ToUpper() : productCategoryId;
 
             var command = connection.CreateCommand();
             command.CommandText = commandText;
             command.Connection = connection;
 
             var p = command.CreateParameter();
-            p.DbType = DbType.Guid;
+            p.DbType = DbType.String;
             p.ParameterName = "@ProductCategoryId";
             p.Value = pId;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.DbType = DbType.Guid;
+            p.DbType = DbType.String;
             p.ParameterName = "@ParentProductCategoryID";
-            p.Value = parentProductId.HasValue ? (object)parentProductId.Value : DBNull.Value;
+            p.Value = string.IsNullOrEmpty(parentProductCategoryId) ?  DBNull.Value : parentProductCategoryId;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
@@ -203,6 +203,140 @@ namespace Dotmim.Sync.SampleConsole
             p.DbType = DbType.String;
             p.ParameterName = "@Name";
             p.Value = string.IsNullOrEmpty(name) ? DBNull.Value : name;
+            command.Parameters.Add(p);
+
+            await command.ExecuteNonQueryAsync();
+
+            connection.Close();
+        }
+
+        private static async Task AddProductRowAsync(CoreProvider provider)
+        {
+
+            string commandText = "Insert into Product (Name, ProductNumber, StandardCost, ListPrice, SellStartDate) Values (@Name, @ProductNumber, @StandardCost, @ListPrice, @SellStartDate)";
+            var connection = provider.CreateConnection();
+
+            connection.Open();
+
+            var command = connection.CreateCommand();
+            command.CommandText = commandText;
+            command.Connection = connection;
+
+            var p = command.CreateParameter();
+            p.DbType = DbType.String;
+            p.ParameterName = "@Name";
+            p.Value = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.String;
+            p.ParameterName = "@ProductNumber";
+            p.Value = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant().Substring(0, 6).ToUpperInvariant();
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.Double;
+            p.ParameterName = "@StandardCost";
+            p.Value = 100;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.Double;
+            p.ParameterName = "@ListPrice";
+            p.Value = 100;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.DateTime;
+            p.ParameterName = "@SellStartDate";
+            p.Value = DateTime.UtcNow;
+            command.Parameters.Add(p);
+
+            await command.ExecuteNonQueryAsync();
+
+            connection.Close();
+
+        }
+        private static async Task AddProductCategoryRowWithOneMoreColumnAsync(CoreProvider provider)
+        {
+
+            string commandText = "Insert into ProductCategory (ProductCategoryId, Name, ModifiedDate, CreatedDate, rowguid) Values (@ProductCategoryId, @Name, @ModifiedDate, @CreatedDate, @rowguid)";
+            var connection = provider.CreateConnection();
+
+            connection.Open();
+
+            var command = connection.CreateCommand();
+            command.CommandText = commandText;
+            command.Connection = connection;
+
+            var p = command.CreateParameter();
+            p.DbType = DbType.String;
+            p.ParameterName = "@Name";
+            p.Value = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.Guid;
+            p.ParameterName = "@ProductCategoryId";
+            p.Value = Guid.NewGuid();
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.DateTime;
+            p.ParameterName = "@ModifiedDate";
+            p.Value = DateTime.UtcNow;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.DateTime;
+            p.ParameterName = "@CreatedDate";
+            p.Value = DateTime.UtcNow;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.DbType = DbType.Guid;
+            p.ParameterName = "@rowguid";
+            p.Value = Guid.NewGuid();
+            command.Parameters.Add(p);
+
+            await command.ExecuteNonQueryAsync();
+
+            connection.Close();
+
+        }
+
+
+        private static async Task AddColumnsToProductCategoryAsync(CoreProvider provider)
+        {
+            var commandText = @"ALTER TABLE dbo.ProductCategory ADD CreatedDate datetime NULL;";
+
+            var connection = provider.CreateConnection();
+
+            connection.Open();
+
+            var command = connection.CreateCommand();
+            command.CommandText = commandText;
+            command.Connection = connection;
+
+            await command.ExecuteNonQueryAsync();
+
+            connection.Close();
+        }
+        private static async Task UpdateAllProductCategoryAsync(CoreProvider provider, string addedString)
+        {
+            string commandText = "Update ProductCategory Set Name = Name + @addedString";
+            var connection = provider.CreateConnection();
+
+            connection.Open();
+
+            var command = connection.CreateCommand();
+            command.CommandText = commandText;
+            command.Connection = connection;
+
+            var p = command.CreateParameter();
+            p.DbType = DbType.String;
+            p.ParameterName = "@addedString";
+            p.Value = addedString;
             command.Parameters.Add(p);
 
             await command.ExecuteNonQueryAsync();
