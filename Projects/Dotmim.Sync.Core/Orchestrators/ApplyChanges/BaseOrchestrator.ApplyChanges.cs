@@ -408,6 +408,9 @@ namespace Dotmim.Sync
                         }
                         else
                         {
+                            command.Connection = runner.Connection;
+                            command.Transaction = runner.Transaction;
+
                             foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, schemaChangesTable))
                             {
                                 if (syncRow.RowState == SyncRowState.ApplyModifiedFailed || syncRow.RowState == SyncRowState.ApplyDeletedFailed)
@@ -421,9 +424,6 @@ namespace Dotmim.Sync
 
                                 if (applyType == SyncRowState.Deleted && syncRow.RowState != SyncRowState.RetryDeletedOnNextSync && syncRow.RowState != SyncRowState.Deleted)
                                     continue;
-
-                                command.Connection = runner.Connection;
-                                command.Transaction = runner.Transaction;
 
                                 var (rowAppliedCount, errorException) = await this.InternalApplySingleRowAsync(context, command, syncRow, schemaChangesTable, syncAdapter, applyType, message, dbCommandType,
                                         runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);

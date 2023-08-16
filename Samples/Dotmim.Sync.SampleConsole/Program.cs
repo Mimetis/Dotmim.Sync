@@ -44,6 +44,7 @@ using System.Runtime.Serialization;
 using System.Reflection.Metadata;
 using Microsoft.AspNetCore.Hosting.Server;
 using System.Threading;
+using Dotmim.Sync.Tests;
 
 #if NET5_0 || NET6_0 || NET7_0
 using MySqlConnector;
@@ -123,68 +124,104 @@ internal class Program
 
     private static async Task TestSyncSqliteWithFiftyColumnsAndOneThousandRowsAsync()
     {
+        do
+        {
+            //await LoopAsync(100);
+            //await LoopAsync(1000);
+            //await LoopAsync(10000);
+            await LoopAsync(20000);
+            await LoopAsync(20000);
+            await LoopAsync(40000);
+            //await LoopAsync(50000);
+            //await LoopAsync(100000);
+
+            Console.WriteLine($"DONE.");
+            Console.WriteLine($"----------------------------------------");
+
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+    }
+
+    private static async Task LoopAsync(int rowsNumber)
+    {
         // Create 2 Sql Sync providers
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-
-        var index = 0;
-        var rowsNumber = 20000;
+        var clientProvider = new SqliteSyncProvider("db/" + rowsNumber.ToString() + "_" + Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+        var downloadOnlyclientProvider = new SqliteSyncDownloadOnlyProvider("db/" + rowsNumber.ToString() + "_" + Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+        var sqliteOnlyProvider = new SqliteSyncDownloadOnlyProvider("db/" + rowsNumber.ToString() + "_" + Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
 
         var setup = new SyncSetup("Codes");
 
-        var options = new SyncOptions();
-        // big payload to ensure we have only 1 file serialized on disk
-        options.BatchSize = 5000;
+        var options1 = new SyncOptions { BatchSize = 150000 };
+        var options2 = new SyncOptions { BatchSize = 150000 };
 
         // Creating an agent that will handle all the process
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
+        var agent1 = new SyncAgent(clientProvider, serverProvider, options1);
+        var agent2 = new SyncAgent(downloadOnlyclientProvider, serverProvider, options2);
+        var agent3 = new SyncAgent(sqliteOnlyProvider, serverProvider, options2);
 
-        // 1st sync: No rows in tables Codes.
-        // Will allow to create the whole schema on sqlite, with tables and triggers
-        // Also will create everything on server side
-        var s1 = await agent.SynchronizeAsync(setup);
-        var durationTs = TimeSpan.FromTicks(s1.CompleteTime.Ticks).Subtract(TimeSpan.FromTicks(s1.StartTime.Ticks));
-        Console.WriteLine($"Create SQLite db and configure everything. No rows synced : {durationTs:hh\\.mm\\:ss\\.fff}");
+        await DropAllAsync(agent1.RemoteOrchestrator);
+
+        // no lines, create structure
+        await agent1.SynchronizeAsync(setup);
+        await agent2.SynchronizeAsync(setup);
+        await agent3.SynchronizeAsync(setup);
+        Console.WriteLine($"databases created and setup.");
         Console.WriteLine($"----------------------------------------");
 
-        // Now insert N rows in server side
-        var result = InsertNCodesInProvider(serverProvider, index, rowsNumber);
+        var result = InsertNCodesInProvider(agent1.RemoteOrchestrator.Provider, rowsNumber);
         Console.WriteLine($"Insert {rowsNumber} rows into server (SQL Server): {result:hh\\.mm\\:ss\\.fff}");
-        Console.WriteLine($"----------------------------------------");
 
-        // Now making another sync where we can have a better measurement
         var sqliteWatch = new Stopwatch();
-        agent.LocalOrchestrator.OnTableChangesApplying(args => sqliteWatch.Start());
-        agent.LocalOrchestrator.OnTableChangesApplied(args =>sqliteWatch.Stop());
+        agent1.LocalOrchestrator.OnBatchChangesApplying(args => sqliteWatch.Start());
+        agent1.LocalOrchestrator.OnBatchChangesApplied(args => sqliteWatch.Stop());
+        var s1 = await agent1.SynchronizeAsync(setup);
+        //var durationTs1 = TimeSpan.FromTicks(s1.CompleteTime.Ticks).Subtract(TimeSpan.FromTicks(s1.StartTime.Ticks));
+        Console.WriteLine($"{agent1.LocalOrchestrator.Provider.GetShortProviderTypeName()}:{sqliteWatch.Elapsed:hh\\.mm\\:ss\\.fff}");
 
-        s1 = await agent.SynchronizeAsync(setup);
-        durationTs = TimeSpan.FromTicks(s1.CompleteTime.Ticks).Subtract(TimeSpan.FromTicks(s1.StartTime.Ticks));
-        Console.WriteLine($"Sync {rowsNumber} rows from Server in SQLite: {durationTs:hh\\.mm\\:ss\\.fff}");
-        Console.WriteLine($"Pure Merge in SQLite: {sqliteWatch.Elapsed:hh\\.mm\\:ss\\.fff}");
-        Console.WriteLine($"----------------------------------------");
+        var sqliteWatch2 = new Stopwatch();
+        agent2.LocalOrchestrator.OnBatchChangesApplying(args => sqliteWatch2.Start());
+        agent2.LocalOrchestrator.OnBatchChangesApplied(args => sqliteWatch2.Stop());
+        var s2 = await agent2.SynchronizeAsync(setup);
+        //var durationTs2 = TimeSpan.FromTicks(s2.CompleteTime.Ticks).Subtract(TimeSpan.FromTicks(s2.StartTime.Ticks));
+        Console.WriteLine($"{agent2.LocalOrchestrator.Provider.GetShortProviderTypeName()}:{sqliteWatch2.Elapsed:hh\\.mm\\:ss\\.fff}");
 
-        // Now Insert N rows in sqlite
-        result = InsertNCodesInProvider(clientProvider, index + rowsNumber, rowsNumber);
+        var cscopeClient = await agent3.LocalOrchestrator.GetScopeInfoClientAsync();
+        var serverChanges = await agent3.RemoteOrchestrator.GetChangesAsync(cscopeClient);
+        var bi = serverChanges.ServerBatchInfo.BatchPartsInfo[0];
+        result = InsertRowsFromFile(agent3.LocalOrchestrator.Provider, serverChanges.ServerBatchInfo.GetBatchPartInfoPath(bi));
         Console.WriteLine($"Insert {rowsNumber} rows into client (SQLite): {result:hh\\.mm\\:ss\\.fff}");
-        Console.WriteLine($"----------------------------------------");
 
-        // Sync back to server
-        s1 = await agent.SynchronizeAsync(setup);
-        durationTs = TimeSpan.FromTicks(s1.CompleteTime.Ticks).Subtract(TimeSpan.FromTicks(s1.StartTime.Ticks));
-        Console.WriteLine($"Sync {rowsNumber} rows from SQLite to SQL Server: {durationTs:hh\\.mm\\:ss\\.fff}");
         Console.WriteLine($"----------------------------------------");
     }
 
-    private static TimeSpan InsertNCodesInProvider(CoreProvider coreProvider, int startIndex, int count)
+    private static async Task DropAllAsync(RemoteOrchestrator remoteOrchestrator)
     {
+        await remoteOrchestrator.DropAllAsync();
 
+        using var connection = remoteOrchestrator.Provider.CreateConnection();
+
+        var commandDel = connection.CreateCommand();
+        commandDel.Connection = connection;
+        commandDel.CommandText = "Delete from Codes";
+        connection.Open();
+        commandDel.ExecuteNonQuery();
+        connection.Close();
+
+    }
+
+    private static TimeSpan InsertRowsFromFile(CoreProvider coreProvider, string fullPath)
+    {
+        var localSerializer = new LocalJsonSerializer();
+        var (schemaTable, rowsCount, state) = LocalJsonSerializer.GetSchemaTableFromFile(fullPath);
         using var connection = coreProvider.CreateConnection();
 
+
         string sql = @"Insert into Codes(Code, 
-Name1 , Name2 , Name3 , Name4 , Name5 , Name6 , Name7 , Name8 , Name9 , Date1 , Date2 , Date3 , Date4 , Date5 , Date6 , Date7 , Date8 , Date9 , Date10, Date11, Date12, Date13, Date14, Date15, Date16, Date17, Date18, Date19, Date20, Date30, Date31, Date32, Date33, Date34, Date35, Date36, Date37, Date38, Date39, Date40
-) VALUES(@Code,
-@Name1 , @Name2 , @Name3 , @Name4 , @Name5 , @Name6 , @Name7 , @Name8 , @Name9 , @Date1 , @Date2 , @Date3 , @Date4 , @Date5 , @Date6 , @Date7 , @Date8 , @Date9 , @Date10, @Date11, @Date12, @Date13, @Date14, @Date15, @Date16, @Date17, @Date18, @Date19, @Date20, @Date30, @Date31, @Date32, @Date33, @Date34, @Date35, @Date36, @Date37, @Date38, @Date39, @Date40
-)";
+            Name1 , Name2 , Name3 , Name4 , Name5 , Name6 , Name7 , Name8 , Name9 , Date1 , Date2 , Date3 , Date4 , Date5 , Date6 , Date7 , Date8 , Date9 , Date10, Date11, Date12, Date13, Date14, Date15, Date16, Date17, Date18, Date19, Date20, Date21, Date22, Date23, Date24, Date25, Date26, Date27, Date28, Date29, Date30, Date31, Date32, Date33, Date34, Date35, Date36, Date37, Date38, Date39, Date40
+            ) VALUES(@Code,
+            @Name1 , @Name2 , @Name3 , @Name4 , @Name5 , @Name6 , @Name7 , @Name8 , @Name9 , @Date1 , @Date2 , @Date3 , @Date4 , @Date5 , @Date6 , @Date7 , @Date8 , @Date9 , @Date10, @Date11, @Date12, @Date13, @Date14, @Date15, @Date16, @Date17, @Date18, @Date19, @Date20, @Date21, @Date22, @Date23, @Date24, @Date25, @Date26, @Date27, @Date28, @Date29, @Date30, @Date31, @Date32, @Date33, @Date34, @Date35, @Date36, @Date37, @Date38, @Date39, @Date40
+            )";
+
 
         var stopWatch = new Stopwatch();
         stopWatch.Start();
@@ -200,7 +237,7 @@ Name1 , Name2 , Name3 , Name4 , Name5 , Name6 , Name7 , Name8 , Name9 , Date1 , 
         p.ParameterName = "@Code";
         command.Parameters.Add(p);
 
-        for (int i = 1; i < 10; i++)
+        for (int i = 1; i <= 9; i++)
         {
             p = command.CreateParameter();
             p.DbType = DbType.String;
@@ -209,7 +246,7 @@ Name1 , Name2 , Name3 , Name4 , Name5 , Name6 , Name7 , Name8 , Name9 , Date1 , 
             command.Parameters.Add(p);
         }
 
-        for (int i = 1; i < 41; i++)
+        for (int i = 1; i <= 40; i++)
         {
             p = command.CreateParameter();
             p.DbType = DbType.DateTime;
@@ -222,12 +259,91 @@ Name1 , Name2 , Name3 , Name4 , Name5 , Name6 , Name7 , Name8 , Name9 , Date1 , 
         command.Prepare();
         using (var transaction = connection.BeginTransaction())
         {
-            for (var i = startIndex; i < count + startIndex; i++)
+            foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, schemaTable))
+            {
+                command.Transaction = transaction;
+                command.Parameters[0].Value = syncRow[0];
+
+                for (int k = 1; k <= 49; k++)
+                    command.Parameters[k].Value = syncRow[k];
+                command.ExecuteNonQuery();
+
+            }
+
+            transaction.Commit();
+        }
+
+        connection.Close();
+
+        stopWatch.Stop();
+
+        return stopWatch.Elapsed;
+
+
+
+    }
+
+    private static TimeSpan InsertNCodesInProvider(CoreProvider coreProvider, int count)
+    {
+
+        using var connection = coreProvider.CreateConnection();
+
+        var commandMax = connection.CreateCommand();
+        commandMax.Connection = connection;
+        commandMax.CommandText = "Select max(Code) from Codes";
+        connection.Open();
+        var maxCodeO = commandMax.ExecuteScalar();
+        var maxCode = maxCodeO == DBNull.Value ? 0 : Convert.ToInt32(maxCodeO) + 1;
+        connection.Close();
+
+        string sql = @"Insert into Codes(Code, 
+            Name1 , Name2 , Name3 , Name4 , Name5 , Name6 , Name7 , Name8 , Name9 , Date1 , Date2 , Date3 , Date4 , Date5 , Date6 , Date7 , Date8 , Date9 , Date10, Date11, Date12, Date13, Date14, Date15, Date16, Date17, Date18, Date19, Date20, Date21, Date22, Date23, Date24, Date25, Date26, Date27, Date28, Date29, Date30, Date31, Date32, Date33, Date34, Date35, Date36, Date37, Date38, Date39, Date40
+            ) VALUES(@Code,
+            @Name1 , @Name2 , @Name3 , @Name4 , @Name5 , @Name6 , @Name7 , @Name8 , @Name9 , @Date1 , @Date2 , @Date3 , @Date4 , @Date5 , @Date6 , @Date7 , @Date8 , @Date9 , @Date10, @Date11, @Date12, @Date13, @Date14, @Date15, @Date16, @Date17, @Date18, @Date19, @Date20, @Date21, @Date22, @Date23, @Date24, @Date25, @Date26, @Date27, @Date28, @Date29, @Date30, @Date31, @Date32, @Date33, @Date34, @Date35, @Date36, @Date37, @Date38, @Date39, @Date40
+            )";
+
+        var stopWatch = new Stopwatch();
+        stopWatch.Start();
+
+        var command = connection.CreateCommand();
+        command.Connection = connection;
+        command.CommandText = sql;
+
+        DbParameter p;
+
+        p = command.CreateParameter();
+        p.DbType = DbType.Int32;
+        p.ParameterName = "@Code";
+        command.Parameters.Add(p);
+
+        for (int i = 1; i <= 9; i++)
+        {
+            p = command.CreateParameter();
+            p.DbType = DbType.String;
+            p.Size = 36;
+            p.ParameterName = "@Name" + i.ToString();
+            command.Parameters.Add(p);
+        }
+
+        for (int i = 1; i <= 40; i++)
+        {
+            p = command.CreateParameter();
+            p.DbType = DbType.DateTime;
+            p.ParameterName = "@Date" + i.ToString();
+            command.Parameters.Add(p);
+        }
+
+        connection.Open();
+
+        command.Prepare();
+        using (var transaction = connection.BeginTransaction())
+        {
+            for (var i = maxCode; i < count + maxCode; i++)
             {
                 command.Transaction = transaction;
                 command.Parameters[0].Value = i;
 
-                for (int k = 1; k < 10; k++)
+                for (int k = 1; k <= 9; k++)
                     command.Parameters[k].Value = "Product " + i.ToString() + k.ToString();
                 for (int k = 10; k < 50; k++)
                     command.Parameters[k].Value = DateTime.Now;

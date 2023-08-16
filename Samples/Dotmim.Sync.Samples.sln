@@ -129,7 +129,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "WebAdmin", "WebAdmin", "{6E
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "api", "WebAdmin\api\api.csproj", "{D52A2355-49CE-41EC-8537-51702C303B59}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MauiWebServer", "MAUI\MauiWebServer\MauiWebServer.csproj", "{9C009274-61E8-41CF-B7B6-1DA9B2339341}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MauiWebServer", "MAUI\MauiWebServer\MauiWebServer.csproj", "{9C009274-61E8-41CF-B7B6-1DA9B2339341}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

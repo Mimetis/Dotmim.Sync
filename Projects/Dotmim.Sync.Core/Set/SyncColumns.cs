@@ -157,7 +157,8 @@ namespace Dotmim.Sync
         public bool Remove(SyncColumn item) => InnerCollection.Remove(item);
         public bool Contains(SyncColumn item) => InnerCollection.Contains(item);
         public void CopyTo(SyncColumn[] array, int arrayIndex) => InnerCollection.CopyTo(array, arrayIndex);
-        public int IndexOf(SyncColumn item) => InnerCollection.IndexOf(item);
+        public int IndexOf(SyncColumn item) => this.indexes[item.ColumnName.ToLowerInvariant()];
+        public int IndexOf(string columnName) => this.indexes[columnName.ToLowerInvariant()];
         public void RemoveAt(int index) => InnerCollection.RemoveAt(index);
         IEnumerator IEnumerable.GetEnumerator() => InnerCollection.GetEnumerator();
         public IEnumerator<SyncColumn> GetEnumerator() => InnerCollection.GetEnumerator();

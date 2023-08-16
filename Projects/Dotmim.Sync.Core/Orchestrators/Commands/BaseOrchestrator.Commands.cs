@@ -126,25 +126,25 @@ namespace Dotmim.Sync
             // Check filters
             SyncFilter tableFilter = null;
 
-            // Sqlite does not have any filter, since he can't be server side
-            //if (this.Provider != null && this.Provider.CanBeServerProvider)
             if (this.Provider != null)
-                    tableFilter = schemaTable.GetFilter();
+                tableFilter = schemaTable.GetFilter();
 
             // if row is not null, fill the parameters
             if (row != null)
             {
-                foreach (DbParameter parameter in command.Parameters)
+                for (var i = 0; i < command.Parameters.Count; i++)
                 {
+                    var parameter = command.Parameters[i];
+
                     // Check if it's a parameter from the schema table
                     if (!string.IsNullOrEmpty(parameter.SourceColumn))
                     {
                         // foreach parameter, check if we have a column 
-                        var column = schemaTable.Columns[parameter.SourceColumn];
+                        var columnIndex = schemaTable.Columns.IndexOf(parameter.SourceColumn);
 
-                        if (column != null)
+                        if (columnIndex >= 0)
                         {
-                            object value = row[column] ?? DBNull.Value;
+                            object value = row[columnIndex] ?? DBNull.Value;
                             syncAdapter.AddCommandParameterValue(parameter, value, command, commandType);
                         }
                     }
@@ -153,7 +153,6 @@ namespace Dotmim.Sync
             }
 
             // if we have a filter, set the filter parameters
-
             if (tableFilter != null && tableFilter.Parameters != null && tableFilter.Parameters.Count > 0)
             {
                 // context parameters can be null at some point.
@@ -161,12 +160,13 @@ namespace Dotmim.Sync
 
                 foreach (var filterParam in tableFilter.Parameters)
                 {
-                    var parameter = contexParameters.FirstOrDefault(p =>
-                        p.Name.Equals(filterParam.Name, SyncGlobalization.DataSourceStringComparison));
-
                     var param = syncAdapter.GetParameter(command, filterParam.Name);
+
                     if (param != null)
+                    {
+                        var parameter = contexParameters.FirstOrDefault(p => p.Name.Equals(filterParam.Name, SyncGlobalization.DataSourceStringComparison));
                         syncAdapter.AddCommandParameterValue(param, parameter?.Value, command, commandType);
+                    }
                 }
             }
 

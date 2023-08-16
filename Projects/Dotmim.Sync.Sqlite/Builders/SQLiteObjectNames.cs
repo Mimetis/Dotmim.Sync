@@ -39,11 +39,7 @@ namespace Dotmim.Sync.Sqlite
         public string GetCommandName(DbCommandType objectType, SyncFilter filter = null)
         {
             if (!commandNames.TryGetValue(objectType, out var commandName))
-                throw new NotSupportedException($"Sqlite provider does not support the command type {objectType.ToString()}");
-
-            // concat filter name
-            //if (filter != null)
-            //    commandName = string.Format(commandName, filter.GetFilterName());
+                throw new NotSupportedException($"Sqlite provider does not support the command type {objectType}");
 
             return commandName;
         }
@@ -96,7 +92,6 @@ namespace Dotmim.Sync.Sqlite
             // Select changes
             this.CreateSelectChangesCommandText(filter);
             this.CreateSelectRowCommandText();
-            //this.CreateSelectInitializedCommandText(filter);
             this.CreateDeleteCommandText();
             this.CreateDeleteMetadataCommandText();
             this.CreateUpdateCommandText();

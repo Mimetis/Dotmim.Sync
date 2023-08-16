@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using System;
@@ -18,32 +19,27 @@ namespace CustomProvider
 
         private static async Task SynchronizeAsync()
         {
-            //// Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
+            // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
 
-            //var serverProvider = new SqlSyncProvider(serverConnectionString);
+            var serverProvider = new SqlSyncProvider(serverConnectionString);
 
-            //// Tables involved in the sync process:
-            //var tables = new string[] {"ProductCategory", "ProductModel", "Product",
-            //            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+            // Tables involved in the sync process:
+            var tables = new string[] {"ProductCategory", "ProductModel", "Product",
+                        "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 
-            //// First DownloadOnly provider for Sqlite
-            //var clientSqliteProvider = new SqliteSyncDownloadOnlyProvider("adv.db");
+            // downloadOnly provider for Sqlite
+            var clientSqliteProvider = new SqliteSyncDownloadOnlyProvider("adv.db");
 
-            //// Second DownloadOnly provider for SqlServer
-            //var clientSqlServerProvider = new SqlSyncDownloadOnlyProvider(clientConnectionString);
+            var options = new SyncOptions { ErrorResolutionPolicy = ErrorResolution.RetryOneMoreTimeAndContinueOnError };
 
-            //do
-            //{
-            //    // Creating an agent that will handle all the process
-            //    var agentSqlite = new SyncAgent(clientSqliteProvider, serverProvider);
-            //    var sqliteResults = await agentSqlite.SynchronizeAsync(tables);
-            //    Console.WriteLine(sqliteResults);
+            do
+            {
+                // Creating an agent that will handle all the process
+                var agentSqlite = new SyncAgent(clientSqliteProvider, serverProvider, options);
+                var sqliteResults = await agentSqlite.SynchronizeAsync(tables);
+                Console.WriteLine(sqliteResults);
 
-            //    var agentSqlServer = new SyncAgent(clientSqlServerProvider, serverProvider);
-            //    var sqlServerResults = await agentSqlServer.SynchronizeAsync(tables);
-            //    Console.WriteLine(sqlServerResults);
-
-            //} while (Console.ReadKey().Key != ConsoleKey.Escape);
+            } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
             Console.WriteLine("End");
         }
