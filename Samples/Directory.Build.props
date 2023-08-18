@@ -1,0 +1,5 @@
+<!-- Samples override Directory.Build.props-->
+<Project>
+	<Import Project="..\Directory.Build.props" />
+
+</Project>

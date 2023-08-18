@@ -1,0 +1,10 @@
+<!-- Library Dotmim.Sync Directory.Build.props-->
+<Project>
+	<Import Project="..\Directory.Build.props" />
+	<Import Project="..\build\SourceLink.props" Condition="'$(DisableSourceLink)' == ''" />
+	<Import Project="..\build\PackageInfo.props"/>
+	<PropertyGroup>
+		<IsPackable>true</IsPackable>
+		<GenerateDocumentationFile>False</GenerateDocumentationFile>
+	</PropertyGroup>
+</Project>

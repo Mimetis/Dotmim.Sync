@@ -1,47 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
-		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
-		<TargetFrameworkNet7>net7.0</TargetFrameworkNet7>
-		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
-
 		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet6);$(TargetFrameworkNet7);$(TargetFrameworkNetCore)</TargetFrameworks>
-
-		<Authors>Sébastien Pertus</Authors>
-		<Company>Microsoft</Company>
-		<Title>Dotmim.Sync.MariaDB</Title>
 		<Summary>MariaDB Sync Provider. Client or Server provider .Net Standard 2.0</Summary>
 		<Description>MariaDB Sync Provider. Manage a sync process beetween two relational databases provider. This provider can be used as Client or Server provider .Net Standard 2.0</Description>
 		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, MariaDB, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
-		<PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
-		<RepositoryType>git</RepositoryType>
-		<VersionSuffix>$(VersionSuffix)</VersionSuffix>
-		<Version>1.0.0</Version>
-		<Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
-		<LangVersion>11.0</LangVersion>
-		<ApplicationIcon>favicon.ico</ApplicationIcon>
-		<PackageIcon>packageIcon.png</PackageIcon>
-		<PublishRepositoryUrl>true</PublishRepositoryUrl>
-		<EmbedUntrackedSources>true</EmbedUntrackedSources>
-		<GenerateDocumentationFile>False</GenerateDocumentationFile>
-
-	</PropertyGroup>
-	<PropertyGroup>
-		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
-	</PropertyGroup>
-	<!--generate NUGET package including symbols ans source on each release build -->
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-		<IncludeSource>True</IncludeSource>
-		<IncludeSymbols>True</IncludeSymbols>
-		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
 		<DefineConstants>MARIADB</DefineConstants>
 	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-		<DefineConstants>TRACE;MARIADB</DefineConstants>
-	</PropertyGroup>
+	
 	<ItemGroup>
 		<Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlBuilder.cs" Link="Builders\MySqlBuilder.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlBuilderProcedure.cs" Link="Builders\MySqlBuilderProcedure.cs" />
@@ -61,15 +27,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Include="..\..\docs\assets\packageIcon.png">
-			<Pack>True</Pack>
-			<PackagePath></PackagePath>
-		</None>
-	</ItemGroup>
-
-	<ItemGroup>
 		<ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
-		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
 	</ItemGroup>
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet6)' OR '$(TargetFramework)' == '$(TargetFrameworkNet7)' OR '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">

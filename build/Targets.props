@@ -1,0 +1,8 @@
+<Project>
+	<PropertyGroup>
+		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
+		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
+		<TargetFrameworkNet7>net7.0</TargetFrameworkNet7>
+		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
+	</PropertyGroup>
+</Project>

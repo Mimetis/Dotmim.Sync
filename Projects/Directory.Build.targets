@@ -1,0 +1,7 @@
+<!-- Global Directory.Build.props-->
+<Project>
+	<Import Project="..\build\PackageInfo.targets"/>
+	<PropertyGroup>
+		<DefineConstants Condition="'$(Configuration)'=='Debug'">TRACE;$(DefineConstants)</DefineConstants>
+	</PropertyGroup>
+</Project>

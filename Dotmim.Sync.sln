@@ -29,13 +29,27 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.MariaDB", "Proj
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.PostgreSql", "Projects\Dotmim.Sync.PostgreSql\Dotmim.Sync.PostgreSql.csproj", "{2A908822-8731-4174-AD12-569531E4E33D}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Root Files", "Root Files", "{E976D8CE-D258-4F56-8334-DA3898E5EF3C}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Common", "Common", "{3E42E43C-0835-4C05-87E1-5DBF75FBBBF3}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
 		.gitattributes = .gitattributes
 		.gitignore = .gitignore
+		Directory.Build.props = Directory.Build.props
+		Projects\Directory.Build.props = Projects\Directory.Build.props
+		Projects\Directory.Build.targets = Projects\Directory.Build.targets
 		LICENSE = LICENSE
+		build\PackageInfo.props = build\PackageInfo.props
+		build\PackageInfo.targets = build\PackageInfo.targets
 		Readme.md = Readme.md
+		build\SharedVersion.props = build\SharedVersion.props
+		build\SourceLink.props = build\SourceLink.props
+		build\Targets.props = build\Targets.props
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Assests", "Assests", "{3F530E99-6A98-4722-89EF-C9FAF0379290}"
+	ProjectSection(SolutionItems) = preProject
+		Assets\favicon.ico = Assets\favicon.ico
+		Assets\packageIcon.png = Assets\packageIcon.png
 	EndProjectSection
 EndProject
 Global

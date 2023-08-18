@@ -1,0 +1,10 @@
+<!-- Global Directory.Build.props-->
+<Project>
+	<Import Project="$(MSBuildThisFileDirectory)/build/SharedVersion.props"/>
+	<Import Project="$(MSBuildThisFileDirectory)/build/Targets.props"/>
+	<PropertyGroup>
+		<IsPackable>false</IsPackable>
+		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+		<LangVersion>11</LangVersion>
+	</PropertyGroup>
+</Project>
