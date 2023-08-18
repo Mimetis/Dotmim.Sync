@@ -1,0 +1,15 @@
+<Project>
+	<PropertyGroup>
+		<Company>Microsoft</Company>
+		<PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
+		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
+		<RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<PackageIcon>packageIcon.png</PackageIcon>
+		<ApplicationIcon>$(MSBuildThisFileDirectory)/../Assets/favicon.ico</ApplicationIcon>
+	</PropertyGroup>
+
+	<ItemGroup Label="PackageIcon">
+		<None Include="$(MSBuildThisFileDirectory)/../Assets/packageIcon.png" Pack="true" Visible="false" PackagePath=""/>
+	</ItemGroup>
+</Project>
