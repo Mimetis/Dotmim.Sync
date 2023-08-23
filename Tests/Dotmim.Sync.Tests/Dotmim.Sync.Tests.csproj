@@ -8,7 +8,7 @@
 
 		<IsPackable>false</IsPackable>
 		<!--<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>-->
-		<LangVersion>8.0</LangVersion>
+		<LangVersion>11.0</LangVersion>
 	</PropertyGroup>
 	<PropertyGroup>
 		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
