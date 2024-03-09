@@ -397,11 +397,43 @@ namespace Dotmim.Sync.Web.Client
 
             // throw exception if response is not successfull
             // get response from server
-            if (!response.IsSuccessStatusCode && response.Content != null)
-                await HandleSyncError(response);
+            if (!response.IsSuccessStatusCode)
+            {
+                // Invoke response failure interceptors to handle the failed response
+                await InvokeResponseFailureInterceptors(response);
+
+                // If response content is available, handle the synchronization error
+                if (response.Content != null)
+                    await HandleSyncError(response);
+            }
 
             return response;
 
+        }
+
+        /// <summary>
+        /// Invokes response failure interceptors to handle unsuccessful HTTP responses.
+        /// This method triggers interception logic to process and respond to failed HTTP responses,
+        /// allowing for centralized error handling and customization.
+        /// </summary>
+        /// <param name="response">The HttpResponseMessage representing the failed HTTP response.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        /// <remarks>
+        /// Response failure interceptors provide a mechanism for executing custom logic
+        /// when an HTTP response indicates failure (non-success status codes).
+        /// Interceptors may include logging, error handling, retry logic, or other actions
+        /// to be taken upon encountering failed responses from API calls.
+        /// </remarks>
+        private async Task InvokeResponseFailureInterceptors(HttpResponseMessage response)
+        {
+            if (HasInterceptors<HttpResponseFailureArgs>())
+            {
+                // Construct HttpResponseFailureArgs instance with details of the failed response
+                var arg = new HttpResponseFailureArgs((int)response.StatusCode, response.ReasonPhrase, await response.Content.ReadAsStringAsync(), response.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value)), response.RequestMessage.RequestUri);
+
+                // Invoke interceptors asynchronously, allowing custom logic to be executed
+                await this.InterceptAsync(arg).ConfigureAwait(false);
+            }
         }
 
         /// <summary>

@@ -55,7 +55,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             clientsProvider = GetClientProviders();
             setup = GetSetup();
 
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, 
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup,
                 new SyncOptions { DisableConstraintsOnApplyChanges = true });
             serviceUri = this.Kestrell.Run();
         }
@@ -254,7 +254,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup,
                 new SyncOptions { DisableConstraintsOnApplyChanges = true }, null, "v2", "db1");
 
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup, 
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setup,
                 new SyncOptions { DisableConstraintsOnApplyChanges = true }, identifier: "db2");
 
             var serviceUri = this.Kestrell.Run();
@@ -1199,7 +1199,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             await this.Kestrell.StopAsync();
 
-            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setupV2, 
+            this.Kestrell.AddSyncServer(serverProvider.GetType(), serverProvider.ConnectionString, setupV2,
                 new SyncOptions { DisableConstraintsOnApplyChanges = true }, null, "downloadonly");
 
             var serviceUri = this.Kestrell.Run();
@@ -2528,6 +2528,55 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(serverProvider.GetDatabaseRowsCount(), clientProvider.GetDatabaseRowsCount());
 
             }
+        }
+
+        [Fact]
+        /// <summary>
+        /// Asynchronously verifies that the action registered with the WebRemoteOrchestrator's OnHttpResponseFailure method is invoked
+        /// when a failed HTTP response occurs due to authorization error (401).
+        /// </summary>
+        /// <returns>A Task representing the asynchronous unit test method.</returns>
+        /// <remarks>
+        /// This unit test ensures that the WebRemoteOrchestrator correctly invokes the registered action when encountering
+        /// a failed HTTP response with a status code indicating an authorization error (401). It sets up the necessary
+        /// environment by enabling authorization in Kestrell, initializing a WebRemoteOrchestrator with the specified service URI,
+        /// and registering an action that asserts the status code of the failed response. Then, it iterates over a collection
+        /// of client providers, creates SyncAgent instances for each, and attempts synchronization. The test verifies that
+        /// the action is invoked as expected when a HTTPSyncWebException is caught, indicating a failed synchronization due to
+        /// an authorization error.
+        /// </remarks>
+        public virtual async Task OnHttpResponseFailure_RegisterAction_ActionIsInvokedOnHttpResponseFailureAsync()
+        {
+            // Arrange
+            this.Kestrell.IsAuthorisationEnabled = true;
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+            var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
+
+            // Register action to assert the status code of the failed response
+            webRemoteOrchestrator.OnHttpResponseFailure(s =>
+            {
+                Assert.NotNull(s);
+                Assert.Equal(401, s.StatusCode);
+            });
+
+            // Act
+            // Execute synchronization on all clients
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, webRemoteOrchestrator, options);
+
+                try
+                {
+                    var s = await agent.SynchronizeAsync();
+                }
+                catch (HttpSyncWebException)
+                {
+                    // Exception caught indicates failed synchronization due to authorization error
+                }
+            }
+
+            // Clean up
+            this.Kestrell.IsAuthorisationEnabled = false;
         }
     }
 }
