@@ -2552,11 +2552,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
             var webRemoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
 
+            int count = 0;
+
             // Register action to assert the status code of the failed response
             webRemoteOrchestrator.OnHttpResponseFailure(s =>
             {
                 Assert.NotNull(s);
                 Assert.Equal(401, s.StatusCode);
+                count++;
             });
 
             // Act
@@ -2574,7 +2577,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     // Exception caught indicates failed synchronization due to authorization error
                 }
             }
-
+            Assert.True(count > 0);
             // Clean up
             this.Kestrell.IsAuthorisationEnabled = false;
         }

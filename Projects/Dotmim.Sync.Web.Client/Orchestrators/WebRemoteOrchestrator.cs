@@ -426,14 +426,29 @@ namespace Dotmim.Sync.Web.Client
         /// </remarks>
         private async Task InvokeResponseFailureInterceptors(HttpResponseMessage response)
         {
-            if (HasInterceptors<HttpResponseFailureArgs>())
-            {
-                // Construct HttpResponseFailureArgs instance with details of the failed response
-                var arg = new HttpResponseFailureArgs((int)response.StatusCode, response.ReasonPhrase, await response.Content.ReadAsStringAsync(), response.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value)), response.RequestMessage.RequestUri);
+            // Check if there are any interceptors registered for HttpResponseFailureArgs
+            if (!HasInterceptors<HttpResponseFailureArgs>())
+                return; // No interceptors registered, so return early
 
-                // Invoke interceptors asynchronously, allowing custom logic to be executed
-                await this.InterceptAsync(arg).ConfigureAwait(false);
-            }
+            // Construct HttpResponseFailureArgs instance with details of the failed response
+            var failureArgs = await CreateFailureArgs(response).ConfigureAwait(false);
+
+            // Invoke interceptors asynchronously, allowing custom logic to be executed
+            await InterceptAsync(failureArgs).ConfigureAwait(false);
+        }
+
+        // Method to create HttpResponseFailureArgs instance based on the provided HttpResponseMessage
+        private async Task<HttpResponseFailureArgs> CreateFailureArgs(HttpResponseMessage response)
+        {
+            // Extract necessary details from the HttpResponseMessage
+            int statusCode = (int)response.StatusCode;
+            string reasonPhrase = response.ReasonPhrase;
+            string content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var headers = response.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value));
+            Uri requestUri = response.RequestMessage.RequestUri;
+
+            // Create and return a new instance of HttpResponseFailureArgs
+            return new HttpResponseFailureArgs(statusCode, reasonPhrase, content, headers, requestUri);
         }
 
         /// <summary>
