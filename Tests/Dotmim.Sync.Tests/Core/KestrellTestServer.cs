@@ -31,6 +31,17 @@ namespace Dotmim.Sync.Tests
         private bool useFiddler;
         IWebHost host;
 
+        /// <summary>
+        /// Gets or sets a value indicating whether to simulate authorization errors in the Kestrell instance.
+        /// </summary>
+        /// <remarks>
+        /// When set to true, this property instructs the Kestrell instance to simulate authorization errors.
+        /// This is useful for testing scenarios where authorization failures need to be reproduced without
+        /// actually invoking external authorization mechanisms. When set to false, no simulation of authorization
+        /// errors occurs, allowing normal execution without error simulation.
+        /// </remarks>
+        public bool IsAuthorisationEnabled { get; set; }
+
         public KestrellTestServer(bool useFidller = false)
         {
             initBuilder();
@@ -70,6 +81,13 @@ namespace Dotmim.Sync.Tests
             // Create server web proxy
             serverHandler ??= new RequestDelegate(async context =>
                 {
+                    // Simulate authorization error response if authorization is enabled
+                    if (IsAuthorisationEnabled)
+                    {
+                        // Set HTTP status code to 401 Unauthorized
+                        context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                        return;
+                    }
                     var allWebServerAgents = context.RequestServices.GetService(typeof(IEnumerable<WebServerAgent>)) as IEnumerable<WebServerAgent>;
                     var identifier = context.GetIdentifier();
                     var scopeName = context.GetScopeName();
