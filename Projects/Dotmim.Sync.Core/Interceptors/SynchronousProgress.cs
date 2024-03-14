@@ -70,7 +70,7 @@ namespace Dotmim.Sync
             {
                 // Post the processing to the [....] context.
                 // (If T is a value type, it will get boxed here.)
-                m_synchronizationContext.Send(m_invokeHandlers, value);
+                m_synchronizationContext.Post(m_invokeHandlers, value);
             }
         }
 
