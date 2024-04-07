@@ -1,44 +1,32 @@
-﻿//using Newtonsoft.Json;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Serialization
 {
-
     public class JsonObjectSerializerFactory : ISerializerFactory
     {
+        private static readonly JsonObjectSerializer _jsonSerializer = new();
+
         public string Key => "json";
 
-        public ISerializer GetSerializer() => new JsonObjectSerializer();
-
+        public ISerializer GetSerializer() => _jsonSerializer;
     }
 
     public class JsonObjectSerializer : ISerializer
     {
-        public async Task<T> DeserializeAsync<T>(Stream ms) => (T)await DeserializeAsync(ms, typeof(T)).ConfigureAwait(false);
+        private static readonly JsonSerializer _jsonSerializer = new();
 
-        public Task<byte[]> SerializeAsync<T>(T obj)=> SerializeAsync((object)obj);
-
-        public async Task<object> DeserializeAsync(Stream ms, Type type)
+        public async Task<T> DeserializeAsync<T>(Stream ms)
         {
             using var sr = new StreamReader(ms);
             using var jtr = new JsonTextReader(sr);
-
-            var jobject = await JObject.LoadAsync(jtr).ConfigureAwait(false);
-
-            return jobject.ToObject(type);
+            return _jsonSerializer.Deserialize<T>(jtr);
         }
 
-        public async Task<byte[]> SerializeAsync(object obj)
+        public async Task<byte[]> SerializeAsync<T>(T obj)
         {
-            var jobject = JObject.FromObject(obj);
-
             using var ms = new MemoryStream();
             using var sw = new StreamWriter(ms);
             using var jtw = new JsonTextWriter(sw);
@@ -46,7 +34,7 @@ namespace Dotmim.Sync.Serialization
 //#if DEBUG
 //            jtw.Formatting = Formatting.Indented;
 //#endif
-            await jobject.WriteToAsync(jtw).ConfigureAwait(false);
+            _jsonSerializer.Serialize(jtw, obj);
 
             await jtw.FlushAsync().ConfigureAwait(false);
             await sw.FlushAsync().ConfigureAwait(false);
@@ -54,8 +42,11 @@ namespace Dotmim.Sync.Serialization
             return ms.ToArray();
         }
 
-
+        public async Task<object> DeserializeAsync(Stream ms, Type type)
+        {
+            using var sr = new StreamReader(ms);
+            using var jtr = new JsonTextReader(sr);
+            return _jsonSerializer.Deserialize(jtr, type);
+        }
     }
-
-
 }
