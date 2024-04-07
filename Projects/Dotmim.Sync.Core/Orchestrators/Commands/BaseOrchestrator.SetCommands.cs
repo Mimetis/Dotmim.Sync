@@ -30,7 +30,8 @@ namespace Dotmim.Sync
 
             SyncFilter filter = null;
 
-            if (this.Provider != null && this.Provider.CanBeServerProvider) // Sqlite can't be server
+            //if (this.Provider != null && this.Provider.CanBeServerProvider) // Sqlite can't be server
+            if (this.Provider != null) // Sqlite can't be server
                 filter = syncAdapter.TableDescription.GetFilter();
 
             if (filter == null)
@@ -98,7 +99,8 @@ namespace Dotmim.Sync
 
             SyncFilter filter = null;
 
-            if (this.Provider != null && this.Provider.CanBeServerProvider) // Sqlite can't be server
+            //if (this.Provider != null && this.Provider.CanBeServerProvider) // Sqlite can't be server
+            if (this.Provider != null) // Sqlite can't be server
                 filter = syncAdapter.TableDescription.GetFilter();
 
             if (filter == null)

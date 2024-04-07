@@ -7,6 +7,7 @@ using System.Linq;
 
 using System.Data;
 using System.Xml;
+using Microsoft.Data.Sqlite;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -38,11 +39,7 @@ namespace Dotmim.Sync.Sqlite
         public string GetCommandName(DbCommandType objectType, SyncFilter filter = null)
         {
             if (!commandNames.TryGetValue(objectType, out var commandName))
-                throw new NotSupportedException($"Sqlite provider does not support the command type {objectType.ToString()}");
-
-            // concat filter name
-            //if (filter != null)
-            //    commandName = string.Format(commandName, filter.GetFilterName());
+                throw new NotSupportedException($"Sqlite provider does not support the command type {objectType}");
 
             return commandName;
         }
@@ -90,14 +87,15 @@ namespace Dotmim.Sync.Sqlite
             this.AddTriggerName(DbTriggerType.Update, string.Format(updateTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
             this.AddTriggerName(DbTriggerType.Delete, string.Format(deleteTriggerName, $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}"));
 
+            var filter = this.TableDescription.GetFilter();
+
             // Select changes
-            this.CreateSelectChangesCommandText();
+            this.CreateSelectChangesCommandText(filter);
             this.CreateSelectRowCommandText();
-            this.CreateSelectInitializedCommandText();
             this.CreateDeleteCommandText();
             this.CreateDeleteMetadataCommandText();
             this.CreateUpdateCommandText();
-            this.CreateInitializeCommandText();
+            this.CreateInsertCommandText();
             this.CreateResetCommandText();
             this.CreateUpdateUntrackedRowsCommandText();
             this.CreateUpdateMetadataCommandText();
@@ -197,7 +195,7 @@ namespace Dotmim.Sync.Sqlite
             this.AddCommandName(DbCommandType.UpdateMetadata, cmdtext);
         }
 
-        private void CreateInitializeCommandText()
+        private void CreateInsertCommandText()
         {
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderParameters = new StringBuilder();
@@ -421,9 +419,169 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.Append(";");
             this.AddCommandName(DbCommandType.SelectRow, stringBuilder.ToString());
         }
-        private void CreateSelectChangesCommandText()
+
+
+        /// <summary>
+        /// Create all custom joins from within a filter 
+        /// </summary>
+        protected string CreateFilterCustomJoins(SyncFilter filter)
         {
-            var stringBuilder = new StringBuilder("SELECT ");
+            var customJoins = filter.Joins;
+
+            if (customJoins.Count == 0)
+                return string.Empty;
+
+            var stringBuilder = new StringBuilder();
+
+            stringBuilder.AppendLine();
+            foreach (var customJoin in customJoins)
+            {
+                switch (customJoin.JoinEnum)
+                {
+                    case Join.Left:
+                        stringBuilder.Append("LEFT JOIN ");
+                        break;
+                    case Join.Right:
+                        stringBuilder.Append("RIGHT JOIN ");
+                        break;
+                    case Join.Outer:
+                        stringBuilder.Append("OUTER JOIN ");
+                        break;
+                    case Join.Inner:
+                    default:
+                        stringBuilder.Append("INNER JOIN ");
+                        break;
+                }
+
+                var filterTableName = ParserName.Parse(filter.TableName).Quoted().ToString();
+                var joinTableName = ParserName.Parse(customJoin.TableName).Quoted().ToString();
+                var leftTableName = ParserName.Parse(customJoin.LeftTableName).Quoted().ToString();
+
+                if (string.Equals(filterTableName, leftTableName, SyncGlobalization.DataSourceStringComparison))
+                    leftTableName = "[base]";
+
+                var rightTableName = ParserName.Parse(customJoin.RightTableName).Quoted().ToString();
+
+                if (string.Equals(filterTableName, rightTableName, SyncGlobalization.DataSourceStringComparison))
+                    rightTableName = "[base]";
+
+                var leftColumName = ParserName.Parse(customJoin.LeftColumnName).Quoted().ToString();
+                var rightColumName = ParserName.Parse(customJoin.RightColumnName).Quoted().ToString();
+
+                stringBuilder.AppendLine($"{joinTableName} ON {leftTableName}.{leftColumName} = {rightTableName}.{rightColumName}");
+            }
+
+            return stringBuilder.ToString();
+        }
+
+        /// <summary>
+        /// Create all side where criteria from within a filter
+        /// </summary>
+        protected string CreateFilterWhereSide(SyncFilter filter, bool checkTombstoneRows = false)
+        {
+            var sideWhereFilters = filter.Wheres;
+
+            if (sideWhereFilters.Count == 0)
+                return string.Empty;
+
+            var stringBuilder = new StringBuilder();
+            // Managing when state is tombstone
+            if (checkTombstoneRows)
+                stringBuilder.AppendLine($"(");
+
+            stringBuilder.AppendLine($" (");
+
+            var and2 = "   ";
+
+            foreach (var whereFilter in sideWhereFilters)
+            {
+                var tableFilter = this.TableDescription.Schema.Tables[whereFilter.TableName, whereFilter.SchemaName];
+                if (tableFilter == null)
+                    throw new FilterParamTableNotExistsException(whereFilter.TableName);
+
+                var columnFilter = tableFilter.Columns[whereFilter.ColumnName];
+                if (columnFilter == null)
+                    throw new FilterParamColumnNotExistsException(whereFilter.ColumnName, whereFilter.TableName);
+
+                var tableName = ParserName.Parse(tableFilter).Unquoted().ToString();
+                if (string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison))
+                    tableName = "[base]";
+                else
+                    tableName = ParserName.Parse(tableFilter).Quoted().ToString();
+
+                var columnName = ParserName.Parse(columnFilter).Quoted().ToString();
+                var parameterName = ParserName.Parse(whereFilter.ParameterName).Unquoted().Normalized().ToString();
+
+                var param = filter.Parameters[parameterName];
+
+                if (param == null)
+                    throw new FilterParamColumnNotExistsException(columnName, whereFilter.TableName);
+
+                stringBuilder.Append($"{and2}({tableName}.{columnName} = @{parameterName}");
+
+                if (param.AllowNull)
+                    stringBuilder.Append($" OR @{parameterName} IS NULL");
+
+                stringBuilder.Append($")");
+
+                and2 = " AND ";
+
+            }
+            stringBuilder.AppendLine();
+
+            stringBuilder.AppendLine($"  )");
+
+            if (checkTombstoneRows)
+            {
+                stringBuilder.AppendLine($" OR [side].[sync_row_is_tombstone] = 1");
+                stringBuilder.AppendLine($")");
+            }
+            // Managing when state is tombstone
+
+
+            return stringBuilder.ToString();
+        }
+
+        /// <summary>
+        /// Create all custom wheres from witing a filter
+        /// </summary>
+        protected string CreateFilterCustomWheres(SyncFilter filter)
+        {
+            var customWheres = filter.CustomWheres;
+
+            if (customWheres.Count == 0)
+                return string.Empty;
+
+            var stringBuilder = new StringBuilder();
+            var and2 = "  ";
+            stringBuilder.AppendLine($"(");
+
+            foreach (var customWhere in customWheres)
+            {
+                // Template escape character
+                var customWhereIteration = customWhere;
+                customWhereIteration = customWhereIteration.Replace("{{{", "[");
+                customWhereIteration = customWhereIteration.Replace("}}}", "]");
+
+                stringBuilder.Append($"{and2}{customWhereIteration}");
+                and2 = " AND ";
+            }
+
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($")");
+
+            return stringBuilder.ToString();
+        }
+
+
+        private void CreateSelectChangesCommandText(SyncFilter filter = null)
+        {
+            var stringBuilder = new StringBuilder("");
+
+            if (filter != null)
+                stringBuilder.AppendLine("SELECT DISTINCT ");
+            else
+                stringBuilder.AppendLine("SELECT ");
 
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
             {
@@ -451,15 +609,37 @@ namespace Dotmim.Sync.Sqlite
                 empty = " AND ";
             }
             stringBuilder.AppendLine();
-            //stringBuilder.AppendLine("WHERE (");
-            //stringBuilder.AppendLine("\t[side].[timestamp] > @sync_min_timestamp");
-            //stringBuilder.AppendLine("\tAND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL)");
-            //stringBuilder.AppendLine(")");
+
+            // ----------------------------------
+            // Custom Joins
+            // ----------------------------------
+            if (filter != null)
+                stringBuilder.Append(CreateFilterCustomJoins(filter));
 
             // Looking at discussion https://github.com/Mimetis/Dotmim.Sync/discussions/453, trying to remove ([side].[update_scope_id] <> @sync_scope_id)
             // since we are sure that sqlite will never be a server side database
 
-            stringBuilder.AppendLine("WHERE ([side].[timestamp] > @sync_min_timestamp AND [side].[update_scope_id] IS NULL)");
+            stringBuilder.AppendLine("WHERE ");
+            // ----------------------------------
+            // Where filters and Custom Where string
+            // ----------------------------------
+            if (filter != null)
+            {
+                var createFilterWhereSide = CreateFilterWhereSide(filter, true);
+                stringBuilder.Append(createFilterWhereSide);
+
+                if (!string.IsNullOrEmpty(createFilterWhereSide))
+                    stringBuilder.AppendLine($"AND ");
+
+                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
+                stringBuilder.Append(createFilterCustomWheres);
+
+                if (!string.IsNullOrEmpty(createFilterCustomWheres))
+                    stringBuilder.AppendLine($"AND ");
+            }
+            // ----------------------------------
+
+            stringBuilder.AppendLine("([side].[timestamp] > @sync_min_timestamp AND [side].[update_scope_id] IS NULL)");
 
 
             this.AddCommandName(DbCommandType.SelectChanges, stringBuilder.ToString());
@@ -467,31 +647,38 @@ namespace Dotmim.Sync.Sqlite
         }
 
 
-        private void CreateSelectInitializedCommandText()
-        {
-            StringBuilder stringBuilder = new StringBuilder("SELECT ");
-            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
-            {
-                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.AppendLine($"\t[base].{columnName}, ");
-            }
-            var columns = this.TableDescription.GetMutableColumns().ToList();
+        //private void CreateSelectInitializedCommandText(SyncFilter filter = null)
+        //{
+        //    StringBuilder stringBuilder = new StringBuilder();
 
-            for (var i = 0; i < columns.Count; i++)
-            {
-                var mutableColumn = columns[i];
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilder.Append($"\t[base].{columnName}");
-
-                if (i < columns.Count - 1)
-                    stringBuilder.AppendLine(", ");
-            }
-            stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} [base]");
+        //    if (filter != null)
+        //        stringBuilder.AppendLine("SELECT DISTINCT ");
+        //    else
+        //        stringBuilder.AppendLine("SELECT ");
 
 
-            this.AddCommandName(DbCommandType.SelectInitializedChanges, stringBuilder.ToString());
-            this.AddCommandName(DbCommandType.SelectInitializedChangesWithFilters, stringBuilder.ToString());
-        }
+        //    foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
+        //    {
+        //        var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
+        //        stringBuilder.AppendLine($"\t[base].{columnName}, ");
+        //    }
+        //    var columns = this.TableDescription.GetMutableColumns().ToList();
+
+        //    for (var i = 0; i < columns.Count; i++)
+        //    {
+        //        var mutableColumn = columns[i];
+        //        var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+        //        stringBuilder.Append($"\t[base].{columnName}");
+
+        //        if (i < columns.Count - 1)
+        //            stringBuilder.AppendLine(", ");
+        //    }
+        //    stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} [base]");
+
+
+        //    this.AddCommandName(DbCommandType.SelectInitializedChanges, stringBuilder.ToString());
+        //    this.AddCommandName(DbCommandType.SelectInitializedChangesWithFilters, stringBuilder.ToString());
+        //}
 
         private void CreateUpdateUntrackedRowsCommandText()
         {

@@ -608,6 +608,17 @@ namespace Dotmim.Sync
     }
 
     /// <summary>
+    /// Occurs when a parameter has been already added in a filter parameter list
+    /// </summary>
+    public class HttpScopeNameFromClientIsInvalidException : Exception
+    {
+        const string message = "Scope name received from client {0} is different from the scope name specified in the web server agent {1}";
+
+        public HttpScopeNameFromClientIsInvalidException(string scopeNameClientReceived, string scopeNameServerDeclared) 
+            : base(string.Format(message, scopeNameClientReceived, scopeNameServerDeclared)) { }
+    }
+
+    /// <summary>
     /// Occurs when a session is lost during a sync session
     /// </summary>
     public class HttpSessionLostException : Exception

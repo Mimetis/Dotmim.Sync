@@ -53,6 +53,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var s = await agent.SynchronizeAsync(setup);
                 var clientRowsCount = clientProvider.GetDatabaseRowsCount();
@@ -75,6 +76,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var s = await agent.SynchronizeAsync(setup);
                 var clientRowsCount = clientProvider.GetDatabaseRowsCount();
@@ -152,6 +154,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in newClientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var s = await agent.SynchronizeAsync(setup);
                 var clientRowsCount = clientProvider.GetDatabaseRowsCount();
@@ -171,6 +174,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 await clientConnection.OpenAsync();
 
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // force to get schema from database by calling the GetSchemaAsync (that will not read the ScopInfo record, but will make a full read of the database schema)
                 // The schema get here is not serialized / deserialiazed, like the remote schema (loaded from database)
@@ -287,6 +291,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var (clientProviderType, _) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // On first sync, even tables with only primary keys are inserted
                 var s = await agent.SynchronizeAsync("v1", setup);
@@ -326,6 +331,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
             var agent = new SyncAgent(clientProvider, badServerProvider, options);
+            agent.LogErrors();
 
             var se = await Assert.ThrowsAnyAsync<SyncException>(async () => await agent.SynchronizeAsync(setup));
         }
@@ -353,6 +359,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var (t, d) = HelperDatabase.GetDatabaseType(badClientProvider);
                 var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
                 var agent = new SyncAgent(badClientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () => await agent.SynchronizeAsync(setup));
             }
@@ -369,6 +376,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             {
                 var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
@@ -396,6 +404,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             {
                 var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
@@ -416,6 +425,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             {
                 var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var se = await Assert.ThrowsAnyAsync<SyncException>(async () =>
                 {
@@ -440,6 +450,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
@@ -468,6 +479,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
@@ -498,6 +510,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
@@ -529,6 +542,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
@@ -562,6 +576,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
@@ -594,6 +609,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
@@ -629,6 +645,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
@@ -665,6 +682,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
@@ -728,6 +746,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 };
 
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // Intercept TableChangesSelected
                 agent.LocalOrchestrator.OnTableChangesSelected(tableChangesSelected);
@@ -750,6 +769,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var s = await agent.SynchronizeAsync();
 
@@ -767,6 +787,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var s = await agent.SynchronizeAsync();
 
@@ -823,6 +844,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
@@ -872,6 +894,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
@@ -951,6 +974,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
@@ -1017,6 +1041,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
@@ -1044,6 +1069,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
@@ -1081,6 +1107,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // don' need to specify scope name (default will be used) nor setup, since it already exists
                 var s = await agent.SynchronizeAsync();
@@ -1151,6 +1178,51 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     var clientPC = await cliCtx.ProductCategory.AsNoTracking().CountAsync();
                     Assert.Equal(serverPC, clientPC);
                 }
+            }
+        }
+
+        [Theory]
+        [ClassData(typeof(SyncOptionsData))]
+        public async Task DeleteOneRowInOneTableOnClientSideThatIsNotTrackedYetOne(SyncOptions options)
+        {
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+            {
+                // generate a random server name
+                 var sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("server_");
+
+                // create a server provider
+                var provider = HelperDatabase.GetSyncProvider(ServerProviderType, sqlServerRandomDatabaseName,
+                    ServerProviderType == ProviderType.Sql || ServerProviderType == ProviderType.Postgres);
+
+                // Create database and schema on server side (+ seeding)
+                new AdventureWorksContext(provider, true).Database.EnsureCreated();
+
+                if (ServerProviderType == ProviderType.Sql)
+                    await HelperDatabase.ActivateChangeTracking(sqlServerRandomDatabaseName);
+
+                // before 1st sync, adding a server product categgory
+                var pc = await serverProvider.AddProductCategoryAsync(name: $"SRV_{HelperDatabase.GetRandomName()}");
+
+                // Sync to initialize client
+                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+
+                // now on client delete this product category that is not tracked on server as it's a default row
+                await clientProvider.DeleteProductCategoryAsync(pc.ProductCategoryId);
+                    
+                // sync and check
+                var s = await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync();
+
+                // we are uploading deleted rows from client
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                // nothing downloaded
+                Assert.Equal(0, s.TotalChangesDownloadedFromServer);
+                // but we should not have any rows applied locally
+                Assert.Equal(0, s.TotalChangesAppliedOnClient);
+                // anyway we are always uploading our deleted rows and should be applied on server
+                Assert.Equal(1, s.TotalChangesUploadedToServer);
+                // w may have resolved conflicts locally
+                Assert.Equal(0, s.TotalResolvedConflicts);
             }
         }
 
@@ -1365,6 +1437,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // Generate the foreignkey error
                 agent.LocalOrchestrator.OnRowsChangesApplying(foreignKeysFailureAction);
@@ -1382,6 +1455,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 // Generate the foreignkey error
                 agent.LocalOrchestrator.OnRowsChangesApplying(foreignKeysFailureAction);
@@ -1412,6 +1486,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var productCategory = await clientProvider.AddProductCategoryAsync();
 
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var s = await agent.SynchronizeAsync(setup, SyncType.Reinitialize);
 
@@ -1448,6 +1523,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var productCategory = await clientProvider.AddProductCategoryAsync();
 
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var s = await agent.SynchronizeAsync(setup, SyncType.ReinitializeWithUpload);
 
@@ -1493,6 +1569,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var s = await agent.SynchronizeAsync("uploadonly");
 
@@ -1536,6 +1613,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var s = await agent.SynchronizeAsync("downloadonly");
 
@@ -1584,6 +1662,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var s = await agent.SynchronizeAsync(setup);
 
@@ -1669,6 +1748,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var productCategory = await clientProvider.AddProductCategoryAsync();
 
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var s = await agent.SynchronizeAsync(setup, SyncType.ReinitializeWithUpload);
 
@@ -1765,6 +1845,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 readingRowsTables.Clear();
 
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -1810,6 +1891,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
@@ -1919,6 +2001,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
 
                 var s = await agent.SynchronizeAsync("BidirToUp", setupUploadOnly);
 
@@ -1977,6 +2060,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientProviders)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
+
                 allTasks.Add(agent.SynchronizeAsync());
             }
 
@@ -2002,6 +2087,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientProviders)
             {
                 var agent = new SyncAgent(clientProvider, serverProvider, options);
+                agent.LogErrors();
+
                 allTasks.Add(agent.SynchronizeAsync());
             }
 

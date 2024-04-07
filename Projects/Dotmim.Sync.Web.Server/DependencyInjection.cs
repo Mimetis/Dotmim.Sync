@@ -32,8 +32,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="identifier">Can be use to differentiate configuration where you are using the same provider in a multiple databases scenario</param>
         [Obsolete("Use AddSyncServer(CoreProvider provider) instead, as it offers you to configure your provider, if needed.")]
         public static IServiceCollection AddSyncServer(this IServiceCollection serviceCollection, Type providerType,
-                                                        string connectionString, SyncSetup setup = null, SyncOptions options = null, 
-                                                        WebServerOptions webServerOptions = null, string identifier = null)
+                                                        string connectionString, SyncSetup setup = null, SyncOptions options = null,
+                                                        WebServerOptions webServerOptions = null, string scopeName = null, string identifier = null)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
                 throw new ArgumentNullException(nameof(connectionString));
@@ -41,13 +41,14 @@ namespace Microsoft.Extensions.DependencyInjection
             webServerOptions ??= new WebServerOptions();
             options ??= new SyncOptions();
             setup = setup ?? throw new ArgumentNullException(nameof(setup));
+            scopeName ??= SyncOptions.DefaultScopeName;
 
             // Create provider
             var provider = (CoreProvider)Activator.CreateInstance(providerType);
             provider.ConnectionString = connectionString;
 
             // Create orchestrator
-            serviceCollection.AddScoped(sp => new WebServerAgent(provider, setup, options, webServerOptions, identifier));
+            serviceCollection.AddScoped(sp => new WebServerAgent(provider, setup, options, webServerOptions, scopeName, identifier));
 
             return serviceCollection;
 

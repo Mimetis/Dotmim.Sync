@@ -1,12 +1,10 @@
 ![DMS](docs/assets/Smallicon.svg)
 
-[![Build Status](https://dev.azure.com/dotmim/Dotmim.Sync/_apis/build/status/Tests)](https://dev.azure.com/dotmim/Dotmim.Sync/_build/latest?definitionId=9) [![Documentation Status](https://readthedocs.org/projects/dotmimsync/badge/?version=master)](https://dotmimsync.readthedocs.io/?badge=master)
+[![NuGet version (Dotmim.Sync.Core)](https://img.shields.io/nuget/v/Dotmim.Sync.Core.svg)](https://www.nuget.org/packages?q=dotmim.sync)
+[![Build Status](https://dev.azure.com/dotmim/Dotmim.Sync/_apis/build/status/Tests)](https://dev.azure.com/dotmim/Dotmim.Sync/_build/latest?definitionId=9)
+[![Documentation Status](https://readthedocs.org/projects/dotmimsync/badge/?version=master)](https://dotmimsync.readthedocs.io/?badge=master)
 
 See the Azure Devops CI : [https://dev.azure.com/dotmim/Dotmim.Sync](https://dev.azure.com/dotmim/Dotmim.Sync)
-
-## Sources
-
-**Release and pre-release** are hosted on [nuget.org](https://www.nuget.org) : [https://www.nuget.org/packages?q=dotmim.sync](https://www.nuget.org/packages?q=dotmim.sync)
 
 ## Documentation
 

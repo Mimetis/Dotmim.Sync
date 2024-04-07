@@ -29,6 +29,15 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.MariaDB", "Proj
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dotmim.Sync.PostgreSql", "Projects\Dotmim.Sync.PostgreSql\Dotmim.Sync.PostgreSql.csproj", "{2A908822-8731-4174-AD12-569531E4E33D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Root Files", "Root Files", "{E976D8CE-D258-4F56-8334-DA3898E5EF3C}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+		.gitattributes = .gitattributes
+		.gitignore = .gitignore
+		LICENSE = LICENSE
+		Readme.md = Readme.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -225,8 +234,8 @@ Global
 		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5} = {2E7CD7E6-8D9F-47E0-B5E3-4CF58C85F273}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		BuildVersion_StartDate = 2000/1/1
 		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
+		BuildVersion_StartDate = 2000/1/1
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true

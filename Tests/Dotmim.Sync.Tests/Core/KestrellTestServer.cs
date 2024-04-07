@@ -6,10 +6,13 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Session;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -52,11 +55,12 @@ namespace Dotmim.Sync.Tests
             this.builder = hostBuilder;
         }
 
-        public void AddSyncServer(Type providerType, string connectionString, SyncSetup setup = null, SyncOptions options = null, WebServerOptions webServerOptions = null, string identifier = null)
+        public void AddSyncServer(Type providerType, string connectionString, SyncSetup setup = null, SyncOptions options = null,
+            WebServerOptions webServerOptions = null, string scopeName = null, string identifier = null)
         {
             this.builder.ConfigureServices(services =>
             {
-                services.AddSyncServer(providerType, connectionString, setup, options, webServerOptions, identifier);
+                services.AddSyncServer(providerType, connectionString, setup, options, webServerOptions, scopeName, identifier);
             });
         }
 
@@ -66,11 +70,28 @@ namespace Dotmim.Sync.Tests
             // Create server web proxy
             serverHandler ??= new RequestDelegate(async context =>
                 {
-                    var webServerAgents = context.RequestServices.GetService(typeof(IEnumerable<WebServerAgent>)) as IEnumerable<WebServerAgent>;
+                    var allWebServerAgents = context.RequestServices.GetService(typeof(IEnumerable<WebServerAgent>)) as IEnumerable<WebServerAgent>;
                     var identifier = context.GetIdentifier();
-                    var webServerAgent = string.IsNullOrEmpty(identifier) ? webServerAgents.FirstOrDefault() : webServerAgents.FirstOrDefault(wsa => wsa.Identifier == identifier);
+                    var scopeName = context.GetScopeName();
 
-                    await webServerAgent.HandleRequestAsync(context);
+                    IEnumerable<WebServerAgent> webServerAgents = null;
+
+                    if (string.IsNullOrEmpty(identifier))
+                        webServerAgents = allWebServerAgents.Where(wsa => string.IsNullOrEmpty(wsa.Identifier));
+                    else
+                        webServerAgents = allWebServerAgents.Where(wsa => wsa.Identifier == identifier);
+
+                    var webServerAgent = webServerAgents.FirstOrDefault(wsa => wsa.ScopeName == scopeName);
+
+                    if (webServerAgent == null)
+                    {
+                        context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                        await HttpResponseWritingExtensions.WriteAsync(context.Response, $"There is no web server agent configured for this scope name {scopeName} and identifier {identifier}.");
+                    }
+                    else
+                    {
+                        await webServerAgent.HandleRequestAsync(context);
+                    }
                 });
 
             this.builder.Configure(app =>

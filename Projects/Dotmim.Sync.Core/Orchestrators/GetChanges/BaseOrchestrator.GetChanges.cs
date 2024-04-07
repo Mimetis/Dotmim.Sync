@@ -504,8 +504,9 @@ namespace Dotmim.Sync
             try
             {
                 // Sqlite does not have any filter, since he can't be server side
-                if (this.Provider != null && this.Provider.CanBeServerProvider)
-                    tableFilter = syncTable.GetFilter();
+                //if (this.Provider != null && this.Provider.CanBeServerProvider)
+                if (this.Provider != null)
+                        tableFilter = syncTable.GetFilter();
 
                 var hasFilters = tableFilter != null;
 

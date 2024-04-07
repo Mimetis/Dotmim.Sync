@@ -40,12 +40,12 @@ namespace MutliOrchestratorsWebSyncServer
             var options = new SyncOptions { };
 
             // [Required] Tables involved in the sync process:
-            var tables = new string[] {"ProductCategory", "ProductModel", "Product",
-            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+            var setup = new SyncSetup("ProductCategory", "ProductModel", "Product",
+            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
 
             // [Required]: Add a SqlSyncProvider acting as the server hub.
-            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, tables, options, identifier: "sql");
-            services.AddSyncServer<MySqlSyncProvider>(mysqlConnectionString, tables, options, identifier : "mysql");
+            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, setup, options, identifier: "sql");
+            services.AddSyncServer<MySqlSyncProvider>(mysqlConnectionString, setup, options, identifier: "mysql");
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
