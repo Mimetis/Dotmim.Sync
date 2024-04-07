@@ -358,9 +358,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             command.Connection = connection;
             command.Transaction = transaction;
             command.CommandText = $"IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) " +
-                $"BEGIN" +
+                $"BEGIN " +
                 $"ALTER TABLE {tableName.Schema().Quoted().ToString()} NOCHECK CONSTRAINT ALL; " +
-                $"DROP TABLE {tableName.Schema().Quoted().ToString()};" +
+                $"DROP TABLE {tableName.Schema().Quoted().ToString()}; " +
                 $"END";
 
 
