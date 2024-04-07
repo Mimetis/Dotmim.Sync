@@ -397,11 +397,58 @@ namespace Dotmim.Sync.Web.Client
 
             // throw exception if response is not successfull
             // get response from server
-            if (!response.IsSuccessStatusCode && response.Content != null)
-                await HandleSyncError(response);
+            if (!response.IsSuccessStatusCode)
+            {
+                // Invoke response failure interceptors to handle the failed response
+                await InvokeResponseFailureInterceptors(response);
+
+                // If response content is available, handle the synchronization error
+                if (response.Content != null)
+                    await HandleSyncError(response);
+            }
 
             return response;
 
+        }
+
+        /// <summary>
+        /// Invokes response failure interceptors to handle unsuccessful HTTP responses.
+        /// This method triggers interception logic to process and respond to failed HTTP responses,
+        /// allowing for centralized error handling and customization.
+        /// </summary>
+        /// <param name="response">The HttpResponseMessage representing the failed HTTP response.</param>
+        /// <returns>A task representing the asynchronous operation.</returns>
+        /// <remarks>
+        /// Response failure interceptors provide a mechanism for executing custom logic
+        /// when an HTTP response indicates failure (non-success status codes).
+        /// Interceptors may include logging, error handling, retry logic, or other actions
+        /// to be taken upon encountering failed responses from API calls.
+        /// </remarks>
+        private async Task InvokeResponseFailureInterceptors(HttpResponseMessage response)
+        {
+            // Check if there are any interceptors registered for HttpResponseFailureArgs
+            if (!HasInterceptors<HttpResponseFailureArgs>())
+                return; // No interceptors registered, so return early
+
+            // Construct HttpResponseFailureArgs instance with details of the failed response
+            var failureArgs = await CreateFailureArgs(response).ConfigureAwait(false);
+
+            // Invoke interceptors asynchronously, allowing custom logic to be executed
+            await InterceptAsync(failureArgs).ConfigureAwait(false);
+        }
+
+        // Method to create HttpResponseFailureArgs instance based on the provided HttpResponseMessage
+        private async Task<HttpResponseFailureArgs> CreateFailureArgs(HttpResponseMessage response)
+        {
+            // Extract necessary details from the HttpResponseMessage
+            int statusCode = (int)response.StatusCode;
+            string reasonPhrase = response.ReasonPhrase;
+            string content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            var headers = response.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value));
+            Uri requestUri = response.RequestMessage.RequestUri;
+
+            // Create and return a new instance of HttpResponseFailureArgs
+            return new HttpResponseFailureArgs(statusCode, reasonPhrase, content, headers, requestUri);
         }
 
         /// <summary>
