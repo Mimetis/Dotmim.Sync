@@ -381,6 +381,17 @@ namespace Dotmim.Sync
 
                     schemaTable.PrimaryKeys.Add(columnKey.ColumnName);
                 }
+
+                // Get all auto increment columns from the table and check if they are primary keys
+                foreach (var column in schemaTable.Columns.Where(c => c.IsAutoIncrement))
+                {
+                    if (schemaTable.PrimaryKeys.Contains(column.ColumnName))
+                        continue;
+
+                    throw new InvalidColumnAutoIncrementException(column.ColumnName, schemaTable.TableName);
+                }
+                
+
             }
             catch (Exception ex)
             {

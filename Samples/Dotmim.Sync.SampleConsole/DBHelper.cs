@@ -1,5 +1,7 @@
-﻿using Dotmim.Sync.Tests.Models;
+﻿using Dotmim.Sync.Sqlite;
+using Dotmim.Sync.Tests.Models;
 using Microsoft.Data.SqlClient;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
@@ -106,6 +108,16 @@ namespace Dotmim.Sync.SampleConsole
 
         }
 
+        public static async Task ExecuteSqliteScriptAsync(string connectionString, string commandText)
+        {
+            using var connection = new SqliteConnection(connectionString);
+            connection.Open();
+
+            using var cmdDb = new SqliteCommand(commandText, connection);
+            await cmdDb.ExecuteNonQueryAsync();
+
+            connection.Close();
+        }
 
         public static async Task ExecuteScriptAsync(string dbName, string script)
         {

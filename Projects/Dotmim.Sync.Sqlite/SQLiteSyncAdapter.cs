@@ -39,25 +39,12 @@ namespace Dotmim.Sync.Sqlite
             if (value == null || value == DBNull.Value)
                 parameter.Value = DBNull.Value;
             else
-            {
-                var convValue = SyncTypeConverter.TryConvertFromDbType(value, parameter.DbType);
-                parameter.Value = convValue;
-                //if (parameter.DbType == DbType.Guid)
-                //    parameter.Size = 0;
-            }
+                parameter.Value = SyncTypeConverter.TryConvertFromDbType(value, parameter.DbType); 
         }
 
         public override DbCommand EnsureCommandParameters(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
-            //if (commandType == DbCommandType.InsertRow || commandType == DbCommandType.InsertRows)
-            //{
-            //    var p = GetParameter(command, "sync_force_write");
-            //    if (p != null)
-            //        command.Parameters.Remove(p);
-            //    p = GetParameter(command, "sync_min_timestamp");
-            //    if (p != null)
-            //        command.Parameters.Remove(p);
-            //}
+
             return command;
         }
 

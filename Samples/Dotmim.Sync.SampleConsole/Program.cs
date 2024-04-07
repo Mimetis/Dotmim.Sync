@@ -6,44 +6,20 @@ using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Data;
 using System.IO;
-using System.Net;
-using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Serilog;
-using Serilog.Events;
-using System.Data.Common;
-using Dotmim.Sync.MySql;
 using System.Linq;
-using Microsoft.Data.SqlClient;
-using Dotmim.Sync.MariaDB;
 using Dotmim.Sync.Tests.Models;
 using System.Collections.Generic;
-using System.Text;
-using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Dotmim.Sync.Builders;
-using Dotmim.Sync.Serialization;
-using NLog.Extensions.Logging;
 using NLog.Web;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-using Dotmim.Sync.SqlServer.Builders;
-using Microsoft.Extensions.Options;
-using System.Security.Cryptography.X509Certificates;
-using Dotmim.Sync.PostgreSql;
-using Npgsql;
-using MessagePack.Resolvers;
-using MessagePack;
-using System.Runtime.Serialization;
-using System.Reflection.Metadata;
-using Microsoft.AspNetCore.Hosting.Server;
 using System.Threading;
+
 
 #if NET5_0 || NET6_0 || NET7_0
 using MySqlConnector;
@@ -64,31 +40,29 @@ internal class Program
                                                     "Address", "Customer", "CustomerAddress",
                                                     "SalesOrderHeader", "SalesOrderDetail"};
 
-    public static string[] oneTable = new string[] { "ProductCategory" };
+    public static string[] oneTable = new string[] { "MensCurves" };
 
 
     private static async Task Main(string[] args)
     {
 
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        //var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var serverProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString("Wasim"));
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         // var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
-        //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        // var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        //var setup = new SyncSetup(allTables);
         var setup = new SyncSetup(oneTable);
 
         var options = new SyncOptions();
-        options.CleanFolder = false;
         //options.Logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Information);
         //options.UseVerboseErrors = true;
 
@@ -110,47 +84,303 @@ internal class Program
 
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        // await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        setup = new SyncSetup("ProductCategory", "ProductDescription");
 
-        //await AddRemoveRemoveAsync();
+        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        // await SynchronizeUniqueIndexAsync();
+        await SyncAsync();
 
         //await SynchronizeWithFiltersJoinsAsync();
 
-        await CreateSnapshotAsync();
+        // await CreateSnapshotAsync();
     }
+
+    private static async Task SyncAsync()
+    {
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString("Stride4"));
+        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString("Client"));
+
+
+        var agent = new SyncAgent(clientProvider, serverProvider);
+
+        var setup = new SyncSetup(
+             "Performance_T"
+             , "Score_T"
+             , "Performance_Person_T"
+             , "Person_T"
+             , "Position_T"
+             , "Organization_T"
+            );
+
+        setup.Tables["Performance_Person_T"].Columns.AddRange("Performance_ID", "Person_Position_Organization_ID",
+            "Timestamp_DT", "Timestamp_TS", "PerformanceId", "PersonPositionOrganizationId",
+            "Id", "TenantId", "ExtraProperties", "ConcurrencyStamp", "CreatorId", "CreationTime", 
+            "LastModifierId", "LastModificationTime", "EntityVersion");
+
+
+        agent.Options.BatchSize = 2000;
+
+        var progress = new SynchronousProgress<ProgressArgs>(args => Console.WriteLine($"{args.ProgressPercentage:p}:\t{args.Message}"));
+
+        agent.Options.BatchSize = 2000;
+
+        // --------------------------------------------
+        // Using Interceptors
+        // --------------------------------------------
+
+        // CancellationTokenSource is used to cancel a sync process in the next example
+        var cts = new CancellationTokenSource();
+
+
+        // Intercept a table changes selecting
+        // Because the changes are not yet selected, we can easily interrupt the process with the cancellation token
+        agent.LocalOrchestrator.OnTableChangesSelecting(args =>
+        {
+            Console.WriteLine($"-------- Getting changes from table {args.SchemaTable.GetFullName()} ...");
+
+            if (args.SchemaTable.TableName == "Table_That_Should_Not_Be_Sync")
+                cts.Cancel();
+        });
+
+        // Row has been selected from datasource.
+        // You can change the synrow before the row is serialized on the disk.
+        agent.LocalOrchestrator.OnRowsChangesSelected(args =>
+        {
+            Console.Write(".");
+        });
+
+        // Tables changes have been selected
+        // we can have all the batch part infos generated
+        agent.RemoteOrchestrator.OnTableChangesSelected(tcsa =>
+        {
+            Console.WriteLine($"Table {tcsa.SchemaTable.GetFullName()}: " +
+                $"Files generated count:{tcsa.BatchPartInfos.Count()}. " +
+                $"Rows Count:{tcsa.TableChangesSelected.TotalChanges}");
+        });
+
+
+        // This event is raised when a table is applying some rows, available on the disk
+        agent.LocalOrchestrator.OnTableChangesApplying(args =>
+        {
+            Console.WriteLine($"Table {args.SchemaTable.GetFullName()}: " +
+                $"Applying changes from {args.BatchPartInfos.Count()} files. " +
+                $"{args.BatchPartInfos.Sum(bpi => bpi.RowsCount)} rows.");
+        });
+
+        // This event is raised for each batch rows (maybe 1 or more in each batch)
+        // that will be applied on the datasource
+        // You can change something to the rows before they are applied here
+        agent.LocalOrchestrator.OnRowsChangesApplying(args =>
+        {
+            foreach (var syncRow in args.SyncRows)
+                Console.Write(".");
+        });
+
+        // This event is raised once all rows for a table have been applied
+        agent.LocalOrchestrator.OnTableChangesApplied(args =>
+        {
+            Console.WriteLine();
+            Console.WriteLine($"Table applied: ");
+        });
+
+        do
+        {
+            // Launch the sync process
+            var s1 = await agent.SynchronizeAsync("Test 5", setup, SyncType.Normal, null, cts.Token, progress);
+            // Write results
+            Console.WriteLine(s1);
+
+        } while (Console.ReadKey().Key != ConsoleKey.Escape);
+
+        Console.WriteLine("End");
+
+    }
+
+
+    private static async Task ResetProvisionAsync()
+    {
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var setup = new SyncSetup("TestTable");
+        var options = new SyncOptions();
+
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        // Deprovision both remote and local db
+        await agent.RemoteOrchestrator.DeprovisionAsync(setup);
+        await agent.LocalOrchestrator.DeprovisionAsync(setup);
+
+        // Provision again
+        var serverScope = await agent.RemoteOrchestrator.ProvisionAsync(setup);
+        await agent.LocalOrchestrator.ProvisionAsync(serverScope);
+
+
+    }
+
+    private static async Task SynchronizeHugeAsync()
+    {
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var setup = new SyncSetup("TestTable");
+        // avoiding reference check constraint failing on product category table fk 
+        var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  " +
+            $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        // output batch applied
+        agent.LocalOrchestrator.OnBatchChangesApplied(Console.WriteLine);
+
+        try
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            var s = await agent.SynchronizeAsync(setup, progress);
+            Console.WriteLine(s);
+        }
+        catch (Exception e)
+        {
+            Console.ResetColor();
+            Console.WriteLine(e.Message);
+        }
+
+    }
+
+    private static async Task SynchronizeUniqueIndexAsync()
+    {
+
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var setup = new SyncSetup("ProductCategory");
+        var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+        var filter = new SetupFilter("ProductCategory");
+        filter.AddParameter("Name", "ProductCategory", false);
+        filter.AddCustomWhere("{{{Name}}} = @Name or {{{side}}}.{{{sync_row_is_tombstone}}} = 1");
+        setup.Filters.Add(filter);
+
+
+        SyncAgent agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        agent.LocalOrchestrator.OnDatabaseChangesApplying(args =>
+        {
+            var cmdText = $"ALTER INDEX IX_CodArt ON ProductCategory DISABLE;";
+            var cmd = args.Connection.CreateCommand();
+            cmd.CommandText = cmdText;
+            cmd.Transaction = args.Transaction;
+            cmd.ExecuteNonQuery();
+        });
+        agent.LocalOrchestrator.OnDatabaseChangesApplied(args =>
+        {
+            var cmdText = $"ALTER INDEX IX_CodArt ON ProductCategory REBUILD;";
+            var cmd = args.Connection.CreateCommand();
+            cmd.CommandText = cmdText;
+            cmd.Transaction = args.Transaction;
+            cmd.ExecuteNonQuery();
+
+        });
+
+        // first sync to initialize everything
+        var result = await agent.SynchronizeAsync(setup);
+
+        // create a new product category
+        var name = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+        var code = name.ToUpperInvariant();
+
+        // Add this new product to server and then sync it to client
+        await AddProductCategoryRowWithUniqueIndexAsync(serverProvider, name, code);
+
+        // the new product is sent to the client side
+        result = await agent.SynchronizeAsync(setup);
+
+        // Reproducing the unique index failure here
+        // -----------------------------------------
+        // delete the product on the server
+        await DBHelper.DeleteProductCategoryRowAsync(serverProvider, name: name);
+
+        // then add it again with the same unique index
+        await AddProductCategoryRowWithUniqueIndexAsync(serverProvider, name, code);
+
+        // Here we have to sent 2 modifications to the client
+        // - First one is the new row order, but the unique row is already existing on the client,
+        //   causing the failure.
+        // - Then the delete order.
+
+        // HERE the error is raised if we don't use the interceptors.
+        result = await agent.SynchronizeAsync(setup);
+        Console.WriteLine(result);
+
+    }
+
+
+    private static async Task AddProductCategoryRowWithUniqueIndexAsync(CoreProvider provider, string name = default, string code = default)
+    {
+
+        string commandText = "Insert into ProductCategory (ProductCategoryId, Code, Name, ModifiedDate, rowguid) Values (@ProductCategoryId, @Code, @Name, @ModifiedDate, @rowguid)";
+        var connection = provider.CreateConnection();
+
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = commandText;
+        command.Connection = connection;
+
+        var p = command.CreateParameter();
+        p.DbType = DbType.Guid;
+        p.ParameterName = "@ProductCategoryId";
+        p.Value = Guid.NewGuid();
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.DbType = DbType.String;
+        p.ParameterName = "@Name";
+        p.Value = name == null ? Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() : name;
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.DbType = DbType.String;
+        p.ParameterName = "@Code";
+        p.Value = code == null ? Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() : code;
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.DbType = DbType.DateTime;
+        p.ParameterName = "@ModifiedDate";
+        p.Value = DateTime.UtcNow;
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.DbType = DbType.Guid;
+        p.ParameterName = "@rowguid";
+        p.Value = Guid.NewGuid();
+        command.Parameters.Add(p);
+
+        await command.ExecuteNonQueryAsync();
+
+        connection.Close();
+
+    }
+
 
     private static async Task CreateSnapshotAsync()
     {
-        // Create 2 Sql Sync providers
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
-
-        var setup = new SyncSetup("SalesLT.ProductCategory", "SalesLT.Product");
-
-        var productCategoryFilter = new SetupFilter("ProductCategory", "SalesLT");
-        productCategoryFilter.AddParameter("ProductCategoryID", "ProductCategory", "SalesLT", true);
-        productCategoryFilter.AddWhere("ProductCategoryID", "ProductCategory", "ProductCategoryID", "SalesLT");
-        setup.Filters.Add(productCategoryFilter);
-
-        // snapshot directory
-        var snapshotDirectoryName = "Snapshots";
-        var directory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), snapshotDirectoryName);
-
-        // snapshot directory
-        var options = new SyncOptions
-        {
-            SnapshotsDirectory = directory,
-            BatchSize = 3000
-        };
-
-        SyncParameters parameters = new() { new("ProductCategoryID", default) };
-
-        // Create a remote orchestrator
+        var snapshotDirectory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Snapshots");
+        var options = new SyncOptions();
+        options.BatchSize = 500;
+        options.SnapshotsDirectory = snapshotDirectory;
+        var setup = new SyncSetup(allTables);
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        serverProvider.IsolationLevel = IsolationLevel.Snapshot;
         var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-        // Create a snapshot
-        await remoteOrchestrator.CreateSnapshotAsync(setup, parameters);
+        var snap = await remoteOrchestrator.CreateSnapshotAsync(setup);
+
+        Console.WriteLine(snap);
+
     }
+
     private static async Task SynchronizeWithFiltersJoinsAsync()
     {
         // Create 2 Sql Sync providers
@@ -302,16 +532,19 @@ internal class Program
     }
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
+
         var progress = new SynchronousProgress<ProgressArgs>(s =>
             Console.WriteLine($"{s.ProgressPercentage:p}:  " +
             $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
 
+        // avoiding reference check constraint failing on product category table
         options.DisableConstraintsOnApplyChanges = true;
-        options.TransactionMode = TransactionMode.PerBatch;
 
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-        setup = new SyncSetup("Items");
+        // output batch applied
+        agent.LocalOrchestrator.OnBatchChangesApplied(Console.WriteLine);
+
         do
         {
             try

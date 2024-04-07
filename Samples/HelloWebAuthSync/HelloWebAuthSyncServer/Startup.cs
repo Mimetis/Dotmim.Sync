@@ -52,7 +52,7 @@ namespace HelloWebSyncServer
                         {
                             ValidIssuer = "Dotmim.Sync.Bearer",
                             ValidAudience = "Dotmim.Sync.Bearer",
-                            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("SOME_RANDOM_KEY_DO_NOT_SHARE"))
+                            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("SOME_RANDOM_KEY_DO_NOT_SHARE_YOUR_KEY"))
                         };
 
                         options.Events = new JwtBearerEvents
@@ -85,8 +85,8 @@ namespace HelloWebSyncServer
 
             setup.Filters.Add("Product", "ProductCategoryID");
 
-            // [Required]: Add a SqlSyncProvider acting as the server hub.
-            services.AddSyncServer<SqlSyncProvider>(connectionString, setup);
+            var provider = new SqlSyncProvider(connectionString);
+            services.AddSyncServer(provider, setup);
         }
 
 

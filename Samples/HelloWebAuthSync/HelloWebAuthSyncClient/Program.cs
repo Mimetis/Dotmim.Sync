@@ -77,7 +77,7 @@ namespace HelloWebSyncClient
                 new Claim(ClaimTypes.NameIdentifier, userid)
             };
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("SOME_RANDOM_KEY_DO_NOT_SHARE"));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("SOME_RANDOM_KEY_DO_NOT_SHARE_YOUR_KEY"));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var expires = DateTime.Now.AddDays(Convert.ToDouble(10));

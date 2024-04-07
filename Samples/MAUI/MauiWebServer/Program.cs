@@ -19,8 +19,7 @@ namespace MauiWebServer
 
             //var tables = new string[] { "Culinary.RecipeMethodContent" };
 
-            var setup = new SyncSetup("ProductCategory", "ProductModel", "Product",
-                         "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
+            var setup = new SyncSetup("Codes");
 
             // add a SqlSyncProvider acting as the server hub
             builder.Services.AddSyncServer<SqlSyncProvider>(connectionString, setup);

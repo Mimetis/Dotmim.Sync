@@ -493,7 +493,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = $"DROP Table [dbo].[{tableName}]";
+            command.CommandText = $"DROP TABLE IF EXISTS [dbo].[{tableName}]";
             return command;
         }
 
@@ -502,7 +502,7 @@ namespace Dotmim.Sync.SqlServer.Scope
             var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = $"DROP Table [dbo].[{tableName}]";
+            command.CommandText = $"DROP TABLE IF EXISTS [dbo].[{tableName}]";
             return command;
         }
         // ------------------------------

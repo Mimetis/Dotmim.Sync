@@ -23,12 +23,14 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Add the server provider (inherited from CoreProvider) and register in the DI a WebServerAgent.
         /// Use the WebServerAgent in your controller, by inject it.
         /// </summary>
-        /// <param name="providerType">Provider inherited from CoreProvider (SqlSyncProvider, MySqlSyncProvider, OracleSyncProvider) Should have [CanBeServerProvider=true] </param>
         /// <param name="serviceCollection">services collections</param>
+        /// <param name="providerType">Provider inherited from CoreProvider (SqlSyncProvider, MySqlSyncProvider, OracleSyncProvider) Should have [CanBeServerProvider=true] </param>
         /// <param name="connectionString">Provider connection string</param>
         /// <param name="setup">Configuration server side. Adding at least tables to be synchronized</param>
         /// <param name="options">Options, not shared with client, but only applied locally. Can be null</param>
-
+        /// <param name="webServerOptions">Specific web server options</param>
+        /// <param name="identifier">Can be use to differentiate configuration where you are using the same provider in a multiple databases scenario</param>
+        [Obsolete("Use AddSyncServer(CoreProvider provider) instead, as it offers you to configure your provider, if needed.")]
         public static IServiceCollection AddSyncServer(this IServiceCollection serviceCollection, Type providerType,
                                                         string connectionString, SyncSetup setup = null, SyncOptions options = null, 
                                                         WebServerOptions webServerOptions = null, string identifier = null)
@@ -51,10 +53,46 @@ namespace Microsoft.Extensions.DependencyInjection
 
         }
 
+        [Obsolete("Use AddSyncServer(CoreProvider provider) instead, as it offers you to configure your provider, if needed.")]
         public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, SyncSetup setup = null, SyncOptions options = null, WebServerOptions webServerOptions = null, string identifier = null) where TProvider : CoreProvider, new()
         => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, setup, options, webServerOptions, identifier);
+
+        [Obsolete("Use AddSyncServer(CoreProvider provider) instead, as it offers you to configure your provider, if needed.")]
         public static IServiceCollection AddSyncServer<TProvider>(this IServiceCollection serviceCollection, string connectionString, string[] tables = default, SyncOptions options = null, WebServerOptions webServerOptions = null, string identifier = null) where TProvider : CoreProvider, new()
             => serviceCollection.AddSyncServer(typeof(TProvider), connectionString, new SyncSetup(tables), options, webServerOptions, identifier);
+
+        /// <summary>
+        /// Add the server provider (inherited from CoreProvider) and register in the DI as a new WebServerAgent.
+        /// In Your controller, inject a WebServerAgent to get your agent
+        /// </summary>
+        /// <param name="serviceCollection">services collections</param>
+        /// <param name="provider">Provider inherited from CoreProvider (SqlSyncProvider, MySqlSyncProvider, OracleSyncProvider) Should have [CanBeServerProvider=true] </param>
+        /// <param name="setup">Configuration server side. Adding at least tables to be synchronized</param>
+        /// <param name="options">Options, not shared with client, but only applied locally. Can be null</param>
+        /// <param name="webServerOptions">Specific web server options</param>
+        /// <param name="identifier">Can be use to differentiate configuration where you are using the same provider in a multiple databases scenario</param>
+        public static IServiceCollection AddSyncServer(this IServiceCollection serviceCollection, CoreProvider provider,
+                                                        SyncSetup setup = null, SyncOptions options = null,
+                                                        WebServerOptions webServerOptions = null, string identifier = null)
+        {
+            if (provider == null)
+                throw new ArgumentNullException(nameof(provider));
+
+            webServerOptions ??= new WebServerOptions();
+            options ??= new SyncOptions();
+            setup = setup ?? throw new ArgumentNullException(nameof(setup));
+
+            // Create orchestrator
+            serviceCollection.AddScoped(sp => new WebServerAgent(provider, setup, options, webServerOptions, identifier));
+
+            return serviceCollection;
+
+        }
+
+        /// <inheritdoc cref="AddSyncServer(IServiceCollection, CoreProvider, SyncSetup, SyncOptions, WebServerOptions, string)" />
+        public static IServiceCollection AddSyncServer(this IServiceCollection serviceCollection, CoreProvider provider, string[] tables = default, SyncOptions options = null, WebServerOptions webServerOptions = null, string identifier = null)
+                => serviceCollection.AddSyncServer(provider, new SyncSetup(tables), options, webServerOptions, identifier);
+
 
     }
 }

@@ -348,13 +348,31 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return Task.FromResult(command);
         }
+
         public Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var tbl = tableName.ToString();
 
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} NOCHECK CONSTRAINT ALL; DROP TABLE {tableName.Schema().Quoted().ToString()};";
+            command.CommandText = $"IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) " +
+                $"BEGIN" +
+                $"ALTER TABLE {tableName.Schema().Quoted().ToString()} NOCHECK CONSTRAINT ALL; " +
+                $"DROP TABLE {tableName.Schema().Quoted().ToString()};" +
+                $"END";
+
+
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = "@tableName";
+            parameter.Value = tbl;
+            command.Parameters.Add(parameter);
+
+            parameter = command.CreateParameter();
+            parameter.ParameterName = "@schemaName";
+            parameter.Value = schema;
+            command.Parameters.Add(parameter);
 
             return Task.FromResult(command);
         }

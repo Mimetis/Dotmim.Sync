@@ -34,18 +34,18 @@ namespace MauiAppClient.ViewModels
             try
             {
 
-            this.Title = "Sync";
-            this.SyncProgressionText = "Ready...";
-            this.SyncCommandButtonEnabled = true;
-            this.SyncCommand = new Command(async () => await ExecuteSyncCommand(SyncType.Normal));
-            this.SyncReinitializeCommand = new Command(async () => await ExecuteSyncCommand(SyncType.Reinitialize));
-            this.CustomActionCommand = new Command(() => ExecuteCustomActionCommand());
+                this.Title = "Sync";
+                this.SyncProgressionText = "Ready...";
+                this.SyncCommandButtonEnabled = true;
+                this.SyncCommand = new Command(async () => await ExecuteSyncCommand(SyncType.Normal));
+                this.SyncReinitializeCommand = new Command(async () => await ExecuteSyncCommand(SyncType.Reinitialize));
+                this.CustomActionCommand = new Command(() => ExecuteCustomActionCommand());
 
-            this.syncAgent = DependencyService.Get<ISyncServices>().GetSyncAgent();
-            this.settings = DependencyService.Get<ISettingServices>();
+                this.syncAgent = DependencyService.Get<ISyncServices>().GetSyncAgent();
+                this.settings = DependencyService.Get<ISettingServices>();
 
-            this.syncAgent.SessionStateChanged += (s, state) =>
-                this.SyncCommandButtonEnabled = state == SyncSessionState.Ready ? true : false;
+                this.syncAgent.SessionStateChanged += (s, state) =>
+                    this.SyncCommandButtonEnabled = state == SyncSessionState.Ready ? true : false;
             }
             catch (Exception ex)
             {
@@ -74,15 +74,19 @@ namespace MauiAppClient.ViewModels
         {
             IsBusy = true;
 
+            var result = string.Empty;
             try
             {
-                 
+
                 var progress = new Progress<ProgressArgs>(args =>
                 {
                     MainThread.BeginInvokeOnMainThread(() =>
                     {
                         this.SyncProgress = args.ProgressPercentage;
-                        this.SyncProgressionText = args.Message;
+                        if (result == string.Empty)
+                        {
+                            this.SyncProgressionText = args.Message;
+                        }
                     });
                 });
 
@@ -94,8 +98,8 @@ namespace MauiAppClient.ViewModels
                 });
 
                 var r = await this.syncAgent.SynchronizeAsync(syncType, progress);
-
-                MainThread.BeginInvokeOnMainThread(() => this.SyncProgressionText = r.ToString());
+                result = r.ToString();
+                MainThread.BeginInvokeOnMainThread(() => this.SyncProgressionText = result);
             }
             catch (Exception ex)
             {

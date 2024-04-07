@@ -298,9 +298,9 @@ SyncOptions
 
         /// <summary>
         /// Gets or Sets if we should disable constraints before making apply changes 
-        /// Default value is true
+        /// Default value is false
         /// </summary>
-        public bool DisableConstraintsOnApplyChanges { get; set; } = true;
+        public bool DisableConstraintsOnApplyChanges { get; set; } = false;
 
         /// <summary>
         /// Gets or Sets the scope_info table name. Default is scope_info
