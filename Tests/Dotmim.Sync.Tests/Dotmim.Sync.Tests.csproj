@@ -2,9 +2,8 @@
 	<PropertyGroup>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
 		<TargetFrameworkNet7>net7.0</TargetFrameworkNet7>
-		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
 
-		<TargetFrameworks>$(TargetFrameworkNetCore);$(TargetFrameworkNet6);$(TargetFrameworkNet7)</TargetFrameworks>
+		<TargetFrameworks>$(TargetFrameworkNet6);$(TargetFrameworkNet7)</TargetFrameworks>
 
 		<IsPackable>false</IsPackable>
 		<!--<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>-->

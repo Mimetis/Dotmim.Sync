@@ -16,13 +16,13 @@ namespace Dotmim.Sync.Serialization
 
     public class JsonObjectSerializer : ISerializer
     {
-        private static readonly JsonSerializer _jsonSerializer = new();
+        private static readonly JsonSerializer jsonSerializer = new();
 
         public async Task<T> DeserializeAsync<T>(Stream ms)
         {
             using var sr = new StreamReader(ms);
             using var jtr = new JsonTextReader(sr);
-            return _jsonSerializer.Deserialize<T>(jtr);
+            return jsonSerializer.Deserialize<T>(jtr);
         }
 
         public async Task<byte[]> SerializeAsync<T>(T obj)
@@ -34,7 +34,7 @@ namespace Dotmim.Sync.Serialization
 //#if DEBUG
 //            jtw.Formatting = Formatting.Indented;
 //#endif
-            _jsonSerializer.Serialize(jtw, obj);
+            jsonSerializer.Serialize(jtw, obj);
 
             await jtw.FlushAsync().ConfigureAwait(false);
             await sw.FlushAsync().ConfigureAwait(false);
@@ -46,7 +46,7 @@ namespace Dotmim.Sync.Serialization
         {
             using var sr = new StreamReader(ms);
             using var jtr = new JsonTextReader(sr);
-            return _jsonSerializer.Deserialize(jtr, type);
+            return jsonSerializer.Deserialize(jtr, type);
         }
     }
 }

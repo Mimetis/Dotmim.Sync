@@ -30,7 +30,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="options">Options, not shared with client, but only applied locally. Can be null</param>
         /// <param name="webServerOptions">Specific web server options</param>
         /// <param name="identifier">Can be use to differentiate configuration where you are using the same provider in a multiple databases scenario</param>
-        [Obsolete("Use AddSyncServer(CoreProvider provider) instead, as it offers you to configure your provider, if needed.")]
+        [Obsolete("Use AddSyncServer(CoreProvider provider) instead, as it offers more possibilities to configure your provider, if needed.")]
         public static IServiceCollection AddSyncServer(this IServiceCollection serviceCollection, Type providerType,
                                                         string connectionString, SyncSetup setup = null, SyncOptions options = null,
                                                         WebServerOptions webServerOptions = null, string scopeName = null, string identifier = null)
@@ -74,7 +74,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// <param name="identifier">Can be use to differentiate configuration where you are using the same provider in a multiple databases scenario</param>
         public static IServiceCollection AddSyncServer(this IServiceCollection serviceCollection, CoreProvider provider,
                                                         SyncSetup setup = null, SyncOptions options = null,
-                                                        WebServerOptions webServerOptions = null, string identifier = null)
+                                                        WebServerOptions webServerOptions = null, string scopeName = null, string identifier = null)
         {
             if (provider == null)
                 throw new ArgumentNullException(nameof(provider));
@@ -82,17 +82,18 @@ namespace Microsoft.Extensions.DependencyInjection
             webServerOptions ??= new WebServerOptions();
             options ??= new SyncOptions();
             setup = setup ?? throw new ArgumentNullException(nameof(setup));
+            scopeName ??= SyncOptions.DefaultScopeName;
 
             // Create orchestrator
-            serviceCollection.AddScoped(sp => new WebServerAgent(provider, setup, options, webServerOptions, identifier));
+            serviceCollection.AddScoped(sp => new WebServerAgent(provider, setup, options, webServerOptions, scopeName, identifier));
 
             return serviceCollection;
 
         }
 
-        /// <inheritdoc cref="AddSyncServer(IServiceCollection, CoreProvider, SyncSetup, SyncOptions, WebServerOptions, string)" />
-        public static IServiceCollection AddSyncServer(this IServiceCollection serviceCollection, CoreProvider provider, string[] tables = default, SyncOptions options = null, WebServerOptions webServerOptions = null, string identifier = null)
-                => serviceCollection.AddSyncServer(provider, new SyncSetup(tables), options, webServerOptions, identifier);
+        /// <inheritdoc cref="AddSyncServer(IServiceCollection, CoreProvider, SyncSetup, SyncOptions, WebServerOptions, string, string)" />
+        public static IServiceCollection AddSyncServer(this IServiceCollection serviceCollection, CoreProvider provider, string[] tables = default, SyncOptions options = null, WebServerOptions webServerOptions = null, string scopeName = null, string identifier = null)
+                => serviceCollection.AddSyncServer(provider, new SyncSetup(tables), options, webServerOptions, scopeName, identifier);
 
 
     }

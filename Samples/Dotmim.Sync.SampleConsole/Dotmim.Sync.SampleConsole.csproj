@@ -1,10 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
-		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
 		<TargetFrameworkNet7>net7.0</TargetFrameworkNet7>
-		<TargetFrameworks>$(TargetFrameworkNetCore);$(TargetFrameworkNet6);$(TargetFrameworkNet7)</TargetFrameworks>
+		<TargetFrameworks>$(TargetFrameworkNet6);$(TargetFrameworkNet7)</TargetFrameworks>
 		<LangVersion>11.0</LangVersion>
 	</PropertyGroup>
 	<PropertyGroup>
