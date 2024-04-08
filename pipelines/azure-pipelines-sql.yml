@@ -2,13 +2,13 @@ jobs:
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "Unit tests"
-      dotnetfx: "net7.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.UnitTests"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "SQL Server Interceptors tests"
-      dotnetfx: "net7.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerUnit"
 
   # - template: azure-pipelines-template.yml
@@ -19,8 +19,8 @@ jobs:
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "SQL Server Tcp .net 7.0"
-      dotnetfx: "net7.0"
+      displayName: "SQL Server Tcp .net 8.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerTcp"
 
   # - template: azure-pipelines-template.yml
@@ -31,14 +31,14 @@ jobs:
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "SQL Server Conflicts .net 7.0"
-      dotnetfx: "net7.0"
+      displayName: "SQL Server Conflicts .net 8.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerConflictTests"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "SQL Server Change Tracking Tcp .net 7.0"
-      dotnetfx: "net7.0"
+      displayName: "SQL Server Change Tracking Tcp .net 8.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingTcp"
 
   - template: azure-pipelines-template.yml
@@ -49,8 +49,8 @@ jobs:
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "SQL Server Change Tracking Conflicts .net 7.0"
-      dotnetfx: "net7.0"
+      displayName: "SQL Server Change Tracking Conflicts .net 8.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingConflictTests"
 
   - template: azure-pipelines-template.yml
@@ -61,8 +61,8 @@ jobs:
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "PostgreSQL Tcp .net 7.0"
-      dotnetfx: "net7.0"
+      displayName: "PostgreSQL Tcp .net 8.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.PostgresTcp"
 
   - template: azure-pipelines-template.yml
@@ -73,8 +73,8 @@ jobs:
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "PostgreSQL Conflicts .net 7.0"
-      dotnetfx: "net7.0"
+      displayName: "PostgreSQL Conflicts .net 8.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.PostgresConflictTests"
 
   - template: azure-pipelines-template.yml
@@ -85,20 +85,20 @@ jobs:
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "MySQL Tcp .net 7.0"
-      dotnetfx: "net7.0"
+      displayName: "MySQL Tcp .net 8.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.MySqlTcp"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "MySQL Conflicts .net 7.0"
-      dotnetfx: "net7.0"
+      displayName: "MySQL Conflicts .net 8.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.MySqlConflictTests"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "MySQL Conflicts .net 7.0"
-      dotnetfx: "net7.0"
+      displayName: "MySQL Conflicts .net 8.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.MySqlConflictTests"
 
   - template: azure-pipelines-template.yml
@@ -109,44 +109,44 @@ jobs:
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "MariaDB Tcp .net 7.0"
-      dotnetfx: "net7.0"
+      displayName: "MariaDB Tcp .net 8.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.MariaDBTcp"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "MariaDB Fiter Tests .net 7.0"
-      dotnetfx: "net7.0"
+      displayName: "MariaDB Fiter Tests .net 8.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.MariaDBTcpFilterTests"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "MariaDB Http Tests .net 7.0"
-      dotnetfx: "net7.0"
+      displayName: "MariaDB Http Tests .net 8.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.MariaDBHttpTests"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "SQL Server Change Tracking Http .net 7.0"
-      dotnetfx: "net7.0"
+      displayName: "SQL Server Change Tracking Http .net 8.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingHttp"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "SQL Server Http .net 7.0"
-      dotnetfx: "net7.0"
+      displayName: "SQL Server Http .net 8.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerHttp"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "MySQL Http .net 7.0"
-      dotnetfx: "net7.0"
+      displayName: "MySQL Http .net 8.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.MySqlHttp"
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "Postgres Http .net 7.0"
-      dotnetfx: "net7.0"
+      displayName: "Postgres Http .net 8.0"
+      dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.PostgresHttp"
 
   - job: testbasics
@@ -166,20 +166,23 @@ jobs:
       - script: printenv
         displayName: Get env variables
 
-      # Use the latest .NET SDK
       - task: UseDotNet@2
-        displayName: "Use .Net Sdk 7.x"
+        displayName: "Use .Net Core sdk"
         inputs:
-          packageType: "sdk"
-          version: 7.0.x
-          includePreviewVersions: true
+          version: 3.x
 
+      # Use the latest .NET SDK
       - task: UseDotNet@2
         displayName: "Use .Net Sdk 6.x"
         inputs:
           packageType: "sdk"
           version: 6.0.x
-          includePreviewVersions: true
+
+      - task: UseDotNet@2
+        displayName: "Use .Net Sdk 8.x"
+        inputs:
+          packageType: "sdk"
+          version: 8.0.x
 
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
@@ -229,14 +232,12 @@ jobs:
         inputs:
           packageType: "sdk"
           version: 6.0.x
-          includePreviewVersions: true
 
       - task: UseDotNet@2
-        displayName: "Use .Net Sdk 7.x"
+        displayName: "Use .Net Sdk 8.x"
         inputs:
           packageType: "sdk"
-          version: 7.0.x
-          includePreviewVersions: true
+          version: 8.0.x
 
       - bash: |
           build=$(Build.BuildId)
@@ -334,14 +335,12 @@ jobs:
         inputs:
           packageType: "sdk"
           version: 6.0.x
-          includePreviewVersions: true
 
       - task: UseDotNet@2
-        displayName: "Use .Net Sdk 7.x"
+        displayName: "Use .Net Sdk 8.x"
         inputs:
           packageType: "sdk"
-          version: 7.0.x
-          includePreviewVersions: true
+          version: 8.0.x
 
       - script: |
           dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) 

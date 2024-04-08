@@ -4,7 +4,7 @@ using Dotmim.Sync.Web.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
-#if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
+#if NET6_0 || NET8_0 
 using MySqlConnector;
 #elif NETCOREAPP2_1
 using MySql.Data.MySqlClient;
@@ -44,7 +44,7 @@ namespace Dotmim.Sync.Tests.Models
 
         public AdventureWorksContext() { }
 
-#if NET7_0
+#if NET8_0
         protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
         {
             configurationBuilder.Conventions.Add(_ => new AdventureWorksTriggerAddingConvention());
@@ -63,7 +63,7 @@ namespace Dotmim.Sync.Tests.Models
                         else
                             optionsBuilder.UseSqlServer(this.ConnectionString, options => options.EnableRetryOnFailure(5));
                         break;
-#if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
+#if NET6_0 || NET8_0 
                     case ProviderType.MySql:
                         if (this.Connection != null)
                             optionsBuilder.UseMySql(this.Connection, new MySqlServerVersion(new Version(8, 0, 21)), options => options.EnableRetryOnFailure(5));
@@ -370,7 +370,7 @@ namespace Dotmim.Sync.Tests.Models
                 entity.HasKey(e => e.ProductId);
 
                 entity.HasIndex(e => e.Name)
-#if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
+#if NET6_0 || NET8_0 
                     .HasDatabaseName("AK_Product_Name")
 #elif NETCOREAPP2_1
                     .HasName("AK_Product_Name")
@@ -378,7 +378,7 @@ namespace Dotmim.Sync.Tests.Models
                     .IsUnique();
 
                 entity.HasIndex(e => e.ProductNumber)
-#if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
+#if NET6_0 || NET8_0 
                     .HasDatabaseName("AK_Product_ProductNumber")
 #elif NETCOREAPP2_1
                     .HasName("AK_Product_ProductNumber")
@@ -455,7 +455,7 @@ namespace Dotmim.Sync.Tests.Models
 
 
                 entity.HasIndex(e => e.Name)
-#if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
+#if NET6_0 || NET8_0 
                     .HasDatabaseName("AK_ProductCategory_Name")
 #elif NETCOREAPP2_1
                     .HasName("AK_ProductCategory_Name")
@@ -505,7 +505,7 @@ namespace Dotmim.Sync.Tests.Models
                     entity.ToTable("ProductModel", "SalesLT");
 
                 entity.HasIndex(e => e.Name)
-#if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
+#if NET6_0 || NET8_0 
                     .HasDatabaseName("AK_ProductModel_Name")
 #elif NETCOREAPP2_1
                     .HasName("AK_ProductModel_Name")
@@ -1097,7 +1097,7 @@ namespace Dotmim.Sync.Tests.Models
     //            : (object)context.GetType();
     //}
 
-#if NET6_0 || NET7_0 
+#if NET6_0 || NET8_0 
 
     public class MyModelCacheKeyFactory : IModelCacheKeyFactory
     {

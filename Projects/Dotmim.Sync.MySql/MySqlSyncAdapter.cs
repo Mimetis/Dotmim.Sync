@@ -5,7 +5,7 @@ using System.Linq;
 using System.Data.Common;
 using System.Data;
 using Dotmim.Sync.Builders;
-#if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
+#if NET6_0 || NET8_0 
 using MySqlConnector;
 using System.Reflection.Metadata;
 #elif NETSTANDARD

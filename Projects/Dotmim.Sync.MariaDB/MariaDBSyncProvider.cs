@@ -2,7 +2,7 @@
 using Dotmim.Sync.Manager;
 using System.Data.Common;
 using Dotmim.Sync.Enumerations;
-#if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
+#if NET6_0 || NET8_0 
 using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;
@@ -37,6 +37,7 @@ namespace Dotmim.Sync.MariaDB
                 this.builder = string.IsNullOrEmpty(value) ? null : new MySqlConnectionStringBuilder(value);
                 // Set the default behavior to use Found rows and not Affected rows !
                 builder.UseAffectedRows = false;
+                builder.AllowUserVariables = true;
             }
         }
 

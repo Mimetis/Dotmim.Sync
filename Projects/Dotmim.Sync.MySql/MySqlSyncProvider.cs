@@ -1,7 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Manager;
 using System.Data.Common;
-#if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
+#if NET6_0 || NET8_0 
 using MySqlConnector;
 #elif NETSTANDARD 
 using MySql.Data.MySqlClient;
@@ -30,6 +30,7 @@ namespace Dotmim.Sync.MySql
                 this.builder = string.IsNullOrEmpty(value) ? null : new MySqlConnectionStringBuilder(value);
                 // Set the default behavior to use Found rows and not Affected rows !
                 builder.UseAffectedRows = false;
+                builder.AllowUserVariables = true;
             }
         }
 
@@ -43,6 +44,7 @@ namespace Dotmim.Sync.MySql
             this.builder = builder;
             // Set the default behavior to use Found rows and not Affected rows !
             builder.UseAffectedRows = false;
+            builder.AllowUserVariables = true;
         }
 
         public static string ProviderType

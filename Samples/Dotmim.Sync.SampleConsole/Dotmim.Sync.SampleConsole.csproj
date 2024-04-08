@@ -2,8 +2,9 @@
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
-		<TargetFrameworkNet7>net7.0</TargetFrameworkNet7>
-		<TargetFrameworks>$(TargetFrameworkNet6);$(TargetFrameworkNet7)</TargetFrameworks>
+		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
+
+		<TargetFrameworks>$(TargetFrameworkNet6);$(TargetFrameworkNet8)</TargetFrameworks>
 		<LangVersion>11.0</LangVersion>
 	</PropertyGroup>
 	<PropertyGroup>
@@ -57,15 +58,15 @@
 	</ItemGroup>
 
 
-	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNet7)'">
-		<PackageReference Include="Npgsql" Version="7.0.1" />
-	</ItemGroup>
-
 	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNet6)'">
-		<PackageReference Include="Npgsql" Version="6.0.8" />
+		<PackageReference Include="Npgsql" Version="7.0.6" />
 	</ItemGroup>
 
-	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNetStandard)' OR '$(TargetFramework)' == '$(TargetFrameworkNetCore)'">
+	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNet8)'">
+		<PackageReference Include="Npgsql" Version="7.0.6" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
 		<PackageReference Include="Npgsql" Version="5.0.15" />
 	</ItemGroup>
 
