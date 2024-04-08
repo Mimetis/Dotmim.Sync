@@ -37,6 +37,7 @@ namespace Dotmim.Sync.MariaDB
                 this.builder = string.IsNullOrEmpty(value) ? null : new MySqlConnectionStringBuilder(value);
                 // Set the default behavior to use Found rows and not Affected rows !
                 builder.UseAffectedRows = false;
+                builder.AllowUserVariables = true;
             }
         }
 

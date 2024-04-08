@@ -75,7 +75,11 @@ namespace Dotmim.Sync.Tests.Misc
         {
             var cstring = string.Format(configuration.GetSection("ConnectionStrings")["MySqlConnection"], dbName);
 
-            var builder = new MySqlConnectionStringBuilder(cstring);
+            var builder = new MySqlConnectionStringBuilder(cstring)
+            {
+                UseAffectedRows = false,
+                AllowUserVariables = true
+            };
 
             if (Setup.IsOnAzureDev)
             {
@@ -96,7 +100,11 @@ namespace Dotmim.Sync.Tests.Misc
         {
             var cstring = string.Format(configuration.GetSection("ConnectionStrings")["MariaDBConnection"], dbName);
 
-            var builder = new MySqlConnectionStringBuilder(cstring);
+            var builder = new MySqlConnectionStringBuilder(cstring)
+            {
+                UseAffectedRows = false,
+                AllowUserVariables = true
+            };
 
             if (Setup.IsOnAzureDev)
             {
