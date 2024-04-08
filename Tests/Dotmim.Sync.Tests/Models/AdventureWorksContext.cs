@@ -767,6 +767,7 @@ namespace Dotmim.Sync.Tests.Models
 
                 entity.HasOne(d => d.Category).WithMany(c => c.Details);
 
+#if NET6_0 || NET8_0
                 // Adding a compute column
                 if (this.ProviderType == ProviderType.Sql || this.ProviderType == ProviderType.MySql || this.ProviderType == ProviderType.MariaDB)
                 {
@@ -774,20 +775,13 @@ namespace Dotmim.Sync.Tests.Models
                 }
                 else if (this.ProviderType == ProviderType.Postgres)
                 {
-#if NET6_0 || NET8_0
                     entity.Property(d => d.Total).HasComputedColumnSql(@"""Amount"" - ""Discount""", stored: true);
-#elif NETCOREAPP3_1
-                    entity.Property(d => d.Total).HasComputedColumnSql(@"""Amount"" - ""Discount""");
-#endif
                 }
                 else if (this.ProviderType == ProviderType.Sqlite)
                 {
-#if NET6_0 || NET8_0
                     entity.Property(d => d.Total).HasComputedColumnSql("(Amount - Discount)", stored: true);
-#elif NETCOREAPP3_1
-                    entity.Property(d => d.Total).HasComputedColumnSql("(Amount - Discount)");
-#endif
                 }
+#endif
 
                 entity.Property(d => d.ProductId)
                     .IsRequired();
