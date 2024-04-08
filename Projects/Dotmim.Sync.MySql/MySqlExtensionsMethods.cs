@@ -6,9 +6,7 @@ using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;
 #endif
-
 using System.Collections.Generic;
-
 #if MARIADB
 using Dotmim.Sync.MariaDB.Builders;
 #elif MYSQL

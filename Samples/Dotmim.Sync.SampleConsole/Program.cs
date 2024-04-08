@@ -21,12 +21,9 @@ using NLog.Web;
 using System.Threading;
 using Dotmim.Sync.Tests;
 using System.Security.Cryptography.X509Certificates;
-
-
-
 #if NET6_0 || NET8_0
 using MySqlConnector;
-#elif NETSTANDARD
+#elif NETCOREAPP3_1
 using MySql.Data.MySqlClient;
 #endif
 

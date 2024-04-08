@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 
 #if NET6_0 || NET8_0 
 using MySqlConnector;
-#elif NETCOREAPP2_1
+#elif NETCOREAPP3_1
 using MySql.Data.MySqlClient;
 #endif
 using System;
@@ -76,7 +76,7 @@ namespace Dotmim.Sync.Tests.Models
                         else
                             optionsBuilder.UseMySql(this.ConnectionString, new MariaDbServerVersion(new Version(10, 5, 5)), options => options.EnableRetryOnFailure(5));
                         break;
-#elif NETCOREAPP2_1
+#elif NETCOREAPP3_1
                     case ProviderType.MySql:
                     case ProviderType.MariaDB:
                         if (this.Connection != null)
@@ -372,7 +372,7 @@ namespace Dotmim.Sync.Tests.Models
                 entity.HasIndex(e => e.Name)
 #if NET6_0 || NET8_0 
                     .HasDatabaseName("AK_Product_Name")
-#elif NETCOREAPP2_1
+#elif NETCOREAPP3_1
                     .HasName("AK_Product_Name")
 #endif
                     .IsUnique();
@@ -380,7 +380,7 @@ namespace Dotmim.Sync.Tests.Models
                 entity.HasIndex(e => e.ProductNumber)
 #if NET6_0 || NET8_0 
                     .HasDatabaseName("AK_Product_ProductNumber")
-#elif NETCOREAPP2_1
+#elif NETCOREAPP3_1
                     .HasName("AK_Product_ProductNumber")
 #endif
                     .IsUnique();
@@ -457,7 +457,7 @@ namespace Dotmim.Sync.Tests.Models
                 entity.HasIndex(e => e.Name)
 #if NET6_0 || NET8_0 
                     .HasDatabaseName("AK_ProductCategory_Name")
-#elif NETCOREAPP2_1
+#elif NETCOREAPP3_1
                     .HasName("AK_ProductCategory_Name")
 #endif
                 .IsClustered(false)
@@ -507,7 +507,7 @@ namespace Dotmim.Sync.Tests.Models
                 entity.HasIndex(e => e.Name)
 #if NET6_0 || NET8_0 
                     .HasDatabaseName("AK_ProductModel_Name")
-#elif NETCOREAPP2_1
+#elif NETCOREAPP3_1
                     .HasName("AK_ProductModel_Name")
 #endif
                     .IsUnique();
@@ -774,11 +774,19 @@ namespace Dotmim.Sync.Tests.Models
                 }
                 else if (this.ProviderType == ProviderType.Postgres)
                 {
+#if NET6_0 || NET8_0
                     entity.Property(d => d.Total).HasComputedColumnSql(@"""Amount"" - ""Discount""", stored: true);
+#elif NETCOREAPP3_1
+                    entity.Property(d => d.Total).HasComputedColumnSql(@"""Amount"" - ""Discount""");
+#endif
                 }
                 else if (this.ProviderType == ProviderType.Sqlite)
                 {
+#if NET6_0 || NET8_0
                     entity.Property(d => d.Total).HasComputedColumnSql("(Amount - Discount)", stored: true);
+#elif NETCOREAPP3_1
+                    entity.Property(d => d.Total).HasComputedColumnSql("(Amount - Discount)");
+#endif
                 }
 
                 entity.Property(d => d.ProductId)

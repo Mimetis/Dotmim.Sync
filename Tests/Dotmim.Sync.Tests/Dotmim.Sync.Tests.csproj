@@ -2,8 +2,9 @@
 	<PropertyGroup>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
 		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
+		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
 
-		<TargetFrameworks>$(TargetFrameworkNet6);$(TargetFrameworkNet8)</TargetFrameworks>
+		<TargetFrameworks>$(TargetFrameworkNet6);$(TargetFrameworkNet8);$(TargetFrameworkNetCore)</TargetFrameworks>
 
 		<IsPackable>false</IsPackable>
 		<!--<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>-->
@@ -11,27 +12,28 @@
 	</PropertyGroup>
 	<PropertyGroup>
 		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
-	</PropertyGroup><ItemGroup>
-	  <Compile Remove="UnitTests\Mock\**" />
-	  <Compile Remove="UnitTests\Orchestrators\**" />
-	  <EmbeddedResource Remove="UnitTests\Mock\**" />
-	  <EmbeddedResource Remove="UnitTests\Orchestrators\**" />
-	  <None Remove="UnitTests\Mock\**" />
-	  <None Remove="UnitTests\Orchestrators\**" />
+	</PropertyGroup>
+	<ItemGroup>
+		<Compile Remove="UnitTests\Mock\**" />
+		<Compile Remove="UnitTests\Orchestrators\**" />
+		<EmbeddedResource Remove="UnitTests\Mock\**" />
+		<EmbeddedResource Remove="UnitTests\Orchestrators\**" />
+		<None Remove="UnitTests\Mock\**" />
+		<None Remove="UnitTests\Orchestrators\**" />
 	</ItemGroup>
 	<ItemGroup>
-	  <Compile Include="UnitTests\Orchestrators\LocalOrchestrator.GetChanges.Tests.cs" />
-	  <Compile Include="UnitTests\Orchestrators\LocalOrchestrator.GetEstimatedChanges.Tests.cs" />
-	  <Compile Include="UnitTests\Orchestrators\LocalOrchestrator.ScopeClients.Tests.cs" />
-	  <Compile Include="UnitTests\Orchestrators\LocalOrchestrator.Scopes.Tests.cs" />
-	  <Compile Include="UnitTests\Orchestrators\LocalOrchestrator.Tests.cs" />
-	  <Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.GetChanges.Tests.cs" />
-	  <Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.GetEstimatedChanges.Tests.cs" />
-	  <Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.Scopes.Tests.cs" />
-	  <Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.Snapshots.Tests.cs" />
-	  <Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.StoredProcedures.Tests.cs" />
-	  <Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.Tests.cs" />
-	  <Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.Triggers.Tests.cs" />
+		<Compile Include="UnitTests\Orchestrators\LocalOrchestrator.GetChanges.Tests.cs" />
+		<Compile Include="UnitTests\Orchestrators\LocalOrchestrator.GetEstimatedChanges.Tests.cs" />
+		<Compile Include="UnitTests\Orchestrators\LocalOrchestrator.ScopeClients.Tests.cs" />
+		<Compile Include="UnitTests\Orchestrators\LocalOrchestrator.Scopes.Tests.cs" />
+		<Compile Include="UnitTests\Orchestrators\LocalOrchestrator.Tests.cs" />
+		<Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.GetChanges.Tests.cs" />
+		<Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.GetEstimatedChanges.Tests.cs" />
+		<Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.Scopes.Tests.cs" />
+		<Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.Snapshots.Tests.cs" />
+		<Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.StoredProcedures.Tests.cs" />
+		<Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.Tests.cs" />
+		<Compile Include="UnitTests\Orchestrators\RemoteOrchestrator.Triggers.Tests.cs" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -41,15 +43,24 @@
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
 		</PackageReference>
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
 
 	</ItemGroup>
 
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)'">
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="3.1.32" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.32" />
+		<PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="3.1.22" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="3.1.32" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.1.32" />
+		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="3.2.7" />
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="3.1.18" />
+	</ItemGroup>
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet6)'">
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.28" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="6.0.28" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.28" />
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
 		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="6.0.3" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="6.0.1" />
 	</ItemGroup>
@@ -59,7 +70,6 @@
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.3" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.3" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.3" />
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
 		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.2" />
 	</ItemGroup>
@@ -77,7 +87,7 @@
 	</ItemGroup>
 	<ItemGroup>
 		<None Update="appsettings.local.json">
-		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 		<None Update="appsettings.json">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

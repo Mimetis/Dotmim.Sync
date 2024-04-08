@@ -11,23 +11,17 @@ jobs:
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerUnit"
 
-  # - template: azure-pipelines-template.yml
-  #   parameters:
-  #     displayName: "SQL Server Tcp .net core 3.1"
-  #     dotnetfx: "netcoreapp3.1"
-  #     filter: "Dotmim.Sync.Tests.SqlServerTcp"
+  - template: azure-pipelines-template.yml
+    parameters:
+      displayName: "SQL Server Tcp .net core 3.1"
+      dotnetfx: "netcoreapp3.1"
+      filter: "Dotmim.Sync.Tests.SqlServerTcp"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "SQL Server Tcp .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerTcp"
-
-  # - template: azure-pipelines-template.yml
-  #   parameters:
-  #     displayName: "SQL Server Tcp .net 6.0"
-  #     dotnetfx: "net6.0"
-  #     filter: "Dotmim.Sync.Tests.SqlServerTcp"
 
   - template: azure-pipelines-template.yml
     parameters:
@@ -63,12 +57,6 @@ jobs:
     parameters:
       displayName: "PostgreSQL Tcp .net 8.0"
       dotnetfx: "net8.0"
-      filter: "Dotmim.Sync.Tests.PostgresTcp"
-
-  - template: azure-pipelines-template.yml
-    parameters:
-      displayName: "PostgreSQL Tcp .net 6.0"
-      dotnetfx: "net6.0"
       filter: "Dotmim.Sync.Tests.PostgresTcp"
 
   - template: azure-pipelines-template.yml

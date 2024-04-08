@@ -630,7 +630,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                         return;
                     try
                     {
-                        await clientProvider.AddPriceListAsync(connection: changes.Connection, transaction: changes.Transaction);
+                        await clientProvider.AddPriceListAsync(transaction: changes.Transaction);
                     }
                     catch (Exception ex)
                     {
