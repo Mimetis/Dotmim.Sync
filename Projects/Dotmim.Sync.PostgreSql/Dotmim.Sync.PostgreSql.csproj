@@ -3,9 +3,9 @@
 	<PropertyGroup>
 		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
-		<TargetFrameworkNet7>net7.0</TargetFrameworkNet7>
-		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
-		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet6);$(TargetFrameworkNet7);$(TargetFrameworkNetCore)</TargetFrameworks>
+		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
+
+		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet6);$(TargetFrameworkNet8)</TargetFrameworks>
 		<Authors>Sébastien Pertus, Waseem Ahmad Mughal</Authors>
 		<Company>Microsoft</Company>
 		<Title>Dotmim.Sync.PostgreSql</Title>
@@ -49,15 +49,15 @@
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
 	</ItemGroup>
 
-	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNet7)'">
-		<PackageReference Include="Npgsql" Version="7.0.1" />
-	</ItemGroup>
-
 	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNet6)'">
-		<PackageReference Include="Npgsql" Version="6.0.8" />
+		<PackageReference Include="Npgsql" Version="6.0.10" />
 	</ItemGroup>
 
-	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNetStandard)' OR '$(TargetFramework)' == '$(TargetFrameworkNetCore)'">
+	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNet8)'">
+		<PackageReference Include="Npgsql" Version="7.0.6" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
 		<PackageReference Include="Npgsql" Version="5.0.15" />
 	</ItemGroup>
 

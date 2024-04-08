@@ -2,7 +2,7 @@ parameters:
 - name: displayName
   default: 'Integration Tests'
 - name: dotnetfx  # defaults for any parameters that aren't specified
-  default: 'net7.0'
+  default: 'net8.0'
 - name: filter
   default: 'Dotmim.Sync.Tests.IntegrationTests2.SqlServerTcp'
 
@@ -24,20 +24,18 @@ jobs:
         displayName: 'Use .Net Core sdk'
         inputs:
           version: 3.x
-          
+
       - task: UseDotNet@2
         displayName: 'Use .Net Sdk 6.x'
         inputs:
           packageType: 'sdk'
           version: 6.0.x
-          includePreviewVersions: false
 
       - task: UseDotNet@2
-        displayName: 'Use .Net Sdk 7.x'
+        displayName: 'Use .Net Sdk 8.x'
         inputs:
           packageType: 'sdk'
-          version: 7.0.x
-          includePreviewVersions: true  
+          version: 8.0.x
                     
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"

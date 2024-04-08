@@ -3,10 +3,9 @@
 	<PropertyGroup>
 		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
-		<TargetFrameworkNet7>net7.0</TargetFrameworkNet7>
-		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
+		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
 
-		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet6);$(TargetFrameworkNet7);$(TargetFrameworkNetCore)</TargetFrameworks>
+		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet6);$(TargetFrameworkNet8)</TargetFrameworks>
 
 		<Authors>Sébastien Pertus</Authors>
 		<Company>Microsoft</Company>
@@ -72,7 +71,7 @@
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
 	</ItemGroup>
 
-	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet6)' OR '$(TargetFramework)' == '$(TargetFrameworkNet7)' OR '$(TargetFramework)' == '$(TargetFrameworkNetCore)' ">
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet6)' OR '$(TargetFramework)' == '$(TargetFrameworkNet8)' ">
 		<PackageReference Include="MySqlConnector" Version="2.2.0" />
 	</ItemGroup>
 

@@ -15,7 +15,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
-#if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
+#if NET6_0 || NET8_0 
 using MySqlConnector;
 using Npgsql;
 #elif NETCOREAPP2_1

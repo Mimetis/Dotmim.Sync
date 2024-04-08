@@ -1,5 +1,5 @@
 ﻿using Dotmim.Sync.Tests.Core;
-#if NET5_0 || NET6_0 || NET7_0 || NETCOREAPP3_1
+#if NET6_0 || NET8_0 
 using MySqlConnector;
 #elif NETCOREAPP2_1
 using MySql.Data.MySqlClient;
