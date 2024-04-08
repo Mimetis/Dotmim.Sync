@@ -1,22 +1,17 @@
-﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Serialization;
 using MessagePack;
-using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Runtime.Serialization.Formatters;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Text;
+using System.Threading.Tasks;
 using Xunit;
 
 namespace Dotmim.Sync.Tests.StandAlone
 {
     public class SerializerTests
     {
-
         [Fact]
         public void Test_Schema_MessagePackSerializer()
         {
@@ -85,51 +80,29 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assertions(outSchema);
         }
 
-
         [Fact]
-        public void Test_Schema_JsonSerializer()
+        public async Task Test_Schema_JsonSerializer()
         {
             var inSchema = CreateSchema();
 
-            var serializer = new JsonSerializer();
-            byte[] bin = null;
-            SyncSet outSchema;
-
-            using (var ms = new MemoryStream())
-            {
-                using (var writer = new StreamWriter(ms))
-                {
-                    using (var jsonWriter = new JsonTextWriter(writer))
-                    {
-                        serializer.Serialize(jsonWriter, inSchema);
-                    }
-                }
-                bin = ms.ToArray();
-            }
+            // Serialize
+            var serializer = new JsonObjectSerializer();
+            var bin = await serializer.SerializeAsync(inSchema);
 
             // for readiness
-            using (var fs = new FileStream("Json_schema.json", FileMode.Create))
+            await using (var fs = new FileStream("Json_schema.json", FileMode.Create))
             {
                 fs.Write(bin, 0, bin.Length);
             }
 
             Assert.NotNull(bin);
 
-            using (var ms = new MemoryStream(bin))
-            {
-                using (var sr = new StreamReader(ms))
-                {
-                    using (var reader = new JsonTextReader(sr))
-                    {
-                        outSchema = serializer.Deserialize<SyncSet>(reader);
-                    }
-                }
-            }
+            // Deserialize
+            await using var ms = new MemoryStream(bin);
+            var outSchema = await serializer.DeserializeAsync<SyncSet>(ms);
 
             Assertions(outSchema);
         }
-
-
 
         private void Assertions(SyncSet outSchema)
         {
@@ -189,6 +162,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.Single(sf.Joins);
             Assert.Single(sf.CustomWheres);
             Assert.Single(sf.Wheres);
+
             // Parameter 01
             Assert.Equal("Title", sf.Parameters[0].Name);
             Assert.Equal(20, sf.Parameters[0].MaxLength);
@@ -197,6 +171,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.Null(sf.Parameters[0].TableName);
             Assert.Null(sf.Parameters[0].SchemaName);
             Assert.Equal(outSchema, sf.Parameters[0].Schema);
+
             // Parameter 02
             Assert.Equal("LastName", sf.Parameters[1].Name);
             Assert.Equal(0, sf.Parameters[1].MaxLength);
@@ -205,6 +180,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.Equal("Customer", sf.Parameters[1].TableName);
             Assert.Equal("SalesLT", sf.Parameters[1].SchemaName);
             Assert.Equal(outSchema, sf.Parameters[1].Schema);
+
             // Joins
             Assert.Equal(Join.Right, sf.Joins[0].JoinEnum);
             Assert.Equal("SalesLT.ProductCategory", sf.Joins[0].TableName);
@@ -212,15 +188,15 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.Equal("SalesLT.Product", sf.Joins[0].LeftTableName);
             Assert.Equal("RCN", sf.Joins[0].RightColumnName);
             Assert.Equal("SalesLT.ProductCategory", sf.Joins[0].RightTableName);
+
             // Wheres
             Assert.Equal("Title", sf.Wheres[0].ColumnName);
             Assert.Equal("Title", sf.Wheres[0].ParameterName);
             Assert.Equal("SalesLT", sf.Wheres[0].SchemaName);
             Assert.Equal("Product", sf.Wheres[0].TableName);
+
             // Customer Wheres
             Assert.Equal("1 = 1", sf.CustomWheres[0]);
-
-
 
             // Check Relations
             Assert.NotEmpty(outSchema.Relations);
@@ -236,7 +212,6 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.Equal("ProductId", p.ColumnName);
             Assert.Equal("Product", p.TableName);
             Assert.Equal("SalesLT", p.SchemaName);
-
         }
 
         private static SyncSet CreateSchema()
@@ -279,7 +254,6 @@ namespace Dotmim.Sync.Tests.StandAlone
 
             set.Tables.Add(tbl2);
 
-
             // Add Filters
             var sf = new SyncFilter("Product", "SalesLT");
             sf.Parameters.Add(new SyncFilterParameter { Name = "Title", DbType = DbType.String, MaxLength = 20, DefaultValue = "'Bikes'" });
@@ -298,6 +272,5 @@ namespace Dotmim.Sync.Tests.StandAlone
 
             return set;
         }
-
     }
 }

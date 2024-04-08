@@ -219,8 +219,8 @@ namespace Dotmim.Sync
             {
                 // Get setup schema and scope name from old scope info table
                 var scopeName = scopeInfoRow["sync_scope_name"] as string;
-                var schema = JsonConvert.DeserializeObject<SyncSet>(scopeInfoRow["sync_scope_schema"].ToString());
-                var setup = JsonConvert.DeserializeObject<SyncSetup>(scopeInfoRow["sync_scope_setup"].ToString());
+                var schema = serializer.Deserialize<SyncSet>(scopeInfoRow["sync_scope_schema"].ToString());
+                var setup = serializer.Deserialize<SyncSetup>(scopeInfoRow["sync_scope_setup"].ToString());
                 var lastCleanUpTimestamp = scopeInfoRow["sync_scope_last_clean_timestamp"] != null && scopeInfoRow["sync_scope_last_clean_timestamp"] != DBNull.Value ? (long?)scopeInfoRow["sync_scope_last_clean_timestamp"] : null;
                 var scopeProperties = scopeInfoRow["sync_scope_properties"] as string;
 

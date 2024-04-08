@@ -2,9 +2,9 @@
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
-using Newtonsoft.Json;
 using Orchestrators;
 using System;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 

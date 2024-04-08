@@ -8,8 +8,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Runtime.Serialization;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Text.Json.Serialization;
 
 namespace Dotmim.Sync
 {
@@ -21,6 +20,7 @@ namespace Dotmim.Sync
 
         internal Action<DbConnection> onConnectionOpened = new(c => { });
         internal Action<DbConnection> onConnectionClosed = new(c => { });
+
         /// <summary>
         /// Gets the reference to the orchestrator owner of this instance
         /// </summary>

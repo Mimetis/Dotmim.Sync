@@ -1,7 +1,8 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Dotmim.Sync.Extensions;
+using Dotmim.Sync.Serialization;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
 using System;
 using System.Linq;
 using System.Collections.Generic;
@@ -40,7 +41,11 @@ namespace Dotmim.Sync
             if (connection == null)
                 return "null";
 
-            return JsonConvert.SerializeObject(new { connection.DataSource, connection.Database, State = connection.State.ToString() });
+            var serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+
+            var task = serializer.SerializeAsync(new { connection.DataSource, connection.Database, State = connection.State.ToString() });
+
+            return System.Text.Encoding.UTF8.GetString(task.Result);
         }
         public static string ToLogString(this DbTransaction transaction)
         {
@@ -49,19 +54,22 @@ namespace Dotmim.Sync
 
             return transaction.Connection != null ? "In progress" : "Done";
         }
+
         public static string ToLogString(this DbCommand command)
         {
             if (command == null)
                 return "null";
+
+            var serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
 
             var parameters = new List<object>();
             if (command.Parameters != null && command.Parameters.Count > 0)
                 foreach (DbParameter p in command.Parameters)
                     parameters.Add(new { Name=p.ParameterName, Value=p.Value });
 
-            var s =  JsonConvert.SerializeObject(new { command.CommandText, Parameters = parameters });
+            var s = serializer.Serialize(new { command.CommandText, Parameters = parameters });
 
-            return s;
+            return s.ToUtf8String();
         }
     }
 }

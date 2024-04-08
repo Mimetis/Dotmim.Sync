@@ -1,5 +1,5 @@
-﻿using Dotmim.Sync.Enumerations;
-using Newtonsoft.Json;
+using Dotmim.Sync.Extensions;
+using Dotmim.Sync.Serialization;
 using System;
 using System.Runtime.Serialization;
 
@@ -11,6 +11,8 @@ namespace Dotmim.Sync
     [DataContract(Name = "scope_client"), Serializable]
     public class ScopeInfoClient
     {
+        private static readonly ISerializer jsonSerializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+
         /// <summary>
         /// For serialization purpose
         /// </summary>
@@ -116,7 +118,7 @@ namespace Dotmim.Sync
 
         public override string ToString()
         {
-            var p = Parameters != null ? JsonConvert.SerializeObject(Parameters) : null;
+            var p = Parameters != null ? jsonSerializer.Serialize(Parameters).ToUtf8String() : null;
 
             return $"Scope Name:{Name}. Id:{Id}. Hash:{Hash}. LastSyncTimestamp:{LastSyncTimestamp}. LastServerSyncTimestamp:{LastServerSyncTimestamp}. LastSync:{LastSync}. Parameters:{p} ";
         }

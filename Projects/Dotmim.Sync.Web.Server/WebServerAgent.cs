@@ -1,11 +1,10 @@
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Extensions;
 using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Web.Client;
 using Microsoft.AspNetCore.Http;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -21,6 +20,8 @@ namespace Dotmim.Sync.Web.Server
 {
     public class WebServerAgent
     {
+        private static readonly ISerializer jsonSerializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+
         private static bool checkUpgradeDone;
 
         /// <summary>
@@ -53,7 +54,9 @@ namespace Dotmim.Sync.Web.Server
 
         }
 
+        /// <summary>
         /// Client Converter
+        /// </summary>
         private IConverter clientConverter;
 
         /// <summary>
@@ -249,7 +252,7 @@ namespace Dotmim.Sync.Web.Server
                         break;
                 }
 
-                IScopeMessage messsageRequest = await clientSerializerFactory.GetSerializer().DeserializeAsync(readableStream, requestSerializerType) as IScopeMessage;
+                IScopeMessage messsageRequest = await clientSerializerFactory.GetSerializer().DeserializeAsync<IScopeMessage>(readableStream);
                 await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, messsageRequest.SyncContext, sessionCache, messsageRequest, responseSerializerType, step), progress, cancellationToken).ConfigureAwait(false);
 
                 switch (step)
@@ -381,12 +384,13 @@ namespace Dotmim.Sync.Web.Server
             {
                 if (string.IsNullOrEmpty(serAndsizeString))
                     throw new Exception("Serializer header is null, coming from http header");
+                
+                var serAndsize = jsonSerializer.Deserialize<Dictionary<string, object>>(serAndsizeString);
 
-                var serAndsize = JsonConvert.DeserializeAnonymousType(serAndsizeString, new { f = "", s = 0 });
+                var clientBatchSize = Convert.ToInt32(serAndsize["s"]);
+                var serializerKey = serAndsize["f"].ToString();
 
-                var clientBatchSize = serAndsize.s;
-
-                var clientSerializerFactory = this.WebServerOptions.SerializerFactories.FirstOrDefault(sf => sf.Key == serAndsize.f);
+                var clientSerializerFactory = this.WebServerOptions.SerializerFactories.FirstOrDefault(sf => sf.Key == serializerKey);
                 if (clientSerializerFactory == null) clientSerializerFactory = SerializersCollection.JsonSerializerFactory;
 
                 return (clientBatchSize, clientSerializerFactory);
@@ -490,7 +494,6 @@ namespace Dotmim.Sync.Web.Server
             return httpResponse;
         }
 
-
         internal protected virtual async Task<HttpMessageSendChangesResponse> GetEstimatedChangesCountAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
@@ -517,11 +520,9 @@ namespace Dotmim.Sync.Web.Server
             return new HttpMessageRemoteTimestampResponse(httpMessage.SyncContext, ts);
         }
 
-
         internal protected virtual async Task<HttpMessageOperationResponse> GetOperationAsync(HttpContext httpContext, HttpMessageOperationRequest httpMessage,
              CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-
             var context = httpMessage.SyncContext;
 
             ScopeInfo serverScopeInfo;
@@ -534,11 +535,9 @@ namespace Dotmim.Sync.Web.Server
             return new HttpMessageOperationResponse(context, operation);
         }
 
-
         internal protected virtual async Task<HttpMessageEndSessionResponse> EndSessionAsync(HttpContext httpContext, HttpMessageEndSessionRequest httpMessage,
              CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-
             var context = httpMessage.SyncContext;
 
             var result = new SyncResult(context.SessionId)
@@ -561,7 +560,6 @@ namespace Dotmim.Sync.Web.Server
 
             return new HttpMessageEndSessionResponse(context);
         }
-
 
         internal protected virtual async Task<HttpMessageSummaryResponse> GetSnapshotSummaryAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
@@ -598,11 +596,9 @@ namespace Dotmim.Sync.Web.Server
             return summaryResponse;
         }
 
-
         internal protected virtual async Task<HttpMessageSendChangesResponse> GetSnapshotAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
                             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-
             ScopeInfo sScopeInfo;
 
             (_, sScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(httpMessage.SyncContext, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
@@ -653,7 +649,6 @@ namespace Dotmim.Sync.Web.Server
             ScopeInfo sScopeInfo;
             (context, sScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(
                 context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
-
 
             // TODO : Is it used ?
             httpContext.Session.Set(context.ScopeName, sScopeInfo.Schema);
@@ -761,7 +756,6 @@ namespace Dotmim.Sync.Web.Server
             if (serverSyncChanges.ServerBatchInfo.BatchPartsInfo == null)
                 serverSyncChanges.ServerBatchInfo.BatchPartsInfo = new List<BatchPartInfo>();
 
-
             var summaryResponse = new HttpMessageSummaryResponse(httpMessage.SyncContext)
             {
                 BatchInfo = serverSyncChanges.ServerBatchInfo,
@@ -774,7 +768,6 @@ namespace Dotmim.Sync.Web.Server
 
             // Get the firt response to send back to client
             return summaryResponse;
-
         }
 
         /// <summary>
@@ -787,14 +780,12 @@ namespace Dotmim.Sync.Web.Server
                 sessionCache.ServerBatchInfo, sessionCache.ClientChangesApplied,
                 sessionCache.ServerChangesSelected, httpMessage.BatchIndexRequested);
 
-
         /// <summary>
         /// Get changes from server
         /// </summary>
         internal protected virtual async Task<HttpMessageSendChangesResponse> GetChangesResponseAsync(HttpContext httpContext, SyncContext context, long remoteClientTimestamp, BatchInfo serverBatchInfo,
                               DatabaseChangesApplied clientChangesApplied, DatabaseChangesSelected serverChangesSelected, int batchIndexRequested)
         {
-
             ScopeInfo sScopeInfo;
 
             (context, sScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(
@@ -928,21 +919,7 @@ namespace Dotmim.Sync.Web.Server
                 Number = syncException.Number,
             };
 
-            var jobject = JObject.FromObject(webException);
-
-            using var ms = new MemoryStream();
-            using var sw = new StreamWriter(ms);
-            using var jtw = new JsonTextWriter(sw);
-
-#if DEBUG
-            jtw.Formatting = Formatting.Indented;
-#endif
-            await jobject.WriteToAsync(jtw);
-
-            await jtw.FlushAsync();
-            await sw.FlushAsync();
-
-            var data = ms.ToArray();
+            var data = await jsonSerializer.SerializeAsync(webException);
 
             // data to send back, as the response
             byte[] compressedData = this.EnsureCompression(httpRequest, httpResponse, data);
@@ -951,7 +928,6 @@ namespace Dotmim.Sync.Web.Server
             httpResponse.StatusCode = StatusCodes.Status400BadRequest;
             httpResponse.ContentLength = compressedData.Length;
             await httpResponse.Body.WriteAsync(compressedData, 0, compressedData.Length, default).ConfigureAwait(false);
-
         }
 
         /// <summary>
@@ -979,18 +955,17 @@ namespace Dotmim.Sync.Web.Server
             stringBuilder.AppendLine("<title>Web Server properties</title>");
             stringBuilder.AppendLine("<body>");
 
-
             stringBuilder.AppendLine("<div class='container'>");
             stringBuilder.AppendLine("<h2>Web Server properties</h2>");
 
             foreach (var webServerAgent in webServerAgents)
             {
-
                 string dbName = null;
                 string version = null;
                 string exceptionMessage = null;
                 SyncContext context;
                 bool hasException = false;
+
                 try
                 {
                     (context, dbName, version) = await webServerAgent.RemoteOrchestrator.GetHelloAsync();
@@ -999,7 +974,6 @@ namespace Dotmim.Sync.Web.Server
                 {
                     exceptionMessage = ex.Message;
                     hasException = true;
-
                 }
 
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
@@ -1031,58 +1005,52 @@ namespace Dotmim.Sync.Web.Server
                     stringBuilder.AppendLine("</ul>");
                 }
 
-                var s = JsonConvert.SerializeObject(webServerAgent.Setup, Formatting.Indented);
+                var setup = await jsonSerializer.SerializeAsync(webServerAgent.Setup);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Setup</li>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
                 stringBuilder.AppendLine("<pre class='prettyprint' style='border:0px;font-size:75%'>");
-                stringBuilder.AppendLine(s);
+                stringBuilder.AppendLine(setup.ToUtf8String());
                 stringBuilder.AppendLine("</pre>");
                 stringBuilder.AppendLine("</li>");
                 stringBuilder.AppendLine("</ul>");
 
-                s = JsonConvert.SerializeObject(webServerAgent.Provider, Formatting.Indented);
+                var provider = await jsonSerializer.SerializeAsync(webServerAgent.Provider);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Provider</li>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
                 stringBuilder.AppendLine("<pre class='prettyprint' style='border:0px;font-size:75%'>");
-                stringBuilder.AppendLine(s);
+                stringBuilder.AppendLine(provider.ToUtf8String());
                 stringBuilder.AppendLine("</pre>");
                 stringBuilder.AppendLine("</li>");
                 stringBuilder.AppendLine("</ul>");
 
-                s = JsonConvert.SerializeObject(webServerAgent.Options, Formatting.Indented);
+                var options = await jsonSerializer.SerializeAsync(webServerAgent.Options);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Options</li>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
                 stringBuilder.AppendLine("<pre class='prettyprint' style='border:0px;font-size:75%'>");
-                stringBuilder.AppendLine(s);
+                stringBuilder.AppendLine(options.ToUtf8String());
                 stringBuilder.AppendLine("</pre>");
                 stringBuilder.AppendLine("</li>");
                 stringBuilder.AppendLine("</ul>");
 
-                s = JsonConvert.SerializeObject(webServerAgent.WebServerOptions, Formatting.Indented);
+                var webServerOptions = await jsonSerializer.SerializeAsync(webServerAgent.WebServerOptions);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Web Server Options</li>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
                 stringBuilder.AppendLine("<pre class='prettyprint' style='border:0px;font-size:75%'>");
-                stringBuilder.AppendLine(s);
+                stringBuilder.AppendLine(webServerOptions.ToUtf8String());
                 stringBuilder.AppendLine("</pre>");
                 stringBuilder.AppendLine("</li>");
                 stringBuilder.AppendLine("</ul>");
-
-
-
             }
+
             stringBuilder.AppendLine("</div>");
             stringBuilder.AppendLine("</body>");
             stringBuilder.AppendLine("</html>");
 
             await httpResponse.WriteAsync(stringBuilder.ToString(), cancellationToken);
-
-
         }
-
-
     }
 }

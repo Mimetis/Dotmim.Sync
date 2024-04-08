@@ -1,34 +1,25 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.Extensions;
+using Dotmim.Sync.Serialization;
 using Dotmim.Sync.SqlServer.Manager;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Fixtures;
 using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
-using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using Xunit;
 using Xunit.Abstractions;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Dotmim.Sync.Tests.IntegrationTests
 {
-
-
     public abstract partial class TcpTests : DatabaseTest, IClassFixture<DatabaseServerFixture>, IDisposable
     {
         private CoreProvider serverProvider;
@@ -1798,22 +1789,24 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             var writringRowsTables = new ConcurrentDictionary<string, int>();
             var readingRowsTables = new ConcurrentDictionary<string, int>();
+            
+            var jsonSerializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
 
-            var serializingRowsAction = new Func<SerializingRowArgs, Task>((args) =>
+            var serializingRowsAction = new Func<SerializingRowArgs, Task>(async (args) =>
             {
                 // Assertion
                 writringRowsTables.AddOrUpdate(args.SchemaTable.GetFullName(), 1, (key, oldValue) => oldValue + 1);
-
-                var strSet = JsonConvert.SerializeObject(args.RowArray);
+                
+                var strSet = await jsonSerializer.SerializeAsync(args.RowArray);
                 using var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
                 using var msEncrypt = new MemoryStream();
                 using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
                 using (var swEncrypt = new StreamWriter(csEncrypt))
-                    swEncrypt.Write(strSet);
+                    swEncrypt.Write(strSet.ToUtf8String());
 
                 args.Result = Convert.ToBase64String(msEncrypt.ToArray());
 
-                return Task.CompletedTask;
+                return;
             });
 
             var deserializingRowsAction = new Func<DeserializingRowArgs, Task>((args) =>
@@ -1829,7 +1822,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 using (var swDecrypt = new StreamReader(csDecrypt))
                     value = swDecrypt.ReadToEnd();
 
-                var array = JsonConvert.DeserializeObject<object[]>(value);
+                var array = jsonSerializer.Deserialize<object[]>(value);
 
                 args.Result = array;
                 return Task.CompletedTask;

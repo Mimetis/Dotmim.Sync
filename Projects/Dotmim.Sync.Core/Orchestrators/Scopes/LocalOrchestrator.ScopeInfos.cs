@@ -1,29 +1,15 @@
-﻿
-using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using Dotmim.Sync.Extensions;
 using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
 
 namespace Dotmim.Sync
 {
     public partial class LocalOrchestrator : BaseOrchestrator
     {
-
         /// <summary>
         /// Get a scope info from the remote data source. A scope contains the <see cref="SyncSetup"/> setup and the <see cref="SyncSet"/> schema.
         /// <para>
@@ -63,8 +49,6 @@ namespace Dotmim.Sync
         /// <inheritdoc cref="GetScopeInfoAsync(string, DbConnection, DbTransaction)"/>
         public virtual Task<ScopeInfo> GetScopeInfoAsync(DbConnection connection = null, DbTransaction transaction = null)
             => GetScopeInfoAsync(SyncOptions.DefaultScopeName, connection, transaction);
-
-
 
         internal virtual async Task<(SyncContext context, ScopeInfo serverScopeInfo)> InternalEnsureScopeInfoAsync(SyncContext context,
             DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
@@ -167,13 +151,13 @@ namespace Dotmim.Sync
                 string message = null;
 
                 if (inputSetup != null)
-                    message += $"Input Setup:{JsonConvert.SerializeObject(inputSetup)}.";
+                    message += $"Input Setup:{serializer.Serialize(inputSetup).ToUtf8String()}.";
 
                 if (clientScopeInfo != null && clientScopeInfo.Setup != null)
-                    message += $"Client Scope Setup:{JsonConvert.SerializeObject(clientScopeInfo.Setup)}.";
+                    message += $"Client Scope Setup:{serializer.Serialize(clientScopeInfo.Setup).ToUtf8String()}.";
 
                 if (serverScopeInfo != null && serverScopeInfo.Setup != null)
-                    message += $"Server Scope Setup:{JsonConvert.SerializeObject(serverScopeInfo.Setup)}.";
+                    message += $"Server Scope Setup:{serializer.Serialize(serverScopeInfo.Setup).ToUtf8String()}.";
 
                 throw GetSyncError(context, ex, message);
             }

@@ -252,8 +252,8 @@ namespace Dotmim.Sync
 
                     foreach (var scopeInfoServerRow in scopeInfoServerTable.Rows)
                     {
-                        var setup = JsonConvert.DeserializeObject<SyncSetup>(scopeInfoServerRow["sync_scope_setup"].ToString());
-                        var schema = JsonConvert.DeserializeObject<SyncSet>(scopeInfoServerRow["sync_scope_schema"].ToString());
+                        var setup = serializer.Deserialize<SyncSetup>(scopeInfoServerRow["sync_scope_setup"].ToString());
+                        var schema = serializer.Deserialize<SyncSet>(scopeInfoServerRow["sync_scope_schema"].ToString());
                         var lastCleanup = (long)scopeInfoServerRow["sync_scope_last_clean_timestamp"];
                         var name = scopeInfoServerRow["sync_scope_name"].ToString();
                         name = string.IsNullOrEmpty(name) ? "DefaultScope" : name;

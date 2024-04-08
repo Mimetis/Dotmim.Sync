@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.Common;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -10,13 +8,8 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Dotmim.Sync.Batch;
-using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Extensions;
 using Dotmim.Sync.Serialization;
-#if NET6_0 || NET8_0 
-using Microsoft.Net.Http.Headers;
-#endif
-using Newtonsoft.Json;
 
 namespace Dotmim.Sync.Web.Client
 {
@@ -334,7 +327,7 @@ namespace Dotmim.Sync.Web.Client
             var serializer = this.SerializerFactory.GetSerializer();
 
             var contentType = this.SerializerFactory.Key == SerializersCollection.JsonSerializerFactory.Key ? "application/json" : null;
-            var ser = JsonConvert.SerializeObject(new { f = this.SerializerFactory.Key, s = batchSize });
+            var ser = serializer.Serialize(new { f = this.SerializerFactory.Key, s = batchSize });
 
             var requestUri = BuildUri(this.ServiceUri);
 
@@ -346,7 +339,7 @@ namespace Dotmim.Sync.Web.Client
             requestMessage.Headers.Add("dotmim-sync-scope-id", message.SyncContext.ClientId.ToString());
             requestMessage.Headers.Add("dotmim-sync-scope-name", message.SyncContext.ScopeName);
             requestMessage.Headers.Add("dotmim-sync-step", ((int)step).ToString());
-            requestMessage.Headers.Add("dotmim-sync-serialization-format", ser);
+            requestMessage.Headers.Add("dotmim-sync-serialization-format", ser.ToUtf8String());
             requestMessage.Headers.Add("dotmim-sync-version", SyncVersion.Current.ToString());
 
             if (!string.IsNullOrEmpty(this.Identifier))

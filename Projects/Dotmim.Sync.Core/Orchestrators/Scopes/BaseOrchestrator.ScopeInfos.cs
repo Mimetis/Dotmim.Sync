@@ -1,22 +1,11 @@
-﻿
-using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using Dotmim.Sync.Extensions;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
 
 namespace Dotmim.Sync
 {
@@ -208,7 +197,7 @@ namespace Dotmim.Sync
                 ScopeInfo scopeInfo = null;
 
                 if (reader.Read())
-                    scopeInfo = InternalReadScopeInfo(reader);
+                    scopeInfo = await InternalReadScopeInfo(reader);
 
                 reader.Close();
 
@@ -288,7 +277,7 @@ namespace Dotmim.Sync
 
                 while (reader.Read())
                 {
-                    var scopeInfo = InternalReadScopeInfo(reader);
+                    var scopeInfo = await InternalReadScopeInfo(reader);
 
                     if (scopeInfo.Schema != null)
                         scopeInfo.Schema.EnsureSchema();
@@ -345,7 +334,7 @@ namespace Dotmim.Sync
 
                 reader.Read();
 
-                scopeInfo = InternalReadScopeInfo(reader);
+                scopeInfo = await InternalReadScopeInfo(reader);
 
                 reader.Close();
 
@@ -415,12 +404,11 @@ namespace Dotmim.Sync
         private DbCommand InternalSetSaveScopeInfoParameters(ScopeInfo scopeInfo, DbCommand command)
         {
             InternalSetParameterValue(command, "sync_scope_name", scopeInfo.Name);
-            InternalSetParameterValue(command, "sync_scope_schema", scopeInfo.Schema == null ? DBNull.Value : JsonConvert.SerializeObject(scopeInfo.Schema));
-            InternalSetParameterValue(command, "sync_scope_setup", scopeInfo.Setup == null ? DBNull.Value : JsonConvert.SerializeObject(scopeInfo.Setup));
+            InternalSetParameterValue(command, "sync_scope_schema", scopeInfo.Schema == null ? DBNull.Value : serializer.Serialize(scopeInfo.Schema).ToUtf8String());
+            InternalSetParameterValue(command, "sync_scope_setup", scopeInfo.Setup == null ? DBNull.Value : serializer.Serialize(scopeInfo.Setup).ToUtf8String());
             InternalSetParameterValue(command, "sync_scope_version", scopeInfo.Version);
             InternalSetParameterValue(command, "sync_scope_last_clean_timestamp", !scopeInfo.LastCleanupTimestamp.HasValue ? DBNull.Value : scopeInfo.LastCleanupTimestamp);
             InternalSetParameterValue(command, "sync_scope_properties", scopeInfo.Properties == null ? DBNull.Value : scopeInfo.Properties);
-
 
             return command;
         }
@@ -446,13 +434,13 @@ namespace Dotmim.Sync
 
 
 
-        private ScopeInfo InternalReadScopeInfo(DbDataReader reader)
+        private async Task<ScopeInfo> InternalReadScopeInfo(DbDataReader reader)
         {
             var clientScopeInfo = new ScopeInfo
             {
                 Name = reader["sync_scope_name"] as string,
-                Schema = reader["sync_scope_schema"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSet>((string)reader["sync_scope_schema"]),
-                Setup = reader["sync_scope_setup"] == DBNull.Value ? null : JsonConvert.DeserializeObject<SyncSetup>((string)reader["sync_scope_setup"]),
+                Schema = reader["sync_scope_schema"] == DBNull.Value ? null : serializer.Deserialize<SyncSet>((string)reader["sync_scope_schema"]),
+                Setup = reader["sync_scope_setup"] == DBNull.Value ? null : serializer.Deserialize<SyncSetup>((string)reader["sync_scope_setup"]),
                 Version = reader["sync_scope_version"] as string,
                 LastCleanupTimestamp = reader["sync_scope_last_clean_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("sync_scope_last_clean_timestamp")) : null,
                 Properties = reader["sync_scope_properties"] as string,

@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Extensions;
 using Dotmim.Sync.Serialization;
 using Newtonsoft.Json;
 using System;
@@ -23,12 +24,12 @@ namespace Dotmim.Sync
             InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, ClientSyncChanges clientChanges,
             DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-
-
             try
             {
                 if (Provider == null)
                     throw new MissingProviderException(nameof(InternalApplyThenGetChangesAsync));
+    
+                var serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
 
                 long remoteClientTimestamp = 0L;
                 DatabaseChangesSelected serverChangesSelected = null;
@@ -108,7 +109,7 @@ namespace Dotmim.Sync
                         {
                             try
                             {
-                                lastSyncErrorsBatchInfo = !string.IsNullOrEmpty(sScopeInfoClient.Errors) ? JsonConvert.DeserializeObject<BatchInfo>(sScopeInfoClient.Errors) : null;
+                                lastSyncErrorsBatchInfo = !string.IsNullOrEmpty(sScopeInfoClient.Errors) ? serializer.Deserialize<BatchInfo>(sScopeInfoClient.Errors) : null;
                             }
                             catch (Exception) { }
                         }
@@ -258,7 +259,7 @@ namespace Dotmim.Sync
                         LastServerSyncTimestamp = remoteClientTimestamp,
                         LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks,
                         Properties = cScopeInfoClient.Properties,
-                        Errors = errorsBatchInfo != null && errorsBatchInfo.BatchPartsInfo != null && errorsBatchInfo.BatchPartsInfo.Count > 0 ? JsonConvert.SerializeObject(errorsBatchInfo) : null,
+                        Errors = errorsBatchInfo != null && errorsBatchInfo.BatchPartsInfo != null && errorsBatchInfo.BatchPartsInfo.Count > 0 ? serializer.Serialize(errorsBatchInfo).ToUtf8String() : null,
                     };
 
                     // Save scope info client coming from client

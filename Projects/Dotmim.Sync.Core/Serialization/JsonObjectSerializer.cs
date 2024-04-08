@@ -1,6 +1,7 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.IO;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Serialization
@@ -16,37 +17,19 @@ namespace Dotmim.Sync.Serialization
 
     public class JsonObjectSerializer : ISerializer
     {
-        private static readonly JsonSerializer jsonSerializer = new();
-
-        public async Task<T> DeserializeAsync<T>(Stream ms)
+        private static readonly JsonSerializerOptions options = new()
         {
-            using var sr = new StreamReader(ms);
-            using var jtr = new JsonTextReader(sr);
-            return jsonSerializer.Deserialize<T>(jtr);
-        }
+            ReferenceHandler = ReferenceHandler.Preserve,
+        };
 
-        public async Task<byte[]> SerializeAsync<T>(T obj)
-        {
-            using var ms = new MemoryStream();
-            using var sw = new StreamWriter(ms);
-            using var jtw = new JsonTextWriter(sw);
+        public async Task<T> DeserializeAsync<T>(Stream ms) => await JsonSerializer.DeserializeAsync<T>(ms, options);
 
-//#if DEBUG
-//            jtw.Formatting = Formatting.Indented;
-//#endif
-            jsonSerializer.Serialize(jtw, obj);
+        public T Deserialize<T>(string value) => JsonSerializer.Deserialize<T>(value, options);
 
-            await jtw.FlushAsync().ConfigureAwait(false);
-            await sw.FlushAsync().ConfigureAwait(false);
+        public async Task<byte[]> SerializeAsync<T>(T obj) => JsonSerializer.SerializeToUtf8Bytes(obj, options);
+        
+        public byte[] Serialize<T>(T obj) => JsonSerializer.SerializeToUtf8Bytes(obj, options);
 
-            return ms.ToArray();
-        }
-
-        public async Task<object> DeserializeAsync(Stream ms, Type type)
-        {
-            using var sr = new StreamReader(ms);
-            using var jtr = new JsonTextReader(sr);
-            return jsonSerializer.Deserialize(jtr, type);
-        }
+        public async Task<object> DeserializeAsync(Stream ms, Type type) => await JsonSerializer.DeserializeAsync<object>(ms, options);
     }
 }

@@ -1,12 +1,7 @@
 ﻿using Dotmim.Sync.Serialization;
 using MessagePack;
-using MessagePack.Formatters;
-using MessagePack.Resolvers;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -37,6 +32,12 @@ namespace Dotmim.Sync.Tests.Serializers
             return val2;
         }
 
+        public async Task<T> DeserializeAsync<T>(string value)
+        {
+            var bytes = Encoding.UTF8.GetBytes(value);
+            await using var ms = new MemoryStream(bytes);
+            return (T)MessagePackSerializer.Typeless.Deserialize(ms);
+        }
 
         public Task<byte[]> SerializeAsync<T>(T obj)
         {
@@ -44,17 +45,17 @@ namespace Dotmim.Sync.Tests.Serializers
             return Task.FromResult(blob);
         }
 
-
-
-        public Task<byte[]> SerializeAsync(object obj)
+        public byte[] Serialize<T>(T obj)
         {
             var blob = MessagePackSerializer.Typeless.Serialize(obj);
-            return Task.FromResult(blob);
+            return blob;
+        }
+
+        public T Deserialize<T>(string value)
+        {
+            var bytes = Encoding.UTF8.GetBytes(value);
+            using var ms = new MemoryStream(bytes);
+            return (T)MessagePackSerializer.Typeless.Deserialize(ms);
         }
     }
 }
-
-
-
-
-

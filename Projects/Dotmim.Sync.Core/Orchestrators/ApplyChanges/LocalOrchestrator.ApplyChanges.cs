@@ -1,22 +1,12 @@
 ﻿
 using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Manager;
+using Dotmim.Sync.Extensions;
 using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -24,7 +14,6 @@ namespace Dotmim.Sync
 {
     public partial class LocalOrchestrator : BaseOrchestrator
     {
-
         /// <summary>
         /// Apply changes locally
         /// </summary>
@@ -34,7 +23,6 @@ namespace Dotmim.Sync
                               DbConnection connection = default, DbTransaction transaction = default,
                               CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-
             // If we have a transient error happening, and we are rerunning the tranaction,
             // raising an interceptor
             var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
@@ -75,7 +63,7 @@ namespace Dotmim.Sync
                     {
                         try
                         {
-                            lastSyncErrorsBatchInfo = !string.IsNullOrEmpty(cScopeInfoClient.Errors) ? JsonConvert.DeserializeObject<BatchInfo>(cScopeInfoClient.Errors) : null;
+                            lastSyncErrorsBatchInfo = !string.IsNullOrEmpty(cScopeInfoClient.Errors) ? serializer.Deserialize<BatchInfo>(cScopeInfoClient.Errors) : null;
                         }
                         catch (Exception) { }
                     }
@@ -197,7 +185,7 @@ namespace Dotmim.Sync
                         LastServerSyncTimestamp = remoteClientTimestamp,
                         LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks,
                         Properties = cScopeInfoClient.Properties,
-                        Errors = errorsBatchInfo != null && errorsBatchInfo.BatchPartsInfo != null && errorsBatchInfo.BatchPartsInfo.Count > 0 ? JsonConvert.SerializeObject(errorsBatchInfo) : null,
+                        Errors = errorsBatchInfo != null && errorsBatchInfo.BatchPartsInfo != null && errorsBatchInfo.BatchPartsInfo.Count > 0 ? serializer.Serialize(errorsBatchInfo).ToUtf8String() : null,
                     };
 
                     // Write scopes locally

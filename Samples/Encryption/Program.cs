@@ -1,9 +1,9 @@
 ﻿using Dotmim.Sync;
 using Dotmim.Sync.SqlServer;
-using Newtonsoft.Json;
 using System;
 using System.IO;
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace EncryptionClient
@@ -40,7 +40,7 @@ namespace EncryptionClient
                 using (var swDecrypt = new StreamReader(csDecrypt))
                     value = swDecrypt.ReadToEnd();
 
-                var array = JsonConvert.DeserializeObject<object[]>(value);
+                var array = JsonSerializer.Deserialize<object[]>(value);
                 args.Result = array;
 
                 // output result to console
@@ -50,14 +50,14 @@ namespace EncryptionClient
             });
 
 
-            var serializing = new Func<SerializingRowArgs, Task>((sra) =>
+            var serializing = new Func<SerializingRowArgs, Task>(async (sra) =>
             {
                 Console.ForegroundColor = ConsoleColor.DarkGreen;
                 // output arg to console
                 Console.WriteLine($"Serializing row {new SyncRow(sra.SchemaTable, sra.RowArray).ToString()}");
 
 
-                var strSet = JsonConvert.SerializeObject(sra.RowArray);
+                var strSet = JsonSerializer.Serialize(sra.RowArray);
                 using var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
                 using var msEncrypt = new MemoryStream();
                 using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
@@ -93,8 +93,6 @@ namespace EncryptionClient
             Console.WriteLine(await agent.SynchronizeAsync(tables));
 
             Console.WriteLine("End");
-
         }
-
     }
 }

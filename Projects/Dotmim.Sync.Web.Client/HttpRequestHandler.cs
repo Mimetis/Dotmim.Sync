@@ -5,9 +5,9 @@
 //using System.Linq;
 //using System.Net.Http;
 //using System.Text;
+//using System.Text.Json;
 //using System.Threading;
 //using System.Threading.Tasks;
-//using Newtonsoft.Json;
 //using System.Net.Http.Headers;
 
 //namespace Dotmim.Sync.Web.Client
@@ -195,7 +195,7 @@
 //            var serializer = serializerFactory.GetSerializer();
 
 //            var contentType = serializerFactory.Key == SerializersCollection.JsonSerializerFactory.Key ? "application/json" : null;
-//            var ser = JsonConvert.SerializeObject(new { f = serializerFactory.Key, s = batchSize });
+//            var ser = JsonSerializer.Serialize<object>(new { f = serializerFactory.Key, s = batchSize });
 
 //            // Create the request message
 //            var requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri);

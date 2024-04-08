@@ -76,7 +76,7 @@ namespace Dotmim.Sync
     //        //            if (localScope == null || string.IsNullOrEmpty(localScope.Schema))
     //        //                return;
 
-    //        //            var currentSchema = JsonConvert.DeserializeObject<SyncSet>(localScope.Schema);
+    //        //            var currentSchema = JsonsSerializer.Deserialize<SyncSet>(localScope.Schema);
 
     //        //            // Create new schema based on new setup
     //        //            var newSchema = this.provider.ReadSchema(this.newSetup, connection, transaction);

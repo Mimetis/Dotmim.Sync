@@ -24,8 +24,13 @@ namespace Dotmim.Sync.Serialization
     public interface ISerializer
     {
         Task<object> DeserializeAsync(Stream ms, Type type);
+
         Task<T> DeserializeAsync<T>(Stream ms);
 
+        T Deserialize<T>(string value);
+
         Task<byte[]> SerializeAsync<T>(T obj);
+
+        byte[] Serialize<T>(T obj);
     }
 }

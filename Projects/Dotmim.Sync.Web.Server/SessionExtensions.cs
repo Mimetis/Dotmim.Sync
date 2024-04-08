@@ -1,13 +1,13 @@
-﻿using System;
+using Dotmim.Sync.Extensions;
+using Dotmim.Sync.Serialization;
 using Microsoft.AspNetCore.Http;
-using Newtonsoft.Json;
-
 
 namespace Dotmim.Sync.Web.Server
 {
-
     public static class SessionExtensions
     {
+        private static ISerializer serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+
         public static T Get<T>(this ISession session, string key)
         {
             var data = session.GetString(key);
@@ -15,14 +15,14 @@ namespace Dotmim.Sync.Web.Server
             if (data == null)
                 return default;
             
-            return JsonConvert.DeserializeObject<T>(data);
+            return serializer.Deserialize<T>(data);
         }
 
         public static void Set<T>(this ISession session, string key, T value)
         {
-            var jsonValue = JsonConvert.SerializeObject(value);
+            var jsonBytes = serializer.Serialize(value);
 
-            session.SetString(key, jsonValue);
+            session.SetString(key, jsonBytes.ToUtf8String());
         }
     }
 }

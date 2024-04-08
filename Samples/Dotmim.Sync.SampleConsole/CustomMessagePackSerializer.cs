@@ -1,12 +1,8 @@
 ﻿using Dotmim.Sync.Serialization;
 using MessagePack;
-using MessagePack.Formatters;
 using MessagePack.Resolvers;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -26,6 +22,12 @@ namespace Dotmim.Sync.SampleConsole
 
         public Task<byte[]> SerializeAsync<T>(T obj) => SerializeAsync((object)obj);
 
+        public async Task<T> DeserializeAsync<T>(string value)
+        {
+            var bytes = Encoding.UTF8.GetBytes(value);
+            await using var ms = new MemoryStream(bytes);
+            return (T)await DeserializeAsync(ms, typeof(T)).ConfigureAwait(false);
+        }
 
         public async Task<object> DeserializeAsync(Stream ms, Type type)
         {
@@ -37,6 +39,22 @@ namespace Dotmim.Sync.SampleConsole
         {
             using var ms = new MemoryStream();
             await MessagePackSerializer.SerializeAsync(ms, obj, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
+
+            return ms.ToArray();
+        }
+
+        public T Deserialize<T>(string value)
+        {
+            var bytes = Encoding.UTF8.GetBytes(value);
+            using var ms = new MemoryStream(bytes);
+            var val = MessagePackSerializer.Deserialize(typeof(T), ms, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
+            return (T)val;
+        }
+
+        public byte[] Serialize<T>(T obj)
+        {
+            using var ms = new MemoryStream();
+            MessagePackSerializer.Serialize(ms, obj, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
 
             return ms.ToArray();
         }

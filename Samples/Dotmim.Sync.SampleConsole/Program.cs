@@ -1,34 +1,24 @@
 ﻿using Dotmim.Sync;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SampleConsole;
-using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System;
-using System.Data;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using System.Linq;
-using Dotmim.Sync.Tests.Models;
 using System.Collections.Generic;
-using Newtonsoft.Json;
-using Dotmim.Sync.Builders;
 using NLog.Web;
-using System.Threading;
-using Dotmim.Sync.Tests;
-using System.Security.Cryptography.X509Certificates;
 #if NET6_0 || NET8_0
 using MySqlConnector;
 #elif NETCOREAPP3_1
 using MySql.Data.MySqlClient;
 #endif
-
-using System.Diagnostics;
-
 
 internal class Program
 {
@@ -200,8 +190,7 @@ internal class Program
     }
     public static async Task SyncHttpThroughKestrellAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
-
-        var configureServices = new Action<IServiceCollection>(services => services.AddSyncServer(serverProvider, setup, options, null, "01"));
+        var configureServices = new Action<IServiceCollection>(services => services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, setup, options, null, "01"));
 
         var serverHandler = new RequestDelegate(async context =>
         {
