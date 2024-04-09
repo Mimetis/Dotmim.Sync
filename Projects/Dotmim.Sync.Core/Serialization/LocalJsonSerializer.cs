@@ -174,7 +174,7 @@ namespace Dotmim.Sync.Serialization
                     for (var i = 0; i < innerRow.Length; i++)
                     {
                         var jsonBytes = serializer.Serialize(innerRow[i]);
-                        this.writer.WriteRawValue(jsonBytes.ToUtf8String());
+                        this.writer.WriteRawValue(jsonBytes);
                     }
                 }
 
