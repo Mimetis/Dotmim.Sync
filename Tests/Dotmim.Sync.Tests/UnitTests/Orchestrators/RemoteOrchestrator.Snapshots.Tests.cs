@@ -145,8 +145,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Check summary.json exists.
             var summaryFile = Path.Combine(bi.GetDirectoryFullPath(), "summary.json");
-            var summaryString = new StreamReader(summaryFile).ReadToEnd();
-            var summaryObject = JsonDocument.Parse(summaryString).RootElement;
+            await using var summaryStream = File.OpenRead(summaryFile);
+            var summaryObject = JsonDocument.Parse(summaryStream).RootElement;
 
             Assert.True(summaryObject.ValueKind != JsonValueKind.Null);
             string summaryDirname = summaryObject.GetProperty("dirname").GetString();
@@ -235,8 +235,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Check summary.json exists.
             var summaryFile = Path.Combine(bi.GetDirectoryFullPath(), "summary.json");
-            var summaryString = File.ReadAllText(summaryFile);
-            var summaryObject = JsonDocument.Parse(summaryString).RootElement;
+            await using var summaryStream = File.OpenRead(summaryFile);
+            var summaryObject = JsonDocument.Parse(summaryStream).RootElement;
 
             Assert.True(summaryObject.ValueKind != JsonValueKind.Null);
             string summaryDirname = summaryObject.GetProperty("dirname").GetString();
