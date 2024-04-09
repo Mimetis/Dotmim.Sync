@@ -10,15 +10,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dotmim.Sync.Extensions;
 using Dotmim.Sync.Serialization;
+using CookieHeaderValue = Microsoft.Net.Http.Headers.CookieHeaderValue;
 
 namespace Dotmim.Sync.Web.Client
 {
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
-
         public Dictionary<string, string> CustomHeaders = new Dictionary<string, string>();
         public Dictionary<string, string> ScopeParameters = new Dictionary<string, string>();
-
 
         /// <summary>
         /// Gets or Sets a custom identifier, that can be used on server side to choose the correct web server agent
@@ -53,6 +52,7 @@ namespace Dotmim.Sync.Web.Client
         /// Gets or Sets the HttpClient instanced used for this web client orchestrator
         /// </summary>
         public HttpClient HttpClient { get; set; }
+
         public CookieHeaderValue Cookie { get; private set; }
 
         public string GetServiceHost()
@@ -76,8 +76,6 @@ namespace Dotmim.Sync.Web.Client
             string identifier = null)
             : base(null, new SyncOptions())
         {
-
-
             // if no HttpClient provisionned, create a new one
             if (client == null)
             {
@@ -144,10 +142,9 @@ namespace Dotmim.Sync.Web.Client
                 await this.InterceptAsync(new HttpSyncPolicyArgs(10, cpt, ts, this.GetServiceHost()), default).ConfigureAwait(false);
             });
 
-
             return policy;
-
         }
+
         private async Task SerializeAsync(HttpResponseMessage response, string fileName, string directoryFullPath, BaseOrchestrator orchestrator = null)
         {
             if (!Directory.Exists(directoryFullPath))
@@ -157,7 +154,6 @@ namespace Dotmim.Sync.Web.Client
             using var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
             using var fileStream = new FileStream(fullPath, FileMode.CreateNew, FileAccess.ReadWrite);
             await streamResponse.CopyToAsync(fileStream).ConfigureAwait(false);
-
         }
 
         private static async Task<HttpMessageSendChangesResponse> DeserializeAsync(ISerializerFactory serializerFactory, string fileName, string directoryFullPath, BaseOrchestrator orchestrator = null)
@@ -167,7 +163,6 @@ namespace Dotmim.Sync.Web.Client
             var httpMessageContent = await serializerFactory.GetSerializer().DeserializeAsync<HttpMessageSendChangesResponse>(fileStream);
             return httpMessageContent;
         }
-
 
         private string BuildUri(string baseUri)
         {
@@ -231,7 +226,6 @@ namespace Dotmim.Sync.Web.Client
                 await this.InterceptAsync(new HttpGettingResponseMessageArgs(response, this.ServiceUri.ToString(),
                     HttpStep.SendChangesInProgress, context, messageResponse, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
-
                 return messageResponse;
             }
             catch (HttpSyncWebException)
@@ -256,7 +250,6 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// This ProcessRequestAsync will not deserialize the message and then send back directly the HttpResponseMessage
         /// </summary>
-
         public async Task<HttpResponseMessage> ProcessRequestAsync(IScopeMessage message, HttpStep step, int batchSize,
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
@@ -300,7 +293,6 @@ namespace Dotmim.Sync.Web.Client
 
                 throw new HttpSyncWebException(exrror);
             }
-
         }
 
         private void EnsureCookie(HttpResponseHeaders headers)
@@ -320,7 +312,6 @@ namespace Dotmim.Sync.Web.Client
                     this.Cookie = cookie;
             }
         }
-
 
         private async Task<HttpResponseMessage> SendAsync(HttpStep step, IScopeMessage message, int batchSize, CancellationToken cancellationToken)
         {
@@ -387,7 +378,6 @@ namespace Dotmim.Sync.Web.Client
                 throw new HttpSyncWebException(ex.Message);
             }
 
-
             if (cancellationToken.IsCancellationRequested)
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -404,7 +394,6 @@ namespace Dotmim.Sync.Web.Client
             }
 
             return response;
-
         }
 
         /// <summary>
@@ -491,18 +480,15 @@ namespace Dotmim.Sync.Web.Client
                                 SyncStage = webError.SyncStage,
                                 TypeName = webError.TypeName
                             };
-
                         }
                         else
                         {
                             syncException = new HttpSyncWebException(response.ReasonPhrase);
                         }
-
                     }
                     else
                     {
                         syncException = new HttpSyncWebException(response.ReasonPhrase);
-
                     }
                 }
 
@@ -510,8 +496,6 @@ namespace Dotmim.Sync.Web.Client
                 syncException.StatusCode = response.StatusCode;
 
                 throw syncException;
-
-
             }
             catch (SyncException)
             {
@@ -521,8 +505,6 @@ namespace Dotmim.Sync.Web.Client
             {
                 throw new SyncException(ex);
             }
-
-
         }
 
         public static bool TryGetHeaderValue(HttpResponseHeaders n, string key, out string header)
@@ -536,8 +518,6 @@ namespace Dotmim.Sync.Web.Client
             header = null;
             return false;
         }
-
-
 
         public override string ToString() => !String.IsNullOrEmpty(this.ServiceUri) ? this.ServiceUri : base.ToString();
     }

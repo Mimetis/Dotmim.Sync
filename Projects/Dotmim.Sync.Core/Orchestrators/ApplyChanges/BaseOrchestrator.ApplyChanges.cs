@@ -4,26 +4,19 @@ using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices.ComTypes;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Transactions;
-using System.Xml;
 
 namespace Dotmim.Sync
 {
     public abstract partial class BaseOrchestrator
     {
-
         /// <summary>
         /// Apply changes : Delete / Insert / Update
         /// the fromScope is local client scope when this method is called from server
@@ -33,7 +26,6 @@ namespace Dotmim.Sync
             InternalApplyChangesAsync(ScopeInfo scopeInfo, SyncContext context, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-
             context.SyncStage = SyncStage.ChangesApplying;
 
             message.ChangesApplied ??= new DatabaseChangesApplied();

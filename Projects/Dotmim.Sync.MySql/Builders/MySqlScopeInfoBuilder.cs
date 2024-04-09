@@ -1,18 +1,13 @@
 ﻿using Dotmim.Sync.Builders;
 
-using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Text;
 #if NET6_0 || NET8_0 
 using MySqlConnector;
 #elif NETSTANDARD 
 using MySql.Data.MySqlClient;
 #endif
-using System.Diagnostics;
-using System.Threading.Tasks;
-using Newtonsoft.Json;
-using System.Text;
 
 #if MARIADB
 namespace Dotmim.Sync.MariaDB.Builders
@@ -22,12 +17,10 @@ namespace Dotmim.Sync.MySql.Builders
 {
     public class MySqlScopeInfoBuilder : DbScopeBuilder
     {
-
         public MySqlScopeInfoBuilder(string scopeTableName) : base(scopeTableName)
         {
             base.ScopeInfoTableName = ParserName.Parse(scopeTableName, "`");
         }
-
 
         public override DbCommand GetLocalTimestampCommand(DbConnection connection, DbTransaction transaction)
         {

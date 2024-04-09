@@ -1,18 +1,10 @@
-﻿
-
-using Dotmim.Sync.Builders;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Primitives;
-using Newtonsoft.Json;
+﻿using Dotmim.Sync.Builders;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Batch
 {

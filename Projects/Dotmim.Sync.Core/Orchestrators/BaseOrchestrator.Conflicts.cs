@@ -2,16 +2,9 @@
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,10 +12,9 @@ namespace Dotmim.Sync
 {
     public abstract partial class BaseOrchestrator
     {
-
         /// <summary>
         /// Handle a conflict
-        /// The int returned is the conflict count I need 
+        /// The int returned is the conflict count I need
         /// </summary>
         private async Task<(bool applied, bool conflictResolved, Exception ex)> HandleConflictAsync(ScopeInfo scopeInfo, SyncContext context,
                                 BatchInfo batchInfo, Guid localScopeId, Guid senderScopeId, SyncRow conflictRow,
@@ -31,7 +23,6 @@ namespace Dotmim.Sync
                                 DbConnection connection, DbTransaction transaction,
                                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-
             var (conflictResolution, conflictType, finalRow, nullableSenderScopeId) =
                  await this.GetConflictResolutionAsync(scopeInfo, context, localScopeId, conflictRow, schemaChangesTable,
                 policy, senderScopeId, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
@@ -313,8 +304,6 @@ namespace Dotmim.Sync
 
                 throw GetSyncError(context, ex, message);
             }
-
         }
-
     }
 }

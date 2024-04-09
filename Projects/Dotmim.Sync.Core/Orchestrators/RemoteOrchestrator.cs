@@ -1,16 +1,5 @@
-﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
-using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+﻿using Dotmim.Sync.Enumerations;
 using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,8 +7,6 @@ namespace Dotmim.Sync
 {
     public partial class RemoteOrchestrator : BaseOrchestrator
     {
-
-
         /// <summary>
         /// Create a remote orchestrator, used to orchestrates the whole sync on the server side
         /// </summary>
@@ -37,7 +24,6 @@ namespace Dotmim.Sync
             if (this.Provider != null && !this.Provider.CanBeServerProvider)
                 throw GetSyncError(null, new UnsupportedServerProviderException(this.Provider.GetProviderTypeName()));
         }
-
 
         /// <summary>
         /// Called when a new synchronization session has started. Initialize the SyncContext instance, used for this session.
@@ -74,7 +60,6 @@ namespace Dotmim.Sync
             await this.InterceptAsync(new SessionBeginArgs(context, connection), progress, cancellationToken).ConfigureAwait(false);
 
             return context;
-
         }
 
         /// <summary>
@@ -94,7 +79,6 @@ namespace Dotmim.Sync
 
                     if (cleanFolder)
                         serverSyncChanges.ServerBatchInfo.TryRemoveDirectory();
-
                 }
 
                 // Progress & interceptor
@@ -107,6 +91,5 @@ namespace Dotmim.Sync
 
             return context;
         }
-
     }
 }

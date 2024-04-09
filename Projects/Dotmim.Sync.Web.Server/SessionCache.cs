@@ -1,10 +1,4 @@
-﻿
-using Newtonsoft.Json;
-using System;
-using System.Collections.Specialized;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
+﻿using System;
 using Dotmim.Sync.Batch;
 using System.Text;
 using System.Runtime.Serialization;
