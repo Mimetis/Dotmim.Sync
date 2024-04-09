@@ -26,7 +26,7 @@ namespace Dotmim.Sync.Serialization
 
         public T Deserialize<T>(string value) => JsonSerializer.Deserialize<T>(value, options);
 
-        public async Task<byte[]> SerializeAsync<T>(T obj) => JsonSerializer.SerializeToUtf8Bytes(obj, options);
+        public Task<byte[]> SerializeAsync<T>(T obj) => Task.FromResult(JsonSerializer.SerializeToUtf8Bytes(obj, options));
         
         public byte[] Serialize<T>(T obj) => JsonSerializer.SerializeToUtf8Bytes(obj, options);
 
