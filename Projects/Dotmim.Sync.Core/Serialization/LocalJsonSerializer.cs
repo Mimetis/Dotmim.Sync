@@ -226,8 +226,8 @@ namespace Dotmim.Sync.Serialization
             SyncTable schemaTable = null;
             SyncRowState state = SyncRowState.None;
 
-            string jsonString = File.ReadAllText(path);
-            using var doc = JsonDocument.Parse(jsonString);
+            using var stream = File.OpenRead(path);
+            using var doc = JsonDocument.Parse(stream);
             var root = doc.RootElement;
 
             foreach (var property in root.EnumerateObject())
@@ -284,8 +284,8 @@ namespace Dotmim.Sync.Serialization
                 yield break;
 
             using var stream = File.OpenRead(path);
-            using var reader = new StreamReader(stream);
-            var root = serializer.Deserialize<JsonElement>(reader.ReadToEnd());
+            using var document = JsonDocument.Parse(stream);
+            var root = document.RootElement;
 
             SyncRowState state = SyncRowState.None;
 
