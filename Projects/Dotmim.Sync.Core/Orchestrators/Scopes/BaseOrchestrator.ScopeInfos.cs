@@ -338,6 +338,10 @@ namespace Dotmim.Sync
 
                 reader.Close();
 
+                // ensure schema on tables
+                if (scopeInfo.Schema != null)
+                    scopeInfo.Schema.EnsureSchema();
+
                 await this.InterceptAsync(new ScopeInfoSavedArgs(context, scopeInfo, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
                 action.Command.Dispose();
 

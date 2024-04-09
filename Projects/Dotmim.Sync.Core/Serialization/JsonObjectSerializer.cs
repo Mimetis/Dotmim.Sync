@@ -19,7 +19,6 @@ namespace Dotmim.Sync.Serialization
     {
         private static readonly JsonSerializerOptions options = new()
         {
-            ReferenceHandler = ReferenceHandler.Preserve,
             TypeInfoResolver = System.Text.Json.Serialization.Metadata.DataContractResolver.Default,
         };
 

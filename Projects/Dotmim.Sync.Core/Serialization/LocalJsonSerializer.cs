@@ -139,7 +139,6 @@ namespace Dotmim.Sync.Serialization
 
                 this.writer.WriteEndArray();
                 this.writer.WriteStartArray("r");
-                this.writer.WriteStringValue(Environment.NewLine);
                 this.writer.Flush();
             }
         }
@@ -180,7 +179,6 @@ namespace Dotmim.Sync.Serialization
                 }
 
                 writer.WriteEndArray();
-                writer.WriteStringValue(Environment.NewLine);
                 writer.Flush();
             }
         }
