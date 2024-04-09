@@ -1,4 +1,4 @@
-using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Extensions;
 using Dotmim.Sync.Serialization;
@@ -1818,16 +1818,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 using var decryptor = myRijndael.CreateDecryptor(myRijndael.Key, myRijndael.IV);
                 await using var msDecrypt = new MemoryStream(byteArray);
                 await using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
-                using var msDecrypt = new MemoryStream(byteArray);
-                using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
-                using (var swDecrypt = new StreamReader(csDecrypt))
-                    value = swDecrypt.ReadToEnd();
 
-                var array = jsonSerializer.Deserialize<object[]>(value);
-
-                args.Result = array;
-                return Task.CompletedTask;
-
+                args.Result = await jsonSerializer.DeserializeAsync<object[]>(csDecrypt);
             });
 
             var rowsCount = serverProvider.GetDatabaseRowsCount();

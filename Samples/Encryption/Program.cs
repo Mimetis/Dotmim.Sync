@@ -1,4 +1,4 @@
-using Dotmim.Sync;
+﻿using Dotmim.Sync;
 using Dotmim.Sync.SqlServer;
 using System;
 using System.IO;
@@ -28,25 +28,22 @@ namespace EncryptionClient
             myRijndael.GenerateIV();
 
             // Create action for serializing and deserialzing for both remote and local orchestrators
-            var deserializing = new Func<DeserializingRowArgs, Task>((args) =>
+            var deserializing = new Func<DeserializingRowArgs, Task>(async (args) =>
             {
                 Console.ForegroundColor = ConsoleColor.DarkYellow;
                 Console.WriteLine($"Deserializing row {args.RowString}");
-                string value;
-                var byteArray = Convert.FromBase64String(args.RowString);
-                using var decryptor = myRijndael.CreateDecryptor(myRijndael.Key, myRijndael.IV);
-                using var msDecrypt = new MemoryStream(byteArray);
-                using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
-                using (var swDecrypt = new StreamReader(csDecrypt))
-                    value = swDecrypt.ReadToEnd();
 
-                var array = JsonSerializer.Deserialize<object[]>(value);
-                args.Result = array;
+                var byteArray = Convert.FromBase64String(args.RowString);
+
+                using var decryptor = myRijndael.CreateDecryptor(myRijndael.Key, myRijndael.IV);
+                await using var msDecrypt = new MemoryStream(byteArray);
+                await using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
+
+                args.Result = await JsonSerializer.DeserializeAsync<object[]>(csDecrypt);
 
                 // output result to console
-                Console.WriteLine($"row deserialized {new SyncRow(args.SchemaTable, array)}");
+                Console.WriteLine($"row deserialized {new SyncRow(args.SchemaTable, args.Result)}");
                 Console.ResetColor();
-                return Task.CompletedTask;
             });
 
 
@@ -58,7 +55,7 @@ namespace EncryptionClient
 
 
                 var strSet = JsonSerializer.Serialize(sra.RowArray);
-                await using var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
+                using var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
                 await using var msEncrypt = new MemoryStream();
                 await using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
                 await using (var swEncrypt = new StreamWriter(csEncrypt))
