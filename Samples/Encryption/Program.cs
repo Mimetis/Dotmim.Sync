@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync;
+using Dotmim.Sync;
 using Dotmim.Sync.SqlServer;
 using System;
 using System.IO;
@@ -58,16 +58,15 @@ namespace EncryptionClient
 
 
                 var strSet = JsonSerializer.Serialize(sra.RowArray);
-                using var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
-                using var msEncrypt = new MemoryStream();
-                using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
-                using (var swEncrypt = new StreamWriter(csEncrypt))
+                await using var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
+                await using var msEncrypt = new MemoryStream();
+                await using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
+                await using (var swEncrypt = new StreamWriter(csEncrypt))
                     swEncrypt.Write(strSet);
 
                 sra.Result = Convert.ToBase64String(msEncrypt.ToArray());
                 Console.WriteLine($"row serialized: {0}", sra.Result);
                 Console.ResetColor();
-                return Task.CompletedTask;
             });
 
             SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
