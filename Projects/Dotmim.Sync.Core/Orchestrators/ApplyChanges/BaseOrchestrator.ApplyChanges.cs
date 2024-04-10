@@ -451,8 +451,7 @@ namespace Dotmim.Sync
                     finally
                     {
                         // Close file
-                        if (localSerializer.IsOpen)
-                            localSerializer.CloseFile();
+                        localSerializer.CloseFile();
                     }
 
                 });
