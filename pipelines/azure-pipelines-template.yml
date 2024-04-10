@@ -24,19 +24,22 @@ jobs:
         displayName: 'Use .Net Core sdk'
         inputs:
           version: 3.x
+        condition: eq('${{ parameters.dotnetfx }}', 'netcoreapp3.1')
 
       - task: UseDotNet@2
         displayName: 'Use .Net Sdk 6.x'
         inputs:
           packageType: 'sdk'
           version: 6.0.x
+        condition: eq('${{ parameters.dotnetfx }}', 'net6.0')
 
       - task: UseDotNet@2
         displayName: 'Use .Net Sdk 8.x'
         inputs:
           packageType: 'sdk'
           version: 8.0.x
-                    
+        condition: eq('${{ parameters.dotnetfx }}', 'net8.0')
+
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
 
