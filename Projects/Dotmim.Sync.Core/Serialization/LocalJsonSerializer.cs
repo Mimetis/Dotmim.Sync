@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Serialization
@@ -20,7 +21,7 @@ namespace Dotmim.Sync.Serialization
         private Utf8JsonWriter writer;
         private Func<SyncTable, object[], Task<string>> writingRowAsync;
         private Func<SyncTable, string, Task<object[]>> readingRowAsync;
-        private bool isOpen;
+        private int isOpen;
         private bool disposedValue;
 
         public LocalJsonSerializer(BaseOrchestrator orchestrator = null, SyncContext context = null)
@@ -55,20 +56,8 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public bool IsOpen
         {
-            get
-            {
-                lock (writerLock)
-                {
-                    return isOpen;
-                }
-            }
-            set
-            {
-                lock (writerLock)
-                {
-                    isOpen = value;
-                }
-            }
+            get => Interlocked.CompareExchange(ref isOpen, 0, 0) == 1;
+            set => Interlocked.Exchange(ref isOpen, value ? 1 : 0);
         }
 
         /// <summary>
