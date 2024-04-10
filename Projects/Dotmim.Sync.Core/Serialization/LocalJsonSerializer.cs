@@ -126,23 +126,7 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public void OpenFile(string path, SyncTable schemaTable, SyncRowState state, bool append = false)
         {
-            if (this.writer != null)
-            {
-                await writerLock.WaitAsync();
-
-                try
-                {
-                    if (this.writer != null)
-                    {
-                        this.writer.Dispose();
-                        this.writer = null;
-                    }
-                }
-                finally
-                {
-                    writerLock.Release();
-                }
-            }
+            await ResetWriterAsync();
 
             this.IsOpen = true;
 
@@ -179,6 +163,29 @@ namespace Dotmim.Sync.Serialization
                 this.writer.WriteEndArray();
                 this.writer.WriteStartArray("r");
                 this.writer.Flush();
+            }
+            finally
+            {
+                writerLock.Release();
+            }
+        }
+
+        private async Task ResetWriterAsync()
+        {
+            if (this.writer == null)
+            {
+                return;
+            }
+
+            await writerLock.WaitAsync();
+
+            try
+            {
+                if (this.writer != null)
+                {
+                    await this.writer.DisposeAsync();
+                    this.writer = null;
+                }
             }
             finally
             {
