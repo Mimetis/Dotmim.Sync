@@ -1,4 +1,4 @@
-﻿
+
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -188,7 +188,7 @@ namespace Dotmim.Sync
 
             TableChangesApplied tableChangesApplied = null;
 
-            var localSerializer = new LocalJsonSerializer(this, context);
+            using var localSerializer = new LocalJsonSerializer(this, context);
 
             // conflict resolved count
             int conflictsResolvedCount = 0;
@@ -448,12 +448,6 @@ namespace Dotmim.Sync
                         }
                         throw GetSyncError(context, ex);
                     }
-                    finally
-                    {
-                        // Close file
-                        localSerializer.CloseFile();
-                    }
-
                 });
 
                 var batchChangesAppliedArgs = new BatchChangesAppliedArgs(context, message.Changes, batchPartInfo, schemaTable, applyType, command, connection, transaction);
@@ -790,8 +784,8 @@ namespace Dotmim.Sync
                     if (tableBpis == null || !tableBpis.Any())
                         continue;
 
-                    var localSerializerReader = new LocalJsonSerializer(this, context);
-                    var localSerializerWriter = new LocalJsonSerializer(this, context);
+                    using var localSerializerReader = new LocalJsonSerializer(this, context);
+                    using var localSerializerWriter = new LocalJsonSerializer(this, context);
 
                     // Load in memory failed rows for this table
                     var failedRows = new List<SyncRow>();
@@ -831,11 +825,9 @@ namespace Dotmim.Sync
                         if (failedRows.Count <= 0)
                             break;
                     }
-
+                    
                     foreach (var row in failedRows)
                         await localSerializerWriter.WriteRowToFileAsync(row, schemaChangesTable).ConfigureAwait(false);
-
-                    localSerializerWriter.CloseFile();
 
                     if (failedRows.Count <= 0 && File.Exists(lastSyncErrorsBpiFullPath))
                         File.Delete(lastSyncErrorsBpiFullPath);

@@ -239,12 +239,12 @@ namespace Dotmim.Sync
                     dataReader.Close();
 
                     // tmp Func
-                    var CloseSerializer = new Func<LocalJsonSerializer, BatchChangesCreatedArgs, Task>((localJsonSerializer, args) =>
+                    var CloseSerializer = new Func<LocalJsonSerializer, BatchChangesCreatedArgs, Task>(async (localJsonSerializer, args) =>
                     {
                         // Close file
                         if (localJsonSerializer != null && localJsonSerializer.IsOpen)
                         {
-                            localJsonSerializer.CloseFile();
+                            await localJsonSerializer.CloseFileAsync().ConfigureAwait(false);
                             return this.InterceptAsync(args, progress, cancellationToken);
                         }
                         return Task.CompletedTask;
@@ -269,14 +269,14 @@ namespace Dotmim.Sync
                     // Close file
                     if (localSerializerModified.IsOpen)
                     {
-                        localSerializerModified.CloseFile();
+                        await localSerializerModified.CloseFileAsync().ConfigureAwait(false);
                         await this.InterceptAsync(new BatchChangesCreatedArgs(context, batchPartInfoUpserts, schemaChangesTable, tableChangesSelected, SyncRowState.Modified, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                     }
 
                     if (localSerializerDeleted.IsOpen)
                     {
-                        localSerializerDeleted.CloseFile();
+                        await localSerializerDeleted.CloseFileAsync().ConfigureAwait(false);
                         await this.InterceptAsync(new BatchChangesCreatedArgs(context, batchPartInfoDeleted, schemaChangesTable, tableChangesSelected, SyncRowState.Deleted, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                     }
                 }
@@ -347,7 +347,7 @@ namespace Dotmim.Sync
 
             if (currentBatchSize > this.Options.BatchSize && localJsonSerializer.IsOpen)
             {
-                localJsonSerializer.CloseFile();
+                await localJsonSerializer.CloseFileAsync().ConfigureAwait(false);
                 await this.InterceptAsync(new BatchChangesCreatedArgs(context, batchPartInfo, schemaChangesTable, tableChangesSelected, syncRow.RowState, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
             }
 

@@ -210,7 +210,7 @@ namespace Dotmim.Sync.Batch
 
         //public async Task SaveBatchPartInfoAsync(BatchPartInfo batchPartInfo, SyncTable syncTable)
         //{
-        //     var localSerializer = new LocalJsonSerializer();
+        //    using var localSerializer = new LocalJsonSerializer();
 
         //    // Get full path of my batchpartinfo
         //    var fullPath = this.GetBatchPartInfoPath(batchPartInfo).FullPath;
@@ -225,10 +225,6 @@ namespace Dotmim.Sync.Batch
 
         //    foreach (var row in syncTable.Rows)
         //        await localSerializer.WriteRowToFileAsync(row, syncTable).ConfigureAwait(false);
-
-        //    // Close file
-        //    await localSerializer.CloseFileAsync(fullPath, syncTable).ConfigureAwait(false);
-
         //}
 
         /// <summary>

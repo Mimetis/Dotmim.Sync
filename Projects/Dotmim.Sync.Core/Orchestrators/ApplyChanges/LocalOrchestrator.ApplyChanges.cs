@@ -155,7 +155,7 @@ namespace Dotmim.Sync
                             if (!table.HasRows)
                                 continue;
 
-                            var localSerializer = new LocalJsonSerializer(this, context);
+                            using var localSerializer = new LocalJsonSerializer(this, context);
 
                             var (filePath, fileName) = errorsBatchInfo.GetNewBatchPartInfoPath(table, batchIndex, "json", info);
                             var batchPartInfo = new BatchPartInfo(fileName, table.TableName, table.SchemaName, SyncRowState.None, table.Rows.Count, batchIndex);
@@ -166,9 +166,9 @@ namespace Dotmim.Sync
                             foreach (var row in table.Rows)
                                 await localSerializer.WriteRowToFileAsync(row, table).ConfigureAwait(false);
 
-                            localSerializer.CloseFile();
                             batchIndex++;
                         }
+
                         failedRows.Dispose();
                     }
 

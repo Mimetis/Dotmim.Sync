@@ -665,8 +665,9 @@ namespace Dotmim.Sync.Web.Server
 
             if (httpMessage.Changes != null && httpMessage.Changes.HasRows)
             {
+                using var localSerializer = new LocalJsonSerializer(this.RemoteOrchestrator, context);
+                
                 // we have only one table here
-                var localSerializer = new LocalJsonSerializer(this.RemoteOrchestrator, context);
                 var containerTable = httpMessage.Changes.Tables[0];
                 var schemaTable = BaseOrchestrator.CreateChangesTable(sScopeInfo.Schema.Tables[containerTable.TableName, containerTable.SchemaName]);
                 var tableName = ParserName.Parse(new SyncTable(containerTable.TableName, containerTable.SchemaName)).Unquoted().Schema().Normalized().ToString();
@@ -692,9 +693,6 @@ namespace Dotmim.Sync.Web.Server
 
                     await localSerializer.WriteRowToFileAsync(syncRow, schemaTable).ConfigureAwait(false);
                 }
-
-                // Close file
-                localSerializer.CloseFile();
 
                 var bpi = new BatchPartInfo
                 {
