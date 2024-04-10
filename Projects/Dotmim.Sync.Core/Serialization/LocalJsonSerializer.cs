@@ -1,5 +1,4 @@
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Extensions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -13,7 +12,7 @@ namespace Dotmim.Sync.Serialization
     /// </summary>
     public class LocalJsonSerializer
     {
-        private static ISerializer serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+        private static readonly ISerializer serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
 
         private StreamWriter sw;
         private Utf8JsonWriter writer;
@@ -86,6 +85,7 @@ namespace Dotmim.Sync.Serialization
                 this.writer.WriteEndObject();
                 this.writer.Flush();
                 this.writer.Dispose();
+                this.sw.Dispose();
                 this.IsOpen = false;
             }
         }
