@@ -164,10 +164,9 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var firstPart = parts[0];
             Assert.NotNull(firstPart.GetProperty("file").GetString());
-            Assert.True(firstPart.GetProperty("index").GetInt32() != 0);
-            Assert.NotNull(firstPart.GetProperty("last").GetString());
+            Assert.True(firstPart.GetProperty("index").GetInt32() == 0);
+            Assert.False(firstPart.GetProperty("last").GetBoolean());
         }
-
 
         [Fact]
         public async Task RemoteOrchestrator_CreateSnapshot_WithParameters_CheckBatchInfo()
@@ -241,7 +240,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.True(summaryObject.ValueKind != JsonValueKind.Null);
             string summaryDirname = summaryObject.GetProperty("dirname").GetString();
             Assert.NotNull(summaryDirname);
-            Assert.Equal("ALL", summaryDirname);
+            Assert.Equal("CompanyName_ABikeStore", summaryDirname);
 
             string summaryDir = summaryObject.GetProperty("dir").GetString();
             Assert.NotNull(summaryDir);
@@ -254,8 +253,8 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var firstPart = parts[0];
             Assert.NotNull(firstPart.GetProperty("file").GetString());
-            Assert.True(firstPart.GetProperty("index").GetInt32() != 0);
-            Assert.NotNull(firstPart.GetProperty("last").GetString());
+            Assert.True(firstPart.GetProperty("index").GetInt32() == 0);
+            Assert.False(firstPart.GetProperty("last").GetBoolean());
         }
 
         [Fact]
