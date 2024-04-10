@@ -30,6 +30,6 @@ namespace Dotmim.Sync.Serialization
         
         public byte[] Serialize<T>(T obj) => JsonSerializer.SerializeToUtf8Bytes(obj, options);
 
-        public async Task<object> DeserializeAsync(Stream ms, Type type) => await JsonSerializer.DeserializeAsync<object>(ms, options);
+        public async Task<object> DeserializeAsync(Stream ms, Type type) => await JsonSerializer.DeserializeAsync(ms, type, options);
     }
 }

@@ -250,7 +250,7 @@ namespace Dotmim.Sync.Web.Server
                         break;
                 }
 
-                IScopeMessage messsageRequest = await clientSerializerFactory.GetSerializer().DeserializeAsync<IScopeMessage>(readableStream);
+                IScopeMessage messsageRequest = await clientSerializerFactory.GetSerializer().DeserializeAsync(readableStream, requestSerializerType) as IScopeMessage;
                 await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, messsageRequest.SyncContext, sessionCache, messsageRequest, responseSerializerType, step), progress, cancellationToken).ConfigureAwait(false);
 
                 switch (step)
