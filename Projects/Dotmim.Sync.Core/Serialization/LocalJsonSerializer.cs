@@ -15,7 +15,7 @@ namespace Dotmim.Sync.Serialization
     {
         private static readonly ISerializer serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
 
-        private readonly object writerLock = new();
+        private readonly SemaphoreSlim writerLock = new(1, 1);
 
         private StreamWriter sw;
         private Utf8JsonWriter writer;
@@ -74,7 +74,9 @@ namespace Dotmim.Sync.Serialization
             if (!this.IsOpen)
                 return;
 
-            lock (writerLock)
+            writerLock.Wait();
+
+            try
             {
                 this.writer.WriteEndArray();
                 this.writer.WriteEndObject();
@@ -82,6 +84,10 @@ namespace Dotmim.Sync.Serialization
                 this.writer.Dispose();
                 this.sw.Dispose();
                 this.IsOpen = false;
+            }
+            finally
+            {
+                writerLock.Release();
             }
         }
 
@@ -94,11 +100,13 @@ namespace Dotmim.Sync.Serialization
             if (!this.IsOpen)
                 return;
 
-            lock (writerLock)
+            await writerLock.WaitAsync();
+
+            try
             {
                 this.writer.WriteEndArray();
                 this.writer.WriteEndObject();
-                this.writer.FlushAsync();
+                await this.writer.FlushAsync();
                 await this.writer.DisposeAsync();
 #if NET6_0_OR_GREATER
                 await this.sw.DisposeAsync();
@@ -106,6 +114,10 @@ namespace Dotmim.Sync.Serialization
                 this.sw.Dispose();
 #endif
                 this.IsOpen = false;
+            }
+            finally
+            {
+                writerLock.Release();
             }
         }
 
@@ -116,13 +128,19 @@ namespace Dotmim.Sync.Serialization
         {
             if (this.writer != null)
             {
-                lock (writerLock)
+                await writerLock.WaitAsync();
+
+                try
                 {
                     if (this.writer != null)
                     {
                         this.writer.Dispose();
                         this.writer = null;
                     }
+                }
+                finally
+                {
+                    writerLock.Release();
                 }
             }
 
@@ -133,7 +151,9 @@ namespace Dotmim.Sync.Serialization
             if (!fi.Directory.Exists)
                 fi.Directory.Create();
 
-            lock (writerLock)
+            await writerLock.WaitAsync();
+
+            try
             {
                 this.sw = new StreamWriter(path, append);
                 this.writer = new Utf8JsonWriter(sw.BaseStream);
@@ -160,6 +180,10 @@ namespace Dotmim.Sync.Serialization
                 this.writer.WriteStartArray("r");
                 this.writer.Flush();
             }
+            finally
+            {
+                writerLock.Release();
+            }
         }
 
         /// <summary>
@@ -180,7 +204,9 @@ namespace Dotmim.Sync.Serialization
                 str = string.Empty; // This won't ever be used, but is need to compile.
             }
 
-            lock (writerLock)
+            await writerLock.WaitAsync();
+
+            try
             {
                 writer.WriteStartArray();
 
@@ -200,6 +226,10 @@ namespace Dotmim.Sync.Serialization
                 writer.WriteEndArray();
                 writer.Flush();
             }
+            finally
+            {
+                writerLock.Release();
+            }
         }
 
         /// <summary>
@@ -216,19 +246,25 @@ namespace Dotmim.Sync.Serialization
         /// Gets the current file size
         /// </summary>
         /// <returns>Current file size as long</returns>
-        public Task<long> GetCurrentFileSizeAsync()
+        public async Task<long> GetCurrentFileSizeAsync()
         {
             long position = 0L;
 
-            lock (writerLock)
+            await writerLock.WaitAsync();
+
+            try
             {
                 if (this.sw?.BaseStream != null)
                 {
                     position = this.sw.BaseStream.Position / 1024L;
                 }
             }
+            finally
+            {
+                writerLock.Release();
+            }
 
-            return Task.FromResult(position);
+            return position;
         }
 
         /// <summary>
