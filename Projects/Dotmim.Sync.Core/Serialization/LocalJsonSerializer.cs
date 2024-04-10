@@ -114,11 +114,11 @@ namespace Dotmim.Sync.Serialization
             if (!fi.Directory.Exists)
                 fi.Directory.Create();
 
-            this.sw = new StreamWriter(path, append);
-            this.writer = new Utf8JsonWriter(sw.BaseStream);
-
             lock (writerLock)
             {
+                this.sw = new StreamWriter(path, append);
+                this.writer = new Utf8JsonWriter(sw.BaseStream);
+
                 this.writer.WriteStartObject();
                 this.writer.WriteString("t", schemaTable.TableName);
                 this.writer.WriteString("s", schemaTable.SchemaName);
