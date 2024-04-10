@@ -195,7 +195,7 @@
 //            var serializer = serializerFactory.GetSerializer();
 
 //            var contentType = serializerFactory.Key == SerializersCollection.JsonSerializerFactory.Key ? "application/json" : null;
-//            var ser = JsonSerializer.Serialize<object>(new { f = serializerFactory.Key, s = batchSize });
+//            var ser = JsonSerializer.Serialize(new SerializerInfo(serializerFactory.Key, batchSize));
 
 //            // Create the request message
 //            var requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri);

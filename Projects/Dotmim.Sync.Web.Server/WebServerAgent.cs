@@ -7,11 +7,9 @@ using Dotmim.Sync.Web.Client;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Net.Mime;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -109,12 +107,12 @@ namespace Dotmim.Sync.Web.Server
         {
             var httpRequest = httpContext.Request;
             var httpResponse = httpContext.Response;
-            var serAndsizeString = string.Empty;
+            var serializerInfoString = string.Empty;
             var cliConverterKey = string.Empty;
             var version = string.Empty;
 
             if (TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-serialization-format", out var vs))
-                serAndsizeString = vs.ToLowerInvariant();
+                serializerInfoString = vs.ToLowerInvariant();
 
             if (TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-converter", out var cs))
                 cliConverterKey = cs.ToLowerInvariant();
@@ -185,7 +183,7 @@ namespace Dotmim.Sync.Web.Server
                     throw new HttpSessionLostException(sessionId);
 
                 // Get the serializer and batchsize
-                (var clientBatchSize, var clientSerializerFactory) = this.GetClientSerializer(serAndsizeString);
+                (var clientBatchSize, var clientSerializerFactory) = this.GetClientSerializer(serializerInfoString);
 
                 // Get converter used by client
                 // Can be null
@@ -378,22 +376,19 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Returns the serializer used by the client, that should be used on the server
         /// </summary>
-        public virtual (int clientBatchSize, ISerializerFactory clientSerializer) GetClientSerializer(string serAndsizeString)
+        public virtual (int clientBatchSize, ISerializerFactory clientSerializer) GetClientSerializer(string serializerInfoString)
         {
             try
             {
-                if (string.IsNullOrEmpty(serAndsizeString))
+                if (string.IsNullOrEmpty(serializerInfoString))
                     throw new Exception("Serializer header is null, coming from http header");
-                
-                var serAndsize = jsonSerializer.Deserialize<Dictionary<string, object>>(serAndsizeString);
 
-                var clientBatchSize = Convert.ToInt32(serAndsize["s"]);
-                var serializerKey = serAndsize["f"].ToString();
+                var serializerInfo = jsonSerializer.Deserialize<SerializerInfo>(serializerInfoString);
 
-                var clientSerializerFactory = this.WebServerOptions.SerializerFactories.FirstOrDefault(sf => sf.Key == serializerKey);
+                var clientSerializerFactory = this.WebServerOptions.SerializerFactories.FirstOrDefault(sf => sf.Key == serializerInfo.SerializerKey);
                 if (clientSerializerFactory == null) clientSerializerFactory = SerializersCollection.JsonSerializerFactory;
 
-                return (clientBatchSize, clientSerializerFactory);
+                return (serializerInfo.ClientBatchSize, clientSerializerFactory);
             }
             catch
             {

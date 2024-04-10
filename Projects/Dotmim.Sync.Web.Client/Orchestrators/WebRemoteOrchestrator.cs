@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -318,7 +318,8 @@ namespace Dotmim.Sync.Web.Client
             var serializer = this.SerializerFactory.GetSerializer();
 
             var contentType = this.SerializerFactory.Key == SerializersCollection.JsonSerializerFactory.Key ? "application/json" : null;
-            var ser = serializer.Serialize(new { f = this.SerializerFactory.Key, s = batchSize });
+            var serializerInfo = new SerializerInfo(this.SerializerFactory.Key, batchSize);
+            var serializerInfoJson = await serializer.SerializeAsync(serializerInfo);
 
             var requestUri = BuildUri(this.ServiceUri);
 
@@ -330,7 +331,7 @@ namespace Dotmim.Sync.Web.Client
             requestMessage.Headers.Add("dotmim-sync-scope-id", message.SyncContext.ClientId.ToString());
             requestMessage.Headers.Add("dotmim-sync-scope-name", message.SyncContext.ScopeName);
             requestMessage.Headers.Add("dotmim-sync-step", ((int)step).ToString());
-            requestMessage.Headers.Add("dotmim-sync-serialization-format", ser.ToUtf8String());
+            requestMessage.Headers.Add("dotmim-sync-serialization-format", serializerInfoJson.ToUtf8String());
             requestMessage.Headers.Add("dotmim-sync-version", SyncVersion.Current.ToString());
 
             if (!string.IsNullOrEmpty(this.Identifier))
