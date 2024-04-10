@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -353,7 +353,7 @@ namespace Dotmim.Sync.Web.Client
             requestMessage = args.Request;
 
             // Check if data is null
-            binaryData = binaryData == null ? new byte[] { } : binaryData;
+            binaryData ??= Array.Empty<byte>();
 
             // calculate hash
             var hash = HashAlgorithm.SHA256.Create(binaryData);
