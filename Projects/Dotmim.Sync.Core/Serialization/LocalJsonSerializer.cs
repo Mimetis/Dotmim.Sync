@@ -10,17 +10,18 @@ namespace Dotmim.Sync.Serialization
     /// <summary>
     /// Serialize json rows locally
     /// </summary>
-    public class LocalJsonSerializer
+    public class LocalJsonSerializer : IDisposable, IAsyncDisposable
     {
         private static readonly ISerializer serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+
+        private readonly object writerLock = new();
 
         private StreamWriter sw;
         private Utf8JsonWriter writer;
         private Func<SyncTable, object[], Task<string>> writingRowAsync;
         private Func<SyncTable, string, Task<object[]>> readingRowAsync;
         private bool isOpen;
-
-        private readonly object writerLock = new object();
+        private bool disposedValue;
 
         public LocalJsonSerializer(BaseOrchestrator orchestrator = null, SyncContext context = null)
         {
@@ -42,6 +43,11 @@ namespace Dotmim.Sync.Serialization
                     await orchestrator.InterceptAsync(args).ConfigureAwait(false);
                     return args.Result;
                 });
+        }
+
+        ~LocalJsonSerializer()
+        {
+            CloseFile();
         }
 
         /// <summary>
@@ -86,6 +92,30 @@ namespace Dotmim.Sync.Serialization
                 this.writer.Flush();
                 this.writer.Dispose();
                 this.sw.Dispose();
+                this.IsOpen = false;
+            }
+        }
+
+        /// <summary>
+        /// Close the current file, close the writer
+        /// </summary>
+        public async Task CloseFileAsync()
+        {
+            // Close file
+            if (!this.IsOpen)
+                return;
+
+            lock (writerLock)
+            {
+                this.writer.WriteEndArray();
+                this.writer.WriteEndObject();
+                this.writer.FlushAsync();
+                await this.writer.DisposeAsync();
+#if NET6_0_OR_GREATER
+                await this.sw.DisposeAsync();
+#else
+                this.sw.Dispose();
+#endif
                 this.IsOpen = false;
             }
         }
@@ -421,5 +451,27 @@ namespace Dotmim.Sync.Serialization
 
             return schemaTable;
         }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    CloseFile();
+                }
+
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        public async ValueTask DisposeAsync() => await CloseFileAsync();
     }
 }
