@@ -4,138 +4,161 @@ jobs:
       displayName: "Unit tests"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.UnitTests"
+      docker: "none"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "SQL Server Interceptors tests"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerUnit"
+      docker: "sqlserver"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "SQL Server Tcp .net core 3.1"
       dotnetfx: "netcoreapp3.1"
       filter: "Dotmim.Sync.Tests.SqlServerTcp"
+      docker: "sqlserver"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "SQL Server Tcp .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerTcp"
+      docker: "sqlserver"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "SQL Server Conflicts .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerConflictTests"
+      docker: "sqlserver"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "SQL Server Change Tracking Tcp .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingTcp"
+      docker: "sqlserver"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "SQL Server Change Tracking Tcp .net core 3.1"
       dotnetfx: "netcoreapp3.1"
       filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingTcp"
+      docker: "sqlserver"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "SQL Server Change Tracking Conflicts .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingConflictTests"
+      docker: "sqlserver"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "PostgreSQL Tcp .net core 3.1"
       dotnetfx: "netcoreapp3.1"
       filter: "Dotmim.Sync.Tests.PostgresTcp"
+      docker: "postgres"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "PostgreSQL Tcp .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.PostgresTcp"
+      docker: "postgres"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "PostgreSQL Conflicts .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.PostgresConflictTests"
+      docker: "postgres"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "MySQL Tcp .net core 3.1"
       dotnetfx: "netcoreapp3.1"
       filter: "Dotmim.Sync.Tests.MySqlTcp"
+      docker: "mysql"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "MySQL Tcp .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.MySqlTcp"
+      docker: "mysql"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "MySQL Conflicts .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.MySqlConflictTests"
+      docker: "mysql"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "MySQL Conflicts .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.MySqlConflictTests"
+      docker: "mysql"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "MariaDB Tcp .net core 3.1"
       dotnetfx: "netcoreapp3.1"
       filter: "Dotmim.Sync.Tests.MariaDBTcp"
+      docker: "mariadb"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "MariaDB Tcp .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.MariaDBTcp"
+      docker: "mariadb"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "MariaDB Fiter Tests .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.MariaDBTcpFilterTests"
+      docker: "mariadb"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "MariaDB Http Tests .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.MariaDBHttpTests"
+      docker: "mariadb"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "SQL Server Change Tracking Http .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingHttp"
+      docker: "sqlserver"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "SQL Server Http .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerHttp"
+      docker: "sqlserver"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "MySQL Http .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.MySqlHttp"
+      docker: "mysql"
 
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "Postgres Http .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.PostgresHttp"
+      docker: "postgres"
 
   - job: testbasics
     displayName: "Tests Basics"

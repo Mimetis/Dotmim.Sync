@@ -5,6 +5,8 @@ parameters:
   default: 'net8.0'
 - name: filter
   default: 'Dotmim.Sync.Tests.IntegrationTests2.SqlServerTcp'
+- name: docker
+  default: 'sqlserver'
 
 jobs:
 
@@ -42,15 +44,19 @@ jobs:
 
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
+        condition: eq('${{ parameters.docker }}', 'sqlserver')
 
       - script: docker run --name mysql -e MYSQL_ROOT_PASSWORD=Password12! -p 3307:3306 -d mysql
         displayName: "Run MySql on Linux container"
+        condition: eq('${{ parameters.docker }}', 'mysql')
 
       - script: docker run --name mariadb -e MYSQL_ROOT_PASSWORD=Password12! -p 3308:3306 -d mariadb:latest
         displayName: "Run MariaDB on Linux container"
+        condition: eq('${{ parameters.docker }}', 'mariadb')
 
       - script: docker run --name postgres -e POSTGRES_PASSWORD=Password12! -p 5432:5432 -d postgres:latest
         displayName: "Run PostgreSQL on Linux container"
+        condition: eq('${{ parameters.docker }}', 'postgres')
 
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter ${{ parameters.filter }} -f ${{ parameters.dotnetfx }} --logger trx
         name: tests
