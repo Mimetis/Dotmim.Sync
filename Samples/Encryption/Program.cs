@@ -23,9 +23,10 @@ namespace EncryptionClient
         {
             // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
 
-            var myRijndael = new RijndaelManaged();
-            myRijndael.GenerateKey();
-            myRijndael.GenerateIV();
+            using var myAes = Aes.Create();
+
+            myAes.GenerateKey();
+            myAes.GenerateIV();
 
             // Create action for serializing and deserialzing for both remote and local orchestrators
             var deserializing = new Func<DeserializingRowArgs, Task>(async (args) =>
@@ -35,7 +36,7 @@ namespace EncryptionClient
 
                 var byteArray = Convert.FromBase64String(args.RowString);
 
-                using var decryptor = myRijndael.CreateDecryptor(myRijndael.Key, myRijndael.IV);
+                using var decryptor = myAes.CreateDecryptor(myAes.Key, myAes.IV);
                 await using var msDecrypt = new MemoryStream(byteArray);
                 await using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
 
@@ -55,7 +56,7 @@ namespace EncryptionClient
 
 
                 var strSet = JsonSerializer.Serialize(sra.RowArray);
-                using var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
+                using var encryptor = myAes.CreateEncryptor(myAes.Key, myAes.IV);
                 await using var msEncrypt = new MemoryStream();
                 await using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
                 await using (var swEncrypt = new StreamWriter(csEncrypt))

@@ -1781,11 +1781,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-#pragma warning disable SYSLIB0022 // Type or member is obsolete
-            var myRijndael = new RijndaelManaged();
-#pragma warning restore SYSLIB0022 // Type or member is obsolete
-            myRijndael.GenerateKey();
-            myRijndael.GenerateIV();
+            using var myAes = Aes.Create();
+
+            myAes.GenerateKey();
+            myAes.GenerateIV();
 
             var writringRowsTables = new ConcurrentDictionary<string, int>();
             var readingRowsTables = new ConcurrentDictionary<string, int>();
@@ -1798,7 +1797,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 writringRowsTables.AddOrUpdate(args.SchemaTable.GetFullName(), 1, (key, oldValue) => oldValue + 1);
                 
                 var strSet = await jsonSerializer.SerializeAsync(args.RowArray);
-                using var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
+                using var encryptor = myAes.CreateEncryptor(myAes.Key, myAes.IV);
                 await using var msEncrypt = new MemoryStream();
                 await using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
                 await using (var swEncrypt = new StreamWriter(csEncrypt))
@@ -1815,7 +1814,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 readingRowsTables.AddOrUpdate(args.SchemaTable.GetFullName(), 1, (key, oldValue) => oldValue + 1);
 
                 var byteArray = Convert.FromBase64String(args.RowString);
-                using var decryptor = myRijndael.CreateDecryptor(myRijndael.Key, myRijndael.IV);
+                using var decryptor = myAes.CreateDecryptor(myAes.Key, myAes.IV);
                 await using var msDecrypt = new MemoryStream(byteArray);
                 await using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
 
