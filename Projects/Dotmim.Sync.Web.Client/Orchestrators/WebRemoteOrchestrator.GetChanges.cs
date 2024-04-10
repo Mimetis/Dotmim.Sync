@@ -214,7 +214,7 @@ namespace Dotmim.Sync.Web.Client
                     }
 
                     // open the file and write table header
-                    localSerializer.OpenFile(fullPath, schemaTable, syncRowState);
+                    await localSerializer.OpenFileAsync(fullPath, schemaTable, syncRowState).ConfigureAwait(false);
 
                     foreach (var row in table.Rows)
                     {

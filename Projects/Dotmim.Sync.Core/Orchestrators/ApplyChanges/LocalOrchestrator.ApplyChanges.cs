@@ -161,7 +161,7 @@ namespace Dotmim.Sync
                             var batchPartInfo = new BatchPartInfo(fileName, table.TableName, table.SchemaName, SyncRowState.None, table.Rows.Count, batchIndex);
                             errorsBatchInfo.BatchPartsInfo.Add(batchPartInfo);
 
-                            localSerializer.OpenFile(filePath, table, SyncRowState.None);
+                            await localSerializer.OpenFileAsync(filePath, table, SyncRowState.None).ConfigureAwait(false);
 
                             foreach (var row in table.Rows)
                                 await localSerializer.WriteRowToFileAsync(row, table).ConfigureAwait(false);

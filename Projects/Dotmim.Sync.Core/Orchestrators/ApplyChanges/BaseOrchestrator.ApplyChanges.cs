@@ -803,7 +803,7 @@ namespace Dotmim.Sync
                         failedRows.Add(syncRow);
 
                     // Open again the same file
-                    localSerializerWriter.OpenFile(lastSyncErrorsBpiFullPath, schemaChangesTable, SyncRowState.None);
+                    await localSerializerWriter.OpenFileAsync(lastSyncErrorsBpiFullPath, schemaChangesTable, SyncRowState.None).ConfigureAwait(false);
 
                     foreach (var batchPartInfo in bpiTables)
                     {

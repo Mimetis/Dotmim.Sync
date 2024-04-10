@@ -329,7 +329,7 @@ namespace Dotmim.Sync
             if (!localJsonSerializer.IsOpen)
             {
                 var (batchPartInfoFullPath, batchPartFileName) = batchInfo.GetNewBatchPartInfoPath(schemaChangesTable, index, localJsonSerializer.Extension, ext);
-                localJsonSerializer.OpenFile(batchPartInfoFullPath, schemaChangesTable, syncRow.RowState);
+                await localJsonSerializer.OpenFileAsync(batchPartInfoFullPath, schemaChangesTable, syncRow.RowState).ConfigureAwait(false);
 
                 batchPartInfo = new BatchPartInfo(batchPartFileName, schemaChangesTable.TableName, schemaChangesTable.SchemaName, syncRow.RowState, 0, index);
                 batchPartInfos.Add(batchPartInfo);

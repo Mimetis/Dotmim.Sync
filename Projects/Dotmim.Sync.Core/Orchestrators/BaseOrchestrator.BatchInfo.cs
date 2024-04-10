@@ -296,7 +296,7 @@ namespace Dotmim.Sync
             var localSerializer = new LocalJsonSerializer(this, context);
 
             // open the file and write table header
-            localSerializer.OpenFile(fullPath, syncTable, batchPartInfo.State);
+            await localSerializer.OpenFileAsync(fullPath, syncTable, batchPartInfo.State).ConfigureAwait(false);
 
             foreach (var row in syncTable.Rows)
                 await localSerializer.WriteRowToFileAsync(row, syncTable).ConfigureAwait(false);

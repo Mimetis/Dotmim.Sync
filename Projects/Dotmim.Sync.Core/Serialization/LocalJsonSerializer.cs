@@ -124,7 +124,7 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Open the file and write header
         /// </summary>
-        public void OpenFile(string path, SyncTable schemaTable, SyncRowState state, bool append = false)
+        public async Task OpenFileAsync(string path, SyncTable schemaTable, SyncRowState state, bool append = false)
         {
             await ResetWriterAsync();
 
