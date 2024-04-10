@@ -245,9 +245,8 @@ namespace Dotmim.Sync
                         if (localJsonSerializer != null && localJsonSerializer.IsOpen)
                         {
                             await localJsonSerializer.CloseFileAsync().ConfigureAwait(false);
-                            return this.InterceptAsync(args, progress, cancellationToken);
+                            await this.InterceptAsync(args, progress, cancellationToken);
                         }
-                        return Task.CompletedTask;
                     });
 
                     if (batchPartInfoUpserts != null || batchPartInfoDeleted != null)
