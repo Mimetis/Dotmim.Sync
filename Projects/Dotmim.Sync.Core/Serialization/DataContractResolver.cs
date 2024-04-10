@@ -63,7 +63,7 @@ namespace System.Text.Json.Serialization.Metadata
                 return false;
             }
 
-            return FormatterServices.GetUninitializedObject(type).Equals(obj);
+            return Activator.CreateInstance(type).Equals(obj);
         }
 
         private static IEnumerable<MemberInfo> EnumerateFieldsAndProperties(Type type, BindingFlags bindingFlags)
