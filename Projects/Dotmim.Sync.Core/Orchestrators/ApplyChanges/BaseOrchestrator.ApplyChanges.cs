@@ -1,4 +1,4 @@
-
+﻿
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -793,8 +793,8 @@ namespace Dotmim.Sync
                     // Read already present lines
                     var lastSyncErrorsBpiFullPath = lastSyncErrorsBatchInfo.GetBatchPartInfoPath(tableBpis.ToList()[0]);
 
-                    foreach (var syncRow in localSerializerReader.GetRowsFromFile(lastSyncErrorsBpiFullPath, schemaChangesTable))
-                        failedRows.Add(syncRow);
+                    var syncRows = localSerializerReader.GetRowsFromFile(lastSyncErrorsBpiFullPath, schemaChangesTable);
+                    failedRows.AddRange(syncRows);
 
                     // Open again the same file
                     await localSerializerWriter.OpenFileAsync(lastSyncErrorsBpiFullPath, schemaChangesTable, SyncRowState.None).ConfigureAwait(false);
