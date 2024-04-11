@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <!-- Generate the lock file -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+
+    <!-- Restore the exact packages as listed in the lock file -->
+    <RestoreLockedMode Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</RestoreLockedMode>
+  </PropertyGroup>
+</Project>
