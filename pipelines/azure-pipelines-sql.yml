@@ -271,47 +271,50 @@ jobs:
         displayName: Get dotnet version
 
       - script: |
-          dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
+          dotnet restore
+        displayName: "dotnet restore"
+      - script: |
+          dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) --no-restore
           dotnet pack Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core --version-suffix $(buildBetaId)
         displayName: "beta nuget Dotmim.Sync.Core"
         continueOnError: true
       - script: |
-          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) 
+          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) --no-restore
           dotnet pack Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer  --version-suffix $(buildBetaId)
         displayName: "beta nuget Dotmim.Sync.SqlServer"
         continueOnError: true
       - script: |
-          dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
+          dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) --no-restore
           dotnet pack Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking  --version-suffix $(buildBetaId)
         displayName: "beta nuget Dotmim.Sync.SqlServerChangeTracking"
         continueOnError: true
       - script: |
-          dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) 
+          dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) --no-restore
           dotnet pack Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql --version-suffix $(buildBetaId)
         displayName: "beta nuget Dotmim.Sync.MySql"
         continueOnError: true
       - script: |
-          dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
+          dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) --no-restore
           dotnet pack Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB --version-suffix $(buildBetaId)
         displayName: "beta nuget Dotmim.Sync.MariaDB"
         continueOnError: true
       - script: |
-          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
+          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) --no-restore
           dotnet pack Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite --version-suffix $(buildBetaId)
         displayName: "beta nuget Dotmim.Sync.Sqlite"
         continueOnError: true
       - script: |
-          dotnet build Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
+          dotnet build Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) --no-restore
           dotnet pack Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.PostgreSql --version-suffix $(buildBetaId)
         displayName: "beta nuget Dotmim.Sync.PostgreSql"
         continueOnError: true
       - script: |
-          dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
+          dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) --no-restore
           dotnet pack Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client --version-suffix $(buildBetaId)
         displayName: "beta nuget Dotmim.Sync.Web.Client"
         continueOnError: true
       - script: |
-          dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId)
+          dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) --version-suffix $(buildBetaId) --no-restore
           dotnet pack Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server --version-suffix $(buildBetaId)
         displayName: "beta nuget Dotmim.Sync.Web.Server"
         continueOnError: true
