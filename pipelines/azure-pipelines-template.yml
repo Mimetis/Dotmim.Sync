@@ -22,6 +22,19 @@ jobs:
       buildConfiguration: "Release"
 
     steps:
+      - script: mkdir -p $(Pipeline.Workspace)/.nuget/packages
+        displayName: 'Ensure NuGet packages directory exists'
+
+      - task: Cache@2
+        inputs:
+          key: 'nuget | "$(Agent.OS)" | **/packages.lock.json,!**/bin/**,!**/obj/**'
+          restoreKeys: |
+            nuget | "$(Agent.OS)"
+            nuget
+          path: $(Pipeline.Workspace)/.nuget/packages
+          cacheHitVar: 'CACHE_RESTORED'
+        displayName: Cache NuGet packages
+
       - task: UseDotNet@2
         displayName: 'Use .Net Core 3.1'
         inputs:
@@ -58,7 +71,11 @@ jobs:
         displayName: "Run PostgreSQL on Linux container"
         condition: eq('${{ parameters.docker }}', 'postgres')
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter ${{ parameters.filter }} -f ${{ parameters.dotnetfx }} --logger trx
+      - script: dotnet restore
+        displayName: 'Restore dependencies'
+        condition: ne(variables.CACHE_RESTORED, 'true')
+
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter ${{ parameters.filter }} -f ${{ parameters.dotnetfx }} --logger trx --no-restore
         name: tests
         displayName: ${{ parameters.displayName }}
         continueOnError: true
