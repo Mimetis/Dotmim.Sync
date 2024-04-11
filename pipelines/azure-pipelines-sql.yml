@@ -178,11 +178,10 @@ jobs:
         displayName: Get env variables
 
       - task: UseDotNet@2
-        displayName: "Use .Net Core sdk"
+        displayName: "Use .Net Core 3.1"
         inputs:
           version: 3.x
 
-      # Use the latest .NET SDK
       - task: UseDotNet@2
         displayName: "Use .Net Sdk 6.x"
         inputs:
@@ -233,11 +232,10 @@ jobs:
 
     steps:
       - task: UseDotNet@2
-        displayName: "Use .Net Core sdk"
+        displayName: "Use .Net Core 3.1"
         inputs:
           version: 3.x
 
-      # Use the latest .NET SDK
       - task: UseDotNet@2
         displayName: "Use .Net Sdk 6.x"
         inputs:
@@ -326,7 +324,6 @@ jobs:
     # dependsOn: Tests
     # condition: succeeded('Tests')
 
-    # Pool on a VS 2017 image to be able to compile for .Net 4.6
     pool:
       vmImage: "ubuntu-latest"
 
@@ -340,7 +337,6 @@ jobs:
         inputs:
           version: 3.x
 
-      # Use the latest .NET SDK
       - task: UseDotNet@2
         displayName: "Use .Net Sdk 6.x"
         inputs:
