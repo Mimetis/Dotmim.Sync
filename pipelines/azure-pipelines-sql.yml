@@ -350,7 +350,7 @@ jobs:
           version: 8.0.x
 
       - script: |
-          dotnet restore -c $(buildConfiguration) 
+          dotnet restore
         displayName: "dotnet restore"
       - script: |
           dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) --no-restore
