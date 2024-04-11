@@ -350,47 +350,50 @@ jobs:
           version: 8.0.x
 
       - script: |
-          dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) 
+          dotnet restore -c $(buildConfiguration) 
+        displayName: "dotnet restore"
+      - script: |
+          dotnet build Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) --no-restore
           dotnet pack Projects/Dotmim.Sync.Core/Dotmim.Sync.Core.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Core --no-build
         displayName: "release nuget Dotmim.Sync.Core"
         continueOnError: true
       - script: |
-          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration)  
+          dotnet build Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) --no-restore
           dotnet pack Projects/Dotmim.Sync.SqlServer/Dotmim.Sync.SqlServer.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServer --no-build
         displayName: "release nuget Dotmim.Sync.SqlServer"
         continueOnError: true
       - script: |
-          dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) 
+          dotnet build Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) --no-restore
           dotnet pack Projects/Dotmim.Sync.SqlServer.ChangeTracking/Dotmim.Sync.SqlServer.ChangeTracking.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.SqlServerChangeTracking --no-build
         displayName: "release nuget Dotmim.Sync.SqlServerChangeTracking"
         continueOnError: true
       - script: |
-          dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration)  
+          dotnet build Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) --no-restore
           dotnet pack Projects/Dotmim.Sync.MySql/Dotmim.Sync.MySql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MySql --no-build
         displayName: "release nuget Dotmim.Sync.MySql"
         continueOnError: true
       - script: |
-          dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) 
+          dotnet build Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) --no-restore
           dotnet pack Projects/Dotmim.Sync.MariaDB/Dotmim.Sync.MariaDB.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.MariaDB --no-build
         displayName: "release nuget Dotmim.Sync.MariaDB"
         continueOnError: true
       - script: |
-          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) 
+          dotnet build Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) --no-restore
           dotnet pack Projects/Dotmim.Sync.Sqlite/Dotmim.Sync.Sqlite.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Sqlite --no-build
         displayName: "release nuget Dotmim.Sync.Sqlite"
         continueOnError: true
       - script: |
-          dotnet build Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration)
+          dotnet build Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) --no-restore
           dotnet pack Projects/Dotmim.Sync.PostgreSql/Dotmim.Sync.PostgreSql.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.PostgreSql --no-build
         displayName: "beta nuget Dotmim.Sync.PostgreSql"
         continueOnError: true
       - script: |
-          dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) 
+          dotnet build Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) --no-restore
           dotnet pack Projects/Dotmim.Sync.Web.Client/Dotmim.Sync.Web.Client.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Client --no-build
         displayName: "release nuget Dotmim.Sync.Web.Client"
         continueOnError: true
       - script: |
-          dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) 
+          dotnet build Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) --no-restore
           dotnet pack Projects/Dotmim.Sync.Web.Server/Dotmim.Sync.Web.Server.csproj -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/Dotmim.Sync.Web.Server --no-build
         displayName: "release nuget Dotmim.Sync.Web.Server"
         continueOnError: true
