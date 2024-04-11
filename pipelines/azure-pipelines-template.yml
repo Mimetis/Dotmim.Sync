@@ -53,7 +53,7 @@ jobs:
         inputs:
           packageType: 'sdk'
           version: 8.0.x
-        condition: eq('${{ parameters.dotnetfx }}', 'net8.0')
+        condition: in('${{ parameters.dotnetfx }}', 'netcoreapp3.1', 'net8.0')
 
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
@@ -73,7 +73,6 @@ jobs:
 
       - script: dotnet restore
         displayName: 'Restore dependencies'
-        condition: ne(variables.CACHE_RESTORED, 'true')
 
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter ${{ parameters.filter }} -f ${{ parameters.dotnetfx }} --logger trx --no-restore
         name: tests
