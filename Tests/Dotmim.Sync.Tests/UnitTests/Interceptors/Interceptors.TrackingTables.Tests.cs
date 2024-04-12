@@ -58,8 +58,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Check we have a new column in tracking table
             using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
-                await c.OpenAsync().ConfigureAwait(false);
-                var cols = await SqlManagementUtils.GetColumnsForTableAsync("t_Product_t", "SalesLT", c, null).ConfigureAwait(false);
+                await c.OpenAsync();
+                var cols = await SqlManagementUtils.GetColumnsForTableAsync("t_Product_t", "SalesLT", c, null);
                 Assert.Equal(7, cols.Rows.Count);
                 Assert.NotNull(cols.Rows.FirstOrDefault(r => r["name"].ToString() == "internal_id"));
                 c.Close();
@@ -181,9 +181,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Check we have a new column in tracking table
             using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
-                await c.OpenAsync().ConfigureAwait(false);
+                await c.OpenAsync();
 
-                var table = await SqlManagementUtils.GetTableDefinitionAsync("t_Product_t", "SalesLT", c, null).ConfigureAwait(false);
+                var table = await SqlManagementUtils.GetTableDefinitionAsync("t_Product_t", "SalesLT", c, null);
 
                 Assert.Empty(table.Rows);
 
@@ -226,9 +226,9 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Check we have a new column in tracking table
             using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
-                await c.OpenAsync().ConfigureAwait(false);
+                await c.OpenAsync();
 
-                var table = await SqlManagementUtils.GetTableDefinitionAsync("t_Product_t", "SalesLT", c, null).ConfigureAwait(false);
+                var table = await SqlManagementUtils.GetTableDefinitionAsync("t_Product_t", "SalesLT", c, null);
 
                 Assert.NotEmpty(table.Rows);
 
