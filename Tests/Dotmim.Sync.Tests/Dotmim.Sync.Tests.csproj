@@ -34,8 +34,8 @@
 
 	<ItemGroup>
 		<PackageReference Include="MessagePack" Version="2.5.140" />
-		<PackageReference Include="xunit" Version="2.7.0" />
-		<PackageReference Include="xunit.runner.visualstudio" Version="2.5.7">
+		<PackageReference Include="xunit" Version="2.7.1" />
+		<PackageReference Include="xunit.runner.visualstudio" Version="2.5.8">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
 		</PackageReference>
