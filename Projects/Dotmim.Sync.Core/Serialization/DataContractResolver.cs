@@ -1,4 +1,4 @@
-﻿/*
+/*
 MIT License
 
 Copyright (c) 2022 Zoltan Csizmadia
@@ -32,22 +32,9 @@ namespace System.Text.Json.Serialization.Metadata
 {
     public class DataContractResolver : DefaultJsonTypeInfoResolver
     {
-        private static DataContractResolver s_defaultInstance;
+        private static readonly Lazy<DataContractResolver> _defaultInstance = new(() => new DataContractResolver());
 
-        public static DataContractResolver Default
-        {
-            get
-            {
-                if (s_defaultInstance is DataContractResolver result)
-                {
-                    return result;
-                }
-
-                DataContractResolver newInstance = new();
-                DataContractResolver originalInstance = Interlocked.CompareExchange(ref s_defaultInstance, newInstance, comparand: null);
-                return originalInstance ?? newInstance;
-            }
-        }
+        public static DataContractResolver Default => _defaultInstance.Value;
 
         private static bool IsNullOrDefault(object obj)
         {
