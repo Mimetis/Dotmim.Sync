@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -241,7 +241,12 @@ namespace Dotmim.Sync.Web.Client
                 if (response == null || response.Content == null)
                     throw new HttpSyncWebException(e.Message);
 
-                var exrror = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var exrror = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
+
+                if (string.IsNullOrWhiteSpace(exrror))
+                {
+                    throw new HttpSyncWebException(e.Message);
+                }
 
                 throw new HttpSyncWebException(exrror);
             }
@@ -289,10 +294,35 @@ namespace Dotmim.Sync.Web.Client
                 if (response == null || response.Content == null)
                     throw new HttpSyncWebException(e.Message);
 
-                var exrror = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var exrror = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
+
+                if (string.IsNullOrWhiteSpace(exrror))
+                {
+                    throw new HttpSyncWebException(e.Message);
+                }
 
                 throw new HttpSyncWebException(exrror);
             }
+        }
+
+        public static async Task<string> ReadContentFromResponseAsync(HttpResponseMessage response)
+        {
+            var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+
+            if (contentStream.CanSeek)
+            {
+                // If the stream is seekable, just read it directly
+                contentStream.Position = 0;
+                return await new StreamReader(contentStream).ReadToEndAsync().ConfigureAwait(false);
+            }
+
+            // Clone the response content stream
+            using var clonedStream = new MemoryStream();
+            await contentStream.CopyToAsync(clonedStream).ConfigureAwait(false);
+            clonedStream.Position = 0;
+
+            // Read from the cloned stream
+            return await new StreamReader(clonedStream).ReadToEndAsync().ConfigureAwait(false);
         }
 
         private void EnsureCookie(HttpResponseHeaders headers)
@@ -429,7 +459,7 @@ namespace Dotmim.Sync.Web.Client
             // Extract necessary details from the HttpResponseMessage
             int statusCode = (int)response.StatusCode;
             string reasonPhrase = response.ReasonPhrase;
-            string content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            string content = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
             var headers = response.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value));
             Uri requestUri = response.RequestMessage.RequestUri;
 
@@ -449,7 +479,7 @@ namespace Dotmim.Sync.Web.Client
 
                 if (!TryGetHeaderValue(response.Headers, "dotmim-sync-error", out string syncErrorTypeName))
                 {
-                    var exceptionString = await response.Content.ReadAsStringAsync();
+                    var exceptionString = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
 
                     if (string.IsNullOrEmpty(exceptionString))
                         exceptionString = response.ReasonPhrase;
