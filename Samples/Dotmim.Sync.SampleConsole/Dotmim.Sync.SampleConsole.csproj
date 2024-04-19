@@ -1,10 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<OutputType>Exe</OutputType>
-		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
-		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
-
 		<TargetFrameworks>$(TargetFrameworkNet6);$(TargetFrameworkNet8)</TargetFrameworks>
+		<OutputType>Exe</OutputType>
 		<LangVersion>11.0</LangVersion>
 	</PropertyGroup>
 	<PropertyGroup>
