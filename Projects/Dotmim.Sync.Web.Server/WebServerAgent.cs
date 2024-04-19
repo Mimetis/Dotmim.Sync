@@ -302,7 +302,7 @@ namespace Dotmim.Sync.Web.Server
 
                 await this.RemoteOrchestrator.InterceptAsync(new HttpSendingResponseArgs(httpContext, messageResponse.SyncContext, sessionCache, messageResponse, responseSerializerType, step), progress, cancellationToken).ConfigureAwait(false);
 
-                binaryData = await clientSerializerFactory.GetSerializer().SerializeAsync(messageResponse);
+                binaryData = clientSerializerFactory.GetSerializer().Serialize(messageResponse, responseSerializerType);
 
                 // Adding the serialization format used and session id
                 httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
