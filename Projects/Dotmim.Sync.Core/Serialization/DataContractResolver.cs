@@ -23,10 +23,10 @@ SOFTWARE.
 */
 
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
-using System.Threading;
 
 namespace System.Text.Json.Serialization.Metadata
 {
@@ -142,8 +142,18 @@ namespace System.Text.Json.Serialization.Metadata
 
                 if (attr != null)
                 {
+                    jsonPropertyInfo.IsRequired = attr.IsRequired;
                     jsonPropertyInfo.Order = attr.Order;
                     jsonPropertyInfo.ShouldSerialize = !attr.EmitDefaultValue ? ((_, obj) => !IsNullOrDefault(obj)) : null;
+                }
+
+                if (!jsonPropertyInfo.IsRequired)
+                {
+                    var requiredAttr = memberInfo.GetCustomAttribute<RequiredAttribute>();
+                    if (requiredAttr != null)
+                    {
+                        jsonPropertyInfo.IsRequired = true;
+                    }
                 }
 
                 yield return jsonPropertyInfo;
