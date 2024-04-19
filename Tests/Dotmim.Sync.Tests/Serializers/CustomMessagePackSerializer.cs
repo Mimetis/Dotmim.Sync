@@ -57,5 +57,11 @@ namespace Dotmim.Sync.Tests.Serializers
             using var ms = new MemoryStream(bytes);
             return (T)MessagePackSerializer.Typeless.Deserialize(ms);
         }
+
+        public byte[] Serialize(object obj, Type type)
+        {
+            var blob = MessagePackSerializer.Serialize(type, obj);
+            return blob;
+        }
     }
 }

@@ -58,6 +58,12 @@ namespace Dotmim.Sync.SampleConsole
 
             return ms.ToArray();
         }
+
+        public byte[] Serialize(object obj, Type type)
+        {
+            var val = MessagePackSerializer.Serialize(type, obj, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
+            return val;
+        }
     }
 }
 

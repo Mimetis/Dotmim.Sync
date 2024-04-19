@@ -31,6 +31,8 @@ namespace Dotmim.Sync.Serialization
 
         Task<byte[]> SerializeAsync<T>(T obj);
 
+        byte[] Serialize(object obj, Type type);
+
         byte[] Serialize<T>(T obj);
     }
 }
