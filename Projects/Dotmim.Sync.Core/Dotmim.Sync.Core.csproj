@@ -4,20 +4,18 @@
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
 		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
 
-		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet6);$(TargetFrameworkNet8)</TargetFrameworks>
-		<Authors>Sébastien Pertus</Authors>
-		<Company>Microsoft</Company>
+		<TargetFrameworks>$(TargetFrameworkNet8)</TargetFrameworks>
+		<Authors>Sébastien Pertus, ABRI Development Team</Authors>
+		<Company>Microsoft, ABRI</Company>
 		<RootNamespace>Dotmim.Sync</RootNamespace>
-		<Title>Dotmim.Sync.Core</Title>
+		<Title>HerdMASTER.Dotmim.Sync.Core</Title>
 		<Summary>Manage a sync process beetween two relational databases provider. Core assembly .Net Standard 2.0</Summary>
 		<Description>Dotmim Sync core assembly. Manage a sync process beetween two relational databases provider. Can't be used alone. Choose a server and a client provider such as Dotmim.Sync.SqlServerProvider or Dotmim.Sync.SqliteProvider</Description>
-		<PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
+		<PackageProjectUrl>https://bitbucket.org/abri-dev/hm5-dotmim.sync/src/master/</PackageProjectUrl>
 		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
 		<RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
-		<VersionSuffix>$(VersionSuffix)</VersionSuffix>
-		<Version>1.0.0</Version>
-		<Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
+		<Version>1.0.0.1</Version>
 		<LangVersion>11.0</LangVersion>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
@@ -30,6 +28,7 @@
 	</PropertyGroup>
 	<PropertyGroup>
 		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+		<PackageId>HerdMASTER.$(AssemblyName)</PackageId>
 	</PropertyGroup>
 	<!--generate NUGET package including symbols ans source on each release build -->
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -84,10 +83,10 @@
 	</ItemGroup>
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
-		<PackageReference Include="System.Threading.Tasks.Dataflow" Version="5.0.0" />
+		<PackageReference Include="System.Threading.Tasks.Dataflow" Version="8.0.0" />
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="5.0.0" />
-		<PackageReference Include="Microsoft.Extensions.Logging" Version="2.2.0" />
+		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
 	</ItemGroup>
 
 </Project>

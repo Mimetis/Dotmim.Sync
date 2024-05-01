@@ -100,7 +100,7 @@ namespace Dotmim.Sync
             {
                 if (typeOfU == typeof(Int16) || typeOfU == typeof(Int32) || typeOfU == typeof(Int64)
                    || typeOfU == typeof(UInt16) || typeOfU == typeof(UInt32) || typeOfU == typeof(UInt64))
-                    return TimeSpan.FromTicks(value);
+                    return (T)Convert.ChangeType(TimeSpan.FromTicks(value), typeOfT, provider);
                 if (TimeSpan.TryParse(value.ToString(), provider, out TimeSpan q))
                     return (T)Convert.ChangeType(q, typeOfT, provider);
             }
