@@ -27,8 +27,6 @@ namespace Dotmim.Sync.SqlServer.Builders
         internal const string updateProcName = "[{0}].[{1}{2}update]";
         internal const string deleteProcName = "[{0}].[{1}{2}delete]";
 
-        internal const string deleteMetadataProcName = "[{0}].[{1}{2}deletemetadata]";
-
         internal const string resetMetadataProcName = "[{0}].[{1}{2}reset]";
 
         internal const string bulkTableTypeName = "[{0}].[{1}{2}BulkType]";
@@ -97,7 +95,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public void AddCommandName(DbCommandType objectType, string name)
         {
             if (commandNames.ContainsKey(objectType))
-                throw new Exception("Yous can't add an objectType multiple times");
+                throw new Exception($"Yous can't add an objectType ${objectType} multiple times");
 
             commandNames.Add(objectType, name);
         }
@@ -163,7 +161,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.AddStoredProcedureName(DbStoredProcedureType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
             this.AddStoredProcedureName(DbStoredProcedureType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
 
-            this.AddCommandName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
             this.AddCommandName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()));
             this.AddCommandName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()));
 
