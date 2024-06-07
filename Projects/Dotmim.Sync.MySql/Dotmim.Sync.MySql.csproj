@@ -56,7 +56,7 @@
 	</ItemGroup>
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet8)' OR '$(TargetFramework)' == '$(TargetFrameworkNet6)' ">
-		<PackageReference Include="MySqlConnector" Version="2.3.6" />
+		<PackageReference Include="MySqlConnector" Version="2.3.7" />
 	</ItemGroup>
 
 

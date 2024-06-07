@@ -84,9 +84,9 @@
 	</ItemGroup>
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
-		<PackageReference Include="System.Threading.Tasks.Dataflow" Version="5.0.0" />
+		<PackageReference Include="System.Threading.Tasks.Dataflow" Version="8.0.0" />
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="5.0.0" />
+		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="2.2.0" />
 	</ItemGroup>
 

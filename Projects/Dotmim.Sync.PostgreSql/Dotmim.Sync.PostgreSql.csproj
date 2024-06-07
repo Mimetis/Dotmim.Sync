@@ -47,18 +47,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
-	</ItemGroup>
-
-	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNet6)'">
-		<PackageReference Include="Npgsql" Version="6.0.10" />
-	</ItemGroup>
-
-	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNet8)'">
-		<PackageReference Include="Npgsql" Version="7.0.6" />
-	</ItemGroup>
-
-	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
-		<PackageReference Include="Npgsql" Version="5.0.15" />
+		<PackageReference Include="Npgsql" Version="8.0.3" />
 	</ItemGroup>
 
 
