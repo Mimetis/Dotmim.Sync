@@ -157,7 +157,7 @@ namespace Dotmim.Sync
                                         clientScopeInfo.LastCleanupTimestamp = databaseMetadatasCleaned.TimestampLimit;
 
                                         await this.InternalSaveScopeInfoAsync(clientScopeInfo, context,
-                                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                                            runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
                                     }
                                 }
                             }
