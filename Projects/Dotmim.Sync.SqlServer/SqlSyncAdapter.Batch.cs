@@ -249,10 +249,12 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         private SqlDbType GetSqlDbType(SyncColumn column)
         {
-            if (this.TableDescription.OriginalProvider == SqlSyncProvider.ProviderType)
-            {
+            // TODO : Find something better than string comparison for change tracking provider
+            var isSameProvider = this.TableDescription.OriginalProvider == SqlSyncProvider.ProviderType ||
+            this.TableDescription.OriginalProvider == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider";
+
+            if (isSameProvider)
                 return this.SqlMetadata.GetSqlDbType(column);
-            }
 
             return this.SqlMetadata.GetOwnerDbTypeFromDbType(column);
         }

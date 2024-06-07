@@ -90,7 +90,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                     nullString = "NULL";
 
                 string defaultValue = string.Empty;
-                if (this.tableDescription.OriginalProvider == SqlSyncProvider.ProviderType)
+
+                // Ok, not the best solution to know if we have SqlSyncChangeTrackingProvider ...
+                if (this.tableDescription.OriginalProvider == SqlSyncProvider.ProviderType ||
+                    this.tableDescription.OriginalProvider == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider")
                 {
                     if (!string.IsNullOrEmpty(column.DefaultValue))
                     {
@@ -404,7 +407,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                 nullString = "NULL";
 
             string defaultValue = string.Empty;
-            if (this.tableDescription.OriginalProvider == SqlSyncProvider.ProviderType)
+
+            // Ok, not the best solution to know if we have SqlSyncChangeTrackingProvider ...
+            if (this.tableDescription.OriginalProvider == SqlSyncProvider.ProviderType ||
+                this.tableDescription.OriginalProvider == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider")
             {
                 if (!string.IsNullOrEmpty(column.DefaultValue))
                 {
