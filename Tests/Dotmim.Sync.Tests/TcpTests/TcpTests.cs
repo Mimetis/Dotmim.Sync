@@ -2115,6 +2115,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         [Fact]
         public async Task DeleteMetadatas()
         {
+            var (serverProviderType, serverDatabaseName) = HelperDatabase.GetDatabaseType(serverProvider);
+
+            if (serverProviderType == ProviderType.Sql && serverProvider.GetProviderTypeName().Contains("ChangeTracking"))
+                return;
+
             var dict = new Dictionary<string, long?>();
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 

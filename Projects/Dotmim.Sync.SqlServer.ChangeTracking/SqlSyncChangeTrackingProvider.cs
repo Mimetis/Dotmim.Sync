@@ -42,6 +42,8 @@ namespace Dotmim.Sync.SqlServer
 
         }
 
+        public override string GetProviderTypeName() => ProviderType;
+
         static string shortProviderType;
         public static new string ShortProviderType
         {
