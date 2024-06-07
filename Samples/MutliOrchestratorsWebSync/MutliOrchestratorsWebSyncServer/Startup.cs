@@ -44,8 +44,11 @@ namespace MutliOrchestratorsWebSyncServer
             "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
 
             // [Required]: Add a SqlSyncProvider acting as the server hub.
-            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, setup, options, identifier: "sql");
-            services.AddSyncServer<MySqlSyncProvider>(mysqlConnectionString, setup, options, identifier: "mysql");
+            var provider = new SqlSyncChangeTrackingProvider(connectionString);
+            services.AddSyncServer(provider, setup, options, identifier: "sql");
+
+            var provider2 = new MySqlSyncProvider(mysqlConnectionString);
+            services.AddSyncServer(provider2, setup, options, identifier: "mysql");
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
