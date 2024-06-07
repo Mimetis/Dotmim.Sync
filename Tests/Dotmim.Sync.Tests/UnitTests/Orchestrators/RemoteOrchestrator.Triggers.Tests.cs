@@ -47,7 +47,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
-                await c.OpenAsync().ConfigureAwait(false);
+                await c.OpenAsync();
 
                 var trigDel = await SqlManagementUtils.GetTriggerAsync(triggerDelete, "SalesLT", c, null);
                 Assert.Equal(triggerDelete, trigDel.Rows[0]["Name"].ToString());
@@ -80,7 +80,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
-                await c.OpenAsync().ConfigureAwait(false);
+                await c.OpenAsync();
 
                 var trigIns = await SqlManagementUtils.GetTriggerAsync(triggerInsert, "SalesLT", c, null);
                 Assert.Equal(triggerInsert, trigIns.Rows[0]["Name"].ToString());
@@ -93,7 +93,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
-                await c.OpenAsync().ConfigureAwait(false);
+                await c.OpenAsync();
 
                 var trig = await SqlManagementUtils.GetTriggerAsync(triggerUpdate, "SalesLT", c, null);
                 Assert.Equal(triggerUpdate, trig.Rows[0]["Name"].ToString());
@@ -106,7 +106,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
-                await c.OpenAsync().ConfigureAwait(false);
+                await c.OpenAsync();
 
                 var trig = await SqlManagementUtils.GetTriggerAsync(triggerDelete, "SalesLT", c, null);
                 Assert.Equal(triggerDelete, trig.Rows[0]["Name"].ToString());
@@ -222,7 +222,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
-                await c.OpenAsync().ConfigureAwait(false);
+                await c.OpenAsync();
 
                 var trigIns = await SqlManagementUtils.GetTriggerAsync(triggerInsert, "SalesLT", c, null);
                 Assert.Equal(triggerInsert, trigIns.Rows[0]["Name"].ToString());
@@ -232,7 +232,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
-                await c.OpenAsync().ConfigureAwait(false);
+                await c.OpenAsync();
 
                 var trig = await SqlManagementUtils.GetTriggerAsync(triggerUpdate, "SalesLT", c, null);
                 Assert.Equal(triggerUpdate, trig.Rows[0]["Name"].ToString());
@@ -242,7 +242,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
-                await c.OpenAsync().ConfigureAwait(false);
+                await c.OpenAsync();
 
                 var trig = await SqlManagementUtils.GetTriggerAsync(triggerDelete, "SalesLT", c, null);
                 Assert.Equal(triggerDelete, trig.Rows[0]["Name"].ToString());

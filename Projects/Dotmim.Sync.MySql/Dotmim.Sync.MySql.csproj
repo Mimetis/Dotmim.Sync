@@ -1,10 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
-		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
-		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
-
 		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet6);$(TargetFrameworkNet8)</TargetFrameworks>
 
 		<Authors>Sébastien Pertus</Authors>

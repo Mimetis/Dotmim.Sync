@@ -1,9 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
-		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
-		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
-
 		<TargetFrameworks>$(TargetFrameworkNetStandard);$(TargetFrameworkNet6);$(TargetFrameworkNet8)</TargetFrameworks>
 		<Authors>Sébastien Pertus</Authors>
 		<Company>Microsoft</Company>
@@ -87,6 +83,12 @@
 		<PackageReference Include="System.Threading.Tasks.Dataflow" Version="8.0.0" />
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Bcl.Build" Version="1.0.21" />
+		<PackageReference Include="Microsoft.Build.Tasks.Core" Version="17.9.5" />
+		<PackageReference Include="Microsoft.Build.Tasks.Git" Version="8.0.0">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+		</PackageReference>
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="2.2.0" />
 	</ItemGroup>
 

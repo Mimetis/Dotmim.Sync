@@ -1,14 +1,10 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
-		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
-		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
-
 		<TargetFrameworks>$(TargetFrameworkNet6);$(TargetFrameworkNet8);$(TargetFrameworkNetCore)</TargetFrameworks>
 
 		<IsPackable>false</IsPackable>
 		<!--<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>-->
-		<LangVersion>8.0</LangVersion>
+		<LangVersion>11.0</LangVersion>
 	</PropertyGroup>
 	<PropertyGroup>
 		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
@@ -37,14 +33,13 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="MessagePack" Version="2.4.59" />
-		<PackageReference Include="xunit" Version="2.4.1" />
-		<PackageReference Include="xunit.runner.visualstudio" Version="2.4.3">
+		<PackageReference Include="MessagePack" Version="2.5.140" />
+		<PackageReference Include="xunit" Version="2.7.1" />
+		<PackageReference Include="xunit.runner.visualstudio" Version="2.5.8">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
-
 	</ItemGroup>
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)'">
