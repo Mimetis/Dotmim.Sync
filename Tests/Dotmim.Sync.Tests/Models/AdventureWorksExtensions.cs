@@ -50,7 +50,15 @@ namespace Dotmim.Sync.Tests.Models
         }
 
 
+        public async static Task<List<ProductCategory>> GetProductCategoriesAsync(this CoreProvider provider, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            return await ctx.ProductCategory.ToListAsync();
+        }
         public static async Task<ProductCategory> GetProductCategoryAsync(this CoreProvider provider, string productCategoryId,  DbTransaction transaction = null)
         {
             using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());

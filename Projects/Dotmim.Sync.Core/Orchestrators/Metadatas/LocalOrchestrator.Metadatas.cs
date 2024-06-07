@@ -138,6 +138,15 @@ namespace Dotmim.Sync
                 DatabaseMetadatasCleaned databaseMetadatasCleaned;
                 (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(clientScopeInfos, context, timeStampStart.Value, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
+                // save last cleanup timestamp
+                foreach (var clientScopeInfo in clientScopeInfos)
+                {
+                    clientScopeInfo.LastCleanupTimestamp = databaseMetadatasCleaned.TimestampLimit;
+
+                    await this.InternalSaveScopeInfoAsync(clientScopeInfo, context,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                }
+
                 await runner.CommitAsync().ConfigureAwait(false);
 
                 return (context, databaseMetadatasCleaned);

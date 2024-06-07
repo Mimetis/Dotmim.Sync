@@ -39,13 +39,16 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         internal const string disableConstraintsText = "ALTER TABLE {0} NOCHECK CONSTRAINT ALL";
         internal const string enableConstraintsText = "ALTER TABLE {0} CHECK CONSTRAINT ALL";
+        internal const string deleteMetadataText = "DELETE [side] FROM {0} [side] WHERE [side].[timestamp] <= @sync_row_timestamp";
+
         private readonly ParserName tableName;
         private readonly ParserName trackingName;
+
 
         Dictionary<DbStoredProcedureType, string> storedProceduresNames = new();
         Dictionary<DbTriggerType, string> triggersNames = new();
         Dictionary<DbCommandType, string> commandNames = new();
-        private SqlDbMetadata sqlDbMetadata;
+        private readonly SqlDbMetadata sqlDbMetadata;
 
         public SyncTable TableDescription { get; }
         public SyncSetup Setup { get; }
@@ -150,7 +153,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.AddStoredProcedureName(DbStoredProcedureType.SelectRow, string.Format(selectRowProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
             this.AddStoredProcedureName(DbStoredProcedureType.UpdateRow, string.Format(updateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
             this.AddStoredProcedureName(DbStoredProcedureType.DeleteRow, string.Format(deleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
-            this.AddStoredProcedureName(DbStoredProcedureType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
             this.AddStoredProcedureName(DbStoredProcedureType.Reset, string.Format(resetMetadataProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
 
             this.AddTriggerName(DbTriggerType.Insert, string.Format(insertTriggerName, schema, triggerName));
@@ -161,8 +163,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.AddStoredProcedureName(DbStoredProcedureType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
             this.AddStoredProcedureName(DbStoredProcedureType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
 
+            this.AddCommandName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
             this.AddCommandName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()));
             this.AddCommandName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()));
+
+            this.AddCommandName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataText, trackingName.Schema().Quoted().ToString()));
 
             this.AddCommandName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand());
             this.AddCommandName(DbCommandType.SelectMetadata, CreateSelectMetadataCommand());

@@ -43,7 +43,7 @@ namespace Dotmim.Sync.MySql.Builders
 
         internal const string insertMetadataProcName = "`{0}{1}insertmetadata`";
         internal const string updateMetadataProcName = "`{0}{1}updatemetadata`";
-        internal const string deleteMetadataProcName = "`{0}{1}deletemetadata`";
+        internal const string deleteMetadataText = "DELETE FROM {0} WHERE `timestamp` <= @sync_row_timestamp;";
 
         internal const string disableConstraintsText = "SET FOREIGN_KEY_CHECKS=0;";
         internal const string enableConstraintsText = "SET FOREIGN_KEY_CHECKS=1;";
@@ -159,7 +159,7 @@ namespace Dotmim.Sync.MySql.Builders
             this.AddStoredProcedureName(DbStoredProcedureType.SelectRow, string.Format(selectRowProcName, storedProcedureName, scopeNameWithoutDefaultScope));
             this.AddStoredProcedureName(DbStoredProcedureType.UpdateRow, string.Format(updateProcName, storedProcedureName, scopeNameWithoutDefaultScope));
             this.AddStoredProcedureName(DbStoredProcedureType.DeleteRow, string.Format(deleteProcName, storedProcedureName, scopeNameWithoutDefaultScope));
-            this.AddStoredProcedureName(DbStoredProcedureType.DeleteMetadata, string.Format(deleteMetadataProcName, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddCommandName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataText, trackingName.Quoted().ToString()));
             this.AddStoredProcedureName(DbStoredProcedureType.Reset, string.Format(resetProcName, storedProcedureName, scopeNameWithoutDefaultScope));
 
             this.AddCommandName(DbCommandType.DisableConstraints, disableConstraintsText);

@@ -91,7 +91,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                 DbStoredProcedureType.SelectRow => null,
                 DbStoredProcedureType.UpdateRow => this.CreateUpdateCommand(connection, transaction),
                 DbStoredProcedureType.DeleteRow => this.CreateDeleteCommand(connection, transaction),
-                DbStoredProcedureType.DeleteMetadata => null,
                 DbStoredProcedureType.BulkTableType => this.CreateBulkTableTypeCommand(connection, transaction),
                 DbStoredProcedureType.BulkUpdateRows => this.CreateBulkUpdateCommand(connection, transaction),
                 DbStoredProcedureType.BulkDeleteRows => this.CreateBulkDeleteCommand(connection, transaction),
