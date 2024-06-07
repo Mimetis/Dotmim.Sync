@@ -125,12 +125,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                     isBatch = false;
                     break;
                 case DbCommandType.DeleteMetadata:
-                    //command.CommandType = CommandType.StoredProcedure;
-                    //command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata, filter);
-                    //isBatch = false;
-                    //break;
-                    return (default, false);
-
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
+                    isBatch = false;
+                    break;
                 case DbCommandType.UpdateMetadata:
                     //command.CommandType = CommandType.Text;
                     //command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
@@ -202,7 +200,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 
                 DeriveParameters(command, connection, transaction);
             }
-            if (commandType == DbCommandType.UpdateMetadata || commandType == DbCommandType.SelectMetadata || commandType == DbCommandType.SelectRow)
+            if (commandType == DbCommandType.UpdateMetadata || commandType == DbCommandType.DeleteMetadata || commandType == DbCommandType.SelectMetadata || commandType == DbCommandType.SelectRow)
             {
                 var p = GetParameter(command, "sync_row_count");
                 if (p != null)

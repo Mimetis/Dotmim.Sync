@@ -18,29 +18,29 @@ namespace Dotmim.Sync.SampleConsole
         public ISerializer GetSerializer() => new CustomMessagePackSerializer();
     }
 
-    public class CustomMessagePackSerializer : ISerializer
+public class CustomMessagePackSerializer : ISerializer
+{
+    public CustomMessagePackSerializer() { }
+
+    public async Task<T> DeserializeAsync<T>(Stream ms) => (T)await DeserializeAsync(ms, typeof(T)).ConfigureAwait(false);
+
+    public Task<byte[]> SerializeAsync<T>(T obj) => SerializeAsync((object)obj);
+
+
+    public async Task<object> DeserializeAsync(Stream ms, Type type)
     {
-        public CustomMessagePackSerializer() { }
-
-        public async Task<T> DeserializeAsync<T>(Stream ms) => (T)await DeserializeAsync(ms, typeof(T)).ConfigureAwait(false);
-
-        public Task<byte[]> SerializeAsync<T>(T obj) => SerializeAsync((object)obj);
-
-
-        public async Task<object> DeserializeAsync(Stream ms, Type type)
-        {
-            var val = await MessagePackSerializer.DeserializeAsync(type, ms, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
-            return val;
-        }
-
-        public async Task<byte[]> SerializeAsync(object obj)
-        {
-            using var ms = new MemoryStream();
-            await MessagePackSerializer.SerializeAsync(ms, obj, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
-
-            return ms.ToArray();
-        }
+        var val = await MessagePackSerializer.DeserializeAsync(type, ms, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
+        return val;
     }
+
+    public async Task<byte[]> SerializeAsync(object obj)
+    {
+        using var ms = new MemoryStream();
+        await MessagePackSerializer.SerializeAsync(ms, obj, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
+
+        return ms.ToArray();
+    }
+}
 }
 
 

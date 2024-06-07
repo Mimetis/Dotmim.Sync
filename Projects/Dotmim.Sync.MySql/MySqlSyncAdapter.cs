@@ -151,10 +151,9 @@ namespace Dotmim.Sync.MySql
                     command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.EnableConstraints, filter);
                     break;
                 case DbCommandType.DeleteMetadata:
-                    //command.CommandType = CommandType.StoredProcedure;
-                    //command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata, filter);
-                    //break;
-                    return (default, false);
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata, filter);
+                    break;
                 case DbCommandType.UpdateMetadata:
                     //command.CommandType = CommandType.Text;
                     //command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);

@@ -44,6 +44,11 @@ namespace Dotmim.Sync.SqlServer
                 return (BuildSelectInitializedChangesCommand(), false);
             }
 
+            if (nameType == DbCommandType.DeleteMetadata)
+            {
+                return (null, false);
+            }
+
             return base.GetCommand(nameType, filter);
         }
 

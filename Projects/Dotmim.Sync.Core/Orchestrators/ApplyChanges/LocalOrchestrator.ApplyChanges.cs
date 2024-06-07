@@ -131,7 +131,7 @@ namespace Dotmim.Sync
                         cancellationToken.ThrowIfCancellationRequested();
 
                     // check if we need to delete metadatas
-                    if (this.Options.CleanMetadatas && clientChangesApplied.TotalAppliedChanges > 0 && cScopeInfoClient.LastSyncTimestamp.HasValue)
+                    if (this.Options.CleanMetadatas && cScopeInfoClient.LastSyncTimestamp.HasValue)
                     {
                         using (var runnerMetadata = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false))
                         {
@@ -146,7 +146,20 @@ namespace Dotmim.Sync
                                 var minLastTimeStamp = allScopeHistories.Min(scope => scope.LastSyncTimestamp.HasValue ? scope.LastSyncTimestamp.Value : Int64.MaxValue);
                                 minLastTimeStamp = minLastTimeStamp > cScopeInfoClient.LastSyncTimestamp.Value ? cScopeInfoClient.LastSyncTimestamp.Value : minLastTimeStamp;
 
-                                (context, _) = await this.InternalDeleteMetadatasAsync(allClientScopes, context, minLastTimeStamp, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
+                                DatabaseMetadatasCleaned databaseMetadatasCleaned;
+                                (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(allClientScopes, context, minLastTimeStamp, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
+
+                                // save last cleanup timestamp
+                                if (databaseMetadatasCleaned?.RowsCleanedCount > 0)
+                                {
+                                    foreach (var clientScopeInfo in allClientScopes)
+                                    {
+                                        clientScopeInfo.LastCleanupTimestamp = databaseMetadatasCleaned.TimestampLimit;
+
+                                        await this.InternalSaveScopeInfoAsync(clientScopeInfo, context,
+                                            runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
+                                    }
+                                }
                             }
                         };
                     }

@@ -1,0 +1,42 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="ARM" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Tests/">
+    <Project Path="Tests\Dotmim.Sync.Tests\Dotmim.Sync.Tests.csproj">
+      <Configuration Solution="Release|Any CPU" Project="Release|Any CPU|NoBuild" />
+    </Project>
+  </Folder>
+  <Folder Name="/Samples/">
+    <Project Path="Samples\Dotmim.Sync.SampleConsole\Dotmim.Sync.SampleConsole.csproj" />
+  </Folder>
+  <Folder Name="/Root Files/">
+    <File Path=".editorconfig" />
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="LICENSE" />
+    <File Path="Readme.md" />
+  </Folder>
+  <Folder Name="/PIpelines/">
+    <File Path="pipelines\azure-pipelines-sql.yml" />
+    <File Path="pipelines\azure-pipelines-template.yml" />
+  </Folder>
+  <Project Path="Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
+  <Project Path="Projects\Dotmim.Sync.MariaDB\Dotmim.Sync.MariaDB.csproj" />
+  <Project Path="Projects\Dotmim.Sync.MySql\Dotmim.Sync.MySql.csproj" />
+  <Project Path="Projects\Dotmim.Sync.PostgreSql\Dotmim.Sync.PostgreSql.csproj" />
+  <Project Path="Projects\Dotmim.Sync.Sqlite\Dotmim.Sync.Sqlite.csproj" />
+  <Project Path="Projects\Dotmim.Sync.SqlServer.ChangeTracking\Dotmim.Sync.SqlServer.ChangeTracking.csproj" />
+  <Project Path="Projects\Dotmim.Sync.SqlServer\Dotmim.Sync.SqlServer.csproj" />
+  <Project Path="Projects\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
+  <Project Path="Projects\Dotmim.Sync.Web.Server\Dotmim.Sync.Web.Server.csproj" />
+  <Properties Name="ExtensibilityGlobals" Scope="PostLoad">
+    <Property Name="BuildVersion_StartDate" Value="2000/1/1" />
+  </Properties>
+  <Properties Name="Performance" Scope="PreLoad">
+    <Property Name="HasPerformanceSessions" Value="true" />
+  </Properties>
+</Solution>

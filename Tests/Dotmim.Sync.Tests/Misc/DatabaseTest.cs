@@ -120,7 +120,7 @@ namespace Dotmim.Sync.Tests.Misc
         }
 
         /// <summary>
-        /// Gets all the client providers. By default, SQLIte is always required
+        /// Gets all the server providers
         /// </summary>
         public virtual CoreProvider GetServerProvider()
         {
