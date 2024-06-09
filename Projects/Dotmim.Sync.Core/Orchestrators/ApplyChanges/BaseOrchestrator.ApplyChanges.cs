@@ -254,7 +254,7 @@ namespace Dotmim.Sync
 
                 // Defining my retry policy
                 SyncPolicy retryPolicy = Options.TransactionMode != TransactionMode.AllOrNothing
-                 ? retryPolicy = SyncPolicy.WaitAndRetryForever( retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry)
+                 ? retryPolicy = SyncPolicy.WaitAndRetryForever(retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry)
                  : retryPolicy = SyncPolicy.WaitAndRetry(0, TimeSpan.Zero);
 
                 var applyChangesPolicyResult = await retryPolicy.ExecuteAsync(async () =>
@@ -603,7 +603,8 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                errorException = ex;
+                string errorMessage = $"{ex.Message}\nCommand Text:{command.CommandText}\nCommand Type:{Enum.GetName(typeof(DbCommandType), dbCommandType)}";
+                errorException = new Exception(errorMessage, ex);
             }
 
             var rowAppliedArgs = new RowsChangesAppliedArgs(context, message.Changes, new List<SyncRow> { batchArgs.SyncRows[0] }, schemaChangesTable, applyType, rowAppliedCount, errorException, connection, transaction);
