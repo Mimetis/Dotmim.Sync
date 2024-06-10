@@ -2070,9 +2070,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             foreach (var s in allTasks)
             {
-                Assert.Equal(rowsCount, s.Result.TotalChangesDownloadedFromServer);
-                Assert.Equal(0, s.Result.TotalChangesUploadedToServer);
-                Assert.Equal(0, s.Result.TotalResolvedConflicts);
+                var result = await s;
+                Assert.Equal(rowsCount, result.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, result.TotalChangesUploadedToServer);
+                Assert.Equal(0, result.TotalResolvedConflicts);
             }
 
             // Create a new product on server 
@@ -2095,10 +2096,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             foreach (var s in allTasks)
             {
-                Assert.Equal(2, s.Result.TotalChangesDownloadedFromServer);
-                Assert.Equal(2, s.Result.TotalChangesAppliedOnClient);
-                Assert.Equal(0, s.Result.TotalChangesUploadedToServer);
-                Assert.Equal(0, s.Result.TotalResolvedConflicts);
+                var result = await s;
+                Assert.Equal(2, result.TotalChangesDownloadedFromServer);
+                Assert.Equal(2, result.TotalChangesAppliedOnClient);
+                Assert.Equal(0, result.TotalChangesUploadedToServer);
+                Assert.Equal(0, result.TotalResolvedConflicts);
             }
 
             //foreach (var db in createdDatabases)

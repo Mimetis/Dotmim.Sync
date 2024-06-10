@@ -304,14 +304,14 @@ namespace Dotmim.Sync.Web.Server
                 binaryData = await clientSerializerFactory.GetSerializer().SerializeAsync(messageResponse);
 
                 // Adding the serialization format used and session id
-                httpResponse.Headers.Add("dotmim-sync-session-id", sessionId.ToString());
-                httpResponse.Headers.Add("dotmim-sync-serialization-format", clientSerializerFactory.Key);
+                httpResponse.Headers.Append("dotmim-sync-session-id", sessionId.ToString());
+                httpResponse.Headers.Append("dotmim-sync-serialization-format", clientSerializerFactory.Key);
 
                 // calculate hash
                 var hash = HashAlgorithm.SHA256.Create(binaryData);
                 var hashString = Convert.ToBase64String(hash);
                 // Add hash to header
-                httpResponse.Headers.Add("dotmim-sync-hash", hashString);
+                httpResponse.Headers.Append("dotmim-sync-hash", hashString);
 
                 // data to send back, as the response
                 byte[] data = this.EnsureCompression(httpRequest, httpResponse, binaryData);
@@ -354,7 +354,7 @@ namespace Dotmim.Sync.Web.Server
             if (httpRequest.Headers.TryGetValue("Accept-Encoding", out var encoding) && (encoding.Contains("gzip") || encoding.Contains("deflate")))
             {
                 if (!httpResponse.Headers.ContainsKey("Content-Encoding"))
-                    httpResponse.Headers.Add("Content-Encoding", "gzip");
+                    httpResponse.Headers.Append("Content-Encoding", "gzip");
 
                 using var writeSteam = new MemoryStream();
 
@@ -947,7 +947,7 @@ namespace Dotmim.Sync.Web.Server
             // data to send back, as the response
             byte[] compressedData = this.EnsureCompression(httpRequest, httpResponse, data);
 
-            httpResponse.Headers.Add("dotmim-sync-error", syncException.TypeName);
+            httpResponse.Headers.Append("dotmim-sync-error", syncException.TypeName);
             httpResponse.StatusCode = StatusCodes.Status400BadRequest;
             httpResponse.ContentLength = compressedData.Length;
             await httpResponse.Body.WriteAsync(compressedData, 0, compressedData.Length, default).ConfigureAwait(false);

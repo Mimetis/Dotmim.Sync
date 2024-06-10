@@ -18,7 +18,9 @@ namespace Dotmim.Sync.Serialization
     {
         private static readonly JsonSerializer jsonSerializer = new();
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
         public async Task<T> DeserializeAsync<T>(Stream ms)
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
         {
             using var sr = new StreamReader(ms);
             using var jtr = new JsonTextReader(sr);
@@ -42,7 +44,9 @@ namespace Dotmim.Sync.Serialization
             return ms.ToArray();
         }
 
+#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
         public async Task<object> DeserializeAsync(Stream ms, Type type)
+#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
         {
             using var sr = new StreamReader(ms);
             using var jtr = new JsonTextReader(sr);

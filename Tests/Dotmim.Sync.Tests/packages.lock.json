@@ -115,12 +115,9 @@
       },
       "xunit.runner.visualstudio": {
         "type": "Direct",
-        "requested": "[2.5.8, )",
-        "resolved": "2.5.8",
-        "contentHash": "ZJTm71neOfZcUnqdyY0A0Qgcg1162DoOq6+VpCCsOaD9rwCK5alcjOEHeu17sEekzq4qNv3kyelx6lUMsAt/eA==",
-        "dependencies": {
-          "Microsoft.TestPlatform.ObjectModel": "17.9.0"
-        }
+        "requested": "[2.4.5, )",
+        "resolved": "2.4.5",
+        "contentHash": "OwHamvBdUKgqsXfBzWiCW/O98BTx81UKzx2bieIOQI7CZFE5NEQZGi8PBQGIKawDW96xeRffiNf20SjfC0x9hw=="
       },
       "Azure.Core": {
         "type": "Transitive",
