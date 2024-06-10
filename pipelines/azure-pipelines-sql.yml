@@ -13,12 +13,12 @@ jobs:
       filter: "Dotmim.Sync.Tests.SqlServerUnit"
       docker: "sqlserver"
 
-  - template: azure-pipelines-template.yml
-    parameters:
-      displayName: "SQL Server Tcp .net core 3.1"
-      dotnetfx: "netcoreapp3.1"
-      filter: "Dotmim.Sync.Tests.SqlServerTcp"
-      docker: "sqlserver"
+  # - template: azure-pipelines-template.yml
+  #   parameters:
+  #     displayName: "SQL Server Tcp .net core 3.1"
+  #     dotnetfx: "netcoreapp3.1"
+  #     filter: "Dotmim.Sync.Tests.SqlServerTcp"
+  #     docker: "sqlserver"
 
   - template: azure-pipelines-template.yml
     parameters:
@@ -41,12 +41,12 @@ jobs:
       filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingTcp"
       docker: "sqlserver"
 
-  - template: azure-pipelines-template.yml
-    parameters:
-      displayName: "SQL Server Change Tracking Tcp .net core 3.1"
-      dotnetfx: "netcoreapp3.1"
-      filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingTcp"
-      docker: "sqlserver"
+  # - template: azure-pipelines-template.yml
+  #   parameters:
+  #     displayName: "SQL Server Change Tracking Tcp .net core 3.1"
+  #     dotnetfx: "netcoreapp3.1"
+  #     filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingTcp"
+  #     docker: "sqlserver"
 
   - template: azure-pipelines-template.yml
     parameters:
