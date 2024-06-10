@@ -243,7 +243,7 @@ namespace Dotmim.Sync
                     if (runner != null)
                         await runner.DisposeAsync().ConfigureAwait(false);
                 }
-            });
+            }).ConfigureAwait(false);
 
             return applyChangesResult;
         }

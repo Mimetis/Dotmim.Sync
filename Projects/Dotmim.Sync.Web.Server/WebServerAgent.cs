@@ -135,11 +135,11 @@ namespace Dotmim.Sync.Web.Server
             try
             {
                 // check if we need to upgrade
-                await UpgradeAsync(this.RemoteOrchestrator);
+                await UpgradeAsync(this.RemoteOrchestrator).ConfigureAwait(false);
 
                 // Copty stream to a readable and seekable stream
                 // HttpRequest.Body is a HttpRequestStream that is readable but can't be Seek
-                await httpRequest.Body.CopyToAsync(readableStream);
+                await httpRequest.Body.CopyToAsync(readableStream).ConfigureAwait(false);
                 httpRequest.Body.Close();
                 httpRequest.Body.Dispose();
 
@@ -153,7 +153,7 @@ namespace Dotmim.Sync.Web.Server
                     throw new HttpScopeNameFromClientIsInvalidException(scopeName, this.ScopeName);
 
                 // load session
-                await httpContext.Session.LoadAsync(cancellationToken);
+                await httpContext.Session.LoadAsync(cancellationToken).ConfigureAwait(false);
 
                 // Get schema and clients batch infos / summaries, from session
                 //var schema = httpContext.Session.Get<SyncSet>(scopeName);
@@ -249,7 +249,7 @@ namespace Dotmim.Sync.Web.Server
                         break;
                 }
 
-                IScopeMessage messsageRequest = await clientSerializerFactory.GetSerializer().DeserializeAsync(readableStream, requestSerializerType) as IScopeMessage;
+                IScopeMessage messsageRequest = await clientSerializerFactory.GetSerializer().DeserializeAsync(readableStream, requestSerializerType).ConfigureAwait(false) as IScopeMessage;
                 await this.RemoteOrchestrator.InterceptAsync(new HttpGettingRequestArgs(httpContext, messsageRequest.SyncContext, sessionCache, messsageRequest, responseSerializerType, step), progress, cancellationToken).ConfigureAwait(false);
 
                 switch (step)
@@ -270,7 +270,7 @@ namespace Dotmim.Sync.Web.Server
                         messageResponse = await this.GetMoreChangesAsync(httpContext, (HttpMessageGetMoreChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false);
                         break;
                     case HttpStep.GetSnapshot:
-                        messageResponse = await this.GetSnapshotAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, sessionCache, cancellationToken, progress);
+                        messageResponse = await this.GetSnapshotAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false);
                         break;
                     // version >= 0.8    
                     case HttpStep.GetSummary:
@@ -294,14 +294,14 @@ namespace Dotmim.Sync.Web.Server
                 }
 
                 httpContext.Session.Set(sessionId, sessionCache);
-                await httpContext.Session.CommitAsync(cancellationToken);
+                await httpContext.Session.CommitAsync(cancellationToken).ConfigureAwait(false);
 
                 if (messageResponse is HttpMessageSendChangesResponse httpMessageSendChangesResponse)
                     await this.RemoteOrchestrator.InterceptAsync(new HttpSendingServerChangesArgs(httpMessageSendChangesResponse, httpContext.Request.Host.Host, sessionCache, false), progress, cancellationToken).ConfigureAwait(false);
 
                 await this.RemoteOrchestrator.InterceptAsync(new HttpSendingResponseArgs(httpContext, messageResponse.SyncContext, sessionCache, messageResponse, responseSerializerType, step), progress, cancellationToken).ConfigureAwait(false);
 
-                binaryData = await clientSerializerFactory.GetSerializer().SerializeAsync(messageResponse);
+                binaryData = await clientSerializerFactory.GetSerializer().SerializeAsync(messageResponse).ConfigureAwait(false);
 
                 // Adding the serialization format used and session id
                 httpResponse.Headers.Append("dotmim-sync-session-id", sessionId.ToString());
@@ -320,7 +320,7 @@ namespace Dotmim.Sync.Web.Server
             }
             catch (Exception ex)
             {
-                await WriteExceptionAsync(httpRequest, httpResponse, ex);
+                await WriteExceptionAsync(httpRequest, httpResponse, ex).ConfigureAwait(false);
             }
             finally
             {
@@ -512,7 +512,7 @@ namespace Dotmim.Sync.Web.Server
         internal protected virtual async Task<HttpMessageRemoteTimestampResponse> GetRemoteClientTimestampAsync(HttpContext httpContext, HttpMessageRemoteTimestampRequest httpMessage,
                 CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-            var ts = await this.RemoteOrchestrator.GetLocalTimestampAsync(httpMessage.SyncContext.ScopeName);
+            var ts = await this.RemoteOrchestrator.GetLocalTimestampAsync(httpMessage.SyncContext.ScopeName).ConfigureAwait(false);
 
             return new HttpMessageRemoteTimestampResponse(httpMessage.SyncContext, ts);
         }
@@ -638,7 +638,7 @@ namespace Dotmim.Sync.Web.Server
             sessionCache.ServerBatchInfo = snap.ServerBatchInfo;
 
             // Get the firt response to send back to client
-            return await GetChangesResponseAsync(httpContext, httpMessage.SyncContext, snap.RemoteClientTimestamp, snap.ServerBatchInfo, null, snap.ServerChangesSelected, 0);
+            return await GetChangesResponseAsync(httpContext, httpMessage.SyncContext, snap.RemoteClientTimestamp, snap.ServerBatchInfo, null, snap.ServerChangesSelected, 0).ConfigureAwait(false);
         }
 
         internal protected virtual async Task<HttpMessageSummaryResponse> ApplyThenGetChangesAsync2(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
@@ -937,10 +937,10 @@ namespace Dotmim.Sync.Web.Server
 #if DEBUG
             jtw.Formatting = Formatting.Indented;
 #endif
-            await jobject.WriteToAsync(jtw);
+            await jobject.WriteToAsync(jtw).ConfigureAwait(false);
 
-            await jtw.FlushAsync();
-            await sw.FlushAsync();
+            await jtw.FlushAsync().ConfigureAwait(false);
+            await sw.FlushAsync().ConfigureAwait(false);
 
             var data = ms.ToArray();
 
@@ -993,7 +993,7 @@ namespace Dotmim.Sync.Web.Server
                 bool hasException = false;
                 try
                 {
-                    (context, dbName, version) = await webServerAgent.RemoteOrchestrator.GetHelloAsync();
+                    (context, dbName, version) = await webServerAgent.RemoteOrchestrator.GetHelloAsync().ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -1078,7 +1078,7 @@ namespace Dotmim.Sync.Web.Server
             stringBuilder.AppendLine("</body>");
             stringBuilder.AppendLine("</html>");
 
-            await httpResponse.WriteAsync(stringBuilder.ToString(), cancellationToken);
+            await httpResponse.WriteAsync(stringBuilder.ToString(), cancellationToken).ConfigureAwait(false);
 
 
         }

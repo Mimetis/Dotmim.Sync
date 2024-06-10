@@ -294,7 +294,7 @@ namespace Dotmim.Sync
                         }
 
                         (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType,
-                                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+                                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                         if (command == null)
                             return (0, default, default, 0);
@@ -365,7 +365,7 @@ namespace Dotmim.Sync
 
                                     syncAdapter.UseBulkOperations = false;
                                     (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType,
-                                                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+                                                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                                     cmdText = command.CommandText;
 
@@ -463,7 +463,7 @@ namespace Dotmim.Sync
                             localSerializer.CloseFile();
                     }
 
-                });
+                }).ConfigureAwait(false);
 
                 var batchChangesAppliedArgs = new BatchChangesAppliedArgs(context, message.Changes, batchPartInfo, schemaTable, applyType, command, connection, transaction);
                 // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
@@ -635,7 +635,7 @@ namespace Dotmim.Sync
 
             try
             {
-                await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, conflictRowsTable, message.LastTimestamp, connection, transaction);
+                await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, conflictRowsTable, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
