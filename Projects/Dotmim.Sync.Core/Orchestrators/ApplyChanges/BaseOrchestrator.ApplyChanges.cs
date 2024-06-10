@@ -639,7 +639,8 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                errorException = ex;
+                string errorMessage = $"{ex.Message}\nCommand Text:{command.CommandText}\nCommand Type:{Enum.GetName(typeof(DbCommandType), dbCommandType)}";
+                errorException = new Exception(errorMessage, ex);
             }
 
             var rowAppliedCount = errorException != null ? 0 : batchRows.Count - conflictRowsTable.Rows.Count;
