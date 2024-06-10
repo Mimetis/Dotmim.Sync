@@ -57,13 +57,6 @@ jobs:
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "PostgreSQL Tcp .net core 3.1"
-      dotnetfx: "netcoreapp3.1"
-      filter: "Dotmim.Sync.Tests.PostgresTcp"
-      docker: "postgres"
-
-  - template: azure-pipelines-template.yml
-    parameters:
       displayName: "PostgreSQL Tcp .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.PostgresTcp"
