@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
-#if NET6_0 || NET8_0 
+#if NET8_0 
 using Microsoft.Net.Http.Headers;
 #endif
 using Newtonsoft.Json;
