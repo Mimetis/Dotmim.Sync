@@ -290,7 +290,12 @@ namespace Dotmim.Sync
                 if (command != null)
                 {
                     await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.Reset, runner.Connection, runner.Transaction)).ConfigureAwait(false);
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    // Check if we have a return value instead
+                    var rowDeletedCount  = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
+
+                    if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
+                        rowDeletedCount = (int)syncRowCountParam.Value;
                     command.Dispose();
                 }
 

@@ -402,9 +402,12 @@ namespace Dotmim.Sync
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
 
-                // If we are in reinit mode, force scope last server sync timestamp to null
+                // If we are in reinit mode, force scope last server sync timestamp & scope last client sync timestamp to null
                 if (context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload)
+                {
                     cScopeInfoClient.LastServerSyncTimestamp = null;
+                    cScopeInfoClient.LastSyncTimestamp= null;
+                }
 
                 // Get if we need to get all rows from the datasource
                 var fromScratch = cScopeInfoClient.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;

@@ -49,6 +49,10 @@ namespace Dotmim.Sync.SqlServer
                 return (null, false);
             }
 
+            if (nameType == DbCommandType.Reset)
+            {
+                return (CreateResetCommand(), false);
+            }
             return base.GetCommand(nameType, filter);
         }
 
@@ -111,6 +115,18 @@ namespace Dotmim.Sync.SqlServer
             return sqlCommand;
         }
 
+
+        private SqlCommand CreateResetCommand()
+        {
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.AppendLine($"SET @sync_row_count = 0;");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine($"DELETE FROM {tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine();
+            stringBuilder.AppendLine(string.Concat("SET @sync_row_count = @@ROWCOUNT;"));
+
+            return new SqlCommand(stringBuilder.ToString());
+        }
 
 
     }
