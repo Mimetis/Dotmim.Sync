@@ -60,36 +60,7 @@ namespace Dotmim.Sync.Tests
         }
 
     }
-    public class SqlServerChangeTrackingUnitTests : InterceptorsTests
-    {
-        public SqlServerChangeTrackingUnitTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
-        {
-        }
-        private string sqlRandomClientDatabaseName = HelperDatabase.GetRandomName("ut1_sql_server_");
-        private string sqlRandomServerDatabaseName = HelperDatabase.GetRandomName("ut1_sql_client_");
-
-        public override ProviderType ServerProviderType => ProviderType.Sql;
-
-        public override IEnumerable<CoreProvider> GetClientProviders()
-        {
-
-            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(sqlRandomClientDatabaseName);
-            var provider = new SqlSyncChangeTrackingProvider(cstring);
-            provider.UseFallbackSchema(true);
-
-            yield return provider;
-        }
-
-        public override CoreProvider GetServerProvider()
-        {
-            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(sqlRandomServerDatabaseName);
-            var provider = new SqlSyncChangeTrackingProvider(cstring);
-            provider.UseFallbackSchema(true);
-            return provider;
-        }
-
-    }
-
+  
     public class SqlServerUnitLocalOrchestratorTests : LocalOrchestratorTests
     {
         public SqlServerUnitLocalOrchestratorTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)

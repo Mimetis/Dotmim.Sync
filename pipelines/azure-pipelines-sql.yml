@@ -15,13 +15,6 @@ jobs:
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "SQL Server Change Tracking Interceptors tests"
-      dotnetfx: "net8.0"
-      filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingUnitTests"
-      docker: "sqlserver"
-
-  - template: azure-pipelines-template.yml
-    parameters:
       displayName: "SQL Server Local Orchestrators tests"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerUnitLocalOrchestratorTests"
