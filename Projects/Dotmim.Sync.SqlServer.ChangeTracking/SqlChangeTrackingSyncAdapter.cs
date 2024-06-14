@@ -30,7 +30,7 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Overriding adapter since the update metadata is not a stored proc that we can override
         /// </summary>
-        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType nameType, SyncFilter filter)
         {
             if (nameType == DbCommandType.UpdateMetadata)
             {
@@ -53,7 +53,7 @@ namespace Dotmim.Sync.SqlServer
             {
                 return (CreateResetCommand(), false);
             }
-            return base.GetCommand(nameType, filter);
+            return base.GetCommand(context, nameType, filter);
         }
 
         private SqlCommand BuildSelectInitializedChangesCommand()

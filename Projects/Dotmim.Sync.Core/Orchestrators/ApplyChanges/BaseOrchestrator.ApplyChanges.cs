@@ -590,10 +590,10 @@ namespace Dotmim.Sync
                 rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead
-                var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
+                var syncRowCountParam = syncAdapter.GetParameter(context, command, "sync_row_count");
 
                 // Check if we have an handled error
-                var syncErrorText = syncAdapter.GetParameter(command, "sync_error_text");
+                var syncErrorText = syncAdapter.GetParameter(context, command, "sync_error_text");
 
                 if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
                     rowAppliedCount = (int)syncRowCountParam.Value;
@@ -635,7 +635,7 @@ namespace Dotmim.Sync
 
             try
             {
-                await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, conflictRowsTable, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
+                await syncAdapter.ExecuteBatchCommandAsync(context, command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, conflictRowsTable, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

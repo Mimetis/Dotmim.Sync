@@ -21,6 +21,8 @@ using NLog.Web;
 using System.Threading;
 using Dotmim.Sync.Tests;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Options;
+
 #if NET6_0 || NET8_0
 using MySqlConnector;
 #elif NETCOREAPP3_1
@@ -84,12 +86,42 @@ internal class Program
 
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        // await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
         //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
-        // await SynchronizeUniqueIndexAsync();
+        await SyncWithReinitialiazeWithChangeTrackingAsync();
 
         //await CreateSnapshotAsync();
+    }
+
+    private static async Task SyncWithReinitialiazeWithChangeTrackingAsync()
+    {
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        var setup = new SyncSetup("ProductCategory");
+
+        var options = new SyncOptions
+        {
+            DisableConstraintsOnApplyChanges = true
+        };
+
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  " +
+            $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
+
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        //var s = await agent.SynchronizeAsync(setup, progress: progress);
+        //Console.WriteLine(s);
+
+        //await DBHelper.AddProductCategoryRowAsync(clientProvider);
+
+        var s2 = await agent.SynchronizeAsync(setup, SyncType.Reinitialize, progress: progress);
+        Console.WriteLine(s2);
+
+
     }
 
     private static async Task CreateSnapshotAsync()

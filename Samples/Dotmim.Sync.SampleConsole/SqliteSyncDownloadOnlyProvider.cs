@@ -66,7 +66,7 @@ namespace Dotmim.Sync.Tests
         /// <summary>
         /// return null for all no used commands
         /// </summary>
-        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType nameType, SyncFilter filter)
         {
             var command = new SqliteCommand();
             switch (nameType)

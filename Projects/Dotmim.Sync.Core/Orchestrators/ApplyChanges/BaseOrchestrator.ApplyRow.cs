@@ -68,10 +68,10 @@ namespace Dotmim.Sync
                 rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead
-                var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
+                var syncRowCountParam = syncAdapter.GetParameter(context, command, "sync_row_count");
 
                 // Check if we have an handled error
-                var syncErrorText = syncAdapter.GetParameter(command, "sync_error_text");
+                var syncErrorText = syncAdapter.GetParameter(context, command, "sync_error_text");
 
                 if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
                     rowDeletedCount = (int)syncRowCountParam.Value;
@@ -143,10 +143,10 @@ namespace Dotmim.Sync
                 rowUpdatedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead
-                var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
+                var syncRowCountParam = syncAdapter.GetParameter(context, command, "sync_row_count");
 
                 // Check if we have an handled error
-                var syncErrorText = syncAdapter.GetParameter(command, "sync_error_text");
+                var syncErrorText = syncAdapter.GetParameter(context, command, "sync_error_text");
 
                 if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
                     rowUpdatedCount = (int)syncRowCountParam.Value;

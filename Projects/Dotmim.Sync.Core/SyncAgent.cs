@@ -406,7 +406,7 @@ namespace Dotmim.Sync
                 if (context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload)
                 {
                     cScopeInfoClient.LastServerSyncTimestamp = null;
-                    cScopeInfoClient.LastSyncTimestamp= null;
+                    cScopeInfoClient.LastSyncTimestamp = null;
                 }
 
                 // Get if we need to get all rows from the datasource

@@ -163,6 +163,8 @@ namespace Dotmim.Sync
                     await UpgradeAutoToLastVersion(context, version, scopeInfos, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 else if (version.Major == 0 && (version.Minor <= 9 && version.Build <= 5 || version.Minor <= 8))
                     await UpgradeOldestVersions(context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                else
+                    await UpgradeToLastVersionAsync(context, version, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                 return true;
             }
@@ -173,6 +175,84 @@ namespace Dotmim.Sync
 
 
         }
+
+
+
+        internal virtual async Task<bool> UpgradeToLastVersionAsync(
+         SyncContext context, Version version, DbConnection connection = default, DbTransaction transaction = default,
+                     CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
+        {
+            try
+            {
+                var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
+                var sScopeInfoTableName = $"{parsedName.Unquoted().Normalized()}";
+                var sScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
+
+                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, default, default, default, progress).ConfigureAwait(false);
+                var dbBuilder = this.Provider.GetDatabaseBuilder();
+
+                // Initialize database if needed
+                await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+
+                // ----------------------------------------------------
+                // Step 6: Deprovision all and re provision
+                // ----------------------------------------------------
+                List<ScopeInfo> sScopeInfos = null;
+
+                // get scope infos
+                (context, sScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                // Deprovision old triggers & stored procedures
+                var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
+
+                foreach (var sScopeInfo in sScopeInfos)
+                {
+                    if (sScopeInfo == null || sScopeInfo.Setup == null || sScopeInfo.Setup.Tables == null || sScopeInfo.Setup.Tables.Count <= 0)
+                        continue;
+
+                    await this.InternalDeprovisionAsync(sScopeInfo, context, provision,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, default).ConfigureAwait(false);
+
+                    var message = $"- Deprovision server old scope {sScopeInfo.Name}.";
+                    await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+                }
+
+                // ----------------------------------------------------
+                // Step 7 : Provision again
+                // ----------------------------------------------------
+                (context, sScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                foreach (var sScopeInfo in sScopeInfos)
+                {
+                    if (sScopeInfo == null || sScopeInfo.Setup == null || sScopeInfo.Setup.Tables == null || sScopeInfo.Setup.Tables.Count <= 0)
+                        continue;
+
+                    sScopeInfo.Version = SyncVersion.Current.ToString();
+
+                    (context, _) = await InternalProvisionServerAsync(sScopeInfo, context, provision, false,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, default).ConfigureAwait(false);
+
+                    var message = $"- Provision server new scope {sScopeInfo.Name}.";
+                    await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+                }
+
+                await this.InterceptAsync(new UpgradeProgressArgs(context, $"Upgrade server from version {version} to {SyncVersion.Current} done.", SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                throw GetSyncError(context, ex);
+            }
+        }
+
+
+
+
         internal virtual async Task<bool> UpgradeOldestVersions(
          SyncContext context, DbConnection connection = default, DbTransaction transaction = default,
                      CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)

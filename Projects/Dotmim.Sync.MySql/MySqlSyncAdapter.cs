@@ -36,7 +36,7 @@ namespace Dotmim.Sync.MySql
             this.MySqlObjectNames = new MySqlObjectNames(TableDescription, tableName, trackingName, Setup, scopeName);
 
         }
-        public override DbCommand EnsureCommandParameters(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
+        public override DbCommand EnsureCommandParameters(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
             if (commandType == DbCommandType.UpdateRow || commandType == DbCommandType.UpdateRows ||
                 commandType == DbCommandType.InsertRow || commandType == DbCommandType.InsertRows ||
@@ -94,7 +94,7 @@ namespace Dotmim.Sync.MySql
             return command;
         }
 
-        public override DbCommand EnsureCommandParametersValues(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
+        public override DbCommand EnsureCommandParametersValues(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
         {
             return command;
         }
@@ -104,7 +104,7 @@ namespace Dotmim.Sync.MySql
         public override string QuoteSuffix => "`";
         public override bool SupportsOutputParameters => true;
 
-        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter = null)
+        public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType nameType, SyncFilter filter = null)
         {
             var command = new MySqlCommand();
             var isBatch = false;
@@ -200,7 +200,7 @@ namespace Dotmim.Sync.MySql
         }
 
 
-        public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
+        public override Task ExecuteBatchCommandAsync(SyncContext context, DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
             => throw new NotImplementedException();
     }
 }
