@@ -10,7 +10,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using Dotmim.Sync.Extensions;
 using Dotmim.Sync.Serialization;
-using CookieHeaderValue = Microsoft.Net.Http.Headers.CookieHeaderValue;
 #if NET8_0 
 using Microsoft.Net.Http.Headers;
 #endif
