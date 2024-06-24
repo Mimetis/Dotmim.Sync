@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -205,7 +205,7 @@ namespace Dotmim.Sync.Web.Client
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Execute my OpenAsync in my policy context
-                response = await this.SyncPolicy.ExecuteAsync(ct => this.SendAsync(step, message, batchSize, ct), cancellationToken, progress);
+                response = await this.SyncPolicy.ExecuteAsync(async ct => await this.SendAsync(step, message, batchSize, ct).ConfigureAwait(false), cancellationToken, progress).ConfigureAwait(false);
 
                 // Ensure we have a cookie
                 this.EnsureCookie(response?.Headers);
@@ -271,7 +271,7 @@ namespace Dotmim.Sync.Web.Client
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Execute my OpenAsync in my policy context
-                response = await this.SyncPolicy.ExecuteAsync(ct => this.SendAsync(step, message, batchSize, ct), cancellationToken, progress); ;
+                response = await this.SyncPolicy.ExecuteAsync(async ct => await this.SendAsync(step, message, batchSize, ct).ConfigureAwait(false), cancellationToken, progress).ConfigureAwait(false);
 
                 // Ensure we have a cookie
                 this.EnsureCookie(response?.Headers);
