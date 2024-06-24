@@ -474,7 +474,7 @@ namespace Dotmim.Sync.Serialization
                 
                 if (includedColumn.TryGetProperty("p", out var isPrimaryKeyElement))
                 {
-                    isPrimaryKey = isPrimaryKeyElement.GetBoolean();
+                    isPrimaryKey = isPrimaryKeyElement.GetUInt16() == 1;
                 }
 
                 // Adding the column 
