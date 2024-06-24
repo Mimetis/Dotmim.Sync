@@ -397,7 +397,7 @@ namespace Dotmim.Sync.Sqlite
 
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_last_clean_timestamp";
-            p.DbType = DbType.DateTime;
+            p.DbType = DbType.Int64;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();

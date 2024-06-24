@@ -1194,18 +1194,42 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             if (providerType == ProviderType.Sql)
             {
                 var exception = ex as SqlException;
-                var error = exception.Errors[0];
-                var errorType = typeof(SqlError);
-                var errorNumber = errorType.GetField("_number", BindingFlags.Default | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-                errorNumber.SetValue(error, 64);
+                while (ex != null)
+                {
+                    if (ex is SqlException sqlException)
+                    {
+                        var error = sqlException.Errors[0];
+                        var errorType = typeof(SqlError);
+                        var errorNumber = errorType.GetField("_number", BindingFlags.Default | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                        errorNumber.SetValue(error, 64);
+                        break;
+
+                    }
+                    else
+                    {
+                        ex = ex.InnerException;
+                    }
+                }
+
             }
             if (providerType == ProviderType.Sqlite)
             {
-                var exception = ex as SqliteException;
-                var errorType = typeof(SqliteException);
-                var errorNumber = errorType.GetRuntimeFields().FirstOrDefault(f => f.Name.Contains("SqliteErrorCode"));
-                errorNumber.SetValue(exception, 11);
+                var exception = ex as SqlException;
+                while (ex != null)
+                {
+                    if (ex is SqliteException sqliteException)
+                    {
+                        var errorType = typeof(SqliteException);
+                        var errorNumber = errorType.GetRuntimeFields().FirstOrDefault(f => f.Name.Contains("SqliteErrorCode"));
+                        errorNumber.SetValue(sqliteException, 11);
+                        break;
 
+                    }
+                    else
+                    {
+                        ex = ex.InnerException;
+                    }
+                }
             }
         }
 
@@ -1553,7 +1577,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             if (serverProviderType != ProviderType.Sql)
                 return;
 
-            var options = new SyncOptions { 
+            var options = new SyncOptions
+            {
                 DisableConstraintsOnApplyChanges = true,
                 TransactionMode = TransactionMode.None
             };
@@ -1593,7 +1618,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     if (args.Exception == null)
                         return;
 
-                    HookExceptionToTransient(args.Exception, clientProviderType);
+                    HookExceptionToTransient(args.Exception.InnerException, clientProviderType);
                 });
 
 

@@ -182,7 +182,7 @@ namespace Dotmim.Sync
                                 onRetry);
 
             // Execute my OpenAsync in my policy context
-            await policy.ExecuteAsync(ct => connection.OpenAsync(ct), cancellationToken);
+            await policy.ExecuteAsync(ct => connection.OpenAsync(ct), cancellationToken).ConfigureAwait(false);
 
             // Let provider knows a connection is opened
             this.Provider.onConnectionOpened(connection);
@@ -394,7 +394,7 @@ namespace Dotmim.Sync
                 // TODO : get all scopes for Hello all of them
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                 var databaseBuilder = this.Provider.GetDatabaseBuilder();
-                var hello = await databaseBuilder.GetHelloAsync(runner.Connection, runner.Transaction);
+                var hello = await databaseBuilder.GetHelloAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
                 await runner.CommitAsync().ConfigureAwait(false);
                 return (context, hello.DatabaseName, hello.Version);
             }

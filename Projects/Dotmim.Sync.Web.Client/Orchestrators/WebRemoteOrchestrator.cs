@@ -11,6 +11,9 @@ using System.Threading.Tasks;
 using Dotmim.Sync.Extensions;
 using Dotmim.Sync.Serialization;
 using CookieHeaderValue = Microsoft.Net.Http.Headers.CookieHeaderValue;
+#if NET8_0 
+using Microsoft.Net.Http.Headers;
+#endif
 
 namespace Dotmim.Sync.Web.Client
 {
@@ -160,7 +163,7 @@ namespace Dotmim.Sync.Web.Client
         {
             var fullPath = Path.Combine(directoryFullPath, fileName);
             using var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
-            var httpMessageContent = await serializerFactory.GetSerializer().DeserializeAsync<HttpMessageSendChangesResponse>(fileStream);
+            var httpMessageContent = await serializerFactory.GetSerializer().DeserializeAsync<HttpMessageSendChangesResponse>(fileStream).ConfigureAwait(false);
             return httpMessageContent;
         }
 
@@ -219,7 +222,7 @@ namespace Dotmim.Sync.Web.Client
                 using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
                 {
                     if (streamResponse.CanRead)
-                        messageResponse = await serializer.DeserializeAsync<T>(streamResponse);
+                        messageResponse = await serializer.DeserializeAsync<T>(streamResponse).ConfigureAwait(false);
                 }
                 context = messageResponse?.SyncContext;
 
@@ -380,7 +383,7 @@ namespace Dotmim.Sync.Web.Client
             var args = new HttpSendingRequestMessageArgs(requestMessage, message.SyncContext, message, GetServiceHost());
             await this.InterceptAsync(args, progress: default, cancellationToken).ConfigureAwait(false);
 
-            var binaryData = await serializer.SerializeAsync(args.Data);
+            var binaryData = await serializer.SerializeAsync(args.Data).ConfigureAwait(false);
             requestMessage = args.Request;
 
             // Check if data is null
@@ -417,11 +420,11 @@ namespace Dotmim.Sync.Web.Client
             if (!response.IsSuccessStatusCode)
             {
                 // Invoke response failure interceptors to handle the failed response
-                await InvokeResponseFailureInterceptors(response);
+                await InvokeResponseFailureInterceptors(response).ConfigureAwait(false);
 
                 // If response content is available, handle the synchronization error
                 if (response.Content != null)
-                    await HandleSyncError(response);
+                    await HandleSyncError(response).ConfigureAwait(false);
             }
 
             return response;
@@ -479,7 +482,7 @@ namespace Dotmim.Sync.Web.Client
 
                 if (!TryGetHeaderValue(response.Headers, "dotmim-sync-error", out string syncErrorTypeName))
                 {
-                    var exceptionString = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
+                    var exceptionString = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
 
                     if (string.IsNullOrEmpty(exceptionString))
                         exceptionString = response.ReasonPhrase;
@@ -494,7 +497,7 @@ namespace Dotmim.Sync.Web.Client
                     {
                         // Error are always json formatted
                         var webSyncErrorSerializer = new JsonObjectSerializer();
-                        var webError = await webSyncErrorSerializer.DeserializeAsync<WebSyncException>(streamResponse);
+                        var webError = await webSyncErrorSerializer.DeserializeAsync<WebSyncException>(streamResponse).ConfigureAwait(false);
 
                         if (webError != null)
                         {

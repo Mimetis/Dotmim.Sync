@@ -44,6 +44,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             var sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter1);
 
+            var sqlParameterForceWrite = new SqlParameter("@sync_force_write", SqlDbType.Int);
+            sqlCommand.Parameters.Add(sqlParameterForceWrite);
+
             var sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
                 TypeName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType)
@@ -111,7 +114,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine($"INTO @dms_changed ");
             stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} [base]");
             stringBuilder.AppendLine($"JOIN {trackingName.Quoted().ToString()} [changes] ON {str5}");
-            stringBuilder.AppendLine("WHERE [changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR [changes].[sync_update_scope_id] = @sync_scope_id;");
+            stringBuilder.AppendLine("WHERE [changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR [changes].[sync_update_scope_id] = @sync_scope_id OR @sync_force_write = 1;");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
@@ -135,6 +138,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             var sqlParameter1 = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
             sqlCommand.Parameters.Add(sqlParameter1);
+
+            var sqlParameterForceWrite = new SqlParameter("@sync_force_write", SqlDbType.Int);
+            sqlCommand.Parameters.Add(sqlParameterForceWrite);
 
             var sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
@@ -208,6 +214,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.AppendLine("\t[changes].[sync_timestamp] <= @sync_min_timestamp");
                 stringBuilder.AppendLine("\tOR [changes].[sync_timestamp] IS NULL");
                 stringBuilder.AppendLine("\tOR [changes].[sync_update_scope_id] = @sync_scope_id");
+                stringBuilder.AppendLine("\tOR @sync_force_write = 1");
                 //if (setupHasTableWithColumns)
                 //{
                 //    stringBuilder.AppendLine("\tOR (");
@@ -237,7 +244,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 }
             }
 
-            stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL) THEN");
+            stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR @sync_force_write = 1) THEN");
 
 
             stringBuilderArguments = new StringBuilder();

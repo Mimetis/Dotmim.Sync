@@ -63,7 +63,7 @@ namespace Dotmim.Sync
         public async Task RunAsync(T args, CancellationToken cancellationToken)
         {
             if (this.wrapperAsync != null)
-                await this.wrapperAsync(args);
+                await this.wrapperAsync(args).ConfigureAwait(false);
 
             if (cancellationToken.IsCancellationRequested)
                 cancellationToken.ThrowIfCancellationRequested();

@@ -49,9 +49,11 @@ namespace Dotmim.Sync
             this.TableName = table.TableName;
             this.SchemaName = table.SchemaName;
             this.Columns = new List<ContainerTableColum>();
-            foreach (var colum in table.Columns)
-                this.Columns.Add(new ContainerTableColum { ColumnName = colum.ColumnName, TypeName = colum.DataType });
-            
+            foreach (var column in table.Columns)
+            {
+                this.Columns.Add(new ContainerTableColum { ColumnName = column.ColumnName, TypeName = column.DataType, IsPrimaryKey = table.IsPrimaryKey(column) ? 1 : null });
+            }
+
         }
 
         /// <summary>
@@ -78,6 +80,9 @@ namespace Dotmim.Sync
 
         [DataMember(Name = "t", IsRequired = true, Order = 2)]
         public string TypeName { get; set; }
+
+        [DataMember(Name = "p", IsRequired = false, Order = 3, EmitDefaultValue = false)]
+        public byte? IsPrimaryKey { get; set; }
 
         public ContainerTableColum()
         {

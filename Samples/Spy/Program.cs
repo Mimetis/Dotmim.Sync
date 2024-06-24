@@ -129,7 +129,7 @@ namespace Spy
             });
 
 
-            localOrchestrator.OnRowsChangesApplying(async args =>
+            localOrchestrator.OnRowsChangesApplying(args =>
             {
                 Console.WriteLine($"- --------------------------------------------");
                 Console.WriteLine($"- In memory rows that are going to be Applied");

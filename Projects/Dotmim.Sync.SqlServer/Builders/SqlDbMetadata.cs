@@ -236,7 +236,9 @@ namespace Dotmim.Sync.SqlServer.Manager
             string argument = string.Empty;
 
             // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
-            var sqlDbType = fromProviderType == SqlSyncProvider.ProviderType ?
+            // TODO : Find something better than string comparison for change tracking provider
+            var sqlDbType = fromProviderType == SqlSyncProvider.ProviderType ||
+                    fromProviderType == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider" ?
                 this.GetSqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
 
             switch (sqlDbType)
@@ -263,7 +265,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                     break;
                 case SqlDbType.Decimal:
                     var (p, s) = this.GetPrecisionAndScale(column);
-                    
+
                     if (p > 0 && s <= 0)
                         argument = $"({p})";
                     else if (p > 0 && s > 0)
@@ -273,8 +275,11 @@ namespace Dotmim.Sync.SqlServer.Manager
                     argument = string.Empty;
                     break;
             }
+            // TODO : Find something better than string comparison for change tracking provider
+            var isSameProvider = fromProviderType == SqlSyncProvider.ProviderType ||
+                fromProviderType == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider";
 
-            string typeName = fromProviderType == SqlSyncProvider.ProviderType ? column.OriginalTypeName.ToLowerInvariant() : sqlDbType.ToString().ToLowerInvariant();
+            string typeName = isSameProvider ? column.OriginalTypeName.ToLowerInvariant() : sqlDbType.ToString().ToLowerInvariant();
             typeName = typeName == "variant" ? "sql_variant" : typeName;
 
             return string.IsNullOrEmpty(argument) ? typeName : $"{typeName} {argument}";
@@ -287,7 +292,12 @@ namespace Dotmim.Sync.SqlServer.Manager
         public (byte precision, byte scale) GetCompatibleColumnPrecisionAndScale(SyncColumn column, string fromProviderType)
         {
             // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
-            var sqlDbType = fromProviderType == SqlSyncProvider.ProviderType ?
+
+            // TODO : Find something better than string comparison for change tracking provider
+            var isSameProvider = fromProviderType == SqlSyncProvider.ProviderType ||
+                fromProviderType == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider";
+
+            var sqlDbType = isSameProvider ?
                 this.GetSqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
 
             return sqlDbType switch
@@ -300,6 +310,11 @@ namespace Dotmim.Sync.SqlServer.Manager
         public int GetCompatibleMaxLength(SyncColumn column, string fromProviderType)
         {
             // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
+            // TODO : Find something better than string comparison for change tracking provider
+            var isSameProvider = fromProviderType == SqlSyncProvider.ProviderType ||
+                fromProviderType == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider";
+
+
             var sqlDbType = fromProviderType == SqlSyncProvider.ProviderType ?
                 this.GetSqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
 

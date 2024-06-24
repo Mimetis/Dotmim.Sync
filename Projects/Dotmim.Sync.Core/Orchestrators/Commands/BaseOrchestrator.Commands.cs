@@ -28,7 +28,7 @@ namespace Dotmim.Sync
             if (this.Provider != null) // trying for Sqlite too
                 filter = syncAdapter.TableDescription.GetFilter();
 
-            var (command, isBatch) = syncAdapter.GetCommand(commandType, filter);
+            var (command, isBatch) = syncAdapter.GetCommand(context, commandType, filter);
 
             // IF we do not have any command associated, just return
             if (command == null)
@@ -62,7 +62,7 @@ namespace Dotmim.Sync
             }
 
             // Ensure parameters are correct, from DbSyncAdapter
-            command = syncAdapter.EnsureCommandParameters(command, commandType, connection, transaction);
+            command = syncAdapter.EnsureCommandParameters(context, command, commandType, connection, transaction);
 
             // Let a chance to the interceptor to change the command
             var args = new GetCommandArgs(scopeInfo, context, command, isBatch, syncAdapter.TableDescription, commandType, connection, transaction);
@@ -145,7 +145,7 @@ namespace Dotmim.Sync
                         if (columnIndex >= 0)
                         {
                             object value = row[columnIndex] ?? DBNull.Value;
-                            syncAdapter.AddCommandParameterValue(parameter, value, command, commandType);
+                            syncAdapter.AddCommandParameterValue(context, parameter, value, command, commandType);
                         }
                     }
 
@@ -160,12 +160,12 @@ namespace Dotmim.Sync
 
                 foreach (var filterParam in tableFilter.Parameters)
                 {
-                    var param = syncAdapter.GetParameter(command, filterParam.Name);
+                    var param = syncAdapter.GetParameter(context, command, filterParam.Name);
 
                     if (param != null)
                     {
                         var parameter = contexParameters.FirstOrDefault(p => p.Name.Equals(filterParam.Name, SyncGlobalization.DataSourceStringComparison));
-                        syncAdapter.AddCommandParameterValue(param, parameter?.Value, command, commandType);
+                        syncAdapter.AddCommandParameterValue(context, param, parameter?.Value, command, commandType);
                     }
                 }
             }
@@ -173,53 +173,53 @@ namespace Dotmim.Sync
             // Common parameters that could be in the command
 
             // Set the scope id
-            var syncScopeIdParameter = syncAdapter.GetParameter(command, "sync_scope_id");
+            var syncScopeIdParameter = syncAdapter.GetParameter(context, command, "sync_scope_id");
             if (syncScopeIdParameter != null)
-                syncAdapter.AddCommandParameterValue(syncScopeIdParameter, sync_scope_id.HasValue ? sync_scope_id.Value : DBNull.Value, command, commandType);
+                syncAdapter.AddCommandParameterValue(context, syncScopeIdParameter, sync_scope_id.HasValue ? sync_scope_id.Value : DBNull.Value, command, commandType);
 
             // Set the sync_min_timestamp
-            var syncMinTimestampParameter = syncAdapter.GetParameter(command, "sync_min_timestamp");
+            var syncMinTimestampParameter = syncAdapter.GetParameter(context, command, "sync_min_timestamp");
             if (syncMinTimestampParameter != null)
-                syncAdapter.AddCommandParameterValue(syncMinTimestampParameter, sync_min_timestamp.HasValue ? sync_min_timestamp.Value : DBNull.Value, command, commandType);
+                syncAdapter.AddCommandParameterValue(context, syncMinTimestampParameter, sync_min_timestamp.HasValue ? sync_min_timestamp.Value : DBNull.Value, command, commandType);
 
             // Set the sync_row_timestamp
             // glitch in delete metadata command 
-            var syncSyncRowTimestamp = syncAdapter.GetParameter(command, "sync_row_timestamp");
+            var syncSyncRowTimestamp = syncAdapter.GetParameter(context, command, "sync_row_timestamp");
             if (syncSyncRowTimestamp != null)
-                syncAdapter.AddCommandParameterValue(syncSyncRowTimestamp, sync_min_timestamp.HasValue ? sync_min_timestamp.Value : DBNull.Value, command, commandType);
+                syncAdapter.AddCommandParameterValue(context, syncSyncRowTimestamp, sync_min_timestamp.HasValue ? sync_min_timestamp.Value : DBNull.Value, command, commandType);
 
             // Set the sync_row_is_tombstone
-            var syncRowIsTombstoneParameter = syncAdapter.GetParameter(command, "sync_row_is_tombstone");
+            var syncRowIsTombstoneParameter = syncAdapter.GetParameter(context, command, "sync_row_is_tombstone");
             if (syncRowIsTombstoneParameter != null)
-                syncAdapter.AddCommandParameterValue(syncRowIsTombstoneParameter, sync_row_is_tombstone.HasValue ? sync_row_is_tombstone.Value ? 1 : 0 : DBNull.Value, command, commandType);
+                syncAdapter.AddCommandParameterValue(context, syncRowIsTombstoneParameter, sync_row_is_tombstone.HasValue ? sync_row_is_tombstone.Value ? 1 : 0 : DBNull.Value, command, commandType);
 
             // Set the sync_force_write
-            var syncForceWriteParameter = syncAdapter.GetParameter(command, "sync_force_write");
+            var syncForceWriteParameter = syncAdapter.GetParameter(context, command, "sync_force_write");
             if (syncForceWriteParameter != null)
-                syncAdapter.AddCommandParameterValue(syncForceWriteParameter, sync_force_write.HasValue ? sync_force_write.Value ? 1 : 0 : DBNull.Value, command, commandType);
+                syncAdapter.AddCommandParameterValue(context, syncForceWriteParameter, sync_force_write.HasValue ? sync_force_write.Value ? 1 : 0 : DBNull.Value, command, commandType);
 
             // Sqlite does not support output parameters
             if (syncAdapter.SupportsOutputParameters)
             {
                 // return value
-                var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
+                var syncRowCountParam = syncAdapter.GetParameter(context, command, "sync_row_count");
                 if (syncRowCountParam != null)
                 {
                     syncRowCountParam.Direction = ParameterDirection.Output;
-                    syncAdapter.AddCommandParameterValue(syncRowCountParam, DBNull.Value, command, commandType);
+                    syncAdapter.AddCommandParameterValue(context, syncRowCountParam, DBNull.Value, command, commandType);
                 }
 
                 // error text
-                var syncErrorTextParam = syncAdapter.GetParameter(command, "sync_error_text");
+                var syncErrorTextParam = syncAdapter.GetParameter(context, command, "sync_error_text");
                 if (syncErrorTextParam != null)
                 {
                     syncErrorTextParam.Direction = ParameterDirection.Output;
-                    syncAdapter.AddCommandParameterValue(syncErrorTextParam, DBNull.Value, command, commandType);
+                    syncAdapter.AddCommandParameterValue(context, syncErrorTextParam, DBNull.Value, command, commandType);
                 }
             }
 
             // Ensure parameters are correct, from DbSyncAdapter
-            command = syncAdapter.EnsureCommandParametersValues(command, commandType, connection, transaction);
+            command = syncAdapter.EnsureCommandParametersValues(context, command, commandType, connection, transaction);
 
             return command;
         }

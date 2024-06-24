@@ -1,4 +1,3 @@
-﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.2.32317.152
@@ -241,11 +240,8 @@ Global
 		{79BA3E42-9D2A-4A08-B40C-5309AE6F8ED5} = {2E7CD7E6-8D9F-47E0-B5E3-4CF58C85F273}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
 		BuildVersion_StartDate = 2000/1/1
-	EndGlobalSection
-	GlobalSection(Performance) = preSolution
-		HasPerformanceSessions = true
+		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true

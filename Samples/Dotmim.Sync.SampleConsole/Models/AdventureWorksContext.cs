@@ -188,11 +188,11 @@ namespace Dotmim.Sync.Tests.Models
                 entity.HasKey(e => e.ProductId);
 
                 entity.HasIndex(e => e.Name)
-                    .HasName("AK_Product_Name")
+                    .HasDatabaseName("AK_Product_Name")
                     .IsUnique();
 
                 entity.HasIndex(e => e.ProductNumber)
-                    .HasName("AK_Product_ProductNumber")
+                    .HasDatabaseName("AK_Product_ProductNumber")
                     .IsUnique();
 
                 entity.Property(e => e.ProductId)
@@ -254,7 +254,7 @@ namespace Dotmim.Sync.Tests.Models
             {
 
                 entity.HasIndex(e => e.Name)
-                    .HasName("AK_ProductCategory_Name")
+                    .HasDatabaseName("AK_ProductCategory_Name")
                     .IsUnique();
 
                 entity.Property(e => e.ProductCategoryId)
@@ -284,7 +284,7 @@ namespace Dotmim.Sync.Tests.Models
             {
 
                 entity.HasIndex(e => e.Name)
-                    .HasName("AK_ProductModel_Name")
+                    .HasDatabaseName("AK_ProductModel_Name")
                     .IsUnique();
 
                 entity.Property(e => e.ProductModelId).HasColumnName("ProductModelID");

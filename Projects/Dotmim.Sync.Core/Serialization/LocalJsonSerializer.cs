@@ -372,9 +372,6 @@ namespace Dotmim.Sync.Serialization
                         if (tmpTable != null)
                             schemaTable = tmpTable;
 
-                        //if (schemaTable == null && tmpTable != null)
-                        //    schemaTable = tmpTable;
-
                         continue;
                     case "r":
                         bool schemaEmpty = schemaTable == null;
@@ -472,7 +469,13 @@ namespace Dotmim.Sync.Serialization
                 // column name & type from file
                 var includedColumnName = includedColumn.GetProperty("n").GetString();
                 var includedColumnType = SyncColumn.GetTypeFromAssemblyQualifiedName(includedColumn.GetProperty("t").GetString());
-                var isPrimaryKey = includedColumn.TryGetProperty("p", out _);
+                
+                bool isPrimaryKey = false;
+                
+                if (includedColumn.TryGetProperty("p", out var isPrimaryKeyElement))
+                {
+                    isPrimaryKey = isPrimaryKeyElement.GetBoolean();
+                }
 
                 // Adding the column 
                 schemaTable.Columns.Add(new SyncColumn(includedColumnName, includedColumnType));

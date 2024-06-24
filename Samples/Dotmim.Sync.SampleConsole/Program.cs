@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using System.Collections.Generic;
 using NLog.Web;
+
 #if NET6_0 || NET8_0
 using MySqlConnector;
 #elif NETCOREAPP3_1
@@ -30,27 +31,27 @@ internal class Program
                                                     "Address", "Customer", "CustomerAddress",
                                                     "SalesOrderHeader", "SalesOrderDetail"};
 
-    public static string[] oneTable = new string[] { "MensCurves" };
+    public static string[] oneTable = new string[] { "ProductCategory" };
 
 
     private static async Task Main(string[] args)
     {
 
-        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        //var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var serverProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString("Wasim"));
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         // var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
-        // var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        var setup = new SyncSetup(oneTable);
+        var setup = new SyncSetup(allTables);
 
         var options = new SyncOptions();
         //options.Logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Information);
@@ -74,12 +75,42 @@ internal class Program
 
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        // await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
         //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
-        // await SynchronizeUniqueIndexAsync();
+        await SyncWithReinitialiazeWithChangeTrackingAsync();
 
         //await CreateSnapshotAsync();
+    }
+
+    private static async Task SyncWithReinitialiazeWithChangeTrackingAsync()
+    {
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+
+        var setup = new SyncSetup("ProductCategory");
+
+        var options = new SyncOptions
+        {
+            DisableConstraintsOnApplyChanges = true
+        };
+
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  " +
+            $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
+
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        //var s = await agent.SynchronizeAsync(setup, progress: progress);
+        //Console.WriteLine(s);
+
+        //await DBHelper.AddProductCategoryRowAsync(clientProvider);
+
+        var s2 = await agent.SynchronizeAsync(setup, SyncType.Reinitialize, progress: progress);
+        Console.WriteLine(s2);
+
+
     }
 
     private static async Task CreateSnapshotAsync()
@@ -159,6 +190,8 @@ internal class Program
 
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
+        options.DisableConstraintsOnApplyChanges = true;
+
         var progress = new SynchronousProgress<ProgressArgs>(s =>
             Console.WriteLine($"{s.ProgressPercentage:p}:  " +
             $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));

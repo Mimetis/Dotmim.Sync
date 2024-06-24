@@ -28,7 +28,7 @@ namespace Dotmim.Sync
 
                 long timestamp;
                 (context, timestamp) = await this.InternalGetLocalTimestampAsync(context,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 return timestamp;
             }

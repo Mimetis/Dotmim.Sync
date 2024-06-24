@@ -249,7 +249,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class InvalidColumnAutoIncrementException : DotmimBaseException
     {
-        const string message = "The column {0} is an auto increment column, but it's not used as a primary key for the table {1}. It's not allowed. Please consider to remove this column from your sync setup.";
+        const string message = "The column {0} is an auto increment column, but it's not used as a primary key for the table {1}. It's not allowed in DMS. Please consider to remove this column from your sync setup.";
 
         public InvalidColumnAutoIncrementException(string columnName, string sourceTableName) : base(string.Format(message, columnName, sourceTableName)) { }
     }

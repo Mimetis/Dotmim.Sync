@@ -395,9 +395,9 @@
       },
       "MySqlConnector": {
         "type": "Direct",
-        "requested": "[2.3.6, )",
-        "resolved": "2.3.6",
-        "contentHash": "DyWErA3jFsJAAn4x6ha09cmmrw/zvjM0/lYUXzV45f0CiY0ZCIwDHGb7wMsIlXr9JaCBOp4i3uZF/HumEPeV+A==",
+        "requested": "[2.3.7, )",
+        "resolved": "2.3.7",
+        "contentHash": "YiVOxvJ+vAYW8NT9gHv8RxKCDFCSXAObF3z0Ou/8WRv8Lsn2QsxaPW5xEwPE+xCcAq6BGkrI8GTOC09Xg09blQ==",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "7.0.1",
           "System.Diagnostics.DiagnosticSource": "7.0.2"
@@ -512,9 +512,9 @@
       },
       "MySqlConnector": {
         "type": "Direct",
-        "requested": "[2.3.6, )",
-        "resolved": "2.3.6",
-        "contentHash": "DyWErA3jFsJAAn4x6ha09cmmrw/zvjM0/lYUXzV45f0CiY0ZCIwDHGb7wMsIlXr9JaCBOp4i3uZF/HumEPeV+A==",
+        "requested": "[2.3.7, )",
+        "resolved": "2.3.7",
+        "contentHash": "YiVOxvJ+vAYW8NT9gHv8RxKCDFCSXAObF3z0Ou/8WRv8Lsn2QsxaPW5xEwPE+xCcAq6BGkrI8GTOC09Xg09blQ==",
         "dependencies": {
           "Microsoft.Extensions.Logging.Abstractions": "7.0.1"
         }

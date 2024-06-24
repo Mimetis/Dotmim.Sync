@@ -246,7 +246,7 @@ namespace Dotmim.Sync
 
                 // Defining my retry policy
                 SyncPolicy retryPolicy = Options.TransactionMode != TransactionMode.AllOrNothing
-                 ? retryPolicy = SyncPolicy.WaitAndRetryForever( retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry)
+                 ? retryPolicy = SyncPolicy.WaitAndRetryForever(retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry)
                  : retryPolicy = SyncPolicy.WaitAndRetry(0, TimeSpan.Zero);
 
                 var applyChangesPolicyResult = await retryPolicy.ExecuteAsync(async () =>
@@ -286,7 +286,7 @@ namespace Dotmim.Sync
                         }
 
                         (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType,
-                                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+                                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                         if (command == null)
                             return (0, default, default, 0);
@@ -357,7 +357,7 @@ namespace Dotmim.Sync
 
                                     syncAdapter.UseBulkOperations = false;
                                     (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType,
-                                                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+                                                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                                     cmdText = command.CommandText;
 
@@ -448,7 +448,14 @@ namespace Dotmim.Sync
                         }
                         throw GetSyncError(context, ex);
                     }
-                });
+                    finally
+                    {
+                        // Close file
+                        if (localSerializer.IsOpen)
+                            localSerializer.CloseFile();
+                    }
+
+                }).ConfigureAwait(false);
 
                 var batchChangesAppliedArgs = new BatchChangesAppliedArgs(context, message.Changes, batchPartInfo, schemaTable, applyType, command, connection, transaction);
                 // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
@@ -575,10 +582,10 @@ namespace Dotmim.Sync
                 rowAppliedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead
-                var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
+                var syncRowCountParam = syncAdapter.GetParameter(context, command, "sync_row_count");
 
                 // Check if we have an handled error
-                var syncErrorText = syncAdapter.GetParameter(command, "sync_error_text");
+                var syncErrorText = syncAdapter.GetParameter(context, command, "sync_error_text");
 
                 if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
                     rowAppliedCount = (int)syncRowCountParam.Value;
@@ -588,7 +595,8 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                errorException = ex;
+                string errorMessage = $"{ex.Message}\nCommand Text:{command.CommandText}\nCommand Type:{Enum.GetName(typeof(DbCommandType), dbCommandType)}";
+                errorException = new Exception(errorMessage, ex);
             }
 
             var rowAppliedArgs = new RowsChangesAppliedArgs(context, message.Changes, new List<SyncRow> { batchArgs.SyncRows[0] }, schemaChangesTable, applyType, rowAppliedCount, errorException, connection, transaction);
@@ -619,11 +627,12 @@ namespace Dotmim.Sync
 
             try
             {
-                await syncAdapter.ExecuteBatchCommandAsync(command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, conflictRowsTable, message.LastTimestamp, connection, transaction);
+                await syncAdapter.ExecuteBatchCommandAsync(context, command, message.SenderScopeId, batchArgs.SyncRows, schemaChangesTable, conflictRowsTable, message.LastTimestamp, connection, transaction).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                errorException = ex;
+                string errorMessage = $"{ex.Message}\nCommand Text:{command.CommandText}\nCommand Type:{Enum.GetName(typeof(DbCommandType), dbCommandType)}";
+                errorException = new Exception(errorMessage, ex);
             }
 
             var rowAppliedCount = errorException != null ? 0 : batchRows.Count - conflictRowsTable.Rows.Count;

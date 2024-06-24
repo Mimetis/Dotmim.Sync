@@ -21,7 +21,7 @@ namespace Dotmim.Sync.Sqlite
             this.sqliteObjectNames = new SqliteObjectNames(this.TableDescription, tableName, trackingName, this.Setup, scopeName);
         }
 
-        public override (DbCommand, bool) GetCommand(DbCommandType commandType, SyncFilter filter = null)
+        public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType commandType, SyncFilter filter = null)
         {
             var command = new SqliteCommand();
             string text;
@@ -34,7 +34,7 @@ namespace Dotmim.Sync.Sqlite
             return (command, false);
         }
 
-        public override void AddCommandParameterValue(DbParameter parameter, object value, DbCommand command, DbCommandType commandType)
+        public override void AddCommandParameterValue(SyncContext context, DbParameter parameter, object value, DbCommand command, DbCommandType commandType)
         {
             if (value == null || value == DBNull.Value)
                 parameter.Value = DBNull.Value;
@@ -42,13 +42,13 @@ namespace Dotmim.Sync.Sqlite
                 parameter.Value = SyncTypeConverter.TryConvertFromDbType(value, parameter.DbType);
         }
 
-        public override DbCommand EnsureCommandParametersValues(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
+        public override DbCommand EnsureCommandParametersValues(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
         {
 
             return command;
         }
 
-        public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
+        public override Task ExecuteBatchCommandAsync(SyncContext context, DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
             => throw new NotImplementedException();
 
 

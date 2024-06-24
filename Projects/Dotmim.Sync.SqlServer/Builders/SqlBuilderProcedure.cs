@@ -91,7 +91,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                 DbStoredProcedureType.SelectRow => null,
                 DbStoredProcedureType.UpdateRow => this.CreateUpdateCommand(connection, transaction),
                 DbStoredProcedureType.DeleteRow => this.CreateDeleteCommand(connection, transaction),
-                DbStoredProcedureType.DeleteMetadata => null,
                 DbStoredProcedureType.BulkTableType => this.CreateBulkTableTypeCommand(connection, transaction),
                 DbStoredProcedureType.BulkUpdateRows => this.CreateBulkUpdateCommand(connection, transaction),
                 DbStoredProcedureType.BulkDeleteRows => this.CreateBulkDeleteCommand(connection, transaction),
@@ -121,7 +120,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             };
 
             // Get the good SqlDbType (even if we are not from Sql Server def)
-            var sqlDbType = this.tableDescription.OriginalProvider == SqlSyncProvider.ProviderType ?
+            // TODO : Find something better than string comparison for change tracking provider
+            var isSameProvider = this.tableDescription.OriginalProvider == SqlSyncProvider.ProviderType ||
+                    this.tableDescription.OriginalProvider == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider";
+
+            var sqlDbType = isSameProvider ?
                 this.sqlDbMetadata.GetSqlDbType(column) : this.sqlDbMetadata.GetOwnerDbTypeFromDbType(column);
 
 
@@ -574,7 +577,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
-        
+
         public DbCommand CreateResetCommand(DbConnection connection, DbTransaction transaction)
         {
             //var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset);
@@ -1031,7 +1034,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                     // Get column name and type
                     var columnName = ParserName.Parse(columnFilter).Unquoted().Normalized().ToString();
 
-                    var sqlDbType = tableFilter.OriginalProvider == SqlSyncProvider.ProviderType ?
+                    // TODO : Find something better than string comparison for change tracking provider
+                    var isSameProvider = tableFilter.OriginalProvider == SqlSyncProvider.ProviderType ||
+                        tableFilter.OriginalProvider == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider";
+
+                    var sqlDbType = isSameProvider ?
                         this.sqlDbMetadata.GetSqlDbType(columnFilter) : this.sqlDbMetadata.GetOwnerDbTypeFromDbType(columnFilter);
 
                     // Add it as parameter
@@ -1093,7 +1100,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 var fullRightTableName = string.IsNullOrEmpty(customJoin.RightTableSchemaName) ? customJoin.RightTableName : $"{customJoin.RightTableSchemaName}.{customJoin.RightTableName}";
                 var rightTableName = ParserName.Parse(fullRightTableName).Quoted().Schema().ToString();
-                
+
                 if (string.Equals(filterTableName, rightTableName, SyncGlobalization.DataSourceStringComparison))
                     rightTableName = "[base]";
 

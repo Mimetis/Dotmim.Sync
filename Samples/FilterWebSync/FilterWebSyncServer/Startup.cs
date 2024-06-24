@@ -110,7 +110,8 @@ namespace FilterWebSyncServer
             setup.Filters.Add(orderDetailsFilter);
 
             // add a SqlSyncProvider acting as the server hub
-            services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
+            var provider = new SqlSyncProvider(connectionString);
+            services.AddSyncServer(provider, setup, options);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

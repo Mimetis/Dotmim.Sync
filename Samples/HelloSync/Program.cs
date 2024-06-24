@@ -48,18 +48,6 @@ namespace HelloSync
                 // Launch the sync process
                 var s1 = await agent.SynchronizeAsync(setup);
 
-                var serverScope = await remoteOrchestrator.ProvisionAsync(setup);
-                setup = new SyncSetup("ProductCategory", "Product");
-                var schema = await remoteOrchestrator.GetSchemaAsync(setup);
-                serverScope.Schema = schema;
-                serverScope.Setup = setup;
-                await remoteOrchestrator.ProvisionAsync(serverScope, overwrite: true);
-
-                var cs = await localOrchestrator.ProvisionAsync(serverScope, overwrite: true);
-
-                s1 = await agent.SynchronizeAsync();
-
-
                 // Write results
                 Console.WriteLine(s1);
 

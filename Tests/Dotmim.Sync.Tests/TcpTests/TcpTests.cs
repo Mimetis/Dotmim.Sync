@@ -1180,7 +1180,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 // generate a random server name
-                 var sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("server_");
+                var sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("server_");
 
                 // create a server provider
                 var provider = HelperDatabase.GetSyncProvider(ServerProviderType, sqlServerRandomDatabaseName,
@@ -1200,7 +1200,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 // now on client delete this product category that is not tracked on server as it's a default row
                 await clientProvider.DeleteProductCategoryAsync(pc.ProductCategoryId);
-                    
+
                 // sync and check
                 var s = await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync();
 
@@ -1275,7 +1275,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     }
                     if (clientProviderType == ProviderType.Sql || clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB)
                     {
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteMetadata));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.Reset));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectRow));
                         Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.UpdateRow));
@@ -1315,7 +1314,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     }
                     if (clientProviderType == ProviderType.Sql || clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB)
                     {
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteMetadata));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteRow));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.Reset));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChanges));
@@ -2057,9 +2055,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             foreach (var s in allTasks)
             {
-                Assert.Equal(rowsCount, s.Result.TotalChangesDownloadedFromServer);
-                Assert.Equal(0, s.Result.TotalChangesUploadedToServer);
-                Assert.Equal(0, s.Result.TotalResolvedConflicts);
+                var result = await s;
+                Assert.Equal(rowsCount, result.TotalChangesDownloadedFromServer);
+                Assert.Equal(0, result.TotalChangesUploadedToServer);
+                Assert.Equal(0, result.TotalResolvedConflicts);
             }
 
             // Create a new product on server 
@@ -2082,10 +2081,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             foreach (var s in allTasks)
             {
-                Assert.Equal(2, s.Result.TotalChangesDownloadedFromServer);
-                Assert.Equal(2, s.Result.TotalChangesAppliedOnClient);
-                Assert.Equal(0, s.Result.TotalChangesUploadedToServer);
-                Assert.Equal(0, s.Result.TotalResolvedConflicts);
+                var result = await s;
+                Assert.Equal(2, result.TotalChangesDownloadedFromServer);
+                Assert.Equal(2, result.TotalChangesAppliedOnClient);
+                Assert.Equal(0, result.TotalChangesUploadedToServer);
+                Assert.Equal(0, result.TotalResolvedConflicts);
             }
 
             //foreach (var db in createdDatabases)
@@ -2098,6 +2098,127 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             //}
         }
 
+
+        [Fact]
+        public async Task DeleteMetadatas()
+        {
+            var (serverProviderType, serverDatabaseName) = HelperDatabase.GetDatabaseType(serverProvider);
+
+            if (serverProviderType == ProviderType.Sql && serverProvider.GetProviderTypeName().Contains("ChangeTracking"))
+                return;
+
+            var dict = new Dictionary<string, long?>();
+            var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
+
+            // Execute a sync on all clients to initialize client and server schema 
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                await agent.SynchronizeAsync(setup);
+                var scope = await agent.LocalOrchestrator.GetScopeInfoAsync();
+                Assert.Null(scope.LastCleanupTimestamp);
+            }
+
+            // Add 2 products on server that will be synced on client
+            await serverProvider.AddProductCategoryAsync();
+            await serverProvider.AddProductCategoryAsync();
+
+            // get rows count
+            var allRowsCount = serverProvider.GetDatabaseRowsCount();
+            var allProductCategories = await serverProvider.GetProductCategoriesAsync();
+
+            // as cleanup happens on any client after 3 syncs, making 2 syncs before checking cleanup
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                await agent.SynchronizeAsync();
+
+                var scope = await agent.LocalOrchestrator.GetScopeInfoAsync();
+
+                Assert.Null(scope.LastCleanupTimestamp);
+
+                var scopeClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
+
+                // this value will be the one used to clean up
+                dict.Add(clientProvider.GetProviderTypeName(), scopeClient.LastSyncTimestamp);
+            }
+
+
+            // on this sync, the 2 added product categories will not be cleaned up.
+            // only the initials rows will be cleaned up
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                bool hasReachedOnMetadataCleaning = false;
+                bool hasReachedOnMetadataCleaned = false;
+
+                var expectedTimestamp = dict[string.Concat(clientProvider.GetProviderTypeName())];
+                agent.LocalOrchestrator.OnMetadataCleaning(args =>
+                {
+                    hasReachedOnMetadataCleaning = true;
+                    Assert.Equal(expectedTimestamp, args.TimeStampStart);
+                });
+
+                agent.LocalOrchestrator.OnMetadataCleaned((args) =>
+                {
+                    hasReachedOnMetadataCleaned = true;
+                    var cleanUpProductCategory = args.DatabaseMetadatasCleaned?.Tables.FirstOrDefault(dmc => dmc.TableName == "ProductCategory");
+
+                    // the two product categories added will be cleaned up on next sync
+                    Assert.Equal(allProductCategories.Count - 2, cleanUpProductCategory.RowsCleanedCount);
+                    Assert.Equal(allRowsCount - 2, args.DatabaseMetadatasCleaned.RowsCleanedCount);
+                });
+
+                await agent.SynchronizeAsync(setup);
+
+                var scope = await agent.LocalOrchestrator.GetScopeInfoAsync();
+                Assert.Equal(expectedTimestamp, scope.LastCleanupTimestamp);
+                Assert.True(hasReachedOnMetadataCleaned);
+                Assert.True(hasReachedOnMetadataCleaning);
+
+                var scopeClient = await agent.LocalOrchestrator.GetScopeInfoClientAsync();
+                // this value will be the one used to clean up
+                dict[clientProvider.GetProviderTypeName()] = scopeClient.LastSyncTimestamp;
+
+            }
+
+            // 2nd sync, the 2 added product categories will be cleaned up
+            foreach (var clientProvider in clientsProvider)
+            {
+                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                bool hasReachedOnMetadataCleaning = false;
+                bool hasReachedOnMetadataCleaned = false;
+
+                var expectedTimestamp = dict[clientProvider.GetProviderTypeName()];
+                agent.LocalOrchestrator.OnMetadataCleaning(args =>
+                {
+                    hasReachedOnMetadataCleaning = true;
+                    Assert.Equal(expectedTimestamp, args.TimeStampStart);
+                });
+
+                agent.LocalOrchestrator.OnMetadataCleaned((args) =>
+                {
+                    hasReachedOnMetadataCleaned = true;
+                    var cleanUpProductCategory = args.DatabaseMetadatasCleaned?.Tables.FirstOrDefault(dmc => dmc.TableName == "ProductCategory");
+
+                    // the two product categories added will be cleaned up on next sync
+                    Assert.Equal(2, cleanUpProductCategory.RowsCleanedCount);
+                    Assert.Equal(2, args.DatabaseMetadatasCleaned.RowsCleanedCount);
+                });
+
+                await agent.SynchronizeAsync(setup);
+                var scope = await agent.LocalOrchestrator.GetScopeInfoAsync();
+                Assert.Equal(expectedTimestamp, scope.LastCleanupTimestamp);
+                Assert.True(hasReachedOnMetadataCleaned);
+                Assert.True(hasReachedOnMetadataCleaning);
+            }
+
+            // delete metadata on server
+            var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+            var deletedMetadatas = await remoteOrchestrator.DeleteMetadatasAsync();
+
+            Assert.Equal(2, deletedMetadatas.RowsCleanedCount);
+        }
 
     }
 }

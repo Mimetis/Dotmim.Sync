@@ -197,7 +197,6 @@ namespace Dotmim.Sync.MySql.Builders
                 DbStoredProcedureType.SelectRow => this.CreateSelectRowCommand(connection, transaction),
                 DbStoredProcedureType.UpdateRow => this.CreateUpdateCommand(connection, transaction),
                 DbStoredProcedureType.DeleteRow => this.CreateDeleteCommand(connection, transaction),
-                DbStoredProcedureType.DeleteMetadata => this.CreateDeleteMetadataCommand(connection, transaction),
                 DbStoredProcedureType.Reset => this.CreateResetCommand(connection, transaction),
                 _ => null,
             };
