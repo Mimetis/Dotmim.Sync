@@ -322,7 +322,7 @@ namespace Dotmim.Sync.Sqlite
         {
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()} WHERE [timestamp] < @sync_row_timestamp;");
+            stringBuilder.AppendLine($"DELETE FROM {trackingName.Quoted().ToString()} WHERE [timestamp] <= @sync_row_timestamp;");
 
             this.AddCommandName(DbCommandType.DeleteMetadata, stringBuilder.ToString());
         }

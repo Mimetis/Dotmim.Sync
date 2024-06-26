@@ -109,11 +109,13 @@ namespace WebSyncServerLast
             setup.Filters.Add(orderDetailsFilter);
 
             // add a SqlSyncProvider with filters
-            services.AddSyncServer<SqlSyncProvider>(connectionString, setup, options);
+            var provider = new SqlSyncProvider(connectionString);
+            services.AddSyncServer(provider, setup, options);
 
             // add a SqlSyncProvider with another scope
-            services.AddSyncServer<SqlSyncProvider>(connectionString,
-                new string[] { "BuildVersion", "ErrorLog" }, options, null, "logs");
+            var provider2 = new SqlSyncProvider(connectionString);
+            var othersTables = new string[] { "BuildVersion", "ErrorLog" };
+            services.AddSyncServer(provider2, othersTables, options, identifier: "logs");
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

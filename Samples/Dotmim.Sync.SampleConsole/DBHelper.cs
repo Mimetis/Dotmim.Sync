@@ -137,32 +137,32 @@ namespace Dotmim.Sync.SampleConsole
         }
 
 
-        internal static async Task<string> AddProductCategoryRowAsync(CoreProvider provider,
-            string productCategoryId = default, string parentProductCategoryId = default, string name = default)
+        internal static async Task<Guid> AddProductCategoryRowAsync(
+            CoreProvider provider, Guid? parentProductCategoryId = default, string name = default)
         {
-            string commandText = $"Insert into SalesLT.ProductCategory (ProductCategoryId, ParentProductCategoryID, Name, ModifiedDate, rowguid) " +
+            string commandText = $"Insert into ProductCategory (ProductCategoryId, ParentProductCategoryID, Name, ModifiedDate, rowguid) " +
                                  $"Values (@ProductCategoryId, @ParentProductCategoryID, @Name, @ModifiedDate, @rowguid)";
 
             var connection = provider.CreateConnection();
 
             connection.Open();
 
-            var pId = string.IsNullOrEmpty(productCategoryId) ? GetRandomName().Replace(".", "").ToUpper() : productCategoryId;
+            var pId = Guid.NewGuid();
 
             var command = connection.CreateCommand();
             command.CommandText = commandText;
             command.Connection = connection;
 
             var p = command.CreateParameter();
-            p.DbType = DbType.String;
+            p.DbType = DbType.Guid;
             p.ParameterName = "@ProductCategoryId";
             p.Value = pId;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
-            p.DbType = DbType.String;
+            p.DbType = DbType.Guid;
             p.ParameterName = "@ParentProductCategoryID";
-            p.Value = string.IsNullOrEmpty(parentProductCategoryId) ?  DBNull.Value : parentProductCategoryId;
+            p.Value = parentProductCategoryId.HasValue  ?  parentProductCategoryId : DBNull.Value ;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();

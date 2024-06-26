@@ -484,7 +484,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                     if (clientProviderType == ProviderType.Sql || clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB)
                     {
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteMetadata));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.Reset));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectRow));
                         Assert.True(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.UpdateRow));
@@ -517,7 +516,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     }
                     if (clientProviderType == ProviderType.Sql || clientProviderType == ProviderType.MySql || clientProviderType == ProviderType.MariaDB)
                     {
-                        Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteMetadata));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.DeleteRow));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.Reset));
                         Assert.False(await localOrchestrator.ExistStoredProcedureAsync(clientScope, setupTable.TableName, setupTable.SchemaName, DbStoredProcedureType.SelectChanges));
@@ -551,7 +549,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             // getting snapshot directory names
             var (rootDirectory, nameDirectory)
-                = await remoteOrchestrator.GetSnapshotDirectoryAsync(parameters).ConfigureAwait(false);
+                = await remoteOrchestrator.GetSnapshotDirectoryAsync(parameters);
 
             Assert.False(Directory.Exists(rootDirectory));
             Assert.False(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));

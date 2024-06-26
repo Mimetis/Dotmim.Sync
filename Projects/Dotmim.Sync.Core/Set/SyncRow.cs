@@ -16,7 +16,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the row's table
         /// </summary>
+        
         public SyncTable SchemaTable { get; set; }
+
+        public SyncRow()
+        {
+            
+        }
 
         /// <summary>
         /// Add a new buffer row

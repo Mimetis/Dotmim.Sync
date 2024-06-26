@@ -48,7 +48,8 @@ namespace HelloWebSyncServer
             "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
 
             // [Required]: Add a SqlSyncProvider acting as the server hub.
-            services.AddSyncServer<SqlSyncProvider>(connectionString, tables, options);
+            var provider = new SqlSyncProvider(connectionString);
+            services.AddSyncServer(provider, tables, options);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

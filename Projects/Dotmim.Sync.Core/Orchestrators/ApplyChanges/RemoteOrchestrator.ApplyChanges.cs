@@ -194,7 +194,7 @@ namespace Dotmim.Sync
                         throw GetSyncError(context, ex);
                     }
 
-                });
+                }).ConfigureAwait(false);
 
                 try
                 {
@@ -214,7 +214,7 @@ namespace Dotmim.Sync
 
                     // JUST Before get changes, get the timestamp, to be sure to 
                     // get rows inserted / updated elsewhere since the sync is not over
-                    (context, remoteClientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+                    (context, remoteClientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     // Get if we need to get all rows from the datasource
                     var fromScratch = cScopeInfoClient.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;

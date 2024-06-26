@@ -22,7 +22,8 @@ namespace MauiWebServer
             var setup = new SyncSetup("Codes");
 
             // add a SqlSyncProvider acting as the server hub
-            builder.Services.AddSyncServer<SqlSyncProvider>(connectionString, setup);
+            var provider = new SqlSyncProvider(connectionString);
+            builder.Services.AddSyncServer(provider, setup);
 
             builder.Services.AddControllers();
 

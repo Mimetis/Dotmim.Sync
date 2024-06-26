@@ -339,9 +339,6 @@ namespace Dotmim.Sync.Serialization
                         if (tmpTable != null)
                             schemaTable = tmpTable;
 
-                        //if (schemaTable == null && tmpTable != null)
-                        //    schemaTable = tmpTable;
-
                         continue;
                     case "r":
                         reader.Read();
@@ -444,7 +441,7 @@ namespace Dotmim.Sync.Serialization
                 // column name & type from file
                 var includedColumnName = includedColumn["n"].Value<string>();
                 var includedColumnType = SyncColumn.GetTypeFromAssemblyQualifiedName(includedColumn["t"].Value<string>());
-                var isPrimaryKey = includedColumn.ContainsKey("p");
+                var isPrimaryKey = includedColumn.ContainsKey("p") && includedColumn["p"].Value<bool>();
 
                 // Adding the column 
                 schemaTable.Columns.Add(new SyncColumn(includedColumnName, includedColumnType));

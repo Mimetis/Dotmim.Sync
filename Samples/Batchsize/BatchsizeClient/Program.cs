@@ -26,7 +26,7 @@ namespace BatchsizeClient
             var serverOrchestrator = new WebRemoteOrchestrator("https://localhost:44342/api/sync");
 
             //var clientProvider = new SqlSyncProvider(clientConnectionString);
-            var clientProvider = new SqliteSyncProvider("adv.db");
+            var clientProvider = new SqliteSyncProvider("advs.db");
 
             var clientOptions = new SyncOptions { BatchSize = 100, ProgressLevel = SyncProgressLevel.Debug };
 

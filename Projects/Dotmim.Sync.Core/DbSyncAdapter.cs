@@ -82,12 +82,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets a command from the current table in the adapter
         /// </summary>
-        public abstract (DbCommand Command, bool IsBatchCommand) GetCommand(DbCommandType commandType, SyncFilter filter = null);
+        public abstract (DbCommand Command, bool IsBatchCommand) GetCommand(SyncContext context, DbCommandType commandType, SyncFilter filter = null);
 
         /// <summary>
         /// Adding a parameter value to a command
         /// </summary>
-        public virtual void AddCommandParameterValue(DbParameter parameter, object value, DbCommand command, DbCommandType commandType)
+        public virtual void AddCommandParameterValue(SyncContext context, DbParameter parameter, object value, DbCommand command, DbCommandType commandType)
         {
             if (value == null || value == DBNull.Value)
                 parameter.Value = DBNull.Value;
@@ -102,20 +102,20 @@ namespace Dotmim.Sync
         /// Parameters have been added to command.
         /// Ensure all parameters are correct from the provider perspective
         /// </summary>
-        public virtual DbCommand EnsureCommandParameters(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
+        public virtual DbCommand EnsureCommandParameters(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
             => command;
 
         /// <summary>
         /// Parameters values have been added to command
         /// Ensure all values are correct from the provider perspective
         /// </summary>
-        public virtual DbCommand EnsureCommandParametersValues(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
+        public virtual DbCommand EnsureCommandParametersValues(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
             => command;
 
         /// <summary>
         /// Get a parameter even if it's a @param or :param or in_param
         /// </summary>
-        public virtual DbParameter GetParameter(DbCommand command, string parameterName) => InternalGetParameter(command, parameterName);
+        public virtual DbParameter GetParameter(SyncContext context, DbCommand command, string parameterName) => InternalGetParameter(command, parameterName);
 
         /// <summary>
         /// Get a parameter even if it's a @param or :param or param
@@ -144,7 +144,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Execute a batch command
         /// </summary>
-        public abstract Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable,
+        public abstract Task ExecuteBatchCommandAsync(SyncContext context, DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable,
                                                       SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction);
 
 

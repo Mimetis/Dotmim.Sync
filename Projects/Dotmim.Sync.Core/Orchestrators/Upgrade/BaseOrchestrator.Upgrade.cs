@@ -206,6 +206,9 @@ namespace Dotmim.Sync
         }
 
 
+
+
+
         internal virtual async Task<Version> UpgradeAutoToLastVersion(SyncContext context, Version version, SyncTable scopeInfos,
                 DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
 

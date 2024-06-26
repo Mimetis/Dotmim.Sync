@@ -295,7 +295,7 @@ namespace Dotmim.Sync
 
                 bool dropped;
                 (context, dropped) = await this.InternalDropTriggersAsync(scopeInfo, context, tableBuilder,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 await runner.CommitAsync().ConfigureAwait(false);
 
@@ -428,7 +428,7 @@ namespace Dotmim.Sync
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                await action.Command.ExecuteNonQueryAsync();
+                await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 await this.InterceptAsync(new TriggerDroppedArgs(context, tableBuilder.TableDescription, triggerType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                 action.Command.Dispose();
 

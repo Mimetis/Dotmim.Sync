@@ -42,6 +42,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             await serverProvider.AddProductCategoryAsync();
             await serverProvider.AddProductAsync();
 
+            // get rows count
+            var allRowsCount = serverProvider.GetDatabaseRowsCount();
+            var allProductCategories = await serverProvider.GetProductCategoriesAsync();
+            var allProducts = await serverProvider.GetProductsAsync();
+
+
             var cleaning = 0;
             var cleaned = 0;
 
@@ -53,6 +59,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             localOrchestrator.OnMetadataCleaned(args =>
             {
                 cleaned++;
+
                 Assert.Equal(0, args.DatabaseMetadatasCleaned.RowsCleanedCount);
                 Assert.Empty(args.DatabaseMetadatasCleaned.Tables);
             });
@@ -66,25 +73,31 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Reset interceptors
             localOrchestrator.ClearInterceptors();
 
+            // Server side : Create a product category 
+            await serverProvider.AddProductCategoryAsync();
+
             cleaning = 0;
             cleaned = 0;
 
-            localOrchestrator.OnMetadataCleaning(args =>
-            {
-                cleaning++;
-            });
-
+            // in this clean up, only initial rows are cleaned
+            localOrchestrator.OnMetadataCleaning(args => cleaning++);
             localOrchestrator.OnMetadataCleaned(args =>
             {
+                var cleanUpProductCategory = args.DatabaseMetadatasCleaned?.Tables.FirstOrDefault(dmc => dmc.TableName == "ProductCategory");
+                var cleanUpProduct = args.DatabaseMetadatasCleaned?.Tables.FirstOrDefault(dmc => dmc.TableName == "Product");
+
+                Assert.Equal(allRowsCount - 2, args.DatabaseMetadatasCleaned.RowsCleanedCount);
+                Assert.Equal(allProductCategories.Count - 1, cleanUpProductCategory.RowsCleanedCount);
+                Assert.Equal(allProducts.Count - 1, cleanUpProduct.RowsCleanedCount);
                 cleaned++;
             });
 
             // Making a second empty sync.
             var s3 = await agent.SynchronizeAsync(scopeName);
 
-            // If there is no changes on any tables, no metadata cleaning is called
-            Assert.Equal(0, cleaning);
-            Assert.Equal(0, cleaned);
+            // Cleaning is called
+            Assert.Equal(1, cleaning);
+            Assert.Equal(1, cleaned);
 
             // Server side : Create a product category 
             await serverProvider.AddProductCategoryAsync();
@@ -95,14 +108,17 @@ namespace Dotmim.Sync.Tests.UnitTests
             cleaning = 0;
             cleaned = 0;
 
-            localOrchestrator.OnMetadataCleaning(args =>
-            {
-                cleaning++;
-            });
-
+            // in this clean up, the product category row and product row are cleaned
+            localOrchestrator.OnMetadataCleaning(args =>cleaning++);
             localOrchestrator.OnMetadataCleaned(args =>
             {
                 cleaned++;
+                var cleanUpProductCategory = args.DatabaseMetadatasCleaned?.Tables.FirstOrDefault(dmc => dmc.TableName == "ProductCategory");
+                var cleanUpProduct = args.DatabaseMetadatasCleaned?.Tables.FirstOrDefault(dmc => dmc.TableName == "Product");
+
+                Assert.Equal(2, args.DatabaseMetadatasCleaned.RowsCleanedCount);
+                Assert.Equal(1, cleanUpProductCategory.RowsCleanedCount);
+                Assert.Equal(1, cleanUpProduct.RowsCleanedCount);
             });
             var s4 = await agent.SynchronizeAsync(scopeName);
 
@@ -118,14 +134,17 @@ namespace Dotmim.Sync.Tests.UnitTests
             cleaning = 0;
             cleaned = 0;
 
-            localOrchestrator.OnMetadataCleaning(args =>
-            {
-                cleaning++;
-            });
-
+            // in this clean up the product category row is cleaned
+            localOrchestrator.OnMetadataCleaning(args =>cleaning++);
             localOrchestrator.OnMetadataCleaned(args =>
             {
                 cleaned++;
+                var cleanUpProductCategory = args.DatabaseMetadatasCleaned?.Tables.FirstOrDefault(dmc => dmc.TableName == "ProductCategory");
+                var cleanUpProduct = args.DatabaseMetadatasCleaned?.Tables.FirstOrDefault(dmc => dmc.TableName == "Product");
+
+                Assert.Equal(1, args.DatabaseMetadatasCleaned.RowsCleanedCount);
+                Assert.Equal(1, cleanUpProductCategory.RowsCleanedCount);
+                Assert.Null(cleanUpProduct);
             });
 
             var s5 = await agent.SynchronizeAsync(scopeName);

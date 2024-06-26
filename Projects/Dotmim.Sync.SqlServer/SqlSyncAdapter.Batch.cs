@@ -15,7 +15,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <summary>
         /// Executing a batch command
         /// </summary>
-        public override async Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable,
+        public override async Task ExecuteBatchCommandAsync(SyncContext context, DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable,
                                                             SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
         {
             var applyRowsCount = applyRows.Count();
@@ -74,6 +74,9 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             if (sqlParameters.Contains("@sync_min_timestamp"))
                 sqlParameters["@sync_min_timestamp"].Value = lastTimestamp.HasValue ? lastTimestamp.Value : DBNull.Value;
+
+            if (sqlParameters.Contains("@sync_force_write"))
+                sqlParameters["@sync_force_write"].Value = context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload ? 1 : 0;
 
             if (sqlParameters.Contains("@sync_scope_id"))
                 sqlParameters["@sync_scope_id"].Value = senderScopeId;
@@ -249,10 +252,12 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         private SqlDbType GetSqlDbType(SyncColumn column)
         {
-            if (this.TableDescription.OriginalProvider == SqlSyncProvider.ProviderType)
-            {
+            // TODO : Find something better than string comparison for change tracking provider
+            var isSameProvider = this.TableDescription.OriginalProvider == SqlSyncProvider.ProviderType ||
+            this.TableDescription.OriginalProvider == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider";
+
+            if (isSameProvider)
                 return this.SqlMetadata.GetSqlDbType(column);
-            }
 
             return this.SqlMetadata.GetOwnerDbTypeFromDbType(column);
         }

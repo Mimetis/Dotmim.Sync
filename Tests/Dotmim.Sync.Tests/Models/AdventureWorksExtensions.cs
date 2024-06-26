@@ -50,7 +50,15 @@ namespace Dotmim.Sync.Tests.Models
         }
 
 
+        public async static Task<List<ProductCategory>> GetProductCategoriesAsync(this CoreProvider provider, DbTransaction transaction = null)
+        {
+            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
+            if (transaction != null)
+                ctx.Database.UseTransaction(transaction);
+
+            return await ctx.ProductCategory.ToListAsync();
+        }
         public static async Task<ProductCategory> GetProductCategoryAsync(this CoreProvider provider, string productCategoryId,  DbTransaction transaction = null)
         {
             using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
@@ -433,12 +441,16 @@ namespace Dotmim.Sync.Tests.Models
             var sohTableName = provider.UseFallbackSchema() ? "SalesLT.SalesOrderHeader" : "SalesOrderHeader";
 
             if (providerType == ProviderType.Sql && salesOrderId.HasValue)
+#pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
                 ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT {sohTableName} ON;");
+#pragma warning restore EF1002 // Risk of vulnerability to SQL injection.
 
             await ctx.SaveChangesAsync();
 
             if (providerType == ProviderType.Sql && salesOrderId.HasValue)
+#pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
                 ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT {sohTableName} OFF;");
+#pragma warning restore EF1002 // Risk of vulnerability to SQL injection.
 
             ctx.Database.CloseConnection();
 
@@ -513,12 +525,16 @@ namespace Dotmim.Sync.Tests.Models
             var sodTableName = provider.UseFallbackSchema() ? "SalesLT.SalesOrderDetail" : "SalesOrderDetail";
 
             if (providerType == ProviderType.Sql && salesOrderDetailId.HasValue)
+#pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
                 ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT {sodTableName} ON;");
+#pragma warning restore EF1002 // Risk of vulnerability to SQL injection.
 
             await ctx.SaveChangesAsync();
 
             if (providerType == ProviderType.Sql && salesOrderDetailId.HasValue)
+#pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
                 ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT {sodTableName} OFF;");
+#pragma warning restore EF1002 // Risk of vulnerability to SQL injection.
 
             ctx.Database.CloseConnection();
 

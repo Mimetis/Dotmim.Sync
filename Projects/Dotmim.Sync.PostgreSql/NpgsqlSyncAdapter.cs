@@ -63,7 +63,7 @@ namespace Dotmim.Sync.PostgreSql
 #endif
         }
 
-        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter = null) => nameType switch
+        public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType nameType, SyncFilter filter = null) => nameType switch
         {
             DbCommandType.SelectChanges => GetSelectChangesCommand(),
             DbCommandType.SelectInitializedChanges => GetSelectInitializedChangesCommand(),
@@ -89,14 +89,14 @@ namespace Dotmim.Sync.PostgreSql
         /// We need to add the missing parameters, and check that the existing ones are correct
         /// Uperts and Deletes commands needs the @sync_error_text output parameter
         /// </summary>
-        public override DbCommand EnsureCommandParameters(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
+        public override DbCommand EnsureCommandParameters(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
             // For upserts & delete commands, we need to ensure that the command parameters have the additional error output parameter
             if (commandType == DbCommandType.InsertRows || commandType == DbCommandType.UpdateRows || commandType == DbCommandType.DeleteRows
                 || commandType == DbCommandType.InsertRow || commandType == DbCommandType.UpdateRow || commandType == DbCommandType.DeleteRow)
             {
                 string errorOutputParameterName = $"sync_error_text";
-                var parameter = GetParameter(command, errorOutputParameterName);
+                var parameter = GetParameter(context, command, errorOutputParameterName);
                 if (parameter == null)
                 {
                     parameter = command.CreateParameter();
@@ -113,7 +113,7 @@ namespace Dotmim.Sync.PostgreSql
                 foreach (var column in this.TableDescription.GetPrimaryKeysColumns())
                 {
                     var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
-                    var parameter = GetParameter(command, unquotedColumn);
+                    var parameter = GetParameter(context, command, unquotedColumn);
                     if (parameter != null)
                         command.Parameters.Remove(parameter);
                 }
@@ -123,7 +123,7 @@ namespace Dotmim.Sync.PostgreSql
                 commandType != DbCommandType.UpdateRow && commandType != DbCommandType.UpdateRows &&
                 commandType != DbCommandType.DeleteRow && commandType != DbCommandType.DeleteRows)
             {
-                var parameter = GetParameter(command, $"sync_row_count");
+                var parameter = GetParameter(context, command, $"sync_row_count");
                 if (parameter != null)
                     command.Parameters.Remove(parameter);
             }
@@ -134,19 +134,19 @@ namespace Dotmim.Sync.PostgreSql
         /// Due to new mechanisme to handle DateTime and DateTimeOffset in Postgres, we need to convert all datetime
         /// to UTC if column in database is "timestamp with time zone"
         /// </summary>
-        public override DbCommand EnsureCommandParametersValues(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
+        public override DbCommand EnsureCommandParametersValues(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
         {
             foreach (NpgsqlParameter npgSqlParameter in command.Parameters)
             {
                 if (npgSqlParameter.Value == null || npgSqlParameter.Value == DBNull.Value)
                     continue;
 
-                AddCommandParameterValue(npgSqlParameter, npgSqlParameter.Value, command, commandType);
+                AddCommandParameterValue(context, npgSqlParameter, npgSqlParameter.Value, command, commandType);
             }
             return command;
         }
 
-        public override void AddCommandParameterValue(DbParameter parameter, object value, DbCommand command, DbCommandType commandType)
+        public override void AddCommandParameterValue(SyncContext context, DbParameter parameter, object value, DbCommand command, DbCommandType commandType)
         {
             var npgSqlParameter = (NpgsqlParameter)parameter;
 
@@ -321,7 +321,7 @@ namespace Dotmim.Sync.PostgreSql
             return (command, false);
         }
 
-        public override Task ExecuteBatchCommandAsync(DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction)
+        public override Task ExecuteBatchCommandAsync(SyncContext context, DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction)
             => throw new NotImplementedException();
     }
 }

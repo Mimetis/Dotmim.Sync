@@ -98,7 +98,7 @@ namespace Dotmim.Sync
             var rowAffected = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             // Check if we have a return value instead
-            var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
+            var syncRowCountParam = syncAdapter.GetParameter(context, command, "sync_row_count");
 
             if (syncRowCountParam != null)
                 rowAffected = (int)syncRowCountParam.Value;

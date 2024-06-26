@@ -52,7 +52,8 @@ namespace ConverterWebSyncServer
             var options = new SyncOptions { };
 
             // [Required]: Add a SqlSyncProvider acting as the server hub.
-            services.AddSyncServer<SqlSyncChangeTrackingProvider>(connectionString, tables, options, webServerOptions);
+            var provider = new SqlSyncChangeTrackingProvider(connectionString);
+            services.AddSyncServer(provider, tables, options, webServerOptions);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

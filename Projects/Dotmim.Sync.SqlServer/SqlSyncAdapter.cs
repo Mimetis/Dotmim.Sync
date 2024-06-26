@@ -45,7 +45,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
 
-        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType nameType, SyncFilter filter)
         {
             var command = new SqlCommand();
             bool isBatch;
@@ -125,12 +125,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                     isBatch = false;
                     break;
                 case DbCommandType.DeleteMetadata:
-                    //command.CommandType = CommandType.StoredProcedure;
-                    //command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata, filter);
-                    //isBatch = false;
-                    //break;
-                    return (default, false);
-
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata);
+                    isBatch = false;
+                    break;
                 case DbCommandType.UpdateMetadata:
                     //command.CommandType = CommandType.Text;
                     //command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
@@ -189,10 +187,10 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
 
-        public override void AddCommandParameterValue(DbParameter parameter, object value, DbCommand command, DbCommandType commandType)
-            => base.AddCommandParameterValue(parameter, value, command, commandType);
+        public override void AddCommandParameterValue(SyncContext context, DbParameter parameter, object value, DbCommand command, DbCommandType commandType)
+            => base.AddCommandParameterValue(context, parameter, value, command, commandType);
 
-        public override DbCommand EnsureCommandParameters(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
+        public override DbCommand EnsureCommandParameters(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
 
             if ((commandType == DbCommandType.InsertRows || commandType == DbCommandType.UpdateRows || commandType == DbCommandType.DeleteRows) && this.UseBulkOperations)
@@ -202,9 +200,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                 
                 DeriveParameters(command, connection, transaction);
             }
-            if (commandType == DbCommandType.UpdateMetadata || commandType == DbCommandType.SelectMetadata || commandType == DbCommandType.SelectRow)
+            if (commandType == DbCommandType.UpdateMetadata || commandType == DbCommandType.DeleteMetadata || commandType == DbCommandType.SelectMetadata || commandType == DbCommandType.SelectRow)
             {
-                var p = GetParameter(command, "sync_row_count");
+                var p = GetParameter(context, command, "sync_row_count");
                 if (p != null)
                     command.Parameters.Remove(p);
             }
@@ -212,7 +210,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             return command;
         }
 
-        public override DbCommand EnsureCommandParametersValues(DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
+        public override DbCommand EnsureCommandParametersValues(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
         {
             if (commandType == DbCommandType.DeleteMetadata)
             {
@@ -221,7 +219,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 foreach (var column in this.TableDescription.GetPrimaryKeysColumns())
                 {
                     var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
-                    var parameter = GetParameter(command, unquotedColumn);
+                    var parameter = GetParameter(context, command, unquotedColumn);
                     if (parameter != null)
                         parameter.Value = DBNull.Value;
                 }
@@ -230,8 +228,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             return command;
         }
 
-        public override DbParameter GetParameter(DbCommand command, string parameterName)
-            => base.GetParameter(command, parameterName);
+        public override DbParameter GetParameter(SyncContext context, DbCommand command, string parameterName)
+            => base.GetParameter(context, command, parameterName);
 
 
         private void DeriveParameters(DbCommand command, DbConnection connection, DbTransaction transaction)

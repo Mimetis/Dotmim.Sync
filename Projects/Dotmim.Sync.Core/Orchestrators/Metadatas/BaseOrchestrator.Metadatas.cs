@@ -76,7 +76,7 @@ namespace Dotmim.Sync
                             rowsCleanedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                             // Check if we have a return value instead
-                            var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
+                            var syncRowCountParam = syncAdapter.GetParameter(context, command, "sync_row_count");
 
                             if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
                                 rowsCleanedCount = (int)syncRowCountParam.Value;
@@ -150,7 +150,7 @@ namespace Dotmim.Sync
                 metadataUpdatedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
                 // Check if we have a return value instead
-                var syncRowCountParam = syncAdapter.GetParameter(command, "sync_row_count");
+                var syncRowCountParam = syncAdapter.GetParameter(context, command, "sync_row_count");
 
                 if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
                     metadataUpdatedRowsCount = (int)syncRowCountParam.Value;

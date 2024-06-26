@@ -1,20 +1,11 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using Dotmim.Sync;
-using Dotmim.Sync.MySql;
 using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace BatchsizeServer
 {
@@ -50,7 +41,8 @@ namespace BatchsizeServer
                 TriggersSuffix = "t"
             };
 
-            services.AddSyncServer<SqlSyncProvider>(connectionString, setup);
+            var provider = new SqlSyncProvider(connectionString);
+            services.AddSyncServer(provider, setup);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
