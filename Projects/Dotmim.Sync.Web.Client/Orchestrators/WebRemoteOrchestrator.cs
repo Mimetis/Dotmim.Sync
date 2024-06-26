@@ -201,6 +201,8 @@ namespace Dotmim.Sync.Web.Client
                 throw new ArgumentException("ServiceUri is not defined");
 
             HttpResponseMessage response = null;
+            Stream streamResponse = null;
+
             try
             {
                 if (cancellationToken.IsCancellationRequested)
@@ -218,11 +220,11 @@ namespace Dotmim.Sync.Web.Client
                 T messageResponse = default;
                 var serializer = this.SerializerFactory.GetSerializer();
 
-                using (var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
-                {
-                    if (streamResponse.CanRead)
-                        messageResponse = await serializer.DeserializeAsync<T>(streamResponse).ConfigureAwait(false);
-                }
+                streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+
+                if (streamResponse.CanRead)
+                    messageResponse = await serializer.DeserializeAsync<T>(streamResponse).ConfigureAwait(false);
+
                 context = messageResponse?.SyncContext;
 
                 await this.InterceptAsync(new HttpGettingResponseMessageArgs(response, this.ServiceUri.ToString(),
@@ -240,7 +242,7 @@ namespace Dotmim.Sync.Web.Client
             }
             catch (Exception e)
             {
-                if (response == null || response.Content == null)
+                if (response == null || response.Content == null || streamResponse == null)
                     throw new HttpSyncWebException(e.Message);
 
                 var exrror = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
@@ -251,6 +253,11 @@ namespace Dotmim.Sync.Web.Client
                 }
 
                 throw new HttpSyncWebException(exrror);
+            }
+            finally
+            {
+                streamResponse?.Dispose();
+                response?.Dispose();
             }
         }
 
