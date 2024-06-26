@@ -18,7 +18,7 @@
 		<AssemblyName>Dotmim.Sync.Web.Server</AssemblyName>
 		<RootNamespace>Dotmim.Sync.Web.Server</RootNamespace>
 		
-		<Version>1.0.0.1</Version>
+		<Version>1.0.0.2</Version>
 		
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
