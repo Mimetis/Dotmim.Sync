@@ -21,6 +21,7 @@ namespace Dotmim.Sync.Serialization
         private static readonly JsonSerializerOptions options = new()
         {
             TypeInfoResolver = DataContractResolver.Default,
+            Converters = { new ArrayJsonConverter(), new ObjectToInferredTypesConverter() }
         };
 
         public async Task<T> DeserializeAsync<T>(Stream ms) => await JsonSerializer.DeserializeAsync<T>(ms, options);

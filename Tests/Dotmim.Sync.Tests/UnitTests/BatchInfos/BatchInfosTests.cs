@@ -43,7 +43,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Debug.WriteLine(str);
         }
 
-        private SyncTable GetSimpleSyncTable(int rowsCount = 1)
+        public static SyncTable GetSimpleSyncTable(int rowsCount = 1)
         {
             SyncTable tCustomer = new SyncTable("Customer");
             tCustomer.Columns.Add(new SyncColumn("ID", typeof(Guid)));

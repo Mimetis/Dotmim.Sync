@@ -1,12 +1,15 @@
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
+using Dotmim.Sync.Tests.UnitTests;
 using Dotmim.Sync.Web.Client;
 using MessagePack;
+using Microsoft.Extensions.Options;
 using System;
 using System.Data;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -27,7 +30,7 @@ namespace Dotmim.Sync.Tests.StandAlone
         [Fact]
         public void Test_Schema_DataContractSerializer()
         {
-            var schemaSerializer = new DataContractSerializer(typeof(SyncSet));
+            var schemaSerializer = new System.Runtime.Serialization.DataContractSerializer(typeof(SyncSet));
             var inSchema = CreateSchema();
             byte[] bin = null;
             SyncSet outSchema;
@@ -74,6 +77,53 @@ namespace Dotmim.Sync.Tests.StandAlone
 
             Assertions(outSchema);
         }
+
+        [Fact]
+        public async Task Test_Container_JsonSerializer()
+        {
+            var containerSet = new ContainerSet();
+            var table = new SyncTable("Customers");
+            var containerTable = new ContainerTable(table);
+
+            containerSet.Tables.Add(containerTable);
+
+            var customers = BatchInfosTests.GetSimpleSyncTable(2);
+            foreach (var row in customers.Rows)
+                containerTable.Rows.Add(row.ToArray());
+
+            var serializer = new JsonObjectSerializer();
+            var bin = await serializer.SerializeAsync(containerSet);
+
+            // Deserialize
+            var outContainerSet = await serializer.DeserializeAsync<ContainerSet>(new MemoryStream(bin));
+
+            Assert.NotNull(outContainerSet);
+            Assert.NotEmpty(outContainerSet.Tables);
+            Assert.Single(outContainerSet.Tables);
+            Assert.NotEmpty(outContainerSet.Tables[0].Rows);
+            Assert.Equal(2, outContainerSet.Tables[0].Rows.Count);
+            Assert.Equal(2, outContainerSet.Tables[0].Rows[0][0]);
+        }
+
+
+
+        [Fact]
+        public async Task Test_SyncRow_JsonSerializer()
+        {
+            var customers = BatchInfosTests.GetSimpleSyncTable(1);
+
+            var objects = customers.Rows[0].ToArray();
+
+            // Serialize
+            var serializer = new JsonObjectSerializer();
+            var bin = await serializer.SerializeAsync(objects);
+
+            // Deserialize
+            await using var ms = new MemoryStream(bin);
+            var outContainerSet = await serializer.DeserializeAsync<object[]>(ms);
+
+        }
+
 
         [Fact]
         public async Task Test_HttpMessage_JsonSerializer()
