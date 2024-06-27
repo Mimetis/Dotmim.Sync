@@ -1,4 +1,6 @@
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
+using Dotmim.Sync.Web.Client;
 using MessagePack;
 using System;
 using System.Data;
@@ -21,37 +23,6 @@ namespace Dotmim.Sync.Tests.StandAlone
 
             Assertions(outSchema);
         }
-
-        //[Fact]
-        //public void Test_Schema_BinarryFormatter()
-        //{
-        //    var inSchema = CreateSchema();
-        //    byte[] bin = null;
-        //    SyncSet outSchema;
-
-        //    var schemaSerializer = new BinaryFormatter
-        //    {
-        //        TypeFormat = FormatterTypeStyle.TypesAlways
-        //    };
-        //    using (var ms = new MemoryStream())
-        //    {
-        //        schemaSerializer.Serialize(ms, inSchema);
-        //        bin = ms.ToArray();
-        //    }
-
-        //    using (var fs = new FileStream("Binary_Schema.bin", FileMode.Create))
-        //    {
-        //        fs.Write(bin, 0, bin.Length);
-        //    }
-
-        //    using (var ms = new MemoryStream(bin))
-        //    {
-        //        outSchema = schemaSerializer.Deserialize(ms) as SyncSet;
-        //    }
-
-        //    Assertions(outSchema);
-        //}
-
 
         [Fact]
         public void Test_Schema_DataContractSerializer()
@@ -102,6 +73,55 @@ namespace Dotmim.Sync.Tests.StandAlone
             var outSchema = await serializer.DeserializeAsync<SyncSet>(ms);
 
             Assertions(outSchema);
+        }
+
+        [Fact]
+        public async Task Test_HttpMessage_JsonSerializer()
+        {
+            var inSchema = CreateSchema();
+            var inSetup = CreateSetup();
+            var inContext = CreateContext();
+
+
+            object messageResponse = null;
+
+            messageResponse = new HttpMessageEnsureScopesResponse
+            {
+                ServerScopeInfo = new ScopeInfo
+                {
+                    LastCleanupTimestamp = 10,
+                    Name = "ScopeName",
+                    Properties = "Props",
+                    Version = "v1",
+                    Schema = inSchema,
+                    Setup = inSetup,
+                },
+                SyncContext = inContext
+
+            };
+
+
+            // Serialize
+            var serializer = new JsonObjectSerializer();
+            var bin = await serializer.SerializeAsync(messageResponse);
+
+            // Deserialize
+            await using var ms = new MemoryStream(bin);
+            var outSchema = await serializer.DeserializeAsync<HttpMessageEnsureScopesResponse>(ms);
+
+            Assert.NotNull(outSchema);
+            Assert.NotNull(outSchema.ServerScopeInfo);
+            Assert.NotNull(outSchema.ServerScopeInfo.Schema);
+            Assert.NotNull(outSchema.ServerScopeInfo.Setup);
+            Assert.NotNull(outSchema.SyncContext);
+            Assert.NotNull(outSchema.SyncContext.Parameters);
+            Assert.Equal("xxxx-zzzz", outSchema.SyncContext.Parameters["ClientId"].Value);
+            Assert.Equal("ScopeName", outSchema.SyncContext.ScopeName);
+            Assert.Equal(SyncStage.ScopeLoading, outSchema.SyncContext.SyncStage);
+            Assert.Equal(SyncType.Normal, outSchema.SyncContext.SyncType);
+            Assert.Equal(SyncWay.Upload, outSchema.SyncContext.SyncWay);
+
+                
         }
 
         private void Assertions(SyncSet outSchema)
@@ -212,6 +232,42 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.Equal("ProductId", p.ColumnName);
             Assert.Equal("Product", p.TableName);
             Assert.Equal("SalesLT", p.SchemaName);
+        }
+
+
+        private static SyncSetup CreateSetup()
+        {
+            var setup = new SyncSetup("ServiceTickets", "SalesLT.Product")
+            {
+                StoredProceduresPrefix = "sp_",
+                StoredProceduresSuffix = "_sp",
+                TriggersPrefix = "tr_",
+                TriggersSuffix = "_tr",
+                TrackingTablesPrefix = "tr_",
+                TrackingTablesSuffix = "_tr",
+            };
+
+            return setup;
+        }
+
+        private static SyncContext CreateContext()
+        {
+            var parameters = new SyncParameters
+            {
+                { "ClientId", "xxxx-zzzz" }
+            };
+
+            return new SyncContext
+            {
+                ClientId = Guid.NewGuid(),
+                ScopeName = "ScopeName",
+                SessionId = Guid.NewGuid(),
+                SyncStage = SyncStage.ScopeLoading,
+                SyncType = SyncType.Normal,
+                SyncWay = SyncWay.Upload,
+                Parameters = parameters
+
+            };
         }
 
         private static SyncSet CreateSchema()
