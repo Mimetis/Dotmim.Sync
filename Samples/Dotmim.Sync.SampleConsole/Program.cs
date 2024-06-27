@@ -37,21 +37,21 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString("CustomersDb"));
         //var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
         //var serverProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString("Wasim"));
         //var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         // var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
         //var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString("CustomersDb2"));
         //var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
         //var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
         //clientProvider.UseBulkOperations = false;
         //var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         //var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
 
-        var setup = new SyncSetup(allTables);
+        var setup = new SyncSetup("Customers");
 
         var options = new SyncOptions();
         //options.Logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Information);
@@ -75,10 +75,10 @@ internal class Program
 
         //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
-        // await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
 
         //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
-        await SyncWithReinitialiazeWithChangeTrackingAsync();
+        // await SyncWithReinitialiazeWithChangeTrackingAsync();
 
         //await CreateSnapshotAsync();
     }
@@ -197,8 +197,20 @@ internal class Program
             $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
 
 
+        //options.ErrorResolutionPolicy = ErrorResolution.ContinueOnError;
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
+        agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
+        {
+            Console.WriteLine("error on client for row " + args.ErrorRow);
+            args.Resolution = ErrorResolution.ContinueOnError;
+        });
+
+        agent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
+        {
+            Console.WriteLine("error on server for row " + args.ErrorRow);
+            args.Resolution = ErrorResolution.ContinueOnError;
+        });
         do
         {
             try
@@ -223,7 +235,10 @@ internal class Program
     }
     public static async Task SyncHttpThroughKestrellAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
-        var configureServices = new Action<IServiceCollection>(services => services.AddSyncServer<SqlSyncProvider>(serverProvider.ConnectionString, setup, options, null, "01"));
+
+        options.ErrorResolutionPolicy = ErrorResolution.ContinueOnError;
+
+        var configureServices = new Action<IServiceCollection>(services => services.AddSyncServer(serverProvider, setup, options, null, default, "01"));
 
         var serverHandler = new RequestDelegate(async context =>
         {
@@ -237,6 +252,21 @@ internal class Program
                 var clientScopeId = context.GetClientScopeId();
 
                 var webServerAgent = webServerAgents.First(wsa => wsa.Identifier == identifier);
+
+                var errors = new Dictionary<string, string>();
+
+                webServerAgent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
+                {
+                    // not mandatory, if you have set the ErrorResolutionPolicy in the options
+                    args.Resolution = ErrorResolution.ContinueOnError;
+
+                    // add the error to the AdditionalProperties dictionary:
+                    if (args.Context.AdditionalProperties == null)
+                        args.Context.AdditionalProperties = new Dictionary<string, string>();
+
+                    args.Context.AdditionalProperties.Add(args.ErrorRow.ToString(), args.Exception.Message);
+
+                });
 
                 await webServerAgent.HandleRequestAsync(context);
 
@@ -283,6 +313,15 @@ internal class Program
                     // create the agent
                     var agent = new SyncAgent(clientProvider, remoteOrchestrator, options);
 
+                    agent.LocalOrchestrator.OnSessionEnd(args =>
+                    {
+                        if (args.Context.AdditionalProperties != null && args.Context.AdditionalProperties.Count > 0)
+                        {
+                            Console.WriteLine("Errors on server side");
+                            foreach (var kvp in args.Context.AdditionalProperties)
+                                Console.WriteLine($"Row {kvp.Key} \n Error:{kvp.Value}");
+                        }
+                    });
 
                     // make a synchronization to get all rows between backup and now
                     var s = await agent.SynchronizeAsync(progress: localProgress);
