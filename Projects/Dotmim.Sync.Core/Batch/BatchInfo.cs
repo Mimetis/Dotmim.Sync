@@ -21,6 +21,7 @@ namespace Dotmim.Sync.Batch
         public BatchInfo()
         {
             this.BatchPartsInfo = new List<BatchPartInfo>();
+            this.DirectoryRoot = SyncOptions.GetDefaultUserBatchDirectory();
             this.DirectoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
         }
 
