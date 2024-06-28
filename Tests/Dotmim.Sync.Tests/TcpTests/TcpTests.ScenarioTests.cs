@@ -17,7 +17,6 @@ using MySqlConnector;
 #elif NETCOREAPP3_1
 using MySql.Data.MySqlClient;
 #endif
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
