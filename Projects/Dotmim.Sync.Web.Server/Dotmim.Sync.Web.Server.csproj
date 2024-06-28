@@ -13,9 +13,6 @@
 		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
 		<AssemblyName>Dotmim.Sync.Web.Server</AssemblyName>
 		<RootNamespace>Dotmim.Sync.Web.Server</RootNamespace>
-		<VersionSuffix>$(VersionSuffix)</VersionSuffix>
-		<Version>1.0.2</Version>
-		<Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>

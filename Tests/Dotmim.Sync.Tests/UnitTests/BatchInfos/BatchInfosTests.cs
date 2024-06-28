@@ -141,8 +141,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             using var jsonDoc = JsonDocument.Parse(jsonString);
             var root = jsonDoc.RootElement;
 
-            Assert.NotNull(root);
-
             var customerToken = root.GetProperty("t")[0];
 
             Assert.Equal("Customer", customerToken.GetProperty("n").GetString());

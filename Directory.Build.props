@@ -1,14 +1,19 @@
 <Project>
-  <PropertyGroup>
-    <TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
-    <TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
-    <TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
-    <TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
+	<PropertyGroup>
+		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
+		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
+		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
+		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
 
-    <!-- Generate the lock file -->
-    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+		<!-- Generate the lock file -->
+		<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
 
-    <!-- Restore the exact packages as listed in the lock file -->
-    <RestoreLockedMode Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</RestoreLockedMode>
-  </PropertyGroup>
+		<!-- Restore the exact packages as listed in the lock file -->
+		<RestoreLockedMode Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</RestoreLockedMode>
+
+		<Version>1.1.0</Version>
+		<VersionSuffix>$(VersionSuffix)</VersionSuffix>
+		<Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
+
+	</PropertyGroup>
 </Project>
