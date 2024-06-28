@@ -82,13 +82,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets if the parameter is default null
         /// </summary>
-        [DataMember(Name = "an", IsRequired = false, EmitDefaultValue = false, Order = 6)]
+        [DataMember(Name = "an", IsRequired = false, Order = 6)]
         public bool AllowNull { get; set; } = false;
 
         /// <summary>
         /// Gets or Sets the parameter max length (if needed)
         /// </summary>
-        [DataMember(Name = "ml", IsRequired = false, EmitDefaultValue = false, Order = 7)]
+        [DataMember(Name = "ml", IsRequired = false, Order = 7)]
         public int MaxLength { get; set; }
 
         public override string ToString() => this.Name;

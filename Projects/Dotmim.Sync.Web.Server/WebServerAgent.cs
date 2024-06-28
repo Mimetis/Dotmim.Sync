@@ -11,6 +11,8 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -302,7 +304,7 @@ namespace Dotmim.Sync.Web.Server
 
                 await this.RemoteOrchestrator.InterceptAsync(new HttpSendingResponseArgs(httpContext, messageResponse.SyncContext, sessionCache, messageResponse, responseSerializerType, step), progress, cancellationToken).ConfigureAwait(false);
 
-                binaryData = await clientSerializerFactory.GetSerializer().SerializeAsync(messageResponse).ConfigureAwait(false);
+                binaryData = await clientSerializerFactory.GetSerializer().SerializeAsync(messageResponse, responseSerializerType).ConfigureAwait(false);
 
                 // Adding the serialization format used and session id
                 httpResponse.Headers.Append("dotmim-sync-session-id", sessionId.ToString());
@@ -317,7 +319,12 @@ namespace Dotmim.Sync.Web.Server
                 // data to send back, as the response
                 byte[] data = this.EnsureCompression(httpRequest, httpResponse, binaryData);
 
+#if NET6_0_OR_GREATER
+                await httpResponse.Body.WriteAsync(data.AsMemory(0, data.Length), cancellationToken).ConfigureAwait(false);
+#else
                 await httpResponse.Body.WriteAsync(data, 0, data.Length, cancellationToken).ConfigureAwait(false);
+#endif
+
             }
             catch (Exception ex)
             {
@@ -661,7 +668,7 @@ namespace Dotmim.Sync.Web.Server
             if (httpMessage.Changes != null && httpMessage.Changes.HasRows)
             {
                 using var localSerializer = new LocalJsonSerializer(this.RemoteOrchestrator, context);
-                
+
                 // we have only one table here
                 var containerTable = httpMessage.Changes.Tables[0];
                 var schemaTable = BaseOrchestrator.CreateChangesTable(sScopeInfo.Schema.Tables[containerTable.TableName, containerTable.SchemaName]);

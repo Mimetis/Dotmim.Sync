@@ -32,7 +32,7 @@ namespace Dotmim.Sync.Web
         /// <summary>
         /// Data source error number if available
         /// </summary>
-        [DataMember(Name = "n", IsRequired = false, EmitDefaultValue = false, Order = 5)]
+        [DataMember(Name = "n", IsRequired = false, Order = 5)]
         public int Number { get; set; }
 
         /// <summary>

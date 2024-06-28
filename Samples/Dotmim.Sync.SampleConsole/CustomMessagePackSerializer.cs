@@ -64,6 +64,8 @@ namespace Dotmim.Sync.SampleConsole
             var val = MessagePackSerializer.Serialize(type, obj, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
             return val;
         }
+
+        public Task<byte[]> SerializeAsync(object obj, Type type) => throw new NotImplementedException();
     }
 }
 

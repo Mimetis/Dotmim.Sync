@@ -305,7 +305,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             using (var connection = new SqlConnection(serverProvider.ConnectionString))
             {
-                await connection.OpenAsync().ConfigureAwait(false);
+                await connection.OpenAsync();
 
                 Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, bulkDelete));
                 Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, bulkUpdate));
@@ -345,7 +345,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             using (var connection = new SqlConnection(serverProvider.ConnectionString))
             {
-                await connection.OpenAsync().ConfigureAwait(false);
+                await connection.OpenAsync();
 
                 Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, bulkDelete));
                 Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, bulkUpdate));

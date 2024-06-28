@@ -2,6 +2,7 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Serialization
@@ -19,7 +20,8 @@ namespace Dotmim.Sync.Serialization
     {
         private static readonly JsonSerializerOptions options = new()
         {
-            TypeInfoResolver = System.Text.Json.Serialization.Metadata.DataContractResolver.Default,
+            TypeInfoResolver = DataContractResolver.Default,
+            Converters = { new ArrayJsonConverter(), new ObjectToInferredTypesConverter() }
         };
 
         public async Task<T> DeserializeAsync<T>(Stream ms) => await JsonSerializer.DeserializeAsync<T>(ms, options);
@@ -27,7 +29,8 @@ namespace Dotmim.Sync.Serialization
         public T Deserialize<T>(string value) => JsonSerializer.Deserialize<T>(value, options);
 
         public Task<byte[]> SerializeAsync<T>(T obj) => Task.FromResult(JsonSerializer.SerializeToUtf8Bytes(obj, options));
-        
+        public Task<byte[]> SerializeAsync(object obj, Type type) => Task.FromResult(JsonSerializer.SerializeToUtf8Bytes(obj, type, options));
+
         public byte[] Serialize<T>(T obj) => JsonSerializer.SerializeToUtf8Bytes(obj, options);
 
         public byte[] Serialize(object obj, Type type) => JsonSerializer.SerializeToUtf8Bytes(obj, type, options);

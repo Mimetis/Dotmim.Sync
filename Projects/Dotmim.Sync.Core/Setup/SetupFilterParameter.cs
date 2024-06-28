@@ -57,7 +57,7 @@ namespace Dotmim.Sync.Setup
         /// <summary>
         /// Gets or Sets the parameter max length (if needed)
         /// </summary>
-        [DataMember(Name = "ml", IsRequired = false, EmitDefaultValue = false, Order = 7)]
+        [DataMember(Name = "ml", IsRequired = false, Order = 7)]
         public int MaxLength { get; set; }
 
 

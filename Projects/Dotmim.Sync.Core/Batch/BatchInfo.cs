@@ -21,6 +21,7 @@ namespace Dotmim.Sync.Batch
         public BatchInfo()
         {
             this.BatchPartsInfo = new List<BatchPartInfo>();
+            this.DirectoryRoot = SyncOptions.GetDefaultUserBatchDirectory();
             this.DirectoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
         }
 
@@ -52,7 +53,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Gets or sets server timestamp
         /// </summary>
-        [DataMember(Name = "ts", IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        [DataMember(Name = "ts", IsRequired = false, Order = 3)]
         public long Timestamp { get; set; }
 
         /// <summary>

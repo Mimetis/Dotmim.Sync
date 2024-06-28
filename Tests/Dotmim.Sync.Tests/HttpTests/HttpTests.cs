@@ -1681,7 +1681,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 await HelperDatabase.ExecuteScriptAsync(clientProviderType, clientDatabaseName,
                                     $"Update scope_info_client set scope_last_server_sync_timestamp=-1");
 
-
                 var agent = new SyncAgent(clientProvider, new WebRemoteOrchestrator(serviceUri), options);
 
                 var se = await Assert.ThrowsAsync<SyncException>(async () =>

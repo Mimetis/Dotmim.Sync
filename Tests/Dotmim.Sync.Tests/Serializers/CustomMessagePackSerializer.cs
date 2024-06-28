@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Serialization;
 using MessagePack;
+using Newtonsoft.Json.Linq;
 using System;
 using System.IO;
 using System.Text;
@@ -60,8 +61,14 @@ namespace Dotmim.Sync.Tests.Serializers
 
         public byte[] Serialize(object obj, Type type)
         {
-            var blob = MessagePackSerializer.Serialize(type, obj);
+            var blob = MessagePackSerializer.Typeless.Serialize(obj);
             return blob;
+        }
+
+        public Task<byte[]> SerializeAsync(object obj, Type type)
+        {
+            var blob = MessagePackSerializer.Typeless.Serialize(obj);
+            return Task.FromResult(blob);
         }
     }
 }

@@ -549,7 +549,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             // getting snapshot directory names
             var (rootDirectory, nameDirectory)
-                = await remoteOrchestrator.GetSnapshotDirectoryAsync(parameters).ConfigureAwait(false);
+                = await remoteOrchestrator.GetSnapshotDirectoryAsync(parameters);
 
             Assert.False(Directory.Exists(rootDirectory));
             Assert.False(Directory.Exists(Path.Combine(rootDirectory, nameDirectory)));

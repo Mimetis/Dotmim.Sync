@@ -21,49 +21,49 @@ namespace Dotmim.Sync
         [DataMember(Name = "dt", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public string DataType { get; set; }
 
-        [DataMember(Name = "an", IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        [DataMember(Name = "an", IsRequired = false,  Order = 3)]
         public bool AllowDBNull { get; set; }
 
-        [DataMember(Name = "iu", IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        [DataMember(Name = "iu", IsRequired = false, Order = 4)]
         public bool IsUnique { get; set; }
 
-        [DataMember(Name = "ir", IsRequired = false, EmitDefaultValue = false, Order = 5)]
+        [DataMember(Name = "ir", IsRequired = false, Order = 5)]
         public bool IsReadOnly { get; set; }
 
-        [DataMember(Name = "ia", IsRequired = false, EmitDefaultValue = false, Order = 6)]
+        [DataMember(Name = "ia", IsRequired = false, Order = 6)]
         public bool IsAutoIncrement { get; set; }
 
-        [DataMember(Name = "seed", IsRequired = false, EmitDefaultValue = false, Order = 7)]
+        [DataMember(Name = "seed", IsRequired = false,  Order = 7)]
         public long AutoIncrementSeed { get; set; }
 
-        [DataMember(Name = "step", IsRequired = false, EmitDefaultValue = false, Order = 8)]
+        [DataMember(Name = "step", IsRequired = false,  Order = 8)]
         public long AutoIncrementStep { get; set; }
 
-        [DataMember(Name = "ius", IsRequired = false, EmitDefaultValue = false, Order = 9)]
+        [DataMember(Name = "ius", IsRequired = false,  Order = 9)]
         public bool IsUnsigned { get; set; }
 
-        [DataMember(Name = "iuc", IsRequired = false, EmitDefaultValue = false, Order = 10)]
+        [DataMember(Name = "iuc", IsRequired = false, Order = 10)]
         public bool IsUnicode { get; set; }
 
-        [DataMember(Name = "ico", IsRequired = false, EmitDefaultValue = false, Order = 11)]
+        [DataMember(Name = "ico", IsRequired = false,  Order = 11)]
         public bool IsCompute { get; set; }
 
-        [DataMember(Name = "ml", IsRequired = false, EmitDefaultValue = false, Order = 12)]
+        [DataMember(Name = "ml", IsRequired = false, Order = 12)]
         public Int32 MaxLength { get; set; }
 
-        [DataMember(Name = "o", IsRequired = false, EmitDefaultValue = false, Order = 13)]
+        [DataMember(Name = "o", IsRequired = false,  Order = 13)]
         public int Ordinal { get; set; }
 
-        [DataMember(Name = "ps", IsRequired = false, EmitDefaultValue = false, Order = 14)]
+        [DataMember(Name = "ps", IsRequired = false, Order = 14)]
         public bool PrecisionIsSpecified { get; set; }
 
-        [DataMember(Name = "p1", IsRequired = false, EmitDefaultValue = false, Order = 15)]
+        [DataMember(Name = "p1", IsRequired = false, Order = 15)]
         public byte Precision { get; set; }
 
-        [DataMember(Name = "ss", IsRequired = false, EmitDefaultValue = false, Order = 16)]
+        [DataMember(Name = "ss", IsRequired = false, Order = 16)]
         public bool ScaleIsSpecified { get; set; }
 
-        [DataMember(Name = "sc", IsRequired = false, EmitDefaultValue = false, Order = 17)]
+        [DataMember(Name = "sc", IsRequired = false, Order = 17)]
         public byte Scale { get; set; }
 
         [DataMember(Name = "odb", IsRequired = false, EmitDefaultValue = false, Order = 18)]
@@ -72,7 +72,7 @@ namespace Dotmim.Sync
         [DataMember(Name = "oty", IsRequired = false, EmitDefaultValue = false, Order = 19)]
         public string OriginalTypeName { get; set; }
 
-        [DataMember(Name = "db", IsRequired = false, EmitDefaultValue = false, Order = 20)]
+        [DataMember(Name = "db", IsRequired = false, Order = 20)]
         public int DbType { get; set; }
 
         [DataMember(Name = "dv", IsRequired = false, EmitDefaultValue = false, Order = 21)]
