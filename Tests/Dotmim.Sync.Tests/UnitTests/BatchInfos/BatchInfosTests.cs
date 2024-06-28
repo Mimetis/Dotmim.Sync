@@ -1,8 +1,6 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -10,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
@@ -138,78 +137,76 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.NotNull(fileInfo);
             Assert.True(fileInfo.Exists);
 
-            // using Json.Net to validate the data
-            using var streamReader = new StreamReader(filePath);
-            var str = streamReader.ReadToEnd();
-            var o = JObject.Parse(str);
+            var jsonString = await File.ReadAllTextAsync(filePath);
+            using var jsonDoc = JsonDocument.Parse(jsonString);
+            var root = jsonDoc.RootElement;
 
-            Assert.NotNull(o);
+            Assert.NotNull(root);
 
-            JToken customerToken = o["t"][0];
+            var customerToken = root.GetProperty("t")[0];
 
-            Assert.Equal("Customer", (string)customerToken["n"]);
-            Assert.Empty((string)customerToken["s"]);
-            Assert.Equal(2, (Int32)customerToken["st"]);
-            JArray columns = customerToken["c"] as JArray;
+            Assert.Equal("Customer", customerToken.GetProperty("n").GetString());
+            Assert.Empty(customerToken.GetProperty("s").GetString());
+            Assert.Equal(2, customerToken.GetProperty("st").GetInt32());
+            var columns = customerToken.GetProperty("c").EnumerateArray().ToList();
             Assert.Equal(19, columns.Count);
 
-            Assert.Equal("ID", columns[0]["n"]);
-            Assert.Equal("16", columns[0]["t"]);
+            Assert.Equal("ID", columns[0].GetProperty("n").GetString());
+            Assert.Equal("16", columns[0].GetProperty("t").GetString());
 
-            Assert.Equal("Name", columns[1]["n"]);
-            Assert.Equal("17", columns[1]["t"]);
+            Assert.Equal("Name", columns[1].GetProperty("n").GetString());
+            Assert.Equal("17", columns[1].GetProperty("t").GetString());
 
-            Assert.Equal("Column_Int16", columns[2]["n"]);
-            Assert.Equal("8", columns[2]["t"]);
+            Assert.Equal("Column_Int16", columns[2].GetProperty("n").GetString());
+            Assert.Equal("8", columns[2].GetProperty("t").GetString());
 
-            Assert.Equal("Column_Int32", columns[3]["n"]);
-            Assert.Equal("6", columns[3]["t"]);
+            Assert.Equal("Column_Int32", columns[3].GetProperty("n").GetString());
+            Assert.Equal("6", columns[3].GetProperty("t").GetString());
 
-            Assert.Equal("Column_Int64", columns[4]["n"]);
-            Assert.Equal("7", columns[4]["t"]);
+            Assert.Equal("Column_Int64", columns[4].GetProperty("n").GetString());
+            Assert.Equal("7", columns[4].GetProperty("t").GetString());
 
-            Assert.Equal("Column_UInt16", columns[5]["n"]);
-            Assert.Equal("11", columns[5]["t"]);
+            Assert.Equal("Column_UInt16", columns[5].GetProperty("n").GetString());
+            Assert.Equal("11", columns[5].GetProperty("t").GetString());
 
-            Assert.Equal("Column_UInt32", columns[6]["n"]);
-            Assert.Equal("9", columns[6]["t"]);
+            Assert.Equal("Column_UInt32", columns[6].GetProperty("n").GetString());
+            Assert.Equal("9", columns[6].GetProperty("t").GetString());
 
-            Assert.Equal("Column_UInt64", columns[7]["n"]);
-            Assert.Equal("10", columns[7]["t"]);
+            Assert.Equal("Column_UInt64", columns[7].GetProperty("n").GetString());
+            Assert.Equal("10", columns[7].GetProperty("t").GetString());
 
-            Assert.Equal("Column_DateTime", columns[8]["n"]);
-            Assert.Equal("13", columns[8]["t"]);
+            Assert.Equal("Column_DateTime", columns[8].GetProperty("n").GetString());
+            Assert.Equal("13", columns[8].GetProperty("t").GetString());
 
-            Assert.Equal("Column_DateTimeOffset", columns[9]["n"]);
-            Assert.Equal("14", columns[9]["t"]);
+            Assert.Equal("Column_DateTimeOffset", columns[9].GetProperty("n").GetString());
+            Assert.Equal("14", columns[9].GetProperty("t").GetString());
 
-            Assert.Equal("Column_Byte", columns[10]["n"]);
-            Assert.Equal("2", columns[10]["t"]);
+            Assert.Equal("Column_Byte", columns[10].GetProperty("n").GetString());
+            Assert.Equal("2", columns[10].GetProperty("t").GetString());
 
-            Assert.Equal("Column_Boolean", columns[11]["n"]);
-            Assert.Equal("1", columns[11]["t"]);
+            Assert.Equal("Column_Boolean", columns[11].GetProperty("n").GetString());
+            Assert.Equal("1", columns[11].GetProperty("t").GetString());
 
-            Assert.Equal("Column_Char", columns[12]["n"]);
-            Assert.Equal("3", columns[12]["t"]);
+            Assert.Equal("Column_Char", columns[12].GetProperty("n").GetString());
+            Assert.Equal("3", columns[12].GetProperty("t").GetString());
 
-            Assert.Equal("Column_Decimal", columns[13]["n"]);
-            Assert.Equal("15", columns[13]["t"]);
+            Assert.Equal("Column_Decimal", columns[13].GetProperty("n").GetString());
+            Assert.Equal("15", columns[13].GetProperty("t").GetString());
 
-            Assert.Equal("Column_Double", columns[14]["n"]);
-            Assert.Equal("4", columns[14]["t"]);
+            Assert.Equal("Column_Double", columns[14].GetProperty("n").GetString());
+            Assert.Equal("4", columns[14].GetProperty("t").GetString());
 
-            Assert.Equal("Column_Float", columns[15]["n"]);
-            Assert.Equal("5", columns[15]["t"]);
+            Assert.Equal("Column_Float", columns[15].GetProperty("n").GetString());
+            Assert.Equal("5", columns[15].GetProperty("t").GetString());
 
-            Assert.Equal("Column_SByte", columns[16]["n"]);
-            Assert.Equal("18", columns[16]["t"]);
+            Assert.Equal("Column_SByte", columns[16].GetProperty("n").GetString());
+            Assert.Equal("18", columns[16].GetProperty("t").GetString());
 
-            Assert.Equal("Column_TimeSpan", columns[17]["n"]);
-            Assert.Equal("19", columns[17]["t"]);
+            Assert.Equal("Column_TimeSpan", columns[17].GetProperty("n").GetString());
+            Assert.Equal("19", columns[17].GetProperty("t").GetString());
 
-            Assert.Equal("Column_ByteArray", columns[18]["n"]);
-            Assert.Equal("12", columns[18]["t"]);
-
+            Assert.Equal("Column_ByteArray", columns[18].GetProperty("n").GetString());
+            Assert.Equal("12", columns[18].GetProperty("t").GetString());
         }
 
 
