@@ -1,23 +1,12 @@
 ﻿
 using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.ComTypes;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
 
 namespace Dotmim.Sync
 {
@@ -264,8 +253,6 @@ namespace Dotmim.Sync
             serverBatchInfo.Timestamp = remoteClientTimestamp;
 
             // Serialize on disk.
-            var jsonConverter = new JsonObjectSerializer();
-
             var summaryFileName = Path.Combine(directoryFullPath, "summary.json");
 
             if (!Directory.Exists(directoryFullPath))
@@ -273,7 +260,8 @@ namespace Dotmim.Sync
 
             using (var f = new FileStream(summaryFileName, FileMode.CreateNew, FileAccess.ReadWrite))
             {
-                var bytes = await jsonConverter.SerializeAsync(serverBatchInfo).ConfigureAwait(false);
+                var serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+                var bytes = await serializer.SerializeAsync(serverBatchInfo);
                 f.Write(bytes, 0, bytes.Length);
             }
 
@@ -283,7 +271,5 @@ namespace Dotmim.Sync
 
             return (context, serverBatchInfo);
         }
-
-
     }
 }

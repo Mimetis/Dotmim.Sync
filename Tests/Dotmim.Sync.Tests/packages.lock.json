@@ -545,8 +545,8 @@
       },
       "Microsoft.Net.Http.Headers": {
         "type": "Transitive",
-        "resolved": "2.2.0",
-        "contentHash": "iZNkjYqlo8sIOI0bQfpsSoMTmB/kyvmV2h225ihyZT33aTp48ZpF6qYnXxzSXmHt8DpBAwBTX+1s1UFLbYfZKg==",
+        "resolved": "2.2.8",
+        "contentHash": "wHdwMv0QDDG2NWDSwax9cjkeQceGC1Qq53a31+31XpvTXVljKXRjWISlMoS/wZYKiqdqzuEvKFKwGHl+mt2jCA==",
         "dependencies": {
           "Microsoft.Extensions.Primitives": "2.2.0",
           "System.Buffers": "4.5.0"
@@ -609,8 +609,8 @@
       },
       "Newtonsoft.Json": {
         "type": "Transitive",
-        "resolved": "13.0.3",
-        "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
+        "resolved": "13.0.1",
+        "contentHash": "ppPFpBcvxdsfUonNcvITKqLl3bqxWbDCZIzDWHzjpdAHRFfZe0Dw9HmA0+za13IdyrgJwpkDTDA9fHaxOrt20A=="
       },
       "Newtonsoft.Json.Bson": {
         "type": "Transitive",
@@ -945,8 +945,8 @@
       },
       "System.Text.Json": {
         "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "OdrZO2WjkiEG6ajEFRABTRCi/wuXQPxeV6g8xvUJqdxMvvuCCEk86zPla8UiIQJz3durtUEbNyY/3lIhS0yZvQ==",
+        "resolved": "8.0.3",
+        "contentHash": "hpagS9joOwv6efWfrMmV9MjQXpiXZH72PgN067Ysfr6AWMSD1/1hEcvh/U5mUpPLezEWsOJSuVrmqDIVD958iA==",
         "dependencies": {
           "Microsoft.Bcl.AsyncInterfaces": "8.0.0",
           "System.Buffers": "4.5.1",
@@ -1029,63 +1029,64 @@
           "Microsoft.Build.Tasks.Core": "[17.9.5, )",
           "Microsoft.CSharp": "[4.7.0, )",
           "Microsoft.Extensions.Logging": "[2.2.0, )",
-          "Newtonsoft.Json": "[13.0.3, )",
+          "System.Text.Json": "[8.0.3, )",
           "System.Threading.Tasks.Dataflow": "[8.0.0, )"
         }
       },
       "dotmim.sync.mariadb": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "MySqlConnector": "[0.69.10, )"
         }
       },
       "dotmim.sync.mysql": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "MySqlConnector": "[0.69.10, )"
         }
       },
       "dotmim.sync.postgresql": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "Npgsql": "[8.0.3, )"
         }
       },
       "dotmim.sync.sqlite": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "Microsoft.Data.Sqlite": "[8.0.6, )"
         }
       },
       "dotmim.sync.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "Microsoft.Data.SqlClient": "[5.2.1, )"
         }
       },
       "dotmim.sync.sqlserver.changetracking": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.SqlServer": "[1.0.1, )"
+          "Dotmim.Sync.SqlServer": "[1.0.2, )"
         }
       },
       "dotmim.sync.web.client": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "Microsoft.AspNet.WebApi.Client": "[6.0.0, )",
-          "Microsoft.Extensions.Features": "[6.0.0, )"
+          "Microsoft.Extensions.Features": "[6.0.0, )",
+          "Microsoft.Net.Http.Headers": "[2.2.8, )"
         }
       },
       "dotmim.sync.web.server": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Web.Client": "[1.0.1, )",
+          "Dotmim.Sync.Web.Client": "[1.0.2, )",
           "Microsoft.AspNetCore.Http.Abstractions": "[2.2.0, )",
           "Microsoft.AspNetCore.Http.Extensions": "[2.2.0, )",
           "Microsoft.Extensions.Caching.Abstractions": "[3.1.32, )",
@@ -1093,7 +1094,7 @@
           "Microsoft.Extensions.DependencyInjection": "[3.1.32, )",
           "Microsoft.Extensions.Features": "[6.0.0, )",
           "Microsoft.Extensions.Http": "[3.1.32, )",
-          "Newtonsoft.Json": "[13.0.3, )"
+          "System.Text.Json": "[8.0.3, )"
         }
       }
     },
@@ -1551,8 +1552,8 @@
       },
       "Newtonsoft.Json": {
         "type": "Transitive",
-        "resolved": "13.0.3",
-        "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
+        "resolved": "13.0.1",
+        "contentHash": "ppPFpBcvxdsfUonNcvITKqLl3bqxWbDCZIzDWHzjpdAHRFfZe0Dw9HmA0+za13IdyrgJwpkDTDA9fHaxOrt20A=="
       },
       "Newtonsoft.Json.Bson": {
         "type": "Transitive",
@@ -1749,8 +1750,8 @@
       },
       "System.Text.Json": {
         "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "OdrZO2WjkiEG6ajEFRABTRCi/wuXQPxeV6g8xvUJqdxMvvuCCEk86zPla8UiIQJz3durtUEbNyY/3lIhS0yZvQ==",
+        "resolved": "8.0.3",
+        "contentHash": "hpagS9joOwv6efWfrMmV9MjQXpiXZH72PgN067Ysfr6AWMSD1/1hEcvh/U5mUpPLezEWsOJSuVrmqDIVD958iA==",
         "dependencies": {
           "System.Runtime.CompilerServices.Unsafe": "6.0.0",
           "System.Text.Encodings.Web": "8.0.0"
@@ -1813,54 +1814,54 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Logging": "[6.0.0, )",
-          "Newtonsoft.Json": "[13.0.3, )"
+          "System.Text.Json": "[8.0.3, )"
         }
       },
       "dotmim.sync.mariadb": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "MySqlConnector": "[2.3.7, )"
         }
       },
       "dotmim.sync.mysql": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "MySqlConnector": "[2.3.7, )"
         }
       },
       "dotmim.sync.postgresql": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "Npgsql": "[8.0.3, )"
         }
       },
       "dotmim.sync.sqlite": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "Microsoft.Data.Sqlite": "[8.0.6, )"
         }
       },
       "dotmim.sync.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "Microsoft.Data.SqlClient": "[5.2.1, )"
         }
       },
       "dotmim.sync.sqlserver.changetracking": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.SqlServer": "[1.0.1, )"
+          "Dotmim.Sync.SqlServer": "[1.0.2, )"
         }
       },
       "dotmim.sync.web.client": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "Microsoft.AspNet.WebApi.Client": "[6.0.0, )",
           "Microsoft.Extensions.Features": "[6.0.0, )"
         }
@@ -1868,8 +1869,8 @@
       "dotmim.sync.web.server": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Web.Client": "[1.0.1, )",
-          "Newtonsoft.Json": "[13.0.3, )"
+          "Dotmim.Sync.Web.Client": "[1.0.2, )",
+          "System.Text.Json": "[8.0.3, )"
         }
       }
     },
@@ -2281,8 +2282,8 @@
       },
       "Newtonsoft.Json": {
         "type": "Transitive",
-        "resolved": "13.0.3",
-        "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
+        "resolved": "13.0.1",
+        "contentHash": "ppPFpBcvxdsfUonNcvITKqLl3bqxWbDCZIzDWHzjpdAHRFfZe0Dw9HmA0+za13IdyrgJwpkDTDA9fHaxOrt20A=="
       },
       "Npgsql": {
         "type": "Transitive",
@@ -2411,8 +2412,8 @@
       },
       "System.Text.Json": {
         "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "OdrZO2WjkiEG6ajEFRABTRCi/wuXQPxeV6g8xvUJqdxMvvuCCEk86zPla8UiIQJz3durtUEbNyY/3lIhS0yZvQ==",
+        "resolved": "8.0.3",
+        "contentHash": "hpagS9joOwv6efWfrMmV9MjQXpiXZH72PgN067Ysfr6AWMSD1/1hEcvh/U5mUpPLezEWsOJSuVrmqDIVD958iA==",
         "dependencies": {
           "System.Text.Encodings.Web": "8.0.0"
         }
@@ -2466,54 +2467,54 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Logging": "[8.0.0, )",
-          "Newtonsoft.Json": "[13.0.3, )"
+          "System.Text.Json": "[8.0.3, )"
         }
       },
       "dotmim.sync.mariadb": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "MySqlConnector": "[2.3.7, )"
         }
       },
       "dotmim.sync.mysql": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "MySqlConnector": "[2.3.7, )"
         }
       },
       "dotmim.sync.postgresql": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "Npgsql": "[8.0.3, )"
         }
       },
       "dotmim.sync.sqlite": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "Microsoft.Data.Sqlite": "[8.0.6, )"
         }
       },
       "dotmim.sync.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "Microsoft.Data.SqlClient": "[5.2.1, )"
         }
       },
       "dotmim.sync.sqlserver.changetracking": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.SqlServer": "[1.0.1, )"
+          "Dotmim.Sync.SqlServer": "[1.0.2, )"
         }
       },
       "dotmim.sync.web.client": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.1, )",
+          "Dotmim.Sync.Core": "[1.0.2, )",
           "Microsoft.Extensions.Features": "[8.0.6, )",
           "Microsoft.Net.Http.Headers": "[8.0.6, )"
         }
@@ -2521,8 +2522,8 @@
       "dotmim.sync.web.server": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Web.Client": "[1.0.1, )",
-          "Newtonsoft.Json": "[13.0.3, )"
+          "Dotmim.Sync.Web.Client": "[1.0.2, )",
+          "System.Text.Json": "[8.0.3, )"
         }
       }
     }

@@ -4,26 +4,19 @@ using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices.ComTypes;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Transactions;
-using System.Xml;
 
 namespace Dotmim.Sync
 {
     public abstract partial class BaseOrchestrator
     {
-
         /// <summary>
         /// Apply changes : Delete / Insert / Update
         /// the fromScope is local client scope when this method is called from server
@@ -33,7 +26,6 @@ namespace Dotmim.Sync
             InternalApplyChangesAsync(ScopeInfo scopeInfo, SyncContext context, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
                              CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-
             context.SyncStage = SyncStage.ChangesApplying;
 
             message.ChangesApplied ??= new DatabaseChangesApplied();
@@ -196,7 +188,7 @@ namespace Dotmim.Sync
 
             TableChangesApplied tableChangesApplied = null;
 
-            var localSerializer = new LocalJsonSerializer(this, context);
+            using var localSerializer = new LocalJsonSerializer(this, context);
 
             // conflict resolved count
             int conflictsResolvedCount = 0;
@@ -801,8 +793,8 @@ namespace Dotmim.Sync
                     if (tableBpis == null || !tableBpis.Any())
                         continue;
 
-                    var localSerializerReader = new LocalJsonSerializer(this, context);
-                    var localSerializerWriter = new LocalJsonSerializer(this, context);
+                    using var localSerializerReader = new LocalJsonSerializer(this, context);
+                    using var localSerializerWriter = new LocalJsonSerializer(this, context);
 
                     // Load in memory failed rows for this table
                     var failedRows = new List<SyncRow>();
@@ -810,11 +802,11 @@ namespace Dotmim.Sync
                     // Read already present lines
                     var lastSyncErrorsBpiFullPath = lastSyncErrorsBatchInfo.GetBatchPartInfoPath(tableBpis.ToList()[0]);
 
-                    foreach (var syncRow in localSerializerReader.GetRowsFromFile(lastSyncErrorsBpiFullPath, schemaChangesTable))
-                        failedRows.Add(syncRow);
+                    var syncRows = localSerializerReader.GetRowsFromFile(lastSyncErrorsBpiFullPath, schemaChangesTable);
+                    failedRows.AddRange(syncRows);
 
                     // Open again the same file
-                    localSerializerWriter.OpenFile(lastSyncErrorsBpiFullPath, schemaChangesTable, SyncRowState.None);
+                    await localSerializerWriter.OpenFileAsync(lastSyncErrorsBpiFullPath, schemaChangesTable, SyncRowState.None).ConfigureAwait(false);
 
                     foreach (var batchPartInfo in bpiTables)
                     {
@@ -842,11 +834,9 @@ namespace Dotmim.Sync
                         if (failedRows.Count <= 0)
                             break;
                     }
-
+                    
                     foreach (var row in failedRows)
                         await localSerializerWriter.WriteRowToFileAsync(row, schemaChangesTable).ConfigureAwait(false);
-
-                    localSerializerWriter.CloseFile();
 
                     if (failedRows.Count <= 0 && File.Exists(lastSyncErrorsBpiFullPath))
                         File.Delete(lastSyncErrorsBpiFullPath);

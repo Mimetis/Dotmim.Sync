@@ -1,31 +1,39 @@
 ﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Extensions;
 using Dotmim.Sync.Serialization;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.IO;
 using System.Linq;
-using System.Net.Http;
-using System.Net.Sockets;
-using System.Runtime.Serialization;
-using System.Security.Permissions;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
+    public abstract class DotmimBaseException : Exception
+    {
+        protected static ISerializer serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+
+        protected DotmimBaseException()
+        {
+        }
+
+        protected DotmimBaseException(string message) : base(message)
+        {
+        }
+
+        protected DotmimBaseException(string message, Exception innerException) : base(message, innerException)
+        {
+        }
+    }
 
     /// <summary>
     /// Exception
     /// </summary>
-    public class SyncException : Exception
+    public class SyncException : DotmimBaseException
     {
         public SyncException(string message, SyncStage stage = SyncStage.None) : base(message)
         {
             this.SyncStage = stage;
-
         }
 
         public SyncException(Exception innerException, SyncStage stage = SyncStage.None) : this(innerException, innerException.Message, stage)
@@ -87,7 +95,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Unknown Exception
     /// </summary>
-    public class UnknownException : Exception
+    public class UnknownException : DotmimBaseException
     {
         public UnknownException(string message) : base(message) { }
     }
@@ -95,7 +103,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Rollback Exception
     /// </summary>
-    public class RollbackException : Exception
+    public class RollbackException : DotmimBaseException
     {
         public RollbackException(string message) : base(message) { }
     }
@@ -103,7 +111,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when trying to launch another sync during an in progress sync.
     /// </summary>
-    public class AlreadyInProgressException : Exception
+    public class AlreadyInProgressException : DotmimBaseException
     {
         const string message = "Synchronization already in progress";
 
@@ -115,7 +123,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when trying to use a closed connection
     /// </summary>
-    public class ConnectionClosedException : Exception
+    public class ConnectionClosedException : DotmimBaseException
     {
         const string message = "The connection to database {0} is closed.";
 
@@ -125,7 +133,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when trying to launch another sync during an in progress sync.
     /// </summary>
-    public class FormatTypeException : Exception
+    public class FormatTypeException : DotmimBaseException
     {
         const string message = "The type {0} is not supported ";
 
@@ -133,7 +141,7 @@ namespace Dotmim.Sync
     }
 
 
-    public class FormatDbTypeException : Exception
+    public class FormatDbTypeException : DotmimBaseException
     {
         const string message = "The DbType {0} is not supported ";
 
@@ -144,7 +152,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a bad SyncProvision is provided to a local orchestrator
     /// </summary>
-    public class InvalidRemoteOrchestratorException : Exception
+    public class InvalidRemoteOrchestratorException : DotmimBaseException
     {
         const string message = "The remote orchestrator used here is not able to intercept the OnApplyChangedFailed event, since this event is occuring on the server side only";
 
@@ -155,7 +163,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a bad SyncProvision is provided to a local orchestrator
     /// </summary>
-    public class InvalidProvisionForLocalOrchestratorException : Exception
+    public class InvalidProvisionForLocalOrchestratorException : DotmimBaseException
     {
         const string message = "A local database should not have a server scope table. Please provide a correct SyncProvision flag.";
 
@@ -165,7 +173,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a bad SyncProvision is provided to a remote orchestrator
     /// </summary>
-    public class InvalidProvisionForRemoteOrchestratorException : Exception
+    public class InvalidProvisionForRemoteOrchestratorException : DotmimBaseException
     {
         const string message = "A server database should not have a client scope table. Please provide a correct SyncProvision flag.";
 
@@ -175,7 +183,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a connection is missing
     /// </summary>
-    public class MissingConnectionException : Exception
+    public class MissingConnectionException : DotmimBaseException
     {
         const string message = "Connection is null";
 
@@ -186,7 +194,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a schema is needed, but does not exists
     /// </summary>
-    public class MissingLocalOrchestratorSchemaException : Exception
+    public class MissingLocalOrchestratorSchemaException : DotmimBaseException
     {
         const string message = "Schema does not exists yet in your local database. You must make a first sync with your server, to initialize everything required locally.";
 
@@ -197,7 +205,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a schema is needed, but does not exists
     /// </summary>
-    public class MissingRemoteOrchestratorSchemaException : Exception
+    public class MissingRemoteOrchestratorSchemaException : DotmimBaseException
     {
         const string message = "Schema does not exists yet in your remote database. You must make a first sync with your server, to initialize everything required locally.";
 
@@ -208,7 +216,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a scope info is needed, but does not exists
     /// </summary>
-    public class MissingClientScopeInfoException : Exception
+    public class MissingClientScopeInfoException : DotmimBaseException
     {
         const string message = "The client scope info is invalid. You need to make a first sync before.";
 
@@ -218,7 +226,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a scope info is needed, but does not exists
     /// </summary>
-    public class MissingServerScopeInfoException : Exception
+    public class MissingServerScopeInfoException : DotmimBaseException
     {
         const string message = "The server scope info is invalid. You need to make a first sync before.";
 
@@ -228,7 +236,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a scope info is not good, conflicting with the one from the orchestrator
     /// </summary>
-    public class InvalidScopeInfoException : Exception
+    public class InvalidScopeInfoException : DotmimBaseException
     {
         const string message = "The scope name is invalid. Be sure to declare a scope name correctly.";
 
@@ -239,7 +247,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a scope info is not good, conflicting with the one from the orchestrator
     /// </summary>
-    public class InvalidColumnAutoIncrementException : Exception
+    public class InvalidColumnAutoIncrementException : DotmimBaseException
     {
         const string message = "The column {0} is an auto increment column, but it's not used as a primary key for the table {1}. It's not allowed in DMS. Please consider to remove this column from your sync setup.";
 
@@ -252,7 +260,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when primary key is missing in the table schema
     /// </summary>
-    public class MissingPrimaryKeyException : Exception
+    public class MissingPrimaryKeyException : DotmimBaseException
     {
         const string message = "Table {0} does not have any primary key.";
 
@@ -262,7 +270,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Setup table exception. Used when a setup table is defined that does not exist in the data source
     /// </summary>
-    public class MissingTableException : Exception
+    public class MissingTableException : DotmimBaseException
     {
         const string message = "Table {0} does not exists in database {1}.";
 
@@ -273,7 +281,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Setup Conflict, when setup provided by the user in code is different from the one in database.
     /// </summary>
-    public class SetupConflictOnClientException : Exception
+    public class SetupConflictOnClientException : DotmimBaseException
     {
         const string message = "Seems you are trying another Setup that what is stored in your client scope database.\n" +
                                "You have already made a sync with a setup that has been stored in the client database.\n" +
@@ -286,13 +294,13 @@ namespace Dotmim.Sync
                                "Setup found in your database: {1}\n" +
                                "-----------------------------------------------------\n";
 
-        public SetupConflictOnClientException(SyncSetup inputSetup, SyncSetup clientScopeInfoSetup) : base(string.Format(message, JsonConvert.SerializeObject(inputSetup), JsonConvert.SerializeObject(clientScopeInfoSetup))) { }
+        public SetupConflictOnClientException(SyncSetup inputSetup, SyncSetup clientScopeInfoSetup) : base(string.Format(message, serializer.Serialize(inputSetup).ToUtf8String(), serializer.Serialize(clientScopeInfoSetup).ToUtf8String())) { }
     }
 
     /// <summary>
     /// Setup Conflict, when setup provided by the user in code is different from the one in database.
     /// </summary>
-    public class SetupConflictOnServerException : Exception
+    public class SetupConflictOnServerException : DotmimBaseException
     {
         const string message = "Seems you are trying another Setup that what is stored in your server scope database.\n" +
                                "You have already made a sync with a setup that has been stored in the server (and client) database.\n" +
@@ -305,13 +313,13 @@ namespace Dotmim.Sync
                                "Setup found in your database: {1}\n" +
                                "-----------------------------------------------------\n";
 
-        public SetupConflictOnServerException(SyncSetup inputSetup, SyncSetup clientScopeInfoSetup) : base(string.Format(message, JsonConvert.SerializeObject(inputSetup), JsonConvert.SerializeObject(clientScopeInfoSetup))) { }
+        public SetupConflictOnServerException(SyncSetup inputSetup, SyncSetup clientScopeInfoSetup) : base(string.Format(message, serializer.Serialize(inputSetup).ToUtf8String(), serializer.Serialize(clientScopeInfoSetup).ToUtf8String())) { }
     }
 
     /// <summary>
     /// Setup column exception. Used when a setup column  is defined that does not exist in the data source table
     /// </summary>
-    public class MissingColumnException : Exception
+    public class MissingColumnException : DotmimBaseException
     {
         const string message = "Column {0} does not exists in the table {1}.";
 
@@ -321,7 +329,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Setup columns exception. Used when a setup table has no columns during provisioning.
     /// </summary>
-    public class MissingsColumnException : Exception
+    public class MissingsColumnException : DotmimBaseException
     {
         const string message = "Table {0} has no columns.";
 
@@ -332,7 +340,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Setup column exception. Used when a setup column  is defined that does not exist in the data source table
     /// </summary>
-    public class MissingPrimaryKeyColumnException : Exception
+    public class MissingPrimaryKeyColumnException : DotmimBaseException
     {
         const string message = "Primary key column {0} should be part of the columns list in your Setup table {1}.";
 
@@ -342,7 +350,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Setup table exception. Used when a your setup does not contains any table
     /// </summary>
-    public class MissingProviderException : Exception
+    public class MissingProviderException : DotmimBaseException
     {
         const string message = "You need a provider for {0}.";
 
@@ -351,7 +359,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Setup table exception. Used when a your setup does not contains any table
     /// </summary>
-    public class MissingTablesException : Exception
+    public class MissingTablesException : DotmimBaseException
     {
         const string message = "Your setup does not contains any table.";
 
@@ -361,7 +369,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Setup table exception. Used when a your setup does not contains any table
     /// </summary>
-    public class MissingServerScopeTablesException : Exception
+    public class MissingServerScopeTablesException : DotmimBaseException
     {
         const string message = "Your server scope {0} is not existing on server, or you did not provide a setup with tables to provision on the server.";
 
@@ -372,7 +380,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// No schema in the scope
     /// </summary>
-    public class MissingSchemaInScopeException : Exception
+    public class MissingSchemaInScopeException : DotmimBaseException
     {
         const string message = "Your scope does not contains any schema.";
 
@@ -383,7 +391,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Setup table exception. Used when a your setup does not contains any columns in table
     /// </summary>
-    public class MissingColumnsException : Exception
+    public class MissingColumnsException : DotmimBaseException
     {
         const string message = "Your setup does not contains any column.";
 
@@ -394,7 +402,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// During a migration, droping a table is not allowed
     /// </summary>
-    public class MigrationTableDropNotAllowedException : Exception
+    public class MigrationTableDropNotAllowedException : DotmimBaseException
     {
         const string message = "During a migration, droping a table is not allowed";
 
@@ -404,7 +412,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Metadata exception.
     /// </summary>
-    public class MetadataException : Exception
+    public class MetadataException : DotmimBaseException
     {
         const string message = "No metadatas rows found for table {0}.";
 
@@ -415,7 +423,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a row is too big for download batch size
     /// </summary>
-    public class RowOverSizedException : Exception
+    public class RowOverSizedException : DotmimBaseException
     {
         const string message = "Row is too big ({0} kb.) for the current DownloadBatchSizeInKB.";
 
@@ -425,7 +433,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a command is missing
     /// </summary>
-    public class MissingCommandException : Exception
+    public class MissingCommandException : DotmimBaseException
     {
         const string message = "Missing command {0}.";
 
@@ -435,7 +443,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when we use change tracking and it's not enabled on the source database
     /// </summary>
-    public class MissingChangeTrackingException : Exception
+    public class MissingChangeTrackingException : DotmimBaseException
     {
         const string message = "Change Tracking is not activated for database {0}. Please execute this statement : Alter database {0} SET CHANGE_TRACKING = ON (CHANGE_RETENTION = 14 DAYS, AUTO_CLEANUP = ON)";
 
@@ -445,7 +453,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when we local orchestrator tries to update untracked rows, but no tracking table exists
     /// </summary>
-    public class MissingTrackingTableException : Exception
+    public class MissingTrackingTableException : DotmimBaseException
     {
         const string message = "No tracking table for table {0}. Please Provision your database before calling this method";
 
@@ -456,7 +464,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when we check database existence
     /// </summary>
-    public class MissingDatabaseException : Exception
+    public class MissingDatabaseException : DotmimBaseException
     {
 
         const string message = "Database {0} does not exist";
@@ -468,7 +476,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when we check database existence
     /// </summary>
-    public class InvalidDatabaseVersionException : Exception
+    public class InvalidDatabaseVersionException : DotmimBaseException
     {
 
         const string message = "Engine {1} version {0} is not supported. Please upgrade your server to the last version.";
@@ -481,7 +489,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a column is not supported by the Dotmim.Sync framework
     /// </summary>
-    public class UnsupportedColumnTypeException : Exception
+    public class UnsupportedColumnTypeException : DotmimBaseException
     {
         const string message = "In table {0}, the Column {1} of type {2} from provider {3} is not currently supported.";
 
@@ -490,7 +498,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a column name is not supported by the Dotmim.Sync framework
     /// </summary>
-    public class UnsupportedColumnNameException : Exception
+    public class UnsupportedColumnNameException : DotmimBaseException
     {
         const string message = "In table {0}, the Column name {1} is not allowed. Please consider to change the column name.";
 
@@ -502,7 +510,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a column name is not supported by the Dotmim.Sync framework for a primary key
     /// </summary>
-    public class UnsupportedPrimaryKeyColumnNameException : Exception
+    public class UnsupportedPrimaryKeyColumnNameException : DotmimBaseException
     {
         const string message = "In table {0}, the Column name {1} is not allowed as a primary key. Please consider to change the column name or choose another primary key for your table.";
 
@@ -514,7 +522,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a provider not supported as a server provider is used with a RemoteOrchestrator.
     /// </summary>
-    public class UnsupportedServerProviderException : Exception
+    public class UnsupportedServerProviderException : DotmimBaseException
     {
         const string message = "The provider {0} can not be used as a server provider";
 
@@ -526,7 +534,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when sync metadatas are out of date
     /// </summary>
-    public class OutOfDateException : Exception
+    public class OutOfDateException : DotmimBaseException
     {
         const string message = "Client database is out of date. Last client sync timestamp:{0}. Last server cleanup metadata:{1} Try to make a Reinitialize sync.";
 
@@ -536,7 +544,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Http empty response exception.
     /// </summary>
-    public class HttpEmptyResponseContentException : Exception
+    public class HttpEmptyResponseContentException : DotmimBaseException
     {
         const string message = "The reponse has an empty body.";
 
@@ -546,7 +554,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a header is missing in the http request
     /// </summary>
-    public class HttpHeaderMissingException : Exception
+    public class HttpHeaderMissingException : DotmimBaseException
     {
         const string message = "Header {0} is missing.";
 
@@ -556,7 +564,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a cache is not set on the server
     /// </summary>
-    public class HttpCacheNotConfiguredException : Exception
+    public class HttpCacheNotConfiguredException : DotmimBaseException
     {
         const string message = "Cache is not configured! Please add memory cache (distributed or not). See https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2).";
 
@@ -566,7 +574,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a Serializer is not available on the server side
     /// </summary>
-    public class HttpSerializerNotConfiguredException : Exception
+    public class HttpSerializerNotConfiguredException : DotmimBaseException
     {
         const string message = "Unexpected value for serializer. Available serializers on the server: {0}";
         const string messageEmpty = "Unexpected value for serializer. Server has not any serializer registered";
@@ -582,7 +590,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a Serializer is not available on the server side
     /// </summary>
-    public class HttpConverterNotConfiguredException : Exception
+    public class HttpConverterNotConfiguredException : DotmimBaseException
     {
         const string message = "Unexpected value for converter. Available converters on the server: {0}";
         const string messageEmpty = "Unexpected value for converter. Server has not any converter registered";
@@ -600,7 +608,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a parameter has been already added in a filter parameter list
     /// </summary>
-    public class HttpScopeNameInvalidException : Exception
+    public class HttpScopeNameInvalidException : DotmimBaseException
     {
         const string message = "The scope {0} does not exist on the server side. Please provider a correct scope name";
 
@@ -610,7 +618,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a parameter has been already added in a filter parameter list
     /// </summary>
-    public class HttpScopeNameFromClientIsInvalidException : Exception
+    public class HttpScopeNameFromClientIsInvalidException : DotmimBaseException
     {
         const string message = "Scope name received from client {0} is different from the scope name specified in the web server agent {1}";
 
@@ -621,7 +629,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a session is lost during a sync session
     /// </summary>
-    public class HttpSessionLostException : Exception
+    public class HttpSessionLostException : DotmimBaseException
     {
         const string message = "Session loss: No batchPartInfo could found for the current sessionId {0}. It seems the session was lost. Please try again.";
 
@@ -633,7 +641,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a parameter has been already added in a filter parameter list
     /// </summary>
-    public class FilterParameterAlreadyExistsException : Exception
+    public class FilterParameterAlreadyExistsException : DotmimBaseException
     {
         const string message = "The parameter {0} has been already added for the {1} changes stored procedure";
 
@@ -643,7 +651,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a filter already exists for a named table
     /// </summary>
-    public class FilterAlreadyExistsException : Exception
+    public class FilterAlreadyExistsException : DotmimBaseException
     {
         const string message = "The filter for the {0} changes stored procedure already exists";
 
@@ -654,7 +662,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a filter column used as a filter for a tracking table, has not been added to the column parameters list
     /// </summary>
-    public class FilterTrackingWhereException : Exception
+    public class FilterTrackingWhereException : DotmimBaseException
     {
         const string message = "The column {0} does not exist in the columns parameters list, so can't be add as a where filter clause to the tracking table";
 
@@ -665,7 +673,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a filter column used as a filter for a tracking table, but not exists
     /// </summary>
-    public class FilterParamColumnNotExistsException : Exception
+    public class FilterParamColumnNotExistsException : DotmimBaseException
     {
         const string message = "The parameter {0} does not exist as a column in the table {1}";
 
@@ -675,7 +683,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a filter column used as a filter for a tracking table, but not exists
     /// </summary>
-    public class FilterParamTableNotExistsException : Exception
+    public class FilterParamTableNotExistsException : DotmimBaseException
     {
         const string message = "The table {0} does not exist";
 
@@ -685,7 +693,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a parameter has been already added to the parameter collection
     /// </summary>
-    public class SyncParameterAlreadyExistsException : Exception
+    public class SyncParameterAlreadyExistsException : DotmimBaseException
     {
         const string message = "The parameter {0} already exists in the parameter list.";
 
@@ -696,7 +704,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when trying to apply a snapshot that does not exists
     /// </summary>
-    public class SnapshotNotExistsException : Exception
+    public class SnapshotNotExistsException : DotmimBaseException
     {
         const string message = "The snapshot {0} does not exists.";
 
@@ -706,7 +714,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when trying to create a snapshot but no directory and size have been set in the options
     /// </summary>
-    public class SnapshotMissingMandatariesOptionsException : Exception
+    public class SnapshotMissingMandatariesOptionsException : DotmimBaseException
     {
         const string message = "To be able to create a snapshot, you need to precise SnapshotsDirectory and BatchSize in the SyncOptions from the RemoteOrchestrator";
 
@@ -717,7 +725,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when options references are not the same
     /// </summary>
-    public class OptionsReferencesAreNotSameExecption : Exception
+    public class OptionsReferencesAreNotSameExecption : DotmimBaseException
     {
         const string message = "Remote orchestrator options instance is different from Local orchestrator options instance. Please use the same instance.";
 
@@ -727,7 +735,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when setup references are not the same
     /// </summary>
-    public class SetupReferencesAreNotSameExecption : Exception
+    public class SetupReferencesAreNotSameExecption : DotmimBaseException
     {
         const string message = "Remote orchestrator setup instance is different from Local orchestrator setup instance. Please use the same instance.";
 
@@ -738,7 +746,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Occurs when a hash from client or server is different from the hash recalculated from server or client
     /// </summary>
-    public class SyncHashException : Exception
+    public class SyncHashException : DotmimBaseException
     {
         const string message = "The batch file is corrupted. Hash is not valid";
 
@@ -746,7 +754,7 @@ namespace Dotmim.Sync
     }
 
 
-    public class ApplyChangesException : Exception
+    public class ApplyChangesException : DotmimBaseException
     {
         const string message = "Error on table [{0}]: {1}. Row:{2}. ApplyType:{3}";
 

@@ -1,6 +1,8 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.IO;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Serialization
@@ -16,41 +18,23 @@ namespace Dotmim.Sync.Serialization
 
     public class JsonObjectSerializer : ISerializer
     {
-        private static readonly JsonSerializer jsonSerializer = new();
-
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        public async Task<T> DeserializeAsync<T>(Stream ms)
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
+        private static readonly JsonSerializerOptions options = new()
         {
-            using var sr = new StreamReader(ms);
-            using var jtr = new JsonTextReader(sr);
-            return jsonSerializer.Deserialize<T>(jtr);
-        }
+            TypeInfoResolver = DataContractResolver.Default,
+            Converters = { new ArrayJsonConverter(), new ObjectToInferredTypesConverter() }
+        };
 
-        public async Task<byte[]> SerializeAsync<T>(T obj)
-        {
-            using var ms = new MemoryStream();
-            using var sw = new StreamWriter(ms);
-            using var jtw = new JsonTextWriter(sw);
+        public async Task<T> DeserializeAsync<T>(Stream ms) => await JsonSerializer.DeserializeAsync<T>(ms, options);
 
-//#if DEBUG
-//            jtw.Formatting = Formatting.Indented;
-//#endif
-            jsonSerializer.Serialize(jtw, obj);
+        public T Deserialize<T>(string value) => JsonSerializer.Deserialize<T>(value, options);
 
-            await jtw.FlushAsync().ConfigureAwait(false);
-            await sw.FlushAsync().ConfigureAwait(false);
+        public Task<byte[]> SerializeAsync<T>(T obj) => Task.FromResult(JsonSerializer.SerializeToUtf8Bytes(obj, options));
+        public Task<byte[]> SerializeAsync(object obj, Type type) => Task.FromResult(JsonSerializer.SerializeToUtf8Bytes(obj, type, options));
 
-            return ms.ToArray();
-        }
+        public byte[] Serialize<T>(T obj) => JsonSerializer.SerializeToUtf8Bytes(obj, options);
 
-#pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
-        public async Task<object> DeserializeAsync(Stream ms, Type type)
-#pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
-        {
-            using var sr = new StreamReader(ms);
-            using var jtr = new JsonTextReader(sr);
-            return jsonSerializer.Deserialize(jtr, type);
-        }
+        public byte[] Serialize(object obj, Type type) => JsonSerializer.SerializeToUtf8Bytes(obj, type, options);
+
+        public async Task<object> DeserializeAsync(Stream ms, Type type) => await JsonSerializer.DeserializeAsync(ms, type, options);
     }
 }

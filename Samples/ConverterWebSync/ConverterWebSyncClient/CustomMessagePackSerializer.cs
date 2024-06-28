@@ -30,10 +30,24 @@ namespace ConverterWebSyncClient
             return val;
         }
 
+        public T Deserialize<T>(string value)
+        {
+            var val = MessagePackSerializer.Deserialize(typeof(T), value, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
+            return val;
+        }
+
         public async Task<byte[]> SerializeAsync(object obj)
         {
             using var ms = new MemoryStream();
             await MessagePackSerializer.SerializeAsync(ms, obj, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
+
+            return ms.ToArray();
+        }
+
+        public byte[] Serialize<T>(T obj)
+        {
+            using var ms = new MemoryStream();
+            var val = MessagePackSerializer.DeserializeAsync(typeof(T), ms, MessagePackSerializerOptions.Standard.WithResolver(ContractlessStandardResolver.Instance));
 
             return ms.ToArray();
         }

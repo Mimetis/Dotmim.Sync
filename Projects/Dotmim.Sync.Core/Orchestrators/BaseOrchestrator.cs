@@ -1,17 +1,14 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Serialization;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
@@ -21,6 +18,8 @@ namespace Dotmim.Sync
 {
     public abstract partial class BaseOrchestrator
     {
+        protected static ISerializer serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+
         // Collection of Interceptors
         internal Interceptors interceptors = new();
 
@@ -261,8 +260,7 @@ namespace Dotmim.Sync
         {
             //var p = this.Provider.GetParsers(tableDescription, setup);
 
-            //var s = JsonConvert.SerializeObject(setup);
-            //var data = Encoding.UTF8.GetBytes(s);
+            //var data = JsonSerializer.SerializeToUtf8Bytes(setup);
             //var hash = HashAlgorithm.SHA256.Create(data);
             //var hashString = Convert.ToBase64String(hash);
 
@@ -291,8 +289,7 @@ namespace Dotmim.Sync
         {
             //var p = this.Provider.GetParsers(tableDescription, setup);
 
-            //var s = JsonConvert.SerializeObject(setup);
-            //var data = Encoding.UTF8.GetBytes(s);
+            //var data = JsonSerializer.SerializeToUtf8Bytes(setup);
             //var hash = HashAlgorithm.SHA256.Create(data);
             //var hashString = Convert.ToBase64String(hash);
 

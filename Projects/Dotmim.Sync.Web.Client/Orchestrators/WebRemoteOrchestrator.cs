@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.Common;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -10,22 +8,18 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Dotmim.Sync.Batch;
-using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Extensions;
 using Dotmim.Sync.Serialization;
 #if NET8_0 
 using Microsoft.Net.Http.Headers;
 #endif
-using Newtonsoft.Json;
 
 namespace Dotmim.Sync.Web.Client
 {
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
-
         public Dictionary<string, string> CustomHeaders = new Dictionary<string, string>();
         public Dictionary<string, string> ScopeParameters = new Dictionary<string, string>();
-
 
         /// <summary>
         /// Gets or Sets a custom identifier, that can be used on server side to choose the correct web server agent
@@ -60,6 +54,7 @@ namespace Dotmim.Sync.Web.Client
         /// Gets or Sets the HttpClient instanced used for this web client orchestrator
         /// </summary>
         public HttpClient HttpClient { get; set; }
+
         public CookieHeaderValue Cookie { get; private set; }
 
         public string GetServiceHost()
@@ -83,8 +78,6 @@ namespace Dotmim.Sync.Web.Client
             string identifier = null)
             : base(null, new SyncOptions())
         {
-
-
             // if no HttpClient provisionned, create a new one
             if (client == null)
             {
@@ -151,10 +144,9 @@ namespace Dotmim.Sync.Web.Client
                 await this.InterceptAsync(new HttpSyncPolicyArgs(10, cpt, ts, this.GetServiceHost()), default).ConfigureAwait(false);
             });
 
-
             return policy;
-
         }
+
         private async Task SerializeAsync(HttpResponseMessage response, string fileName, string directoryFullPath, BaseOrchestrator orchestrator = null)
         {
             if (!Directory.Exists(directoryFullPath))
@@ -164,7 +156,6 @@ namespace Dotmim.Sync.Web.Client
             using var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
             using var fileStream = new FileStream(fullPath, FileMode.CreateNew, FileAccess.ReadWrite);
             await streamResponse.CopyToAsync(fileStream).ConfigureAwait(false);
-
         }
 
         private static async Task<HttpMessageSendChangesResponse> DeserializeAsync(ISerializerFactory serializerFactory, string fileName, string directoryFullPath, BaseOrchestrator orchestrator = null)
@@ -174,7 +165,6 @@ namespace Dotmim.Sync.Web.Client
             var httpMessageContent = await serializerFactory.GetSerializer().DeserializeAsync<HttpMessageSendChangesResponse>(fileStream).ConfigureAwait(false);
             return httpMessageContent;
         }
-
 
         private string BuildUri(string baseUri)
         {
@@ -217,7 +207,7 @@ namespace Dotmim.Sync.Web.Client
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Execute my OpenAsync in my policy context
-                response = await this.SyncPolicy.ExecuteAsync(ct => this.SendAsync(step, message, batchSize, ct), cancellationToken, progress).ConfigureAwait(false);
+                response = await this.SyncPolicy.ExecuteAsync(async ct => await this.SendAsync(step, message, batchSize, ct).ConfigureAwait(false), cancellationToken, progress).ConfigureAwait(false);
 
                 // Ensure we have a cookie
                 this.EnsureCookie(response?.Headers);
@@ -238,7 +228,6 @@ namespace Dotmim.Sync.Web.Client
                 await this.InterceptAsync(new HttpGettingResponseMessageArgs(response, this.ServiceUri.ToString(),
                     HttpStep.SendChangesInProgress, context, messageResponse, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
-
                 return messageResponse;
             }
             catch (HttpSyncWebException)
@@ -254,7 +243,12 @@ namespace Dotmim.Sync.Web.Client
                 if (response == null || response.Content == null)
                     throw new HttpSyncWebException(e.Message);
 
-                var exrror = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var exrror = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
+
+                if (string.IsNullOrWhiteSpace(exrror))
+                {
+                    throw new HttpSyncWebException(e.Message);
+                }
 
                 throw new HttpSyncWebException(exrror);
             }
@@ -263,7 +257,6 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// This ProcessRequestAsync will not deserialize the message and then send back directly the HttpResponseMessage
         /// </summary>
-
         public async Task<HttpResponseMessage> ProcessRequestAsync(IScopeMessage message, HttpStep step, int batchSize,
             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
@@ -280,7 +273,7 @@ namespace Dotmim.Sync.Web.Client
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Execute my OpenAsync in my policy context
-                response = await this.SyncPolicy.ExecuteAsync(ct => this.SendAsync(step, message, batchSize, ct), cancellationToken, progress).ConfigureAwait(false); 
+                response = await this.SyncPolicy.ExecuteAsync(async ct => await this.SendAsync(step, message, batchSize, ct).ConfigureAwait(false), cancellationToken, progress).ConfigureAwait(false);
 
                 // Ensure we have a cookie
                 this.EnsureCookie(response?.Headers);
@@ -303,11 +296,35 @@ namespace Dotmim.Sync.Web.Client
                 if (response == null || response.Content == null)
                     throw new HttpSyncWebException(e.Message);
 
-                var exrror = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var exrror = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
+
+                if (string.IsNullOrWhiteSpace(exrror))
+                {
+                    throw new HttpSyncWebException(e.Message);
+                }
 
                 throw new HttpSyncWebException(exrror);
             }
+        }
 
+        public static async Task<string> ReadContentFromResponseAsync(HttpResponseMessage response)
+        {
+            var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+
+            if (contentStream.CanSeek)
+            {
+                // If the stream is seekable, just read it directly
+                contentStream.Position = 0;
+                return await new StreamReader(contentStream).ReadToEndAsync().ConfigureAwait(false);
+            }
+
+            // Clone the response content stream
+            using var clonedStream = new MemoryStream();
+            await contentStream.CopyToAsync(clonedStream).ConfigureAwait(false);
+            clonedStream.Position = 0;
+
+            // Read from the cloned stream
+            return await new StreamReader(clonedStream).ReadToEndAsync().ConfigureAwait(false);
         }
 
         private void EnsureCookie(HttpResponseHeaders headers)
@@ -328,13 +345,13 @@ namespace Dotmim.Sync.Web.Client
             }
         }
 
-
         private async Task<HttpResponseMessage> SendAsync(HttpStep step, IScopeMessage message, int batchSize, CancellationToken cancellationToken)
         {
             var serializer = this.SerializerFactory.GetSerializer();
 
             var contentType = this.SerializerFactory.Key == SerializersCollection.JsonSerializerFactory.Key ? "application/json" : null;
-            var ser = JsonConvert.SerializeObject(new { f = this.SerializerFactory.Key, s = batchSize });
+            var serializerInfo = new SerializerInfo(this.SerializerFactory.Key, batchSize);
+            var serializerInfoJson = await serializer.SerializeAsync(serializerInfo);
 
             var requestUri = BuildUri(this.ServiceUri);
 
@@ -346,7 +363,7 @@ namespace Dotmim.Sync.Web.Client
             requestMessage.Headers.Add("dotmim-sync-scope-id", message.SyncContext.ClientId.ToString());
             requestMessage.Headers.Add("dotmim-sync-scope-name", message.SyncContext.ScopeName);
             requestMessage.Headers.Add("dotmim-sync-step", ((int)step).ToString());
-            requestMessage.Headers.Add("dotmim-sync-serialization-format", ser);
+            requestMessage.Headers.Add("dotmim-sync-serialization-format", serializerInfoJson.ToUtf8String());
             requestMessage.Headers.Add("dotmim-sync-version", SyncVersion.Current.ToString());
 
             if (!string.IsNullOrEmpty(this.Identifier))
@@ -369,7 +386,7 @@ namespace Dotmim.Sync.Web.Client
             requestMessage = args.Request;
 
             // Check if data is null
-            binaryData = binaryData == null ? new byte[] { } : binaryData;
+            binaryData ??= Array.Empty<byte>();
 
             // calculate hash
             var hash = HashAlgorithm.SHA256.Create(binaryData);
@@ -394,7 +411,6 @@ namespace Dotmim.Sync.Web.Client
                 throw new HttpSyncWebException(ex.Message);
             }
 
-
             if (cancellationToken.IsCancellationRequested)
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -411,7 +427,6 @@ namespace Dotmim.Sync.Web.Client
             }
 
             return response;
-
         }
 
         /// <summary>
@@ -446,7 +461,7 @@ namespace Dotmim.Sync.Web.Client
             // Extract necessary details from the HttpResponseMessage
             int statusCode = (int)response.StatusCode;
             string reasonPhrase = response.ReasonPhrase;
-            string content = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+            string content = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
             var headers = response.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value));
             Uri requestUri = response.RequestMessage.RequestUri;
 
@@ -498,18 +513,15 @@ namespace Dotmim.Sync.Web.Client
                                 SyncStage = webError.SyncStage,
                                 TypeName = webError.TypeName
                             };
-
                         }
                         else
                         {
                             syncException = new HttpSyncWebException(response.ReasonPhrase);
                         }
-
                     }
                     else
                     {
                         syncException = new HttpSyncWebException(response.ReasonPhrase);
-
                     }
                 }
 
@@ -517,8 +529,6 @@ namespace Dotmim.Sync.Web.Client
                 syncException.StatusCode = response.StatusCode;
 
                 throw syncException;
-
-
             }
             catch (SyncException)
             {
@@ -528,8 +538,6 @@ namespace Dotmim.Sync.Web.Client
             {
                 throw new SyncException(ex);
             }
-
-
         }
 
         public static bool TryGetHeaderValue(HttpResponseHeaders n, string key, out string header)
@@ -543,8 +551,6 @@ namespace Dotmim.Sync.Web.Client
             header = null;
             return false;
         }
-
-
 
         public override string ToString() => !String.IsNullOrEmpty(this.ServiceUri) ? this.ServiceUri : base.ToString();
     }

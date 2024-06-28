@@ -1,28 +1,17 @@
-﻿
-using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using Dotmim.Sync.Extensions;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
 
 namespace Dotmim.Sync
 {
     public partial class RemoteOrchestrator : BaseOrchestrator
     {
-
         /// <summary>
         /// Get a scope info from the remote data source. A scope contains the <see cref="SyncSetup"/> setup and the <see cref="SyncSet"/> schema.
         /// <para>
@@ -112,7 +101,6 @@ namespace Dotmim.Sync
                 throw GetSyncError(context, ex);
             }
         }
-
 
         internal virtual async Task<(SyncContext context, ScopeInfo serverScopeInfo, bool shouldProvision)> InternalEnsureScopeInfoAsync(SyncContext context, SyncSetup setup, bool overwrite,
             DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
@@ -250,10 +238,10 @@ namespace Dotmim.Sync
                 string message = null;
 
                 if (inputSetup != null)
-                    message += $"Input Setup:{JsonConvert.SerializeObject(inputSetup)}.";
+                    message += $"Input Setup:{serializer.Serialize(inputSetup).ToUtf8String()}.";
 
                 if (sScopeInfo != null && sScopeInfo.Setup != null)
-                    message += $"Server Setup:{JsonConvert.SerializeObject(sScopeInfo.Setup)}.";
+                    message += $"Server Setup:{serializer.Serialize(sScopeInfo.Setup).ToUtf8String()}.";
                 throw GetSyncError(context, ex, message);
             }
         }

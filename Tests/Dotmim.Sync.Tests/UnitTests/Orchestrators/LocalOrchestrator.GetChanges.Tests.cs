@@ -2,8 +2,6 @@
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Data;

@@ -1,15 +1,9 @@
-﻿
-using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -20,7 +14,6 @@ namespace Dotmim.Sync
     /// </summary>
     public abstract partial class BaseOrchestrator
     {
-
         /// <summary>
         /// Create a <strong>Table</strong> for a given table present in an existing scopeInfo.
         /// <example>

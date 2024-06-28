@@ -1,13 +1,8 @@
-﻿using Dotmim.Sync.Builders;
-
-using Dotmim.Sync.Serialization;
+﻿using Dotmim.Sync.Serialization;
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Data;
-using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
+using System.Text.Json.Serialization;
 
 namespace Dotmim.Sync
 {
@@ -37,7 +32,8 @@ namespace Dotmim.Sync
         /// List of rows
         /// </summary>
         [DataMember(Name = "r", IsRequired = false, Order = 4)]
-        public List<object[]> Rows { get; set; } = new List<object[]>();
+        [JsonConverter(typeof(ArrayJsonConverter))]
+        public List<object[]> Rows { get; set; } = new List<dynamic[]>();
 
         public ContainerTable()
         {

@@ -217,11 +217,6 @@
           "System.Security.Principal.Windows": "5.0.0"
         }
       },
-      "Newtonsoft.Json": {
-        "type": "Transitive",
-        "resolved": "13.0.3",
-        "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
-      },
       "System.Buffers": {
         "type": "Transitive",
         "resolved": "4.5.1",
@@ -377,8 +372,8 @@
       },
       "System.Text.Json": {
         "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "OdrZO2WjkiEG6ajEFRABTRCi/wuXQPxeV6g8xvUJqdxMvvuCCEk86zPla8UiIQJz3durtUEbNyY/3lIhS0yZvQ==",
+        "resolved": "8.0.3",
+        "contentHash": "hpagS9joOwv6efWfrMmV9MjQXpiXZH72PgN067Ysfr6AWMSD1/1hEcvh/U5mUpPLezEWsOJSuVrmqDIVD958iA==",
         "dependencies": {
           "Microsoft.Bcl.AsyncInterfaces": "8.0.0",
           "System.Buffers": "4.5.1",
@@ -417,7 +412,7 @@
           "Microsoft.Build.Tasks.Core": "[17.9.5, )",
           "Microsoft.CSharp": "[4.7.0, )",
           "Microsoft.Extensions.Logging": "[2.2.0, )",
-          "Newtonsoft.Json": "[13.0.3, )",
+          "System.Text.Json": "[8.0.3, )",
           "System.Threading.Tasks.Dataflow": "[8.0.0, )"
         }
       }
@@ -506,11 +501,6 @@
         "resolved": "8.0.0",
         "contentHash": "dk9JPxTCIevS75HyEQ0E4OVAFhB2N+V9ShCXf8Q6FkUQZDkgLI12y679Nym1YqsiSysuQskT7Z+6nUf3yab6Vw=="
       },
-      "Newtonsoft.Json": {
-        "type": "Transitive",
-        "resolved": "13.0.3",
-        "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
-      },
       "System.Diagnostics.DiagnosticSource": {
         "type": "Transitive",
         "resolved": "8.0.0",
@@ -534,8 +524,8 @@
       },
       "System.Text.Json": {
         "type": "Transitive",
-        "resolved": "8.0.0",
-        "contentHash": "OdrZO2WjkiEG6ajEFRABTRCi/wuXQPxeV6g8xvUJqdxMvvuCCEk86zPla8UiIQJz3durtUEbNyY/3lIhS0yZvQ==",
+        "resolved": "8.0.3",
+        "contentHash": "hpagS9joOwv6efWfrMmV9MjQXpiXZH72PgN067Ysfr6AWMSD1/1hEcvh/U5mUpPLezEWsOJSuVrmqDIVD958iA==",
         "dependencies": {
           "System.Runtime.CompilerServices.Unsafe": "6.0.0",
           "System.Text.Encodings.Web": "8.0.0"
@@ -545,7 +535,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Logging": "[6.0.0, )",
-          "Newtonsoft.Json": "[13.0.3, )"
+          "System.Text.Json": "[8.0.3, )"
         }
       }
     },
@@ -624,16 +614,24 @@
         "resolved": "8.0.0",
         "contentHash": "dk9JPxTCIevS75HyEQ0E4OVAFhB2N+V9ShCXf8Q6FkUQZDkgLI12y679Nym1YqsiSysuQskT7Z+6nUf3yab6Vw=="
       },
-      "Newtonsoft.Json": {
+      "System.Text.Encodings.Web": {
         "type": "Transitive",
-        "resolved": "13.0.3",
-        "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
+        "resolved": "8.0.0",
+        "contentHash": "yev/k9GHAEGx2Rg3/tU6MQh4HGBXJs70y7j1LaM1i/ER9po+6nnQ6RRqTJn1E7Xu0fbIFK80Nh5EoODxrbxwBQ=="
+      },
+      "System.Text.Json": {
+        "type": "Transitive",
+        "resolved": "8.0.3",
+        "contentHash": "hpagS9joOwv6efWfrMmV9MjQXpiXZH72PgN067Ysfr6AWMSD1/1hEcvh/U5mUpPLezEWsOJSuVrmqDIVD958iA==",
+        "dependencies": {
+          "System.Text.Encodings.Web": "8.0.0"
+        }
       },
       "dotmim.sync.core": {
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Logging": "[8.0.0, )",
-          "Newtonsoft.Json": "[13.0.3, )"
+          "System.Text.Json": "[8.0.3, )"
         }
       }
     }

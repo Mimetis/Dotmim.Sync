@@ -1,16 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
-using Dotmim.Sync.Batch;
+﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
+using System;
+using System.Data.Common;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Web.Client
 {
@@ -100,10 +96,7 @@ namespace Dotmim.Sync.Web.Client
 
                 throw GetSyncError(context, ex);
             } // throw client error
-
         }
-
-
 
         /// <summary>
         /// We can't get changes from server, from a web client orchestrator
@@ -134,7 +127,6 @@ namespace Dotmim.Sync.Web.Client
                 this.CompleteTime = DateTime.UtcNow;
 
                 return new(summaryResponseContent.RemoteClientTimestamp, null, summaryResponseContent.ServerChangesSelected, null);
-
             }
             catch (HttpSyncWebException) { throw; } // throw server error
             catch (Exception ex) { throw GetSyncError(context, ex); } // throw client error
@@ -198,7 +190,7 @@ namespace Dotmim.Sync.Web.Client
 
                 if (getMoreChanges != null && getMoreChanges.Changes != null && getMoreChanges.Changes.HasRows)
                 {
-                    var localSerializer = new LocalJsonSerializer(this, context);
+                    using var localSerializer = new LocalJsonSerializer(this, context);
 
                     // Should have only one table
                     var table = getMoreChanges.Changes.Tables[0];
@@ -214,7 +206,7 @@ namespace Dotmim.Sync.Web.Client
                     }
 
                     // open the file and write table header
-                    localSerializer.OpenFile(fullPath, schemaTable, syncRowState);
+                    await localSerializer.OpenFileAsync(fullPath, schemaTable, syncRowState).ConfigureAwait(false);
 
                     foreach (var row in table.Rows)
                     {
@@ -225,11 +217,7 @@ namespace Dotmim.Sync.Web.Client
 
                         await localSerializer.WriteRowToFileAsync(syncRow, schemaTable).ConfigureAwait(false);
                     }
-
-                    // Close file
-                    localSerializer.CloseFile();
                 }
-
             }
             else
             {
@@ -240,8 +228,6 @@ namespace Dotmim.Sync.Web.Client
 
             // Raise response from server containing a batch changes 
             await this.InterceptAsync(new HttpGettingServerChangesResponseArgs(serverBatchInfo, bpi.Index, bpi.RowsCount, context, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
-
-
         }
     }
 }

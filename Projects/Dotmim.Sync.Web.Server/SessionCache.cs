@@ -1,10 +1,4 @@
-﻿
-using Newtonsoft.Json;
-using System;
-using System.Collections.Specialized;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
+﻿using System;
 using Dotmim.Sync.Batch;
 using System.Text;
 using System.Runtime.Serialization;
@@ -17,7 +11,7 @@ namespace Dotmim.Sync.Web.Server
     [DataContract(Name = "sc"), Serializable]
     public class SessionCache
     {
-        [DataMember(Name = "rct", IsRequired = false, EmitDefaultValue = false, Order = 1)]
+        [DataMember(Name = "rct", IsRequired = false, Order = 1)]
         public long RemoteClientTimestamp { get; set; }
         [DataMember(Name = "sbi", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public BatchInfo ServerBatchInfo { get; set; }

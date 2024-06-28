@@ -1,15 +1,7 @@
-﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
+﻿using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
-using System.Data.Common;
 using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 

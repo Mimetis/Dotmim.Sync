@@ -1,16 +1,9 @@
-﻿
-using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Newtonsoft.Json;
+using Dotmim.Sync.Extensions;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,7 +11,6 @@ namespace Dotmim.Sync
 {
     public partial class BaseOrchestrator
     {
-
         /// <summary>
         /// Get all scopes info clients instances
         /// <example>
@@ -306,10 +298,11 @@ namespace Dotmim.Sync
             InternalSetParameterValue(command, "scope_last_sync_duration", scopeInfoClient.LastSyncDuration);
             InternalSetParameterValue(command, "sync_scope_properties", scopeInfoClient.Properties);
             InternalSetParameterValue(command, "sync_scope_errors", scopeInfoClient.Errors);
-            InternalSetParameterValue(command, "sync_scope_parameters", scopeInfoClient.Parameters != null ? JsonConvert.SerializeObject(scopeInfoClient.Parameters) : DBNull.Value);
+            InternalSetParameterValue(command, "sync_scope_parameters", scopeInfoClient.Parameters != null ? serializer.Serialize(scopeInfoClient.Parameters).ToUtf8String() : DBNull.Value);
 
             return command;
         }
+
         private ScopeInfoClient InternalReadScopeInfoClient(DbDataReader reader)
         {
             var scopeInfoClient = new ScopeInfoClient
@@ -323,7 +316,7 @@ namespace Dotmim.Sync
                 LastServerSyncTimestamp = reader["scope_last_server_sync_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("scope_last_server_sync_timestamp")) : null,
                 Properties = reader["sync_scope_properties"] as string,
                 Errors = reader["sync_scope_errors"] as string,
-                Parameters = reader["sync_scope_parameters"] != DBNull.Value ? JsonConvert.DeserializeObject<SyncParameters>((string)reader["sync_scope_parameters"]) : null
+                Parameters = reader["sync_scope_parameters"] != DBNull.Value ? serializer.Deserialize<SyncParameters>((string)reader["sync_scope_parameters"]) : null
 
             };
             scopeInfoClient.IsNewScope = scopeInfoClient.LastSync == null;

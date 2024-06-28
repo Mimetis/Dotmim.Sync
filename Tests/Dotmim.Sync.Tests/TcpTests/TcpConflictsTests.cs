@@ -23,7 +23,6 @@ using MySqlConnector;
 using MySql.Data.MySqlClient;
 #endif
 
-using Newtonsoft.Json;
 using Npgsql;
 using System;
 using System.Collections.Generic;

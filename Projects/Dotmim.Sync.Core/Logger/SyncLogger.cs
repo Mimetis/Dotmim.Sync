@@ -1,9 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+﻿using Dotmim.Sync.Extensions;
+using Dotmim.Sync.Serialization;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
 using System.Linq;
@@ -166,6 +166,7 @@ namespace Dotmim.Sync
 
         private static object GetValue(MemberInfo member, object obj)
         {
+            var serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
 
             PropertyInfo pi = member as PropertyInfo;
             if (pi != null)
@@ -177,7 +178,7 @@ namespace Dotmim.Sync
                 else if (pi.PropertyType != null && pi.PropertyType == typeof(DbCommand))
                     return ((DbCommand)pi.GetValue(obj)).ToLogString();
                 else if (pi.PropertyType != null && pi.PropertyType == typeof(SyncContext))
-                    return JsonConvert.SerializeObject((SyncContext)pi.GetValue(obj));
+                    return serializer.Serialize((SyncContext)pi.GetValue(obj)).ToUtf8String();
                 else
                     return pi.GetValue(obj);
             }

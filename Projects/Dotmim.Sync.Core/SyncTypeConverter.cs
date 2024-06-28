@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
-using System.Diagnostics;
 using System.Globalization;
-using System.Text;
+using System.Linq;
+using System.Text.Json;
 
 namespace Dotmim.Sync
 {
@@ -12,6 +12,8 @@ namespace Dotmim.Sync
     {
         public static T TryConvertTo<T>(dynamic value, CultureInfo provider = default)
         {
+            value = TryConvertJsonElement(value);
+
             if (value == null)
                 return default;
 
@@ -100,7 +102,7 @@ namespace Dotmim.Sync
             {
                 if (typeOfU == typeof(Int16) || typeOfU == typeof(Int32) || typeOfU == typeof(Int64)
                    || typeOfU == typeof(UInt16) || typeOfU == typeof(UInt32) || typeOfU == typeof(UInt64))
-                    return TimeSpan.FromTicks(value);
+                    return (T)Convert.ChangeType(TimeSpan.FromTicks(value), typeOfT, provider);
                 if (TimeSpan.TryParse(value.ToString(), provider, out TimeSpan q))
                     return (T)Convert.ChangeType(q, typeOfT, provider);
             }
@@ -119,8 +121,43 @@ namespace Dotmim.Sync
             return default;
         }
 
+        // TODO : REMOVE THIS ONE
+        private static object TryConvertJsonElement(object value)
+        {
+            if (value is JsonElement jsonElement)
+            {
+                switch (jsonElement.ValueKind)
+                {
+                    case JsonValueKind.String:
+                        return jsonElement.GetString();
+                    case JsonValueKind.Number:
+                        return jsonElement.GetDouble();
+                    case JsonValueKind.True:
+                    case JsonValueKind.False:
+                        return jsonElement.GetBoolean();
+                    case JsonValueKind.Array:
+                        return jsonElement.EnumerateArray().Select(e => TryConvertJsonElement(e)).ToList();
+                    case JsonValueKind.Object:
+                        var dictionary = new Dictionary<string, object>();
+                        foreach (var property in jsonElement.EnumerateObject())
+                        {
+                            dictionary[property.Name] = TryConvertJsonElement(property.Value);
+                        }
+                        return dictionary;
+                    case JsonValueKind.Null:
+                        return null;
+                    default:
+                        throw new NotSupportedException($"Unsupported JsonValueKind: {jsonElement.ValueKind}");
+                }
+            }
+
+            return value;
+        }
+
         public static object TryConvertTo(object value, Type typeOfT, CultureInfo provider = default)
         {
+            value = TryConvertJsonElement(value);
+
             var typeConverter = TypeDescriptor.GetConverter(typeOfT);
 
             if (typeOfT == typeof(short))
@@ -170,7 +207,6 @@ namespace Dotmim.Sync
 
         }
 
-
         public static object TryConvertFromDbType(object value, DbType typeOfT, CultureInfo provider = default)
         {
             if (typeOfT == DbType.AnsiString || typeOfT == DbType.String
@@ -217,9 +253,6 @@ namespace Dotmim.Sync
                 return TryConvertTo<byte[]>(value, provider);
             else
                 throw new FormatDbTypeException(typeOfT);
-
         }
-
-
     }
 }

@@ -3,20 +3,13 @@ using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
@@ -152,26 +145,28 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Check summary.json exists.
             var summaryFile = Path.Combine(bi.GetDirectoryFullPath(), "summary.json");
-            var summaryString = new StreamReader(summaryFile).ReadToEnd();
-            var summaryObject = JObject.Parse(summaryString);
+            await using var summaryStream = File.OpenRead(summaryFile);
+            var summaryObject = JsonDocument.Parse(summaryStream).RootElement;
 
-            Assert.NotNull(summaryObject);
-            string summaryDirname = (string)summaryObject["dirname"];
+            Assert.True(summaryObject.ValueKind != JsonValueKind.Null);
+            string summaryDirname = summaryObject.GetProperty("dirname").GetString();
             Assert.NotNull(summaryDirname);
             Assert.Equal("ALL", summaryDirname);
 
-            string summaryDir = (string)summaryObject["dir"];
+            string summaryDir = summaryObject.GetProperty("dir").GetString();
             Assert.NotNull(summaryDir);
             Assert.Equal(finalDirectoryFullName, summaryDir);
 
-            Assert.NotEmpty(summaryObject["parts"]);
-            Assert.Equal(16, summaryObject["parts"].Count());
+            var parts = summaryObject.GetProperty("parts");
+            var partsEnumerator = parts.EnumerateArray();
+            Assert.NotEmpty(partsEnumerator);
+            Assert.Equal(16, partsEnumerator.Count());
 
-            Assert.NotNull(summaryObject["parts"][0]["file"]);
-            Assert.NotNull(summaryObject["parts"][0]["index"]);
-            Assert.NotNull(summaryObject["parts"][0]["last"]);
+            var firstPart = parts[0];
+            Assert.NotNull(firstPart.GetProperty("file").GetString());
+            Assert.True(firstPart.GetProperty("index").GetInt32() == 0);
+            Assert.False(firstPart.GetProperty("last").GetBoolean());
         }
-
 
         [Fact]
         public async Task RemoteOrchestrator_CreateSnapshot_WithParameters_CheckBatchInfo()
@@ -239,28 +234,28 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             // Check summary.json exists.
             var summaryFile = Path.Combine(bi.GetDirectoryFullPath(), "summary.json");
-            var summaryString = new StreamReader(summaryFile).ReadToEnd();
-            var summaryObject = JObject.Parse(summaryString);
+            await using var summaryStream = File.OpenRead(summaryFile);
+            var summaryObject = JsonDocument.Parse(summaryStream).RootElement;
 
-            Assert.NotNull(summaryObject);
-            string summaryDirname = (string)summaryObject["dirname"];
+            Assert.True(summaryObject.ValueKind != JsonValueKind.Null);
+            string summaryDirname = summaryObject.GetProperty("dirname").GetString();
             Assert.NotNull(summaryDirname);
             Assert.Equal("CompanyName_ABikeStore", summaryDirname);
 
-            string summaryDir = (string)summaryObject["dir"];
+            string summaryDir = summaryObject.GetProperty("dir").GetString();
             Assert.NotNull(summaryDir);
             Assert.Equal(finalDirectoryFullName, summaryDir);
 
-            Assert.NotEmpty(summaryObject["parts"]);
-            Assert.Equal(16, summaryObject["parts"].Count());
+            var parts = summaryObject.GetProperty("parts");
+            var partsEnumerator = parts.EnumerateArray();
+            Assert.NotEmpty(partsEnumerator);
+            Assert.Equal(16, partsEnumerator.Count());
 
-            Assert.NotNull(summaryObject["parts"][0]["file"]);
-            Assert.NotNull(summaryObject["parts"][0]["index"]);
-            Assert.NotNull(summaryObject["parts"][0]["last"]);
-
+            var firstPart = parts[0];
+            Assert.NotNull(firstPart.GetProperty("file").GetString());
+            Assert.True(firstPart.GetProperty("index").GetInt32() == 0);
+            Assert.False(firstPart.GetProperty("last").GetBoolean());
         }
-
-
 
         [Fact]
         public async Task RemoteOrchestrator_CreateSnapshot_ShouldFail_If_MissingMandatoriesOptions()

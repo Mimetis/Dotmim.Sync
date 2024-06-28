@@ -1,12 +1,6 @@
-﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.SqlServer.Scope;
-using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
+﻿using Dotmim.Sync.SqlServer.Scope;
 using System.Data;
 using System.Data.Common;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 {

@@ -1,11 +1,8 @@
 ﻿using Dotmim.Sync.Builders;
 using Microsoft.Data.Sqlite;
-using Newtonsoft.Json;
-using System;
 using System.Data;
 using System.Data.Common;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
 {

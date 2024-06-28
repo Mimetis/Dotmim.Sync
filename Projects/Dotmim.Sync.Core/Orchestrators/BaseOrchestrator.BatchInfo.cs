@@ -293,17 +293,13 @@ namespace Dotmim.Sync
             if (File.Exists(fullPath))
                 File.Delete(fullPath);
 
-            var localSerializer = new LocalJsonSerializer(this, context);
+            using var localSerializer = new LocalJsonSerializer(this, context);
 
             // open the file and write table header
-            localSerializer.OpenFile(fullPath, syncTable, batchPartInfo.State);
+            await localSerializer.OpenFileAsync(fullPath, syncTable, batchPartInfo.State).ConfigureAwait(false);
 
             foreach (var row in syncTable.Rows)
                 await localSerializer.WriteRowToFileAsync(row, syncTable).ConfigureAwait(false);
-
-            // Close file
-            localSerializer.CloseFile();
-
         }
 
     }

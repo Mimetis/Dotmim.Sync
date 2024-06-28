@@ -1,12 +1,9 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Extensions;
 using Dotmim.Sync.Serialization;
-using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,12 +20,12 @@ namespace Dotmim.Sync
             InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, ClientSyncChanges clientChanges,
             DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
         {
-
-
             try
             {
                 if (Provider == null)
                     throw new MissingProviderException(nameof(InternalApplyThenGetChangesAsync));
+    
+                var serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
 
                 long remoteClientTimestamp = 0L;
                 DatabaseChangesSelected serverChangesSelected = null;
@@ -108,7 +105,7 @@ namespace Dotmim.Sync
                         {
                             try
                             {
-                                lastSyncErrorsBatchInfo = !string.IsNullOrEmpty(sScopeInfoClient.Errors) ? JsonConvert.DeserializeObject<BatchInfo>(sScopeInfoClient.Errors) : null;
+                                lastSyncErrorsBatchInfo = !string.IsNullOrEmpty(sScopeInfoClient.Errors) ? serializer.Deserialize<BatchInfo>(sScopeInfoClient.Errors) : null;
                             }
                             catch (Exception) { }
                         }
@@ -158,18 +155,17 @@ namespace Dotmim.Sync
                                 if (!table.HasRows)
                                     continue;
 
-                                var localSerializer = new LocalJsonSerializer(this, context);
+                                using var localSerializer = new LocalJsonSerializer(this, context);
 
                                 var (filePath, fileName) = errorsBatchInfo.GetNewBatchPartInfoPath(table, batchIndex, "json", info);
                                 var batchPartInfo = new BatchPartInfo(fileName, table.TableName, table.SchemaName, SyncRowState.None, table.Rows.Count, batchIndex);
                                 errorsBatchInfo.BatchPartsInfo.Add(batchPartInfo);
 
-                                localSerializer.OpenFile(filePath, table, SyncRowState.None);
+                                await localSerializer.OpenFileAsync(filePath, table, SyncRowState.None).ConfigureAwait(false);
 
                                 foreach (var row in table.Rows)
                                     await localSerializer.WriteRowToFileAsync(row, table).ConfigureAwait(false);
 
-                                localSerializer.CloseFile();
                                 batchIndex++;
                             }
 
@@ -258,7 +254,7 @@ namespace Dotmim.Sync
                         LastServerSyncTimestamp = remoteClientTimestamp,
                         LastSyncDuration = this.CompleteTime.Value.Subtract(context.StartTime).Ticks,
                         Properties = cScopeInfoClient.Properties,
-                        Errors = errorsBatchInfo != null && errorsBatchInfo.BatchPartsInfo != null && errorsBatchInfo.BatchPartsInfo.Count > 0 ? JsonConvert.SerializeObject(errorsBatchInfo) : null,
+                        Errors = errorsBatchInfo != null && errorsBatchInfo.BatchPartsInfo != null && errorsBatchInfo.BatchPartsInfo.Count > 0 ? serializer.Serialize(errorsBatchInfo).ToUtf8String() : null,
                     };
 
                     // Save scope info client coming from client

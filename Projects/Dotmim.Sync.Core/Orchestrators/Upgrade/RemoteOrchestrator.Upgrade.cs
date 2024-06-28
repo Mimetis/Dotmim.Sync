@@ -1,27 +1,17 @@
-﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Manager;
-using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-
 
 namespace Dotmim.Sync
 {
     public partial class RemoteOrchestrator
     {
-
         /// <summary>
         /// Check if we need to upgrade the Database Structure
         /// </summary>
@@ -29,7 +19,6 @@ namespace Dotmim.Sync
         {
             try
             {
-
                 await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating).ConfigureAwait(false);
 
                 bool cScopeInfoExists;
@@ -332,8 +321,8 @@ namespace Dotmim.Sync
 
                     foreach (var scopeInfoServerRow in scopeInfoServerTable.Rows)
                     {
-                        var setup = JsonConvert.DeserializeObject<SyncSetup>(scopeInfoServerRow["sync_scope_setup"].ToString());
-                        var schema = JsonConvert.DeserializeObject<SyncSet>(scopeInfoServerRow["sync_scope_schema"].ToString());
+                        var setup = serializer.Deserialize<SyncSetup>(scopeInfoServerRow["sync_scope_setup"].ToString());
+                        var schema = serializer.Deserialize<SyncSet>(scopeInfoServerRow["sync_scope_schema"].ToString());
                         var lastCleanup = (long)scopeInfoServerRow["sync_scope_last_clean_timestamp"];
                         var name = scopeInfoServerRow["sync_scope_name"].ToString();
                         name = string.IsNullOrEmpty(name) ? "DefaultScope" : name;

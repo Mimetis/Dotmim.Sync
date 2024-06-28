@@ -1,9 +1,12 @@
 using Dotmim.Sync.Enumerations;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection.PortableExecutable;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Serialization
@@ -11,25 +14,21 @@ namespace Dotmim.Sync.Serialization
     /// <summary>
     /// Serialize json rows locally
     /// </summary>
-    public class LocalJsonSerializer
+    public class LocalJsonSerializer : IDisposable, IAsyncDisposable
     {
-        private static readonly JsonSerializer serializer = new()
-        {
-            DateParseHandling = DateParseHandling.DateTimeOffset,
-            FloatParseHandling = FloatParseHandling.Decimal
-        };
+        private static readonly ISerializer serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+
+        private readonly SemaphoreSlim writerLock = new(1, 1);
 
         private StreamWriter sw;
-        private JsonTextWriter writer;
+        private Utf8JsonWriter writer;
         private Func<SyncTable, object[], Task<string>> writingRowAsync;
         private Func<SyncTable, string, Task<object[]>> readingRowAsync;
-        private bool isOpen;
-
-        private readonly object writerLock = new object();
+        private int isOpen;
+        private bool disposedValue;
 
         public LocalJsonSerializer(BaseOrchestrator orchestrator = null, SyncContext context = null)
         {
-
             if (orchestrator == null)
                 return;
 
@@ -50,25 +49,18 @@ namespace Dotmim.Sync.Serialization
                 });
         }
 
+        ~LocalJsonSerializer()
+        {
+            CloseFile();
+        }
+
         /// <summary>
         /// Returns if the file is opened
         /// </summary>
         public bool IsOpen
         {
-            get
-            {
-                lock (writerLock)
-                {
-                    return isOpen;
-                }
-            }
-            set
-            {
-                lock (writerLock)
-                {
-                    isOpen = value;
-                }
-            }
+            get => Interlocked.CompareExchange(ref isOpen, 0, 0) == 1;
+            set => Interlocked.Exchange(ref isOpen, value ? 1 : 0);
         }
 
         /// <summary>
@@ -85,35 +77,63 @@ namespace Dotmim.Sync.Serialization
             if (!this.IsOpen)
                 return;
 
-            lock (writerLock)
+            writerLock.Wait();
+
+            try
             {
                 this.writer.WriteEndArray();
                 this.writer.WriteEndObject();
                 this.writer.WriteEndArray();
                 this.writer.WriteEndObject();
                 this.writer.Flush();
-                this.writer.Close();
-                this.sw.Close();
+                this.writer.Dispose();
+                this.sw.Dispose();
                 this.IsOpen = false;
+            }
+            finally
+            {
+                writerLock.Release();
+            }
+        }
+
+        /// <summary>
+        /// Close the current file, close the writer
+        /// </summary>
+        public async Task CloseFileAsync()
+        {
+            // Close file
+            if (!this.IsOpen)
+                return;
+
+            await writerLock.WaitAsync();
+
+            try
+            {
+                this.writer.WriteEndArray();
+                this.writer.WriteEndObject();
+                this.writer.WriteEndArray();
+                this.writer.WriteEndObject();
+                await this.writer.FlushAsync();
+                await this.writer.DisposeAsync();
+#if NET6_0_OR_GREATER
+                await this.sw.DisposeAsync();
+#else
+                this.sw.Dispose();
+#endif
+                this.IsOpen = false;
+            }
+            finally
+            {
+                writerLock.Release();
             }
         }
 
         /// <summary>
         /// Open the file and write header
         /// </summary>
-        public void OpenFile(string path, SyncTable schemaTable, SyncRowState state, bool append = false)
+        public async Task OpenFileAsync(string path, SyncTable schemaTable, SyncRowState state, bool append = false)
         {
-            if (this.writer != null)
-            {
-                lock (writerLock)
-                {
-                    if (this.writer != null)
-                    {
-                        this.writer.Close();
-                        this.writer = null;
-                    }
-                }
-            }
+            await ResetWriterAsync();
 
             this.IsOpen = true;
 
@@ -122,43 +142,67 @@ namespace Dotmim.Sync.Serialization
             if (!fi.Directory.Exists)
                 fi.Directory.Create();
 
-            this.sw = new StreamWriter(path, append);
-            this.writer = new JsonTextWriter(sw) { CloseOutput = true, AutoCompleteOnClose = false };
+            await writerLock.WaitAsync();
 
-            lock (writerLock)
+            try
             {
+                this.sw = new StreamWriter(path, append);
+                this.writer = new Utf8JsonWriter(sw.BaseStream);
+
                 this.writer.WriteStartObject();
                 this.writer.WritePropertyName("t");
+
                 this.writer.WriteStartArray();
                 this.writer.WriteStartObject();
-                this.writer.WritePropertyName("n");
-                this.writer.WriteValue(schemaTable.TableName);
-                this.writer.WritePropertyName("s");
-                this.writer.WriteValue(schemaTable.SchemaName);
-                this.writer.WritePropertyName("st");
-                this.writer.WriteValue((int)state);
 
-                this.writer.WritePropertyName("c");
-                this.writer.WriteStartArray();
+
+                this.writer.WriteString("n", schemaTable.TableName);
+                this.writer.WriteString("s", schemaTable.SchemaName);
+                this.writer.WriteNumber("st", (int)state);
+
+                this.writer.WriteStartArray("c");
                 foreach (var c in schemaTable.Columns)
                 {
                     this.writer.WriteStartObject();
-                    this.writer.WritePropertyName("n");
-                    this.writer.WriteValue(c.ColumnName);
-                    this.writer.WritePropertyName("t");
-                    this.writer.WriteValue(c.DataType);
+                    this.writer.WriteString("n", c.ColumnName);
+                    this.writer.WriteString("t", c.DataType);
                     if (schemaTable.IsPrimaryKey(c.ColumnName))
                     {
-                        this.writer.WritePropertyName("p");
-                        this.writer.WriteValue(1);
+                        this.writer.WriteNumber("p", 1);
                     }
                     this.writer.WriteEndObject();
                 }
 
                 this.writer.WriteEndArray();
-                this.writer.WritePropertyName("r");
-                this.writer.WriteStartArray();
-                this.writer.WriteWhitespace(Environment.NewLine);
+                this.writer.WriteStartArray("r");
+                this.writer.Flush();
+            }
+            finally
+            {
+                writerLock.Release();
+            }
+        }
+
+        private async Task ResetWriterAsync()
+        {
+            if (this.writer == null)
+            {
+                return;
+            }
+
+            await writerLock.WaitAsync();
+
+            try
+            {
+                if (this.writer != null)
+                {
+                    await this.writer.DisposeAsync();
+                    this.writer = null;
+                }
+            }
+            finally
+            {
+                writerLock.Release();
             }
         }
 
@@ -172,31 +216,28 @@ namespace Dotmim.Sync.Serialization
             string str;
 
             if (this.writingRowAsync != null)
-            {
                 str = await this.writingRowAsync(schemaTable, innerRow);
-            }
             else
-            {
                 str = string.Empty; // This won't ever be used, but is need to compile.
-            }
 
-            lock (writerLock)
+            await writerLock.WaitAsync();
+
+            try
             {
                 writer.WriteStartArray();
 
                 if (this.writingRowAsync != null)
-                {
-                    writer.WriteValue(str);
-                }
+                    writer.WriteStringValue(str);
                 else
-                {
                     for (var i = 0; i < innerRow.Length; i++)
-                        writer.WriteValue(innerRow[i]);
-                }
+                        this.writer.WriteRawValue(serializer.Serialize(innerRow[i]));
 
                 writer.WriteEndArray();
-                writer.WriteWhitespace(Environment.NewLine);
                 writer.Flush();
+            }
+            finally
+            {
+                writerLock.Release();
             }
         }
 
@@ -214,19 +255,25 @@ namespace Dotmim.Sync.Serialization
         /// Gets the current file size
         /// </summary>
         /// <returns>Current file size as long</returns>
-        public Task<long> GetCurrentFileSizeAsync()
+        public async Task<long> GetCurrentFileSizeAsync()
         {
             long position = 0L;
 
-            lock (writerLock)
+            await writerLock.WaitAsync();
+
+            try
             {
                 if (this.sw?.BaseStream != null)
                 {
                     position = this.sw.BaseStream.Position / 1024L;
                 }
             }
+            finally
+            {
+                writerLock.Release();
+            }
 
-            return Task.FromResult(position);
+            return position;
         }
 
         /// <summary>
@@ -243,61 +290,56 @@ namespace Dotmim.Sync.Serialization
             SyncTable schemaTable = null;
             SyncRowState state = SyncRowState.None;
 
-            using var reader = new JsonTextReader(new StreamReader(path));
+            using var fileStream = File.OpenRead(path);
+            using var jsonReader = new JsonReader(fileStream);
 
-            while (reader.Read())
+            while (jsonReader.Read())
             {
-                if (reader.TokenType != JsonToken.PropertyName || reader.ValueType != typeof(string) || reader.Value == null)
+                if (jsonReader.TokenType != JsonTokenType.PropertyName)
                     continue;
 
-                switch (reader.Value as string)
+                // read current value
+                var propertyValue = jsonReader.GetString();
+
+                switch (propertyValue)
                 {
                     case "n":
-                        tableName = reader.ReadAsString();
+                        tableName = jsonReader.ReadAsString();
                         break;
                     case "s":
-                        schemaName = reader.ReadAsString();
+                        schemaName = jsonReader.ReadAsString();
                         break;
                     case "st":
-                        state = (SyncRowState)reader.ReadAsInt32();
+                        state = (SyncRowState)jsonReader.ReadAsInt32();
                         break;
                     case "c": // Dont want to read columns if any
-                        schemaTable = GetSchemaTableFromReader(reader, serializer, tableName, schemaName);
+                        schemaTable = GetSchemaTableFromReader(jsonReader, tableName, schemaName);
                         break;
                     case "r":
-                        // go to children
-                        reader.Read();
+                        // go into first array
+                        var hasToken = jsonReader.Read();
 
-                        bool schemaEmpty = schemaTable == null;
+                        if (!hasToken)
+                            break;
 
-                        if (schemaEmpty)
+                        var depth = jsonReader.Depth;
+                        // iterate objects array
+                        while (jsonReader.Read() && jsonReader.Depth > depth)
                         {
-                            schemaTable = new SyncTable(tableName, schemaName);
-                        }
+                            var innerDepth = jsonReader.Depth;
 
-                        // read all array
-                        while (reader.Read() && reader.TokenType != JsonToken.EndArray)
-                        {
-                            if (reader.TokenType == JsonToken.StartArray)
-                            {
-                                var array = serializer.Deserialize<object[]>(reader);
+                            // iterate values
+                            while (jsonReader.Read() && jsonReader.Depth > innerDepth)
+                                continue;
 
-                                if (schemaEmpty && array.Length >= 2) // array[0] contains the state, not a column
-                                {
-                                    for (int i = 1; i < array.Length; i++)
-                                    {
-                                        var type = array[i]?.GetType() ?? typeof(object);
-                                        schemaTable.Columns.Add($"C{i}", type);
-                                    }
-                                    schemaEmpty = false;
-                                }
-                                rowsCount++;
-                            }
+                            rowsCount++;
                         }
 
                         break;
                 }
             }
+
+
 
             return (schemaTable, rowsCount, state);
         }
@@ -310,103 +352,146 @@ namespace Dotmim.Sync.Serialization
             if (!File.Exists(path))
                 yield break;
 
-            using var reader = new JsonTextReader(new StreamReader(path));
-            reader.DateParseHandling = DateParseHandling.DateTimeOffset;
-            reader.FloatParseHandling = FloatParseHandling.Decimal;
-            SyncRowState state = SyncRowState.None;
+            using var stream = File.OpenRead(path);
+            using var jsonReader = new JsonReader(stream);
+
+            var state = SyncRowState.None;
 
             string tableName = null, schemaName = null;
 
-            while (reader.Read())
+            while (jsonReader.Read())
             {
-                if (reader.TokenType != JsonToken.PropertyName || reader.ValueType != typeof(string) || reader.Value == null)
+                if (jsonReader.TokenType != JsonTokenType.PropertyName)
                     continue;
 
-                switch (reader.Value as string)
+                var propertyValue = jsonReader.GetString();
+
+                switch (propertyValue as string)
                 {
                     case "n":
-                        tableName = reader.ReadAsString();
+                        tableName = jsonReader.ReadAsString();
                         break;
                     case "s":
-                        schemaName = reader.ReadAsString();
+                        schemaName = jsonReader.ReadAsString();
                         break;
                     case "st":
-                        state = (SyncRowState)reader.ReadAsInt32();
+                        state = (SyncRowState)jsonReader.ReadAsInt16();
                         break;
                     case "c":
-                        var tmpTable = GetSchemaTableFromReader(reader, serializer, schemaTable?.TableName ?? tableName, schemaTable?.SchemaName ?? schemaName);
+                        var tmpTable = GetSchemaTableFromReader(jsonReader, schemaTable?.TableName ?? tableName, schemaTable?.SchemaName ?? schemaName);
 
                         if (tmpTable != null)
                             schemaTable = tmpTable;
 
                         continue;
                     case "r":
-                        reader.Read();
 
                         bool schemaEmpty = schemaTable == null;
 
                         if (schemaEmpty)
-                        {
                             schemaTable = new SyncTable(tableName, schemaName);
-                        }
 
-                        // read all array
-                        while (reader.Read() && reader.TokenType != JsonToken.EndArray)
+                        // go into first array
+                        var hasToken = jsonReader.Read();
+
+                        if (!hasToken)
+                            break;
+
+                        var depth = jsonReader.Depth;
+                        // iterate objects array
+                        while (jsonReader.Read() && jsonReader.Depth > depth)
                         {
-                            if (reader.TokenType == JsonToken.StartArray)
+                            var innerDepth = jsonReader.Depth;
+
+                            // iterate values
+                            int index = 0;
+                            object[] values = new object[schemaTable.Columns.Count + 1];
+                            StringBuilder stringBuilder = new StringBuilder();
+                            bool getStringOnly = this.readingRowAsync != null;
+
+                            while (jsonReader.Read() && jsonReader.TokenType != JsonTokenType.EndArray)
                             {
-                                object[] array = null;
+                                object value = null;
+                                var columnType = index >= 1 ? schemaTable.Columns[index - 1].GetDataType() : typeof(Int16);
 
                                 if (this.readingRowAsync != null)
                                 {
-                                    var jArray = serializer.Deserialize<JArray>(reader);
-                                    var value = jArray[0].Value<string>();
-                                    array = this.readingRowAsync(schemaTable, value).GetAwaiter().GetResult();
+                                    if (index > 0)
+                                        stringBuilder.Append(",");
+
+                                    stringBuilder.Append(jsonReader.GetString());
                                 }
                                 else
                                 {
-                                    array = serializer.Deserialize<object[]>(reader);
-                                }
+                                    if (jsonReader.TokenType == JsonTokenType.Null || jsonReader.TokenType == JsonTokenType.None)
+                                        value = null;
+                                    else if (jsonReader.TokenType == JsonTokenType.String && jsonReader.TryGetDateTimeOffset(out DateTimeOffset datetimeOffset))
+                                        value = datetimeOffset;
+                                    else if (jsonReader.TokenType == JsonTokenType.String && jsonReader.TryGetDateTime(out DateTime datetime))
+                                        value = datetime;
+                                    else if (jsonReader.TokenType == JsonTokenType.String)
+                                        value = jsonReader.GetString();
+                                    else if (jsonReader.TokenType == JsonTokenType.False || jsonReader.TokenType == JsonTokenType.True)
+                                        value = jsonReader.GetBoolean();
+                                    else if (jsonReader.TokenType == JsonTokenType.Number && jsonReader.TryGetInt64(out long l))
+                                        value = l;
+                                    else if (jsonReader.TokenType == JsonTokenType.Number)
+                                        value = jsonReader.GetDouble();
 
-                                if (array == null || array.Length < 2)
-                                {
-                                    string rowStr = "[" + string.Join(",", array) + "]";
-
-                                    throw new Exception($"Can't read row {rowStr} from file {path}");
-                                }
-
-                                if (schemaEmpty) // array[0] contains the state, not a column
-                                {
-                                    for (int i = 1; i < array.Length; i++)
+                                    try
                                     {
-                                        schemaTable.Columns.Add($"C{i}", array[i].GetType());
+                                        if (value != null)
+                                        {
+                                            var convertedValue = SyncTypeConverter.TryConvertTo(value, columnType);
+                                            values[index] = convertedValue;
+                                        }
                                     }
-
-                                    schemaEmpty = false;
-                                }
-
-                                if (array.Length != (schemaTable.Columns.Count + 1))
-                                {
-                                    string rowStr = "[" + string.Join(",", array) + "]";
-
-                                    throw new Exception($"Table {schemaTable.GetFullName()} with {schemaTable.Columns.Count} columns does not have the same columns count as the row read {rowStr} which have {array.Length - 1} values.");
-                                }
-
-                                // if we have some columns, we check the date time thing
-                                if (schemaTable.Columns?.HasSyncColumnOfType(typeof(DateTime)) == true)
-                                {
-                                    for (var index = 1; index < array.Length; index++)
+                                    catch (Exception ex)
                                     {
-                                        var column = schemaTable.Columns[index - 1];
-
-                                        // Set the correct value in existing row for DateTime types.
-                                        // They are being Deserialized as DateTimeOffsets
-                                        if (column != null && column.GetDataType() == typeof(DateTime) && array[index] != null && array[index] is DateTimeOffset)
-                                            array[index] = ((DateTimeOffset)array[index]).DateTime;
+                                        throw new Exception($"Table {schemaTable.GetFullName()}. Unable to convert value {value} to {columnType}. From json payload stored in (${path}).", ex);
                                     }
                                 }
-                                yield return new SyncRow(schemaTable, array);
+                                index++;
                             }
+
+                            if (this.readingRowAsync != null)
+                                values = this.readingRowAsync(schemaTable, stringBuilder.ToString()).GetAwaiter().GetResult();
+
+
+                            if (values == null || values.Length < 2)
+                            {
+                                string rowStr = "[" + string.Join(",", values) + "]";
+                                throw new Exception($"Can't read row {rowStr} from file {path}");
+                            }
+
+                            if (schemaEmpty) // array[0] contains the state, not a column
+                            {
+                                for (int i = 1; i < values.Length; i++)
+                                    schemaTable.Columns.Add($"C{i}", values[i].GetType());
+
+                                schemaEmpty = false;
+                            }
+
+                            if (values.Length != (schemaTable.Columns.Count + 1))
+                            {
+                                string rowStr = "[" + string.Join(",", values) + "]";
+                                throw new Exception($"Table {schemaTable.GetFullName()} with {schemaTable.Columns.Count} columns does not have the same columns count as the row read {rowStr} which have {values.Length - 1} values.");
+                            }
+
+                            // if we have some columns, we check the date time thing
+                            if (schemaTable.Columns?.HasSyncColumnOfType(typeof(DateTime)) == true)
+                            {
+                                for (var index2 = 1; index2 < values.Length; index2++)
+                                {
+                                    var column = schemaTable.Columns[index2 - 1];
+
+                                    // Set the correct value in existing row for DateTime types.
+                                    // They are being Deserialized as DateTimeOffsets
+                                    if (column != null && column.GetDataType() == typeof(DateTime) && values[index2] != null && values[index2] is DateTimeOffset)
+                                        values[index2] = ((DateTimeOffset)values[index2]).DateTime;
+                                }
+                            }
+                            yield return new SyncRow(schemaTable, values);
                         }
 
                         yield break;
@@ -414,43 +499,84 @@ namespace Dotmim.Sync.Serialization
             }
         }
 
-        private static SyncTable GetSchemaTableFromReader(JsonTextReader reader, JsonSerializer serializer, string tableName, string schemaName)
+        private static SyncTable GetSchemaTableFromReader(JsonReader jsonReader, string tableName, string schemaName)
         {
-            SyncTable schemaTable;
+            bool hadMoreTokens;
 
-            while (reader.Read() && reader.TokenType != JsonToken.StartArray)
+            while ((hadMoreTokens = jsonReader.Read()) && jsonReader.TokenType != JsonTokenType.StartArray)
                 continue;
 
-            // If we don't find any more rows, assuming we have same columns
-            if (!reader.HasLineInfo())
+            if (!hadMoreTokens)
                 return null;
 
-            // get columns from array
-            var includedColumns = serializer.Deserialize<List<JObject>>(reader);
+            // get current depth
+            var schemaTable = new SyncTable(tableName, schemaName);
 
-            // if we don't have columns specified, we are assuming it's the same columns
-            if (includedColumns == null || includedColumns.Count == 0)
-                return null;
-
-            schemaTable = new SyncTable(tableName, schemaName);
-
-            for (int i = 0; i < includedColumns.Count; i++)
+            while (jsonReader.Read() && jsonReader.TokenType != JsonTokenType.EndArray)
             {
-                var includedColumn = includedColumns[i];
+                // reading an object containing a column
+                if (jsonReader.TokenType == JsonTokenType.StartObject)
+                {
+                    string includedColumnName = null;
+                    string includedColumnTypeName = null;
+                    bool isPrimaryKey = false;
 
-                // column name & type from file
-                var includedColumnName = includedColumn["n"].Value<string>();
-                var includedColumnType = SyncColumn.GetTypeFromAssemblyQualifiedName(includedColumn["t"].Value<string>());
-                var isPrimaryKey = includedColumn.ContainsKey("p") && includedColumn["p"].Value<bool>();
+                    while (jsonReader.Read() && jsonReader.TokenType != JsonTokenType.EndObject)
+                    {
+                        var propertyValue = jsonReader.GetString();
 
-                // Adding the column 
-                schemaTable.Columns.Add(new SyncColumn(includedColumnName, includedColumnType));
+                        switch (propertyValue)
+                        {
+                            case "n":
+                                includedColumnName = jsonReader.ReadAsString();
+                                break;
+                            case "t":
+                                includedColumnTypeName = jsonReader.ReadAsString();
+                                break;
+                            case "p":
+                                isPrimaryKey = jsonReader.ReadAsInt16() == 1;
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                    var includedColumnType = SyncColumn.GetTypeFromAssemblyQualifiedName(includedColumnTypeName);
 
-                if (isPrimaryKey)
-                    schemaTable.PrimaryKeys.Add(includedColumnName);
+                    // Adding the column 
+                    if (!string.IsNullOrEmpty(includedColumnName) && !string.IsNullOrEmpty(includedColumnTypeName))
+                    {
+                        schemaTable.Columns.Add(new SyncColumn(includedColumnName, includedColumnType));
+
+                        if (isPrimaryKey)
+                            schemaTable.PrimaryKeys.Add(includedColumnName);
+                    }
+
+                }
+
             }
-
             return schemaTable;
         }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    CloseFile();
+                }
+
+                disposedValue = true;
+            }
+        }
+
+        public void Dispose()
+        {
+            // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
+
+        public async ValueTask DisposeAsync() => await CloseFileAsync();
     }
 }

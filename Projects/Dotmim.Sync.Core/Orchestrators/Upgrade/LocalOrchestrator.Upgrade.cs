@@ -1,28 +1,18 @@
-﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Manager;
-using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-
 
 namespace Dotmim.Sync
 {
     public partial class LocalOrchestrator
     {
-
         internal virtual async Task<bool> NeedsToUpgradeAsync(SyncContext context)
         {
             try
@@ -222,12 +212,12 @@ namespace Dotmim.Sync
                 if (setupJson == null)
                     break;
 
-                JObject setup = JToken.Parse(setupJson) as JObject;
+                JsonDocument setup = JsonDocument.Parse(setupJson);
 
                 // Raise an error if we have more than one scope with filters
-                if (setup != null && setup.TryGetValue("fils", out var fils))
+                if (setup != null && setup.RootElement.TryGetProperty("fils", out var fils))
                 {
-                    var filters = fils.ToObject<List<SetupFilter>>();
+                    var filters = fils.Deserialize<List<SetupFilter>>();
                     hasFilters = filters != null && filters.Count > 0;
                     if (hasFilters)
                     {
@@ -236,7 +226,6 @@ namespace Dotmim.Sync
                         stringBuilder.AppendLine($"Your {this.Options.ScopeInfoTableName} table contains setup with filters that need to be migrated manually, as new version needs the parameters values saved in the {this.Options.ScopeInfoTableName} table and they are not present in the {this.Options.ScopeInfoTableName} table version {version}.");
                         stringBuilder.AppendLine($"Please see this discussion on how to migrate to your version to the last one : https://github.com/Mimetis/Dotmim.Sync/discussions/802#discussioncomment-3594681");
                         throw new Exception(stringBuilder.ToString());
-
                     }
                 }
             }
@@ -267,8 +256,8 @@ namespace Dotmim.Sync
             foreach (var scopeInfoRow in oldScopeInfoTable.Rows)
             {
                 // Get setup schema and scope name from old scope info table
-                var setup = JsonConvert.DeserializeObject<SyncSetup>(scopeInfoRow["sync_scope_setup"].ToString());
-                var schema = JsonConvert.DeserializeObject<SyncSet>(scopeInfoRow["sync_scope_schema"].ToString());
+                var setup = serializer.Deserialize<SyncSetup>(scopeInfoRow["sync_scope_setup"].ToString());
+                var schema = serializer.Deserialize<SyncSet>(scopeInfoRow["sync_scope_schema"].ToString());
                 var scopeName = scopeInfoRow["sync_scope_name"].ToString();
 
                 // scope info client id should be unique.
@@ -514,8 +503,8 @@ namespace Dotmim.Sync
                 // Create scope_info and scope_info_client for each pre version scope_info lines
                 foreach (var scopeInfoRow in tmpScopeInfoClientTable.Rows)
                 {
-                    var setup = JsonConvert.DeserializeObject<SyncSetup>(scopeInfoRow["sync_scope_setup"].ToString());
-                    var schema = JsonConvert.DeserializeObject<SyncSet>(scopeInfoRow["sync_scope_schema"].ToString());
+                    var setup = serializer.Deserialize<SyncSetup>(scopeInfoRow["sync_scope_setup"].ToString());
+                    var schema = serializer.Deserialize<SyncSet>(scopeInfoRow["sync_scope_schema"].ToString());
                     var scopeName = scopeInfoRow["sync_scope_name"].ToString();
 
                     var setupParameters = setup.Filters.SelectMany(filter => filter.Parameters)?.GroupBy(sfp => sfp.Name).Select(g => g.Key).ToList();

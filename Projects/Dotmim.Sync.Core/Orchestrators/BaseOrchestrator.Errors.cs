@@ -1,17 +1,8 @@
 ﻿
 using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,10 +10,9 @@ namespace Dotmim.Sync
 {
     public abstract partial class BaseOrchestrator
     {
-
         /// <summary>
         /// Handle a conflict
-        /// The int returned is the conflict count I need 
+        /// The int returned is the conflict count I need
         /// </summary>
         private async Task<(ErrorAction errorAction, ApplyChangesException applyChangesException)> HandleErrorAsync(ScopeInfo scopeInfo, SyncContext context, 
                                 BatchInfo batchInfo, SyncRow errorRow, SyncRowState applyType,
@@ -30,7 +20,6 @@ namespace Dotmim.Sync
                                 DbConnection connection, DbTransaction transaction,
                                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-
             // We are handling a previous error already in the batch info
             if (errorRow.RowState == SyncRowState.ApplyModifiedFailed || errorRow.RowState == SyncRowState.ApplyDeletedFailed)
                 return (ErrorAction.Ignore, null);
@@ -40,7 +29,6 @@ namespace Dotmim.Sync
 
             var errorOccuredArgs = await this.InterceptAsync(errorRowArgs, progress, cancellationToken).ConfigureAwait(false);
             Exception operationException = null;
-
             
             var errorAction = ErrorAction.Throw;
             switch (errorOccuredArgs.Resolution)
@@ -111,12 +99,9 @@ namespace Dotmim.Sync
 
             ApplyChangesException applyChangesException = null;
             if (operationException != null)
-                applyChangesException = new ApplyChangesException(errorRow, schemaChangesTable, applyType, operationException);
-            
+                applyChangesException = new ApplyChangesException(errorRow, schemaChangesTable, applyType, operationException);   
 
             return (errorAction, applyChangesException);
         }
-
-
     }
 }

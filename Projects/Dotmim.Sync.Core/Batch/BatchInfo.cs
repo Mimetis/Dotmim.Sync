@@ -1,18 +1,10 @@
-﻿
-
-using Dotmim.Sync.Builders;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Primitives;
-using Newtonsoft.Json;
+﻿using Dotmim.Sync.Builders;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Batch
 {
@@ -29,6 +21,7 @@ namespace Dotmim.Sync.Batch
         public BatchInfo()
         {
             this.BatchPartsInfo = new List<BatchPartInfo>();
+            this.DirectoryRoot = SyncOptions.GetDefaultUserBatchDirectory();
             this.DirectoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
         }
 
@@ -60,7 +53,7 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Gets or sets server timestamp
         /// </summary>
-        [DataMember(Name = "ts", IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        [DataMember(Name = "ts", IsRequired = false, Order = 3)]
         public long Timestamp { get; set; }
 
         /// <summary>
@@ -218,7 +211,7 @@ namespace Dotmim.Sync.Batch
 
         //public async Task SaveBatchPartInfoAsync(BatchPartInfo batchPartInfo, SyncTable syncTable)
         //{
-        //     var localSerializer = new LocalJsonSerializer();
+        //    using var localSerializer = new LocalJsonSerializer();
 
         //    // Get full path of my batchpartinfo
         //    var fullPath = this.GetBatchPartInfoPath(batchPartInfo).FullPath;
@@ -233,10 +226,6 @@ namespace Dotmim.Sync.Batch
 
         //    foreach (var row in syncTable.Rows)
         //        await localSerializer.WriteRowToFileAsync(row, syncTable).ConfigureAwait(false);
-
-        //    // Close file
-        //    await localSerializer.CloseFileAsync(fullPath, syncTable).ConfigureAwait(false);
-
         //}
 
         /// <summary>

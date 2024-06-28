@@ -1,9 +1,11 @@
-﻿using System;
+﻿using Dotmim.Sync.Serialization;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
@@ -24,6 +26,7 @@ namespace Dotmim.Sync
         /// Gets or sets the value of the parameter.
         /// </summary>
         [DataMember(Name = "v", IsRequired = true, Order = 2)]
+        [JsonConverter(typeof(ObjectToInferredTypesConverter))]
         public object Value { get; set; }
 
         /// <summary>

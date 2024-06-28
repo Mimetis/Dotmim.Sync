@@ -1,19 +1,10 @@
-﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+﻿using Dotmim.Sync.Enumerations;
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
-
     /// <summary>
     /// Sync agent. It's the sync orchestrator
     /// Knows both the Sync Server provider and the Sync Client provider
@@ -23,7 +14,6 @@ namespace Dotmim.Sync
         // ---------------------------------------------
         // null
         // ---------------------------------------------
-
 
         /// <summary>
         /// Launch a Synchronization based on scope DefaultScope
