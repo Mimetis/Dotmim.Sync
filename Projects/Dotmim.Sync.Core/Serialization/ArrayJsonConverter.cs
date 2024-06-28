@@ -29,10 +29,16 @@ namespace Dotmim.Sync.Serialization
 
                     if (reader.TokenType == JsonTokenType.Null || reader.TokenType == JsonTokenType.None)
                         value = null;
+                    else if (reader.TokenType == JsonTokenType.String && reader.TryGetDateTimeOffset(out DateTimeOffset datetimeOffset))
+                        value = datetimeOffset;
+                    else if (reader.TokenType == JsonTokenType.String && reader.TryGetDateTime(out DateTime datetime))
+                        value = datetime;
                     else if (reader.TokenType == JsonTokenType.String)
                         value = reader.GetString();
                     else if (reader.TokenType == JsonTokenType.False || reader.TokenType == JsonTokenType.True)
                         value = reader.GetBoolean();
+                    else if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt64(out long l))
+                        value = l;
                     else if (reader.TokenType == JsonTokenType.Number)
                         value = reader.GetDouble();
 

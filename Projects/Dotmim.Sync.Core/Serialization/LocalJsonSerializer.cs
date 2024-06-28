@@ -425,17 +425,26 @@ namespace Dotmim.Sync.Serialization
                                 {
                                     if (jsonReader.TokenType == JsonTokenType.Null || jsonReader.TokenType == JsonTokenType.None)
                                         value = null;
+                                    else if (jsonReader.TokenType == JsonTokenType.String && jsonReader.TryGetDateTimeOffset(out DateTimeOffset datetimeOffset))
+                                        value = datetimeOffset;
+                                    else if (jsonReader.TokenType == JsonTokenType.String && jsonReader.TryGetDateTime(out DateTime datetime))
+                                        value = datetime;
                                     else if (jsonReader.TokenType == JsonTokenType.String)
                                         value = jsonReader.GetString();
                                     else if (jsonReader.TokenType == JsonTokenType.False || jsonReader.TokenType == JsonTokenType.True)
                                         value = jsonReader.GetBoolean();
+                                    else if (jsonReader.TokenType == JsonTokenType.Number && jsonReader.TryGetInt64(out long l))
+                                        value = l;
                                     else if (jsonReader.TokenType == JsonTokenType.Number)
                                         value = jsonReader.GetDouble();
 
                                     try
                                     {
-                                        var convertedValue = SyncTypeConverter.TryConvertTo(value, columnType);
-                                        values[index] = convertedValue;
+                                        if (value != null)
+                                        {
+                                            var convertedValue = SyncTypeConverter.TryConvertTo(value, columnType);
+                                            values[index] = convertedValue;
+                                        }
                                     }
                                     catch (Exception ex)
                                     {

@@ -24,7 +24,6 @@ namespace Dotmim.Sync.Serialization
         public Stream Stream { get; }
 
         // buffer size
-        private readonly int bufferSize;
         private readonly JsonReaderOptions jsonReaderOptions;
         private const int MaxTokenGap = 1024 * 1024;
 
@@ -32,12 +31,12 @@ namespace Dotmim.Sync.Serialization
         /// Create a fast forward json reader
         /// </summary>
         /// <param name="stream">Stream to read</param>
+        /// <param name="jsonReaderOptions">options</param>
         /// <param name="bufferSize">buffer size. will adapt if needed</param>
         /// <exception cref="Exception">If stream is not readable</exception>
         public JsonReader(Stream stream, JsonReaderOptions jsonReaderOptions = default, int bufferSize = 1024)
         {
             this.Stream = stream;
-            this.bufferSize = bufferSize;
             this.jsonReaderOptions = jsonReaderOptions;
 
             if (!this.Stream.CanRead)
@@ -54,7 +53,7 @@ namespace Dotmim.Sync.Serialization
         }
 
         // buffer used by Utf8JsonReader to read values
-        private byte[]? buffer;
+        private byte[] buffer;
 
         private int dataLen;
         private int dataPos;
@@ -68,7 +67,6 @@ namespace Dotmim.Sync.Serialization
 
         // state object used internally by Utf8JsonReader
         private JsonReaderState currentState;
-        private JsonReaderState prevState;
 
         // bytes consumed by Utf8JsonReader each time it reads a token
         private int bytesConsumed;
@@ -269,13 +267,12 @@ namespace Dotmim.Sync.Serialization
             GC.SuppressFinalize(this);
         }
 
-
-        public string? ReadAsString()
+        public string ReadAsString()
         {
             this.Read();
             return this.GetString();
         }
-        public string? GetString()
+        public string GetString()
         {
             if (this.TokenType != JsonTokenType.PropertyName && this.TokenType != JsonTokenType.String)
                 return null;
@@ -288,12 +285,29 @@ namespace Dotmim.Sync.Serialization
 
             return Regex.Unescape(str);
         }
-        public string? ReadAsEscapedString()
+        public bool TryGetString(out string value)
+        {
+            if (this.TokenType != JsonTokenType.PropertyName && this.TokenType != JsonTokenType.String)
+            {
+                value = string.Empty;
+                return false;
+            }
+#if NET6_0_OR_GREATER
+            var str = utf8Encoding.GetString(this.Value.Span);
+#else   
+            var str = utf8Encoding.GetString(this.Value.ToArray());
+#endif
+
+            value = Regex.Unescape(str); ;
+            return true;
+        }
+
+        public string ReadAsEscapedString()
         {
             this.Read();
             return this.GetEscapedString();
         }
-        public string? GetEscapedString()
+        public string GetEscapedString()
         {
             if (this.TokenType != JsonTokenType.PropertyName && this.TokenType != JsonTokenType.String)
                 return null;
@@ -306,6 +320,24 @@ namespace Dotmim.Sync.Serialization
 
             return str;
         }
+        public bool TryGetEscapedString(out string value)
+        {
+            if (this.TokenType != JsonTokenType.PropertyName && this.TokenType != JsonTokenType.String)
+            {
+                value = string.Empty;
+                return false;
+            }
+
+#if NET6_0_OR_GREATER
+            var str = utf8Encoding.GetString(this.Value.Span);
+#else   
+            var str = utf8Encoding.GetString(this.Value.ToArray());
+#endif
+
+            value = str;
+            return true;
+        }
+
         public Guid? ReadAsGuid()
         {
             this.Read();
@@ -321,6 +353,24 @@ namespace Dotmim.Sync.Serialization
 
             throw new FormatException("Can't parse double");
         }
+        public bool TryGetGuid(out Guid value)
+        {
+            if (this.TokenType != JsonTokenType.String)
+            {
+                value = Guid.Empty;
+                return false;
+            }
+
+            if (Utf8Parser.TryParse(this.Value.Span, out Guid tmp, out int bytesConsumed) && this.Value.Span.Length == bytesConsumed)
+            {
+                value = tmp;
+                return true;
+            }
+
+            value = Guid.Empty;
+            return false;
+        }
+
         public TimeSpan? ReadAsTimeSpan()
         {
             this.Read();
@@ -336,6 +386,24 @@ namespace Dotmim.Sync.Serialization
 
             throw new FormatException("Can't parse TimeSpan");
         }
+        public bool TryGetTimeSpan(out TimeSpan value)
+        {
+            if (this.TokenType != JsonTokenType.String)
+            {
+                value = TimeSpan.Zero;
+                return false;
+            }
+
+            if (Utf8Parser.TryParse(this.Value.Span, out TimeSpan tmp, out int bytesConsumed) && this.Value.Span.Length == bytesConsumed)
+            {
+                value = tmp;
+                return true;
+            }
+
+            value = TimeSpan.Zero;
+            return false;
+        }
+
         public DateTimeOffset? ReadAsDateTimeOffset()
         {
             this.Read();
@@ -351,6 +419,24 @@ namespace Dotmim.Sync.Serialization
 
             throw new FormatException("Can't parse DateTimeOffset");
         }
+        public bool TryGetDateTimeOffset(out DateTimeOffset value)
+        {
+            if (this.TokenType != JsonTokenType.String)
+            {
+                value = DateTimeOffset.MinValue;
+                return false;
+            }
+
+            if (Utf8Parser.TryParse(this.Value.Span, out DateTimeOffset tmp, out int bytesConsumed) && this.Value.Span.Length == bytesConsumed)
+            {
+                value = tmp;
+                return true;
+            }
+
+            value = DateTimeOffset.MinValue;
+            return false;
+        }
+
         public DateTime? ReadAsDateTime()
         {
             this.Read();
@@ -366,6 +452,24 @@ namespace Dotmim.Sync.Serialization
 
             throw new FormatException("Can't parse GetDateTime");
         }
+        public bool TryGetDateTime(out DateTime value)
+        {
+            if (this.TokenType != JsonTokenType.String)
+            {
+                value = DateTime.MinValue;
+                return false;
+            }
+
+            if (Utf8Parser.TryParse(this.Value.Span, out DateTime tmp, out int bytesConsumed) && this.Value.Span.Length == bytesConsumed)
+            {
+                value = tmp;
+                return true;
+            }
+
+            value = DateTime.MinValue;
+            return false;
+        }
+
         public double? ReadAsDouble()
         {
             this.Read();
@@ -381,6 +485,24 @@ namespace Dotmim.Sync.Serialization
 
             throw new FormatException("Can't parse double");
         }
+        public bool TryGetDouble(out double value)
+        {
+            if (this.TokenType != JsonTokenType.Number)
+            {
+                value = 0;
+                return false;
+            }
+
+            if (Utf8Parser.TryParse(this.Value.Span, out double tmp, out int bytesConsumed) && this.Value.Span.Length == bytesConsumed)
+            {
+                value = tmp;
+                return true;
+            }
+
+            value = 0;
+            return false;
+        }
+
         public decimal? ReadAsDecimal()
         {
             this.Read();
@@ -396,6 +518,25 @@ namespace Dotmim.Sync.Serialization
 
             throw new FormatException("Can't parse decimal");
         }
+        public bool TryGetDecimal(out decimal value)
+        {
+            if (this.TokenType != JsonTokenType.Number)
+            {
+                value = 0;
+                return false;
+            }
+
+            if (Utf8Parser.TryParse(this.Value.Span, out decimal tmp, out int bytesConsumed) && this.Value.Span.Length == bytesConsumed)
+            {
+                value = tmp;
+                return true;
+            }
+
+            value = 0;
+            return false;
+        }
+
+
         public float? ReadAsSingle()
         {
             this.Read();
@@ -411,6 +552,25 @@ namespace Dotmim.Sync.Serialization
 
             throw new FormatException("Can't parse float");
         }
+        public bool TryGetSingle(out float value)
+        {
+            if (this.TokenType != JsonTokenType.Number)
+            {
+                value = 0;
+                return false;
+            }
+
+            if (Utf8Parser.TryParse(this.Value.Span, out float tmp, out int bytesConsumed) && this.Value.Span.Length == bytesConsumed)
+            {
+                value = tmp;
+                return true;
+            }
+
+            value = 0;
+            return false;
+        }
+
+
         public long? ReadAsInt64()
         {
             this.Read();
@@ -426,6 +586,25 @@ namespace Dotmim.Sync.Serialization
 
             throw new FormatException("Can't parse long");
         }
+        public bool TryGetInt64(out long value)
+        {
+            if (this.TokenType != JsonTokenType.Number)
+            {
+                value = 0;
+                return false;
+            }
+
+            if (Utf8Parser.TryParse(this.Value.Span, out long tmp, out int bytesConsumed) && this.Value.Span.Length == bytesConsumed)
+            {
+                value = tmp;
+                return true;
+            }
+
+            value = 0;
+            return false;
+        }
+
+
         public int? ReadAsInt32()
         {
             this.Read();
@@ -441,6 +620,25 @@ namespace Dotmim.Sync.Serialization
 
             throw new FormatException("Can't parse int");
         }
+        public bool TryGetInt32(out int value)
+        {
+            if (this.TokenType != JsonTokenType.Number)
+            {
+                value = 0;
+                return false;
+            }
+
+            if (Utf8Parser.TryParse(this.Value.Span, out int tmp, out int bytesConsumed) && this.Value.Span.Length == bytesConsumed)
+            {
+                value = tmp;
+                return true;
+            }
+
+            value = 0;
+            return false;
+        }
+
+
         public short? ReadAsInt16()
         {
             this.Read();
@@ -456,6 +654,25 @@ namespace Dotmim.Sync.Serialization
 
             throw new FormatException("Can't parse short");
         }
+        public bool TryGetInt16(out short value)
+        {
+            if (this.TokenType != JsonTokenType.Number)
+            {
+                value = 0;
+                return false;
+            }
+
+            if (Utf8Parser.TryParse(this.Value.Span, out short tmp, out int bytesConsumed) && this.Value.Span.Length == bytesConsumed)
+            {
+                value = tmp;
+                return true;
+            }
+
+            value = 0;
+            return false;
+        }
+
+
         public byte? ReadAsByte()
         {
             this.Read();
@@ -471,6 +688,25 @@ namespace Dotmim.Sync.Serialization
 
             throw new FormatException("Can't parse byte");
         }
+        public bool TryGetByte(out byte value)
+        {
+            if (this.TokenType != JsonTokenType.Number)
+            {
+                value = 0;
+                return false;
+            }
+
+            if (Utf8Parser.TryParse(this.Value.Span, out byte tmp, out int bytesConsumed) && this.Value.Span.Length == bytesConsumed)
+            {
+                value = tmp;
+                return true;
+            }
+
+            value = 0;
+            return false;
+        }
+
+
         public bool? ReadAsBoolean()
         {
             this.Read();
@@ -485,6 +721,23 @@ namespace Dotmim.Sync.Serialization
             else
                 return null;
         }
+        public bool TryGetBoolean(out bool value)
+        {
+            if (this.TokenType == JsonTokenType.True)
+            {
+                value = true;
+                return true;
+            }
+            else if (this.TokenType == JsonTokenType.False)
+            {
+                value = false;
+                return true;
+            }
+
+            value = false;
+            return false;
+        }
+
 
         //public byte[] GetBytesFromBase64()
         //{
@@ -495,13 +748,11 @@ namespace Dotmim.Sync.Serialization
 
     public struct JsonReaderValue
     {
-        public JsonValue? Value { get; set; }
+        public JsonValue Value { get; set; }
         public JsonTokenType TokenType { get; set; } = JsonTokenType.None;
         public int Depth { get; set; } = 0;
-
         public JsonReaderValue() { }
-
-        public override string ToString()
+        public override readonly string ToString()
         {
             var sb = new StringBuilder($"Type: {this.TokenType} - Depth: {this.Depth}");
 
