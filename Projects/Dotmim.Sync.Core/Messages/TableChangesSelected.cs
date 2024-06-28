@@ -43,13 +43,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or sets the number of deletes that should be applied to a table during the synchronization session.
         /// </summary>
-        [DataMember(Name = "d", IsRequired = false, EmitDefaultValue = false, Order = 3)]
+        [DataMember(Name = "d", IsRequired = false, Order = 3)]
         public int Deletes { get; set; }
 
         /// <summary>
         /// Gets or sets the number of updates OR inserts that should be applied to a table during the synchronization session.
         /// </summary>
-        [DataMember(Name = "u", IsRequired = false, EmitDefaultValue = false, Order = 4)]
+        [DataMember(Name = "u", IsRequired = false, Order = 4)]
         public int Upserts { get; set; }
 
         /// <summary>

@@ -59,8 +59,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Check 
             using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
-                await c.OpenAsync().ConfigureAwait(false);
-                var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null).ConfigureAwait(false);
+                await c.OpenAsync();
+                var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null);
                 Assert.Single(check.Rows);
                 c.Close();
             }
@@ -118,12 +118,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Check 
             using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
-                await c.OpenAsync().ConfigureAwait(false);
-                var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null).ConfigureAwait(false);
+                await c.OpenAsync();
+                var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null);
                 Assert.Single(check.Rows);
-                check = await SqlManagementUtils.GetTriggerAsync("Product_update_trigger", "SalesLT", c, null).ConfigureAwait(false);
+                check = await SqlManagementUtils.GetTriggerAsync("Product_update_trigger", "SalesLT", c, null);
                 Assert.Single(check.Rows);
-                check = await SqlManagementUtils.GetTriggerAsync("Product_delete_trigger", "SalesLT", c, null).ConfigureAwait(false);
+                check = await SqlManagementUtils.GetTriggerAsync("Product_delete_trigger", "SalesLT", c, null);
                 Assert.Single(check.Rows);
                 c.Close();
             }
@@ -166,8 +166,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Check 
             using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
-                await c.OpenAsync().ConfigureAwait(false);
-                var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null).ConfigureAwait(false);
+                await c.OpenAsync();
+                var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null);
                 Assert.Empty(check.Rows);
                 c.Close();
             }
@@ -220,8 +220,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Check 
             using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
-                await c.OpenAsync().ConfigureAwait(false);
-                var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null).ConfigureAwait(false);
+                await c.OpenAsync();
+                var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null);
                 Assert.Single(check.Rows);
                 c.Close();
             }

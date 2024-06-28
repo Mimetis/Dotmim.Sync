@@ -76,8 +76,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             // Check we have a new column in tracking table
             using (var c = new SqlConnection(clientProvider.ConnectionString))
             {
-                await c.OpenAsync().ConfigureAwait(false);
-                var cols = await SqlManagementUtils.GetColumnsForTableAsync("Product", "SalesLT", c, null).ConfigureAwait(false);
+                await c.OpenAsync();
+                var cols = await SqlManagementUtils.GetColumnsForTableAsync("Product", "SalesLT", c, null);
                 Assert.Equal(4, cols.Rows.Count);
                 Assert.NotNull(cols.Rows.FirstOrDefault(r => r["name"].ToString() == "internal_id"));
                 c.Close();
@@ -109,10 +109,10 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             await localOrchestrator.CreateTableAsync(scopeInfo, "Product", "SalesLT");
 
-            var exists = await localOrchestrator.ExistTableAsync(scopeInfo, table.TableName, table.SchemaName).ConfigureAwait(false);
+            var exists = await localOrchestrator.ExistTableAsync(scopeInfo, table.TableName, table.SchemaName);
             Assert.True(exists);
 
-            exists = await localOrchestrator.ExistTableAsync(scopeInfo, "ProductCategory", "SalesLT").ConfigureAwait(false);
+            exists = await localOrchestrator.ExistTableAsync(scopeInfo, "ProductCategory", "SalesLT");
             Assert.False(exists);
         }
 

@@ -85,7 +85,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the current percentage progress overall
         /// </summary>
-        [DataMember(Name = "pp", IsRequired = false, EmitDefaultValue = false, Order = 9)]
+        [DataMember(Name = "pp", IsRequired = false, Order = 9)]
         public double ProgressPercentage { get; set; }
 
         /// <summary>
@@ -105,6 +105,8 @@ namespace Dotmim.Sync
             this.ScopeName = scopeInfoClient.Name;
             this.Parameters = scopeInfoClient.Parameters;
             this.ClientId = scopeInfoClient.Id;
+            this.StartTime = DateTime.UtcNow;
+
         }
 
         /// <summary>
@@ -112,6 +114,7 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncContext()
         {
+            this.StartTime = DateTime.UtcNow;
 
         }
 

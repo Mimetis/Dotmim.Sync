@@ -102,7 +102,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.Single(outContainerSet.Tables);
             Assert.NotEmpty(outContainerSet.Tables[0].Rows);
             Assert.Equal(2, outContainerSet.Tables[0].Rows.Count);
-            Assert.Equal(2, outContainerSet.Tables[0].Rows[0][0]);
+            Assert.Equal(2L, outContainerSet.Tables[0].Rows[0][0]);
         }
 
 
@@ -139,7 +139,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             {
                 ServerScopeInfo = new ScopeInfo
                 {
-                    LastCleanupTimestamp = 10,
+                    LastCleanupTimestamp = 0,
                     Name = "ScopeName",
                     Properties = "Props",
                     Version = "v1",
@@ -163,6 +163,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.NotNull(outSchema.ServerScopeInfo);
             Assert.NotNull(outSchema.ServerScopeInfo.Schema);
             Assert.NotNull(outSchema.ServerScopeInfo.Setup);
+            Assert.Equal(0, outSchema.ServerScopeInfo.LastCleanupTimestamp);
             Assert.NotNull(outSchema.SyncContext);
             Assert.NotNull(outSchema.SyncContext.Parameters);
             Assert.Equal("xxxx-zzzz", outSchema.SyncContext.Parameters["ClientId"].Value);
@@ -315,8 +316,7 @@ namespace Dotmim.Sync.Tests.StandAlone
                 SyncStage = SyncStage.ScopeLoading,
                 SyncType = SyncType.Normal,
                 SyncWay = SyncWay.Upload,
-                Parameters = parameters
-
+                Parameters = parameters,
             };
         }
 

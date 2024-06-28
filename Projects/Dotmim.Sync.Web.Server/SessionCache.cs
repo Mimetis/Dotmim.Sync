@@ -11,7 +11,7 @@ namespace Dotmim.Sync.Web.Server
     [DataContract(Name = "sc"), Serializable]
     public class SessionCache
     {
-        [DataMember(Name = "rct", IsRequired = false, EmitDefaultValue = false, Order = 1)]
+        [DataMember(Name = "rct", IsRequired = false, Order = 1)]
         public long RemoteClientTimestamp { get; set; }
         [DataMember(Name = "sbi", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public BatchInfo ServerBatchInfo { get; set; }
