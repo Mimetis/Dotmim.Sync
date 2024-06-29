@@ -649,17 +649,20 @@ namespace Dotmim.Sync
             List<SyncRow> conflictRows, List<(SyncRow SyncRow, Exception Exception)> errorsRows, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
                          CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-
             int conflictsResolvedCount = 0;
             int appliedRows = 0;
             int failedRows = 0;
             Exception failureException = null;
 
-            if ((conflictRows != null && conflictRows.Count > 0) || (errorsRows != null && errorsRows.Count > 0))
+            if (!(conflictRows?.Count > 0) && !(errorsRows?.Count > 0))
             {
+                return (appliedRows, conflictsResolvedCount, failedRows, failureException);
+            }
 
-                await using var runnerError = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.None ? SyncMode.NoTransaction : SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            var runnerError = await this.GetConnectionAsync(context, Options.TransactionMode == TransactionMode.None ? SyncMode.NoTransaction : SyncMode.WithTransaction, SyncStage.ChangesApplying, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
+            await using (runnerError)
+            {
                 // Disable check constraints for provider supporting only at table level
                 if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
                     await this.InternalDisableConstraintsAsync(scopeInfo, context, schemaChangesTable, runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
@@ -736,7 +739,6 @@ namespace Dotmim.Sync
                     }
                 }
 
-
                 // Enable check constraints for provider supporting only at table level
                 if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
                     await this.InternalEnableConstraintsAsync(scopeInfo, context, schemaChangesTable, runnerError.Connection, runnerError.Transaction, runnerError.CancellationToken, runnerError.Progress).ConfigureAwait(false);
@@ -746,7 +748,6 @@ namespace Dotmim.Sync
                 else
                     await runnerError.CommitAsync().ConfigureAwait(false);
             }
-
 
             return (appliedRows, conflictsResolvedCount, failedRows, failureException);
         }

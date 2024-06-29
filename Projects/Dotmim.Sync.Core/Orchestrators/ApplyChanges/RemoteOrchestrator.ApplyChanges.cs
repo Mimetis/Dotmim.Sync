@@ -92,9 +92,12 @@ namespace Dotmim.Sync
                         await this.InterceptAsync(databaseChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
 
                         ScopeInfoClient sScopeInfoClient = null;
+
+                        var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading,
+                            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+
                         // Get scope info client from server, to get errors if any
-                        await using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading,
-                            connection, transaction, cancellationToken, progress).ConfigureAwait(false))
+                        await using (runnerScopeInfo)
                         {
                             (context, sScopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context,
                                 runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
