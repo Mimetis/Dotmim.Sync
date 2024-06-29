@@ -65,7 +65,7 @@ namespace Dotmim.Sync
         public Guid Add<T>(Action<T> action) where T : ProgressArgs
         {
             var interceptors = this.GetInterceptors<T>();
-            var interceptor = new InterceptorWrapper<T>();
+            using var interceptor = new InterceptorWrapper<T>();
             interceptor.Set(action);
             interceptors.Add(interceptor);
             return interceptor.Id;
@@ -77,7 +77,7 @@ namespace Dotmim.Sync
         public Guid Add<T>(Func<T, Task> func) where T : ProgressArgs
         {
             var interceptors = this.GetInterceptors<T>();
-            var interceptor = new InterceptorWrapper<T>();
+            using var interceptor = new InterceptorWrapper<T>();
             interceptor.Set(func);
             interceptors.Add(interceptor);
             return interceptor.Id;

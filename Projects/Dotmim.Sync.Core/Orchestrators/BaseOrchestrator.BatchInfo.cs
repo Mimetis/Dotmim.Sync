@@ -1,4 +1,4 @@
-﻿
+
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -94,7 +94,7 @@ namespace Dotmim.Sync
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             var bpiGroupedTables = batchInfo.BatchPartsInfo.GroupBy(st => st.TableName + st.SchemaName);
 
-            var localSerializer = new LocalJsonSerializer(this, context);
+            using var localSerializer = new LocalJsonSerializer(this, context);
 
             SyncTable currentTable = null;
 
