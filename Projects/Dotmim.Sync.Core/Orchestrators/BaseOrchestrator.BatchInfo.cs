@@ -1,22 +1,13 @@
 ﻿
 using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Logging;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Data;
 using System.Data.Common;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography.X509Certificates;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Transactions;
 
 namespace Dotmim.Sync
 {
@@ -40,8 +31,6 @@ namespace Dotmim.Sync
         /// </returns>
         public virtual List<BatchInfo> LoadBatchInfos()
         {
-            using var localSerializer = new LocalJsonSerializer(this, new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName));
-
             var directoryInfo = new DirectoryInfo(this.Options.BatchDirectory);
 
             if (directoryInfo == null || !directoryInfo.Exists)
