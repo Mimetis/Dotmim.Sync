@@ -1,10 +1,7 @@
 ﻿using Dotmim.Sync.Enumerations;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
@@ -65,14 +62,19 @@ namespace Dotmim.Sync
             this.scopeInfo = scopeInfo;
             this.orchestrator = orchestrator;
             this.conflictRow = conflictRow;
-            this.schemaChangesTable = schemaChangesTable;
+            this.schemaChangesTable = schemaChangesTable.Clone();
             this.Resolution = action;
             this.SenderScopeId = senderScopeId;
 
             var finalRowArray = new object[conflictRow.ToArray().Length];
             conflictRow.ToArray().CopyTo(finalRowArray, 0);
 
-            this.FinalRow = new SyncRow(schemaChangesTable.Clone(), finalRowArray);
+            this.FinalRow = new SyncRow(this.schemaChangesTable, finalRowArray);
+        }
+
+        ~ApplyChangesConflictOccuredArgs()
+        {
+            this.schemaChangesTable.Dispose();
         }
 
         /// <inheritdoc />
