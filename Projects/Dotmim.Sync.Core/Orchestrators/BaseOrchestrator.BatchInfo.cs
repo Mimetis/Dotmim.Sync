@@ -40,7 +40,7 @@ namespace Dotmim.Sync
         /// </returns>
         public virtual List<BatchInfo> LoadBatchInfos()
         {
-            var localSerializer = new LocalJsonSerializer(this, new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName));
+            using var localSerializer = new LocalJsonSerializer(this, new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName));
 
             var directoryInfo = new DirectoryInfo(this.Options.BatchDirectory);
 
@@ -184,7 +184,7 @@ namespace Dotmim.Sync
 
         internal SyncTable InternalLoadTableFromBatchInfo(SyncContext context, BatchInfo batchInfo, string tableName, string schemaName = default, SyncRowState? syncRowState = default)
         {
-            var localSerializer = new LocalJsonSerializer(this, context);
+            using var localSerializer = new LocalJsonSerializer(this, context);
             SyncTable syncTable = null;
 
             // Gets all BPI containing this table
