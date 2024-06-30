@@ -1,4 +1,4 @@
-﻿
+
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
@@ -180,8 +180,8 @@ namespace Dotmim.Sync
             this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. table {{tableName}}. init {{init}} command type {{dbCommandType}}", schemaTable.GetFullName(), init, dbCommandType);
 
             // tmp sync table with only writable columns
-            var changesSet = schemaTable.Schema.Clone(false);
-            var schemaChangesTable = CreateChangesTable(schemaTable, changesSet);
+            using var changesSet = schemaTable.Schema.Clone(false);
+            using var schemaChangesTable = CreateChangesTable(schemaTable, changesSet);
 
             // get executioning adapter
             var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaChangesTable, scopeInfo.Setup);
@@ -529,20 +529,15 @@ namespace Dotmim.Sync
                     var tableChangesAppliedArgs = new TableChangesAppliedArgs(context, tableChangesApplied, connection, transaction);
                     // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
                     await this.InterceptAsync(tableChangesAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
-
                 }
-
-                schemaChangesTable.Dispose();
-                schemaChangesTable = null;
-                changesSet.Dispose();
-                changesSet = null;
-
-                if (command != null)
-                    command.Dispose();
             }
             catch (Exception ex)
             {
                 throw GetSyncError(context, ex);
+            }
+            finally
+            {
+                command?.Dispose();
             }
 
             this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. return exception {{failureException}} ", failureException != null ? failureException.Message : "No Exception");
