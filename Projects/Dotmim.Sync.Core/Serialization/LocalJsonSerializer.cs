@@ -73,7 +73,6 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public void CloseFile()
         {
-            // Close file
             if (!this.IsOpen)
                 return;
 
@@ -81,13 +80,17 @@ namespace Dotmim.Sync.Serialization
 
             try
             {
-                this.writer.WriteEndArray();
-                this.writer.WriteEndObject();
-                this.writer.WriteEndArray();
-                this.writer.WriteEndObject();
-                this.writer.Flush();
-                this.writer.Dispose();
-                this.sw.Dispose();
+                if (writer != null)
+                {
+                    this.writer.WriteEndArray();
+                    this.writer.WriteEndObject();
+                    this.writer.WriteEndArray();
+                    this.writer.WriteEndObject();
+                    this.writer.Flush();
+                    this.writer.Dispose();
+                }
+
+                this.sw?.Dispose();
                 this.IsOpen = false;
             }
             finally
@@ -101,7 +104,6 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public async Task CloseFileAsync()
         {
-            // Close file
             if (!this.IsOpen)
                 return;
 
@@ -109,17 +111,25 @@ namespace Dotmim.Sync.Serialization
 
             try
             {
-                this.writer.WriteEndArray();
-                this.writer.WriteEndObject();
-                this.writer.WriteEndArray();
-                this.writer.WriteEndObject();
-                await this.writer.FlushAsync();
-                await this.writer.DisposeAsync();
+                if (writer != null)
+                {
+                    this.writer.WriteEndArray();
+                    this.writer.WriteEndObject();
+                    this.writer.WriteEndArray();
+                    this.writer.WriteEndObject();
+                    await this.writer.FlushAsync();
+                    await this.writer.DisposeAsync();
+                }
+
+                if (this.sw != null)
+                {
 #if NET6_0_OR_GREATER
-                await this.sw.DisposeAsync();
+                    await this.sw.DisposeAsync();
 #else
-                this.sw.Dispose();
+                    this.sw.Dispose();
 #endif
+                }
+
                 this.IsOpen = false;
             }
             finally
