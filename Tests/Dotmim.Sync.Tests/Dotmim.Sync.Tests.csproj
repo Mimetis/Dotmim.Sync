@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFrameworks>$(TargetFrameworkNet6);$(TargetFrameworkNet8);$(TargetFrameworkNetCore)</TargetFrameworks>
 
@@ -34,15 +34,15 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="MessagePack" Version="2.5.140" />
-		<PackageReference Include="xunit" Version="2.7.1" />
-		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
+		<PackageReference Include="MessagePack" Version="2.5.168" />
+		<PackageReference Include="xunit" Version="2.8.1" />
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
 	</ItemGroup>
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetCore)'">
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="3.1.32" />
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="3.1.32" />
-		<PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="3.1.22" />
+		<PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="3.1.32" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="3.1.32" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.1.32" />
 		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="3.2.7" />
@@ -54,12 +54,12 @@
 	</ItemGroup>
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet6)'">
-		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.28" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="6.0.28" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.28" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.31" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="6.0.31" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="6.0.31" />
 		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="6.0.3" />
-		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="6.0.1" />
-		<PackageReference Include="xunit.runner.visualstudio" Version="2.5.8">
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="6.0.29" />
+		<PackageReference Include="xunit.runner.visualstudio" Version="2.8.1">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
 		</PackageReference>
@@ -71,8 +71,8 @@
 		<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.6" />
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.6" />
 		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="8.0.2" />
-		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.2" />
-		<PackageReference Include="xunit.runner.visualstudio" Version="2.5.8">
+		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
+		<PackageReference Include="xunit.runner.visualstudio" Version="2.8.1">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
 		</PackageReference>
