@@ -44,11 +44,6 @@
           "System.Threading.Tasks.Extensions": "4.5.4"
         }
       },
-      "Microsoft.Bcl.Build": {
-        "type": "Transitive",
-        "resolved": "1.0.21",
-        "contentHash": "sgHu4mIt0+NVGyI12Bj4hLPypNK55UOH+ologj2LqDCjxq3EbIxe/uAtHjY+fEwbE1dtsAHG8SXHf+V/EYbKTg=="
-      },
       "Microsoft.Bcl.HashCode": {
         "type": "Transitive",
         "resolved": "1.1.1",
@@ -408,7 +403,6 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Bcl.AsyncInterfaces": "[8.0.0, )",
-          "Microsoft.Bcl.Build": "[1.0.21, )",
           "Microsoft.Build.Tasks.Core": "[17.9.5, )",
           "Microsoft.CSharp": "[4.7.0, )",
           "Microsoft.Extensions.Logging": "[2.2.0, )",
