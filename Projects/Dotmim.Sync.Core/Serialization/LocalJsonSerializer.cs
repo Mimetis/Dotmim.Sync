@@ -93,6 +93,7 @@ namespace Dotmim.Sync.Serialization
             finally
             {
                 writerLock.Release();
+                writerLock.Dispose();
             }
         }
 
@@ -125,6 +126,7 @@ namespace Dotmim.Sync.Serialization
             finally
             {
                 writerLock.Release();
+                writerLock.Dispose();
             }
         }
 
