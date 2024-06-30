@@ -11,12 +11,6 @@
           "System.Threading.Tasks.Extensions": "4.5.4"
         }
       },
-      "Microsoft.Bcl.Build": {
-        "type": "Direct",
-        "requested": "[1.0.21, )",
-        "resolved": "1.0.21",
-        "contentHash": "sgHu4mIt0+NVGyI12Bj4hLPypNK55UOH+ologj2LqDCjxq3EbIxe/uAtHjY+fEwbE1dtsAHG8SXHf+V/EYbKTg=="
-      },
       "Microsoft.Build.Tasks.Core": {
         "type": "Direct",
         "requested": "[17.9.5, )",

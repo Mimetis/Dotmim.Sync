@@ -58,11 +58,6 @@
           "System.Threading.Tasks.Extensions": "4.5.4"
         }
       },
-      "Microsoft.Bcl.Build": {
-        "type": "Transitive",
-        "resolved": "1.0.21",
-        "contentHash": "sgHu4mIt0+NVGyI12Bj4hLPypNK55UOH+ologj2LqDCjxq3EbIxe/uAtHjY+fEwbE1dtsAHG8SXHf+V/EYbKTg=="
-      },
       "Microsoft.Build.Framework": {
         "type": "Transitive",
         "resolved": "17.9.5",
@@ -634,7 +629,6 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Bcl.AsyncInterfaces": "[8.0.0, )",
-          "Microsoft.Bcl.Build": "[1.0.21, )",
           "Microsoft.Build.Tasks.Core": "[17.9.5, )",
           "Microsoft.CSharp": "[4.7.0, )",
           "Microsoft.Extensions.Logging": "[2.2.0, )",
@@ -645,7 +639,7 @@
       "dotmim.sync.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.0, )",
+          "Dotmim.Sync.Core": "[1.1.0, )",
           "Microsoft.Data.SqlClient": "[5.2.1, )"
         }
       }
@@ -868,11 +862,6 @@
         "resolved": "6.0.0",
         "contentHash": "hqTM5628jSsQiv+HGpiq3WKBl2c8v1KZfby2J6Pr7pEPlK9waPdgEO6b8A/+/xn/yZ9ulv8HuqK71ONy2tg67A=="
       },
-      "Newtonsoft.Json": {
-        "type": "Transitive",
-        "resolved": "13.0.3",
-        "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
-      },
       "System.ClientModel": {
         "type": "Transitive",
         "resolved": "1.0.0",
@@ -1031,7 +1020,7 @@
       "dotmim.sync.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.0, )",
+          "Dotmim.Sync.Core": "[1.1.0, )",
           "Microsoft.Data.SqlClient": "[5.2.1, )"
         }
       }
@@ -1246,11 +1235,6 @@
         "resolved": "1.0.0",
         "contentHash": "N4KeF3cpcm1PUHym1RmakkzfkEv3GRMyofVv40uXsQhCQeglr2OHNcUk2WOG51AKpGO8ynGpo9M/kFXSzghwug=="
       },
-      "Newtonsoft.Json": {
-        "type": "Transitive",
-        "resolved": "13.0.3",
-        "contentHash": "HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ=="
-      },
       "System.ClientModel": {
         "type": "Transitive",
         "resolved": "1.0.0",
@@ -1380,7 +1364,7 @@
       "dotmim.sync.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.0.0, )",
+          "Dotmim.Sync.Core": "[1.1.0, )",
           "Microsoft.Data.SqlClient": "[5.2.1, )"
         }
       }
