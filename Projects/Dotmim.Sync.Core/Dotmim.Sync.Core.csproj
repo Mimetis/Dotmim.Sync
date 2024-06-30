@@ -80,7 +80,6 @@
 		<PackageReference Include="System.Threading.Tasks.Dataflow" Version="8.0.0" />
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
-		<PackageReference Include="Microsoft.Bcl.Build" Version="1.0.21" />
 		<PackageReference Include="Microsoft.Build.Tasks.Core" Version="17.9.5" />
 		<PackageReference Include="Microsoft.Build.Tasks.Git" Version="8.0.0">
 			<PrivateAssets>all</PrivateAssets>
