@@ -36,6 +36,7 @@ namespace Dotmim.Sync
 
             // critical exception that causes rollback
             Exception failureException = null;
+            IEnumerable<SyncTable> schemaTables = null;
 
             try
             {
@@ -45,7 +46,7 @@ namespace Dotmim.Sync
                     this.Logger.LogInformation($@"[InternalApplyChangesAsync]. directory {{directoryName}} BatchPartsInfo count: {{BatchPartsInfoCount}} RowsCount {{RowsCount}}",
                         message.Changes.DirectoryName, message.Changes.BatchPartsInfo.Count, message.Changes.RowsCount);
 
-                    var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
+                    schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
 
                     // create local directory
                     if (!string.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
@@ -133,6 +134,13 @@ namespace Dotmim.Sync
             catch (Exception ex)
             {
                 throw GetSyncError(context, ex);
+            }
+            finally
+            {
+                foreach (var schemaTable in schemaTables)
+                {
+                    schemaTable.Dispose();
+                }
             }
         }
 
