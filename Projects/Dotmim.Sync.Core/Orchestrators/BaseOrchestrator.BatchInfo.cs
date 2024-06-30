@@ -1,4 +1,4 @@
-﻿
+
 using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
@@ -231,7 +231,7 @@ namespace Dotmim.Sync
             if (!File.Exists(fullPath))
                 return null;
 
-            var localSerializer = new LocalJsonSerializer(this, context);
+            using var localSerializer = new LocalJsonSerializer(this, context);
 
             // Get table from file
             var (syncTable, _, _) = LocalJsonSerializer.GetSchemaTableFromFile(fullPath);

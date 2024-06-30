@@ -113,7 +113,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             batchInfo.BatchPartsInfo.Add(batchPartInfo);
 
             // using a serializer to serialize the table data on disk
-            var localSerializer = new LocalJsonSerializer();
+            using var localSerializer = new LocalJsonSerializer();
 
             // open it
             await localSerializer.OpenFileAsync(filePath, tCustomer, syncRowState);
@@ -232,7 +232,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var filePath = bi.GetBatchPartInfoPath(bi.BatchPartsInfo[0]);
 
 
-            var localSerializer = new LocalJsonSerializer();
+            using var localSerializer = new LocalJsonSerializer();
 
             var (schemaTable, _, _) =
                     LocalJsonSerializer.GetSchemaTableFromFile(filePath);
