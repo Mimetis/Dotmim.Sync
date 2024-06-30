@@ -108,7 +108,7 @@ namespace Dotmim.Sync.Tests.StandAlone
 
 
         [Fact]
-        public async Task Test_SyncRow_JsonSerializer()
+        public async Task Check_Types_JsonSerializer()
         {
             var customers = BatchInfosTests.GetSimpleSyncTable(1);
 
@@ -122,6 +122,26 @@ namespace Dotmim.Sync.Tests.StandAlone
             await using var ms = new MemoryStream(bin);
             var outContainerSet = await serializer.DeserializeAsync<object[]>(ms);
 
+            Assert.IsType<long>(outContainerSet[0]);
+            Assert.IsType<string>(outContainerSet[1]);
+            Assert.IsType<string>(outContainerSet[2]);
+            Assert.IsType<long>(outContainerSet[3]);
+            Assert.IsType<long>(outContainerSet[4]);
+            Assert.IsType<long>(outContainerSet[5]);
+            Assert.IsType<long>(outContainerSet[6]);
+            Assert.IsType<long>(outContainerSet[7]);
+            Assert.IsType<long>(outContainerSet[8]);
+            Assert.IsType<DateTimeOffset>(outContainerSet[9]);
+            Assert.IsType<DateTimeOffset>(outContainerSet[10]);
+            Assert.IsType<long>(outContainerSet[11]);
+            Assert.IsType<bool>(outContainerSet[12]);
+            Assert.IsType<string>(outContainerSet[13]);
+            Assert.IsType<double>(outContainerSet[14]);
+            Assert.IsType<double>(outContainerSet[15]);
+            Assert.IsType<double>(outContainerSet[16]);
+            Assert.IsType<long>(outContainerSet[17]);
+            Assert.IsType<string>(outContainerSet[18]);
+            Assert.IsType<string>(outContainerSet[19]);
         }
 
 
@@ -172,7 +192,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.Equal(SyncType.Normal, outSchema.SyncContext.SyncType);
             Assert.Equal(SyncWay.Upload, outSchema.SyncContext.SyncWay);
 
-                
+
         }
 
         private void Assertions(SyncSet outSchema)

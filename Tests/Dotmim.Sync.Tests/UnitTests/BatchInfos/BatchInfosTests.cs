@@ -225,17 +225,54 @@ namespace Dotmim.Sync.Tests.UnitTests
         }
 
         [Fact]
+        public async Task ReadHugeSyncTableFromBatchInfo()
+        {
+            var (bi, st) = await GenerateBatchInfoAsync(100000, SyncRowState.ApplyModifiedFailed);
+
+            var filePath = bi.GetBatchPartInfoPath(bi.BatchPartsInfo[0]);
+
+            var (schemaTable, rowsCount, state) =
+              LocalJsonSerializer.GetSchemaTableFromFile(filePath);
+
+
+            var localSerializer = new LocalJsonSerializer();
+
+            var rows = localSerializer.GetRowsFromFile(filePath, st).ToList();
+
+            Assert.Equal(st.Rows.Count, rows.Count);
+
+
+        }
+
+        [Fact]
+        public async Task ReadHugeContainerTableeFromBatchInfo()
+        {
+            var rowsNumberToGenerate = 1000000;
+
+            var tCustomer = GetSimpleSyncTable(rowsNumberToGenerate);
+
+            var containerTable = new ContainerTable(tCustomer);
+
+            foreach (var row in tCustomer.Rows)
+                containerTable.Rows.Add(row.ToArray());
+
+            var jsonObjectSerializer = new JsonObjectSerializer();
+
+            var bytes = jsonObjectSerializer.Serialize(containerTable);
+            var res = await jsonObjectSerializer.DeserializeAsync<ContainerTable>(new MemoryStream(bytes));
+
+            Assert.Equal(rowsNumberToGenerate, res.Rows.Count);
+        }
+
+
+        [Fact]
         public async Task ReadSyncRowsFromBatchInfo()
         {
             var (bi, st) = await GenerateBatchInfoAsync(10);
 
             var filePath = bi.GetBatchPartInfoPath(bi.BatchPartsInfo[0]);
 
-
             var localSerializer = new LocalJsonSerializer();
-
-            var (schemaTable, _, _) =
-                    LocalJsonSerializer.GetSchemaTableFromFile(filePath);
 
             var rows = localSerializer.GetRowsFromFile(filePath, st).ToList();
 
@@ -243,17 +280,15 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var row = rows[0];
 
-            Assert.Equal(schemaTable.Columns.Count, row.Length);
+            Assert.Equal(st.Columns.Count, row.Length);
 
-            for (var i = 0; i < schemaTable.Columns.Count; i++)
+            for (var i = 0; i < st.Columns.Count; i++)
             {
-                var column = schemaTable.Columns[i];
+                var column = st.Columns[i];
                 var value = row[column.ColumnName];
                 Assert.NotNull(value);
                 Assert.Equal(value.GetType(), column.GetDataType());
             }
-
-
         }
 
         [Fact]
