@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
@@ -64,10 +64,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("SalesOrderDetail", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("SalesOrderHeader", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
-            var sodTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT");
+            using var sodTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT");
             Assert.Equal(3, sodTable.Rows.Count);
 
-            var sohTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
+            using var sohTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
             Assert.Single(sohTable.Rows);
 
         }
@@ -107,11 +107,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("Product", serverSyncChanges.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("ProductCategory", serverSyncChanges.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
-            var productTable = remoteOrchestrator.LoadTableFromBatchInfo(scopeName, serverSyncChanges.ServerBatchInfo, "Product", "SalesLT");
+            using var productTable = remoteOrchestrator.LoadTableFromBatchInfo(scopeName, serverSyncChanges.ServerBatchInfo, "Product", "SalesLT");
             var productRowName = productTable.Rows[0]["Name"];
             Assert.Equal(product.Name, productRowName);
 
-            var productCategoryTable = remoteOrchestrator.LoadTableFromBatchInfo(scopeName, serverSyncChanges.ServerBatchInfo, "ProductCategory", "SalesLT");
+            using var productCategoryTable = remoteOrchestrator.LoadTableFromBatchInfo(scopeName, serverSyncChanges.ServerBatchInfo, "ProductCategory", "SalesLT");
             var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
             Assert.Equal(productCategory.Name, productCategoryRowName);
 
@@ -168,10 +168,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("SalesOrderDetail", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("SalesOrderHeader", changes.ServerChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
-            var sodTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT");
+            using var sodTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT");
             Assert.Equal(3, sodTable.Rows.Count);
 
-            var sohTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
+            using var sohTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
             Assert.Single(sohTable.Rows);
         }
 
@@ -235,27 +235,27 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // testing with SyncRowState
-            var sodTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", SyncRowState.Deleted);
+            using var sodTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", SyncRowState.Deleted);
             Assert.Equal(3, sodTable.Rows.Count);
             foreach (var row in sodTable.Rows)
                 Assert.Equal(SyncRowState.Deleted, row.RowState);
 
             // testing with SyncRowState
-            var sodTable2 = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", default);
+            using var sodTable2 = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", default);
             Assert.Equal(3, sodTable2.Rows.Count);
             foreach (var row in sodTable2.Rows)
                 Assert.Equal(SyncRowState.Deleted, row.RowState);
 
             // testing with SyncRowState
-            var sodTable3 = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", SyncRowState.Modified);
+            using var sodTable3 = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", SyncRowState.Modified);
             Assert.Empty(sodTable3.Rows);
 
             // testing with SyncRowState that is not valid
-            var sodTable4 = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", SyncRowState.None);
+            using var sodTable4 = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderDetail", "SalesLT", SyncRowState.None);
             Assert.Empty(sodTable4.Rows);
 
             // testing without SyncRowState
-            var sohTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
+            using var sohTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ServerBatchInfo, "SalesOrderHeader", "SalesLT");
             Assert.Single(sohTable.Rows);
             foreach (var row in sohTable.Rows)
                 Assert.Equal(SyncRowState.Deleted, row.RowState);
