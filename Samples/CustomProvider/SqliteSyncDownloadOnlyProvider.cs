@@ -74,7 +74,7 @@ namespace CustomProvider
         /// <summary>
         /// return null for all no used commands
         /// </summary>
-        public override (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
+        public  (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
         {
             var command = new SqliteCommand();
             switch (nameType)

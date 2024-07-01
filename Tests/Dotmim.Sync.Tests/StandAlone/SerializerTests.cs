@@ -94,13 +94,6 @@ namespace Dotmim.Sync.Tests.StandAlone
             var serializer = new JsonObjectSerializer();
             var bin = await serializer.SerializeAsync(containerSet);
 
-            JsonSerializerOptions options = new()
-            {
-                TypeInfoResolver = DataContractResolver.Default,
-                Converters = { new ArrayJsonConverter(), new ObjectToInferredTypesConverter() }
-            };
-            var str = JsonSerializer.Serialize(containerSet, options);
-
             // Deserialize
             var outContainerSet = await serializer.DeserializeAsync<ContainerSet>(new MemoryStream(bin));
 
