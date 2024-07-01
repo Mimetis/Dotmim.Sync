@@ -274,3 +274,6 @@ __pycache__/
 /.vscode
 
 /docs/_build
+
+# InferSharp config file
+.infersharpconfig
