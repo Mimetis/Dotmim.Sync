@@ -57,7 +57,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, onDropped);
 
             // Check 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
                 var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null);
@@ -116,7 +116,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, onDropped);
 
             // Check 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
                 var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null);
@@ -164,7 +164,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(1, onDropped);
 
             // Check 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
                 var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null);
@@ -218,7 +218,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, onDropped);
 
             // Check 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
                 var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null);
