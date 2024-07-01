@@ -93,7 +93,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
 
             int productCategoryRowsCount = 0;
-            using (var readCtx = new AdventureWorksContext(serverProvider))
+            await using (var readCtx = new AdventureWorksContext(serverProvider))
                 productCategoryRowsCount = readCtx.ProductCategory.AsNoTracking().Count();
 
             // First sync to initialiaze client database, create table and fill product categories
@@ -200,7 +200,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 new string[] { "ProductCategoryId", "ParentProductCategoryId", "Name", "rowguid", "ModifiedDate" });
 
             int productCategoryRowsCount = 0;
-            using (var readCtx = new AdventureWorksContext(serverProvider))
+            await using (var readCtx = new AdventureWorksContext(serverProvider))
                 productCategoryRowsCount = readCtx.ProductCategory.AsNoTracking().Count();
 
             // First sync to initialiaze client database, create table and fill product categories
@@ -332,7 +332,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             // Counting product categories & products
             int productCategoryRowsCount = 0;
             int productsCount = 0;
-            using (var readCtx = new AdventureWorksContext(serverProvider))
+            await using (var readCtx = new AdventureWorksContext(serverProvider))
             {
                 productCategoryRowsCount = readCtx.ProductCategory.AsNoTracking().Count();
                 productsCount = readCtx.Product.AsNoTracking().Count();
@@ -372,7 +372,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             var newAttributeWithSpaceValue = HelperDatabase.GetRandomName();
 
-            using (var ctx = new AdventureWorksContext(serverProvider))
+            await using (var ctx = new AdventureWorksContext(serverProvider))
             {
                 var pc = new ProductCategory
                 {
@@ -431,12 +431,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             Assert.Equal(1, r2.TotalChangesDownloadedFromServer);
 
             // now check values on each client
-            using (var ctx1 = new AdventureWorksContext(client1provider, false))
+            await using (var ctx1 = new AdventureWorksContext(client1provider, false))
             {
                 var producCategory1 = ctx1.ProductCategory.First(pc => pc.ProductCategoryId == productCategoryId);
                 Assert.Equal(newAttributeWithSpaceValue, producCategory1.AttributeWithSpace);
             }
-            using (var ctx2 = new AdventureWorksContext(client2provider, false))
+            await using (var ctx2 = new AdventureWorksContext(client2provider, false))
             {
                 var exc = Assert.ThrowsAny<Microsoft.Data.Sqlite.SqliteException>(() => ctx2.ProductCategory.First(pc => pc.ProductCategoryId == productCategoryId));
                 Assert.Contains("no such column", exc.Message);
@@ -467,7 +467,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             // Sync
             r2 = await agent2.SynchronizeAsync("v1", SyncType.Reinitialize);
 
-            using (var readCtx = new AdventureWorksContext(serverProvider))
+            await using (var readCtx = new AdventureWorksContext(serverProvider))
             {
                 productCategoryRowsCount = readCtx.ProductCategory.AsNoTracking().Count();
                 productsCount = readCtx.Product.AsNoTracking().Count();
@@ -498,7 +498,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
 
             int productCategoryRowsCount = 0;
-            using (var readCtx = new AdventureWorksContext(serverProvider))
+            await using (var readCtx = new AdventureWorksContext(serverProvider))
                 productCategoryRowsCount = readCtx.ProductCategory.AsNoTracking().Count();
 
             // First sync to initialiaze client database, create table and fill product categories
@@ -597,7 +597,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
 
             int productCategoryRowsCount = 0;
-            using (var readCtx = new AdventureWorksContext(serverProvider))
+            await using (var readCtx = new AdventureWorksContext(serverProvider))
                 productCategoryRowsCount = readCtx.ProductCategory.AsNoTracking().Count();
 
             // First sync to initialiaze client database, create table and fill product categories

@@ -74,7 +74,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Check we have a new column in tracking table
-            using (var c = new SqlConnection(clientProvider.ConnectionString))
+            await using (var c = new SqlConnection(clientProvider.ConnectionString))
             {
                 await c.OpenAsync();
                 var cols = await SqlManagementUtils.GetColumnsForTableAsync("Product", "SalesLT", c, null);

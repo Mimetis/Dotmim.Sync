@@ -235,7 +235,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         {
             // get the number of rows that have only primary keys (which do not accept any Update)
             int notUpdatedOnClientsCount;
-            using (var serverDbCtx = new AdventureWorksContext(serverProvider))
+            await using (var serverDbCtx = new AdventureWorksContext(serverProvider))
             {
                 var pricesListCategoriesCount = serverDbCtx.PricesListCategory.Count();
                 var postTagsCount = serverDbCtx.PostTag.Count();
@@ -402,7 +402,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             var serverProductCategory = await serverProvider.AddProductCategoryAsync();
 
-            var pcName = string.Concat(serverProductCategory.ProductCategoryId, "UPDATED");
+            var pcName = $"{serverProductCategory.ProductCategoryId}UPDATED";
             serverProductCategory.Name = pcName;
 
             await serverProvider.UpdateProductCategoryAsync(serverProductCategory);
@@ -689,7 +689,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
 
             // check rows count on server and on each client
-            using var ctx = new AdventureWorksContext(serverProvider);
+            await using var ctx = new AdventureWorksContext(serverProvider);
 
             var productRowCount = await ctx.Product.AsNoTracking().CountAsync();
             var productCategoryCount = await ctx.ProductCategory.AsNoTracking().CountAsync();
@@ -700,7 +700,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             {
                 Assert.Equal(rowsCount, clientProvider.GetDatabaseRowsCount());
 
-                using var cliCtx = new AdventureWorksContext(clientProvider);
+                await using var cliCtx = new AdventureWorksContext(clientProvider);
                 var pCount = await cliCtx.Product.AsNoTracking().CountAsync();
                 Assert.Equal(productRowCount, pCount);
 
@@ -765,7 +765,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var addressId = 0;
             foreach (var clientProvider in clientsProvider)
             {
-                using (var ctx = new AdventureWorksContext(clientProvider))
+                await using (var ctx = new AdventureWorksContext(clientProvider))
                 {
                     var addresses = ctx.Address.OrderBy(a => a.AddressId).Where(a => !string.IsNullOrEmpty(a.AddressLine2)).Take(clientsProvider.ToList().Count).ToList();
                     var address = addresses[addressId];
@@ -802,7 +802,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             // check rows count on server and on each client
-            using (var ctx = new AdventureWorksContext(serverProvider))
+            await using (var ctx = new AdventureWorksContext(serverProvider))
             {
                 // get all addresses
                 var serverAddresses = await ctx.Address.AsNoTracking().ToListAsync();
@@ -811,7 +811,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 {
                     Assert.Equal(rowsCount, clientProvider.GetDatabaseRowsCount());
 
-                    using var cliCtx = new AdventureWorksContext(clientProvider);
+                    await using var cliCtx = new AdventureWorksContext(clientProvider);
                     // get all addresses
                     var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
 
@@ -845,7 +845,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var addressId = 0;
             foreach (var clientProvider in clientsProvider)
             {
-                using (var ctx = new AdventureWorksContext(clientProvider))
+                await using (var ctx = new AdventureWorksContext(clientProvider))
                 {
                     var addresses = ctx.Address.OrderBy(a => a.AddressId).Where(a => !string.IsNullOrEmpty(a.AddressLine2)).Take(clientsProvider.ToList().Count).ToList();
                     var address = addresses[addressId];
@@ -881,7 +881,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             // check rows count on server and on each client
-            using (var ctx = new AdventureWorksContext(serverProvider))
+            await using (var ctx = new AdventureWorksContext(serverProvider))
             {
                 // get all addresses
                 var serverAddresses = await ctx.Address.AsNoTracking().ToListAsync();
@@ -890,7 +890,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 {
                     Assert.Equal(rowsCount, clientProvider.GetDatabaseRowsCount());
 
-                    using var cliCtx = new AdventureWorksContext(clientProvider);
+                    await using var cliCtx = new AdventureWorksContext(clientProvider);
                     // get all addresses
                     var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
 
@@ -918,7 +918,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             Address address;
             // Update one address to null on server side
-            using (var ctx = new AdventureWorksContext(serverProvider))
+            await using (var ctx = new AdventureWorksContext(serverProvider))
             {
                 address = ctx.Address.OrderBy(a => a.AddressId).Where(a => !string.IsNullOrEmpty(a.AddressLine2)).First();
                 address.AddressLine2 = null;
@@ -939,13 +939,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // Check value
-                using var ctx = new AdventureWorksContext(clientProvider);
+                await using var ctx = new AdventureWorksContext(clientProvider);
                 var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == address.AddressId);
                 Assert.Null(cliAddress.AddressLine2);
             }
 
             // Update one address previously null to not null on server side
-            using (var ctx = new AdventureWorksContext(serverProvider))
+            await using (var ctx = new AdventureWorksContext(serverProvider))
             {
                 address = await ctx.Address.SingleAsync(a => a.AddressId == address.AddressId);
                 address.AddressLine2 = "NoT a null value !";
@@ -966,7 +966,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // Check value
-                using var ctx = new AdventureWorksContext(clientProvider);
+                await using var ctx = new AdventureWorksContext(clientProvider);
                 var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == address.AddressId);
                 Assert.Equal("NoT a null value !", cliAddress.AddressLine2);
             }
@@ -1030,7 +1030,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientsProvider in clientsProvider)
             {
                 // Then delete all product category items
-                using var ctx = new AdventureWorksContext(clientsProvider);
+                await using var ctx = new AdventureWorksContext(clientsProvider);
                 foreach (var pc in ctx.ProductCategory.Where(pc => pc.Name.StartsWith("CLI_")))
                     ctx.ProductCategory.Remove(pc);
                 await ctx.SaveChangesAsync();
@@ -1054,12 +1054,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
 
             // check rows count on server and on each client
-            using (var ctx = new AdventureWorksContext(serverProvider))
+            await using (var ctx = new AdventureWorksContext(serverProvider))
             {
                 var serverPC = await ctx.ProductCategory.AsNoTracking().CountAsync();
                 foreach (var clientProvider in clientsProvider)
                 {
-                    using var cliCtx = new AdventureWorksContext(clientProvider);
+                    await using var cliCtx = new AdventureWorksContext(clientProvider);
                     var clientPC = await cliCtx.ProductCategory.AsNoTracking().CountAsync();
                     Assert.Equal(serverPC, clientPC);
                 }
@@ -1900,7 +1900,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                         ProductNumber = $"ZZ-{i}{clientDatabaseType}"
                     });
 
-                using var clientDbCtx = new AdventureWorksContext(clientProvider);
+                await using var clientDbCtx = new AdventureWorksContext(clientProvider);
                 clientDbCtx.Product.AddRange(products);
                 await clientDbCtx.SaveChangesAsync();
             }
@@ -2009,7 +2009,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 clientCount++;
 
-                using var serverDbCtx = new AdventureWorksContext(serverProvider);
+                await using var serverDbCtx = new AdventureWorksContext(serverProvider);
                 var serverCount = serverDbCtx.Product.Count(p => p.ProductNumber.StartsWith($"ZZ-"));
                 Assert.Equal(rowsToSend * clientCount, serverCount);
 
@@ -2041,7 +2041,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     ProductNumber = $"ZZ-{i}{serverProviderType}"
                 });
 
-            using var ctx = new AdventureWorksContext(serverProvider);
+            await using var ctx = new AdventureWorksContext(serverProvider);
             ctx.Product.AddRange(products);
             await ctx.SaveChangesAsync();
 
@@ -2096,7 +2096,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(rowsToReceive, s2.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s2.TotalResolvedConflicts);
 
-                using var clientDbCtx = new AdventureWorksContext(clientProvider);
+                await using var clientDbCtx = new AdventureWorksContext(clientProvider);
                 var clientCount = clientDbCtx.Product.Count(p => p.ProductNumber.StartsWith($"ZZ-"));
                 Assert.Equal(rowsToReceive, clientCount);
 
@@ -2473,7 +2473,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 await new SyncAgent(clientProvider, webRemoteOrchestrator, options).SynchronizeAsync();
 
             // check rows count on server and on each client
-            using (var ctx = new AdventureWorksContext(serverProvider))
+            await using (var ctx = new AdventureWorksContext(serverProvider))
             {
                 var products = await ctx.Product.AsNoTracking().Where(p => p.Name.StartsWith("BLOB_")).ToListAsync();
                 foreach (var p in products)
@@ -2482,7 +2482,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             foreach (var clientProvider in clientsProvider)
             {
-                using var cliCtx = new AdventureWorksContext(clientProvider);
+                await using var cliCtx = new AdventureWorksContext(clientProvider);
 
                 var products = await cliCtx.Product.AsNoTracking().Where(p => p.Name.StartsWith("BLOB_")).ToListAsync();
                 foreach (var p in products)

@@ -56,7 +56,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Check we have a new column in tracking table
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
                 var cols = await SqlManagementUtils.GetColumnsForTableAsync("t_Product_t", "SalesLT", c, null);
@@ -179,7 +179,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Check we have a new column in tracking table
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
 
@@ -224,7 +224,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.False(onDropped);
 
             // Check we have a new column in tracking table
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
 

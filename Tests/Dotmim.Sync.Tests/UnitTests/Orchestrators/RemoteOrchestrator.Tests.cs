@@ -303,7 +303,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             await remoteOrchestrator.ProvisionAsync(scopeInfo, provision);
 
-            using (var connection = new SqlConnection(serverProvider.ConnectionString))
+            await using (var connection = new SqlConnection(serverProvider.ConnectionString))
             {
                 await connection.OpenAsync();
 
@@ -343,7 +343,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             await remoteOrchestrator.ProvisionAsync(scopeInfo, provision);
 
-            using (var connection = new SqlConnection(serverProvider.ConnectionString))
+            await using (var connection = new SqlConnection(serverProvider.ConnectionString))
             {
                 await connection.OpenAsync();
 
