@@ -77,7 +77,6 @@ jobs:
       - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter ${{ parameters.filter }} -f ${{ parameters.dotnetfx }} --logger trx --no-restore
         name: tests
         displayName: ${{ parameters.displayName }}
-        continueOnError: true
         env:
           "AZUREDEV": "true"
 
@@ -85,3 +84,4 @@ jobs:
         inputs:
           testRunner: VSTest
           testResultsFiles: "**/*.trx"
+        condition: succeededOrFailed()
