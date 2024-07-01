@@ -2,6 +2,12 @@
   "version": 1,
   "dependencies": {
     ".NETStandard,Version=v2.0": {
+      "DotNet.ReproducibleBuilds": {
+        "type": "Direct",
+        "requested": "[1.2.4, )",
+        "resolved": "1.2.4",
+        "contentHash": "Ch9U74tQA2fQH+U0hcYH7WyIFUfAq7jrjgSHVu2FAcYiMBtbrCMyq2nGA/ZZnB2jSaUeOOYiCjxeaDVB7Ssbdw=="
+      },
       "Microsoft.Data.SqlClient": {
         "type": "Direct",
         "requested": "[5.2.1, )",
@@ -639,6 +645,12 @@
       }
     },
     "net6.0": {
+      "DotNet.ReproducibleBuilds": {
+        "type": "Direct",
+        "requested": "[1.2.4, )",
+        "resolved": "1.2.4",
+        "contentHash": "Ch9U74tQA2fQH+U0hcYH7WyIFUfAq7jrjgSHVu2FAcYiMBtbrCMyq2nGA/ZZnB2jSaUeOOYiCjxeaDVB7Ssbdw=="
+      },
       "Microsoft.Data.SqlClient": {
         "type": "Direct",
         "requested": "[5.2.1, )",
@@ -1014,6 +1026,12 @@
       }
     },
     "net8.0": {
+      "DotNet.ReproducibleBuilds": {
+        "type": "Direct",
+        "requested": "[1.2.4, )",
+        "resolved": "1.2.4",
+        "contentHash": "Ch9U74tQA2fQH+U0hcYH7WyIFUfAq7jrjgSHVu2FAcYiMBtbrCMyq2nGA/ZZnB2jSaUeOOYiCjxeaDVB7Ssbdw=="
+      },
       "Microsoft.Data.SqlClient": {
         "type": "Direct",
         "requested": "[5.2.1, )",
