@@ -119,6 +119,12 @@
           "xunit.core": "[2.8.1]"
         }
       },
+      "xunit.analyzers": {
+        "type": "Direct",
+        "requested": "[1.14.0, )",
+        "resolved": "1.14.0",
+        "contentHash": "KcFBmV2150xZHPUebV3YLR5gGl8R4wLuPOoxMiwCf1L4bL8ls0dcwtGFzr6NvQRgg6dWgSqbE52I6SYyeB0VnQ=="
+      },
       "xunit.runner.visualstudio": {
         "type": "Direct",
         "requested": "[2.4.5, )",
@@ -987,11 +993,6 @@
         "resolved": "2.0.3",
         "contentHash": "pot1I4YOxlWjIb5jmwvvQNbTrZ3lJQ+jUGkGjWE3hEFM0l5gOnBWS+H3qsex68s5cO52g+44vpGzhAt+42vwKg=="
       },
-      "xunit.analyzers": {
-        "type": "Transitive",
-        "resolved": "1.14.0",
-        "contentHash": "KcFBmV2150xZHPUebV3YLR5gGl8R4wLuPOoxMiwCf1L4bL8ls0dcwtGFzr6NvQRgg6dWgSqbE52I6SYyeB0VnQ=="
-      },
       "xunit.assert": {
         "type": "Transitive",
         "resolved": "2.8.1",
@@ -1187,6 +1188,12 @@
           "xunit.assert": "2.8.1",
           "xunit.core": "[2.8.1]"
         }
+      },
+      "xunit.analyzers": {
+        "type": "Direct",
+        "requested": "[1.14.0, )",
+        "resolved": "1.14.0",
+        "contentHash": "KcFBmV2150xZHPUebV3YLR5gGl8R4wLuPOoxMiwCf1L4bL8ls0dcwtGFzr6NvQRgg6dWgSqbE52I6SYyeB0VnQ=="
       },
       "xunit.runner.visualstudio": {
         "type": "Direct",
@@ -1780,11 +1787,6 @@
         "resolved": "2.0.3",
         "contentHash": "pot1I4YOxlWjIb5jmwvvQNbTrZ3lJQ+jUGkGjWE3hEFM0l5gOnBWS+H3qsex68s5cO52g+44vpGzhAt+42vwKg=="
       },
-      "xunit.analyzers": {
-        "type": "Transitive",
-        "resolved": "1.14.0",
-        "contentHash": "KcFBmV2150xZHPUebV3YLR5gGl8R4wLuPOoxMiwCf1L4bL8ls0dcwtGFzr6NvQRgg6dWgSqbE52I6SYyeB0VnQ=="
-      },
       "xunit.assert": {
         "type": "Transitive",
         "resolved": "2.8.1",
@@ -1967,6 +1969,12 @@
           "xunit.assert": "2.8.1",
           "xunit.core": "[2.8.1]"
         }
+      },
+      "xunit.analyzers": {
+        "type": "Direct",
+        "requested": "[1.14.0, )",
+        "resolved": "1.14.0",
+        "contentHash": "KcFBmV2150xZHPUebV3YLR5gGl8R4wLuPOoxMiwCf1L4bL8ls0dcwtGFzr6NvQRgg6dWgSqbE52I6SYyeB0VnQ=="
       },
       "xunit.runner.visualstudio": {
         "type": "Direct",
@@ -2437,11 +2445,6 @@
         "type": "Transitive",
         "resolved": "2.0.3",
         "contentHash": "pot1I4YOxlWjIb5jmwvvQNbTrZ3lJQ+jUGkGjWE3hEFM0l5gOnBWS+H3qsex68s5cO52g+44vpGzhAt+42vwKg=="
-      },
-      "xunit.analyzers": {
-        "type": "Transitive",
-        "resolved": "1.14.0",
-        "contentHash": "KcFBmV2150xZHPUebV3YLR5gGl8R4wLuPOoxMiwCf1L4bL8ls0dcwtGFzr6NvQRgg6dWgSqbE52I6SYyeB0VnQ=="
       },
       "xunit.assert": {
         "type": "Transitive",

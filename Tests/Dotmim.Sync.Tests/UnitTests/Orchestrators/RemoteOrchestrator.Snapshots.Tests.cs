@@ -148,7 +148,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await using var summaryStream = File.OpenRead(summaryFile);
             var summaryObject = JsonDocument.Parse(summaryStream).RootElement;
 
-            Assert.True(summaryObject.ValueKind != JsonValueKind.Null);
+            Assert.NotEqual(JsonValueKind.Null, summaryObject.ValueKind);
             string summaryDirname = summaryObject.GetProperty("dirname").GetString();
             Assert.NotNull(summaryDirname);
             Assert.Equal("ALL", summaryDirname);
@@ -164,7 +164,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var firstPart = parts[0];
             Assert.NotNull(firstPart.GetProperty("file").GetString());
-            Assert.True(firstPart.GetProperty("index").GetInt32() == 0);
+            Assert.Equal(0, firstPart.GetProperty("index").GetInt32());
             Assert.False(firstPart.GetProperty("last").GetBoolean());
         }
 
@@ -237,7 +237,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await using var summaryStream = File.OpenRead(summaryFile);
             var summaryObject = JsonDocument.Parse(summaryStream).RootElement;
 
-            Assert.True(summaryObject.ValueKind != JsonValueKind.Null);
+            Assert.NotEqual(JsonValueKind.Null, summaryObject.ValueKind);
             string summaryDirname = summaryObject.GetProperty("dirname").GetString();
             Assert.NotNull(summaryDirname);
             Assert.Equal("CompanyName_ABikeStore", summaryDirname);
@@ -253,7 +253,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var firstPart = parts[0];
             Assert.NotNull(firstPart.GetProperty("file").GetString());
-            Assert.True(firstPart.GetProperty("index").GetInt32() == 0);
+            Assert.Equal(0, firstPart.GetProperty("index").GetInt32());
             Assert.False(firstPart.GetProperty("last").GetBoolean());
         }
 
