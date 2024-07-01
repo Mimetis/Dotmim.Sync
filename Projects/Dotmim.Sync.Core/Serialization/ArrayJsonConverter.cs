@@ -39,7 +39,7 @@ namespace Dotmim.Sync.Serialization
             {
                 writer.WriteStartArray();
                 foreach (var v in value)
-                    ObjectToInferredTypesConverter.WriteValue(writer, v);
+                    ObjectToInferredTypesConverter.WriteValue(writer, v, options);
 
                 writer.WriteEndArray();
 

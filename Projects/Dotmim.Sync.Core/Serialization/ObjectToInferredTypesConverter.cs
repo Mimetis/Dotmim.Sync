@@ -17,7 +17,7 @@ namespace Dotmim.Sync.Serialization
         public override void Write(
             Utf8JsonWriter writer,
             object objectToWrite,
-            JsonSerializerOptions options) => WriteValue(writer, objectToWrite);
+            JsonSerializerOptions options) => WriteValue(writer, objectToWrite, options);
 
 
         /// <summary>
@@ -48,12 +48,15 @@ namespace Dotmim.Sync.Serialization
         }
 
         /// <summary>
-        /// Write value using default options 
+        /// Write value using options 
         /// </summary>
-        /// <param name="writer"></param>
-        /// <param name="objectToWrite"></param>
-        public static void WriteValue(Utf8JsonWriter writer, object objectToWrite) 
-            => JsonSerializer.Serialize(writer, objectToWrite, objectToWrite.GetType(), JsonSerializerOptions.Default);
+        public static void WriteValue(Utf8JsonWriter writer, object objectToWrite, JsonSerializerOptions options)
+        {
+            if (objectToWrite == null)
+                writer.WriteNullValue();
+            else
+                JsonSerializer.Serialize(writer, objectToWrite, objectToWrite.GetType(), options);
+        }
 
     }
 }
