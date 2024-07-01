@@ -58,10 +58,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("SalesOrderDetail", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("SalesOrderHeader", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
-            var sodTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "SalesOrderDetail", "SalesLT");
+            using var sodTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "SalesOrderDetail", "SalesLT");
             Assert.Equal(3, sodTable.Rows.Count);
 
-            var sohTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "SalesOrderHeader", "SalesLT");
+            using var sohTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "SalesOrderHeader", "SalesLT");
             Assert.Single(sohTable.Rows);
 
         }
@@ -97,11 +97,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("Product", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("ProductCategory", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
-            var productTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "Product", "SalesLT");
+            using var productTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "Product", "SalesLT");
             var productRowName = productTable.Rows[0]["Name"];
             Assert.Equal(product.Name, productRowName);
 
-            var productCategoryTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "ProductCategory", "SalesLT");
+            using var productCategoryTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "ProductCategory", "SalesLT");
             var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
             Assert.Equal(productCategory.Name, productCategoryRowName);
 
@@ -137,11 +137,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("Product", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("ProductCategory", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
-            var productTable =  localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "Product", "SalesLT");
+            using var productTable =  localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "Product", "SalesLT");
             var productRowName = productTable.Rows[0]["Name"];
             Assert.Equal(product.Name, productRowName);
 
-            var productCategoryTable =  localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "ProductCategory", "SalesLT");
+            using var productCategoryTable =  localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "ProductCategory", "SalesLT");
             var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
             Assert.Equal(productCategory.Name, productCategoryRowName);
 

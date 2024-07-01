@@ -91,7 +91,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
 
-                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
                             if (row["ProductCategoryID"].ToString() == $"Z1{str}")
@@ -144,7 +144,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
 
-                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
                             if (row["ProductCategoryID"].ToString() == $"Z1{str}")
@@ -260,7 +260,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
 
-                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
                             if (row["ProductCategoryID"].ToString() == $"Z1{str}")
@@ -326,7 +326,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
 
-                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
                             if (row["ProductCategoryID"].ToString() == $"Z1{str}")
@@ -413,7 +413,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
 
-                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
                             if (row["ProductCategoryID"].ToString() == $"Z1{str}")
@@ -529,7 +529,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
 
-                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
                             if (row["ProductCategoryID"].ToString() == $"Z2{str}")
@@ -589,7 +589,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
 
-                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
                             if (row["ProductCategoryID"].ToString() == $"Z2{str}")
@@ -654,7 +654,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
 
-                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
                             if (row["ProductCategoryID"].ToString() == $"Z{y}{str}")
@@ -763,7 +763,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
 
-                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
                             if (row["ProductCategoryID"].ToString() == $"Z2{str}")

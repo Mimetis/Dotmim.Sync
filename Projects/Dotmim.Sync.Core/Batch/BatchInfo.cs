@@ -150,10 +150,18 @@ namespace Dotmim.Sync.Batch
         {
             if (syncTable == null) return Enumerable.Empty<BatchPartInfo>();
 
+            return GetBatchPartsInfo(syncTable.TableName, syncTable.SchemaName);
+        }
+
+        /// <summary>
+        /// Get all batch part for 1 particular table
+        /// </summary>
+        public IEnumerable<BatchPartInfo> GetBatchPartsInfo(string tableName, string schemaName = default)
+        {
             if (BatchPartsInfo == null) return Enumerable.Empty<BatchPartInfo>();
 
             // fake for comparison
-            var tmpBpi = new BatchPartInfo { TableName = syncTable.TableName, SchemaName = syncTable.SchemaName };
+            var tmpBpi = new BatchPartInfo { TableName = tableName, SchemaName = schemaName };
 
             IEnumerable<BatchPartInfo> bpiTables = null;
 
@@ -163,11 +171,6 @@ namespace Dotmim.Sync.Batch
 
             return bpiTables;
         }
-
-        /// <summary>
-        /// Get all batch part for 1 particular table
-        /// </summary>
-        public IEnumerable<BatchPartInfo> GetBatchPartsInfo(string tableName, string schemaName = default) => GetBatchPartsInfo(new SyncTable(tableName, schemaName));
 
         /// <summary>
         /// Ensure the last batch part has the correct IsLastBatch flag

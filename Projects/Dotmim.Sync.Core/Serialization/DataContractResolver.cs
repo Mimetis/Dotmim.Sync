@@ -78,6 +78,11 @@ namespace System.Text.Json.Serialization.Metadata
 
             foreach (MemberInfo memberInfo in EnumerateFieldsAndProperties(jsonTypeInfo.Type, bindingFlags))
             {
+                if (memberInfo == null)
+                {
+                    continue;
+                }
+
                 DataMemberAttribute attr = null;
                 if (isDataContract)
                 {
@@ -93,11 +98,6 @@ namespace System.Text.Json.Serialization.Metadata
                     {
                         continue;
                     }
-                }
-
-                if (memberInfo == null)
-                {
-                    continue;
                 }
 
                 Func<object, object> getValue = null;

@@ -830,7 +830,7 @@ namespace Dotmim.Sync.Web.Server
             containerSet.Tables.Add(containerTable);
 
             // read rows from file
-            var localSerializer = new LocalJsonSerializer(this.RemoteOrchestrator, context);
+            using var localSerializer = new LocalJsonSerializer(this.RemoteOrchestrator, context);
             foreach (var row in localSerializer.GetRowsFromFile(fullPath, schemaTable))
             {
                 if (row != null && row.Length > 0 && this.clientConverter != null)
