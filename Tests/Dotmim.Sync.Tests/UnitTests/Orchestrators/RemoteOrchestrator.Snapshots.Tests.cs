@@ -148,7 +148,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await using var summaryStream = File.OpenRead(summaryFile);
             var summaryObject = JsonDocument.Parse(summaryStream).RootElement;
 
-            Assert.NotEqual(summaryObject.ValueKind, JsonValueKind.Null);
+            Assert.NotEqual(JsonValueKind.Null, summaryObject.ValueKind);
             string summaryDirname = summaryObject.GetProperty("dirname").GetString();
             Assert.NotNull(summaryDirname);
             Assert.Equal("ALL", summaryDirname);
@@ -237,7 +237,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             await using var summaryStream = File.OpenRead(summaryFile);
             var summaryObject = JsonDocument.Parse(summaryStream).RootElement;
 
-            Assert.NotEqual(summaryObject.ValueKind, JsonValueKind.Null);
+            Assert.NotEqual(JsonValueKind.Null, summaryObject.ValueKind);
             string summaryDirname = summaryObject.GetProperty("dirname").GetString();
             Assert.NotNull(summaryDirname);
             Assert.Equal("CompanyName_ABikeStore", summaryDirname);
