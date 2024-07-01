@@ -25,7 +25,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         public async Task RemoteOrchestrator_StoredProcedure_ShouldCreate()
         {
             var scopeName = "scope";
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 StoredProceduresPrefix = "sp_",
                 StoredProceduresSuffix = "_sp"
@@ -56,7 +56,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         public async Task RemoteOrchestrator_StoredProcedure_ShouldOverwrite()
         {
             var scopeName = "scope";
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 StoredProceduresPrefix = "sp_",
                 StoredProceduresSuffix = "_sp"
@@ -89,7 +89,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeName = "scope";
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 StoredProceduresPrefix = "sp_",
                 StoredProceduresSuffix = "_sp"
@@ -121,7 +121,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeName = "scope";
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 StoredProceduresPrefix = "sp_",
                 StoredProceduresSuffix = "_sp"
@@ -143,7 +143,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeName = "scope";
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 StoredProceduresPrefix = "sp_",
                 StoredProceduresSuffix = "_sp"

@@ -64,8 +64,8 @@ namespace Dotmim.Sync.Tests.Misc
             var salesSchemaWithDot = string.IsNullOrEmpty(salesSchema) ? string.Empty : $"{salesSchema}.";
 
             // Filter columns
-            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
-            setup.Tables["Address"].Columns.AddRange(new string[] { "AddressID", "AddressLine1", "City", "PostalCode" });
+            setup.Tables["Customer"].Columns.AddRange("CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName");
+            setup.Tables["Address"].Columns.AddRange("AddressID", "AddressLine1", "City", "PostalCode");
 
             // Filters clause
 

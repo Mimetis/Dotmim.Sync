@@ -24,7 +24,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         public async Task RemoteOrchestrator_Provision_ShouldCreate_Triggers()
         {
             var scopeName = "scope";
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 TrackingTablesSuffix = "sync",
                 TrackingTablesPrefix = "trck",
@@ -66,7 +66,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         public async Task RemoteOrchestrator_Trigger_ShouldCreate()
         {
             var scopeName = "scope";
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 TriggersPrefix = "trg_",
                 TriggersSuffix = "_trg"
@@ -122,7 +122,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeName = "scope";
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 TriggersPrefix = "trg_",
                 TriggersSuffix = "_trg"
@@ -151,7 +151,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeName = "scope";
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 TriggersPrefix = "trg_",
                 TriggersSuffix = "_trg"
@@ -182,7 +182,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeName = "scope";
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 TriggersPrefix = "trg_",
                 TriggersSuffix = "_trg"
@@ -206,7 +206,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeName = "scope";
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
 
             setup.TriggersPrefix = "trg_";
             setup.TriggersSuffix = "_trg";

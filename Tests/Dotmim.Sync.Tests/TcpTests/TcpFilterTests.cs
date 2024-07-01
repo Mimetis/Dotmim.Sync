@@ -636,10 +636,10 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 await clientProvider.DropAllTablesAsync(true);
 
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
-            setup = new SyncSetup(new string[] { "Customer" });
+            setup = new SyncSetup("Customer");
 
             // Filtered columns. 
-            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
+            setup.Tables["Customer"].Columns.AddRange("CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName");
             setup.Filters.Add("Customer", "EmployeeID");
 
             // Execute a sync on all clients and check results

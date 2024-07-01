@@ -89,8 +89,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             // Note we are not including the [Attribute With Space] column
 
             var setupV1 = new SyncSetup(productCategoryTable.GetFullName());
-            setupV1.Tables[productCategoryTable.GetFullName()].Columns.AddRange(
-                new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
+            setupV1.Tables[productCategoryTable.GetFullName()].Columns.AddRange("ProductCategoryId", "Name", "rowguid", "ModifiedDate");
 
             int productCategoryRowsCount = 0;
             await using (var readCtx = new AdventureWorksContext(serverProvider))
@@ -111,8 +110,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             // Creating a new scope called "v2" on server
             var setupV2 = new SyncSetup(productCategoryTable.GetFullName(), productTable.GetFullName());
 
-            setupV2.Tables[productCategoryTable.GetFullName()].Columns.AddRange(
-            new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space" });
+            setupV2.Tables[productCategoryTable.GetFullName()].Columns.AddRange("ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space");
 
             var serverScope = await remoteOrchestrator.ProvisionAsync("v2", setupV2);
 
@@ -196,8 +194,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             // Note we are not including the [Attribute With Space] column
 
             var setupV1 = new SyncSetup(productCategoryTable.GetFullName());
-            setupV1.Tables[productCategoryTable.GetFullName()].Columns.AddRange(
-                new string[] { "ProductCategoryId", "ParentProductCategoryId", "Name", "rowguid", "ModifiedDate" });
+            setupV1.Tables[productCategoryTable.GetFullName()].Columns.AddRange("ProductCategoryId", "ParentProductCategoryId", "Name", "rowguid", "ModifiedDate");
 
             int productCategoryRowsCount = 0;
             await using (var readCtx = new AdventureWorksContext(serverProvider))
@@ -218,8 +215,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             // Creating a new scope called "v2" on server
             var setupV2 = new SyncSetup(productCategoryTable.GetFullName(), productTable.GetFullName());
 
-            setupV2.Tables[productCategoryTable.GetFullName()].Columns.AddRange(
-            new string[] { "ProductCategoryId", "ParentProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space" });
+            setupV2.Tables[productCategoryTable.GetFullName()].Columns.AddRange("ProductCategoryId", "ParentProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space");
 
             var serverScopeV2 = await remoteOrchestrator.ProvisionAsync("v2", setupV2);
 
@@ -326,8 +322,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             // --------------------------
             // Step 1: Create a default scope and Sync clients
             // Note we are not including the [Attribute With Space] column
-            var setup = new SyncSetup(new string[] { productCategoryTableName });
-            setup.Tables[productCategoryTableName].Columns.AddRange("ProductCategoryId", "Name", "ParentProductCategoryId", "rowguid", "ModifiedDate");
+            var setup = new SyncSetup(productCategoryTableName);
+            setup.Tables[productCategoryTableName].Columns.AddRange(
+                "ProductCategoryId", "Name", "ParentProductCategoryId", "rowguid", "ModifiedDate");
 
             // Counting product categories & products
             int productCategoryRowsCount = 0;
@@ -354,7 +351,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             // Adding a new scope on the server with this new column and a new table
             // Creating a new scope called "V1" on server
-            var setupV1 = new SyncSetup(new string[] { productCategoryTableName, productTableName });
+            var setupV1 = new SyncSetup(productCategoryTableName, productTableName);
 
             setupV1.Tables[productCategoryTableName].Columns.AddRange(
                 "ProductCategoryId", "Name", "ParentProductCategoryId", "rowguid", "ModifiedDate", "Attribute With Space");
@@ -493,9 +490,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var productCategoryTable = setup.Tables.First(t => t.TableName == "ProductCategory");
             var productTable = setup.Tables.First(t => t.TableName == "Product");
 
-            var setupV1 = new SyncSetup(new string[] { productCategoryTable.GetFullName() });
+            var setupV1 = new SyncSetup(productCategoryTable.GetFullName());
             setupV1.Tables[productCategoryTable.GetFullName()].Columns.AddRange(
-                new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
+                "ProductCategoryId", "Name", "rowguid", "ModifiedDate");
 
             int productCategoryRowsCount = 0;
             await using (var readCtx = new AdventureWorksContext(serverProvider))
@@ -515,7 +512,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             // Editing the current scope on the server with this new column and a new table
             setupV1.Tables.Add(productTable.GetFullName());
             setupV1.Tables[productCategoryTable.GetFullName()].Columns.Clear();
-            setupV1.Tables[productCategoryTable.GetFullName()].Columns.AddRange("ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space");
+            setupV1.Tables[productCategoryTable.GetFullName()].Columns.AddRange(
+                "ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space");
 
             // overwrite the setup
             var serverScope = await remoteOrchestrator.ProvisionAsync("v1", setupV1, overwrite: true);
@@ -592,9 +590,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var productCategoryTable = setup.Tables.First(t => t.TableName == "ProductCategory");
             var productTable = setup.Tables.First(t => t.TableName == "Product");
 
-            var setupV1 = new SyncSetup(new string[] { productCategoryTable.GetFullName() });
+            var setupV1 = new SyncSetup(productCategoryTable.GetFullName());
             setupV1.Tables[productCategoryTable.GetFullName()].Columns.AddRange(
-                new string[] { "ProductCategoryId", "Name", "rowguid", "ModifiedDate" });
+                "ProductCategoryId", "Name", "rowguid", "ModifiedDate");
 
             int productCategoryRowsCount = 0;
             await using (var readCtx = new AdventureWorksContext(serverProvider))
@@ -614,7 +612,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             // Editing the current scope on the server with this new column and a new table
             setupV1.Tables.Add(productTable.GetFullName());
             setupV1.Tables[productCategoryTable.GetFullName()].Columns.Clear();
-            setupV1.Tables[productCategoryTable.GetFullName()].Columns.AddRange("ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space");
+            setupV1.Tables[productCategoryTable.GetFullName()].Columns.AddRange(
+                "ProductCategoryId", "Name", "rowguid", "ModifiedDate", "Attribute With Space");
 
             // overwrite the setup
             var serverScope = await remoteOrchestrator.ProvisionAsync("v1", setupV1, overwrite: true);
