@@ -11,21 +11,49 @@ namespace Dotmim.Sync.Serialization
         public override object Read(
             ref Utf8JsonReader reader,
             Type typeToConvert,
-            JsonSerializerOptions options) => reader.TokenType switch
-            {
-                JsonTokenType.True => true,
-                JsonTokenType.False => false,
-                JsonTokenType.Number when reader.TryGetInt64(out long l) => l,
-                JsonTokenType.Number => reader.GetDouble(),
-                JsonTokenType.String when reader.TryGetDateTimeOffset(out DateTimeOffset dto) => dto,
-                JsonTokenType.String => reader.GetString()!,
-                _ => JsonDocument.ParseValue(ref reader).RootElement.Clone()
-            };
+            JsonSerializerOptions options) => ReadValue(ref reader);
+
 
         public override void Write(
             Utf8JsonWriter writer,
             object objectToWrite,
-            JsonSerializerOptions options) =>
-            JsonSerializer.Serialize(writer, objectToWrite, objectToWrite.GetType(), options);
+            JsonSerializerOptions options) => WriteValue(writer, objectToWrite);
+
+
+        /// <summary>
+        /// Read the next value and infer the type between string, bool, long, double or datetimeoffset
+        /// </summary>
+        /// <param name="reader"></param>
+        /// <returns></returns>
+        public static object ReadValue(ref Utf8JsonReader reader)
+        {
+
+            object value = null;
+
+            if (reader.TokenType == JsonTokenType.Null || reader.TokenType == JsonTokenType.None)
+                value = null;
+            else if (reader.TokenType == JsonTokenType.String && reader.TryGetDateTimeOffset(out DateTimeOffset datetimeOffset))
+                value = datetimeOffset;
+            else if (reader.TokenType == JsonTokenType.String)
+                value = reader.GetString();
+            else if (reader.TokenType == JsonTokenType.False || reader.TokenType == JsonTokenType.True)
+                value = reader.GetBoolean();
+            else if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt64(out long l))
+                value = l;
+            else if (reader.TokenType == JsonTokenType.Number)
+                value = reader.GetDouble();
+
+
+            return value;
+        }
+
+        /// <summary>
+        /// Write value using default options 
+        /// </summary>
+        /// <param name="writer"></param>
+        /// <param name="objectToWrite"></param>
+        public static void WriteValue(Utf8JsonWriter writer, object objectToWrite) 
+            => JsonSerializer.Serialize(writer, objectToWrite, objectToWrite.GetType(), JsonSerializerOptions.Default);
+
     }
 }

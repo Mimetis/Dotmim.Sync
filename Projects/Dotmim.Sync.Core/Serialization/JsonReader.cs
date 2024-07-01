@@ -739,10 +739,101 @@ namespace Dotmim.Sync.Serialization
         }
 
 
-        //public byte[] GetBytesFromBase64()
-        //{
-        //    return null;
-        //}
+
+        public byte[] ReadAsBytesFromBase64()
+        {
+            this.Read();
+            return this.GetBytesFromBase64();
+        }
+        public byte[] GetBytesFromBase64()
+        {
+            if (this.TokenType != JsonTokenType.PropertyName && this.TokenType != JsonTokenType.String)
+                return null;
+
+#if NET6_0_OR_GREATER
+            var str = utf8Encoding.GetString(this.Value.Span);
+            const int bitsEncodedPerChar = 6;
+            int bytesExpected = (str.Length * bitsEncodedPerChar) >> 3; // divide by 8 bits in a byte
+
+            var buffer = ArrayPool<byte>.Shared.Rent(bytesExpected);
+
+            if (Convert.TryFromBase64String(str, buffer, out var bytesWritten))
+            {
+                var array = new Byte[bytesWritten];
+                Array.Copy(buffer, array, bytesWritten);
+                return array;
+
+            }
+
+            return null;
+#else   
+            var str = utf8Encoding.GetString(this.Value.ToArray());
+            return Convert.FromBase64String(str);
+#endif
+        }
+        public bool TryGetBytesFromBase64(out byte[] value)
+        {
+            if (this.TokenType != JsonTokenType.PropertyName && this.TokenType != JsonTokenType.String)
+            {
+                value = null;
+                return false;
+            }
+
+#if NET6_0_OR_GREATER
+            var str = utf8Encoding.GetString(this.Value.Span);
+            const int bitsEncodedPerChar = 6;
+            int bytesExpected = (str.Length * bitsEncodedPerChar) >> 3; // divide by 8 bits in a byte
+
+            var buffer = ArrayPool<byte>.Shared.Rent(bytesExpected);
+
+            if (Convert.TryFromBase64String(str, buffer, out var bytesWritten))
+            {
+                value = new byte[bytesWritten];
+                Array.Copy(buffer, value, bytesWritten);
+                return true;
+            }
+
+            value = null;
+            return false;
+#else
+            var str = utf8Encoding.GetString(this.Value.ToArray());
+            try
+            {
+                value = Convert.FromBase64String(str);
+                return true;
+
+            }
+            catch (Exception)
+            {
+                value = null;
+                return false;
+            }
+#endif
+        }
+
+#if NET6_0_OR_GREATER
+        public Span<byte> ReadAsSpanFromBase64()
+        {
+            this.Read();
+            return this.GetSpanFromBase64();
+        }
+        public Span<byte> GetSpanFromBase64()
+        {
+            if (this.TokenType != JsonTokenType.PropertyName && this.TokenType != JsonTokenType.String)
+                return null;
+
+            var str = utf8Encoding.GetString(this.Value.Span);
+            const int bitsEncodedPerChar = 6;
+            int bytesExpected = (str.Length * bitsEncodedPerChar) >> 3; // divide by 8 bits in a byte
+
+            var buffer = ArrayPool<byte>.Shared.Rent(bytesExpected);
+
+            if (Convert.TryFromBase64String(str, buffer, out var bytesWritten))
+                return buffer.AsSpan(0, bytesWritten);
+
+            return null;
+        }
+#endif
 
     }
 

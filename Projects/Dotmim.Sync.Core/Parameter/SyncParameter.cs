@@ -26,7 +26,6 @@ namespace Dotmim.Sync
         /// Gets or sets the value of the parameter.
         /// </summary>
         [DataMember(Name = "v", IsRequired = true, Order = 2)]
-        [JsonConverter(typeof(ObjectToInferredTypesConverter))]
         public object Value { get; set; }
 
         /// <summary>

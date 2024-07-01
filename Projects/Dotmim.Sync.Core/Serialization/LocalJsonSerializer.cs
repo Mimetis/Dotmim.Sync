@@ -437,8 +437,6 @@ namespace Dotmim.Sync.Serialization
                                         value = null;
                                     else if (jsonReader.TokenType == JsonTokenType.String && jsonReader.TryGetDateTimeOffset(out DateTimeOffset datetimeOffset))
                                         value = datetimeOffset;
-                                    else if (jsonReader.TokenType == JsonTokenType.String && jsonReader.TryGetDateTime(out DateTime datetime))
-                                        value = datetime;
                                     else if (jsonReader.TokenType == JsonTokenType.String)
                                         value = jsonReader.GetString();
                                     else if (jsonReader.TokenType == JsonTokenType.False || jsonReader.TokenType == JsonTokenType.True)
@@ -451,10 +449,7 @@ namespace Dotmim.Sync.Serialization
                                     try
                                     {
                                         if (value != null)
-                                        {
-                                            var convertedValue = SyncTypeConverter.TryConvertTo(value, columnType);
-                                            values[index] = convertedValue;
-                                        }
+                                            values[index] = SyncTypeConverter.TryConvertTo(value, columnType);
                                     }
                                     catch (Exception ex)
                                     {

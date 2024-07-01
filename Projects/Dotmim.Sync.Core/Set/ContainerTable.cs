@@ -32,7 +32,7 @@ namespace Dotmim.Sync
         /// List of rows
         /// </summary>
         [DataMember(Name = "r", IsRequired = false, Order = 4)]
-        [JsonConverter(typeof(ArrayJsonConverter))]
+        //[JsonConverter(typeof(ArrayJsonConverter))]
         public List<object[]> Rows { get; set; } = new List<dynamic[]>();
 
         public ContainerTable()

@@ -79,7 +79,7 @@ namespace Dotmim.Sync.Tests.StandAlone
         }
 
         [Fact]
-        public async Task Test_Container_JsonSerializer()
+        public async Task JsonConverter_ArrayJsonConverter()
         {
             var containerSet = new ContainerSet();
             var table = new SyncTable("Customers");
@@ -94,6 +94,13 @@ namespace Dotmim.Sync.Tests.StandAlone
             var serializer = new JsonObjectSerializer();
             var bin = await serializer.SerializeAsync(containerSet);
 
+            JsonSerializerOptions options = new()
+            {
+                TypeInfoResolver = DataContractResolver.Default,
+                Converters = { new ArrayJsonConverter(), new ObjectToInferredTypesConverter() }
+            };
+            var str = JsonSerializer.Serialize(containerSet, options);
+
             // Deserialize
             var outContainerSet = await serializer.DeserializeAsync<ContainerSet>(new MemoryStream(bin));
 
@@ -101,14 +108,36 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.NotEmpty(outContainerSet.Tables);
             Assert.Single(outContainerSet.Tables);
             Assert.NotEmpty(outContainerSet.Tables[0].Rows);
+
             Assert.Equal(2, outContainerSet.Tables[0].Rows.Count);
             Assert.Equal(2L, outContainerSet.Tables[0].Rows[0][0]);
+
+            Assert.IsType<long>(outContainerSet.Tables[0].Rows[0][0]);
+            Assert.IsType<string>(outContainerSet.Tables[0].Rows[0][1]);
+            Assert.IsType<string>(outContainerSet.Tables[0].Rows[0][2]);
+            Assert.IsType<long>(outContainerSet.Tables[0].Rows[0][3]);
+            Assert.IsType<long>(outContainerSet.Tables[0].Rows[0][4]);
+            Assert.IsType<long>(outContainerSet.Tables[0].Rows[0][5]);
+            Assert.IsType<long>(outContainerSet.Tables[0].Rows[0][6]);
+            Assert.IsType<long>(outContainerSet.Tables[0].Rows[0][7]);
+            Assert.IsType<long>(outContainerSet.Tables[0].Rows[0][8]);
+            Assert.IsType<DateTimeOffset>(outContainerSet.Tables[0].Rows[0][9]);
+            Assert.IsType<DateTimeOffset>(outContainerSet.Tables[0].Rows[0][10]);
+            Assert.IsType<long>(outContainerSet.Tables[0].Rows[0][11]);
+            Assert.IsType<bool>(outContainerSet.Tables[0].Rows[0][12]);
+            Assert.IsType<string>(outContainerSet.Tables[0].Rows[0][13]);
+            Assert.IsType<double>(outContainerSet.Tables[0].Rows[0][14]);
+            Assert.IsType<double>(outContainerSet.Tables[0].Rows[0][15]);
+            Assert.IsType<double>(outContainerSet.Tables[0].Rows[0][16]);
+            Assert.IsType<long>(outContainerSet.Tables[0].Rows[0][17]);
+            Assert.IsType<string>(outContainerSet.Tables[0].Rows[0][18]);
+            Assert.IsType<string>(outContainerSet.Tables[0].Rows[0][19]);
         }
 
 
 
         [Fact]
-        public async Task Check_Types_JsonSerializer()
+        public async Task JsonConverter_ObjectToInferredTypesConverter()
         {
             var customers = BatchInfosTests.GetSimpleSyncTable(1);
 
@@ -142,6 +171,44 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.IsType<long>(outContainerSet[17]);
             Assert.IsType<string>(outContainerSet[18]);
             Assert.IsType<string>(outContainerSet[19]);
+        }
+
+        [Fact]
+        public async Task JsonConverter_ObjectToInferredTypesConverter_SyncParameter()
+        {
+
+            var serializer = new JsonObjectSerializer();
+            var p1 = new SyncParameter("A", 12);
+
+            var bin = await serializer.SerializeAsync(p1);
+            using (var ms = new MemoryStream(bin))
+            {
+                var r = await serializer.DeserializeAsync<SyncParameter>(ms);
+                Assert.IsType<long>(r.Value);
+                Assert.Equal(12L, r.Value);
+            }
+
+            var dt = DateTime.Now;
+            p1.Value = dt;
+
+            bin = await serializer.SerializeAsync(p1);
+            using (var ms = new MemoryStream(bin))
+            {
+                var r = await serializer.DeserializeAsync<SyncParameter>(ms);
+                Assert.IsType<DateTimeOffset>(r.Value);
+                Assert.Equal(new DateTimeOffset(dt), r.Value);
+                Assert.Equal(dt, ((DateTimeOffset)r.Value).DateTime);
+            }
+
+            p1.Value = "Hello";
+
+            bin = await serializer.SerializeAsync(p1);
+            using (var ms = new MemoryStream(bin))
+            {
+                var r = await serializer.DeserializeAsync<SyncParameter>(ms);
+                Assert.IsType<string>(r.Value);
+                Assert.Equal("Hello", r.Value);
+            }
         }
 
 
