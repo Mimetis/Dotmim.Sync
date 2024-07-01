@@ -140,9 +140,9 @@ namespace Dotmim.Sync.Tests.Misc
         public virtual Stopwatch Stopwatch { get; }
 
         /// <summary>
-        /// Gets or Sets the Kestrell server used to server http queries
+        /// Gets or Sets the Kestrel server used to server http queries
         /// </summary>
-        public KestrellTestServer Kestrell { get; set; }
+        public KestrelTestServer Kestrel { get; set; }
 
         /// <summary>
         /// Gets if fiddler is in use
@@ -158,8 +158,8 @@ namespace Dotmim.Sync.Tests.Misc
             var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
             this.Test = (XunitTest)testMember.GetValue(output);
 
-            // Create a kestrell server
-            this.Kestrell = new KestrellTestServer(this.UseFiddler);
+            // Create a kestrel server
+            this.Kestrel = new KestrelTestServer(this.UseFiddler);
 
             preWorkStopwatch = Stopwatch.StartNew();
 
