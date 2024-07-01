@@ -32,23 +32,16 @@ namespace System.Text.Json.Serialization.Metadata
 {
     public class DataContractResolver : DefaultJsonTypeInfoResolver
     {
-        private static readonly Lazy<DataContractResolver> _defaultInstance = new(() => new DataContractResolver());
-
-        public static DataContractResolver Default => _defaultInstance.Value;
 
         private static bool IsNullOrDefault(object obj)
         {
             if (obj is null)
-            {
                 return true;
-            }
 
             Type type = obj.GetType();
 
             if (!type.IsValueType)
-            {
                 return false;
-            }
 
             return Activator.CreateInstance(type).Equals(obj);
         }
@@ -56,48 +49,36 @@ namespace System.Text.Json.Serialization.Metadata
         private static IEnumerable<MemberInfo> EnumerateFieldsAndProperties(Type type, BindingFlags bindingFlags)
         {
             foreach (FieldInfo fieldInfo in type.GetFields(bindingFlags))
-            {
                 yield return fieldInfo;
-            }
 
             foreach (PropertyInfo propertyInfo in type.GetProperties(bindingFlags))
-            {
                 yield return propertyInfo;
-            }
         }
 
-        private static IEnumerable<JsonPropertyInfo> CreateDataMembers(JsonTypeInfo jsonTypeInfo)
+        private static IEnumerable<JsonPropertyInfo> CreateDataMembers(JsonTypeInfo jsonTypeInfo, JsonSerializerOptions options)
         {
             bool isDataContract = jsonTypeInfo.Type.GetCustomAttribute<DataContractAttribute>() != null;
             BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.Public;
 
             if (isDataContract)
-            {
                 bindingFlags |= BindingFlags.NonPublic;
-            }
 
             foreach (MemberInfo memberInfo in EnumerateFieldsAndProperties(jsonTypeInfo.Type, bindingFlags))
             {
                 if (memberInfo == null)
-                {
                     continue;
-                }
 
                 DataMemberAttribute attr = null;
                 if (isDataContract)
                 {
                     attr = memberInfo.GetCustomAttribute<DataMemberAttribute>();
                     if (attr == null)
-                    {
                         continue;
-                    }
                 }
                 else
                 {
                     if (memberInfo.GetCustomAttribute<IgnoreDataMemberAttribute>() != null)
-                    {
                         continue;
-                    }
                 }
 
                 Func<object, object> getValue = null;
@@ -108,6 +89,7 @@ namespace System.Text.Json.Serialization.Metadata
                 if (memberInfo.MemberType == MemberTypes.Field && memberInfo is FieldInfo fieldInfo)
                 {
                     propertyName = attr?.Name ?? fieldInfo.Name;
+                    propertyName = options.PropertyNamingPolicy?.ConvertName(propertyName) ?? propertyName;
                     propertyType = fieldInfo.FieldType;
                     getValue = fieldInfo.GetValue;
                     setValue = fieldInfo.SetValue;
@@ -116,6 +98,7 @@ namespace System.Text.Json.Serialization.Metadata
                 if (memberInfo.MemberType == MemberTypes.Property && memberInfo is PropertyInfo propertyInfo)
                 {
                     propertyName = attr?.Name ?? propertyInfo.Name;
+                    propertyName = options.PropertyNamingPolicy?.ConvertName(propertyName) ?? propertyName;
                     propertyType = propertyInfo.PropertyType;
                     if (propertyInfo.CanRead)
                     {
@@ -160,15 +143,11 @@ namespace System.Text.Json.Serialization.Metadata
             }
         }
 
-        public static JsonTypeInfo GetTypeInfo(JsonTypeInfo jsonTypeInfo)
+        public static JsonTypeInfo GetTypeInfo(JsonTypeInfo jsonTypeInfo, JsonSerializerOptions options)
         {
             if (jsonTypeInfo.Kind == JsonTypeInfoKind.Object)
-            {
-                foreach (var jsonPropertyInfo in CreateDataMembers(jsonTypeInfo).OrderBy((x) => x.Order))
-                {
+                foreach (var jsonPropertyInfo in CreateDataMembers(jsonTypeInfo, options).OrderBy((x) => x.Order))
                     jsonTypeInfo.Properties.Add(jsonPropertyInfo);
-                }
-            }
 
             return jsonTypeInfo;
         }
@@ -184,7 +163,11 @@ namespace System.Text.Json.Serialization.Metadata
 
             jsonTypeInfo.Properties.Clear();
 
-            return GetTypeInfo(jsonTypeInfo);
+            var ti = GetTypeInfo(jsonTypeInfo, options);
+
+            return ti;
         }
+
+
     }
 }

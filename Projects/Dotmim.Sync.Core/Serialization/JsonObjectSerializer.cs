@@ -20,8 +20,10 @@ namespace Dotmim.Sync.Serialization
     {
         private static readonly JsonSerializerOptions options = new()
         {
-            TypeInfoResolver = DataContractResolver.Default,
-            Converters = { new ArrayJsonConverter(), new ObjectToInferredTypesConverter() }
+            TypeInfoResolver = new DataContractResolver(),
+            Converters = { new ArrayJsonConverter(), new ObjectToInferredTypesConverter() },
+            PropertyNameCaseInsensitive = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         };
 
         public async Task<T> DeserializeAsync<T>(Stream ms) => await JsonSerializer.DeserializeAsync<T>(ms, options);

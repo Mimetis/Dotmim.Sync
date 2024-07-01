@@ -5,6 +5,7 @@ using Dotmim.Sync.Extensions;
 using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Web.Client;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -109,18 +110,10 @@ namespace Dotmim.Sync.Web.Server
         {
             var httpRequest = httpContext.Request;
             var httpResponse = httpContext.Response;
-            var serializerInfoString = string.Empty;
-            var cliConverterKey = string.Empty;
-            var version = string.Empty;
 
-            if (TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-serialization-format", out var vs))
-                serializerInfoString = vs.ToLowerInvariant();
-
-            if (TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-converter", out var cs))
-                cliConverterKey = cs.ToLowerInvariant();
-
-            if (TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-version", out string v))
-                version = v;
+            TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-serialization-format", out var serializerInfoString);
+            TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-converter", out var cliConverterKey);
+            TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-version", out string version);
 
             if (!TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-session-id", out var sessionId))
                 throw new HttpHeaderMissingException("dotmim-sync-session-id");
@@ -400,7 +393,6 @@ namespace Dotmim.Sync.Web.Server
             catch
             {
                 throw new Exception("Serializer header is incorrect, coming from http header");
-                //throw new HttpSerializerNotConfiguredException(this.WebServerOptions.Serializers.Select(sf => sf.Key));
             }
         }
 

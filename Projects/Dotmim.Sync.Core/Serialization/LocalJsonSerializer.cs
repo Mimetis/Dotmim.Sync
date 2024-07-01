@@ -453,7 +453,8 @@ namespace Dotmim.Sync.Serialization
                                     }
                                     catch (Exception ex)
                                     {
-                                        throw new Exception($"Table {schemaTable.GetFullName()}. Unable to convert value {value} to {columnType}. From json payload stored in (${path}).", ex);
+                                        // No exception as a custom converter could be used to override type 
+                                        // like a datetime converted to ticks (long)
                                     }
                                 }
                                 index++;

@@ -208,8 +208,6 @@ namespace Dotmim.Sync
             // Applied row for this particular BPI
             var appliedRows = 0;
 
-            string batchPartInfoFileName = null;
-
             IEnumerable<BatchPartInfo> bpiTables;
             // Get command
             DbCommand command = null;
@@ -233,9 +231,6 @@ namespace Dotmim.Sync
                 var batchChangesApplyingArgs = new BatchChangesApplyingArgs(context, message.Changes, batchPartInfo, schemaTable, applyType, command, connection, transaction);
                 // We don't report progress if we do not have applied any changes on the table, to limit verbosity of Progress
                 await this.InterceptAsync(batchChangesApplyingArgs, progress, cancellationToken).ConfigureAwait(false);
-
-                // for error handling
-                batchPartInfoFileName = batchPartInfo.FileName;
 
                 this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. Directory name {{directoryName}}. BatchParts count {{BatchPartsInfoCount}}", message.Changes.DirectoryName, message.Changes.BatchPartsInfo.Count);
 
