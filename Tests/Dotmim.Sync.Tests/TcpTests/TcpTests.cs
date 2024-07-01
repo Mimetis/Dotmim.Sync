@@ -388,7 +388,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var badSetup = new SyncSetup("Employee");
 
             // Add a malformatted column name
-            badSetup.Tables["Employee"].Columns.AddRange(new string[] { "EmployeeID", "FirstName", "LastNam" });
+            badSetup.Tables["Employee"].Columns.AddRange("EmployeeID", "FirstName", "LastNam");
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)

@@ -11,14 +11,14 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public void SyncSetup_Compare_TwoSetup_ShouldBe_Equals()
         {
-            SyncSetup setup1 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
-            SyncSetup setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            SyncSetup setup1 = new SyncSetup("Product", "ProductCategory", "Employee");
+            SyncSetup setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
 
             Assert.Equal(setup1, setup2);
             Assert.True(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
 
             Assert.Equal(setup1, setup2);
             Assert.True(setup1.Equals(setup2));
@@ -55,14 +55,14 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public void SyncSetup_Compare_TwoSetup_ShouldBe_Different()
         {
-            SyncSetup setup1 = new SyncSetup(new string[] { "Product1", "ProductCategory", "Employee" });
-            SyncSetup setup2 = new SyncSetup(new string[] { "Product2", "ProductCategory", "Employee" });
+            SyncSetup setup1 = new SyncSetup("Product1", "ProductCategory", "Employee");
+            SyncSetup setup2 = new SyncSetup("Product2", "ProductCategory", "Employee");
 
             Assert.NotEqual(setup1, setup2);
             Assert.False(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory1", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory2", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory1", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory2", "Employee");
 
             Assert.NotEqual(setup1, setup2);
             Assert.False(setup1.Equals(setup2));
@@ -99,56 +99,56 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public void SyncSetup_Compare_TwoSetup_Properties_ShouldBe_Equals()
         {
-            var setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            var setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            var setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            var setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.StoredProceduresPrefix = "sp";
             setup2.StoredProceduresPrefix = "sp";
 
             Assert.Equal(setup1, setup2);
             Assert.True(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.StoredProceduresSuffix = "sp";
             setup2.StoredProceduresSuffix = "sp";
 
             Assert.Equal(setup1, setup2);
             Assert.True(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.TriggersPrefix = "sp";
             setup2.TriggersPrefix = "sp";
 
             Assert.Equal(setup1, setup2);
             Assert.True(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.TriggersSuffix = "sp";
             setup2.TriggersSuffix = "sp";
 
             Assert.Equal(setup1, setup2);
             Assert.True(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.TrackingTablesPrefix = "sp";
             setup2.TrackingTablesPrefix = "sp";
 
             Assert.Equal(setup1, setup2);
             Assert.True(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.TrackingTablesSuffix = "sp";
             setup2.TrackingTablesSuffix = "sp";
 
             Assert.Equal(setup1, setup2);
             Assert.True(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
 
             Assert.Equal(setup1, setup2);
             Assert.True(setup1.Equals(setup2));
@@ -156,96 +156,96 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public void SyncSetup_Compare_TwoSetup_Properties_ShouldBe_Different()
         {
-            var setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            var setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            var setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            var setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.StoredProceduresPrefix = "sp1";
             setup2.StoredProceduresPrefix = "sp";
 
             Assert.NotEqual(setup1, setup2);
             Assert.False(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.StoredProceduresPrefix = null;
             setup2.StoredProceduresPrefix = "sp";
 
             Assert.NotEqual(setup1, setup2);
             Assert.False(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.StoredProceduresSuffix = "sp1";
             setup2.StoredProceduresSuffix = "sp";
 
             Assert.NotEqual(setup1, setup2);
             Assert.False(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.StoredProceduresSuffix = null;
             setup2.StoredProceduresSuffix = "sp";
 
             Assert.NotEqual(setup1, setup2);
             Assert.False(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.TriggersPrefix = "sp1";
             setup2.TriggersPrefix = "sp";
 
             Assert.NotEqual(setup1, setup2);
             Assert.False(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.TriggersPrefix = "sp1";
             setup2.TriggersPrefix = null;
 
             Assert.NotEqual(setup1, setup2);
             Assert.False(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.TriggersSuffix = "sp1";
             setup2.TriggersSuffix = "sp";
 
             Assert.NotEqual(setup1, setup2);
             Assert.False(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.TriggersSuffix = "sp1";
             setup2.TriggersSuffix = null;
 
             Assert.NotEqual(setup1, setup2);
             Assert.False(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.TrackingTablesPrefix = "sp1";
             setup2.TrackingTablesPrefix = "sp";
 
             Assert.NotEqual(setup1, setup2);
             Assert.False(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.TrackingTablesPrefix = null;
             setup2.TrackingTablesPrefix = "sp";
 
             Assert.NotEqual(setup1, setup2);
             Assert.False(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.TrackingTablesSuffix = "sp1";
             setup2.TrackingTablesSuffix = "sp";
 
             Assert.NotEqual(setup1, setup2);
             Assert.False(setup1.Equals(setup2));
 
-            setup1 = new SyncSetup(new string[] { "Employee", "ProductCategory", "Product" });
-            setup2 = new SyncSetup(new string[] { "Product", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Employee", "ProductCategory", "Product");
+            setup2 = new SyncSetup("Product", "ProductCategory", "Employee");
             setup1.TrackingTablesSuffix = null;
             setup2.TrackingTablesSuffix = "sp";
 
@@ -257,8 +257,8 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public void SyncSetup_Compare_TwoSetup_With_Filters_ShouldBe_Equals()
         {
-            SyncSetup setup1 = new SyncSetup(new string[] { "Customer", "Product", "ProductCategory", "Employee" });
-            SyncSetup setup2 = new SyncSetup(new string[] { "Customer", "Product", "ProductCategory", "Employee" });
+            SyncSetup setup1 = new SyncSetup("Customer", "Product", "ProductCategory", "Employee");
+            SyncSetup setup2 = new SyncSetup("Customer", "Product", "ProductCategory", "Employee");
 
             setup1.Filters.Add("Customer", "CompanyName");
 
@@ -328,19 +328,19 @@ namespace Dotmim.Sync.Tests.UnitTests
         public void SyncSetup_Compare_TwoSetup_With_Filters_ShouldBe_Different()
         {
             // Check Setup shoul be differents when tables names count is not same
-            SyncSetup setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory" });
-            SyncSetup setup2 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
+            SyncSetup setup1 = new SyncSetup("Customer", "Address", "ProductCategory");
+            SyncSetup setup2 = new SyncSetup("Customer", "Address", "ProductCategory", "Employee");
             Assert.False(setup1.EqualsByProperties(setup2));
 
             // Check Setup should be differents when tables names are differents
-            setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee1" });
-            setup2 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee2" });
+            setup1 = new SyncSetup("Customer", "Address", "ProductCategory", "Employee1");
+            setup2 = new SyncSetup("Customer", "Address", "ProductCategory", "Employee2");
             Assert.False(setup1.EqualsByProperties(setup2));
 
 
             // Check when Setup Filter names are differente (Customer1 and Customer2)
-            setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
-            setup2 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Customer", "Address", "ProductCategory", "Employee");
+            setup2 = new SyncSetup("Customer", "Address", "ProductCategory", "Employee");
 
             setup1.Filters.Add("Customer1", "CompanyName");
 
@@ -363,8 +363,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.False(setup1.EqualsByProperties(setup2));
 
             // 2) Check when Setup Filter names are differente (Address1 and Address2)
-            setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
-            setup2 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Customer", "Address", "ProductCategory", "Employee");
+            setup2 = new SyncSetup("Customer", "Address", "ProductCategory", "Employee");
 
             setup1.Filters.Add("Customer", "CompanyName");
 
@@ -387,8 +387,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.False(setup1.EqualsByProperties(setup2));
 
             // 3) Check when Setup Parameter names are differente (CompanyName1 and CompanyName2)
-            setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
-            setup2 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Customer", "Address", "ProductCategory", "Employee");
+            setup2 = new SyncSetup("Customer", "Address", "ProductCategory", "Employee");
 
             setup1.Filters.Add("Customer", "CompanyName");
 
@@ -411,8 +411,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.False(setup1.EqualsByProperties(setup2));
 
             // 4) Check when Setup Joins names are differente (CustomerAddress1 and CustomerAddress2)
-            setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
-            setup2 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Customer", "Address", "ProductCategory", "Employee");
+            setup2 = new SyncSetup("Customer", "Address", "ProductCategory", "Employee");
 
             setup1.Filters.Add("Customer", "CompanyName");
 
@@ -435,8 +435,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.False(setup1.EqualsByProperties(setup2));
 
             // 5) Check when Setup Where names are differente (CompanyName1 and CompanyName2)
-            setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
-            setup2 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Customer", "Address", "ProductCategory", "Employee");
+            setup2 = new SyncSetup("Customer", "Address", "ProductCategory", "Employee");
 
             setup1.Filters.Add("Customer", "CompanyName");
 
@@ -459,8 +459,8 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.False(setup1.EqualsByProperties(setup2));
 
             // 6) Check CustomWhere differences
-            setup1 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
-            setup2 = new SyncSetup(new string[] { "Customer", "Address", "ProductCategory", "Employee" });
+            setup1 = new SyncSetup("Customer", "Address", "ProductCategory", "Employee");
+            setup2 = new SyncSetup("Customer", "Address", "ProductCategory", "Employee");
 
             setup1.Filters.Add("Customer", "CompanyName");
 

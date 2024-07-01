@@ -31,7 +31,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             clientProvider = HelperDatabase.GetSyncProvider(clientProviderType, dbName, clientProvider.UseFallbackSchema());
 
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
 
             var table = new SyncTable("Product", "SalesLT");
             var colID = new SyncColumn("ID", typeof(Guid));
@@ -88,7 +88,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         public async Task Table_Exists()
         {
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
-            var setup = new SyncSetup(new string[] { "SalesLT.Product", "SalesLT.ProductCategory" });
+            var setup = new SyncSetup("SalesLT.Product", "SalesLT.ProductCategory");
 
             var table = new SyncTable("Product", "SalesLT");
             var colID = new SyncColumn("ID", typeof(Guid));
@@ -126,7 +126,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             clientProvider = HelperDatabase.GetSyncProvider(clientProviderType, dbName, clientProvider.UseFallbackSchema());
 
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
 
             // Overwrite existing table with this new one
             var table = new SyncTable("Product", "SalesLT");
@@ -193,7 +193,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts" });
+            var setup = new SyncSetup("SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts");
 
             var serverScope = await remoteOrchestrator.GetScopeInfoAsync(setup);
 

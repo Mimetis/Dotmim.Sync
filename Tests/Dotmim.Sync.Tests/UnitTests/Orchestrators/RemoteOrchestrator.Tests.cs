@@ -190,7 +190,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         {
             var tables = new string[] { "Customer", "Address", "CustomerAddress" };
             var setup = new SyncSetup(tables);
-            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "FirstName", "LastName", "CompanyName" });
+            setup.Tables["Customer"].Columns.AddRange("CustomerID", "FirstName", "LastName", "CompanyName");
 
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
@@ -207,7 +207,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         {
             var tables = new string[] { "Customer", "Address", "CustomerAddress" };
             var setup = new SyncSetup(tables);
-            setup.Tables["Customer"].Columns.AddRange(new string[] { "FirstName", "LastName", "CompanyName" });
+            setup.Tables["Customer"].Columns.AddRange("FirstName", "LastName", "CompanyName");
 
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
@@ -225,7 +225,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         {
             var tables = new string[] { "Customer", "Address", "CustomerAddress" };
             var setup = new SyncSetup(tables);
-            setup.Tables["Customer"].Columns.AddRange(new string[] { "FirstName", "LastName", "CompanyName", "BADCOLUMN" });
+            setup.Tables["Customer"].Columns.AddRange("FirstName", "LastName", "CompanyName", "BADCOLUMN");
 
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
@@ -260,7 +260,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         public async Task RemoteOrchestrator_Provision_SchemaCreated_If_SetupHasTables()
         {
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
             var scopeName = "scope";
 
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
@@ -280,7 +280,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         {
             var scopeName = "scope";
 
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 StoredProceduresPrefix = "s",
                 StoredProceduresSuffix = "proc"
@@ -320,7 +320,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         [Fact]
         public async Task RemoteOrchestrator_Provision_ShouldCreate_StoredProcedures_WithDefaultScopeName()
         {
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 StoredProceduresPrefix = "s",
                 StoredProceduresSuffix = "proc"
@@ -364,7 +364,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeName = "scope";
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
 
             var schema = new SyncSet();
             var table = new SyncTable("Product", "SalesLT");
@@ -399,7 +399,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         public async Task RemoteOrchestrator_Provision_ShouldFails_If_SetupTable_DoesNotExist()
         {
             var scopeName = "scope";
-            var setup = new SyncSetup(new string[] { "SalesLT.badTable" });
+            var setup = new SyncSetup("SalesLT.badTable");
 
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 

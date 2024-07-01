@@ -26,7 +26,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 TrackingTablesPrefix = "t_",
                 TrackingTablesSuffix = "_t"
@@ -71,7 +71,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         {
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.Product", "SalesLT.ProductCategory" });
+            var setup = new SyncSetup("SalesLT.Product", "SalesLT.ProductCategory");
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
 
@@ -94,8 +94,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
             
-            var setup = new SyncSetup(new string[]
-            { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts" })
+            var setup = new SyncSetup("SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts")
             {
                 TrackingTablesPrefix = "t_",
                 TrackingTablesSuffix = "_t"
@@ -152,7 +151,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
 
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
 
@@ -197,7 +196,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
 
@@ -242,7 +241,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts" });
+            var setup = new SyncSetup("SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts");
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
 
