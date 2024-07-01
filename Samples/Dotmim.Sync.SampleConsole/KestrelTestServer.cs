@@ -15,17 +15,17 @@ namespace Dotmim.Sync.SampleConsole
     public delegate Task ResponseDelegate(string serviceUri);
 
     /// <summary>
-    /// This is a test server for Kestrell
+    /// This is a test server for Kestrel
     /// Actually we can use Microsoft.AspNetCore.TestHost
     /// But I can't manage to find a way to perform through Fiddler
     /// </summary>
-    public class KestrellTestServer : IDisposable
+    public class KestrelTestServer : IDisposable
     {
         IWebHostBuilder builder;
         IWebHost host;
         bool useFiddler;
 
-        public KestrellTestServer(Action<IServiceCollection> configureServices = null, bool useFidller = false)
+        public KestrelTestServer(Action<IServiceCollection> configureServices = null, bool useFidller = false)
         {
             var hostBuilder = new WebHostBuilder()
                 .UseKestrel()

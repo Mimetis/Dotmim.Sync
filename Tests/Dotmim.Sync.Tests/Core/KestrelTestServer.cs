@@ -21,28 +21,28 @@ namespace Dotmim.Sync.Tests
     public delegate Task ResponseDelegate(string serviceUri);
 
     /// <summary>
-    /// This is a test server for Kestrell
+    /// This is a test server for Kestrel
     /// Actually we can use Microsoft.AspNetCore.TestHost
     /// But I can't manage to find a way to perform through Fiddler
     /// </summary>
-    public class KestrellTestServer : IDisposable
+    public class KestrelTestServer : IDisposable
     {
         IWebHostBuilder builder;
         private bool useFiddler;
         IWebHost host;
 
         /// <summary>
-        /// Gets or sets a value indicating whether to simulate authorization errors in the Kestrell instance.
+        /// Gets or sets a value indicating whether to simulate authorization errors in the Kestrel instance.
         /// </summary>
         /// <remarks>
-        /// When set to true, this property instructs the Kestrell instance to simulate authorization errors.
+        /// When set to true, this property instructs the Kestrel instance to simulate authorization errors.
         /// This is useful for testing scenarios where authorization failures need to be reproduced without
         /// actually invoking external authorization mechanisms. When set to false, no simulation of authorization
         /// errors occurs, allowing normal execution without error simulation.
         /// </remarks>
         public bool IsAuthorisationEnabled { get; set; }
 
-        public KestrellTestServer(bool useFidller = false)
+        public KestrelTestServer(bool useFidller = false)
         {
             initBuilder();
             this.useFiddler = useFidller;

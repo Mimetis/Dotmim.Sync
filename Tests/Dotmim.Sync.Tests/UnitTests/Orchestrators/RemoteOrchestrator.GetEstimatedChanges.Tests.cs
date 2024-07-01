@@ -139,12 +139,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             var rowsCount = serverProvider.GetDatabaseFilteredRowsCount();
             var parameters = GetFilterParameters();
 
-            // Create a kestrell server
-            var kestrell = new KestrellTestServer(false);
+            // Create a kestrel server
+            var kestrel = new KestrelTestServer(false);
 
             // configure server orchestrator
-            kestrell.AddSyncServer(serverProvider, setup, options, null, scopeName);
-            var serviceUri = kestrell.Run();
+            kestrel.AddSyncServer(serverProvider, setup, options, null, scopeName);
+            var serviceUri = kestrel.Run();
 
 
             var remoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
@@ -187,12 +187,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             var rowsCount = serverProvider.GetDatabaseFilteredRowsCount();
             var parameters = GetFilterParameters();
 
-            // Create a kestrell server
-            var kestrell = new KestrellTestServer(false);
+            // Create a kestrel server
+            var kestrel = new KestrelTestServer(false);
 
             // configure server orchestrator
-            kestrell.AddSyncServer(serverProvider, setup, options, null, scopeName);
-            var serviceUri = kestrell.Run();
+            kestrel.AddSyncServer(serverProvider, setup, options, null, scopeName);
+            var serviceUri = kestrel.Run();
 
             var remoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
 

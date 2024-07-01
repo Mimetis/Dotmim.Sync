@@ -73,9 +73,9 @@ internal class Program
         //options.SnapshotsDirectory = Path.Combine("C:\\Tmp\\Snapshots");
 
 
-        //await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
+        //await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
 
-        await SyncHttpThroughKestrellAsync(clientProvider, serverProvider, setup, options);
+        await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
 
         //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
         // await SyncWithReinitialiazeWithChangeTrackingAsync();
@@ -233,7 +233,7 @@ internal class Program
         } while (Console.ReadKey().Key != ConsoleKey.Escape);
 
     }
-    public static async Task SyncHttpThroughKestrellAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
+    public static async Task SyncHttpThroughKestrelAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options)
     {
 
         options.ErrorResolutionPolicy = ErrorResolution.ContinueOnError;
@@ -279,7 +279,7 @@ internal class Program
 
         });
 
-        using var server = new KestrellTestServer(configureServices, false);
+        using var server = new KestrelTestServer(configureServices, false);
 
         var clientHandler = new ResponseDelegate(async (serviceUri) =>
         {
