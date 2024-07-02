@@ -121,35 +121,37 @@ namespace Dotmim.Sync
                 return (context, null);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                List<ScopeInfo> clientScopeInfos;
-                (context, clientScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (clientScopeInfos == null || clientScopeInfos.Count == 0)
-                    return (context, new DatabaseMetadatasCleaned());
-
-                DatabaseMetadatasCleaned databaseMetadatasCleaned;
-                (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(clientScopeInfos, context, timeStampStart.Value, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                // save last cleanup timestamp
-                foreach (var clientScopeInfo in clientScopeInfos)
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
                 {
-                    clientScopeInfo.LastCleanupTimestamp = databaseMetadatasCleaned.TimestampLimit;
+                    bool exists;
+                    (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                    await this.InternalSaveScopeInfoAsync(clientScopeInfo, context,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    if (!exists)
+                        await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    List<ScopeInfo> clientScopeInfos;
+                    (context, clientScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    if (clientScopeInfos == null || clientScopeInfos.Count == 0)
+                        return (context, new DatabaseMetadatasCleaned());
+
+                    DatabaseMetadatasCleaned databaseMetadatasCleaned;
+                    (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(clientScopeInfos, context, timeStampStart.Value, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                    // save last cleanup timestamp
+                    foreach (var clientScopeInfo in clientScopeInfos)
+                    {
+                        clientScopeInfo.LastCleanupTimestamp = databaseMetadatasCleaned.TimestampLimit;
+
+                        await this.InternalSaveScopeInfoAsync(clientScopeInfo, context,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    }
+
+                    await runner.CommitAsync().ConfigureAwait(false);
+
+                    return (context, databaseMetadatasCleaned);
                 }
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return (context, databaseMetadatasCleaned);
             }
             catch (Exception ex)
             {

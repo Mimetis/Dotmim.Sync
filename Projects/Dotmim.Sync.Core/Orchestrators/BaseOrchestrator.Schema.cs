@@ -36,13 +36,15 @@ namespace Dotmim.Sync
                 if (setup == null || setup.Tables.Count <= 0)
                     return null;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    SyncSet schema;
+                    (context, schema) = await this.InternalGetSchemaAsync(context, setup,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                SyncSet schema;
-                (context, schema) = await this.InternalGetSchemaAsync(context, setup,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                return schema;
+                    return schema;
+                }
             }
             catch (Exception ex)
             {
@@ -72,13 +74,15 @@ namespace Dotmim.Sync
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    SyncSetup setup;
+                    (context, setup) = await this.InternalGetAllTablesAsync(context,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                SyncSetup setup;
-                (context, setup) = await this.InternalGetAllTablesAsync(context,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                return setup;
+                    return setup;
+                }
             }
             catch (Exception ex)
             {
@@ -96,42 +100,44 @@ namespace Dotmim.Sync
                 if (setup == null || setup.Tables.Count <= 0)
                     throw new MissingTablesException();
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                await this.InterceptAsync(new SchemaLoadingArgs(context, setup, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-
-                // Create the schema
-                var schema = new SyncSet();
-
-                // copy filters from setup
-                foreach (var filter in setup.Filters)
-                    schema.Filters.Add(filter);
-
-                var relations = new List<DbRelationDefinition>(20);
-
-                foreach (var setupTable in setup.Tables)
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
                 {
-                    var (syncTable, tableRelations) = await InternalGetTableSchemaAsync(context, setupTable, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+                    await this.InterceptAsync(new SchemaLoadingArgs(context, setup, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                    // Add this table to schema
-                    schema.Tables.Add(syncTable);
+                    // Create the schema
+                    var schema = new SyncSet();
 
-                    // Since we are not sure of the order of reading tables
-                    // create a tmp relations list
-                    relations.AddRange(tableRelations);
+                    // copy filters from setup
+                    foreach (var filter in setup.Filters)
+                        schema.Filters.Add(filter);
 
+                    var relations = new List<DbRelationDefinition>(20);
+
+                    foreach (var setupTable in setup.Tables)
+                    {
+                        var (syncTable, tableRelations) = await InternalGetTableSchemaAsync(context, setupTable, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+
+                        // Add this table to schema
+                        schema.Tables.Add(syncTable);
+
+                        // Since we are not sure of the order of reading tables
+                        // create a tmp relations list
+                        relations.AddRange(tableRelations);
+
+                    }
+
+                    // Parse and affect relations to schema
+                    SetRelations(context, relations, schema);
+
+                    // Ensure all objects have correct relations to schema
+                    schema.EnsureSchema();
+
+                    var schemaArgs = new SchemaLoadedArgs(context, schema, runner.Connection);
+                    await this.InterceptAsync(schemaArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+
+                    return (context, schema);
                 }
-
-                // Parse and affect relations to schema
-                SetRelations(context, relations, schema);
-
-                // Ensure all objects have correct relations to schema
-                schema.EnsureSchema();
-
-                var schemaArgs = new SchemaLoadedArgs(context, schema, runner.Connection);
-                await this.InterceptAsync(schemaArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-
-                return (context, schema);
             }
             catch (Exception exception)
             {
@@ -149,13 +155,15 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    var dbBuilder = this.Provider.GetDatabaseBuilder();
 
-                var dbBuilder = this.Provider.GetDatabaseBuilder();
+                    var setup = await dbBuilder.GetAllTablesAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-                var setup = await dbBuilder.GetAllTablesAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
-
-                return (context, setup);
+                    return (context, setup);
+                }
             }
             catch (Exception ex)
             {

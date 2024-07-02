@@ -40,41 +40,44 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction).ConfigureAwait(false);
-                bool hasBeenCreated = false;
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    bool hasBeenCreated = false;
 
-                // Get table builder
-                var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    // Get table builder
+                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
-                bool schemaExists;
-                (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (!schemaExists)
-                    (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
+                    bool schemaExists;
+                    (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                bool exists;
-                (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                // should create only if not exists OR if overwrite has been set
-                var shouldCreate = !exists || overwrite;
-
-                if (shouldCreate)
-                {
-                    // Drop if already exists and we need to overwrite
-                    if (exists && overwrite)
-                        (context, _) = await InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder,
+                    if (!schemaExists)
+                        (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                    (context, hasBeenCreated) = await InternalCreateTrackingTableAsync(scopeInfo, context, tableBuilder,
+                    bool exists;
+                    (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    // should create only if not exists OR if overwrite has been set
+                    var shouldCreate = !exists || overwrite;
+
+                    if (shouldCreate)
+                    {
+                        // Drop if already exists and we need to overwrite
+                        if (exists && overwrite)
+                            (context, _) = await InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder,
+                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                        (context, hasBeenCreated) = await InternalCreateTrackingTableAsync(scopeInfo, context, tableBuilder,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    }
+
+                    await runner.CommitAsync().ConfigureAwait(false);
+
+                    return hasBeenCreated;
                 }
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return hasBeenCreated;
             }
             catch (Exception ex)
             {
@@ -119,16 +122,19 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
 
-                // Get table builder
-                var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    // Get table builder
+                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
-                bool exists;
-                (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    bool exists;
+                    (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                return exists;
+                    return exists;
+                }
             }
             catch (Exception ex)
             {
@@ -164,47 +170,50 @@ namespace Dotmim.Sync
                 if (scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction).ConfigureAwait(false);
-                var atLeastOneHasBeenCreated = false;
-
-                foreach (var schemaTable in scopeInfo.Schema.Tables)
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
                 {
-                    // Get table builder
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var atLeastOneHasBeenCreated = false;
 
-                    bool schemaExists;
-                    (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    foreach (var schemaTable in scopeInfo.Schema.Tables)
+                    {
+                        // Get table builder
+                        var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
-                    if (!schemaExists)
-                        (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
+                        bool schemaExists;
+                        (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                    bool exists;
-                    (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                    // should create only if not exists OR if overwrite has been set
-                    var shouldCreate = !exists || overwrite;
-
-                    if (shouldCreate)
-                    {
-                        // Drop if already exists and we need to overwrite
-                        if (exists && overwrite)
-                            (context, _) = await InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder,
+                        if (!schemaExists)
+                            (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
                                 runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                        bool hasBeenCreated;
-                        (context, hasBeenCreated) = await InternalCreateTrackingTableAsync(scopeInfo, context, tableBuilder,
+                        bool exists;
+                        (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                        if (hasBeenCreated)
-                            atLeastOneHasBeenCreated = true;
-                    }
-                }
-                await runner.CommitAsync().ConfigureAwait(false);
+                        // should create only if not exists OR if overwrite has been set
+                        var shouldCreate = !exists || overwrite;
 
-                return atLeastOneHasBeenCreated;
+                        if (shouldCreate)
+                        {
+                            // Drop if already exists and we need to overwrite
+                            if (exists && overwrite)
+                                (context, _) = await InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder,
+                                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                            bool hasBeenCreated;
+                            (context, hasBeenCreated) = await InternalCreateTrackingTableAsync(scopeInfo, context, tableBuilder,
+                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                            if (hasBeenCreated)
+                                atLeastOneHasBeenCreated = true;
+                        }
+                    }
+                    await runner.CommitAsync().ConfigureAwait(false);
+
+                    return atLeastOneHasBeenCreated;
+                }
             }
             catch (Exception ex)
             {
@@ -235,20 +244,23 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
-                bool hasBeenDropped = false;
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    bool hasBeenDropped = false;
 
-                var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
-                bool exists;
-                (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (exists)
-                    (context, hasBeenDropped) = await InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder,
+                    bool exists;
+                    (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                return hasBeenDropped;
+                    if (exists)
+                        (context, hasBeenDropped) = await InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    return hasBeenDropped;
+                }
             }
             catch (Exception ex)
             {
@@ -283,26 +295,29 @@ namespace Dotmim.Sync
                 if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
-                bool atLeastOneTrackingTableHasBeenDropped = false;
-
-                foreach (var schemaTable in scopeInfo.Schema.Tables.Reverse())
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
                 {
-                    // Get table builder
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    bool atLeastOneTrackingTableHasBeenDropped = false;
 
-                    bool exists;
-                    (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    foreach (var schemaTable in scopeInfo.Schema.Tables.Reverse())
+                    {
+                        // Get table builder
+                        var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
-                    if (exists)
-                        (context, atLeastOneTrackingTableHasBeenDropped) = await InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder,
+                        bool exists;
+                        (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                        if (exists)
+                            (context, atLeastOneTrackingTableHasBeenDropped) = await InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder,
+                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    }
+
+                    await runner.CommitAsync().ConfigureAwait(false);
+
+                    return atLeastOneTrackingTableHasBeenDropped;
                 }
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return atLeastOneTrackingTableHasBeenDropped;
             }
             catch (Exception ex)
             {
@@ -322,36 +337,38 @@ namespace Dotmim.Sync
                 if (Provider == null)
                     throw new MissingProviderException(nameof(InternalCreateTrackingTableAsync));
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    if (tableBuilder.TableDescription.Columns.Count <= 0)
+                        throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
 
-                if (tableBuilder.TableDescription.Columns.Count <= 0)
-                    throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
+                    if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
+                        throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
 
-                if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
-                    throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
+                    using var command = await tableBuilder.GetCreateTrackingTableCommandAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-                using var command = await tableBuilder.GetCreateTrackingTableCommandAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
+                    if (command == null)
+                        return (context, false);
 
-                if (command == null)
-                    return (context, false);
+                    var (_, trackingTableName) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
 
-                var (_, trackingTableName) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
+                    var action = await this.InterceptAsync(new TrackingTableCreatingArgs(context, tableBuilder.TableDescription, trackingTableName, command, runner.Connection, runner.Transaction),
+                        runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                var action = await this.InterceptAsync(new TrackingTableCreatingArgs(context, tableBuilder.TableDescription, trackingTableName, command, runner.Connection, runner.Transaction),
-                    runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    if (action.Cancel || action.Command == null)
+                        return (context, false);
 
-                if (action.Cancel || action.Command == null)
-                    return (context, false);
+                    await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-                await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    await this.InterceptAsync(new TrackingTableCreatedArgs(context, tableBuilder.TableDescription, trackingTableName, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                await this.InterceptAsync(new TrackingTableCreatedArgs(context, tableBuilder.TableDescription, trackingTableName, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    action.Command.Dispose();
 
-                action.Command.Dispose();
-
-                return (context, true);
+                    return (context, true);
+                }
             }
             catch (Exception ex)
             {
@@ -373,37 +390,39 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    if (tableBuilder.TableDescription.Columns.Count <= 0)
+                        throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
 
-                if (tableBuilder.TableDescription.Columns.Count <= 0)
-                    throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
+                    if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
+                        throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
 
-                if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
-                    throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
+                    using var command = await tableBuilder.GetRenameTrackingTableCommandAsync(oldTrackingTableName, runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-                using var command = await tableBuilder.GetRenameTrackingTableCommandAsync(oldTrackingTableName, runner.Connection, runner.Transaction).ConfigureAwait(false);
+                    if (command == null)
+                        return (context, false);
 
-                if (command == null)
-                    return (context, false);
-
-                var (_, trackingTableName) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
+                    var (_, trackingTableName) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
 
 
-                var action = await this.InterceptAsync(new TrackingTableRenamingArgs(context, tableBuilder.TableDescription, trackingTableName, oldTrackingTableName, command, runner.Connection, runner.Transaction),
-                    runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    var action = await this.InterceptAsync(new TrackingTableRenamingArgs(context, tableBuilder.TableDescription, trackingTableName, oldTrackingTableName, command, runner.Connection, runner.Transaction),
+                        runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                if (action.Cancel || action.Command == null)
-                    return (context, false);
+                    if (action.Cancel || action.Command == null)
+                        return (context, false);
 
-                await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-                await this.InterceptAsync(new TrackingTableRenamedArgs(context, tableBuilder.TableDescription, trackingTableName, oldTrackingTableName, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new TrackingTableRenamedArgs(context, tableBuilder.TableDescription, trackingTableName, oldTrackingTableName, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                action.Command.Dispose();
+                    action.Command.Dispose();
 
-                return (context, true);
+                    return (context, true);
+                }
             }
             catch (Exception ex)
             {
@@ -425,28 +444,30 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    using var command = await tableBuilder.GetDropTrackingTableCommandAsync(connection, transaction).ConfigureAwait(false);
 
-                using var command = await tableBuilder.GetDropTrackingTableCommandAsync(connection, transaction).ConfigureAwait(false);
+                    if (command == null)
+                        return (context, false);
 
-                if (command == null)
-                    return (context, false);
+                    var (_, trackingTableName) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
 
-                var (_, trackingTableName) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
+                    var action = await this.InterceptAsync(new TrackingTableDroppingArgs(context, tableBuilder.TableDescription, trackingTableName, command, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                var action = await this.InterceptAsync(new TrackingTableDroppingArgs(context, tableBuilder.TableDescription, trackingTableName, command, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
+                    if (action.Cancel || action.Command == null)
+                        return (context, false);
 
-                if (action.Cancel || action.Command == null)
-                    return (context, false);
+                    await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
+                    await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    await this.InterceptAsync(new TrackingTableDroppedArgs(context, tableBuilder.TableDescription, trackingTableName, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                await this.InterceptAsync(new TrackingTableDroppedArgs(context, tableBuilder.TableDescription, trackingTableName, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
+                    action.Command.Dispose();
 
-                action.Command.Dispose();
-
-                return (context, true);
+                    return (context, true);
+                }
             }
             catch (Exception ex)
             {
@@ -466,19 +487,21 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                // Get exists command
-                using var existsCommand = await tableBuilder.GetExistsTrackingTableCommandAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {// Get exists command
+                    using var existsCommand = await tableBuilder.GetExistsTrackingTableCommandAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-                if (existsCommand == null)
-                    return (context, false);
+                    if (existsCommand == null)
+                        return (context, false);
 
-                await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
-                var exists = Convert.ToInt32(existsResultObject) > 0;
-                await runner.CommitAsync().ConfigureAwait(false);
-                return (context, exists);
+                    var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
+                    var exists = Convert.ToInt32(existsResultObject) > 0;
+                    await runner.CommitAsync().ConfigureAwait(false);
+                    return (context, exists);
+                }
             }
             catch (Exception ex)
             {

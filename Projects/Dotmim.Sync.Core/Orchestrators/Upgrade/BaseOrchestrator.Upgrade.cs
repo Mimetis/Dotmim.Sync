@@ -13,75 +13,78 @@ namespace Dotmim.Sync
         internal async Task<bool> IsScopeInfoSchemaValidAsync(SyncContext context, DbConnection connection = default, DbTransaction transaction = default,
                         CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating,
+            using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating,
                 connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await using (runner.ConfigureAwait(false))
+            {
+                var scopeInfoTableName = this.Provider.GetParsers(new SyncTable(this.Options.ScopeInfoTableName), new SyncSetup()).tableName;
+                var tableName = scopeInfoTableName.Unquoted().Normalized().ToString();
+                var tableBuilder = this.GetTableBuilder(new SyncTable(tableName), new ScopeInfo { Setup = new SyncSetup() });
 
-            var scopeInfoTableName = this.Provider.GetParsers(new SyncTable(this.Options.ScopeInfoTableName), new SyncSetup()).tableName;
-            var tableName = scopeInfoTableName.Unquoted().Normalized().ToString();
-            var tableBuilder = this.GetTableBuilder(new SyncTable(tableName), new ScopeInfo { Setup = new SyncSetup() });
+                // check columns
+                var columns = (await tableBuilder.GetColumnsAsync(runner.Connection, runner.Transaction).ConfigureAwait(false)).ToList();
 
-            // check columns
-            var columns = (await tableBuilder.GetColumnsAsync(runner.Connection, runner.Transaction).ConfigureAwait(false)).ToList();
+                if (columns.Count != 6)
+                    return false;
 
-            if (columns.Count != 6)
-                return false;
+                if (columns[0].ColumnName != "sync_scope_name")
+                    return false;
+                if (columns[1].ColumnName != "sync_scope_schema")
+                    return false;
+                if (columns[2].ColumnName != "sync_scope_setup")
+                    return false;
+                if (columns[3].ColumnName != "sync_scope_version")
+                    return false;
+                if (columns[4].ColumnName != "sync_scope_last_clean_timestamp")
+                    return false;
+                if (columns[5].ColumnName != "sync_scope_properties")
+                    return false;
 
-            if (columns[0].ColumnName != "sync_scope_name")
-                return false;
-            if (columns[1].ColumnName != "sync_scope_schema")
-                return false;
-            if (columns[2].ColumnName != "sync_scope_setup")
-                return false;
-            if (columns[3].ColumnName != "sync_scope_version")
-                return false;
-            if (columns[4].ColumnName != "sync_scope_last_clean_timestamp")
-                return false;
-            if (columns[5].ColumnName != "sync_scope_properties")
-                return false;
-
-            return true;
+                return true;
+            }
         }
-
         internal async Task<bool> IsScopeInfoClientSchemaValidAsync(SyncContext context, DbConnection connection = default, DbTransaction transaction = default,
                 CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating,
-                connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating,
+            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
-            var scopeInfoTableName = this.Provider.GetParsers(new SyncTable(this.Options.ScopeInfoTableName), new SyncSetup()).tableName;
-            var tableName = $"{scopeInfoTableName.Unquoted().Normalized()}_client";
-            var tableBuilder = this.GetTableBuilder(new SyncTable(tableName), new ScopeInfo { Setup = new SyncSetup() });
+            await using (runner.ConfigureAwait(false))
+            {
+                var scopeInfoTableName = this.Provider.GetParsers(new SyncTable(this.Options.ScopeInfoTableName), new SyncSetup()).tableName;
+                var tableName = $"{scopeInfoTableName.Unquoted().Normalized()}_client";
+                var tableBuilder = this.GetTableBuilder(new SyncTable(tableName), new ScopeInfo { Setup = new SyncSetup() });
 
-            // check columns
-            var columns = (await tableBuilder.GetColumnsAsync(runner.Connection, runner.Transaction).ConfigureAwait(false)).ToList();
+                // check columns
+                var columns = (await tableBuilder.GetColumnsAsync(runner.Connection, runner.Transaction).ConfigureAwait(false)).ToList();
 
-            if (columns.Count != 10)
-                return false;
+                if (columns.Count != 10)
+                    return false;
 
-            if (columns[0].ColumnName != "sync_scope_id")
-                return false;
-            if (columns[1].ColumnName != "sync_scope_name")
-                return false;
-            if (columns[2].ColumnName != "sync_scope_hash")
-                return false;
-            if (columns[3].ColumnName != "sync_scope_parameters")
-                return false;
-            if (columns[4].ColumnName != "scope_last_sync_timestamp")
-                return false;
-            if (columns[5].ColumnName != "scope_last_server_sync_timestamp")
-                return false;
-            if (columns[6].ColumnName != "scope_last_sync_duration")
-                return false;
-            if (columns[7].ColumnName != "scope_last_sync")
-                return false;
-            if (columns[8].ColumnName != "sync_scope_errors")
-                return false;
-            if (columns[9].ColumnName != "sync_scope_properties")
-                return false;
+                if (columns[0].ColumnName != "sync_scope_id")
+                    return false;
+                if (columns[1].ColumnName != "sync_scope_name")
+                    return false;
+                if (columns[2].ColumnName != "sync_scope_hash")
+                    return false;
+                if (columns[3].ColumnName != "sync_scope_parameters")
+                    return false;
+                if (columns[4].ColumnName != "scope_last_sync_timestamp")
+                    return false;
+                if (columns[5].ColumnName != "scope_last_server_sync_timestamp")
+                    return false;
+                if (columns[6].ColumnName != "scope_last_sync_duration")
+                    return false;
+                if (columns[7].ColumnName != "scope_last_sync")
+                    return false;
+                if (columns[8].ColumnName != "sync_scope_errors")
+                    return false;
+                if (columns[9].ColumnName != "sync_scope_properties")
+                    return false;
 
-            return true;
+                return true;
+            }
         }
-
 
         internal virtual async Task<SyncTable> MigrateScopeInfoClientTableAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {

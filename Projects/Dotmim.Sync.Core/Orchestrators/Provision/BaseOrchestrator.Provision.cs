@@ -193,187 +193,189 @@ namespace Dotmim.Sync
 
                 context.SyncStage = SyncStage.Deprovisioning;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                await this.InterceptAsync(new DeprovisioningArgs(context, provision, scopeInfo?.Setup, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-
-                // get Database builder
-                var builder = this.Provider.GetDatabaseBuilder();
-
-                // Sorting tables based on dependencies between them
-                IEnumerable<SyncTable> schemaTables;
-                if (scopeInfo == null)
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
                 {
-                    schemaTables = new List<SyncTable>();
-                }
-                else
-                {
-                    if (scopeInfo.Schema != null)
+                    await this.InterceptAsync(new DeprovisioningArgs(context, provision, scopeInfo?.Setup, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+
+                    // get Database builder
+                    var builder = this.Provider.GetDatabaseBuilder();
+
+                    // Sorting tables based on dependencies between them
+                    IEnumerable<SyncTable> schemaTables;
+                    if (scopeInfo == null)
                     {
-                        schemaTables = scopeInfo.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable())).ToList();
+                        schemaTables = new List<SyncTable>();
                     }
                     else
                     {
-                        schemaTables = new List<SyncTable>();
-                        foreach (var setupTable in scopeInfo.Setup.Tables)
-                            ((List<SyncTable>)schemaTables).Add(new SyncTable(setupTable.TableName, setupTable.SchemaName));
-                    }
-                }
-
-                // Disable check constraints
-                if (this.Options.DisableConstraintsOnApplyChanges)
-                {
-                    foreach (var table in schemaTables.Reverse())
-                    {
-                        var exists = false;
-                        var tableBuilder = this.GetTableBuilder(table, scopeInfo);
-
-                        (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-                        if (exists)
-                            await this.InternalDisableConstraintsAsync(scopeInfo, context, table, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-                    }
-                }
-
-                // Checking if we have to deprovision tables
-                bool hasDeprovisionTableFlag = provision.HasFlag(SyncProvision.Table);
-
-                // Firstly, removing the flag from the provision, because we need to drop everything in correct order, then drop tables in reverse side
-                if (hasDeprovisionTableFlag)
-                    provision ^= SyncProvision.Table;
-
-                // Check if we have at least dropped something
-                var atLeastOneStoredProcedureHasBeenDropped = false;
-                var atLeastOneTriggerHasBeenDropped = false;
-                var atLeastOneTrackingTableBeenDropped = false;
-                var atLeastOneTableBeenDropped = false;
-                var atLeastScopeInfoTableBeenDropped = false;
-                var atLeastScopeInfoClientTableBeenDropped = false;
-
-                foreach (var schemaTable in schemaTables)
-                {
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
-
-                    await this.InterceptAsync(new DeprovisioningTableArgs(context, provision, schemaTable, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-                    var spDropped = false;
-                    var tgDropped = false;
-                    var ttDropped = false;
-
-                    if (provision.HasFlag(SyncProvision.StoredProcedures))
-                    {
-                        (context, spDropped) = await InternalDropStoredProceduresAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        // Removing cached commands
-                        this.RemoveCommands();
-
-                        if (spDropped && !atLeastOneStoredProcedureHasBeenDropped)
-                            atLeastOneStoredProcedureHasBeenDropped = true;
-                    }
-
-                    if (provision.HasFlag(SyncProvision.Triggers))
-                    {
-                        (context, tgDropped) = await InternalDropTriggersAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        if (tgDropped && !atLeastOneTriggerHasBeenDropped)
-                            atLeastOneTriggerHasBeenDropped = true;
-                    }
-
-                    if (provision.HasFlag(SyncProvision.TrackingTable))
-                    {
-                        bool exists;
-                        (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        if (exists)
+                        if (scopeInfo.Schema != null)
                         {
-                            (context, ttDropped) = await this.InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                            if (ttDropped && !atLeastOneTrackingTableBeenDropped)
-                                atLeastOneTrackingTableBeenDropped = true;
+                            schemaTables = scopeInfo.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable())).ToList();
+                        }
+                        else
+                        {
+                            schemaTables = new List<SyncTable>();
+                            foreach (var setupTable in scopeInfo.Setup.Tables)
+                                ((List<SyncTable>)schemaTables).Add(new SyncTable(setupTable.TableName, setupTable.SchemaName));
                         }
                     }
 
-                    var atLeastSomethingHasBeenDeprovisioned = spDropped || tgDropped || ttDropped;
+                    // Disable check constraints
+                    if (this.Options.DisableConstraintsOnApplyChanges)
+                    {
+                        foreach (var table in schemaTables.Reverse())
+                        {
+                            var exists = false;
+                            var tableBuilder = this.GetTableBuilder(table, scopeInfo);
 
-                    await this.InterceptAsync(new DeprovisionedTableArgs(context, provision, schemaTable, atLeastSomethingHasBeenDeprovisioned, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-                }
+                            (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            if (exists)
+                                await this.InternalDisableConstraintsAsync(scopeInfo, context, table, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        }
+                    }
 
-                // Eventually if we have the "Table" flag, then drop the table
-                if (hasDeprovisionTableFlag)
-                {
-                    foreach (var schemaTable in schemaTables.Reverse())
+                    // Checking if we have to deprovision tables
+                    bool hasDeprovisionTableFlag = provision.HasFlag(SyncProvision.Table);
+
+                    // Firstly, removing the flag from the provision, because we need to drop everything in correct order, then drop tables in reverse side
+                    if (hasDeprovisionTableFlag)
+                        provision ^= SyncProvision.Table;
+
+                    // Check if we have at least dropped something
+                    var atLeastOneStoredProcedureHasBeenDropped = false;
+                    var atLeastOneTriggerHasBeenDropped = false;
+                    var atLeastOneTrackingTableBeenDropped = false;
+                    var atLeastOneTableBeenDropped = false;
+                    var atLeastScopeInfoTableBeenDropped = false;
+                    var atLeastScopeInfoClientTableBeenDropped = false;
+
+                    foreach (var schemaTable in schemaTables)
                     {
                         var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+
+                        await this.InterceptAsync(new DeprovisioningTableArgs(context, provision, schemaTable, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+
+                        var spDropped = false;
+                        var tgDropped = false;
+                        var ttDropped = false;
+
+                        if (provision.HasFlag(SyncProvision.StoredProcedures))
+                        {
+                            (context, spDropped) = await InternalDropStoredProceduresAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                            // Removing cached commands
+                            this.RemoveCommands();
+
+                            if (spDropped && !atLeastOneStoredProcedureHasBeenDropped)
+                                atLeastOneStoredProcedureHasBeenDropped = true;
+                        }
+
+                        if (provision.HasFlag(SyncProvision.Triggers))
+                        {
+                            (context, tgDropped) = await InternalDropTriggersAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                            if (tgDropped && !atLeastOneTriggerHasBeenDropped)
+                                atLeastOneTriggerHasBeenDropped = true;
+                        }
+
+                        if (provision.HasFlag(SyncProvision.TrackingTable))
+                        {
+                            bool exists;
+                            (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                            if (exists)
+                            {
+                                (context, ttDropped) = await this.InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                                if (ttDropped && !atLeastOneTrackingTableBeenDropped)
+                                    atLeastOneTrackingTableBeenDropped = true;
+                            }
+                        }
+
+                        var atLeastSomethingHasBeenDeprovisioned = spDropped || tgDropped || ttDropped;
+
+                        await this.InterceptAsync(new DeprovisionedTableArgs(context, provision, schemaTable, atLeastSomethingHasBeenDeprovisioned, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                    }
+
+                    // Eventually if we have the "Table" flag, then drop the table
+                    if (hasDeprovisionTableFlag)
+                    {
+                        foreach (var schemaTable in schemaTables.Reverse())
+                        {
+                            var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                            bool exists;
+                            (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                            if (exists)
+                            {
+                                var tDropped = false;
+                                (context, tDropped) = await this.InternalDropTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                                if (tDropped && !atLeastOneTableBeenDropped)
+                                    atLeastOneTableBeenDropped = true;
+                            }
+                        }
+                    }
+
+                    if (provision.HasFlag(SyncProvision.ScopeInfo))
+                    {
                         bool exists;
-                        (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (exists)
                         {
-                            var tDropped = false;
-                            (context, tDropped) = await this.InternalDropTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                            var siDropped = false;
+                            (context, siDropped) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                            if (tDropped && !atLeastOneTableBeenDropped)
-                                atLeastOneTableBeenDropped = true;
+                            if (siDropped && !atLeastScopeInfoTableBeenDropped)
+                                atLeastScopeInfoTableBeenDropped = true;
                         }
                     }
-                }
 
-                if (provision.HasFlag(SyncProvision.ScopeInfo))
-                {
-                    bool exists;
-                    (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    if (exists)
+                    if (provision.HasFlag(SyncProvision.ScopeInfoClient))
                     {
-                        var siDropped = false;
-                        (context, siDropped) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        bool exists;
+                        (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
 
-                        if (siDropped && !atLeastScopeInfoTableBeenDropped)
-                            atLeastScopeInfoTableBeenDropped = true;
-                    }
-                }
-
-                if (provision.HasFlag(SyncProvision.ScopeInfoClient))
-                {
-                    bool exists;
-                    (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                    if (exists)
-                    {
-                        var sicDropped = false;
-                        (context, sicDropped) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                        if (sicDropped && !atLeastScopeInfoClientTableBeenDropped)
-                            atLeastScopeInfoClientTableBeenDropped = true;
-                    }
-                }
-
-
-                // Disable check constraints
-                if (this.Options.DisableConstraintsOnApplyChanges && !hasDeprovisionTableFlag)
-                {
-                    foreach (var table in schemaTables.Reverse())
-                    {
-                        var exists = false;
-                        var tableBuilder = this.GetTableBuilder(table, scopeInfo);
-
-                        (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                         if (exists)
-                            await this.InternalEnableConstraintsAsync(scopeInfo, context, table, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        {
+                            var sicDropped = false;
+                            (context, sicDropped) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+
+                            if (sicDropped && !atLeastScopeInfoClientTableBeenDropped)
+                                atLeastScopeInfoClientTableBeenDropped = true;
+                        }
                     }
+
+
+                    // Disable check constraints
+                    if (this.Options.DisableConstraintsOnApplyChanges && !hasDeprovisionTableFlag)
+                    {
+                        foreach (var table in schemaTables.Reverse())
+                        {
+                            var exists = false;
+                            var tableBuilder = this.GetTableBuilder(table, scopeInfo);
+
+                            (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            if (exists)
+                                await this.InternalEnableConstraintsAsync(scopeInfo, context, table, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        }
+                    }
+
+
+
+                    var atLeastSomethingHasBeenDropped = atLeastScopeInfoTableBeenDropped || atLeastScopeInfoClientTableBeenDropped || atLeastOneTableBeenDropped || atLeastOneTrackingTableBeenDropped
+                                                      || atLeastOneTriggerHasBeenDropped || atLeastOneStoredProcedureHasBeenDropped;
+
+                    var args = new DeprovisionedArgs(context, provision, scopeInfo?.Setup, atLeastSomethingHasBeenDropped, runner.Connection, runner.Transaction);
+                    await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
+
+                    await runner.CommitAsync().ConfigureAwait(false);
+
+
+                    return (context, true);
                 }
-
-
-
-                var atLeastSomethingHasBeenDropped = atLeastScopeInfoTableBeenDropped || atLeastScopeInfoClientTableBeenDropped || atLeastOneTableBeenDropped || atLeastOneTrackingTableBeenDropped
-                                                  || atLeastOneTriggerHasBeenDropped || atLeastOneStoredProcedureHasBeenDropped;
-
-                var args = new DeprovisionedArgs(context, provision, scopeInfo?.Setup, atLeastSomethingHasBeenDropped, runner.Connection, runner.Transaction);
-                await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-
-                return (context, true);
             }
             catch (Exception ex)
             {

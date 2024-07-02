@@ -161,6 +161,9 @@ namespace Dotmim.Sync
                 return default;
 
             DbCommand selectIncrementalChangesCommand = null;
+
+            var localSerializerModified = new LocalJsonSerializer(this, context);
+            var localSerializerDeleted = new LocalJsonSerializer(this, context);
             try
             {
                 var setupTable = scopeInfo.Setup.Tables[syncTable.TableName, syncTable.SchemaName];
@@ -195,8 +198,6 @@ namespace Dotmim.Sync
 
                 var schemaChangesTable = CreateChangesTable(syncTable);
 
-                var localSerializerModified = new LocalJsonSerializer(this, context);
-                var localSerializerDeleted = new LocalJsonSerializer(this, context);
 
                 // Statistics
                 var tableChangesSelected = new TableChangesSelected(schemaChangesTable.TableName, schemaChangesTable.SchemaName);
@@ -311,6 +312,15 @@ namespace Dotmim.Sync
                 message += $"LastTimestamp:{lastTimestamp}.";
 
                 throw GetSyncError(context, ex, message);
+            }
+            finally
+            {
+                if (localSerializerModified != null)
+                await localSerializerModified.DisposeAsync().ConfigureAwait(false);
+
+                if (localSerializerDeleted != null)
+                    await localSerializerDeleted.DisposeAsync().ConfigureAwait(false);
+
             }
         }
 
