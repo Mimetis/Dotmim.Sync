@@ -2,10 +2,8 @@ using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Reflection.PortableExecutable;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -584,6 +582,11 @@ namespace Dotmim.Sync.Serialization
             GC.SuppressFinalize(this);
         }
 
-        public async ValueTask DisposeAsync() => await CloseFileAsync();
+        public async ValueTask DisposeAsync()
+        {
+            await CloseFileAsync();
+            this.writerLock.Dispose();
+            GC.SuppressFinalize(this);
+        }
     }
 }

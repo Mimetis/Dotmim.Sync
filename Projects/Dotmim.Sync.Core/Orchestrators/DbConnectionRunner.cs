@@ -191,14 +191,22 @@ namespace Dotmim.Sync
             {
                 if (!this.AlreadyInTransaction && this.Transaction != null)
                 {
+#if NET6_0_OR_GREATER
+                    await this.Transaction.DisposeAsync().ConfigureAwait(false);
+#else
                     this.Transaction.Dispose();
+#endif
                     this.Transaction = null;
                 }
 
                 if (!this.AlreadyOpened && this.Connection != null)
                 {
                     await this.Orchestrator.CloseConnectionAsync(this.Context, this.Connection, this.CancellationToken, this.Progress).ConfigureAwait(false);
+#if NET6_0_OR_GREATER
+                    await this.Connection.DisposeAsync().ConfigureAwait(false);
+#else
                     this.Connection.Dispose();
+#endif
                     this.Connection = null;
                 }
             }
