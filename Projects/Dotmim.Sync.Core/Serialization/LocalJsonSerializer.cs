@@ -586,6 +586,7 @@ namespace Dotmim.Sync.Serialization
         {
             await CloseFileAsync();
             this.writerLock.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }
