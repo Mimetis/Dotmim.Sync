@@ -2,6 +2,12 @@
   "version": 1,
   "dependencies": {
     "net8.0-android34.0": {
+      "DotNet.ReproducibleBuilds": {
+        "type": "Direct",
+        "requested": "[1.2.4, )",
+        "resolved": "1.2.4",
+        "contentHash": "Ch9U74tQA2fQH+U0hcYH7WyIFUfAq7jrjgSHVu2FAcYiMBtbrCMyq2nGA/ZZnB2jSaUeOOYiCjxeaDVB7Ssbdw=="
+      },
       "Microsoft.EntityFrameworkCore.Sqlite": {
         "type": "Direct",
         "requested": "[6.0.11, )",
@@ -1296,6 +1302,12 @@
       }
     },
     "net8.0-ios17.2": {
+      "DotNet.ReproducibleBuilds": {
+        "type": "Direct",
+        "requested": "[1.2.4, )",
+        "resolved": "1.2.4",
+        "contentHash": "Ch9U74tQA2fQH+U0hcYH7WyIFUfAq7jrjgSHVu2FAcYiMBtbrCMyq2nGA/ZZnB2jSaUeOOYiCjxeaDVB7Ssbdw=="
+      },
       "Microsoft.EntityFrameworkCore.Sqlite": {
         "type": "Direct",
         "requested": "[6.0.11, )",
@@ -1721,6 +1733,12 @@
       }
     },
     "net8.0-maccatalyst17.2": {
+      "DotNet.ReproducibleBuilds": {
+        "type": "Direct",
+        "requested": "[1.2.4, )",
+        "resolved": "1.2.4",
+        "contentHash": "Ch9U74tQA2fQH+U0hcYH7WyIFUfAq7jrjgSHVu2FAcYiMBtbrCMyq2nGA/ZZnB2jSaUeOOYiCjxeaDVB7Ssbdw=="
+      },
       "Microsoft.EntityFrameworkCore.Sqlite": {
         "type": "Direct",
         "requested": "[6.0.11, )",
@@ -2172,6 +2190,12 @@
       }
     },
     "net8.0-windows10.0.19041": {
+      "DotNet.ReproducibleBuilds": {
+        "type": "Direct",
+        "requested": "[1.2.4, )",
+        "resolved": "1.2.4",
+        "contentHash": "Ch9U74tQA2fQH+U0hcYH7WyIFUfAq7jrjgSHVu2FAcYiMBtbrCMyq2nGA/ZZnB2jSaUeOOYiCjxeaDVB7Ssbdw=="
+      },
       "Microsoft.EntityFrameworkCore.Sqlite": {
         "type": "Direct",
         "requested": "[6.0.11, )",
