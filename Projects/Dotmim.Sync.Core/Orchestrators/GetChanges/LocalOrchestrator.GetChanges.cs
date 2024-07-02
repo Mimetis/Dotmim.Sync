@@ -52,18 +52,20 @@ namespace Dotmim.Sync
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    ScopeInfo cScopeInfo;
+                    (context, cScopeInfo) = await this.InternalEnsureScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                ScopeInfo cScopeInfo;
-                (context, cScopeInfo) = await this.InternalEnsureScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    ClientSyncChanges clientChanges = null;
+                    (context, clientChanges) = await this.InternalGetChangesAsync(cScopeInfo, context, cScopeInfoClient,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                ClientSyncChanges clientChanges = null;
-                (context, clientChanges) = await this.InternalGetChangesAsync(cScopeInfo, context, cScopeInfoClient,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    await runner.CommitAsync().ConfigureAwait(false);
 
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return clientChanges;
+                    return clientChanges;
+                }
             }
             catch (Exception ex)
             {
@@ -104,47 +106,48 @@ namespace Dotmim.Sync
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    // Get the local setup & schema
+                    ScopeInfo cScopeInfo;
+                    (context, cScopeInfo) = await this.InternalEnsureScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                // Get the local setup & schema
-                ScopeInfo cScopeInfo;
-                (context, cScopeInfo) = await this.InternalEnsureScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    if (cScopeInfo.Schema == null)
+                        return default;
 
-                if (cScopeInfo.Schema == null)
-                    return default;
+                    // On local, we don't want to chase rows from "others" 
+                    // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
+                    Guid? remoteScopeId = null;
+                    var lastTimestamp = cScopeInfoClient.LastSyncTimestamp;
+                    var isNew = cScopeInfoClient.IsNewScope;
 
-                // On local, we don't want to chase rows from "others" 
-                // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
-                Guid? remoteScopeId = null;
-                var lastTimestamp = cScopeInfoClient.LastSyncTimestamp;
-                var isNew = cScopeInfoClient.IsNewScope;
+                    //Direction set to Upload
+                    context.SyncWay = SyncWay.Upload;
 
-                //Direction set to Upload
-                context.SyncWay = SyncWay.Upload;
+                    // Output
+                    // JUST before the whole process, get the timestamp, to be sure to 
+                    // get rows inserted / updated elsewhere since the sync is not over
+                    long clientTimestamp;
+                    (context, clientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                // Output
-                // JUST before the whole process, get the timestamp, to be sure to 
-                // get rows inserted / updated elsewhere since the sync is not over
-                long clientTimestamp;
-                (context, clientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    DatabaseChangesSelected clientChangesSelected;
 
-                DatabaseChangesSelected clientChangesSelected;
+                    // Locally, if we are new, no need to get changes
+                    if (isNew)
+                        clientChangesSelected = new DatabaseChangesSelected();
+                    else
+                        (context, clientChangesSelected) = await this.InternalGetEstimatedChangesCountAsync(
+                            cScopeInfo, context,
+                            isNew, lastTimestamp, clientTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                // Locally, if we are new, no need to get changes
-                if (isNew)
-                    clientChangesSelected = new DatabaseChangesSelected();
-                else
-                    (context, clientChangesSelected) = await this.InternalGetEstimatedChangesCountAsync(
-                        cScopeInfo, context,
-                        isNew, lastTimestamp, clientTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    await runner.CommitAsync().ConfigureAwait(false);
 
-                await runner.CommitAsync().ConfigureAwait(false);
+                    var changes = new ClientSyncChanges(clientTimestamp, null, clientChangesSelected, null);
 
-                var changes = new ClientSyncChanges(clientTimestamp, null, clientChangesSelected, null);
-
-                return changes;
-
+                    return changes;
+                }
             }
             catch (Exception ex)
             {
@@ -160,69 +163,71 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                // Output
-                long clientTimestamp = 0L;
-                DatabaseChangesSelected clientChangesSelected = null;
-
-                // If no schema in the client scope. Maybe the client scope table does not exists, or we never get the schema from server
-                if (cScopeInfo.Schema == null)
-                    throw new MissingLocalOrchestratorSchemaException();
-
-                // On local, we don't want to chase rows from "others" 
-                // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
-                Guid? remoteScopeId = null;
-
-                //Direction set to Upload
-                context.SyncWay = SyncWay.Upload;
-
-                // JUST before the whole process, get the timestamp, to be sure to 
-                // get rows inserted / updated elsewhere since the sync is not over
-                (context, clientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                // Create a batch info
-                string info = runner.Connection != null && !string.IsNullOrEmpty(runner.Connection.Database) ? $"{runner.Connection.Database}_LOCAL_GETCHANGES" : "LOCAL_GETCHANGES";
-                var clientBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
-
-                // Call interceptor
-                var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, clientBatchInfo.GetDirectoryFullPath(), this.Options.BatchSize, cScopeInfoClient.IsNewScope,
-                    cScopeInfoClient.LastSyncTimestamp, clientTimestamp,
-                    runner.Connection, runner.Transaction);
-
-                await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
-
-                if (runner.CancellationToken.IsCancellationRequested)
-                    runner.CancellationToken.ThrowIfCancellationRequested();
-
-                // Locally, if we are new, no need to get changes
-                if (cScopeInfoClient.IsNewScope)
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesSelecting, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
                 {
-                    // Create a new empty in-memory batch info
-                    clientChangesSelected = new DatabaseChangesSelected();
+                    // Output
+                    long clientTimestamp = 0L;
+                    DatabaseChangesSelected clientChangesSelected = null;
+
+                    // If no schema in the client scope. Maybe the client scope table does not exists, or we never get the schema from server
+                    if (cScopeInfo.Schema == null)
+                        throw new MissingLocalOrchestratorSchemaException();
+
+                    // On local, we don't want to chase rows from "others" 
+                    // We just want our local rows, so we dont exclude any remote scope id, by setting scope id to NULL
+                    Guid? remoteScopeId = null;
+
+                    //Direction set to Upload
+                    context.SyncWay = SyncWay.Upload;
+
+                    // JUST before the whole process, get the timestamp, to be sure to 
+                    // get rows inserted / updated elsewhere since the sync is not over
+                    (context, clientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    // Create a batch info
+                    string info = runner.Connection != null && !string.IsNullOrEmpty(runner.Connection.Database) ? $"{runner.Connection.Database}_LOCAL_GETCHANGES" : "LOCAL_GETCHANGES";
+                    var clientBatchInfo = new BatchInfo(this.Options.BatchDirectory, info: info);
+
+                    // Call interceptor
+                    var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, clientBatchInfo.GetDirectoryFullPath(), this.Options.BatchSize, cScopeInfoClient.IsNewScope,
+                        cScopeInfoClient.LastSyncTimestamp, clientTimestamp,
+                        runner.Connection, runner.Transaction);
+
+                    await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                    if (runner.CancellationToken.IsCancellationRequested)
+                        runner.CancellationToken.ThrowIfCancellationRequested();
+
+                    // Locally, if we are new, no need to get changes
+                    if (cScopeInfoClient.IsNewScope)
+                    {
+                        // Create a new empty in-memory batch info
+                        clientChangesSelected = new DatabaseChangesSelected();
+                    }
+                    else
+                    {
+                        clientChangesSelected = await this.InternalGetChangesAsync(cScopeInfo,
+                            context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp, clientTimestamp, remoteScopeId,
+                            this.Provider.SupportsMultipleActiveResultSets, clientBatchInfo,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    }
+
+                    var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastSyncTimestamp, clientTimestamp,
+                            clientBatchInfo, clientChangesSelected, runner.Connection, runner.Transaction);
+
+                    await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
+
+                    if (runner.CancellationToken.IsCancellationRequested)
+                        runner.CancellationToken.ThrowIfCancellationRequested();
+
+                    await runner.CommitAsync().ConfigureAwait(false);
+
+                    var changes = new ClientSyncChanges(clientTimestamp, clientBatchInfo, clientChangesSelected, null);
+
+                    return (context, changes);
+
                 }
-                else
-                {
-                    clientChangesSelected = await this.InternalGetChangesAsync(cScopeInfo,
-                        context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp, clientTimestamp, remoteScopeId, 
-                        this.Provider.SupportsMultipleActiveResultSets, clientBatchInfo, 
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-                }
-
-                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastSyncTimestamp, clientTimestamp,
-                        clientBatchInfo, clientChangesSelected, runner.Connection, runner.Transaction);
-
-                await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
-
-                if (runner.CancellationToken.IsCancellationRequested)
-                    runner.CancellationToken.ThrowIfCancellationRequested();
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                var changes = new ClientSyncChanges(clientTimestamp, clientBatchInfo, clientChangesSelected, null);
-
-                return (context, changes);
-
             }
             catch (Exception ex)
             {

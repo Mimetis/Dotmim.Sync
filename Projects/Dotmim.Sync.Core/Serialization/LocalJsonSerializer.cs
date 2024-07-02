@@ -451,7 +451,7 @@ namespace Dotmim.Sync.Serialization
                                         if (value != null)
                                             values[index] = SyncTypeConverter.TryConvertTo(value, columnType);
                                     }
-                                    catch (Exception ex)
+                                    catch (Exception)
                                     {
                                         // No exception as a custom converter could be used to override type 
                                         // like a datetime converted to ticks (long)
@@ -570,6 +570,7 @@ namespace Dotmim.Sync.Serialization
                 if (disposing)
                 {
                     CloseFile();
+                    this.writerLock?.Dispose();
                 }
 
                 disposedValue = true;

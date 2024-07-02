@@ -158,6 +158,7 @@ namespace Dotmim.Sync
                 finalRow = arg.Resolution == ConflictResolution.MergeRow ? arg.FinalRow : null;
                 finalSenderScopeId = arg.SenderScopeId;
                 conflictType = arg.conflict != null ? arg.conflict.Type : conflictType;
+                
             }
             else
             {

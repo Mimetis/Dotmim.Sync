@@ -24,7 +24,7 @@ namespace Dotmim.Sync
             {
                 if (Provider == null)
                     throw new MissingProviderException(nameof(InternalApplyThenGetChangesAsync));
-    
+
                 var serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
 
                 long remoteClientTimestamp = 0L;
@@ -93,8 +93,8 @@ namespace Dotmim.Sync
 
                         ScopeInfoClient sScopeInfoClient = null;
                         // Get scope info client from server, to get errors if any
-                        await using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading,
-                            connection, transaction, cancellationToken, progress).ConfigureAwait(false))
+                        using var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await using (runnerScopeInfo.ConfigureAwait(false))
                         {
                             (context, sScopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context,
                                 runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
@@ -188,6 +188,11 @@ namespace Dotmim.Sync
                             await runner.DisposeAsync().ConfigureAwait(false);
                         }
                         throw GetSyncError(context, ex);
+                    }
+                    finally
+                    {
+                        if (runner != null)
+                            await runner.DisposeAsync().ConfigureAwait(false);
                     }
 
                 }).ConfigureAwait(false);

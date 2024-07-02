@@ -113,11 +113,7 @@ namespace Dotmim.Sync
         public void Clear() => this.Dispose(true);
 
 
-        public void Dispose()
-        {
-            this.Dispose(true);
-            //GC.SuppressFinalize(this);
-        }
+        public void Dispose() => this.Dispose(true);
 
         protected virtual void Dispose(bool cleanup)
         {
@@ -151,7 +147,6 @@ namespace Dotmim.Sync
             {
                 OriginalProvider = this.OriginalProvider,
                 SchemaName = this.SchemaName,
-                //SyncDirection = this.SyncDirection,
                 TableName = this.TableName
             };
 
@@ -207,15 +202,6 @@ namespace Dotmim.Sync
                 }
             }
         }
-
-        //public IEnumerable<SyncColumn> GetMutableColumnsWithPrimaryKeys()
-        //{
-        //    foreach (var column in this.Columns.OrderBy(c => c.Ordinal))
-        //    {
-        //        if (!column.IsCompute && !column.IsReadOnly)
-        //            yield return column;
-        //    }
-        //}
 
         /// <summary>
         /// Get all columns that are Primary keys, based on the names we have in PrimariKeys property

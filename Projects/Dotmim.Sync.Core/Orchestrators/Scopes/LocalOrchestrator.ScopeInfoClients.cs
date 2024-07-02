@@ -24,14 +24,16 @@ namespace Dotmim.Sync
 
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    // Get scope if exists
+                    ScopeInfoClient scopeInfoClient;
+                    (context, scopeInfoClient) = await this.InternalEnsureScopeInfoClientAsync(context,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                // Get scope if exists
-                ScopeInfoClient scopeInfoClient;
-                (context, scopeInfoClient) = await this.InternalEnsureScopeInfoClientAsync(context,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                return scopeInfoClient;
+                    return scopeInfoClient;
+                }
             }
             catch (Exception ex)
             {
@@ -47,47 +49,49 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, 
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    bool exists;
+                    (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                // load all scope info client
-                var cScopeInfoClients = await this.InternalLoadAllScopeInfoClientsAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    if (!exists)
+                        await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                // Get scope info client if exists
-                ScopeInfoClient cScopeInfoClient = null;
+                    // load all scope info client
+                    var cScopeInfoClients = await this.InternalLoadAllScopeInfoClientsAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (context.ClientId.HasValue)
-                    cScopeInfoClient = cScopeInfoClients.FirstOrDefault(sic => sic.Id == context.ClientId.Value && sic.Hash == context.Hash && sic.Name == context.ScopeName);
-                else
-                    cScopeInfoClient = cScopeInfoClients.FirstOrDefault(sic => sic.Hash == context.Hash && sic.Name == context.ScopeName);
+                    // Get scope info client if exists
+                    ScopeInfoClient cScopeInfoClient = null;
 
-                var shouldSave = false;
+                    if (context.ClientId.HasValue)
+                        cScopeInfoClient = cScopeInfoClients.FirstOrDefault(sic => sic.Id == context.ClientId.Value && sic.Hash == context.Hash && sic.Name == context.ScopeName);
+                    else
+                        cScopeInfoClient = cScopeInfoClients.FirstOrDefault(sic => sic.Hash == context.Hash && sic.Name == context.ScopeName);
 
-                // Get scopeId representing the client unique id
-                if (cScopeInfoClient == null)
-                {
-                    shouldSave = true;
+                    var shouldSave = false;
 
-                    cScopeInfoClient = this.InternalCreateScopeInfoClient(context.ScopeName, context.Parameters);
+                    // Get scopeId representing the client unique id
+                    if (cScopeInfoClient == null)
+                    {
+                        shouldSave = true;
 
-                    if (cScopeInfoClients != null && cScopeInfoClients.Count > 0)
-                        cScopeInfoClient.Id = cScopeInfoClients[0].Id;
+                        cScopeInfoClient = this.InternalCreateScopeInfoClient(context.ScopeName, context.Parameters);
+
+                        if (cScopeInfoClients != null && cScopeInfoClients.Count > 0)
+                            cScopeInfoClient.Id = cScopeInfoClients[0].Id;
+                    }
+
+                    // affect correct value to current context
+                    context.ClientId = cScopeInfoClient.Id;
+
+                    if (shouldSave)
+                        (context, cScopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(cScopeInfoClient, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    return (context, cScopeInfoClient);
                 }
-
-                // affect correct value to current context
-                context.ClientId = cScopeInfoClient.Id;
-
-                if (shouldSave)
-                    (context, cScopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(cScopeInfoClient, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                return (context, cScopeInfoClient);
             }
             catch (Exception ex)
             {
