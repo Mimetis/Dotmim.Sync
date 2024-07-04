@@ -26,7 +26,7 @@ namespace Dotmim.Sync.Serialization
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         };
 
-        public async Task<T> DeserializeAsync<T>(Stream ms) => await JsonSerializer.DeserializeAsync<T>(ms, options);
+        public async Task<T> DeserializeAsync<T>(Stream ms) => await JsonSerializer.DeserializeAsync<T>(ms, options).ConfigureAwait(false);
 
         public T Deserialize<T>(string value) => JsonSerializer.Deserialize<T>(value, options);
 
@@ -37,6 +37,6 @@ namespace Dotmim.Sync.Serialization
 
         public byte[] Serialize(object obj, Type type) => JsonSerializer.SerializeToUtf8Bytes(obj, type, options);
 
-        public async Task<object> DeserializeAsync(Stream ms, Type type) => await JsonSerializer.DeserializeAsync(ms, type, options);
+        public async Task<object> DeserializeAsync(Stream ms, Type type) => await JsonSerializer.DeserializeAsync(ms, type, options).ConfigureAwait(false);
     }
 }

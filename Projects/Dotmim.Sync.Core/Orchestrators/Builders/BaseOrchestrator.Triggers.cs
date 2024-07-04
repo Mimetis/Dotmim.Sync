@@ -343,7 +343,7 @@ namespace Dotmim.Sync
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                await action.Command.ExecuteNonQueryAsync();
+                await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 await this.InterceptAsync(new TriggerCreatedArgs(context, tableBuilder.TableDescription, triggerType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                 action.Command.Dispose();
 

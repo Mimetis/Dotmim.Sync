@@ -115,24 +115,26 @@ namespace Dotmim.Sync
                 if (provision == default)
                     provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    // get client scope
+                    ScopeInfo cScopeInfo = null;
+                    bool exists;
+                    (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                // get client scope
-                ScopeInfo cScopeInfo = null;
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    if (exists)
+                        (context, cScopeInfo) = await this.InternalLoadScopeInfoAsync(context,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (exists)
-                    (context, cScopeInfo) = await this.InternalLoadScopeInfoAsync(context,
+                    bool isDeprovisioned;
+                    (context, isDeprovisioned) = await InternalDeprovisionAsync(cScopeInfo, context, provision,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                bool isDeprovisioned;
-                (context, isDeprovisioned) = await InternalDeprovisionAsync(cScopeInfo, context, provision,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    await runner.CommitAsync().ConfigureAwait(false);
 
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return isDeprovisioned;
+                    return isDeprovisioned;
+                }
             }
             catch (Exception ex)
             {

@@ -109,7 +109,7 @@ namespace Dotmim.Sync
             }
 
             if (autoClose)
-                await CloseAsync();
+                await CloseAsync().ConfigureAwait(false);
         }
 
         /// <summary>

@@ -86,7 +86,7 @@ namespace Dotmim.Sync
 
                         context.ProgressPercentage = currentProgress + (cptSyncTable * 0.2d / scopeInfo.Schema.Tables.Count);
 
-                    }, threadNumberLimits);
+                    }, threadNumberLimits).ConfigureAwait(false);
                 }
                 else
                 {
@@ -185,7 +185,7 @@ namespace Dotmim.Sync
 
                 DbCommandType dbCommandType;
                 (selectIncrementalChangesCommand, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew,
-                        connection, transaction);
+                        connection, transaction).ConfigureAwait(false);
 
                 if (selectIncrementalChangesCommand == null)
                     return (context, default, default);
@@ -246,7 +246,7 @@ namespace Dotmim.Sync
                         if (localJsonSerializer != null && localJsonSerializer.IsOpen)
                         {
                             await localJsonSerializer.CloseFileAsync().ConfigureAwait(false);
-                            await this.InterceptAsync(args, progress, cancellationToken);
+                            await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
                         }
                     });
 
@@ -444,7 +444,7 @@ namespace Dotmim.Sync
                         for (var i = 0; i < dataReader.FieldCount; i++)
                         {
                             var columnName = dataReader.GetName(i);
-                            
+
                             // if we have the tombstone value, do not add it to the table
                             if (columnName == "sync_row_is_tombstone")
                             {
@@ -472,7 +472,7 @@ namespace Dotmim.Sync
                     if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
                         changes.TableChangesSelected.Add(tableChangesSelected);
 
-                }, threadNumberLimits);
+                }, threadNumberLimits).ConfigureAwait(false);
 
 
                 var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, fromLastTimestamp, toLastTimestamp,

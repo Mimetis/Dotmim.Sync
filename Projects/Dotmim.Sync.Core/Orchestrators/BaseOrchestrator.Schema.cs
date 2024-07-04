@@ -116,7 +116,7 @@ namespace Dotmim.Sync
 
                     foreach (var setupTable in setup.Tables)
                     {
-                        var (syncTable, tableRelations) = await InternalGetTableSchemaAsync(context, setupTable, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+                        var (syncTable, tableRelations) = await InternalGetTableSchemaAsync(context, setupTable, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                         // Add this table to schema
                         schema.Tables.Add(syncTable);
@@ -183,7 +183,7 @@ namespace Dotmim.Sync
                     throw new MissingProviderException(nameof(InternalGetTableSchemaAsync));
 
                 // ensure table is compliante with name / schema with provider
-                var syncTable = await this.Provider.GetDatabaseBuilder().EnsureTableAsync(setupTable.TableName, setupTable.SchemaName, connection, transaction);
+                var syncTable = await this.Provider.GetDatabaseBuilder().EnsureTableAsync(setupTable.TableName, setupTable.SchemaName, connection, transaction).ConfigureAwait(false);
 
                 // tmp scope info
                 var scopeInfo = this.InternalCreateScopeInfo(context.ScopeName);

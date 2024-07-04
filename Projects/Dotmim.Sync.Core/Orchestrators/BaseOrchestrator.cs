@@ -427,7 +427,7 @@ namespace Dotmim.Sync
         {
             var batchInfoDirectoryFullPath = new DirectoryInfo(batchInfo.GetDirectoryFullPath());
 
-            var (snapshotRootDirectory, snapshotNameDirectory) = await this.GetSnapshotDirectoryAsync(scopeName, parameters);
+            var (snapshotRootDirectory, snapshotNameDirectory) = await this.GetSnapshotDirectoryAsync(scopeName, parameters).ConfigureAwait(false);
 
             // if we don't have any snapshot configuration, we are sure that the current batchinfo is actually stored into a temp folder
             if (string.IsNullOrEmpty(snapshotRootDirectory))

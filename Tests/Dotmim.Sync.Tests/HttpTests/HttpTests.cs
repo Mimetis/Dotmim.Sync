@@ -2461,7 +2461,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
             {
                 var clientName = HelperDatabase.GetRandomName();
-                var clientProductNumber = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 10);
+                var clientProductNumber = HelperDatabase.GetRandomName().ToUpperInvariant()[..10];
                 await clientProvider.AddProductAsync(name: $"BLOB_{clientName}", productNumber: clientProductNumber, thumbNailPhoto: new byte[20000]);
             }
 

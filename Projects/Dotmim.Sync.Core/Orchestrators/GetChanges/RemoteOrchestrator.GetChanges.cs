@@ -81,7 +81,7 @@ namespace Dotmim.Sync
                     // JUST Before get changes, get the timestamp, to be sure to 
                     // get rows inserted / updated elsewhere since the sync is not over
                     long remoteClientTimestamp;
-                    (context, remoteClientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+                    (context, remoteClientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     // Create a batch info
                     string info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_REMOTE_GETCHANGES" : "REMOTE_GETCHANGES";
@@ -168,7 +168,7 @@ namespace Dotmim.Sync
                     // JUST Before get changes, get the timestamp, to be sure to 
                     // get rows inserted / updated elsewhere since the sync is not over
                     long remoteClientTimestamp;
-                    (context, remoteClientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress);
+                    (context, remoteClientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     DatabaseChangesSelected serverChangesSelected;
                     // When we get the chnages from server, we create the batches if it's requested by the client

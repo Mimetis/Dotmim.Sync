@@ -89,109 +89,115 @@ namespace Dotmim.Sync
         internal virtual async Task<SyncTable> MigrateScopeInfoClientTableAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
 
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            var dbBuilder = this.Provider.GetDatabaseBuilder();
-
-            // scope info client table name (and tmp table name)
-            var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
-            var cScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
-            var tmpCScopeInfoClientTableName = $"tmp{cScopeInfoClientTableName}";
-            string message = "";
-
-            // ----------------------------------------------------
-            // Step 1 : Renaming scope_info_client to tmpscope_info_client
-            // ----------------------------------------------------
-            var tmpScopeInfoClientExists = await dbBuilder.ExistsTableAsync(tmpCScopeInfoClientTableName, null,
-                runner.Connection, runner.Transaction).ConfigureAwait(false);
-
-            bool existsCScopeInfoClient;
-            (context, existsCScopeInfoClient) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
-                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-            if (!tmpScopeInfoClientExists && existsCScopeInfoClient)
+            using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await using (runner.ConfigureAwait(false))
             {
-                await dbBuilder.RenameTableAsync(cScopeInfoClientTableName, null, tmpCScopeInfoClientTableName, null,
+                var dbBuilder = this.Provider.GetDatabaseBuilder();
+
+                // scope info client table name (and tmp table name)
+                var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
+                var cScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
+                var tmpCScopeInfoClientTableName = $"tmp{cScopeInfoClientTableName}";
+                string message = "";
+
+                // ----------------------------------------------------
+                // Step 1 : Renaming scope_info_client to tmpscope_info_client
+                // ----------------------------------------------------
+                var tmpScopeInfoClientExists = await dbBuilder.ExistsTableAsync(tmpCScopeInfoClientTableName, null,
                     runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-                message = $"- Temporary renamed {cScopeInfoClientTableName} to {tmpCScopeInfoClientTableName}.";
-                await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
-            }
-
-            // ----------------------------------------------------
-            // Step 3 : Create scope_info_client 
-            // ----------------------------------------------------
-            (context, existsCScopeInfoClient) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
-                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-            if (!existsCScopeInfoClient)
-                (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
+                bool existsCScopeInfoClient;
+                (context, existsCScopeInfoClient) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-            message = $"- Created {cScopeInfoClientTableName} table.";
-            await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+                if (!tmpScopeInfoClientExists && existsCScopeInfoClient)
+                {
+                    await dbBuilder.RenameTableAsync(cScopeInfoClientTableName, null, tmpCScopeInfoClientTableName, null,
+                        runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-            tmpScopeInfoClientExists = await dbBuilder.ExistsTableAsync(tmpCScopeInfoClientTableName, null,
-                runner.Connection, runner.Transaction).ConfigureAwait(false);
+                    message = $"- Temporary renamed {cScopeInfoClientTableName} to {tmpCScopeInfoClientTableName}.";
+                    await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+                }
 
-            SyncTable table = null;
+                // ----------------------------------------------------
+                // Step 3 : Create scope_info_client 
+                // ----------------------------------------------------
+                (context, existsCScopeInfoClient) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
+                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-            if (tmpScopeInfoClientExists)
-                table = await dbBuilder.GetTableAsync(tmpCScopeInfoClientTableName, null, runner.Connection, runner.Transaction).ConfigureAwait(false);
+                if (!existsCScopeInfoClient)
+                    (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-            return table;
+                message = $"- Created {cScopeInfoClientTableName} table.";
+                await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
 
+                tmpScopeInfoClientExists = await dbBuilder.ExistsTableAsync(tmpCScopeInfoClientTableName, null,
+                    runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                SyncTable table = null;
+
+                if (tmpScopeInfoClientExists)
+                    table = await dbBuilder.GetTableAsync(tmpCScopeInfoClientTableName, null, runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                return table;
+
+            }
         }
 
         internal virtual async Task<SyncTable> MigrateScopeInfoTableAsync(SyncContext context, DbConnection connection, DbTransaction transaction,
                         CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-            var dbBuilder = this.Provider.GetDatabaseBuilder();
-
-            // scope info table name (and tmp table name)
-            var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
-            var cScopeInfoTableName = $"{parsedName.Unquoted().Normalized()}";
-            var cScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
-            var tmpCScopeInfoTableName = $"tmp{cScopeInfoTableName}";
-            var message = "";
-
-            // Initialize database if needed
-            await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
-
-            // ----------------------------------------------------
-            // Step 1 : Renaming scope_info to tmpscope_info
-            // ----------------------------------------------------
-            var tmpScopeInfoExists = await dbBuilder.ExistsTableAsync(tmpCScopeInfoTableName, null,
-                runner.Connection, runner.Transaction).ConfigureAwait(false);
-
-            var existsCScopeInfo = await dbBuilder.ExistsTableAsync(cScopeInfoTableName, null,
-                runner.Connection, runner.Transaction).ConfigureAwait(false);
-
-            if (!tmpScopeInfoExists && existsCScopeInfo)
+            using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await using (runner.ConfigureAwait(false))
             {
-                await dbBuilder.RenameTableAsync(cScopeInfoTableName, null, tmpCScopeInfoTableName, null,
+                var dbBuilder = this.Provider.GetDatabaseBuilder();
+
+                // scope info table name (and tmp table name)
+                var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
+                var cScopeInfoTableName = $"{parsedName.Unquoted().Normalized()}";
+                var cScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
+                var tmpCScopeInfoTableName = $"tmp{cScopeInfoTableName}";
+                var message = "";
+
+                // Initialize database if needed
+                await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                // ----------------------------------------------------
+                // Step 1 : Renaming scope_info to tmpscope_info
+                // ----------------------------------------------------
+                var tmpScopeInfoExists = await dbBuilder.ExistsTableAsync(tmpCScopeInfoTableName, null,
                     runner.Connection, runner.Transaction).ConfigureAwait(false);
 
-                message = $"- Temporary renamed {cScopeInfoTableName} to {tmpCScopeInfoTableName}.";
+                var existsCScopeInfo = await dbBuilder.ExistsTableAsync(cScopeInfoTableName, null,
+                    runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                if (!tmpScopeInfoExists && existsCScopeInfo)
+                {
+                    await dbBuilder.RenameTableAsync(cScopeInfoTableName, null, tmpCScopeInfoTableName, null,
+                        runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                    message = $"- Temporary renamed {cScopeInfoTableName} to {tmpCScopeInfoTableName}.";
+                    await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+                }
+
+                // ----------------------------------------------------
+                // Step 2 : Create scope_info 
+                // ----------------------------------------------------
+                existsCScopeInfo = await dbBuilder.ExistsTableAsync(cScopeInfoTableName, null,
+                    runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                if (!existsCScopeInfo)
+                    (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                message = $"- Created new version of {cScopeInfoTableName} table.";
                 await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+
+                var oldScopeInfotable = await dbBuilder.GetTableAsync(tmpCScopeInfoTableName, null, runner.Connection, runner.Transaction).ConfigureAwait(false);
+
+                return oldScopeInfotable;
             }
-
-            // ----------------------------------------------------
-            // Step 2 : Create scope_info 
-            // ----------------------------------------------------
-            existsCScopeInfo = await dbBuilder.ExistsTableAsync(cScopeInfoTableName, null,
-                runner.Connection, runner.Transaction).ConfigureAwait(false);
-
-            if (!existsCScopeInfo)
-                (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-            message = $"- Created new version of {cScopeInfoTableName} table.";
-            await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
-
-            var oldScopeInfotable = await dbBuilder.GetTableAsync(tmpCScopeInfoTableName, null, runner.Connection, runner.Transaction).ConfigureAwait(false);
-
-            return oldScopeInfotable;
         }
 
 
@@ -202,46 +208,48 @@ namespace Dotmim.Sync
                 DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
 
         {
-            await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-            var newVersion = SyncVersion.Current;
-
-            // Create scope_info and scope_info_client for each pre version scope_info lines
-            foreach (var scopeInfoRow in scopeInfos.Rows)
+            using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            await using (runner.ConfigureAwait(false))
             {
-                // Get setup schema and scope name from old scope info table
-                var scopeName = scopeInfoRow["sync_scope_name"] as string;
-                var schema = serializer.Deserialize<SyncSet>(scopeInfoRow["sync_scope_schema"].ToString());
-                var setup = serializer.Deserialize<SyncSetup>(scopeInfoRow["sync_scope_setup"].ToString());
-                var lastCleanUpTimestamp = scopeInfoRow["sync_scope_last_clean_timestamp"] != null && scopeInfoRow["sync_scope_last_clean_timestamp"] != DBNull.Value ? (long?)scopeInfoRow["sync_scope_last_clean_timestamp"] : null;
-                var scopeProperties = scopeInfoRow["sync_scope_properties"] as string;
+                var newVersion = SyncVersion.Current;
 
-                // Create new scope_info and scope_info_client
-                var cScopeInfo = new ScopeInfo
+                // Create scope_info and scope_info_client for each pre version scope_info lines
+                foreach (var scopeInfoRow in scopeInfos.Rows)
                 {
-                    Name = scopeName,
-                    Setup = setup,
-                    Schema = schema,
-                    LastCleanupTimestamp = lastCleanUpTimestamp,
-                    Properties = scopeProperties,
-                    Version = SyncVersion.Current.ToString()
-                };
+                    // Get setup schema and scope name from old scope info table
+                    var scopeName = scopeInfoRow["sync_scope_name"] as string;
+                    var schema = serializer.Deserialize<SyncSet>(scopeInfoRow["sync_scope_schema"].ToString());
+                    var setup = serializer.Deserialize<SyncSetup>(scopeInfoRow["sync_scope_setup"].ToString());
+                    var lastCleanUpTimestamp = scopeInfoRow["sync_scope_last_clean_timestamp"] != null && scopeInfoRow["sync_scope_last_clean_timestamp"] != DBNull.Value ? (long?)scopeInfoRow["sync_scope_last_clean_timestamp"] : null;
+                    var scopeProperties = scopeInfoRow["sync_scope_properties"] as string;
 
-                // Save this scope to new scope info table
-                await this.InternalSaveScopeInfoAsync(cScopeInfo, context,
-                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    // Create new scope_info and scope_info_client
+                    var cScopeInfo = new ScopeInfo
+                    {
+                        Name = scopeName,
+                        Setup = setup,
+                        Schema = schema,
+                        LastCleanupTimestamp = lastCleanUpTimestamp,
+                        Properties = scopeProperties,
+                        Version = SyncVersion.Current.ToString()
+                    };
 
-                // Raise message about migrating current scope
-                var message = $"- Saved scope_info {scopeName} with version {SyncVersion.Current} with a setup containing {setup.Tables.Count} tables.";
-                await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, runner.Connection, runner.Transaction),
-                    runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    // Save this scope to new scope info table
+                    await this.InternalSaveScopeInfoAsync(cScopeInfo, context,
+                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    // Raise message about migrating current scope
+                    var message = $"- Saved scope_info {scopeName} with version {SyncVersion.Current} with a setup containing {setup.Tables.Count} tables.";
+                    await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, runner.Connection, runner.Transaction),
+                        runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                }
+
+                await this.InterceptAsync(new UpgradeProgressArgs(context, $"Upgrade from version {version} to {SyncVersion.Current} done.", newVersion, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+
+                await runner.CommitAsync().ConfigureAwait(false);
+
+                return newVersion;
             }
-
-            await this.InterceptAsync(new UpgradeProgressArgs(context, $"Upgrade from version {version} to {SyncVersion.Current} done.", newVersion, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-
-            await runner.CommitAsync().ConfigureAwait(false);
-
-            return newVersion;
         }
     }
 }

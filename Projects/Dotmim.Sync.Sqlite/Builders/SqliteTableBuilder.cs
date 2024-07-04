@@ -557,8 +557,8 @@ namespace Dotmim.Sync.Sqlite
         {
             var columns = new List<SyncColumn>();
             // Get the columns definition
-            var columnsList = await SqliteManagementUtils.GetColumnsForTableAsync(this.TableName.Unquoted().ToString(), 
-                connection as SqliteConnection, transaction as SqliteTransaction);
+            var columnsList = await SqliteManagementUtils.GetColumnsForTableAsync(this.TableName.Unquoted().ToString(),
+                connection as SqliteConnection, transaction as SqliteTransaction).ConfigureAwait(false);
             var sqlDbMetadata = new SqliteDbMetadata();
 
             foreach (var c in columnsList.Rows.OrderBy(r => Convert.ToInt32(r["cid"])))
@@ -595,7 +595,7 @@ namespace Dotmim.Sync.Sqlite
 
             var relations = new List<DbRelationDefinition>();
             var relationsTable = await SqliteManagementUtils.GetRelationsForTableAsync(connection as SqliteConnection, transaction as SqliteTransaction,
-                                                                                       this.TableName.Unquoted().ToString());
+                                                                                       this.TableName.Unquoted().ToString()).ConfigureAwait(false);
 
             if (relationsTable != null && relationsTable.Rows.Count > 0)
             {
@@ -633,7 +633,7 @@ namespace Dotmim.Sync.Sqlite
         public override async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction)
         {
             var keys = await SqliteManagementUtils.GetPrimaryKeysForTableAsync(connection as SqliteConnection, transaction as SqliteTransaction,
-                this.TableName.Unquoted().ToString());
+                this.TableName.Unquoted().ToString()).ConfigureAwait(false);
 
             var lstKeys = new List<SyncColumn>();
 

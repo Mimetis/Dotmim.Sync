@@ -317,7 +317,7 @@ namespace Dotmim.Sync
                     // ----------------------------------------------------
                     // Step 2 : Get Rows form old scope_info_server table
                     // ----------------------------------------------------
-                    var existScopeInfoServerTable = await dbBuilder.ExistsTableAsync(scopeInfoServerTableName, null, runner.Connection, runner.Transaction);
+                    var existScopeInfoServerTable = await dbBuilder.ExistsTableAsync(scopeInfoServerTableName, null, runner.Connection, runner.Transaction).ConfigureAwait(false);
 
                     if (existScopeInfoServerTable)
                     {

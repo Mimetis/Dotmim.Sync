@@ -10,6 +10,9 @@
 		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
 		<SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
 	</PropertyGroup>
+	<PropertyGroup>
+		<NoWarn>CA2007</NoWarn>
+	</PropertyGroup>
 	<ItemGroup>
 		<Compile Remove="UnitTests\Mock\**" />
 		<Compile Remove="UnitTests\Orchestrators\**" />

@@ -267,7 +267,7 @@ namespace Dotmim.Sync
                 using (var f = new FileStream(summaryFileName, FileMode.CreateNew, FileAccess.ReadWrite))
                 {
                     var serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
-                    var bytes = await serializer.SerializeAsync(serverBatchInfo);
+                    var bytes = await serializer.SerializeAsync(serverBatchInfo).ConfigureAwait(false);
                     f.Write(bytes, 0, bytes.Length);
                 }
 
