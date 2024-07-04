@@ -24,13 +24,15 @@ namespace Dotmim.Sync
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    long timestamp;
+                    (context, timestamp) = await this.InternalGetLocalTimestampAsync(context,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                long timestamp;
-                (context, timestamp) = await this.InternalGetLocalTimestampAsync(context,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                return timestamp;
+                    return timestamp;
+                }
             }
             catch (Exception ex)
             {
@@ -54,28 +56,30 @@ namespace Dotmim.Sync
             {
                 var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    // we don't care about DbScopeType. That's why we are using a random value DbScopeType.Client...
+                    using var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetLocalTimestamp, runner.Connection, runner.Transaction);
 
-                // we don't care about DbScopeType. That's why we are using a random value DbScopeType.Client...
-                using var command = scopeBuilder.GetCommandAsync(DbScopeCommandType.GetLocalTimestamp, runner.Connection, runner.Transaction);
+                    if (command == null)
+                        return (context, 0L);
 
-                if (command == null)
-                    return (context, 0L);
+                    var action = await this.InterceptAsync(new LocalTimestampLoadingArgs(context, command, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                var action = await this.InterceptAsync(new LocalTimestampLoadingArgs(context, command, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    if (action.Cancel || action.Command == null)
+                        return (context, 0L);
 
-                if (action.Cancel || action.Command == null)
-                    return (context, 0L);
+                    await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    long result = Convert.ToInt64(await action.Command.ExecuteScalarAsync().ConfigureAwait(false));
 
-                long result = Convert.ToInt64(await action.Command.ExecuteScalarAsync().ConfigureAwait(false));
+                    var loadedArgs = await this.InterceptAsync(new LocalTimestampLoadedArgs(context, result, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                var loadedArgs = await this.InterceptAsync(new LocalTimestampLoadedArgs(context, result, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    action.Command.Dispose();
 
-                action.Command.Dispose();
-
-                return (context, loadedArgs.LocalTimestamp);
+                    return (context, loadedArgs.LocalTimestamp);
+                }
             }
             catch (Exception ex)
             {

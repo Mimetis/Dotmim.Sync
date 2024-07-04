@@ -392,11 +392,14 @@ namespace Dotmim.Sync
             try
             {
                 // TODO : get all scopes for Hello all of them
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                var databaseBuilder = this.Provider.GetDatabaseBuilder();
-                var hello = await databaseBuilder.GetHelloAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
-                await runner.CommitAsync().ConfigureAwait(false);
-                return (context, hello.DatabaseName, hello.Version);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    var databaseBuilder = this.Provider.GetDatabaseBuilder();
+                    var hello = await databaseBuilder.GetHelloAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
+                    await runner.CommitAsync().ConfigureAwait(false);
+                    return (context, hello.DatabaseName, hello.Version);
+                }
             }
             catch (Exception ex)
             {
@@ -424,7 +427,7 @@ namespace Dotmim.Sync
         {
             var batchInfoDirectoryFullPath = new DirectoryInfo(batchInfo.GetDirectoryFullPath());
 
-            var (snapshotRootDirectory, snapshotNameDirectory) = await this.GetSnapshotDirectoryAsync(scopeName, parameters);
+            var (snapshotRootDirectory, snapshotNameDirectory) = await this.GetSnapshotDirectoryAsync(scopeName, parameters).ConfigureAwait(false);
 
             // if we don't have any snapshot configuration, we are sure that the current batchinfo is actually stored into a temp folder
             if (string.IsNullOrEmpty(snapshotRootDirectory))

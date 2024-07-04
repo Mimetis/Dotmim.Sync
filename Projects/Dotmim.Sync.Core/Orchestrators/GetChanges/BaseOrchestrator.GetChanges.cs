@@ -86,7 +86,7 @@ namespace Dotmim.Sync
 
                         context.ProgressPercentage = currentProgress + (cptSyncTable * 0.2d / scopeInfo.Schema.Tables.Count);
 
-                    }, threadNumberLimits);
+                    }, threadNumberLimits).ConfigureAwait(false);
                 }
                 else
                 {
@@ -161,6 +161,9 @@ namespace Dotmim.Sync
                 return default;
 
             DbCommand selectIncrementalChangesCommand = null;
+
+            var localSerializerModified = new LocalJsonSerializer(this, context);
+            var localSerializerDeleted = new LocalJsonSerializer(this, context);
             try
             {
                 var setupTable = scopeInfo.Setup.Tables[syncTable.TableName, syncTable.SchemaName];
@@ -182,7 +185,7 @@ namespace Dotmim.Sync
 
                 DbCommandType dbCommandType;
                 (selectIncrementalChangesCommand, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew,
-                        connection, transaction);
+                        connection, transaction).ConfigureAwait(false);
 
                 if (selectIncrementalChangesCommand == null)
                     return (context, default, default);
@@ -195,8 +198,6 @@ namespace Dotmim.Sync
 
                 var schemaChangesTable = CreateChangesTable(syncTable);
 
-                var localSerializerModified = new LocalJsonSerializer(this, context);
-                var localSerializerDeleted = new LocalJsonSerializer(this, context);
 
                 // Statistics
                 var tableChangesSelected = new TableChangesSelected(schemaChangesTable.TableName, schemaChangesTable.SchemaName);
@@ -245,7 +246,7 @@ namespace Dotmim.Sync
                         if (localJsonSerializer != null && localJsonSerializer.IsOpen)
                         {
                             await localJsonSerializer.CloseFileAsync().ConfigureAwait(false);
-                            await this.InterceptAsync(args, progress, cancellationToken);
+                            await this.InterceptAsync(args, progress, cancellationToken).ConfigureAwait(false);
                         }
                     });
 
@@ -311,6 +312,15 @@ namespace Dotmim.Sync
                 message += $"LastTimestamp:{lastTimestamp}.";
 
                 throw GetSyncError(context, ex, message);
+            }
+            finally
+            {
+                if (localSerializerModified != null)
+                await localSerializerModified.DisposeAsync().ConfigureAwait(false);
+
+                if (localSerializerDeleted != null)
+                    await localSerializerDeleted.DisposeAsync().ConfigureAwait(false);
+
             }
         }
 
@@ -434,7 +444,7 @@ namespace Dotmim.Sync
                         for (var i = 0; i < dataReader.FieldCount; i++)
                         {
                             var columnName = dataReader.GetName(i);
-                            
+
                             // if we have the tombstone value, do not add it to the table
                             if (columnName == "sync_row_is_tombstone")
                             {
@@ -462,7 +472,7 @@ namespace Dotmim.Sync
                     if (tableChangesSelected.Deletes > 0 || tableChangesSelected.Upserts > 0)
                         changes.TableChangesSelected.Add(tableChangesSelected);
 
-                }, threadNumberLimits);
+                }, threadNumberLimits).ConfigureAwait(false);
 
 
                 var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, fromLastTimestamp, toLastTimestamp,

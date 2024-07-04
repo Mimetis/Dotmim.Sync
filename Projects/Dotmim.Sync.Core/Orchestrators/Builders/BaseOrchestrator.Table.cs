@@ -42,41 +42,44 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning).ConfigureAwait(false);
-                var hasBeenCreated = false;
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    var hasBeenCreated = false;
 
-                // Get table builder
-                var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    // Get table builder
+                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
-                bool schemaExists;
-                (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (!schemaExists)
-                    (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
+                    bool schemaExists;
+                    (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                bool exists;
-                (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                // should create only if not exists OR if overwrite has been set
-                var shouldCreate = !exists || overwrite;
-
-                if (shouldCreate)
-                {
-                    // Drop if already exists and we need to overwrite
-                    if (exists && overwrite)
-                        (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder,
+                    if (!schemaExists)
+                        (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                    (context, hasBeenCreated) = await InternalCreateTableAsync(scopeInfo, context, tableBuilder,
+                    bool exists;
+                    (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    // should create only if not exists OR if overwrite has been set
+                    var shouldCreate = !exists || overwrite;
+
+                    if (shouldCreate)
+                    {
+                        // Drop if already exists and we need to overwrite
+                        if (exists && overwrite)
+                            (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder,
+                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                        (context, hasBeenCreated) = await InternalCreateTableAsync(scopeInfo, context, tableBuilder,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    }
+
+                    await runner.CommitAsync().ConfigureAwait(false);
+
+                    return hasBeenCreated;
                 }
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return hasBeenCreated;
             }
             catch (Exception ex)
             {
@@ -106,68 +109,70 @@ namespace Dotmim.Sync
                 if (scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning).ConfigureAwait(false);
-
-                var atLeastOneHasBeenCreated = false;
-
-                // Sorting tables based on dependencies between them
-                var schemaTables = scopeInfo.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
-
-                // if we overwritten all tables, we need to delete all of them, before recreating them
-                if (overwrite)
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
                 {
-                    foreach (var schemaTable in schemaTables.Reverse())
+                    var atLeastOneHasBeenCreated = false;
+
+                    // Sorting tables based on dependencies between them
+                    var schemaTables = scopeInfo.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
+
+                    // if we overwritten all tables, we need to delete all of them, before recreating them
+                    if (overwrite)
                     {
+                        foreach (var schemaTable in schemaTables.Reverse())
+                        {
+                            var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                            bool exists;
+                            (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
+                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                            if (exists)
+                                (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder,
+                                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        }
+                    }
+                    // Then create them
+                    foreach (var schemaTable in schemaTables)
+                    {
+                        // Get table builder
                         var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+
+                        bool schemaExists;
+                        (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                        if (!schemaExists)
+                            (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
+                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
                         bool exists;
                         (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                        if (exists)
-                            (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder,
-                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-                    }
-                }
-                // Then create them
-                foreach (var schemaTable in schemaTables)
-                {
-                    // Get table builder
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                        // should create only if not exists OR if overwrite has been set
+                        var shouldCreate = !exists || overwrite;
 
-                    bool schemaExists;
-                    (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        if (shouldCreate)
+                        {
+                            // Drop if already exists and we need to overwrite
+                            if (exists && overwrite)
+                                (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder,
+                                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                    if (!schemaExists)
-                        (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                    bool exists;
-                    (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                    // should create only if not exists OR if overwrite has been set
-                    var shouldCreate = !exists || overwrite;
-
-                    if (shouldCreate)
-                    {
-                        // Drop if already exists and we need to overwrite
-                        if (exists && overwrite)
-                            (context, _) = await InternalDropTableAsync(scopeInfo, context, tableBuilder,
+                            bool hasBeenCreated;
+                            (context, hasBeenCreated) = await InternalCreateTableAsync(scopeInfo, context, tableBuilder,
                                 runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                        bool hasBeenCreated;
-                        (context, hasBeenCreated) = await InternalCreateTableAsync(scopeInfo, context, tableBuilder,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                        if (hasBeenCreated)
-                            atLeastOneHasBeenCreated = true;
+                            if (hasBeenCreated)
+                                atLeastOneHasBeenCreated = true;
+                        }
                     }
+
+                    await runner.CommitAsync().ConfigureAwait(false);
+
+                    return atLeastOneHasBeenCreated;
                 }
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return atLeastOneHasBeenCreated;
             }
             catch (Exception ex)
             {
@@ -201,15 +206,17 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    bool exists;
+                    (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
-                bool exists;
-                (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                await runner.CommitAsync().ConfigureAwait(false);
-                return exists;
+                    await runner.CommitAsync().ConfigureAwait(false);
+                    return exists;
+                }
             }
             catch (Exception ex)
             {
@@ -248,24 +255,26 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    var hasBeenDropped = false;
 
-                var hasBeenDropped = false;
+                    // Get table builder
+                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
-                // Get table builder
-                var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
-
-                bool exists;
-                (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (exists)
-                    (context, hasBeenDropped) = await InternalDropTableAsync(scopeInfo, context, tableBuilder,
+                    bool exists;
+                    (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                await runner.CommitAsync().ConfigureAwait(false);
+                    if (exists)
+                        (context, hasBeenDropped) = await InternalDropTableAsync(scopeInfo, context, tableBuilder,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                return hasBeenDropped;
+                    await runner.CommitAsync().ConfigureAwait(false);
+
+                    return hasBeenDropped;
+                }
             }
             catch (Exception ex)
             {
@@ -297,29 +306,32 @@ namespace Dotmim.Sync
                 if (scopeInfo.Schema == null || !scopeInfo.Schema.HasTables || !scopeInfo.Schema.HasColumns)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning).ConfigureAwait(false);
-                bool atLeastOneTableHasBeenDropped = false;
-
-                // Sorting tables based on dependencies between them
-                var schemaTables = scopeInfo.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
-
-                foreach (var schemaTable in schemaTables.Reverse())
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
                 {
-                    // Get table builder
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    bool atLeastOneTableHasBeenDropped = false;
 
-                    bool exists;
-                    (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    // Sorting tables based on dependencies between them
+                    var schemaTables = scopeInfo.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable()));
 
-                    if (exists)
-                        (context, atLeastOneTableHasBeenDropped) = await InternalDropTableAsync(scopeInfo, context, tableBuilder,
+                    foreach (var schemaTable in schemaTables.Reverse())
+                    {
+                        // Get table builder
+                        var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+
+                        bool exists;
+                        (context, exists) = await InternalExistsTableAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                        if (exists)
+                            (context, atLeastOneTableHasBeenDropped) = await InternalDropTableAsync(scopeInfo, context, tableBuilder,
+                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    }
+
+                    await runner.CommitAsync().ConfigureAwait(false);
+
+                    return atLeastOneTableHasBeenDropped;
                 }
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return atLeastOneTableHasBeenDropped;
             }
             catch (Exception ex)
             {
@@ -600,7 +612,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                
+
                 if (string.IsNullOrEmpty(tableBuilder.TableDescription.SchemaName) || tableBuilder.TableDescription.SchemaName == this.Provider.DefaultSchemaName)
                     return (context, true);
 

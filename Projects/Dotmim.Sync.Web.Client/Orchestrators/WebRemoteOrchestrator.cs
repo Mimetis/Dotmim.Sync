@@ -361,7 +361,7 @@ namespace Dotmim.Sync.Web.Client
 
             // using json to serialize header
             var jsonSerializer = new JsonObjectSerializer();
-            var serializerInfoJsonBytes = await jsonSerializer.SerializeAsync(serializerInfo);
+            var serializerInfoJsonBytes = await jsonSerializer.SerializeAsync(serializerInfo).ConfigureAwait(false);
 
             var requestUri = BuildUri(this.ServiceUri);
 

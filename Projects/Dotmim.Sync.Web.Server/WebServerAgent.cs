@@ -911,7 +911,7 @@ namespace Dotmim.Sync.Web.Server
                 Number = syncException.Number,
             };
 
-            var data = await jsonSerializer.SerializeAsync(webException);
+            var data = await jsonSerializer.SerializeAsync(webException).ConfigureAwait(false);
 
             // data to send back, as the response
             byte[] compressedData = this.EnsureCompression(httpRequest, httpResponse, data);
@@ -997,7 +997,7 @@ namespace Dotmim.Sync.Web.Server
                     stringBuilder.AppendLine("</ul>");
                 }
 
-                var setup = await jsonSerializer.SerializeAsync(webServerAgent.Setup);
+                var setup = await jsonSerializer.SerializeAsync(webServerAgent.Setup).ConfigureAwait(false);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Setup</li>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
@@ -1007,7 +1007,7 @@ namespace Dotmim.Sync.Web.Server
                 stringBuilder.AppendLine("</li>");
                 stringBuilder.AppendLine("</ul>");
 
-                var provider = await jsonSerializer.SerializeAsync(webServerAgent.Provider);
+                var provider = await jsonSerializer.SerializeAsync(webServerAgent.Provider).ConfigureAwait(false);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Provider</li>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
@@ -1017,7 +1017,7 @@ namespace Dotmim.Sync.Web.Server
                 stringBuilder.AppendLine("</li>");
                 stringBuilder.AppendLine("</ul>");
 
-                var options = await jsonSerializer.SerializeAsync(webServerAgent.Options);
+                var options = await jsonSerializer.SerializeAsync(webServerAgent.Options).ConfigureAwait(false);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Options</li>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
@@ -1027,7 +1027,7 @@ namespace Dotmim.Sync.Web.Server
                 stringBuilder.AppendLine("</li>");
                 stringBuilder.AppendLine("</ul>");
 
-                var webServerOptions = await jsonSerializer.SerializeAsync(webServerAgent.WebServerOptions);
+                var webServerOptions = await jsonSerializer.SerializeAsync(webServerAgent.WebServerOptions).ConfigureAwait(false);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Web Server Options</li>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");

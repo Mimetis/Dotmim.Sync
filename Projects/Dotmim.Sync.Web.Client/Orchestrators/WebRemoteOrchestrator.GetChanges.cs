@@ -182,7 +182,7 @@ namespace Dotmim.Sync.Web.Client
             {
                 var webSerializer = this.SerializerFactory.GetSerializer();
                 using var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-                var getMoreChanges = await webSerializer.DeserializeAsync<HttpMessageSendChangesResponse>(responseStream);
+                var getMoreChanges = await webSerializer.DeserializeAsync<HttpMessageSendChangesResponse>(responseStream).ConfigureAwait(false);
                 context = getMoreChanges.SyncContext;
 
                 await this.InterceptAsync(new HttpGettingResponseMessageArgs(response, this.ServiceUri.ToString(),

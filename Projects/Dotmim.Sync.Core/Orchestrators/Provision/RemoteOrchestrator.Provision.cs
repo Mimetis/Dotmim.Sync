@@ -56,25 +56,27 @@ namespace Dotmim.Sync
             var context = new SyncContext(Guid.NewGuid(), scopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    ScopeInfo sScopeInfo;
+                    (context, sScopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, setup, overwrite,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                ScopeInfo sScopeInfo;
-                (context, sScopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, setup, overwrite,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    if (sScopeInfo.Setup == null || sScopeInfo.Schema == null)
+                        throw new MissingServerScopeTablesException(scopeName);
 
-                if (sScopeInfo.Setup == null || sScopeInfo.Schema == null)
-                    throw new MissingServerScopeTablesException(scopeName);
+                    // 2) Provision
+                    if (provision == SyncProvision.NotSet)
+                        provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-                // 2) Provision
-                if (provision == SyncProvision.NotSet)
-                    provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                    (context, sScopeInfo) = await this.InternalProvisionServerAsync(sScopeInfo, context, provision, overwrite,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                (context, sScopeInfo) = await this.InternalProvisionServerAsync(sScopeInfo, context, provision, overwrite,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    await runner.CommitAsync().ConfigureAwait(false);
 
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return sScopeInfo;
+                    return sScopeInfo;
+                }
             }
             catch (Exception ex)
             {
@@ -189,24 +191,26 @@ namespace Dotmim.Sync
                 if (provision == default)
                     provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                ScopeInfo serverScopeInfo = null;
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (exists)
-                    (context, serverScopeInfo) = await this.InternalLoadScopeInfoAsync(context,
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    ScopeInfo serverScopeInfo = null;
+                    bool exists;
+                    (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                bool isDeprovisioned;
-                (context, isDeprovisioned) = await InternalDeprovisionAsync(serverScopeInfo, context, provision,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    if (exists)
+                        (context, serverScopeInfo) = await this.InternalLoadScopeInfoAsync(context,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                await runner.CommitAsync().ConfigureAwait(false);
+                    bool isDeprovisioned;
+                    (context, isDeprovisioned) = await InternalDeprovisionAsync(serverScopeInfo, context, provision,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                return isDeprovisioned;
+                    await runner.CommitAsync().ConfigureAwait(false);
+
+                    return isDeprovisioned;
+                }
             }
             catch (Exception ex)
             {
@@ -254,20 +258,22 @@ namespace Dotmim.Sync
                 if (provision == default)
                     provision = SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient | SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    // Creating a fake scope info
+                    var serverScopeInfo = InternalCreateScopeInfo(scopeName);
+                    serverScopeInfo.Setup = setup;
+                    serverScopeInfo.Schema = new SyncSet(setup);
 
-                // Creating a fake scope info
-                var serverScopeInfo = InternalCreateScopeInfo(scopeName);
-                serverScopeInfo.Setup = setup;
-                serverScopeInfo.Schema = new SyncSet(setup);
+                    bool isDeprovisioned;
+                    (context, isDeprovisioned) = await InternalDeprovisionAsync(serverScopeInfo, context, provision,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                bool isDeprovisioned;
-                (context, isDeprovisioned) = await InternalDeprovisionAsync(serverScopeInfo, context, provision,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    await runner.CommitAsync().ConfigureAwait(false);
 
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return isDeprovisioned;
+                    return isDeprovisioned;
+                }
             }
             catch (Exception ex)
             {
@@ -296,70 +302,72 @@ namespace Dotmim.Sync
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                List<ScopeInfo> serverScopeInfos = null;
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (exists)
-                    (context, serverScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context,
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    List<ScopeInfo> serverScopeInfos = null;
+                    bool exists;
+                    (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                // fallback to "try to drop an hypothetical default scope"
-                serverScopeInfos ??= new List<ScopeInfo>();
+                    if (exists)
+                        (context, serverScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                var existingFilters = serverScopeInfos?.SelectMany(si => si.Setup == null ? new SetupFilters() : si.Setup.Filters).ToList();
+                    // fallback to "try to drop an hypothetical default scope"
+                    serverScopeInfos ??= new List<ScopeInfo>();
 
-                var defaultServerScopeInfo = this.InternalCreateScopeInfo(SyncOptions.DefaultScopeName);
+                    var existingFilters = serverScopeInfos?.SelectMany(si => si.Setup == null ? new SetupFilters() : si.Setup.Filters).ToList();
 
-                SyncSetup setup;
-                (context, setup) = await this.InternalGetAllTablesAsync(context,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    var defaultServerScopeInfo = this.InternalCreateScopeInfo(SyncOptions.DefaultScopeName);
 
-                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
-                var scopeInfoTableName = scopeBuilder.ScopeInfoTableName.Unquoted().ToString();
-                var scopeInfoClientTableName = $"{scopeBuilder.ScopeInfoTableName.Unquoted()}_client";
+                    SyncSetup setup;
+                    (context, setup) = await this.InternalGetAllTablesAsync(context,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                // Considering removing tables with "_tracking" at the end
-                var tables = setup.Tables.Where(setupTable => !setupTable.TableName.EndsWith("_tracking") && setupTable.TableName != scopeInfoTableName && setupTable.TableName != scopeInfoClientTableName).ToList();
-                setup.Tables.Clear();
-                setup.Tables.AddRange(tables);
-                defaultServerScopeInfo.Setup = setup;
+                    var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                    var scopeInfoTableName = scopeBuilder.ScopeInfoTableName.Unquoted().ToString();
+                    var scopeInfoClientTableName = $"{scopeBuilder.ScopeInfoTableName.Unquoted()}_client";
 
-                if (defaultServerScopeInfo.Setup != null && defaultServerScopeInfo.Setup.Tables.Count > 0)
-                {
-                    var (_, defaultSchema) = await this.InternalGetSchemaAsync(context, defaultServerScopeInfo.Setup,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    // Considering removing tables with "_tracking" at the end
+                    var tables = setup.Tables.Where(setupTable => !setupTable.TableName.EndsWith("_tracking") && setupTable.TableName != scopeInfoTableName && setupTable.TableName != scopeInfoClientTableName).ToList();
+                    setup.Tables.Clear();
+                    setup.Tables.AddRange(tables);
+                    defaultServerScopeInfo.Setup = setup;
 
-                    defaultServerScopeInfo.Schema = defaultSchema;
-
-                    // add any random filters, to try to delete them
-                    if (existingFilters != null && existingFilters.Count > 0)
+                    if (defaultServerScopeInfo.Setup != null && defaultServerScopeInfo.Setup.Tables.Count > 0)
                     {
-                        var filters = new SetupFilters();
-                        foreach (var filter in existingFilters)
-                            filters.Add(filter);
+                        var (_, defaultSchema) = await this.InternalGetSchemaAsync(context, defaultServerScopeInfo.Setup,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                        defaultServerScopeInfo.Setup.Filters = filters;
+                        defaultServerScopeInfo.Schema = defaultSchema;
+
+                        // add any random filters, to try to delete them
+                        if (existingFilters != null && existingFilters.Count > 0)
+                        {
+                            var filters = new SetupFilters();
+                            foreach (var filter in existingFilters)
+                                filters.Add(filter);
+
+                            defaultServerScopeInfo.Setup.Filters = filters;
+                        }
+
+                        serverScopeInfos.Add(defaultServerScopeInfo);
                     }
 
-                    serverScopeInfos.Add(defaultServerScopeInfo);
+                    var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable | SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient;
+
+                    foreach (var serverScopeInfo in serverScopeInfos)
+                    {
+                        if (serverScopeInfo == null || serverScopeInfo.Setup == null || serverScopeInfo.Setup.Tables == null || serverScopeInfo.Setup.Tables.Count <= 0)
+                            continue;
+
+                        (context, _) = await InternalDeprovisionAsync(serverScopeInfo, context, provision,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    }
+
+                    await runner.CommitAsync().ConfigureAwait(false);
                 }
-
-                var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.TrackingTable | SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient;
-
-                foreach (var serverScopeInfo in serverScopeInfos)
-                {
-                    if (serverScopeInfo == null || serverScopeInfo.Setup == null || serverScopeInfo.Setup.Tables == null || serverScopeInfo.Setup.Tables.Count <= 0)
-                        continue;
-
-                    (context, _) = await InternalDeprovisionAsync(serverScopeInfo, context, provision,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-                }
-
-                await runner.CommitAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -380,19 +388,21 @@ namespace Dotmim.Sync
                 if (sScopeInfo.Schema == null)
                     throw new Exception($"No Setup in your server scopeInfo {sScopeInfo.Name}");
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    if (provision == SyncProvision.NotSet)
+                        provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
 
-                if (provision == SyncProvision.NotSet)
-                    provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
+                    (context, _) = await this.InternalProvisionAsync(sScopeInfo, context, overwrite, provision, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                (context, _) = await this.InternalProvisionAsync(sScopeInfo, context, overwrite, provision, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    // Write scopes locally
+                    (context, sScopeInfo) = await this.InternalSaveScopeInfoAsync(sScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                // Write scopes locally
-                (context, sScopeInfo) = await this.InternalSaveScopeInfoAsync(sScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    await runner.CommitAsync().ConfigureAwait(false);
 
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return (context, sScopeInfo);
+                    return (context, sScopeInfo);
+                }
             }
             catch (Exception ex)
             {
@@ -411,16 +421,18 @@ namespace Dotmim.Sync
         {
             try
             {
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    var scopeInfoClients = await InternalLoadAllScopeInfoClientsAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                var scopeInfoClients = await InternalLoadAllScopeInfoClientsAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    if (scopeInfoClients == null || scopeInfoClients.Count <= 0)
+                        return true;
 
-                if (scopeInfoClients == null || scopeInfoClients.Count <= 0)
-                    return true;
+                    var scopeInfoClientsForThisScopeNameAlreadyExists = scopeInfoClients.Any(sic => sic.Name == sScopeInfo.Name);
 
-                var scopeInfoClientsForThisScopeNameAlreadyExists = scopeInfoClients.Any(sic => sic.Name == sScopeInfo.Name);
-
-                return !scopeInfoClientsForThisScopeNameAlreadyExists;
+                    return !scopeInfoClientsForThisScopeNameAlreadyExists;
+                }
             }
             catch (Exception ex)
             {

@@ -109,80 +109,83 @@ namespace Dotmim.Sync
             {
                 bool shouldProvision = false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
-                bool exists;
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-                if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-                if (!exists)
-                    await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                ScopeInfo sScopeInfo;
-                bool sScopeInfoExists;
-                (context, sScopeInfoExists) = await this.InternalExistsScopeInfoAsync(context.ScopeName, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                bool shouldSave = false;
-
-                if (!sScopeInfoExists)
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.ScopeLoading, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
                 {
-                    sScopeInfo = this.InternalCreateScopeInfo(context.ScopeName);
-                    shouldSave = true;
-                }
-                else
-                {
-                    (context, sScopeInfo) = await this.InternalLoadScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-                }
 
-                // if serverscopeinfo is a new, because we never run any sync before, grab schema and affect setup
-                if (setup != null && setup.Tables.Count > 0)
-                {
-                    if ((sScopeInfo.Setup == null && sScopeInfo.Schema == null) || overwrite)
+                    bool exists;
+                    (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    if (!exists)
+                        await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    if (!exists)
+                        await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    ScopeInfo sScopeInfo;
+                    bool sScopeInfoExists;
+                    (context, sScopeInfoExists) = await this.InternalExistsScopeInfoAsync(context.ScopeName, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    bool shouldSave = false;
+
+                    if (!sScopeInfoExists)
                     {
-                        SyncSet schema;
-                        (context, schema) = await this.InternalGetSchemaAsync(context, setup, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-                        sScopeInfo.Setup = setup;
-                        sScopeInfo.Schema = schema;
-
-                        // Checking if we have already some scopes
-                        // Then gets the first scope to get the tracking tables & sp prefixes
-                        List<ScopeInfo> allScopes;
-                        (context, allScopes) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                        if (allScopes.Count > 0)
-                        {
-                            // Get the first scope with an existing setup
-                            var firstScope = allScopes.FirstOrDefault(sc => sc.Setup != null);
-
-                            if (firstScope != null)
-                            {
-                                if (sScopeInfo.Setup.TrackingTablesPrefix != firstScope.Setup.TrackingTablesPrefix)
-                                    throw new Exception($"Can't add a new setup with different tracking table prefix. Please use same tracking table prefix as your first setup ([\"{firstScope.Setup.TrackingTablesPrefix}\"])");
-
-                                if (sScopeInfo.Setup.TrackingTablesSuffix != firstScope.Setup.TrackingTablesSuffix)
-                                    throw new Exception($"Can't add a new setup with different tracking table suffix. Please use same tracking table suffix as your first setup ([\"{firstScope.Setup.TrackingTablesSuffix}\"])");
-
-                                if (sScopeInfo.Setup.TriggersPrefix != firstScope.Setup.TriggersPrefix)
-                                    throw new Exception($"Can't add a new setup with different trigger prefix. Please use same trigger prefix as your first setup ([\"{firstScope.Setup.TriggersPrefix}\"])");
-
-                                if (sScopeInfo.Setup.TriggersSuffix != firstScope.Setup.TriggersSuffix)
-                                    throw new Exception($"Can't add a new setup with different trigger suffix. Please use same trigger suffix as your first setup ([\"{firstScope.Setup.TriggersSuffix}\"])");
-                            }
-                        }
-
+                        sScopeInfo = this.InternalCreateScopeInfo(context.ScopeName);
                         shouldSave = true;
-                        shouldProvision = true;
                     }
+                    else
+                    {
+                        (context, sScopeInfo) = await this.InternalLoadScopeInfoAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    }
+
+                    // if serverscopeinfo is a new, because we never run any sync before, grab schema and affect setup
+                    if (setup != null && setup.Tables.Count > 0)
+                    {
+                        if ((sScopeInfo.Setup == null && sScopeInfo.Schema == null) || overwrite)
+                        {
+                            SyncSet schema;
+                            (context, schema) = await this.InternalGetSchemaAsync(context, setup, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            sScopeInfo.Setup = setup;
+                            sScopeInfo.Schema = schema;
+
+                            // Checking if we have already some scopes
+                            // Then gets the first scope to get the tracking tables & sp prefixes
+                            List<ScopeInfo> allScopes;
+                            (context, allScopes) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                            if (allScopes.Count > 0)
+                            {
+                                // Get the first scope with an existing setup
+                                var firstScope = allScopes.FirstOrDefault(sc => sc.Setup != null);
+
+                                if (firstScope != null)
+                                {
+                                    if (sScopeInfo.Setup.TrackingTablesPrefix != firstScope.Setup.TrackingTablesPrefix)
+                                        throw new Exception($"Can't add a new setup with different tracking table prefix. Please use same tracking table prefix as your first setup ([\"{firstScope.Setup.TrackingTablesPrefix}\"])");
+
+                                    if (sScopeInfo.Setup.TrackingTablesSuffix != firstScope.Setup.TrackingTablesSuffix)
+                                        throw new Exception($"Can't add a new setup with different tracking table suffix. Please use same tracking table suffix as your first setup ([\"{firstScope.Setup.TrackingTablesSuffix}\"])");
+
+                                    if (sScopeInfo.Setup.TriggersPrefix != firstScope.Setup.TriggersPrefix)
+                                        throw new Exception($"Can't add a new setup with different trigger prefix. Please use same trigger prefix as your first setup ([\"{firstScope.Setup.TriggersPrefix}\"])");
+
+                                    if (sScopeInfo.Setup.TriggersSuffix != firstScope.Setup.TriggersSuffix)
+                                        throw new Exception($"Can't add a new setup with different trigger suffix. Please use same trigger suffix as your first setup ([\"{firstScope.Setup.TriggersSuffix}\"])");
+                                }
+                            }
+
+                            shouldSave = true;
+                            shouldProvision = true;
+                        }
+                    }
+
+                    if (shouldSave)
+                        (context, sScopeInfo) = await this.InternalSaveScopeInfoAsync(sScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    await runner.CommitAsync().ConfigureAwait(false);
+
+                    return (context, sScopeInfo, shouldProvision);
                 }
-
-                if (shouldSave)
-                    (context, sScopeInfo) = await this.InternalSaveScopeInfoAsync(sScopeInfo, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return (context, sScopeInfo, shouldProvision);
             }
             catch (Exception ex)
             {

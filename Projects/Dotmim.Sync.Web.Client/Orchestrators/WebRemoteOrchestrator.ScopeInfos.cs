@@ -20,7 +20,7 @@ namespace Dotmim.Sync.Web.Client
         internal override async Task<(SyncContext context, ScopeInfo scopeInfo)> InternalLoadScopeInfoAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             ScopeInfo scopeInfo;
-            (context, scopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, default, false, connection, transaction, cancellationToken, progress);
+            (context, scopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, default, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             return (context, scopeInfo);
         }
 

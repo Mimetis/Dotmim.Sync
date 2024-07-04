@@ -41,33 +41,36 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction).ConfigureAwait(false);
-                bool hasBeenCreated = false;
-
-                // Get table builder
-                var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
-
-                bool exists;
-                (context, exists) = await InternalExistsTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                // should create only if not exists OR if overwrite has been set
-                var shouldCreate = !exists || overwrite;
-
-                if (shouldCreate)
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
                 {
-                    // Drop trigger if already exists
-                    if (exists && overwrite)
-                        (context, _) = await InternalDropTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    bool hasBeenCreated = false;
 
-                    (context, hasBeenCreated) = await InternalCreateTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
+                    // Get table builder
+                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+
+                    bool exists;
+                    (context, exists) = await InternalExistsTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    // should create only if not exists OR if overwrite has been set
+                    var shouldCreate = !exists || overwrite;
+
+                    if (shouldCreate)
+                    {
+                        // Drop trigger if already exists
+                        if (exists && overwrite)
+                            (context, _) = await InternalDropTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
+                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                        (context, hasBeenCreated) = await InternalCreateTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    }
+
+                    await runner.CommitAsync().ConfigureAwait(false);
+
+                    return hasBeenCreated;
                 }
-
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return hasBeenCreated;
             }
             catch (Exception ex)
             {
@@ -113,18 +116,21 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
 
-                // Get table builder
-                var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    // Get table builder
+                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
-                bool created;
-                (context, created) = await this.InternalCreateTriggersAsync(scopeInfo, context, overwrite, tableBuilder,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    bool created;
+                    (context, created) = await this.InternalCreateTriggersAsync(scopeInfo, context, overwrite, tableBuilder,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                await runner.CommitAsync().ConfigureAwait(false);
+                    await runner.CommitAsync().ConfigureAwait(false);
 
-                return created;
+                    return created;
+                }
             }
             catch (Exception ex)
             {
@@ -168,16 +174,18 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    // Get table builder
+                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
-                // Get table builder
-                var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    bool exists;
+                    (context, exists) = await InternalExistsTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                bool exists;
-                (context, exists) = await InternalExistsTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                return exists;
+                    return exists;
+                }
             }
             catch (Exception ex)
             {
@@ -221,21 +229,24 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
-                bool hasBeenDropped = false;
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    bool hasBeenDropped = false;
 
-                // Get table builder
-                var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    // Get table builder
+                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
-                bool existsAndCanBeDeleted;
-                (context, existsAndCanBeDeleted) = await InternalExistsTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
-
-                if (existsAndCanBeDeleted)
-                    (context, hasBeenDropped) = await InternalDropTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
+                    bool existsAndCanBeDeleted;
+                    (context, existsAndCanBeDeleted) = await InternalExistsTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                return hasBeenDropped;
+                    if (existsAndCanBeDeleted)
+                        (context, hasBeenDropped) = await InternalDropTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
+                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+
+                    return hasBeenDropped;
+                }
             }
             catch (Exception ex)
             {
@@ -279,18 +290,20 @@ namespace Dotmim.Sync
                 if (schemaTable == null)
                     return false;
 
-                await using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
+                await using (runner.ConfigureAwait(false))
+                {
+                    // Get table builder
+                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
-                // Get table builder
-                var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    bool dropped;
+                    (context, dropped) = await this.InternalDropTriggersAsync(scopeInfo, context, tableBuilder,
+                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                bool dropped;
-                (context, dropped) = await this.InternalDropTriggersAsync(scopeInfo, context, tableBuilder,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    await runner.CommitAsync().ConfigureAwait(false);
 
-                await runner.CommitAsync().ConfigureAwait(false);
-
-                return dropped;
+                    return dropped;
+                }
             }
             catch (Exception ex)
             {
@@ -330,7 +343,7 @@ namespace Dotmim.Sync
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                await action.Command.ExecuteNonQueryAsync();
+                await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 await this.InterceptAsync(new TriggerCreatedArgs(context, tableBuilder.TableDescription, triggerType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                 action.Command.Dispose();
 

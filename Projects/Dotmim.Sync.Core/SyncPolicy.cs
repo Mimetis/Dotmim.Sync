@@ -45,13 +45,13 @@ namespace Dotmim.Sync
         /// Execute an operation based on a retry policy, asynchronously
         /// </summary>
         public Task ExecuteAsync(Func<Task> operation, CancellationToken cancellationToken = default)
-        => InternalExecuteAsync(new Func<Task<bool>>(async () => { await operation(); return true; }), cancellationToken);
+        => InternalExecuteAsync(new Func<Task<bool>>(async () => { await operation().ConfigureAwait(false); return true; }), cancellationToken);
 
         /// <summary>
         /// Execute an operation based on a retry policy, asynchronously
         /// </summary>
         public Task ExecuteAsync(Func<CancellationToken, Task> operation, CancellationToken cancellationToken = default)
-        => InternalExecuteAsync(new Func<Task<bool>>(async () => { await operation(cancellationToken); return true; }), cancellationToken);
+        => InternalExecuteAsync(new Func<Task<bool>>(async () => { await operation(cancellationToken).ConfigureAwait(false); return true; }), cancellationToken);
 
         /// <summary>
         /// Execute an operation based on a retry policy, asynchronously, and return the result
@@ -120,7 +120,7 @@ namespace Dotmim.Sync
                     TimeSpan waitDuration = this.SleepDuration?.Invoke(tryCount) ?? TimeSpan.Zero;
 
                     if (onRetryAsync != null)
-                        await onRetryAsync(handledException, tryCount, waitDuration, arg);
+                        await onRetryAsync(handledException, tryCount, waitDuration, arg).ConfigureAwait(false);
 
                     if (waitDuration > TimeSpan.Zero)
                         await Task.Delay(waitDuration, cancellationToken).ConfigureAwait(false);

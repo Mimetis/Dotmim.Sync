@@ -105,7 +105,7 @@ namespace Dotmim.Sync.Serialization
             if (!this.IsOpen)
                 return;
 
-            await writerLock.WaitAsync();
+            await writerLock.WaitAsync().ConfigureAwait(false);
 
             try
             {
@@ -115,14 +115,14 @@ namespace Dotmim.Sync.Serialization
                     this.writer.WriteEndObject();
                     this.writer.WriteEndArray();
                     this.writer.WriteEndObject();
-                    await this.writer.FlushAsync();
-                    await this.writer.DisposeAsync();
+                    await this.writer.FlushAsync().ConfigureAwait(false);
+                    await this.writer.DisposeAsync().ConfigureAwait(false);
                 }
 
                 if (this.sw != null)
                 {
 #if NET6_0_OR_GREATER
-                    await this.sw.DisposeAsync();
+                    await this.sw.DisposeAsync().ConfigureAwait(false);
 #else
                     this.sw.Dispose();
 #endif
@@ -141,7 +141,7 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public async Task OpenFileAsync(string path, SyncTable schemaTable, SyncRowState state, bool append = false)
         {
-            await ResetWriterAsync();
+            await ResetWriterAsync().ConfigureAwait(false);
 
             this.IsOpen = true;
 
@@ -150,7 +150,7 @@ namespace Dotmim.Sync.Serialization
             if (!fi.Directory.Exists)
                 fi.Directory.Create();
 
-            await writerLock.WaitAsync();
+            await writerLock.WaitAsync().ConfigureAwait(false);
 
             try
             {
@@ -198,13 +198,13 @@ namespace Dotmim.Sync.Serialization
                 return;
             }
 
-            await writerLock.WaitAsync();
+            await writerLock.WaitAsync().ConfigureAwait(false);
 
             try
             {
                 if (this.writer != null)
                 {
-                    await this.writer.DisposeAsync();
+                    await this.writer.DisposeAsync().ConfigureAwait(false);
                     this.writer = null;
                 }
             }
@@ -224,11 +224,11 @@ namespace Dotmim.Sync.Serialization
             string str;
 
             if (this.writingRowAsync != null)
-                str = await this.writingRowAsync(schemaTable, innerRow);
+                str = await this.writingRowAsync(schemaTable, innerRow).ConfigureAwait(false);
             else
                 str = string.Empty; // This won't ever be used, but is need to compile.
 
-            await writerLock.WaitAsync();
+            await writerLock.WaitAsync().ConfigureAwait(false);
 
             try
             {
@@ -267,7 +267,7 @@ namespace Dotmim.Sync.Serialization
         {
             long position = 0L;
 
-            await writerLock.WaitAsync();
+            await writerLock.WaitAsync().ConfigureAwait(false);
 
             try
             {
@@ -449,7 +449,7 @@ namespace Dotmim.Sync.Serialization
                                         if (value != null)
                                             values[index] = SyncTypeConverter.TryConvertTo(value, columnType);
                                     }
-                                    catch (Exception ex)
+                                    catch (Exception)
                                     {
                                         // No exception as a custom converter could be used to override type 
                                         // like a datetime converted to ticks (long)
@@ -568,7 +568,7 @@ namespace Dotmim.Sync.Serialization
                 if (disposing)
                 {
                     CloseFile();
-                    this.writerLock.Dispose();
+                    this.writerLock?.Dispose();
                 }
 
                 disposedValue = true;
@@ -584,7 +584,7 @@ namespace Dotmim.Sync.Serialization
 
         public async ValueTask DisposeAsync()
         {
-            await CloseFileAsync();
+            await this.CloseFileAsync().ConfigureAwait(false);
             this.writerLock.Dispose();
             GC.SuppressFinalize(this);
         }
