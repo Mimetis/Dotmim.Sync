@@ -11,7 +11,7 @@
 		<SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
 	</PropertyGroup>
 	<PropertyGroup>
-		<NoWarn>CA2007</NoWarn>
+		<NoWarn>$(NoWarn);CA2007</NoWarn>
 	</PropertyGroup>
 	<ItemGroup>
 		<Compile Remove="UnitTests\Mock\**" />
