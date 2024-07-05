@@ -1028,7 +1028,7 @@ namespace Dotmim.Sync.Tests.Models
 
 
             var dettails = new List<PriceListDetail>();
-            var generator = new Random((int)DateTime.Now.Ticks);
+            var generator = new Random((int)(DateTime.Now.Ticks % int.MaxValue));
             //Add hollyday price list
             dettails.AddRange(products
                 .Where(p => p.ProductCategoryId == "MOUNTB")
