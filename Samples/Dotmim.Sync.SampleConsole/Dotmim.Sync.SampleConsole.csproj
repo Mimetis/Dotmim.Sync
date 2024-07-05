@@ -6,6 +6,7 @@
 	</PropertyGroup>
 	<PropertyGroup>
 		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+		<NoWarn>$(NoWarn);CA2007</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
