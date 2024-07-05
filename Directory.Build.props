@@ -6,6 +6,14 @@
 		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
 		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
+		
+		<!-- Static analysis settings -->
+		<Features>strict</Features>
+		<WarningLevel>9999</WarningLevel>
+		<AnalysisLevel>latest-all</AnalysisLevel>
+		<EnableNETAnalyzers>true</EnableNETAnalyzers>
+		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+		<CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
 
 		<!-- Generate the lock file -->
 		<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
