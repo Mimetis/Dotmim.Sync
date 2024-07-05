@@ -1028,7 +1028,7 @@ namespace Dotmim.Sync.Tests.Models
 
 
             var dettails = new List<PriceListDetail>();
-            var generator = new Random((int)DateTime.Now.Ticks);
+            var generator = new Random((int)(DateTime.Now.Ticks % int.MaxValue));
             //Add hollyday price list
             dettails.AddRange(products
                 .Where(p => p.ProductCategoryId == "MOUNTB")
@@ -1112,7 +1112,7 @@ namespace Dotmim.Sync.Tests.Models
             var useSeeding = adventureWorksContext.useSeeding;
             var cstring = adventureWorksContext.ConnectionString;
 
-            var hashCode = base.GetHashCode() * 397;
+            var hashCode = base.GetHashCode() * 397L;
             hashCode ^= useSchema.GetHashCode();
             hashCode ^= providerType.GetHashCode();
             hashCode ^= useSeeding.GetHashCode();
