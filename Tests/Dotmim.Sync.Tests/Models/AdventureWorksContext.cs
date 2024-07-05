@@ -1112,7 +1112,7 @@ namespace Dotmim.Sync.Tests.Models
             var useSeeding = adventureWorksContext.useSeeding;
             var cstring = adventureWorksContext.ConnectionString;
 
-            var hashCode = base.GetHashCode() * 397;
+            var hashCode = base.GetHashCode() * 397L;
             hashCode ^= useSchema.GetHashCode();
             hashCode ^= providerType.GetHashCode();
             hashCode ^= useSeeding.GetHashCode();
