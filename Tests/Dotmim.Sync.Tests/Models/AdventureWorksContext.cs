@@ -1173,13 +1173,7 @@ namespace Dotmim.Sync.Tests.Models
 
         public override int GetHashCode()
         {
-            var hashCode = base.GetHashCode() * 397;
-            hashCode ^= this.useSchema.GetHashCode();
-            hashCode ^= this.providerType.GetHashCode();
-            hashCode ^= this.useSeeding.GetHashCode();
-            hashCode ^= this.cstring.GetHashCode();
-
-            return hashCode;
+            return HashCode.Combine(base.GetHashCode(), useSchema, providerType, useSeeding, cstring);
         }
     }
 }
