@@ -259,7 +259,7 @@ namespace Dotmim.Sync
 
                 using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
-                if (!dataReader.Read())
+                if (!await dataReader.ReadAsync().ConfigureAwait(false))
                 {
                     dataReader.Close();
                     command.Dispose();

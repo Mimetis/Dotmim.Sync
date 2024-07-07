@@ -92,7 +92,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 using var dataReader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
 
-                while (dataReader.Read())
+                while (await dataReader.ReadAsync().ConfigureAwait(false))
                 {
                     var failedRow = new SyncRow(schemaChangesTable, syncRowState);
 

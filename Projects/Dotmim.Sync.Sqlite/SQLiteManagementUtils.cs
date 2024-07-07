@@ -34,7 +34,7 @@ namespace Dotmim.Sync.Sqlite
 
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
-                    while (reader.Read())
+                    while (await reader.ReadAsync().ConfigureAwait(false))
                     {
                         var tableName = reader.GetString(0);
                         var setupTable = new SetupTable(tableName);

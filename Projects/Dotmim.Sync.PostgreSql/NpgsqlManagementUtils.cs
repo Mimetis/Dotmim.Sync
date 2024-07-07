@@ -190,7 +190,7 @@ namespace Dotmim.Sync.PostgreSql
 
                 using (var reader = await NpgsqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
-                    while (reader.Read())
+                    while (await reader.ReadAsync().ConfigureAwait(false))
                     {
                         var tableName = reader.GetString(0);
                         var schemaName = reader.GetString(1);
@@ -305,7 +305,7 @@ namespace Dotmim.Sync.PostgreSql
                 {
                     if (reader.HasRows)
                     {
-                        reader.Read();
+                        await reader.ReadAsync().ConfigureAwait(false);
 
                         dbVersion = reader.GetString(0);
                         dbName = reader.GetString(1);

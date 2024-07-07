@@ -206,7 +206,7 @@ namespace Dotmim.Sync
 
                     ScopeInfo scopeInfo = null;
 
-                    if (reader.Read())
+                    if (await reader.ReadAsync().ConfigureAwait(false))
                         scopeInfo = InternalReadScopeInfo(reader);
 
                     reader.Close();
@@ -289,7 +289,7 @@ namespace Dotmim.Sync
 
                     using DbDataReader reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
 
-                    while (reader.Read())
+                    while (await reader.ReadAsync().ConfigureAwait(false))
                     {
                         var scopeInfo = InternalReadScopeInfo(reader);
 
@@ -348,7 +348,7 @@ namespace Dotmim.Sync
 
                     using DbDataReader reader = await action.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
-                    reader.Read();
+                    await reader.ReadAsync().ConfigureAwait(false);
 
                     scopeInfo = InternalReadScopeInfo(reader);
 
