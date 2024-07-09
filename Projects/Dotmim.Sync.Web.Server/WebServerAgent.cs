@@ -21,7 +21,7 @@ namespace Dotmim.Sync.Web.Server
 {
     public class WebServerAgent
     {
-        private static readonly ISerializer jsonSerializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+        private static readonly ISerializer jsonSerializer = SerializersFactory.JsonSerializerFactory.GetSerializer();
 
         private static bool checkUpgradeDone;
 
@@ -386,7 +386,7 @@ namespace Dotmim.Sync.Web.Server
                 var serializerInfo = jsonSerializer.Deserialize<SerializerInfo>(serializerInfoString);
 
                 var clientSerializerFactory = this.WebServerOptions.SerializerFactories.FirstOrDefault(sf => sf.Key == serializerInfo.SerializerKey);
-                if (clientSerializerFactory == null) clientSerializerFactory = SerializersCollection.JsonSerializerFactory;
+                if (clientSerializerFactory == null) clientSerializerFactory = SerializersFactory.JsonSerializerFactory;
 
                 return (serializerInfo.ClientBatchSize, clientSerializerFactory);
             }
@@ -665,7 +665,7 @@ namespace Dotmim.Sync.Web.Server
                 var containerTable = httpMessage.Changes.Tables[0];
                 var schemaTable = BaseOrchestrator.CreateChangesTable(sScopeInfo.Schema.Tables[containerTable.TableName, containerTable.SchemaName]);
                 var tableName = ParserName.Parse(new SyncTable(containerTable.TableName, containerTable.SchemaName)).Unquoted().Schema().Normalized().ToString();
-                var fileName = BatchInfo.GenerateNewFileName(httpMessage.BatchIndex.ToString(), tableName, localSerializer.Extension, "CLICHANGES");
+                var fileName = BatchInfo.GenerateNewFileName(httpMessage.BatchIndex.ToString(), tableName, LocalJsonSerializer.Extension, "CLICHANGES");
                 var fullPath = Path.Combine(sessionCache.ClientBatchInfo.GetDirectoryFullPath(), fileName);
 
                 SyncRowState syncRowState = SyncRowState.None;

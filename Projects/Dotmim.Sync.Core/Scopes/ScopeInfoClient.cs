@@ -6,34 +6,35 @@ using System.Runtime.Serialization;
 namespace Dotmim.Sync
 {
     /// <summary>
-    /// Mapping sur la table ScopeInfo
+    /// Mapping sur la table ScopeInfo.
     /// </summary>
     [DataContract(Name = "scope_client"), Serializable]
     public class ScopeInfoClient
     {
-        private static readonly ISerializer jsonSerializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+        private static readonly ISerializer JsonSerializer = SerializersFactory.JsonSerializerFactory.GetSerializer();
 
         /// <summary>
-        /// For serialization purpose
+        /// Initializes a new instance of the <see cref="ScopeInfoClient"/> class.
+        /// For serialization purpose.
         /// </summary>
         public ScopeInfoClient()
         {
-
         }
+
         /// <summary>
-        /// Id of the scope owner
+        /// Gets or sets id of the scope owner.
         /// </summary>
         [DataMember(Name = "id", IsRequired = true, Order = 1)]
         public Guid Id { get; set; }
 
         /// <summary>
-        /// Scope name. Shared by all clients and the server
+        /// Gets or sets scope name. Shared by all clients and the server.
         /// </summary>
         [DataMember(Name = "n", IsRequired = true, Order = 2)]
         public string Name { get; set; }
 
         /// <summary>
-        /// Scope Hash: Filters hash or null
+        /// Gets or sets scope Hash: Filters hash or null.
         /// </summary>
         [DataMember(Name = "h", IsRequired = true, Order = 3)]
         public string Hash { get; set; }
@@ -51,14 +52,14 @@ namespace Dotmim.Sync
         public long? LastServerSyncTimestamp { get; set; }
 
         /// <summary>
-        /// Gets or Sets if the client scope is new in the local datasource.
-        /// If new, we will override timestamp for first synchronisation to be sure to get all datas from server
+        /// Gets or sets a value indicating whether gets or Sets if the client scope is new in the local datasource.
+        /// If new, we will override timestamp for first synchronisation to be sure to get all datas from server.
         /// </summary>
         [DataMember(Name = "in", IsRequired = true, Order = 6)]
         public bool IsNewScope { get; set; }
 
         /// <summary>
-        /// Gets or Sets the parameters 
+        /// Gets or Sets the parameters.
         /// </summary>
         [DataMember(Name = "p", IsRequired = false, Order = 7)]
         public SyncParameters Parameters { get; set; }
@@ -69,28 +70,26 @@ namespace Dotmim.Sync
         [IgnoreDataMember]
         public DateTime? LastSync { get; set; }
 
-
         /// <summary>
-        /// Gets or Sets the last duration a sync has occured. 
+        /// Gets or Sets the last duration a sync has occured.
         /// </summary>
         [IgnoreDataMember]
         public long LastSyncDuration { get; set; }
 
-
         /// <summary>
-        /// Gets or Sets the additional properties. 
+        /// Gets or Sets the additional properties.
         /// </summary>
         [IgnoreDataMember]
         public string Properties { get; set; }
 
         /// <summary>
-        /// Gets or Sets the errors batch info occured on last sync 
+        /// Gets or Sets the errors batch info occured on last sync.
         /// </summary>
         [IgnoreDataMember]
         public string Errors { get; set; }
 
         /// <summary>
-        /// Gets a readable version of LastSyncDuration
+        /// Gets a readable version of LastSyncDuration.
         /// </summary>
         /// <returns></returns>
         [IgnoreDataMember]
@@ -103,24 +102,27 @@ namespace Dotmim.Sync
             }
         }
 
-
         /// <summary>
-        /// Make a shadow copy of an old scope to get the last sync information copied on this scope
+        /// Make a shadow copy of an old scope to get the last sync information copied on this scope.
         /// </summary>
         public void ShadowScope(ScopeInfoClient oldScopeInfoClient)
         {
+            Guard.ThrowIfNull(oldScopeInfoClient);
+
             this.LastServerSyncTimestamp = oldScopeInfoClient.LastServerSyncTimestamp;
             this.LastSyncTimestamp = oldScopeInfoClient.LastSyncTimestamp;
             this.LastSync = oldScopeInfoClient.LastSync;
             this.LastSyncDuration = oldScopeInfoClient.LastSyncDuration;
         }
 
-
+        /// <summary>
+        /// Gets the scope info as a string.
+        /// </summary>
         public override string ToString()
         {
-            var p = Parameters != null ? jsonSerializer.Serialize(Parameters).ToUtf8String() : null;
+            var p = this.Parameters != null ? JsonSerializer.Serialize(this.Parameters).ToUtf8String() : null;
 
-            return $"Scope Name:{Name}. Id:{Id}. Hash:{Hash}. LastSyncTimestamp:{LastSyncTimestamp}. LastServerSyncTimestamp:{LastServerSyncTimestamp}. LastSync:{LastSync}. Parameters:{p} ";
+            return $"Scope Name:{this.Name}. Id:{this.Id}. Hash:{this.Hash}. LastSyncTimestamp:{this.LastSyncTimestamp}. LastServerSyncTimestamp:{this.LastServerSyncTimestamp}. LastSync:{this.LastSync}. Parameters:{p} ";
         }
     }
 }

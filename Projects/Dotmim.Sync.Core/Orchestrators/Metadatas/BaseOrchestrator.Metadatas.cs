@@ -1,5 +1,4 @@
-﻿
-using Dotmim.Sync.Batch;
+﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
@@ -21,15 +20,20 @@ using System.Transactions;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Contains internals methods to clear metadatas.
+    /// </summary>
     public abstract partial class BaseOrchestrator
     {
 
-
-        internal virtual async Task<(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned)>
+        /// <summary>
+        /// Delete metadatas rows from the tracking table.
+        /// </summary>
+        internal virtual async Task<(SyncContext Context, DatabaseMetadatasCleaned DatabaseMetadatasCleaned)>
             InternalDeleteMetadatasAsync(
                     IEnumerable<ScopeInfo> scopeInfos, SyncContext context, long timestampLimit,
                     DbConnection connection, DbTransaction transaction,
-                    CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+                    IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             context.SyncStage = SyncStage.MetadataCleaning;
 
@@ -37,10 +41,11 @@ namespace Dotmim.Sync
 
             try
             {
-                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning, connection, transaction).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {
-                    await this.InterceptAsync(new MetadataCleaningArgs(context, scopeInfos, timestampLimit,
+                    await this.InterceptAsync(
+                        new MetadataCleaningArgs(context, scopeInfos, timestampLimit,
                                             runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     // contains all tables already processed
@@ -73,8 +78,8 @@ namespace Dotmim.Sync
 
                                 await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DeleteMetadata, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                                int rowsCleanedCount = 0;
-                                rowsCleanedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                                var rowsCleanedCount = 0;
+                                rowsCleanedCount = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
                                 // Check if we have a return value instead
                                 var syncRowCountParam = syncAdapter.GetParameter(context, command, "sync_row_count");
@@ -88,7 +93,7 @@ namespace Dotmim.Sync
                                     var tableMetadatasCleaned = new TableMetadatasCleaned(syncTable.TableName, syncTable.SchemaName)
                                     {
                                         RowsCleanedCount = rowsCleanedCount,
-                                        TimestampLimit = timestampLimit
+                                        TimestampLimit = timestampLimit,
                                     };
 
                                     databaseMetadatasCleaned.Tables.Add(tableMetadatasCleaned);
@@ -114,16 +119,14 @@ namespace Dotmim.Sync
 
                 message += $"TimestampLimit:{timestampLimit}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
 
-
-
         /// <summary>
-        /// Update a metadata row
+        /// Update a metadata row.
         /// </summary>
-        internal async Task<(SyncContext context, bool metadataUpdated, Exception exception)> InternalUpdateMetadatasAsync(ScopeInfo scopeInfo, SyncContext context,
+        internal async Task<(SyncContext Context, bool IsMetadataUpdated, Exception Exception)> InternalUpdateMetadatasAsync(ScopeInfo scopeInfo, SyncContext context,
                                 SyncRow row, SyncTable schemaTable, Guid? senderScopeId, bool forceWrite,
                                 DbConnection connection, DbTransaction transaction,
                                 CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
@@ -138,16 +141,18 @@ namespace Dotmim.Sync
                 var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.UpdateMetadata,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                if (command == null) return (context, false, null);
+                if (command == null)
+                    return (context, false, null);
 
-                // Set the parameters value from row 
+                // Set the parameters value from row
                 this.InternalSetCommandParametersValues(context, command, DbCommandType.UpdateMetadata, syncAdapter, connection, transaction, cancellationToken, progress,
                     row, senderScopeId, 0, row.RowState == SyncRowState.Deleted, forceWrite);
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.UpdateMetadata, runner.Connection, runner.Transaction)).ConfigureAwait(false);
 
                 Exception exception = null;
-                int metadataUpdatedRowsCount = 0;
+                var metadataUpdatedRowsCount = 0;
+
                 try
                 {
                     metadataUpdatedRowsCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);

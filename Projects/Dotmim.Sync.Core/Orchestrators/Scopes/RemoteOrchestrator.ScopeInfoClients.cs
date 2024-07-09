@@ -6,12 +6,15 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Contains the logic to handle client scope info.
+    /// </summary>
     public partial class RemoteOrchestrator : BaseOrchestrator
     {
         /// <summary>
-        /// Get a Scope Info Client from Server database
+        /// Get a Scope Info Client from Server database.
         /// <para>
-        /// Client should have already made a sync to be present in the server database scope_info_client table
+        /// Client should have already made a sync to be present in the server database scope_info_client table.
         /// </para>
         /// <example>
         /// <code>
@@ -27,7 +30,7 @@ namespace Dotmim.Sync
             var context = new SyncContext(Guid.NewGuid(), scopeName)
             {
                 ClientId = clientId,
-                Parameters = parameters
+                Parameters = parameters,
             };
 
             try
@@ -37,15 +40,16 @@ namespace Dotmim.Sync
                 {
                     bool exists;
                     (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (!exists)
                         await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     // Get scope if exists
                     ScopeInfoClient scopeInfoClient;
-                    (context, scopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(context,
+                    (context, scopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(
+                        context,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     await runner.CommitAsync().ConfigureAwait(false);
@@ -55,7 +59,7 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                throw this.GetSyncError(context, ex);
             }
         }
     }

@@ -194,7 +194,7 @@
 //            // serialize message
 //            var serializer = serializerFactory.GetSerializer();
 
-//            var contentType = serializerFactory.Key == SerializersCollection.JsonSerializerFactory.Key ? "application/json" : null;
+//            var contentType = serializerFactory.Key == SerializersFactory.JsonSerializerFactory.Key ? "application/json" : null;
 //            var ser = JsonSerializer.Serialize(new SerializerInfo(serializerFactory.Key, batchSize));
 
 //            // Create the request message

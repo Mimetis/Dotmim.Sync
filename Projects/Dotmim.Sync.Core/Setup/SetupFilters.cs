@@ -20,7 +20,7 @@ namespace Dotmim.Sync
         public Collection<SetupFilter> InnerCollection { get; set; } = new Collection<SetupFilter>();
 
         /// <summary>
-        /// Create a default collection for Serializers
+        /// Create a default collection for SerializersFactory
         /// </summary>
         public SetupFilters()
         {

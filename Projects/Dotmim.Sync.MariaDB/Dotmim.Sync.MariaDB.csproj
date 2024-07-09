@@ -18,7 +18,9 @@
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
 		<GenerateDocumentationFile>False</GenerateDocumentationFile>
-
+	</PropertyGroup>
+	<PropertyGroup>
+		<NoWarn>$(NoWarn)</NoWarn>
 	</PropertyGroup>
 	<PropertyGroup>
 		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>

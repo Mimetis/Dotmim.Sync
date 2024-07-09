@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Dotmim.Sync.Enumerations
+﻿namespace Dotmim.Sync.Enumerations
 {
     /// <summary>
     /// Defines the state that a synchronization session is in.
@@ -19,6 +13,6 @@ namespace Dotmim.Sync.Enumerations
         /// <summary>
         /// The session is currently synchronizing changes.
         /// </summary>
-        Synchronizing
+        Synchronizing,
     }
 }

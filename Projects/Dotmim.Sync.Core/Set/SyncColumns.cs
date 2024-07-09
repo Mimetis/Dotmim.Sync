@@ -35,7 +35,7 @@ namespace Dotmim.Sync
         public SyncTable Table { get; internal set; }
 
         /// <summary>
-        /// Create a default collection for Serializers
+        /// Create a default collection for SerializersFactory
         /// </summary>
         public SyncColumns()
         {

@@ -427,8 +427,8 @@ namespace Dotmim.Sync
         private DbCommand InternalSetSaveScopeInfoParameters(ScopeInfo scopeInfo, DbCommand command)
         {
             InternalSetParameterValue(command, "sync_scope_name", scopeInfo.Name);
-            InternalSetParameterValue(command, "sync_scope_schema", scopeInfo.Schema == null ? DBNull.Value : serializer.Serialize(scopeInfo.Schema).ToUtf8String());
-            InternalSetParameterValue(command, "sync_scope_setup", scopeInfo.Setup == null ? DBNull.Value : serializer.Serialize(scopeInfo.Setup).ToUtf8String());
+            InternalSetParameterValue(command, "sync_scope_schema", scopeInfo.Schema == null ? DBNull.Value : Serializer.Serialize(scopeInfo.Schema).ToUtf8String());
+            InternalSetParameterValue(command, "sync_scope_setup", scopeInfo.Setup == null ? DBNull.Value : Serializer.Serialize(scopeInfo.Setup).ToUtf8String());
             InternalSetParameterValue(command, "sync_scope_version", scopeInfo.Version);
             InternalSetParameterValue(command, "sync_scope_last_clean_timestamp", !scopeInfo.LastCleanupTimestamp.HasValue ? DBNull.Value : scopeInfo.LastCleanupTimestamp);
             InternalSetParameterValue(command, "sync_scope_properties", scopeInfo.Properties == null ? DBNull.Value : scopeInfo.Properties);
@@ -462,8 +462,8 @@ namespace Dotmim.Sync
             var clientScopeInfo = new ScopeInfo
             {
                 Name = reader["sync_scope_name"] as string,
-                Schema = reader["sync_scope_schema"] == DBNull.Value ? null : serializer.Deserialize<SyncSet>((string)reader["sync_scope_schema"]),
-                Setup = reader["sync_scope_setup"] == DBNull.Value ? null : serializer.Deserialize<SyncSetup>((string)reader["sync_scope_setup"]),
+                Schema = reader["sync_scope_schema"] == DBNull.Value ? null : Serializer.Deserialize<SyncSet>((string)reader["sync_scope_schema"]),
+                Setup = reader["sync_scope_setup"] == DBNull.Value ? null : Serializer.Deserialize<SyncSetup>((string)reader["sync_scope_setup"]),
                 Version = reader["sync_scope_version"] as string,
                 LastCleanupTimestamp = reader["sync_scope_last_clean_timestamp"] != DBNull.Value ? reader.GetInt64(reader.GetOrdinal("sync_scope_last_clean_timestamp")) : null,
                 Properties = reader["sync_scope_properties"] as string,

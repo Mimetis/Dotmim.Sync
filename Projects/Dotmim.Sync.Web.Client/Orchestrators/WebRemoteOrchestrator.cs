@@ -98,7 +98,7 @@ namespace Dotmim.Sync.Web.Client
             this.Converter = customConverter;
             this.MaxDownladingDegreeOfParallelism = maxDownladingDegreeOfParallelism <= 0 ? -1 : maxDownladingDegreeOfParallelism;
             this.ServiceUri = serviceUri;
-            this.SerializerFactory = SerializersCollection.JsonSerializerFactory;
+            this.SerializerFactory = SerializersFactory.JsonSerializerFactory;
             this.Identifier = identifier;
         }
 
@@ -356,7 +356,7 @@ namespace Dotmim.Sync.Web.Client
         {
             var serializer = this.SerializerFactory.GetSerializer();
 
-            var contentType = this.SerializerFactory.Key == SerializersCollection.JsonSerializerFactory.Key ? "application/json" : null;
+            var contentType = this.SerializerFactory.Key == SerializersFactory.JsonSerializerFactory.Key ? "application/json" : null;
             var serializerInfo = new SerializerInfo(this.SerializerFactory.Key, batchSize);
 
             // using json to serialize header

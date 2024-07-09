@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Contains internals methods to create tracking tables.
+    /// </summary>
     public abstract partial class BaseOrchestrator
     {
         /// <summary>
@@ -24,11 +27,13 @@ namespace Dotmim.Sync
         /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
         /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
         /// <param name="overwrite">If specified the tracking table is dropped, if exists, then created.</param>
-        /// <param name="connection">Optional Connection</param>
-        /// <param name="transaction">Optional Transaction</param>
+        /// <param name="connection">Optional Connection.</param>
+        /// <param name="transaction">Optional Transaction.</param>
         public async Task<bool> CreateTrackingTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = default, bool overwrite = false,
             DbConnection connection = null, DbTransaction transaction = null)
         {
+            Guard.ThrowIfNull(scopeInfo);
+
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
             {
@@ -43,21 +48,21 @@ namespace Dotmim.Sync
                 using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {
-                    bool hasBeenCreated = false;
+                    var hasBeenCreated = false;
 
                     // Get table builder
                     var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                     bool schemaExists;
-                    (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
+                    (context, schemaExists) = await this.InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     if (!schemaExists)
-                        (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
+                        (context, _) = await this.InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     bool exists;
-                    (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
+                    (context, exists) = await this.InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     // should create only if not exists OR if overwrite has been set
@@ -67,10 +72,10 @@ namespace Dotmim.Sync
                     {
                         // Drop if already exists and we need to overwrite
                         if (exists && overwrite)
-                            (context, _) = await InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder,
+                            (context, _) = await this.InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder,
                                 runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                        (context, hasBeenCreated) = await InternalCreateTrackingTableAsync(scopeInfo, context, tableBuilder,
+                        (context, hasBeenCreated) = await this.InternalCreateTrackingTableAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                     }
 
@@ -88,10 +93,9 @@ namespace Dotmim.Sync
 
                 message += $"Overwrite:{overwrite}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
-
 
         /// <summary>
         /// Check if a <strong>Tracking Table</strong> exists, for a given table present in an existing scopeInfo.
@@ -106,11 +110,12 @@ namespace Dotmim.Sync
         /// <param name="scopeInfo">ScopeInfo instance used to defines tracking table generation (name, prefix, suffix...).</param>
         /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
         /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
-        /// <param name="connection">Optional Connection</param>
-        /// <param name="transaction">Optional Transaction</param>
+        /// <param name="connection">Optional Connection.</param>
+        /// <param name="transaction">Optional Transaction.</param>
         public async Task<bool> ExistTrackingTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = default,
             DbConnection connection = null, DbTransaction transaction = null)
         {
+            Guard.ThrowIfNull(scopeInfo);
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
             {
@@ -130,7 +135,7 @@ namespace Dotmim.Sync
                     var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                     bool exists;
-                    (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
+                    (context, exists) = await this.InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     return exists;
@@ -143,7 +148,7 @@ namespace Dotmim.Sync
                 var tableFullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
                 message += $"Table:{tableFullName}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
 
@@ -159,11 +164,12 @@ namespace Dotmim.Sync
         /// </summary>
         /// <param name="scopeInfo">ScopeInfo instance used to defines tracking table generation (name, prefix, suffix...).</param>
         /// <param name="overwrite">If specified the tracking table is dropped, if exists, then created.</param>
-        /// <param name="connection">Optional Connection</param>
-        /// <param name="transaction">Optional Transaction</param>
+        /// <param name="connection">Optional Connection.</param>
+        /// <param name="transaction">Optional Transaction.</param>
         public async Task<bool> CreateTrackingTablesAsync(ScopeInfo scopeInfo, bool overwrite = false,
             DbConnection connection = null, DbTransaction transaction = null)
         {
+            Guard.ThrowIfNull(scopeInfo);
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
             {
@@ -181,15 +187,15 @@ namespace Dotmim.Sync
                         var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                         bool schemaExists;
-                        (context, schemaExists) = await InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
+                        (context, schemaExists) = await this.InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                         if (!schemaExists)
-                            (context, _) = await InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
+                            (context, _) = await this.InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
                                 runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                         bool exists;
-                        (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
+                        (context, exists) = await this.InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                         // should create only if not exists OR if overwrite has been set
@@ -199,17 +205,18 @@ namespace Dotmim.Sync
                         {
                             // Drop if already exists and we need to overwrite
                             if (exists && overwrite)
-                                (context, _) = await InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder,
+                                (context, _) = await this.InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder,
                                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                             bool hasBeenCreated;
-                            (context, hasBeenCreated) = await InternalCreateTrackingTableAsync(scopeInfo, context, tableBuilder,
+                            (context, hasBeenCreated) = await this.InternalCreateTrackingTableAsync(scopeInfo, context, tableBuilder,
                                 runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                             if (hasBeenCreated)
                                 atLeastOneHasBeenCreated = true;
                         }
                     }
+
                     await runner.CommitAsync().ConfigureAwait(false);
 
                     return atLeastOneHasBeenCreated;
@@ -221,17 +228,17 @@ namespace Dotmim.Sync
 
                 message += $"Overwrite:{overwrite}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
 
-
         /// <summary>
-        /// Drop a tracking table
+        /// Drop a tracking table.
         /// </summary>
         public async Task<bool> DropTrackingTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = default,
             DbConnection connection = null, DbTransaction transaction = null)
         {
+            Guard.ThrowIfNull(scopeInfo);
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 
             try
@@ -247,16 +254,16 @@ namespace Dotmim.Sync
                 using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {
-                    bool hasBeenDropped = false;
+                    var hasBeenDropped = false;
 
                     var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                     bool exists;
-                    (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
+                    (context, exists) = await this.InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     if (exists)
-                        (context, hasBeenDropped) = await InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder,
+                        (context, hasBeenDropped) = await this.InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     return hasBeenDropped;
@@ -269,9 +276,8 @@ namespace Dotmim.Sync
                 var tableFullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
                 message += $"Table:{tableFullName}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
-
         }
 
         /// <summary>
@@ -285,10 +291,11 @@ namespace Dotmim.Sync
         /// </example>
         /// </summary>
         /// <param name="scopeInfo">ScopeInfo instance used to defines tracking table generation (name, prefix, suffix...).</param>
-        /// <param name="connection">Optional Connection</param>
-        /// <param name="transaction">Optional Transaction</param>
+        /// <param name="connection">Optional Connection.</param>
+        /// <param name="transaction">Optional Transaction.</param>
         public async Task<bool> DropTrackingTablesAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null)
         {
+            Guard.ThrowIfNull(scopeInfo);
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
             {
@@ -298,7 +305,7 @@ namespace Dotmim.Sync
                 using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning, connection, transaction).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {
-                    bool atLeastOneTrackingTableHasBeenDropped = false;
+                    var atLeastOneTrackingTableHasBeenDropped = false;
 
                     foreach (var schemaTable in scopeInfo.Schema.Tables.Reverse())
                     {
@@ -306,11 +313,11 @@ namespace Dotmim.Sync
                         var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                         bool exists;
-                        (context, exists) = await InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
+                        (context, exists) = await this.InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                         if (exists)
-                            (context, atLeastOneTrackingTableHasBeenDropped) = await InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder,
+                            (context, atLeastOneTrackingTableHasBeenDropped) = await this.InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder,
                                 runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                     }
 
@@ -321,23 +328,23 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                throw this.GetSyncError(context, ex);
             }
         }
 
         /// <summary>
-        /// Internal create tracking table routine
+        /// Internal create tracking table routine.
         /// </summary>
-        internal virtual async Task<(SyncContext context, bool created)> InternalCreateTrackingTableAsync(
+        internal virtual async Task<(SyncContext Context, bool IsCreated)> InternalCreateTrackingTableAsync(
             ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             try
             {
 
-                if (Provider == null)
-                    throw new MissingProviderException(nameof(InternalCreateTrackingTableAsync));
+                if (this.Provider == null)
+                    throw new MissingProviderException(nameof(this.InternalCreateTrackingTableAsync));
 
-                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {
                     if (tableBuilder.TableDescription.Columns.Count <= 0)
@@ -353,7 +360,8 @@ namespace Dotmim.Sync
 
                     var (_, trackingTableName) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
 
-                    var action = await this.InterceptAsync(new TrackingTableCreatingArgs(context, tableBuilder.TableDescription, trackingTableName, command, runner.Connection, runner.Transaction),
+                    var action = await this.InterceptAsync(
+                        new TrackingTableCreatingArgs(context, tableBuilder.TableDescription, trackingTableName, command, runner.Connection, runner.Transaction),
                         runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (action.Cancel || action.Command == null)
@@ -377,20 +385,19 @@ namespace Dotmim.Sync
                 if (tableBuilder != null && tableBuilder.TableDescription != null)
                     message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
 
-
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
 
         /// <summary>
-        /// Internal rename tracking table routine
+        /// Internal rename tracking table routine.
         /// </summary>
-        internal virtual async Task<(SyncContext context, bool renamed)> InternalRenameTrackingTableAsync(
+        internal virtual async Task<(SyncContext Context, bool IsRenamed)> InternalRenameTrackingTableAsync(
             ScopeInfo scopeInfo, SyncContext context, ParserName oldTrackingTableName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             try
             {
-                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {
                     if (tableBuilder.TableDescription.Columns.Count <= 0)
@@ -406,8 +413,8 @@ namespace Dotmim.Sync
 
                     var (_, trackingTableName) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
 
-
-                    var action = await this.InterceptAsync(new TrackingTableRenamingArgs(context, tableBuilder.TableDescription, trackingTableName, oldTrackingTableName, command, runner.Connection, runner.Transaction),
+                    var action = await this.InterceptAsync(
+                        new TrackingTableRenamingArgs(context, tableBuilder.TableDescription, trackingTableName, oldTrackingTableName, command, runner.Connection, runner.Transaction),
                         runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (action.Cancel || action.Command == null)
@@ -431,20 +438,19 @@ namespace Dotmim.Sync
                 if (tableBuilder != null && tableBuilder.TableDescription != null)
                     message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
-
         }
 
         /// <summary>
-        /// Internal drop tracking table routine
+        /// Internal drop tracking table routine.
         /// </summary>
-        internal virtual async Task<(SyncContext context, bool dropped)> InternalDropTrackingTableAsync(
+        internal virtual async Task<(SyncContext Context, bool IsDropped)> InternalDropTrackingTableAsync(
             ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             try
             {
-                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Deprovisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Deprovisioning, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {
                     using var command = await tableBuilder.GetDropTrackingTableCommandAsync(connection, transaction).ConfigureAwait(false);
@@ -476,18 +482,18 @@ namespace Dotmim.Sync
                 if (tableBuilder != null && tableBuilder.TableDescription != null)
                     message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
 
         /// <summary>
-        /// Internal exists tracking table procedure routine
+        /// Internal exists tracking table procedure routine.
         /// </summary>
-        internal virtual async Task<(SyncContext context, bool exists)> InternalExistsTrackingTableAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal virtual async Task<(SyncContext Context, bool IsExisting)> InternalExistsTrackingTableAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             try
             {
-                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {// Get exists command
                     using var existsCommand = await tableBuilder.GetExistsTrackingTableCommandAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
@@ -498,7 +504,7 @@ namespace Dotmim.Sync
                     await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
                     var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
-                    var exists = Convert.ToInt32(existsResultObject) > 0;
+                    var exists = SyncTypeConverter.TryConvertTo<int>(existsResultObject) > 0;
                     await runner.CommitAsync().ConfigureAwait(false);
                     return (context, exists);
                 }
@@ -510,7 +516,7 @@ namespace Dotmim.Sync
                 if (tableBuilder != null && tableBuilder.TableDescription != null)
                     message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
     }

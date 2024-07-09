@@ -28,7 +28,7 @@ namespace Dotmim.Sync
             var typeConverter = TypeDescriptor.GetConverter(typeOfT);
 
             if (typeOfT == typeof(short))
-                return Convert.ToInt16(value);
+                return Convert.ToInt16(value, provider);
             else if (typeOfT == typeof(int))
                 return Convert.ToInt32(value);
             else if (typeOfT == typeof(long))

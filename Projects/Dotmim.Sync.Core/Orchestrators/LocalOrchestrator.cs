@@ -28,50 +28,53 @@ namespace Dotmim.Sync
     public partial class LocalOrchestrator : BaseOrchestrator
     {
         /// <summary>
-        /// Create a local orchestrator, used to orchestrate the whole sync on the client side
+        /// Initializes a new instance of the <see cref="LocalOrchestrator"/> class.
+        /// Create a local orchestrator, used to orchestrate the whole sync on the client side.
         /// </summary>
-        public LocalOrchestrator(CoreProvider provider, SyncOptions options) : base(provider, options)
+        public LocalOrchestrator(CoreProvider provider, SyncOptions options)
+            : base(provider, options)
         {
             if (provider == null)
-                throw GetSyncError(null, new MissingProviderException(nameof(LocalOrchestrator)));
-
+                throw this.GetSyncError(null, new MissingProviderException(nameof(LocalOrchestrator)));
         }
 
         /// <summary>
-        /// Create a local orchestrator, used to orchestrate the whole sync on the client side
+        /// Initializes a new instance of the <see cref="LocalOrchestrator"/> class.
+        /// Create a local orchestrator, used to orchestrate the whole sync on the client side.
         /// </summary>
-        public LocalOrchestrator(CoreProvider provider) : base(provider, new SyncOptions())
+        public LocalOrchestrator(CoreProvider provider)
+            : base(provider, new SyncOptions())
         {
             if (provider == null)
-                throw GetSyncError(null, new MissingProviderException(nameof(LocalOrchestrator)));
+                throw this.GetSyncError(null, new MissingProviderException(nameof(LocalOrchestrator)));
         }
 
         /// <summary>
         /// Called when a new synchronization session has started. Initialize the SyncContext instance, used for this session.
         /// </summary>
-        public virtual Task BeginSessionAsync(string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public virtual Task BeginSessionAsync(string scopeName = SyncOptions.DefaultScopeName, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             // Create a new context
             var context = new SyncContext(Guid.NewGuid(), scopeName);
 
-            return InternalBeginSessionAsync(context, cancellationToken, progress);
+            return this.InternalBeginSessionAsync(context, progress, cancellationToken);
         }
 
         /// <summary>
         /// Called when the synchronization session is over.
         /// </summary>
-        public Task EndSessionAsync(SyncResult syncResult, string scopeName = SyncOptions.DefaultScopeName, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        public Task EndSessionAsync(SyncResult syncResult, string scopeName = SyncOptions.DefaultScopeName, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             // Create a new context
             var ctx = new SyncContext(Guid.NewGuid(), scopeName);
 
-            return InternalEndSessionAsync(ctx, syncResult, null, null, cancellationToken, progress);
+            return this.InternalEndSessionAsync(ctx, syncResult, null, null, progress, cancellationToken);
         }
 
         /// <summary>
-        /// Called when a session is starting
+        /// Called when a session is starting.
         /// </summary>
-        internal async Task<SyncContext> InternalBeginSessionAsync(SyncContext context, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        internal async Task<SyncContext> InternalBeginSessionAsync(SyncContext context, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             context.SyncStage = SyncStage.BeginSession;
 
@@ -81,13 +84,12 @@ namespace Dotmim.Sync
             await this.InterceptAsync(new SessionBeginArgs(context, connection), progress, cancellationToken).ConfigureAwait(false);
 
             return context;
-
         }
 
         /// <summary>
-        /// Called when the sync is over
+        /// Called when the sync is over.
         /// </summary>
-        internal async Task<SyncContext> InternalEndSessionAsync(SyncContext context, SyncResult result, ClientSyncChanges clientSyncChanges, SyncException syncException = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal async Task<SyncContext> InternalEndSessionAsync(SyncContext context, SyncResult result, ClientSyncChanges clientSyncChanges, SyncException syncException = default, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             context.SyncStage = SyncStage.EndSession;
 
@@ -98,11 +100,10 @@ namespace Dotmim.Sync
 
                 if (this.Options.CleanFolder && clientSyncChanges?.ClientBatchInfo != null)
                 {
-                    var cleanFolder = await this.InternalCanCleanFolderAsync(context.ScopeName, context.Parameters, clientSyncChanges.ClientBatchInfo, default).ConfigureAwait(false);
+                    var cleanFolder = await this.InternalCanCleanFolderAsync(context.ScopeName, context.Parameters, clientSyncChanges.ClientBatchInfo, default, cancellationToken).ConfigureAwait(false);
 
                     if (cleanFolder)
                         clientSyncChanges.ClientBatchInfo.TryRemoveDirectory();
-
                 }
 
                 // Progress & interceptor

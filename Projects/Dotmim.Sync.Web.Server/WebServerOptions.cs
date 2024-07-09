@@ -50,7 +50,7 @@ namespace Dotmim.Sync.Web.Server
             this.Converters = new Collection<IConverter>();
             this.SerializerFactories = new Collection<ISerializerFactory>
             {
-                SerializersCollection.JsonSerializerFactory
+                SerializersFactory.JsonSerializerFactory
             };
 
             //this.ServerCacheSlidingExpiration = TimeSpan.FromHours(12);

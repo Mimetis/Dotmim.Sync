@@ -9,6 +9,9 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Contains internal methods to create, drop, check stored procedures.
+    /// </summary>
     public abstract partial class BaseOrchestrator
     {
         /// <summary>
@@ -28,6 +31,7 @@ namespace Dotmim.Sync
         /// <param name="overwrite">If specified the stored procedure is generated again, even if already exists.</param>
         public virtual async Task<bool> CreateStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default, bool overwrite = false)
         {
+            Guard.ThrowIfNull(scopeInfo);
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
             {
@@ -42,13 +46,13 @@ namespace Dotmim.Sync
                 using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {
-                    bool hasBeenCreated = false;
+                    var hasBeenCreated = false;
 
                     // Get table builder
                     var tableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
 
                     bool exists;
-                    (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType,
+                    (context, exists) = await this.InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     // should create only if not exists OR if overwrite has been set
@@ -58,9 +62,9 @@ namespace Dotmim.Sync
                     {
                         // Drop storedProcedure if already exists
                         if (exists && overwrite)
-                            (context, _) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            (context, _) = await this.InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
-                        (context, hasBeenCreated) = await InternalCreateStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        (context, hasBeenCreated) = await this.InternalCreateStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
                     }
 
                     await runner.CommitAsync().ConfigureAwait(false);
@@ -78,7 +82,7 @@ namespace Dotmim.Sync
                 message += $"StoredProcedure:{storedProcedureType}.";
                 message += $"Overwrite:{overwrite}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
 
@@ -98,6 +102,7 @@ namespace Dotmim.Sync
         /// <param name="overwrite">If specified all the stored procedures are generated again, even if they already exist.</param>
         public virtual async Task<bool> CreateStoredProceduresAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, bool overwrite = false)
         {
+            Guard.ThrowIfNull(scopeInfo);
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
 
             try
@@ -116,7 +121,7 @@ namespace Dotmim.Sync
                     // Get table builder
                     var tableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
                     bool isCreated;
-                    (context, isCreated) = await InternalCreateStoredProceduresAsync(scopeInfo, context, overwrite, tableBuilder,
+                    (context, isCreated) = await this.InternalCreateStoredProceduresAsync(scopeInfo, context, overwrite, tableBuilder,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     await runner.CommitAsync().ConfigureAwait(false);
@@ -132,9 +137,8 @@ namespace Dotmim.Sync
                 message += $"Table:{tableFullName}.";
                 message += $"Overwrite:{overwrite}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
-
         }
 
         /// <summary>
@@ -153,6 +157,7 @@ namespace Dotmim.Sync
         /// <param name="storedProcedureType">Stored Procedure type. See <see cref="DbStoredProcedureType"/> enumeration.</param>
         public virtual async Task<bool> ExistStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default)
         {
+            Guard.ThrowIfNull(scopeInfo);
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
             {
@@ -170,7 +175,7 @@ namespace Dotmim.Sync
                     var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                     bool exists;
-                    (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType,
+                    (context, exists) = await this.InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     return exists;
@@ -185,7 +190,7 @@ namespace Dotmim.Sync
 
                 message += $"StoredProcedure:{storedProcedureType}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
 
@@ -205,6 +210,7 @@ namespace Dotmim.Sync
         /// <param name="storedProcedureType">Stored Procedure type. See <see cref="DbStoredProcedureType"/> enumeration.</param>
         public virtual async Task<bool> DropStoredProcedureAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbStoredProcedureType storedProcedureType = default)
         {
+            Guard.ThrowIfNull(scopeInfo);
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
             {
@@ -219,16 +225,16 @@ namespace Dotmim.Sync
                 using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Deprovisioning).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {
-                    bool hasBeenDropped = false;
+                    var hasBeenDropped = false;
 
                     var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                     bool existsAndCanBeDeleted;
-                    (context, existsAndCanBeDeleted) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType,
+                    (context, existsAndCanBeDeleted) = await this.InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     if (existsAndCanBeDeleted)
-                        (context, hasBeenDropped) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType,
+                        (context, hasBeenDropped) = await this.InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType,
                             runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     // Removing cached commands
@@ -248,7 +254,7 @@ namespace Dotmim.Sync
 
                 message += $"StoredProcedure:{storedProcedureType}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
 
@@ -261,12 +267,13 @@ namespace Dotmim.Sync
         /// await remoteOrchestrator.DropStoredProceduresAsync(scopeInfo, "Employee");
         /// </code>
         /// </example>
-        /// </summary>       
+        /// </summary>
         /// <param name="scopeInfo">ScopeInfo instance used to defines stored procedure generation (name, prefix, suffix, filters ....).</param>
         /// <param name="tableName"><strong>Table Name</strong>. Should exists in ScopeInfo instance.</param>
         /// <param name="schemaName">Optional <strong>Schema Name</strong>. Only available for <strong>Sql Server</strong>.</param>
         public virtual async Task<bool> DropStoredProceduresAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null)
         {
+            Guard.ThrowIfNull(scopeInfo);
             var context = new SyncContext(Guid.NewGuid(), scopeInfo.Name);
             try
             {
@@ -287,7 +294,7 @@ namespace Dotmim.Sync
                     var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
                     // check bulk before
-                    (context, hasDroppedAtLeastOneStoredProcedure) = await InternalDropStoredProceduresAsync(scopeInfo, context, tableBuilder,
+                    (context, hasDroppedAtLeastOneStoredProcedure) = await this.InternalDropStoredProceduresAsync(scopeInfo, context, tableBuilder,
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                     // Removing cached commands
@@ -305,15 +312,14 @@ namespace Dotmim.Sync
                 var tableFullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
                 message += $"Table:{tableFullName}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
-
         }
 
         /// <summary>
-        /// Internal create Stored Procedure routine
+        /// Internal create Stored Procedure routine.
         /// </summary>
-        internal async Task<(SyncContext context, bool created)> InternalCreateStoredProcedureAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType,
+        internal async Task<(SyncContext Context, bool IsCreated)> InternalCreateStoredProcedureAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType,
             DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             try
@@ -353,14 +359,14 @@ namespace Dotmim.Sync
 
                 message += $"StoredProcedure:{storedProcedureType}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
 
         /// <summary>
-        /// Internal drop storedProcedure routine
+        /// Internal drop storedProcedure routine.
         /// </summary>
-        internal async Task<(SyncContext context, bool dropped)> InternalDropStoredProcedureAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType,
+        internal async Task<(SyncContext Context, bool IsDropped)> InternalDropStoredProcedureAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType,
             DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             try
@@ -394,14 +400,14 @@ namespace Dotmim.Sync
 
                 message += $"StoredProcedure:{storedProcedureType}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
 
         /// <summary>
-        /// Internal exists storedProcedure procedure routine
+        /// Internal exists storedProcedure procedure routine.
         /// </summary>
-        internal async Task<(SyncContext context, bool exists)> InternalExistsStoredProcedureAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType,
+        internal async Task<(SyncContext Context, bool IsExisting)> InternalExistsStoredProcedureAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbStoredProcedureType storedProcedureType,
             DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             try
@@ -415,7 +421,7 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
-                var exists = Convert.ToInt32(existsResultObject) > 0;
+                var exists = SyncTypeConverter.TryConvertTo<int>(existsResultObject) > 0;
 
                 return (context, exists);
             }
@@ -428,14 +434,14 @@ namespace Dotmim.Sync
 
                 message += $"StoredProcedure:{storedProcedureType}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
 
         /// <summary>
-        /// Internal drop storedProcedures routine
+        /// Internal drop storedProcedures routine.
         /// </summary>
-        internal async Task<(SyncContext context, bool dropped)> InternalDropStoredProceduresAsync(
+        internal async Task<(SyncContext Context, bool IsDropped)> InternalDropStoredProceduresAsync(
             ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             try
@@ -448,11 +454,11 @@ namespace Dotmim.Sync
                 foreach (DbStoredProcedureType storedProcedureType in Enum.GetValues(typeof(DbStoredProcedureType)))
                 {
                     bool exists;
-                    (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, exists) = await this.InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     if (exists)
                     {
                         bool dropped;
-                        (context, dropped) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, dropped) = await this.InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         // If at least one stored proc has been dropped, we're good to return true;
                         if (dropped && !hasDroppedAtLeastOneStoredProcedure)
@@ -469,14 +475,14 @@ namespace Dotmim.Sync
                 if (tableBuilder != null && tableBuilder.TableDescription != null)
                     message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
 
         /// <summary>
-        /// Internal create storedProcedures routine
+        /// Internal create storedProcedures routine.
         /// </summary>
-        internal async Task<(SyncContext context, bool created)> InternalCreateStoredProceduresAsync(
+        internal async Task<(SyncContext Context, bool IsCreated)> InternalCreateStoredProceduresAsync(
             ScopeInfo scopeInfo, SyncContext context, bool overwrite, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
         {
             try
@@ -489,21 +495,20 @@ namespace Dotmim.Sync
                 // we need to drop bulk in order to be sure bulk type is delete after all
                 if (overwrite)
                 {
-                    foreach (DbStoredProcedureType storedProcedureType in listStoredProcedureType)
+                    foreach (var storedProcedureType in listStoredProcedureType)
                     {
                         bool exists;
-                        (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, exists) = await this.InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                         if (exists)
-                            (context, _) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                            (context, _) = await this.InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
                     }
-
                 }
 
                 // Order Desc is the correct order to Create
                 listStoredProcedureType = Enum.GetValues(typeof(DbStoredProcedureType)).Cast<DbStoredProcedureType>().OrderByDescending(sp => (int)sp);
 
-                foreach (DbStoredProcedureType storedProcedureType in listStoredProcedureType)
+                foreach (var storedProcedureType in listStoredProcedureType)
                 {
                     // check with filter
                     if ((storedProcedureType is DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType is DbStoredProcedureType.SelectInitializedChangesWithFilters)
@@ -511,11 +516,11 @@ namespace Dotmim.Sync
                         continue;
 
                     bool exists;
-                    (context, exists) = await InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, exists) = await this.InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // Drop storedProcedure if already exists
                     if (exists && overwrite)
-                        (context, _) = await InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, _) = await this.InternalDropStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     var shouldCreate = !exists || overwrite;
 
@@ -523,7 +528,7 @@ namespace Dotmim.Sync
                         continue;
 
                     bool created;
-                    (context, created) = await InternalCreateStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, created) = await this.InternalCreateStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
 
                     // If at least one stored proc has been created, we're good to return true;
                     if (created && !hasCreatedAtLeastOneStoredProcedure)
@@ -541,7 +546,7 @@ namespace Dotmim.Sync
 
                 message += $"Overwrite:{overwrite}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
     }

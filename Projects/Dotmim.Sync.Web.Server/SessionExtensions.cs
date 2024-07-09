@@ -6,7 +6,7 @@ namespace Dotmim.Sync.Web.Server
 {
     public static class SessionExtensions
     {
-        private static ISerializer serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+        private static ISerializer serializer = SerializersFactory.JsonSerializerFactory.GetSerializer();
 
         public static T Get<T>(this ISession session, string key)
         {

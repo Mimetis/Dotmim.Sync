@@ -1,5 +1,4 @@
-﻿
-using Dotmim.Sync.Batch;
+﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
 using System;
 using System.Data.Common;
@@ -8,13 +7,16 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Contains the logic to handle errors during the sync process.
+    /// </summary>
     public abstract partial class BaseOrchestrator
     {
         /// <summary>
         /// Handle a conflict
-        /// The int returned is the conflict count I need
+        /// The int returned is the conflict count I need.
         /// </summary>
-        private async Task<(ErrorAction errorAction, ApplyChangesException applyChangesException)> HandleErrorAsync(ScopeInfo scopeInfo, SyncContext context, 
+        private async Task<(ErrorAction ErrorAction, ApplyChangesException ApplyChangesException)> HandleErrorAsync(ScopeInfo scopeInfo, SyncContext context,
                                 BatchInfo batchInfo, SyncRow errorRow, SyncRowState applyType,
                                 SyncTable schemaChangesTable, Exception exception, Guid senderScopeId, long? lastTimestamp,
                                 DbConnection connection, DbTransaction transaction,
@@ -29,7 +31,7 @@ namespace Dotmim.Sync
 
             var errorOccuredArgs = await this.InterceptAsync(errorRowArgs, progress, cancellationToken).ConfigureAwait(false);
             Exception operationException = null;
-            
+
             var errorAction = ErrorAction.Throw;
             switch (errorOccuredArgs.Resolution)
             {
@@ -52,7 +54,6 @@ namespace Dotmim.Sync
                     else
                         (_, operationComplete, operationException) = await this.InternalApplyUpdateAsync(scopeInfo, context, batchInfo, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
                             connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-
 
                     if (operationComplete)
                     {
@@ -99,7 +100,7 @@ namespace Dotmim.Sync
 
             ApplyChangesException applyChangesException = null;
             if (operationException != null)
-                applyChangesException = new ApplyChangesException(errorRow, schemaChangesTable, applyType, operationException);   
+                applyChangesException = new ApplyChangesException(errorRow, schemaChangesTable, applyType, operationException);
 
             return (errorAction, applyChangesException);
         }

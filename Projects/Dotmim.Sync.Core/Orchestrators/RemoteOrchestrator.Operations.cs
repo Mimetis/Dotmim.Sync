@@ -1,35 +1,31 @@
-﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Logging;
+﻿using Dotmim.Sync.Enumerations;
 using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Contains the logic to get the current operation type.
+    /// </summary>
     public partial class RemoteOrchestrator : BaseOrchestrator
     {
 
-
-
-        internal virtual async Task<(SyncContext context, SyncOperation operation)>
-          InternalGetOperationAsync(ScopeInfo serverScopeInfo, ScopeInfo clientScopeInfo, ScopeInfoClient scopeInfoClient, SyncContext context, DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        /// <summary>
+        /// Gets the current operation type.
+        /// The interceptor is called to allow the user to change the operation type.
+        /// </summary>
+        internal virtual async Task<(SyncContext Context, SyncOperation Operation)>
+          InternalGetOperationAsync(ScopeInfo serverScopeInfo, ScopeInfo clientScopeInfo, ScopeInfoClient scopeInfoClient, SyncContext context,
+            DbConnection connection = default, DbTransaction transaction = default,
+            IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             try
             {
-                SyncOperation syncOperation = SyncOperation.Normal;
+                var syncOperation = SyncOperation.Normal;
 
-                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {
                     var operationArgs = new OperationArgs(context, serverScopeInfo, clientScopeInfo, scopeInfoClient, runner.Connection, runner.Transaction);
@@ -42,12 +38,8 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                throw this.GetSyncError(context, ex);
             }
-
         }
-
-   
-
     }
 }

@@ -153,13 +153,13 @@ namespace Dotmim.Sync
                 string message = null;
 
                 if (inputSetup != null)
-                    message += $"Input Setup:{serializer.Serialize(inputSetup).ToUtf8String()}.";
+                    message += $"Input Setup:{Serializer.Serialize(inputSetup).ToUtf8String()}.";
 
                 if (clientScopeInfo != null && clientScopeInfo.Setup != null)
-                    message += $"Client Scope Setup:{serializer.Serialize(clientScopeInfo.Setup).ToUtf8String()}.";
+                    message += $"Client Scope Setup:{Serializer.Serialize(clientScopeInfo.Setup).ToUtf8String()}.";
 
                 if (serverScopeInfo != null && serverScopeInfo.Setup != null)
-                    message += $"Server Scope Setup:{serializer.Serialize(serverScopeInfo.Setup).ToUtf8String()}.";
+                    message += $"Server Scope Setup:{Serializer.Serialize(serverScopeInfo.Setup).ToUtf8String()}.";
 
                 throw GetSyncError(context, ex, message);
             }

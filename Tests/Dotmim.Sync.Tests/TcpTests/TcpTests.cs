@@ -1787,7 +1787,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var writringRowsTables = new ConcurrentDictionary<string, int>();
             var readingRowsTables = new ConcurrentDictionary<string, int>();
             
-            var jsonSerializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+            var jsonSerializer = Serialization.SerializersFactory.JsonSerializerFactory.GetSerializer();
 
             var serializingRowsAction = new Func<SerializingRowArgs, Task>(async (args) =>
             {

@@ -166,7 +166,7 @@ namespace Dotmim.Sync
 
         private static object GetValue(MemberInfo member, object obj)
         {
-            var serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+            var serializer = SerializersFactory.JsonSerializerFactory.GetSerializer();
 
             PropertyInfo pi = member as PropertyInfo;
             if (pi != null)

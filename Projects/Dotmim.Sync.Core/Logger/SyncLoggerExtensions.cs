@@ -41,7 +41,7 @@ namespace Dotmim.Sync
             if (connection == null)
                 return "null";
 
-            var serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+            var serializer = SerializersFactory.JsonSerializerFactory.GetSerializer();
 
             var task = serializer.SerializeAsync(new { connection.DataSource, connection.Database, State = connection.State.ToString() });
 
@@ -60,7 +60,7 @@ namespace Dotmim.Sync
             if (command == null)
                 return "null";
 
-            var serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+            var serializer = SerializersFactory.JsonSerializerFactory.GetSerializer();
 
             var parameters = new List<object>();
             if (command.Parameters != null && command.Parameters.Count > 0)

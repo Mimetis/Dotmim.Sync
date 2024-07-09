@@ -241,10 +241,10 @@ namespace Dotmim.Sync
                 string message = null;
 
                 if (inputSetup != null)
-                    message += $"Input Setup:{serializer.Serialize(inputSetup).ToUtf8String()}.";
+                    message += $"Input Setup:{Serializer.Serialize(inputSetup).ToUtf8String()}.";
 
                 if (sScopeInfo != null && sScopeInfo.Setup != null)
-                    message += $"Server Setup:{serializer.Serialize(sScopeInfo.Setup).ToUtf8String()}.";
+                    message += $"Server Setup:{Serializer.Serialize(sScopeInfo.Setup).ToUtf8String()}.";
                 throw GetSyncError(context, ex, message);
             }
         }

@@ -21,6 +21,9 @@
 
 	</PropertyGroup>
 	<PropertyGroup>
+		<NoWarn>$(NoWarn)</NoWarn>
+	</PropertyGroup>
+	<PropertyGroup>
 		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
 	</PropertyGroup>
 	<!--generate NUGET package including symbols ans source on each release build -->

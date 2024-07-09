@@ -43,6 +43,7 @@ namespace Dotmim.Sync
                 return true;
             }
         }
+
         internal async Task<bool> IsScopeInfoClientSchemaValidAsync(SyncContext context, DbConnection connection = default, DbTransaction transaction = default,
                 CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
         {
@@ -98,7 +99,7 @@ namespace Dotmim.Sync
                 var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
                 var cScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
                 var tmpCScopeInfoClientTableName = $"tmp{cScopeInfoClientTableName}";
-                string message = "";
+                var message = string.Empty;
 
                 // ----------------------------------------------------
                 // Step 1 : Renaming scope_info_client to tmpscope_info_client
@@ -120,7 +121,7 @@ namespace Dotmim.Sync
                 }
 
                 // ----------------------------------------------------
-                // Step 3 : Create scope_info_client 
+                // Step 3 : Create scope_info_client
                 // ----------------------------------------------------
                 (context, existsCScopeInfoClient) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
                     runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
@@ -141,14 +142,16 @@ namespace Dotmim.Sync
                     table = await dbBuilder.GetTableAsync(tmpCScopeInfoClientTableName, null, runner.Connection, runner.Transaction).ConfigureAwait(false);
 
                 return table;
-
             }
         }
 
+        /// <summary>
+        /// Migrate the scope info table to the new version.
+        /// </summary>
         internal virtual async Task<SyncTable> MigrateScopeInfoTableAsync(SyncContext context, DbConnection connection, DbTransaction transaction,
-                        CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+                        IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
-            using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
             await using (runner.ConfigureAwait(false))
             {
                 var dbBuilder = this.Provider.GetDatabaseBuilder();
@@ -158,7 +161,7 @@ namespace Dotmim.Sync
                 var cScopeInfoTableName = $"{parsedName.Unquoted().Normalized()}";
                 var cScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
                 var tmpCScopeInfoTableName = $"tmp{cScopeInfoTableName}";
-                var message = "";
+                var message = string.Empty;
 
                 // Initialize database if needed
                 await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
@@ -178,11 +181,11 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction).ConfigureAwait(false);
 
                     message = $"- Temporary renamed {cScopeInfoTableName} to {tmpCScopeInfoTableName}.";
-                    await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+                    await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress, cancellationToken).ConfigureAwait(false);
                 }
 
                 // ----------------------------------------------------
-                // Step 2 : Create scope_info 
+                // Step 2 : Create scope_info
                 // ----------------------------------------------------
                 existsCScopeInfo = await dbBuilder.ExistsTableAsync(cScopeInfoTableName, null,
                     runner.Connection, runner.Transaction).ConfigureAwait(false);
@@ -192,7 +195,7 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
 
                 message = $"- Created new version of {cScopeInfoTableName} table.";
-                await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+                await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress, cancellationToken).ConfigureAwait(false);
 
                 var oldScopeInfotable = await dbBuilder.GetTableAsync(tmpCScopeInfoTableName, null, runner.Connection, runner.Transaction).ConfigureAwait(false);
 
@@ -200,13 +203,8 @@ namespace Dotmim.Sync
             }
         }
 
-
-
-
-
         internal virtual async Task<Version> UpgradeAutoToLastVersion(SyncContext context, Version version, SyncTable scopeInfos,
                 DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
-
         {
             using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
             await using (runner.ConfigureAwait(false))
@@ -218,8 +216,8 @@ namespace Dotmim.Sync
                 {
                     // Get setup schema and scope name from old scope info table
                     var scopeName = scopeInfoRow["sync_scope_name"] as string;
-                    var schema = serializer.Deserialize<SyncSet>(scopeInfoRow["sync_scope_schema"].ToString());
-                    var setup = serializer.Deserialize<SyncSetup>(scopeInfoRow["sync_scope_setup"].ToString());
+                    var schema = Serializer.Deserialize<SyncSet>(scopeInfoRow["sync_scope_schema"].ToString());
+                    var setup = Serializer.Deserialize<SyncSetup>(scopeInfoRow["sync_scope_setup"].ToString());
                     var lastCleanUpTimestamp = scopeInfoRow["sync_scope_last_clean_timestamp"] != null && scopeInfoRow["sync_scope_last_clean_timestamp"] != DBNull.Value ? (long?)scopeInfoRow["sync_scope_last_clean_timestamp"] : null;
                     var scopeProperties = scopeInfoRow["sync_scope_properties"] as string;
 
@@ -231,7 +229,7 @@ namespace Dotmim.Sync
                         Schema = schema,
                         LastCleanupTimestamp = lastCleanUpTimestamp,
                         Properties = scopeProperties,
-                        Version = SyncVersion.Current.ToString()
+                        Version = SyncVersion.Current.ToString(),
                     };
 
                     // Save this scope to new scope info table
@@ -240,7 +238,8 @@ namespace Dotmim.Sync
 
                     // Raise message about migrating current scope
                     var message = $"- Saved scope_info {scopeName} with version {SyncVersion.Current} with a setup containing {setup.Tables.Count} tables.";
-                    await this.InterceptAsync(new UpgradeProgressArgs(context, message, newVersion, runner.Connection, runner.Transaction),
+                    await this.InterceptAsync(
+                        new UpgradeProgressArgs(context, message, newVersion, runner.Connection, runner.Transaction),
                         runner.Progress, runner.CancellationToken).ConfigureAwait(false);
                 }
 

@@ -72,13 +72,9 @@ namespace Dotmim.Sync
             command = args.Command;
             isBatch = args.IsBatch;
 
-            // IF we decide to remove the command for some reason, we silentely return 
+            // IF we decide to remove the command for some reason, we silentely return
             if (command == null)
                 return (null, false);
-
-            // From that point if command is null, it's an error raised
-            if (command == null)
-                throw new MissingCommandException(commandType.ToString());
 
             if (connection == null)
                 throw new MissingConnectionException();

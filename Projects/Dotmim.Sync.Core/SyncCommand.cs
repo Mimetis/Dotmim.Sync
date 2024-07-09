@@ -1,20 +1,27 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data.Common;
-using System.Text;
-
-namespace Dotmim.Sync
+﻿namespace Dotmim.Sync
 {
-    public class SyncPreparedCommand 
+    /// <summary>
+    /// Represents a synchronization command that is prepared (or not).
+    /// </summary>
+    public class SyncPreparedCommand
     {
-        public bool IsPrepared { get; set; }
-        public string CommandCodeName { get; }
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SyncPreparedCommand"/> class, using a command code name. By default, the command is not prepared.
+        /// </summary>
         public SyncPreparedCommand(string commandCodeName)
         {
             this.CommandCodeName = commandCodeName;
             this.IsPrepared = false;
-
         }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether gets or Sets if the command is prepared.
+        /// </summary>
+        public bool IsPrepared { get; set; }
+
+        /// <summary>
+        /// Gets the command code name.
+        /// </summary>
+        public string CommandCodeName { get; }
     }
 }
