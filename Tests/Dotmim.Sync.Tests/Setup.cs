@@ -20,6 +20,9 @@ using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Models;
 using Dotmim.Sync.Tests.UnitTests;
 using System.Threading.Tasks;
+using Xunit;
+using System.Linq;
+using Dotmim.Sync.Sqlite;
 
 namespace Dotmim.Sync.Tests
 {
@@ -162,6 +165,75 @@ namespace Dotmim.Sync.Tests
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlClientRandomDatabaseName, true);
         }
 
+        /// <summary>
+        /// Ensures that SQL filters are not generated on the SQLite client side when 
+        /// DisableSqlFiltersGeneration is enabled.
+        /// </summary>
+        /// <remarks>
+        /// This test sets up a synchronization between a SQLite client and a server,
+        /// with SQL filters disabled on the client. It verifies that the command 
+        /// for selecting changes with filters does not include the filters.
+        /// </remarks>
+        [Fact]
+        public async Task Ensure_Filters_Not_Generated_In_SQLite_Side_If_DisableSqlFiltersGeneration_Enabled()
+        {
+            var providers = GetClientProviders();
+            SqliteSyncProvider clientProvider = (SqliteSyncProvider)providers.First();
+            clientProvider.DisableSqlFiltersGeneration = true;
+            var serverProvider = providers.Last();
+            var setup = GetFilteredSetup();
+            var agent = new SyncAgent(clientProvider, serverProvider);
+            var parameters = GetFilterParameters();
+            var count = 0;
+            agent.LocalOrchestrator.OnGetCommand(s =>
+            {
+                if (s.CommandType == Builders.DbCommandType.SelectChangesWithFilters && s.Table.TableName == "Customer")
+                {
+                    count++;
+                    Assert.DoesNotContain("@CustomerID", s.Command.CommandText);
+                }
+            });
+            var initializeSync = await agent.SynchronizeAsync(setup, parameters);
+
+            var secondSync = await agent.SynchronizeAsync(setup, parameters);
+
+            Assert.True(count > 0);
+        }
+
+        /// <summary>
+        /// Ensures that SQL filters are generated on the SQLite client side when 
+        /// DisableSqlFiltersGeneration is disabled.
+        /// </summary>
+        /// <remarks>
+        /// This test sets up a synchronization between a SQLite client and a server,
+        /// with SQL filters enabled on the client. It verifies that the command 
+        /// for selecting changes with filters includes the filters.
+        /// </remarks>
+        [Fact]
+        public async Task Ensure_Filters_Generated_In_SQLite_Side_If_DisableSqlFiltersGeneration_Disabled()
+        {
+            var providers = GetClientProviders();
+            SqliteSyncProvider clientProvider = (SqliteSyncProvider)providers.First();
+            clientProvider.DisableSqlFiltersGeneration = false;
+            var serverProvider = providers.Last();
+            var setup = GetFilteredSetup();
+            var agent = new SyncAgent(clientProvider, serverProvider);
+            var parameters = GetFilterParameters();
+            var count = 0;
+            agent.LocalOrchestrator.OnGetCommand(s =>
+            {
+                if (s.CommandType == Builders.DbCommandType.SelectChangesWithFilters && s.Table.TableName == "Customer")
+                {
+                    count++;
+                    Assert.Contains("@CustomerID", s.Command.CommandText);
+                }
+            });
+            var initializeSync = await agent.SynchronizeAsync(setup, parameters);
+
+            var secondSync = await agent.SynchronizeAsync(setup, parameters);
+
+            Assert.True(count > 0);
+        }
     }
     public class SqlServerChangeTrackingTcpTests : TcpTests
     {

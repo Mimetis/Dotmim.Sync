@@ -23,6 +23,7 @@ namespace Dotmim.Sync.Sqlite
         Dictionary<DbTriggerType, string> triggersNames = new Dictionary<DbTriggerType, string>();
 
         private ParserName tableName, trackingName;
+        private bool disableSqlFiltersGeneration;
 
         public SyncTable TableDescription { get; }
         public SyncSetup Setup { get; }
@@ -64,13 +65,14 @@ namespace Dotmim.Sync.Sqlite
             return commandName;
         }
 
-        public SqliteObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
+        public SqliteObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool disableSqlFiltersGeneration)
         {
             this.TableDescription = tableDescription;
             this.Setup = setup;
             this.ScopeName = scopeName;
             this.tableName = tableName;
             this.trackingName = trackingName;
+            this.disableSqlFiltersGeneration = disableSqlFiltersGeneration;
 
             SetDefaultNames();
         }
@@ -317,7 +319,7 @@ namespace Dotmim.Sync.Sqlite
             this.AddCommandName(DbCommandType.UpdateRows, cmdtext);
         }
 
-       
+
         private void CreateDeleteMetadataCommandText()
         {
 
@@ -610,34 +612,42 @@ namespace Dotmim.Sync.Sqlite
             }
             stringBuilder.AppendLine();
 
-            // ----------------------------------
-            // Custom Joins
-            // ----------------------------------
-            if (filter != null)
-                stringBuilder.Append(CreateFilterCustomJoins(filter));
-
-            // Looking at discussion https://github.com/Mimetis/Dotmim.Sync/discussions/453, trying to remove ([side].[update_scope_id] <> @sync_scope_id)
-            // since we are sure that sqlite will never be a server side database
-
-            stringBuilder.AppendLine("WHERE ");
-            // ----------------------------------
-            // Where filters and Custom Where string
-            // ----------------------------------
-            if (filter != null)
+            // Conditionally add filters if they are not disabled
+            if (this.disableSqlFiltersGeneration)
             {
-                var createFilterWhereSide = CreateFilterWhereSide(filter, true);
-                stringBuilder.Append(createFilterWhereSide);
-
-                if (!string.IsNullOrEmpty(createFilterWhereSide))
-                    stringBuilder.AppendLine($"AND ");
-
-                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
-                stringBuilder.Append(createFilterCustomWheres);
-
-                if (!string.IsNullOrEmpty(createFilterCustomWheres))
-                    stringBuilder.AppendLine($"AND ");
+                stringBuilder.AppendLine("WHERE ");                
             }
-            // ----------------------------------
+            else
+            {
+                // ----------------------------------
+                // Custom Joins
+                // ----------------------------------
+                if (filter != null)
+                    stringBuilder.Append(CreateFilterCustomJoins(filter));
+
+                // Looking at discussion https://github.com/Mimetis/Dotmim.Sync/discussions/453, trying to remove ([side].[update_scope_id] <> @sync_scope_id)
+                // since we are sure that sqlite will never be a server side database
+
+                stringBuilder.AppendLine("WHERE ");
+                // ----------------------------------
+                // Where filters and Custom Where string
+                // ----------------------------------
+                if (filter != null)
+                {
+                    var createFilterWhereSide = CreateFilterWhereSide(filter, true);
+                    stringBuilder.Append(createFilterWhereSide);
+
+                    if (!string.IsNullOrEmpty(createFilterWhereSide))
+                        stringBuilder.AppendLine($"AND ");
+
+                    var createFilterCustomWheres = CreateFilterCustomWheres(filter);
+                    stringBuilder.Append(createFilterCustomWheres);
+
+                    if (!string.IsNullOrEmpty(createFilterCustomWheres))
+                        stringBuilder.AppendLine($"AND ");
+                }
+                // ----------------------------------
+            }
 
             stringBuilder.AppendLine("([side].[timestamp] > @sync_min_timestamp AND [side].[update_scope_id] IS NULL)");
 
