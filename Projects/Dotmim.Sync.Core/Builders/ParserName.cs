@@ -10,7 +10,9 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Builders
 {
-
+    /// <summary>
+    /// ParserName is a class that helps to parse a string and get the database, schema and object name.
+    /// </summary>
     public class ParserName
     {
         private string key;
@@ -20,22 +22,33 @@ namespace Dotmim.Sync.Builders
         private bool withQuotes = false;
         private bool withNormalized = false;
 
+        /// <summary>
+        /// Gets the schema name.
+        /// </summary>
         public string SchemaName => GlobalParser.GetParserString(this.key).SchemaName;
+
+        /// <summary>
+        /// Gets the object name.
+        /// </summary>
         public string ObjectName => GlobalParser.GetParserString(this.key).ObjectName;
+
+
+        /// <summary>
+        /// Gets the database name.
+        /// </summary>
         public string DatabaseName => GlobalParser.GetParserString(this.key).DatabaseName;
 
         /// <summary>
-        /// Add database name if available to the final string
+        /// Add database name if available to the final string.
         /// </summary>
         public ParserName Database()
         {
             this.withDatabase = true;
             return this;
-
         }
 
         /// <summary>
-        /// Add schema if available to the final string
+        /// Add schema if available to the final string.
         /// </summary>
         public ParserName Schema()
         {

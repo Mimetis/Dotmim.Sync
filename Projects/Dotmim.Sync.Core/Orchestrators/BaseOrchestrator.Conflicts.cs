@@ -20,7 +20,7 @@ namespace Dotmim.Sync
         /// </summary>
         internal async Task<(SyncContext Context, SyncRow SyncRow)> InternalGetConflictRowAsync(ScopeInfo scopeInfo, SyncContext context,
             SyncTable schemaTable, SyncRow primaryKeyRow, DbConnection connection, DbTransaction transaction,
-            CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
             {
@@ -34,7 +34,7 @@ namespace Dotmim.Sync
                     return (context, null);
 
                 // Set the parameters value from row
-                this.InternalSetCommandParametersValues(context, command, DbCommandType.SelectRow, syncAdapter, connection, transaction, cancellationToken, progress,
+                this.InternalSetCommandParametersValues(context, command, DbCommandType.SelectRow, syncAdapter, connection, transaction, progress, cancellationToken,
                     row: primaryKeyRow);
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.SelectRow, connection, transaction)).ConfigureAwait(false);
@@ -235,7 +235,7 @@ namespace Dotmim.Sync
                         case ConflictType.RemoteExistsLocalIsDeleted:
                         case ConflictType.UniqueKeyConstraint:
                             (_, operationComplete, exception) = await this.InternalApplyUpdateAsync(scopeInfo, context, batchInfo,
-                                conflictRow, schemaChangesTable, lastTimestamp, nullableSenderScopeId, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                                conflictRow, schemaChangesTable, lastTimestamp, nullableSenderScopeId, true, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                             applied = operationComplete;
                             conflictResolved = operationComplete && exception == null;
@@ -244,7 +244,7 @@ namespace Dotmim.Sync
                         // Conflict, but both have delete the row, so just update the metadata to the right winner
                         case ConflictType.RemoteIsDeletedLocalIsDeleted:
                             // (_, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context,
-                            //    conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                            //    conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                             // applied = false;
                             // conflictResolved = operationComplete && exception == null;
                             applied = false;
@@ -262,7 +262,7 @@ namespace Dotmim.Sync
                         // So delete the local row
                         case ConflictType.RemoteIsDeletedLocalExists:
                             (context, operationComplete, exception) = await this.InternalApplyDeleteAsync(scopeInfo, context, batchInfo,
-                                conflictRow, schemaChangesTable, lastTimestamp, nullableSenderScopeId, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                                conflictRow, schemaChangesTable, lastTimestamp, nullableSenderScopeId, true, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                             // Conflict, but both have delete the row, so just update the metadata to the right winner
                             if (!operationComplete && exception == null)
@@ -270,7 +270,7 @@ namespace Dotmim.Sync
                                 // IS IT MANDATORY to update to the correct winner ?
                                 // if we don't have any rows on one side, we will add a metadata for nothing...
                                 // (_, operationComplete, exception) = await this.InternalUpdateMetadatasAsync(scopeInfo, context,
-                                //    conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                                //    conflictRow, schemaChangesTable, nullableSenderScopeId, true, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                                 // applied = false;
                                 // conflictResolved = operationComplete && exception == null;
                                 applied = false;
@@ -295,7 +295,7 @@ namespace Dotmim.Sync
                     // and will be returned back to client if occurs on server
                     // and will be returned to the server on next sync if occurs on client
                     (_, operationComplete, exception) = await this.InternalApplyUpdateAsync(scopeInfo, context, batchInfo,
-                        finalRow, schemaChangesTable, lastTimestamp, null, true, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        finalRow, schemaChangesTable, lastTimestamp, null, true, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                     if (!operationComplete && exception == null)
                         exception = new Exception("Can't update the merged row locally.");

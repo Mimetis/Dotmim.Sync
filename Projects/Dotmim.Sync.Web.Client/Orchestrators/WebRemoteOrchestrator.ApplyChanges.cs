@@ -46,7 +46,7 @@ namespace Dotmim.Sync.Web.Client
                     await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, 0, 0, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                     response = await this.ProcessRequestAsync
-                        (changesToSend, HttpStep.SendChangesInProgress, this.Options.BatchSize, cancellationToken, progress).ConfigureAwait(false);
+                        (changesToSend, HttpStep.SendChangesInProgress, this.Options.BatchSize, progress, cancellationToken).ConfigureAwait(false);
                 }
                 catch (HttpSyncWebException) { throw; } // throw server error
                 catch (Exception ex) { throw GetSyncError(context, ex); } // throw client error
@@ -96,7 +96,7 @@ namespace Dotmim.Sync.Web.Client
                         context.ProgressPercentage = initialPctProgress1 + ((changesToSend.BatchIndex + 1) * 0.2d / changesToSend.BatchCount);
                         await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, tmpRowsSendedCount, clientChanges.ClientBatchInfo.RowsCount, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
-                        response = await this.ProcessRequestAsync(changesToSend, HttpStep.SendChangesInProgress, this.Options.BatchSize, cancellationToken, progress).ConfigureAwait(false);
+                        response = await this.ProcessRequestAsync(changesToSend, HttpStep.SendChangesInProgress, this.Options.BatchSize, progress, cancellationToken).ConfigureAwait(false);
 
                         // See #721 for issue and #721 for PR from slagtejn
                         if (!bpi.IsLastBatch)
@@ -156,7 +156,7 @@ namespace Dotmim.Sync.Web.Client
                 serverBatchInfo.DirectoryRoot = batchDirectoryRoot;
                 serverBatchInfo.DirectoryName = batchDirectoryName;
 
-                await DownladBatchInfoAsync(context, schema, serverBatchInfo, summaryResponseContent, cancellationToken, progress).ConfigureAwait(false);
+                await DownladBatchInfoAsync(context, schema, serverBatchInfo, summaryResponseContent, progress, cancellationToken).ConfigureAwait(false);
 
                 // generate the new scope item
                 this.CompleteTime = DateTime.UtcNow;

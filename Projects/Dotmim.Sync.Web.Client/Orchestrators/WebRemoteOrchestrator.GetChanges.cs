@@ -132,7 +132,7 @@ namespace Dotmim.Sync.Web.Client
             catch (Exception ex) { throw GetSyncError(context, ex); } // throw client error
         }
 
-        private async Task DownladBatchInfoAsync(SyncContext context, SyncSet schema, BatchInfo serverBatchInfo, HttpMessageSummaryResponse summary, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        private async Task DownladBatchInfoAsync(SyncContext context, SyncSet schema, BatchInfo serverBatchInfo, HttpMessageSummaryResponse summary, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             // If we have a snapshot we are raising the batches downloading process that will occurs
             await this.InterceptAsync(new HttpBatchesDownloadingArgs(context, serverBatchInfo, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
@@ -144,19 +144,19 @@ namespace Dotmim.Sync.Web.Client
             lstbpi ??= serverBatchInfo.BatchPartsInfo.OrderByDescending(bpi => bpi.Index).FirstOrDefault();
 
             // Parrallel download of all bpis except the last one (which will launch the delete directory on the server side)
-            await bpis.ForEachAsync(bpi => DownloadBatchPartInfoAsync(context, schema, serverBatchInfo, bpi, HttpStep.GetMoreChanges, cancellationToken, progress), this.MaxDownladingDegreeOfParallelism).ConfigureAwait(false);
+            await bpis.ForEachAsync(bpi => DownloadBatchPartInfoAsync(context, schema, serverBatchInfo, bpi, HttpStep.GetMoreChanges, progress, cancellationToken), this.MaxDownladingDegreeOfParallelism).ConfigureAwait(false);
 
             // Download last batch part that will launch the server deletion of the tmp dir
-            await DownloadBatchPartInfoAsync(context, schema, serverBatchInfo, lstbpi, HttpStep.GetMoreChanges, cancellationToken, progress).ConfigureAwait(false);
+            await DownloadBatchPartInfoAsync(context, schema, serverBatchInfo, lstbpi, HttpStep.GetMoreChanges, progress, cancellationToken).ConfigureAwait(false);
 
             // Send end of download
             await this.ProcessRequestAsync<HttpMessageSendChangesResponse>(context, new HttpMessageGetMoreChangesRequest(context, lstbpi == null ? 0 : lstbpi.Index),
-                HttpStep.SendEndDownloadChanges, 0, cancellationToken, progress).ConfigureAwait(false);
+                HttpStep.SendEndDownloadChanges, 0, progress, cancellationToken).ConfigureAwait(false);
 
             await this.InterceptAsync(new HttpBatchesDownloadedArgs(summary, context, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
         }
 
-        private async Task DownloadBatchPartInfoAsync(SyncContext context, SyncSet schema, BatchInfo serverBatchInfo, BatchPartInfo bpi, HttpStep step, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        private async Task DownloadBatchPartInfoAsync(SyncContext context, SyncSet schema, BatchInfo serverBatchInfo, BatchPartInfo bpi, HttpStep step, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested)
                 return;
@@ -173,7 +173,7 @@ namespace Dotmim.Sync.Web.Client
             // Raise get changes request
             context.ProgressPercentage = initialPctProgress + ((bpi.Index + 1) * 0.2d / serverBatchInfo.BatchPartsInfo.Count);
 
-            var response = await this.ProcessRequestAsync(changesToSend, step, 0, cancellationToken, progress).ConfigureAwait(false);
+            var response = await this.ProcessRequestAsync(changesToSend, step, 0, progress, cancellationToken).ConfigureAwait(false);
 
             // If we are using a serializer that is not JSON, need to load in memory, then serialize to JSON
             // OR If we have an interceptor on getting response

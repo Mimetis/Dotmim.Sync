@@ -29,7 +29,7 @@ namespace Dotmim.Sync
                     ScopeInfo cScopeInfo;
                     (context, cScopeInfo) = await this.InternalLoadScopeInfoAsync(
                         context,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (cScopeInfo.Schema == null || cScopeInfo.Schema.Tables == null || cScopeInfo.Schema.Tables.Count <= 0 || !cScopeInfo.Schema.HasColumns)
                         throw new MissingTablesException();
@@ -77,7 +77,7 @@ namespace Dotmim.Sync
                 // Check if tracking table exists
                 bool trackingTableExists;
                 (context, trackingTableExists) = await this.InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                 if (!trackingTableExists)
                     throw new MissingTrackingTableException(tableBuilder.TableDescription.GetFullName());
@@ -86,7 +86,7 @@ namespace Dotmim.Sync
 
                 // Get correct Select incremental changes command
                 var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.UpdateUntrackedRows,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                 if (command == null)
                     return (context, 0);

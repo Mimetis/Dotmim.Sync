@@ -42,7 +42,7 @@ namespace Dotmim.Sync
                 {
                     SyncSet schema;
                     (context, schema) = await this.InternalGetSchemaAsync(context, setup,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     return schema;
                 }
@@ -79,7 +79,7 @@ namespace Dotmim.Sync
                     SyncSetup setup;
                     (context, setup) = await this.InternalGetAllTablesAsync(
                         context,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     return setup;
                 }
@@ -93,7 +93,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// update configuration object with tables desc from server database.
         /// </summary>
-        internal async Task<(SyncContext Context, SyncSet Schema)> InternalGetSchemaAsync(SyncContext context, SyncSetup setup, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext Context, SyncSet Schema)> InternalGetSchemaAsync(SyncContext context, SyncSetup setup, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
             {
@@ -147,7 +147,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get all tables with column names from database.
         /// </summary>
-        internal async Task<(SyncContext Context, SyncSetup Setup)> InternalGetAllTablesAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext Context, SyncSetup Setup)> InternalGetAllTablesAsync(SyncContext context, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
             {
@@ -188,7 +188,7 @@ namespace Dotmim.Sync
                 var tableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
 
                 bool exists;
-                (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                 if (!exists)
                     throw new MissingTableException(setupTable.TableName, setupTable.SchemaName, connection.Database);

@@ -20,7 +20,7 @@ namespace Dotmim.Sync
         /// Prepare the command parameters and add scope parameters
         /// </summary>
         internal async Task<(DbCommand Command, bool IsBatch)> InternalGetCommandAsync(ScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, DbCommandType commandType,
-            DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             SyncFilter filter = null;
 
@@ -111,7 +111,7 @@ namespace Dotmim.Sync
         /// Set command parameters value mapped to Row
         /// </summary>
         internal DbCommand InternalSetCommandParametersValues(SyncContext context, DbCommand command, DbCommandType commandType, DbSyncAdapter syncAdapter,
-            DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress,
+            DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken,
             SyncRow row = null, Guid? sync_scope_id = null, long? sync_min_timestamp = null, bool? sync_row_is_tombstone = null, bool? sync_force_write = null)
         {
             if (row != null && row.SchemaTable == null)

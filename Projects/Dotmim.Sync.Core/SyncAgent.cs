@@ -139,7 +139,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Launch a synchronization with the specified mode.
         /// </summary>
-        public async Task<SyncResult> SynchronizeAsync(string scopeName, SyncSetup setup, SyncType syncType, SyncParameters parameters, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        public async Task<SyncResult> SynchronizeAsync(string scopeName, SyncSetup setup, SyncType syncType, SyncParameters parameters, IProgress<ProgressArgs> progress = default, CancellationToken cancellationToken = default)
         {
             ClientSyncChanges clientSyncChanges = null;
             ServerSyncChanges serverSyncChanges = null;
@@ -192,7 +192,7 @@ namespace Dotmim.Sync
                 }
 
                 // Begin session
-                context = await this.LocalOrchestrator.InternalBeginSessionAsync(context, cancellationToken, progress).ConfigureAwait(false);
+                context = await this.LocalOrchestrator.InternalBeginSessionAsync(context, progress, cancellationToken).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -203,12 +203,12 @@ namespace Dotmim.Sync
                     var needToUpgrade = await this.LocalOrchestrator.NeedsToUpgradeAsync(context).ConfigureAwait(false);
 
                     if (needToUpgrade)
-                        await this.LocalOrchestrator.InternalUpgradeAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                        await this.LocalOrchestrator.InternalUpgradeAsync(context, default, default, progress, cancellationToken).ConfigureAwait(false);
 
                     needToUpgrade = await this.RemoteOrchestrator.NeedsToUpgradeAsync(context).ConfigureAwait(false);
 
                     if (needToUpgrade)
-                        await this.RemoteOrchestrator.InternalUpgradeAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                        await this.RemoteOrchestrator.InternalUpgradeAsync(context, default, default, progress, cancellationToken).ConfigureAwait(false);
 
                     this.checkUpgradeDone = true;
                 }
@@ -217,12 +217,12 @@ namespace Dotmim.Sync
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Begin session
-                context = await this.RemoteOrchestrator.InternalBeginSessionAsync(context, cancellationToken, progress).ConfigureAwait(false);
+                context = await this.RemoteOrchestrator.InternalBeginSessionAsync(context, progress, cancellationToken).ConfigureAwait(false);
 
                 // on remote orchestrator, get Server scope
                 ScopeInfo sScopeInfo;
                 var shouldProvision = false;
-                (context, sScopeInfo, shouldProvision) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+                (context, sScopeInfo, shouldProvision) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, setup, false, default, default, progress, cancellationToken).ConfigureAwait(false);
 
                 var isConflicting = false;
                 (context, isConflicting, sScopeInfo) = await this.RemoteOrchestrator.InternalIsConflictingSetupAsync(context, setup, sScopeInfo).ConfigureAwait(false);
@@ -232,10 +232,10 @@ namespace Dotmim.Sync
 
                 // On local orchestrator, get scope info.
                 ScopeInfo cScopeInfo;
-                (context, cScopeInfo) = await this.LocalOrchestrator.InternalEnsureScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                (context, cScopeInfo) = await this.LocalOrchestrator.InternalEnsureScopeInfoAsync(context, default, default, progress, cancellationToken).ConfigureAwait(false);
 
                 ScopeInfoClient cScopeInfoClient;
-                (context, cScopeInfoClient) = await this.LocalOrchestrator.InternalEnsureScopeInfoClientAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                (context, cScopeInfoClient) = await this.LocalOrchestrator.InternalEnsureScopeInfoClientAsync(context, default, default, progress, cancellationToken).ConfigureAwait(false);
 
                 // Check if we have a problem with the SyncSetup local and the one coming from server
                 // Let a chance to the user to update the local setup accordingly to the server one
@@ -245,7 +245,7 @@ namespace Dotmim.Sync
                 if (isConflicting)
                 {
                     context.ProgressPercentage = 1;
-                    context = await this.LocalOrchestrator.InternalEndSessionAsync(context, result, null, null, cancellationToken, progress).ConfigureAwait(false);
+                    context = await this.LocalOrchestrator.InternalEndSessionAsync(context, result, null, null, progress, cancellationToken).ConfigureAwait(false);
                     return result;
                 }
 
@@ -258,7 +258,7 @@ namespace Dotmim.Sync
                 // we may have created the scope tables and fail before provision
                 // check if we have some scope info clients already saved
                 if (!shouldProvision)
-                    shouldProvision = await this.RemoteOrchestrator.InternalShouldProvisionServerAsync(sScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    shouldProvision = await this.RemoteOrchestrator.InternalShouldProvisionServerAsync(sScopeInfo, context, default, default, progress, cancellationToken).ConfigureAwait(false);
 
                 // If we just have create the server scope, we need to provision it
                 // the WebServerAgent will do this setp on the GetServrScopeInfoAsync task, just before
@@ -272,14 +272,14 @@ namespace Dotmim.Sync
 
                 // Get operation from server
                 SyncOperation operation;
-                (context, operation) = await this.RemoteOrchestrator.InternalGetOperationAsync(sScopeInfo, cScopeInfo, cScopeInfoClient, context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                (context, operation) = await this.RemoteOrchestrator.InternalGetOperationAsync(sScopeInfo, cScopeInfo, cScopeInfoClient, context, default, default, progress, cancellationToken).ConfigureAwait(false);
 
                 if (operation != SyncOperation.Normal)
                 {
                     if (operation == SyncOperation.AbortSync)
                     {
                         context.ProgressPercentage = 1;
-                        context = await this.LocalOrchestrator.InternalEndSessionAsync(context, result, null, null, cancellationToken, progress).ConfigureAwait(false);
+                        context = await this.LocalOrchestrator.InternalEndSessionAsync(context, result, null, null, progress, cancellationToken).ConfigureAwait(false);
                         return result;
                     }
 
@@ -287,23 +287,23 @@ namespace Dotmim.Sync
                     if (operation == SyncOperation.DeprovisionAndSync && cScopeInfo.Setup != null && cScopeInfo.Setup.HasTables)
                     {
                         var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                        (context, _) = await this.LocalOrchestrator.InternalDeprovisionAsync(cScopeInfo, context, provision, default, default, cancellationToken, progress).ConfigureAwait(false);
-                        (context, cScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(sScopeInfo, cScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+                        (context, _) = await this.LocalOrchestrator.InternalDeprovisionAsync(cScopeInfo, context, provision, default, default, progress, cancellationToken).ConfigureAwait(false);
+                        (context, cScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(sScopeInfo, cScopeInfo, context, provision, false, default, default, progress, cancellationToken).ConfigureAwait(false);
                     }
 
                     if (operation == SyncOperation.DropAllAndSync)
                     {
-                        await this.LocalOrchestrator.DropAllAsync().ConfigureAwait(false);
+                        await this.LocalOrchestrator.DropAllAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
 
                         // Recreated scope info
-                        (context, cScopeInfo) = await this.LocalOrchestrator.InternalEnsureScopeInfoAsync(context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                        (context, cScopeInfo) = await this.LocalOrchestrator.InternalEnsureScopeInfoAsync(context, default, default, progress, cancellationToken).ConfigureAwait(false);
                     }
 
                     if (operation == SyncOperation.DropAllAndExit)
                     {
-                        await this.LocalOrchestrator.DropAllAsync().ConfigureAwait(false);
+                        await this.LocalOrchestrator.DropAllAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
                         context.ProgressPercentage = 1;
-                        context = await this.LocalOrchestrator.InternalEndSessionAsync(context, result, null, null, cancellationToken, progress).ConfigureAwait(false);
+                        context = await this.LocalOrchestrator.InternalEndSessionAsync(context, result, null, null, progress, cancellationToken).ConfigureAwait(false);
                         return result;
                     }
 
@@ -323,7 +323,7 @@ namespace Dotmim.Sync
                 {
                     // Provision local database
                     var provision = SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                    (context, cScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(sScopeInfo, cScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+                    (context, cScopeInfo) = await this.LocalOrchestrator.InternalProvisionClientAsync(sScopeInfo, cScopeInfo, context, provision, false, default, default, progress, cancellationToken).ConfigureAwait(false);
                 }
 
                 setup ??= cScopeInfo.Setup;
@@ -335,7 +335,7 @@ namespace Dotmim.Sync
                 if (sScopeInfo != null && context.SyncType != SyncType.Reinitialize && context.SyncType != SyncType.ReinitializeWithUpload)
                 {
                     var isOutDated = false;
-                    (context, isOutDated) = await this.LocalOrchestrator.InternalIsOutDatedAsync(context, cScopeInfoClient, sScopeInfo).ConfigureAwait(false);
+                    (context, isOutDated) = await this.LocalOrchestrator.InternalIsOutDatedAsync(context, cScopeInfoClient, sScopeInfo, cancellationToken: cancellationToken).ConfigureAwait(false);
 
                     // if client does not change SyncType to Reinitialize / ReinitializeWithUpload on SyncInterceptor, we raise an error
                     // otherwise, we are outdated, but we can continue, because we have a new mode.
@@ -347,7 +347,7 @@ namespace Dotmim.Sync
 
                 // On local orchestrator, get local changes
                 (context, clientSyncChanges) = await this.LocalOrchestrator.InternalGetChangesAsync(cScopeInfo, context, cScopeInfoClient,
-                    default, default, cancellationToken, progress).ConfigureAwait(false);
+                    default, default, progress, cancellationToken).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();
@@ -367,7 +367,7 @@ namespace Dotmim.Sync
                 {
                     ServerSyncChanges snapshotServerSyncChanges;
                     (context, snapshotServerSyncChanges)
-                        = await this.RemoteOrchestrator.InternalGetSnapshotAsync(sScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                        = await this.RemoteOrchestrator.InternalGetSnapshotAsync(sScopeInfo, context, default, default, progress, cancellationToken).ConfigureAwait(false);
 
                     // Apply snapshot
                     if (snapshotServerSyncChanges?.ServerBatchInfo != null)
@@ -436,8 +436,8 @@ namespace Dotmim.Sync
                 context.ProgressPercentage = 1;
                 try
                 {
-                    this.LocalOrchestrator.InternalEndSessionAsync(context, result, clientSyncChanges, syncException, cancellationToken, progress).Forget();
-                    this.RemoteOrchestrator.InternalEndSessionAsync(context, result, serverSyncChanges, syncException, cancellationToken, progress).Forget();
+                    this.LocalOrchestrator.InternalEndSessionAsync(context, result, clientSyncChanges, syncException, progress, cancellationToken).Forget();
+                    this.RemoteOrchestrator.InternalEndSessionAsync(context, result, serverSyncChanges, syncException, progress, cancellationToken).Forget();
                 }
                 catch
                 {

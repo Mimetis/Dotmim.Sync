@@ -21,7 +21,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(IProgress<ProgressArgs> progress = null)
-            => this.SynchronizeAsync(SyncOptions.DefaultScopeName, null, SyncType.Normal, null, CancellationToken.None, progress);
+            => this.SynchronizeAsync(SyncOptions.DefaultScopeName, null, SyncType.Normal, null, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on scope DefaultScope.
@@ -30,7 +30,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(SyncParameters parameters, IProgress<ProgressArgs> progress = null)
-            => this.SynchronizeAsync(SyncOptions.DefaultScopeName, null, SyncType.Normal, parameters, CancellationToken.None, progress);
+            => this.SynchronizeAsync(SyncOptions.DefaultScopeName, null, SyncType.Normal, parameters, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on scope DefaultScope.
@@ -39,7 +39,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(SyncType syncType, IProgress<ProgressArgs> progress = null)
-            => this.SynchronizeAsync(SyncOptions.DefaultScopeName, null, syncType, null, CancellationToken.None, progress);
+            => this.SynchronizeAsync(SyncOptions.DefaultScopeName, null, syncType, null, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on scope DefaultScope.
@@ -49,7 +49,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(SyncType syncType, SyncParameters parameters, IProgress<ProgressArgs> progress = null)
-            => this.SynchronizeAsync(SyncOptions.DefaultScopeName, null, syncType, parameters, CancellationToken.None, progress);
+            => this.SynchronizeAsync(SyncOptions.DefaultScopeName, null, syncType, parameters, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on a named scope.
@@ -58,7 +58,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(string scopeName, IProgress<ProgressArgs> progress = null)
-            => this.SynchronizeAsync(scopeName, null, SyncType.Normal, null, CancellationToken.None, progress);
+            => this.SynchronizeAsync(scopeName, null, SyncType.Normal, null, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on a named scope.
@@ -68,7 +68,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(string scopeName, SyncParameters parameters, IProgress<ProgressArgs> progress = null)
-            => this.SynchronizeAsync(scopeName, null, SyncType.Normal, parameters, CancellationToken.None, progress);
+            => this.SynchronizeAsync(scopeName, null, SyncType.Normal, parameters, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on a named scope.
@@ -78,7 +78,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(string scopeName, SyncType syncType, IProgress<ProgressArgs> progress = null)
-            => this.SynchronizeAsync(scopeName, null, syncType, null, CancellationToken.None, progress);
+            => this.SynchronizeAsync(scopeName, null, syncType, null, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on a named scope.
@@ -89,7 +89,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(string scopeName, SyncType syncType, SyncParameters parameters, IProgress<ProgressArgs> progress = null)
-            => this.SynchronizeAsync(scopeName, null, syncType, parameters, CancellationToken.None, progress);
+            => this.SynchronizeAsync(scopeName, null, syncType, parameters, progress, CancellationToken.None);
 
         // ---------------------------------------------
         // string[] tables
@@ -102,7 +102,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(string[] tables, IProgress<ProgressArgs> progress = default) =>
-            this.SynchronizeAsync(SyncOptions.DefaultScopeName, new SyncSetup(tables), SyncType.Normal, null, CancellationToken.None, progress);
+            this.SynchronizeAsync(SyncOptions.DefaultScopeName, new SyncSetup(tables), SyncType.Normal, null, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on scope DefaultScope.
@@ -112,7 +112,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(string[] tables, SyncParameters parameters, IProgress<ProgressArgs> progress = default) =>
-            this.SynchronizeAsync(SyncOptions.DefaultScopeName, new SyncSetup(tables), SyncType.Normal, parameters, CancellationToken.None, progress);
+            this.SynchronizeAsync(SyncOptions.DefaultScopeName, new SyncSetup(tables), SyncType.Normal, parameters, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on scope DefaultScope.
@@ -122,7 +122,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(string[] tables, SyncType syncType, IProgress<ProgressArgs> progress = default) =>
-            this.SynchronizeAsync(SyncOptions.DefaultScopeName, new SyncSetup(tables), syncType, null, CancellationToken.None, progress);
+            this.SynchronizeAsync(SyncOptions.DefaultScopeName, new SyncSetup(tables), syncType, null, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on scope DefaultScope.
@@ -133,7 +133,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(string[] tables, SyncType syncType, SyncParameters parameters, IProgress<ProgressArgs> progress = default) =>
-            this.SynchronizeAsync(SyncOptions.DefaultScopeName, new SyncSetup(tables), syncType, parameters, CancellationToken.None, progress);
+            this.SynchronizeAsync(SyncOptions.DefaultScopeName, new SyncSetup(tables), syncType, parameters, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on a named scope.
@@ -143,7 +143,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(string scopeName, string[] tables, IProgress<ProgressArgs> progress = default) =>
-            this.SynchronizeAsync(scopeName, new SyncSetup(tables), SyncType.Normal, null, CancellationToken.None, progress);
+            this.SynchronizeAsync(scopeName, new SyncSetup(tables), SyncType.Normal, null, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on a named scope.
@@ -154,7 +154,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(string scopeName, string[] tables, SyncParameters parameters, IProgress<ProgressArgs> progress = default) =>
-            this.SynchronizeAsync(scopeName, new SyncSetup(tables), SyncType.Normal, parameters, CancellationToken.None, progress);
+            this.SynchronizeAsync(scopeName, new SyncSetup(tables), SyncType.Normal, parameters, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on a named scope.
@@ -165,7 +165,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(string scopeName, string[] tables, SyncType syncType, IProgress<ProgressArgs> progress = default) =>
-            this.SynchronizeAsync(scopeName, new SyncSetup(tables), syncType, null, CancellationToken.None, progress);
+            this.SynchronizeAsync(scopeName, new SyncSetup(tables), syncType, null, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on a named scope.
@@ -177,7 +177,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(string scopeName, string[] tables, SyncType syncType, SyncParameters parameters, IProgress<ProgressArgs> progress = default) =>
-            this.SynchronizeAsync(scopeName, new SyncSetup(tables), syncType, parameters, CancellationToken.None, progress);
+            this.SynchronizeAsync(scopeName, new SyncSetup(tables), syncType, parameters, progress, CancellationToken.None);
 
         // ---------------------------------------------
         // SyncSetup setup
@@ -190,7 +190,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(SyncSetup setup, IProgress<ProgressArgs> progress = default)
-            => this.SynchronizeAsync(SyncOptions.DefaultScopeName, setup, SyncType.Normal, null, CancellationToken.None, progress);
+            => this.SynchronizeAsync(SyncOptions.DefaultScopeName, setup, SyncType.Normal, null, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on scope DefaultScope.
@@ -200,7 +200,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(SyncSetup setup, SyncParameters parameters, IProgress<ProgressArgs> progress = default)
-            => this.SynchronizeAsync(SyncOptions.DefaultScopeName, setup, SyncType.Normal, parameters, CancellationToken.None, progress);
+            => this.SynchronizeAsync(SyncOptions.DefaultScopeName, setup, SyncType.Normal, parameters, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on scope DefaultScope.
@@ -210,7 +210,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(SyncSetup setup, SyncType syncType, IProgress<ProgressArgs> progress = default)
-            => this.SynchronizeAsync(SyncOptions.DefaultScopeName, setup, syncType, null, CancellationToken.None, progress);
+            => this.SynchronizeAsync(SyncOptions.DefaultScopeName, setup, syncType, null, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on scope DefaultScope.
@@ -221,7 +221,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(SyncSetup setup, SyncType syncType, SyncParameters parameters, IProgress<ProgressArgs> progress = default)
-            => this.SynchronizeAsync(SyncOptions.DefaultScopeName, setup, syncType, parameters, CancellationToken.None, progress);
+            => this.SynchronizeAsync(SyncOptions.DefaultScopeName, setup, syncType, parameters, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on a named scope.
@@ -231,7 +231,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(string scopeName, SyncSetup setup, IProgress<ProgressArgs> progress = default)
-            => this.SynchronizeAsync(scopeName, setup, SyncType.Normal, null, CancellationToken.None, progress);
+            => this.SynchronizeAsync(scopeName, setup, SyncType.Normal, null, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on a named scope.
@@ -242,7 +242,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(string scopeName, SyncSetup setup, SyncParameters parameters, IProgress<ProgressArgs> progress = default)
-            => this.SynchronizeAsync(scopeName, setup, SyncType.Normal, parameters, CancellationToken.None, progress);
+            => this.SynchronizeAsync(scopeName, setup, SyncType.Normal, parameters, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on a named scope.
@@ -253,7 +253,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(string scopeName, SyncSetup setup, SyncType syncType, IProgress<ProgressArgs> progress = default)
-            => this.SynchronizeAsync(scopeName, setup, syncType, null, CancellationToken.None, progress);
+            => this.SynchronizeAsync(scopeName, setup, syncType, null, progress, CancellationToken.None);
 
         /// <summary>
         /// Launch a Synchronization based on a named scope.
@@ -265,7 +265,7 @@ namespace Dotmim.Sync
         /// <param name="progress">IProgress instance to get a progression status during sync.</param>
         /// <returns>Computed sync results.</returns>
         public Task<SyncResult> SynchronizeAsync(string scopeName, SyncSetup setup, SyncType syncType, SyncParameters parameters, IProgress<ProgressArgs> progress = default)
-            => this.SynchronizeAsync(scopeName, setup, syncType, parameters, CancellationToken.None, progress);
+            => this.SynchronizeAsync(scopeName, setup, syncType, parameters, progress, CancellationToken.None);
 
         // ---------------------------------------------
     }

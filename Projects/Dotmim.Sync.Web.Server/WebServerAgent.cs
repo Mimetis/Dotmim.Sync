@@ -106,7 +106,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Call this method to handle requests on the server, sent by the client
         /// </summary>
-        public virtual async Task HandleRequestAsync(HttpContext httpContext, Action<RemoteOrchestrator> action, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        public virtual async Task HandleRequestAsync(HttpContext httpContext, Action<RemoteOrchestrator> action, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             var httpRequest = httpContext.Request;
             var httpResponse = httpContext.Response;
@@ -251,41 +251,41 @@ namespace Dotmim.Sync.Web.Server
                 switch (step)
                 {
                     case HttpStep.EnsureScopes:
-                        messageResponse = await this.EnsureScopesAsync(httpContext, (HttpMessageEnsureScopesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false);
+                        messageResponse = await this.EnsureScopesAsync(httpContext, (HttpMessageEnsureScopesRequest)messsageRequest, sessionCache, progress, cancellationToken).ConfigureAwait(false);
                         break;
                     case HttpStep.EnsureSchema: // pre v 0.9.6
-                        var s11 = await this.EnsureScopesAsync(httpContext, (HttpMessageEnsureScopesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false);
+                        var s11 = await this.EnsureScopesAsync(httpContext, (HttpMessageEnsureScopesRequest)messsageRequest, sessionCache, progress, cancellationToken).ConfigureAwait(false);
                         messageResponse = new HttpMessageEnsureSchemaResponse(s11.SyncContext, s11.ServerScopeInfo);
                         break;
                     case HttpStep.SendChangesInProgress:
                         var sendChangesRequest = (HttpMessageSendChangesRequest)messsageRequest;
                         await this.RemoteOrchestrator.InterceptAsync(new HttpGettingClientChangesArgs(sendChangesRequest, httpContext.Request.Host.Host, sessionCache), progress, cancellationToken).ConfigureAwait(false);
-                        messageResponse = await this.ApplyThenGetChangesAsync2(httpContext, sendChangesRequest, sessionCache, clientBatchSize, cancellationToken, progress).ConfigureAwait(false);
+                        messageResponse = await this.ApplyThenGetChangesAsync2(httpContext, sendChangesRequest, sessionCache, clientBatchSize, progress, cancellationToken).ConfigureAwait(false);
                         break;
                     case HttpStep.GetMoreChanges:
-                        messageResponse = await this.GetMoreChangesAsync(httpContext, (HttpMessageGetMoreChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false);
+                        messageResponse = await this.GetMoreChangesAsync(httpContext, (HttpMessageGetMoreChangesRequest)messsageRequest, sessionCache, progress, cancellationToken).ConfigureAwait(false);
                         break;
                     case HttpStep.GetSnapshot:
-                        messageResponse = await this.GetSnapshotAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false);
+                        messageResponse = await this.GetSnapshotAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, sessionCache, progress, cancellationToken).ConfigureAwait(false);
                         break;
                     // version >= 0.8    
                     case HttpStep.GetSummary:
-                        messageResponse = await this.GetSnapshotSummaryAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false);
+                        messageResponse = await this.GetSnapshotSummaryAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, sessionCache, progress, cancellationToken).ConfigureAwait(false);
                         break;
                     case HttpStep.SendEndDownloadChanges:
-                        messageResponse = await this.SendEndDownloadChangesAsync(httpContext, (HttpMessageGetMoreChangesRequest)messsageRequest, sessionCache, cancellationToken, progress).ConfigureAwait(false);
+                        messageResponse = await this.SendEndDownloadChangesAsync(httpContext, (HttpMessageGetMoreChangesRequest)messsageRequest, sessionCache, progress, cancellationToken).ConfigureAwait(false);
                         break;
                     case HttpStep.GetEstimatedChangesCount:
-                        messageResponse = await this.GetEstimatedChangesCountAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false);
+                        messageResponse = await this.GetEstimatedChangesCountAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, progress, cancellationToken).ConfigureAwait(false);
                         break;
                     case HttpStep.GetRemoteClientTimestamp:
-                        messageResponse = await this.GetRemoteClientTimestampAsync(httpContext, (HttpMessageRemoteTimestampRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false);
+                        messageResponse = await this.GetRemoteClientTimestampAsync(httpContext, (HttpMessageRemoteTimestampRequest)messsageRequest, progress, cancellationToken).ConfigureAwait(false);
                         break;
                     case HttpStep.GetOperation:
-                        messageResponse = await this.GetOperationAsync(httpContext, (HttpMessageOperationRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false);
+                        messageResponse = await this.GetOperationAsync(httpContext, (HttpMessageOperationRequest)messsageRequest, progress, cancellationToken).ConfigureAwait(false);
                         break;
                     case HttpStep.EndSession:
-                        messageResponse = await this.EndSessionAsync(httpContext, (HttpMessageEndSessionRequest)messsageRequest, cancellationToken, progress).ConfigureAwait(false);
+                        messageResponse = await this.EndSessionAsync(httpContext, (HttpMessageEndSessionRequest)messsageRequest, progress, cancellationToken).ConfigureAwait(false);
                         break;
                 }
 
@@ -457,7 +457,7 @@ namespace Dotmim.Sync.Web.Server
         }
 
         internal protected virtual async Task<HttpMessageEnsureScopesResponse> EnsureScopesAsync(HttpContext httpContext, HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
-                                            CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+                                            IProgress<ProgressArgs> progress, CancellationToken cancellationToken = null)
         {
             if (httpMessage == null)
                 throw new ArgumentException("EnsureScopesAsync message could not be null");
@@ -469,7 +469,7 @@ namespace Dotmim.Sync.Web.Server
 
             ScopeInfo serverScopeInfo;
             bool shouldProvision;
-            (context, serverScopeInfo, shouldProvision) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+            (context, serverScopeInfo, shouldProvision) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, this.Setup, false, default, default, progress, cancellationToken).ConfigureAwait(false);
 
             // TODO : Is it used ?
             httpContext.Session.Set(httpMessage.SyncContext.ScopeName, serverScopeInfo.Schema);
@@ -479,7 +479,7 @@ namespace Dotmim.Sync.Web.Server
             {
                 // 2) Provision
                 var provision = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers;
-                (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalProvisionServerAsync(serverScopeInfo, context, provision, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+                (context, serverScopeInfo) = await this.RemoteOrchestrator.InternalProvisionServerAsync(serverScopeInfo, context, provision, false, default, default, progress, cancellationToken).ConfigureAwait(false);
             }
 
             // Create http response
@@ -521,10 +521,10 @@ namespace Dotmim.Sync.Web.Server
 
             ScopeInfo serverScopeInfo;
 
-            (context, serverScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+            (context, serverScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, this.Setup, false, default, default, progress, cancellationToken).ConfigureAwait(false);
 
             SyncOperation operation;
-            (context, operation) = await this.RemoteOrchestrator.InternalGetOperationAsync(serverScopeInfo, httpMessage.ScopeInfoFromClient, httpMessage.ScopeInfoClient, context, default, default, cancellationToken, progress).ConfigureAwait(false);
+            (context, operation) = await this.RemoteOrchestrator.InternalGetOperationAsync(serverScopeInfo, httpMessage.ScopeInfoFromClient, httpMessage.ScopeInfoClient, context, default, default, progress, cancellationToken).ConfigureAwait(false);
 
             return new HttpMessageOperationResponse(context, operation);
         }
@@ -550,7 +550,7 @@ namespace Dotmim.Sync.Web.Server
             if (httpMessage.SyncExceptionMessage != null)
                 syncException = new SyncException(httpMessage.SyncExceptionMessage);
 
-            context = await this.RemoteOrchestrator.InternalEndSessionAsync(context, result, null, syncException, cancellationToken, progress).ConfigureAwait(false);
+            context = await this.RemoteOrchestrator.InternalEndSessionAsync(context, result, null, syncException, progress, cancellationToken).ConfigureAwait(false);
 
             return new HttpMessageEndSessionResponse(context);
         }
@@ -562,7 +562,7 @@ namespace Dotmim.Sync.Web.Server
             var context = httpMessage.SyncContext;
 
             ScopeInfo sScopeInfo;
-            (context, sScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+            (context, sScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, this.Setup, false, default, default, progress, cancellationToken).ConfigureAwait(false);
 
             // TODO : Is it used ?
             httpContext.Session.Set(httpMessage.SyncContext.ScopeName, sScopeInfo.Schema);
@@ -570,7 +570,7 @@ namespace Dotmim.Sync.Web.Server
             // get snapshot info
             ServerSyncChanges serverSyncChanges;
             (context, serverSyncChanges) =
-                 await this.RemoteOrchestrator.InternalGetSnapshotAsync(sScopeInfo, context, default, default, cancellationToken, progress).ConfigureAwait(false);
+                 await this.RemoteOrchestrator.InternalGetSnapshotAsync(sScopeInfo, context, default, default, progress, cancellationToken).ConfigureAwait(false);
 
             var summaryResponse = new HttpMessageSummaryResponse(context)
             {
@@ -595,7 +595,7 @@ namespace Dotmim.Sync.Web.Server
         {
             ScopeInfo sScopeInfo;
 
-            (_, sScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(httpMessage.SyncContext, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+            (_, sScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(httpMessage.SyncContext, this.Setup, false, default, default, progress, cancellationToken).ConfigureAwait(false);
 
             // TODO : Is it used ?
             httpContext.Session.Set(httpMessage.SyncContext.ScopeName, sScopeInfo.Schema);
@@ -642,7 +642,7 @@ namespace Dotmim.Sync.Web.Server
             var context = httpMessage.SyncContext;
             ScopeInfo sScopeInfo;
             (context, sScopeInfo, _) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(
-                context, this.Setup, false, default, default, cancellationToken, progress).ConfigureAwait(false);
+                context, this.Setup, false, default, default, progress, cancellationToken).ConfigureAwait(false);
 
             // TODO : Is it used ?
             httpContext.Session.Set(context.ScopeName, sScopeInfo.Schema);
@@ -723,7 +723,7 @@ namespace Dotmim.Sync.Web.Server
                                                sScopeInfo,
                                                context,
                                                clientSyncChanges,
-                                               default, default, cancellationToken, progress).ConfigureAwait(false);
+                                               default, default, progress, cancellationToken).ConfigureAwait(false);
 
             // Set session cache infos
             sessionCache.RemoteClientTimestamp = serverSyncChanges.RemoteClientTimestamp;

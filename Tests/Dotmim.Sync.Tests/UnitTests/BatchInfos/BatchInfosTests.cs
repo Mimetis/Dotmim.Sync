@@ -130,7 +130,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         public async Task CreateBatchInfo()
         {
             var (bi, st) = await GenerateBatchInfoAsync(0, SyncRowState.None);
-            var filePath = bi.GetBatchPartInfoPath(bi.BatchPartsInfo[0]);
+            var filePath = bi.GetBatchPartInfoFullPath(bi.BatchPartsInfo[0]);
 
             var fileInfo = new FileInfo(filePath);
 
@@ -213,7 +213,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         {
             var (bi, st) = await GenerateBatchInfoAsync(10, SyncRowState.ApplyModifiedFailed);
 
-            var filePath = bi.GetBatchPartInfoPath(bi.BatchPartsInfo[0]);
+            var filePath = bi.GetBatchPartInfoFullPath(bi.BatchPartsInfo[0]);
 
             var (schemaTable, rowsCount, state) =
                 LocalJsonSerializer.GetSchemaTableFromFile(filePath);
@@ -229,7 +229,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         {
             var (bi, st) = await GenerateBatchInfoAsync(100000, SyncRowState.ApplyModifiedFailed);
 
-            var filePath = bi.GetBatchPartInfoPath(bi.BatchPartsInfo[0]);
+            var filePath = bi.GetBatchPartInfoFullPath(bi.BatchPartsInfo[0]);
 
             var (schemaTable, rowsCount, state) =
               LocalJsonSerializer.GetSchemaTableFromFile(filePath);
@@ -270,7 +270,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         {
             var (bi, st) = await GenerateBatchInfoAsync(10);
 
-            var filePath = bi.GetBatchPartInfoPath(bi.BatchPartsInfo[0]);
+            var filePath = bi.GetBatchPartInfoFullPath(bi.BatchPartsInfo[0]);
 
             using var localSerializer = new LocalJsonSerializer();
 
@@ -296,7 +296,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         {
             var (bi, st) = await GenerateBatchInfoAsync(0, SyncRowState.Modified);
 
-            var filePath = bi.GetBatchPartInfoPath(bi.BatchPartsInfo[0]);
+            var filePath = bi.GetBatchPartInfoFullPath(bi.BatchPartsInfo[0]);
 
             var (schemaTable, rowsCount, state) =
                 LocalJsonSerializer.GetSchemaTableFromFile(filePath);

@@ -17,16 +17,16 @@ namespace Dotmim.Sync.Web.Client
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
 
-        internal override async Task<(SyncContext context, ScopeInfo scopeInfo)> InternalLoadScopeInfoAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal override async Task<(SyncContext context, ScopeInfo scopeInfo)> InternalLoadScopeInfoAsync(SyncContext context, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             ScopeInfo scopeInfo;
-            (context, scopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, default, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            (context, scopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, default, false, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
             return (context, scopeInfo);
         }
 
         internal override async Task<(SyncContext context, ScopeInfo serverScopeInfo, bool shouldProvision)>
             InternalEnsureScopeInfoAsync(
-            SyncContext context, SyncSetup setup, bool overwrite, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            SyncContext context, SyncSetup setup, bool overwrite, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
 
             try
@@ -40,7 +40,7 @@ namespace Dotmim.Sync.Web.Client
 
                 // No batch size submitted here, because the schema will be generated in memory and send back to the user.
                 var ensureScopesResponse = await this.ProcessRequestAsync<HttpMessageEnsureScopesResponse>
-                    (context, httpMessage, HttpStep.EnsureScopes, 0, cancellationToken, progress).ConfigureAwait(false);
+                    (context, httpMessage, HttpStep.EnsureScopes, 0, progress, cancellationToken).ConfigureAwait(false);
 
                 if (ensureScopesResponse == null)
                     throw new ArgumentException("Http Message content for Ensure scope can't be null");

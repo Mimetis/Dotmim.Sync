@@ -27,7 +27,7 @@ namespace Dotmim.Sync
                 {
                     bool cScopeInfoExists;
                     (context, cScopeInfoExists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     // no scopes info table. Just a new sync
                     if (!cScopeInfoExists)
@@ -86,7 +86,7 @@ namespace Dotmim.Sync
                     //// If exists then we have already upgraded to last version
                     // bool exists;
                     // (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
-                    //    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    //    runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     // if (exists)
                     //    return false;
@@ -156,7 +156,7 @@ namespace Dotmim.Sync
                     }
 
                     if (version.Major == 0 && version.Minor == 9 && version.Build >= 6)
-                        await this.UpgradeAutoToLastVersion(context, version, scopeInfos, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await this.UpgradeAutoToLastVersion(context, version, scopeInfos, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                     else if (version.Major == 0 && ((version.Minor <= 9 && version.Build <= 5) || version.Minor <= 8))
                         await this.UpgradeOldestVersions(context, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                     else
@@ -200,7 +200,7 @@ namespace Dotmim.Sync
                     // get scope infos
                     (context, sScopeInfos) = await this.InternalLoadAllScopeInfosAsync(
                         context,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     // Deprovision old triggers & stored procedures
                     var provision = SyncProvision.StoredProcedures | SyncProvision.Triggers;
@@ -211,7 +211,7 @@ namespace Dotmim.Sync
                             continue;
 
                         await this.InternalDeprovisionAsync(sScopeInfo, context, provision,
-                                runner.Connection, runner.Transaction, runner.CancellationToken, default).ConfigureAwait(false);
+                                runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                         var message = $"- Deprovision server old scope {sScopeInfo.Name}.";
                         await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress, cancellationToken).ConfigureAwait(false);
@@ -222,7 +222,7 @@ namespace Dotmim.Sync
                     // ----------------------------------------------------
                     (context, sScopeInfos) = await this.InternalLoadAllScopeInfosAsync(
                         context,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     foreach (var sScopeInfo in sScopeInfos)
                     {
@@ -288,11 +288,11 @@ namespace Dotmim.Sync
                     // ----------------------------------------------------
                     bool existsCScopeInfo;
                     (context, existsCScopeInfo) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (!existsCScopeInfo)
                         (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     message = $"- Created new version of {sScopeInfoTableName} table.";
                     await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress, cancellationToken).ConfigureAwait(false);
@@ -302,11 +302,11 @@ namespace Dotmim.Sync
                     // ----------------------------------------------------
                     bool existsCScopeInfoClient;
                     (context, existsCScopeInfoClient) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (!existsCScopeInfoClient)
                         (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     message = $"- Created {sScopeInfoClientTableName} table.";
                     await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress, cancellationToken).ConfigureAwait(false);
@@ -347,7 +347,7 @@ namespace Dotmim.Sync
                             };
 
                             await this.InternalSaveScopeInfoAsync(sScopeInfo, context,
-                                 runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                                 runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                             message = $"- Saved scope_info {name} in {sScopeInfoTableName} table with a setup containing {setup.Tables.Count} tables.";
                             await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress, cancellationToken).ConfigureAwait(false);
@@ -371,7 +371,7 @@ namespace Dotmim.Sync
                     // get scope infos
                     (context, sScopeInfos) = await this.InternalLoadAllScopeInfosAsync(
                         context,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     // fallback to "try to drop an hypothetical default scope"
                     sScopeInfos ??= [];
@@ -413,7 +413,7 @@ namespace Dotmim.Sync
                             continue;
 
                         await this.InternalDeprovisionAsync(sScopeInfo, context, provision,
-                                runner.Connection, runner.Transaction, runner.CancellationToken, default).ConfigureAwait(false);
+                                runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                         message = $"- Deprovision old scope {sScopeInfo.Name}.";
                         await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress, cancellationToken).ConfigureAwait(false);
@@ -424,7 +424,7 @@ namespace Dotmim.Sync
                     // ----------------------------------------------------
                     (context, sScopeInfos) = await this.InternalLoadAllScopeInfosAsync(
                         context,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     foreach (var sScopeInfo in sScopeInfos)
                     {
@@ -447,11 +447,11 @@ namespace Dotmim.Sync
 
                     (context, sFinalScopeInfos) = await this.InternalLoadAllScopeInfosAsync(
                         context,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     var sFinalScopeInfoClients = await this.InternalLoadAllScopeInfoClientsAsync(
                         context,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     await runner.CommitAsync().ConfigureAwait(false);
 

@@ -50,7 +50,7 @@ namespace Dotmim.Sync
                     ScopeInfoClient scopeInfoClient;
                     (context, scopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(
                         context,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     await runner.CommitAsync().ConfigureAwait(false);
 

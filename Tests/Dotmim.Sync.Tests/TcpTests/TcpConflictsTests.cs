@@ -89,7 +89,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 {
                     if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
                     {
-                        var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
+                        var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
                         using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
@@ -142,7 +142,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 {
                     if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
                     {
-                        var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
+                        var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
                         using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
@@ -258,7 +258,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 {
                     if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
                     {
-                        var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
+                        var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
                         using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
@@ -324,7 +324,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 {
                     if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
                     {
-                        var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
+                        var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
                         using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
@@ -411,7 +411,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 {
                     if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
                     {
-                        var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
+                        var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
                         using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
@@ -527,7 +527,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 {
                     if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
                     {
-                        var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
+                        var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
                         using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
@@ -587,7 +587,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 {
                     if (args.BatchPartInfo != null && args.SchemaTable.TableName == "ProductCategory")
                     {
-                        var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
+                        var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
                         using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
@@ -652,7 +652,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 {
                     if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
                     {
-                        var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
+                        var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
                         using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
@@ -761,7 +761,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 {
                     if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
                     {
-                        var fullPath = args.BatchInfo.GetBatchPartInfoPath(args.BatchPartInfo);
+                        var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
                         using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 

@@ -17,7 +17,7 @@ namespace Dotmim.Sync.Web.Client
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
 
-        internal override async Task<SyncContext> InternalBeginSessionAsync(SyncContext context, CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+        internal override async Task<SyncContext> InternalBeginSessionAsync(SyncContext context, IProgress<ProgressArgs> progress, CancellationToken cancellationToken = null)
         {
             // Progress & interceptor
             var sessionBegin = new SessionBeginArgs(context, null) { Source = this.GetServiceHost() };
@@ -49,7 +49,7 @@ namespace Dotmim.Sync.Web.Client
 
                 // No batch size submitted here, because the schema will be generated in memory and send back to the user.
                 var endSessionResponse = await this.ProcessRequestAsync<HttpMessageEndSessionResponse>
-                    (context, httpMessage, HttpStep.EndSession, 0, cancellationToken, progress).ConfigureAwait(false);
+                    (context, httpMessage, HttpStep.EndSession, 0, progress, cancellationToken).ConfigureAwait(false);
 
                 if (endSessionResponse == null)
                     throw new ArgumentException("Http Message content for End session can't be null");

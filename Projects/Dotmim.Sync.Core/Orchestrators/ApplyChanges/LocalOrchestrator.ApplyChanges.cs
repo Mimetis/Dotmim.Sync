@@ -100,11 +100,11 @@ namespace Dotmim.Sync
                     {
                         // Try to clean errors before trying
                         applyChanges.Changes = serverBatchInfo;
-                        await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, lastSyncErrorsBatchInfo, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, lastSyncErrorsBatchInfo, applyChanges, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                         // Call apply errors on provider
                         applyChanges.Changes = lastSyncErrorsBatchInfo;
-                        failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                     }
 
                     if (failureException != null)
@@ -114,7 +114,7 @@ namespace Dotmim.Sync
                     {
                         // Call apply changes on provider
                         applyChanges.Changes = serverBatchInfo;
-                        failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                     }
 
                     if (failureException != null)
@@ -128,10 +128,10 @@ namespace Dotmim.Sync
                     {
                         using (var runnerMetadata = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction, progress, cancellationToken).ConfigureAwait(false))
                         {
-                            var allScopeHistories = await this.InternalLoadAllScopeInfoClientsAsync(context, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
+                            var allScopeHistories = await this.InternalLoadAllScopeInfoClientsAsync(context, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.Progress, runnerMetadata.CancellationToken).ConfigureAwait(false);
 
                             List<ScopeInfo> allClientScopes;
-                            (context, allClientScopes) = await this.InternalLoadAllScopeInfosAsync(context, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
+                            (context, allClientScopes) = await this.InternalLoadAllScopeInfosAsync(context, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.Progress, runnerMetadata.CancellationToken).ConfigureAwait(false);
 
                             if (allScopeHistories.Count > 0 && allClientScopes.Count > 0)
                             {
@@ -150,7 +150,7 @@ namespace Dotmim.Sync
                                         clientScopeInfo.LastCleanupTimestamp = databaseMetadatasCleaned.TimestampLimit;
 
                                         await this.InternalSaveScopeInfoAsync(clientScopeInfo, context,
-                                            runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.CancellationToken, runnerMetadata.Progress).ConfigureAwait(false);
+                                            runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.Progress, runnerMetadata.CancellationToken).ConfigureAwait(false);
                                     }
                                 }
                             }
@@ -210,7 +210,7 @@ namespace Dotmim.Sync
                     using (var runnerScopeInfo = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ScopeWriting, connection, transaction, progress, cancellationToken).ConfigureAwait(false))
                     {
                         (context, cScopeInfoClient) = await this.InternalSaveScopeInfoClientAsync(newCScopeInfoClient, context,
-                            runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
+                            runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.Progress, runnerScopeInfo.CancellationToken).ConfigureAwait(false);
                     }
 
                     var databaseChangesAppliedArgs = new DatabaseChangesAppliedArgs(context, clientChangesApplied, connection ??= this.Provider.CreateConnection(), transaction);

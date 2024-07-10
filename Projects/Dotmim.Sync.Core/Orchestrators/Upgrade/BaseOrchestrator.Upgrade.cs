@@ -8,13 +8,19 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Contains the logic to upgrade the database schema to the last version.
+    /// </summary>
     public partial class BaseOrchestrator
     {
+        /// <summary>
+        /// Returns if the scope info schema is valid.
+        /// </summary>
         internal async Task<bool> IsScopeInfoSchemaValidAsync(SyncContext context, DbConnection connection = default, DbTransaction transaction = default,
-                        CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
+                        IProgress<ProgressArgs> progress = default, CancellationToken cancellationToken = default)
         {
             using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating,
-                connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                connection, transaction, progress, cancellationToken).ConfigureAwait(false);
             await using (runner.ConfigureAwait(false))
             {
                 var scopeInfoTableName = this.Provider.GetParsers(new SyncTable(this.Options.ScopeInfoTableName), new SyncSetup()).tableName;
@@ -44,11 +50,14 @@ namespace Dotmim.Sync
             }
         }
 
+        /// <summary>
+        /// Returns if the scope info client schema is valid.
+        /// </summary>
         internal async Task<bool> IsScopeInfoClientSchemaValidAsync(SyncContext context, DbConnection connection = default, DbTransaction transaction = default,
-                CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = default)
+                IProgress<ProgressArgs> progress = default, CancellationToken cancellationToken = default)
         {
             using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating,
-            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
             await using (runner.ConfigureAwait(false))
             {
@@ -87,10 +96,13 @@ namespace Dotmim.Sync
             }
         }
 
-        internal virtual async Task<SyncTable> MigrateScopeInfoClientTableAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        /// <summary>
+        /// Migrate the scope info client table to the new version.
+        /// </summary>
+        internal virtual async Task<SyncTable> MigrateScopeInfoClientTableAsync(SyncContext context, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
 
-            using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
             await using (runner.ConfigureAwait(false))
             {
                 var dbBuilder = this.Provider.GetDatabaseBuilder();
@@ -108,8 +120,8 @@ namespace Dotmim.Sync
                     runner.Connection, runner.Transaction).ConfigureAwait(false);
 
                 bool existsCScopeInfoClient;
-                (context, existsCScopeInfoClient) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                (context, existsCScopeInfoClient) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
+                    runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                 if (!tmpScopeInfoClientExists && existsCScopeInfoClient)
                 {
@@ -117,21 +129,21 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction).ConfigureAwait(false);
 
                     message = $"- Temporary renamed {cScopeInfoClientTableName} to {tmpCScopeInfoClientTableName}.";
-                    await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+                    await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress, cancellationToken).ConfigureAwait(false);
                 }
 
                 // ----------------------------------------------------
                 // Step 3 : Create scope_info_client
                 // ----------------------------------------------------
-                (context, existsCScopeInfoClient) = await InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
-                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                (context, existsCScopeInfoClient) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
+                    runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                 if (!existsCScopeInfoClient)
                     (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                 message = $"- Created {cScopeInfoClientTableName} table.";
-                await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
+                await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress, cancellationToken).ConfigureAwait(false);
 
                 tmpScopeInfoClientExists = await dbBuilder.ExistsTableAsync(tmpCScopeInfoClientTableName, null,
                     runner.Connection, runner.Transaction).ConfigureAwait(false);
@@ -192,7 +204,7 @@ namespace Dotmim.Sync
 
                 if (!existsCScopeInfo)
                     (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                 message = $"- Created new version of {cScopeInfoTableName} table.";
                 await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress, cancellationToken).ConfigureAwait(false);
@@ -203,10 +215,13 @@ namespace Dotmim.Sync
             }
         }
 
+        /// <summary>
+        /// Auto upgrade the database schema to the last version.
+        /// </summary>
         internal virtual async Task<Version> UpgradeAutoToLastVersion(SyncContext context, Version version, SyncTable scopeInfos,
-                DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+                DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
-            using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
             await using (runner.ConfigureAwait(false))
             {
                 var newVersion = SyncVersion.Current;
@@ -234,7 +249,7 @@ namespace Dotmim.Sync
 
                     // Save this scope to new scope info table
                     await this.InternalSaveScopeInfoAsync(cScopeInfo, context,
-                         runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     // Raise message about migrating current scope
                     var message = $"- Saved scope_info {scopeName} with version {SyncVersion.Current} with a setup containing {setup.Tables.Count} tables.";

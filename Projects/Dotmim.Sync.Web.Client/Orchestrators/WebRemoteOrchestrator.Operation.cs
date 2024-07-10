@@ -32,7 +32,7 @@ namespace Dotmim.Sync.Web.Client
 
                 // No batch size submitted here, because the schema will be generated in memory and send back to the user.
                 var operationResponse = await this.ProcessRequestAsync<HttpMessageOperationResponse>
-                    (context, httpMessage, HttpStep.GetOperation, 0, cancellationToken, progress).ConfigureAwait(false);
+                    (context, httpMessage, HttpStep.GetOperation, 0, progress, cancellationToken).ConfigureAwait(false);
 
                 if (operationResponse == null)
                     throw new ArgumentException("Http Message content for Get Operation scope can't be null");

@@ -71,7 +71,7 @@
 
 //                // Execute my OpenAsync in my policy context
 //                response = await policy.ExecuteAsync(ct => this.SendAsync(client, requestUri.ToString(),
-//                    step, message, batchSize, converter, serializerFactory, ct), cancellationToken, progress);
+//                    step, message, batchSize, converter, serializerFactory, ct), progress, cancellationToken);
 
 //                // Ensure we have a cookie
 //                this.EnsureCookie(response?.Headers);
@@ -137,7 +137,7 @@
 
 //                // Execute my OpenAsync in my policy context
 //                response = await policy.ExecuteAsync(ct => this.SendAsync(client, requestUri.ToString(),
-//                    step, message, batchSize, converter, serializerFactory, ct), cancellationToken, progress);
+//                    step, message, batchSize, converter, serializerFactory, ct), progress, cancellationToken);
 
 //                // Ensure we have a cookie
 //                this.EnsureCookie(response?.Headers);

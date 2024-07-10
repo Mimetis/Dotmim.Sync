@@ -54,15 +54,15 @@ namespace Dotmim.Sync
 
                     bool schemaExists;
                     (context, schemaExists) = await this.InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (!schemaExists)
                         (context, _) = await this.InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     bool exists;
                     (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     // should create only if not exists OR if overwrite has been set
                     var shouldCreate = !exists || overwrite;
@@ -72,10 +72,10 @@ namespace Dotmim.Sync
                         // Drop if already exists and we need to overwrite
                         if (exists && overwrite)
                             (context, _) = await this.InternalDropTableAsync(scopeInfo, context, tableBuilder,
-                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                                runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                         (context, hasBeenCreated) = await this.InternalCreateTableAsync(scopeInfo, context, tableBuilder,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
                     }
 
                     await runner.CommitAsync().ConfigureAwait(false);
@@ -128,11 +128,11 @@ namespace Dotmim.Sync
                             var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
                             bool exists;
                             (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder,
-                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                                runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                             if (exists)
                                 (context, _) = await this.InternalDropTableAsync(scopeInfo, context, tableBuilder,
-                                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                                    runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
                         }
                     }
 
@@ -144,15 +144,15 @@ namespace Dotmim.Sync
 
                         bool schemaExists;
                         (context, schemaExists) = await this.InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                         if (!schemaExists)
                             (context, _) = await this.InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
-                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                                runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                         bool exists;
                         (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                         // should create only if not exists OR if overwrite has been set
                         var shouldCreate = !exists || overwrite;
@@ -162,11 +162,11 @@ namespace Dotmim.Sync
                             // Drop if already exists and we need to overwrite
                             if (exists && overwrite)
                                 (context, _) = await this.InternalDropTableAsync(scopeInfo, context, tableBuilder,
-                                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                                    runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                             bool hasBeenCreated;
                             (context, hasBeenCreated) = await this.InternalCreateTableAsync(scopeInfo, context, tableBuilder,
-                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                                runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                             if (hasBeenCreated)
                                 atLeastOneHasBeenCreated = true;
@@ -217,7 +217,7 @@ namespace Dotmim.Sync
                     var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
                     bool exists;
                     (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     await runner.CommitAsync().ConfigureAwait(false);
                     return exists;
@@ -271,11 +271,11 @@ namespace Dotmim.Sync
 
                     bool exists;
                     (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (exists)
                         (context, hasBeenDropped) = await this.InternalDropTableAsync(scopeInfo, context, tableBuilder,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     await runner.CommitAsync().ConfigureAwait(false);
 
@@ -328,11 +328,11 @@ namespace Dotmim.Sync
 
                         bool exists;
                         (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                         if (exists)
                             (context, atLeastOneTableHasBeenDropped) = await this.InternalDropTableAsync(scopeInfo, context, tableBuilder,
-                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                                runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
                     }
 
                     await runner.CommitAsync().ConfigureAwait(false);
@@ -349,7 +349,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal add column routine.
         /// </summary>
-        internal async Task<(SyncContext Context, bool IsAdded)> InternalAddColumnAsync(ScopeInfo scopeInfo, SyncContext context, string addedColumnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext Context, bool IsAdded)> InternalAddColumnAsync(ScopeInfo scopeInfo, SyncContext context, string addedColumnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             Guard.ThrowIfNull(scopeInfo);
             try
@@ -404,7 +404,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal add column routine.
         /// </summary>
-        internal async Task<(SyncContext Context, bool IsDropped)> InternalDropColumnAsync(ScopeInfo scopeInfo, SyncContext context, string droppedColumnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext Context, bool IsDropped)> InternalDropColumnAsync(ScopeInfo scopeInfo, SyncContext context, string droppedColumnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
             {
@@ -453,7 +453,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal create table routine.
         /// </summary>
-        internal async Task<(SyncContext Context, bool IsCreated)> InternalCreateTableAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext Context, bool IsCreated)> InternalCreateTableAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
             {
@@ -502,7 +502,7 @@ namespace Dotmim.Sync
         /// Internal create table routine.
         /// </summary>
         internal async Task<(SyncContext Context, bool IsCreated)> InternalCreateSchemaAsync(
-            ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
             {
@@ -540,7 +540,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal drop table routine.
         /// </summary>
-        internal async Task<(SyncContext Context, bool IsDropped)> InternalDropTableAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext Context, bool IsDropped)> InternalDropTableAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
             {
@@ -581,7 +581,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal exists table procedure routine.
         /// </summary>
-        internal async Task<(SyncContext Context, bool IsExisting)> InternalExistsTableAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext Context, bool IsExisting)> InternalExistsTableAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
             {
@@ -612,7 +612,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal exists schema procedure routine.
         /// </summary>
-        internal async Task<(SyncContext Context, bool IsExisting)> InternalExistsSchemaAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext Context, bool IsExisting)> InternalExistsSchemaAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
             {
@@ -646,7 +646,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal exists column procedure routine.
         /// </summary>
-        internal async Task<(SyncContext Context, bool IsExisting)> InternalExistsColumnAsync(ScopeInfo scopeInfo, SyncContext context, string columnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal async Task<(SyncContext Context, bool IsExisting)> InternalExistsColumnAsync(ScopeInfo scopeInfo, SyncContext context, string columnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
             {

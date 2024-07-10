@@ -20,7 +20,7 @@ namespace Dotmim.Sync
                                 BatchInfo batchInfo, SyncRow errorRow, SyncRowState applyType,
                                 SyncTable schemaChangesTable, Exception exception, Guid senderScopeId, long? lastTimestamp,
                                 DbConnection connection, DbTransaction transaction,
-                                CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+                                IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             // We are handling a previous error already in the batch info
             if (errorRow.RowState == SyncRowState.ApplyModifiedFailed || errorRow.RowState == SyncRowState.ApplyDeletedFailed)
@@ -50,10 +50,10 @@ namespace Dotmim.Sync
 
                     if (applyType == SyncRowState.Deleted)
                         (_, operationComplete, operationException) = await this.InternalApplyDeleteAsync(scopeInfo, context, batchInfo, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
-                            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                            connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                     else
                         (_, operationComplete, operationException) = await this.InternalApplyUpdateAsync(scopeInfo, context, batchInfo, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
-                            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                            connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                     if (operationComplete)
                     {

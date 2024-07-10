@@ -481,7 +481,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class SetupConflictOnClientException : Exception
     {
-        private const string Message = "Seems you are trying another Setup that what is stored in your client scope database.\n" +
+        private new const string Message = "Seems you are trying another Setup that what is stored in your client scope database.\n" +
                                "You have already made a sync with a setup that has been stored in the client database.\n" +
                                "And you are trying now a new setup in your code, different from the one you have used before.\n" +
                                "If you want to use 2 differents setups, please use a different a scope name for each setup.\n" +
@@ -492,8 +492,10 @@ namespace Dotmim.Sync
                                "Setup found in your database: {1}\n" +
                                "-----------------------------------------------------\n";
 
+        private static ISerializer serializer = SerializersFactory.JsonSerializerFactory.GetSerializer();
+
         public SetupConflictOnClientException(SyncSetup inputSetup, SyncSetup clientScopeInfoSetup)
-            : base(string.Format(Message, serializer.Serialize(inputSetup).ToUtf8String(), serializer.Serialize(clientScopeInfoSetup).ToUtf8String())) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, serializer.Serialize(inputSetup).ToUtf8String(), serializer.Serialize(clientScopeInfoSetup).ToUtf8String())) { }
 
         public SetupConflictOnClientException()
         {
@@ -519,6 +521,7 @@ namespace Dotmim.Sync
                                "-----------------------------------------------------\n" +
                                "Setup found in your database: {1}\n" +
                                "-----------------------------------------------------\n";
+        private static ISerializer serializer = SerializersFactory.JsonSerializerFactory.GetSerializer();
 
         public SetupConflictOnServerException(SyncSetup inputSetup, SyncSetup clientScopeInfoSetup)
             : base(string.Format(Message, serializer.Serialize(inputSetup).ToUtf8String(), serializer.Serialize(clientScopeInfoSetup).ToUtf8String())) { }

@@ -19,7 +19,7 @@ namespace Dotmim.Sync
         /// Internal provision method.
         /// </summary>
         internal virtual async Task<(SyncContext Context, bool Provisioned)> InternalProvisionAsync(ScopeInfo scopeInfo, SyncContext context, bool overwrite, SyncProvision provision,
-            DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             if (this.Provider == null)
                 throw new MissingProviderException(nameof(this.InternalProvisionAsync));
@@ -58,18 +58,18 @@ namespace Dotmim.Sync
                 // If we don't have any columns it's most probably because user called method with the Setup only
                 // So far we have only tables names, it's enough to get the schema
                 if (scopeInfo.Schema.HasTables && !scopeInfo.Schema.HasColumns)
-                    (context, scopeInfo.Schema) = await this.InternalGetSchemaAsync(context, scopeInfo.Setup, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, scopeInfo.Schema) = await this.InternalGetSchemaAsync(context, scopeInfo.Setup, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                 // Shoudl we create scope
                 if (provision.HasFlag(SyncProvision.ScopeInfo))
                 {
                     bool exists;
-                    (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                     if (!exists)
                     {
                         var siCreated = false;
-                        (context, siCreated) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, siCreated) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                         if (siCreated && !atLeastOneScopeInfoTableBeenCreated)
                             atLeastOneScopeInfoTableBeenCreated = true;
@@ -79,12 +79,12 @@ namespace Dotmim.Sync
                 if (provision.HasFlag(SyncProvision.ScopeInfoClient))
                 {
                     bool exists;
-                    (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                     if (!exists)
                     {
                         var sicCreated = false;
-                        (context, sicCreated) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, sicCreated) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                         if (sicCreated && !atLeastOneScopeInfoClientTableBeenCreated)
                             atLeastOneScopeInfoClientTableBeenCreated = true;
@@ -104,7 +104,7 @@ namespace Dotmim.Sync
 
                     // Check if we need to create a schema there
                     bool schemaExists;
-                    (context, schemaExists) = await this.InternalExistsSchemaAsync(scopeInfo, context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, schemaExists) = await this.InternalExistsSchemaAsync(scopeInfo, context, tableBuilder, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                     var stCreated = false;
                     var tCreated = false;
@@ -114,7 +114,7 @@ namespace Dotmim.Sync
 
                     if (!schemaExists)
                     {
-                        (context, stCreated) = await this.InternalCreateSchemaAsync(scopeInfo, context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, stCreated) = await this.InternalCreateSchemaAsync(scopeInfo, context, tableBuilder, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                         if (stCreated && !atLeastOneSchemaTableBeenCreated)
                             atLeastOneSchemaTableBeenCreated = true;
@@ -123,11 +123,11 @@ namespace Dotmim.Sync
                     if (provision.HasFlag(SyncProvision.Table))
                     {
                         bool tableExists;
-                        (context, tableExists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, tableExists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                         if (!tableExists)
                         {
-                            (context, tCreated) = await this.InternalCreateTableAsync(scopeInfo, context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                            (context, tCreated) = await this.InternalCreateTableAsync(scopeInfo, context, tableBuilder, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                             if (tCreated && !atLeastOneTableBeenCreated)
                                 atLeastOneTableBeenCreated = true;
@@ -136,12 +136,12 @@ namespace Dotmim.Sync
 
                     if (provision.HasFlag(SyncProvision.TrackingTable))
                     {
-                        (context, trackingTableExist) = await this.InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, trackingTableExist) = await this.InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                         if (!trackingTableExist)
                         {
                             var ttCreated = false;
-                            (context, ttCreated) = await this.InternalCreateTrackingTableAsync(scopeInfo, context, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                            (context, ttCreated) = await this.InternalCreateTrackingTableAsync(scopeInfo, context, tableBuilder, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                             if (ttCreated && !atLeastOneTrackingTableBeenCreated)
                                 atLeastOneTrackingTableBeenCreated = true;
@@ -150,7 +150,7 @@ namespace Dotmim.Sync
 
                     if (provision.HasFlag(SyncProvision.Triggers))
                     {
-                        (context, tgCreated) = await this.InternalCreateTriggersAsync(scopeInfo, context, overwrite, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, tgCreated) = await this.InternalCreateTriggersAsync(scopeInfo, context, overwrite, tableBuilder, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                         if (tgCreated && !atLeastOneTriggerHasBeenCreated)
                             atLeastOneTriggerHasBeenCreated = true;
@@ -158,7 +158,7 @@ namespace Dotmim.Sync
 
                     if (provision.HasFlag(SyncProvision.StoredProcedures))
                     {
-                        (context, spCreated) = await this.InternalCreateStoredProceduresAsync(scopeInfo, context, overwrite, tableBuilder, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, spCreated) = await this.InternalCreateStoredProceduresAsync(scopeInfo, context, overwrite, tableBuilder, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                         if (spCreated && !atLeastOneStoredProcedureHasBeenCreated)
                             atLeastOneStoredProcedureHasBeenCreated = true;
@@ -192,7 +192,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal method to deprovision a scope.
         /// </summary>
-        internal virtual async Task<(SyncContext Context, bool IsDeprovisioned)> InternalDeprovisionAsync(ScopeInfo scopeInfo, SyncContext context, SyncProvision provision, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        internal virtual async Task<(SyncContext Context, bool IsDeprovisioned)> InternalDeprovisionAsync(ScopeInfo scopeInfo, SyncContext context, SyncProvision provision, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
             {
@@ -237,9 +237,9 @@ namespace Dotmim.Sync
                             var exists = false;
                             var tableBuilder = this.GetTableBuilder(table, scopeInfo);
 
-                            (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
                             if (exists)
-                                await this.InternalDisableConstraintsAsync(scopeInfo, context, table, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                                await this.InternalDisableConstraintsAsync(scopeInfo, context, table, runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
                         }
                     }
 
@@ -270,7 +270,7 @@ namespace Dotmim.Sync
 
                         if (provision.HasFlag(SyncProvision.StoredProcedures))
                         {
-                            (context, spDropped) = await this.InternalDropStoredProceduresAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                            (context, spDropped) = await this.InternalDropStoredProceduresAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, progress, cancellationToken).ConfigureAwait(false);
 
                             // Removing cached commands
                             this.RemoveCommands();
@@ -281,7 +281,7 @@ namespace Dotmim.Sync
 
                         if (provision.HasFlag(SyncProvision.Triggers))
                         {
-                            (context, tgDropped) = await this.InternalDropTriggersAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                            (context, tgDropped) = await this.InternalDropTriggersAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, progress, cancellationToken).ConfigureAwait(false);
 
                             if (tgDropped && !atLeastOneTriggerHasBeenDropped)
                                 atLeastOneTriggerHasBeenDropped = true;
@@ -290,11 +290,11 @@ namespace Dotmim.Sync
                         if (provision.HasFlag(SyncProvision.TrackingTable))
                         {
                             bool exists;
-                            (context, exists) = await this.InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                            (context, exists) = await this.InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, progress, cancellationToken).ConfigureAwait(false);
 
                             if (exists)
                             {
-                                (context, ttDropped) = await this.InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                                (context, ttDropped) = await this.InternalDropTrackingTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, progress, cancellationToken).ConfigureAwait(false);
 
                                 if (ttDropped && !atLeastOneTrackingTableBeenDropped)
                                     atLeastOneTrackingTableBeenDropped = true;
@@ -313,12 +313,12 @@ namespace Dotmim.Sync
                         {
                             var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
                             bool exists;
-                            (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                            (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, progress, cancellationToken).ConfigureAwait(false);
 
                             if (exists)
                             {
                                 var tDropped = false;
-                                (context, tDropped) = await this.InternalDropTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                                (context, tDropped) = await this.InternalDropTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, progress, cancellationToken).ConfigureAwait(false);
 
                                 if (tDropped && !atLeastOneTableBeenDropped)
                                     atLeastOneTableBeenDropped = true;
@@ -329,12 +329,12 @@ namespace Dotmim.Sync
                     if (provision.HasFlag(SyncProvision.ScopeInfo))
                     {
                         bool exists;
-                        (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, progress, cancellationToken).ConfigureAwait(false);
 
                         if (exists)
                         {
                             var siDropped = false;
-                            (context, siDropped) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                            (context, siDropped) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, progress, cancellationToken).ConfigureAwait(false);
 
                             if (siDropped && !atLeastScopeInfoTableBeenDropped)
                                 atLeastScopeInfoTableBeenDropped = true;
@@ -344,12 +344,12 @@ namespace Dotmim.Sync
                     if (provision.HasFlag(SyncProvision.ScopeInfoClient))
                     {
                         bool exists;
-                        (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, progress, cancellationToken).ConfigureAwait(false);
 
                         if (exists)
                         {
                             var sicDropped = false;
-                            (context, sicDropped) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, cancellationToken, progress).ConfigureAwait(false);
+                            (context, sicDropped) = await this.InternalDropScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient, runner.Connection, runner.Transaction, progress, cancellationToken).ConfigureAwait(false);
 
                             if (sicDropped && !atLeastScopeInfoClientTableBeenDropped)
                                 atLeastScopeInfoClientTableBeenDropped = true;
@@ -364,9 +364,9 @@ namespace Dotmim.Sync
                             var exists = false;
                             var tableBuilder = this.GetTableBuilder(table, scopeInfo);
 
-                            (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
                             if (exists)
-                                await this.InternalEnableConstraintsAsync(scopeInfo, context, table, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                                await this.InternalEnableConstraintsAsync(scopeInfo, context, table, runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
                         }
                     }
 

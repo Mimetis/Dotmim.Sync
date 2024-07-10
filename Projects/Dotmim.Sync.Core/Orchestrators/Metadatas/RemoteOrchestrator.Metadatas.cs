@@ -35,14 +35,14 @@ namespace Dotmim.Sync
                 {
                     bool exists;
                     (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (!exists)
                         await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     var sScopeInfoClients = await this.InternalLoadAllScopeInfoClientsAsync(context,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (sScopeInfoClients == null || sScopeInfoClients.Count == 0)
                         return new DatabaseMetadatasCleaned();
@@ -54,7 +54,7 @@ namespace Dotmim.Sync
 
                     DatabaseMetadatasCleaned databaseMetadatasCleaned;
                     (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(minTimestamp, context,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     await runner.CommitAsync().ConfigureAwait(false);
 
@@ -85,7 +85,7 @@ namespace Dotmim.Sync
                 {
                     DatabaseMetadatasCleaned databaseMetadatasCleaned;
                     (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(timeStampStart, context,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     await runner.CommitAsync().ConfigureAwait(false);
 
@@ -107,7 +107,7 @@ namespace Dotmim.Sync
         /// Delete metadatas items from tracking tables
         /// </summary>
         internal virtual async Task<(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned)>
-            InternalDeleteMetadatasAsync(long? timeStampStart, SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            InternalDeleteMetadatasAsync(long? timeStampStart, SyncContext context, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
 
             if (!timeStampStart.HasValue)
@@ -120,26 +120,26 @@ namespace Dotmim.Sync
                 {
 
                     bool exists;
-                    (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                     if (!exists)
-                        await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                     List<ScopeInfo> sScopeInfos;
-                    (context, sScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, sScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                     if (sScopeInfos == null || sScopeInfos.Count == 0)
                         return (context, new DatabaseMetadatasCleaned());
 
                     DatabaseMetadatasCleaned databaseMetadatasCleaned;
-                    (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(sScopeInfos, context, timeStampStart.Value, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(sScopeInfos, context, timeStampStart.Value, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                     foreach (var serverScopeInfo in sScopeInfos)
                     {
                         serverScopeInfo.LastCleanupTimestamp = databaseMetadatasCleaned.TimestampLimit;
                         var tmpContext = new SyncContext(Guid.NewGuid(), serverScopeInfo.Name);
 
-                        await this.InternalSaveScopeInfoAsync(serverScopeInfo, tmpContext, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        await this.InternalSaveScopeInfoAsync(serverScopeInfo, tmpContext, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                     }
 
                     await runner.CommitAsync().ConfigureAwait(false);

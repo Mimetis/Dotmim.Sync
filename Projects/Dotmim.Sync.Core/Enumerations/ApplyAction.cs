@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Dotmim.Sync.Enumerations
+﻿namespace Dotmim.Sync.Enumerations
 {
     /// <summary>
     /// Specifies the options for processing a row when the row cannot be applied during synchronization.
@@ -23,12 +17,12 @@ namespace Dotmim.Sync.Enumerations
         RetryWithForceWrite,
 
         /// <summary>
-        /// Force the finale row to be applied locally
+        /// Force the finale row to be applied locally.
         /// </summary>
         Merge,
 
         /// <summary>
-        /// Force to rollback all the sync processus
+        /// Force to rollback all the sync processus.
         /// </summary>
         Throw,
     }

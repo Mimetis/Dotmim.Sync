@@ -96,12 +96,12 @@ namespace Dotmim.Sync
                     continue;
 
                 // Gets all BPI containing this table
-                foreach (var bpi in batchInfo.GetBatchPartsInfo(bpiTable.TableName, bpiTable.SchemaName))
+                foreach (var bpi in batchInfo.GetBatchPartsInfos(bpiTable.TableName, bpiTable.SchemaName))
                 {
                     try
                     {
                         // Get full path of my batchpartinfo
-                        var fullPath = batchInfo.GetBatchPartInfoPath(bpi);
+                        var fullPath = batchInfo.GetBatchPartInfoFullPath(bpi);
 
                         if (!File.Exists(fullPath))
                             continue;
@@ -229,10 +229,10 @@ namespace Dotmim.Sync
             SyncTable syncTable = null;
 
             // Gets all BPI containing this table
-            foreach (var bpi in batchInfo.GetBatchPartsInfo(tableName, schemaName))
+            foreach (var bpi in batchInfo.GetBatchPartsInfos(tableName, schemaName))
             {
                 // Get full path of my batchpartinfo
-                var fullPath = batchInfo.GetBatchPartInfoPath(bpi);
+                var fullPath = batchInfo.GetBatchPartInfoFullPath(bpi);
 
                 if (!File.Exists(fullPath))
                     continue;
@@ -278,7 +278,7 @@ namespace Dotmim.Sync
                 return;
 
             // Get full path of my batchpartinfo
-            var fullPath = batchInfo.GetBatchPartInfoPath(batchPartInfo);
+            var fullPath = batchInfo.GetBatchPartInfoFullPath(batchPartInfo);
 
             if (File.Exists(fullPath))
                 File.Delete(fullPath);

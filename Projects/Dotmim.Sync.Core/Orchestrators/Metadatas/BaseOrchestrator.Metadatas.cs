@@ -67,13 +67,13 @@ namespace Dotmim.Sync
                             var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
 
                             var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DeleteMetadata,
-                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                                runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                             if (command != null)
                             {
                                 // Set the special parameters for delete metadata
                                 command = this.InternalSetCommandParametersValues(context, command, DbCommandType.DeleteMetadata, syncAdapter,
-                                    runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress,
+                                    runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken,
                                     sync_min_timestamp: timestampLimit);
 
                                 await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DeleteMetadata, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
@@ -129,7 +129,7 @@ namespace Dotmim.Sync
         internal async Task<(SyncContext Context, bool IsMetadataUpdated, Exception Exception)> InternalUpdateMetadatasAsync(ScopeInfo scopeInfo, SyncContext context,
                                 SyncRow row, SyncTable schemaTable, Guid? senderScopeId, bool forceWrite,
                                 DbConnection connection, DbTransaction transaction,
-                                CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+                                IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             context.SyncStage = SyncStage.ChangesApplying;
 
@@ -139,13 +139,13 @@ namespace Dotmim.Sync
             await using (runner.ConfigureAwait(false))
             {
                 var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.UpdateMetadata,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                 if (command == null)
                     return (context, false, null);
 
                 // Set the parameters value from row
-                this.InternalSetCommandParametersValues(context, command, DbCommandType.UpdateMetadata, syncAdapter, connection, transaction, cancellationToken, progress,
+                this.InternalSetCommandParametersValues(context, command, DbCommandType.UpdateMetadata, syncAdapter, connection, transaction, progress, cancellationToken,
                     row, senderScopeId, 0, row.RowState == SyncRowState.Deleted, forceWrite);
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.UpdateMetadata, runner.Connection, runner.Transaction)).ConfigureAwait(false);

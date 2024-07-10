@@ -12,7 +12,7 @@ namespace Dotmim.Sync
     /// <typeparam name="T">Specifies the type of the progress report value.</typeparam>
     /// <remarks>
     /// Any handler provided to the constructor or event handlers registered with
-    /// the <see cref="ProgressChanged"/> event are invoked through a 
+    /// the <see cref="ProgressChanged"/> event are invoked through a
     /// <see cref="System.Threading.SynchronizationContext"/> instance captured
     /// when the instance is constructed.  If there is no current SynchronizationContext
     /// at the time of construction, the callbacks will be invoked on the ThreadPool.
@@ -20,20 +20,25 @@ namespace Dotmim.Sync
     public class SynchronousProgress<T> : IProgress<T>
     {
         /// <summary>The synchronization context captured upon construction.  This will never be null.</summary>
-        private readonly SynchronizationContext m_synchronizationContext;
-        /// <summary>The handler specified to the constructor.  This may be null.</summary>
-        private readonly Action<T> m_handler;
-        /// <summary>A cached delegate used to post invocation to the synchronization context.</summary>
-        private readonly SendOrPostCallback m_invokeHandlers;
+        private readonly SynchronizationContext synchronizationContext;
 
-        /// <summary>Initializes the <see cref="Progress{T}"/>.</summary>
+        /// <summary>The handler specified to the constructor.  This may be null.</summary>
+        private readonly Action<T> handler;
+
+        /// <summary>A cached delegate used to post invocation to the synchronization context.</summary>
+        private readonly SendOrPostCallback invokeHandlers;
+
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SynchronousProgress{T}"/> class.
+        /// </summary>
         public SynchronousProgress()
         {
             // Capture the current synchronization context.  "current" is determined by Current.
             // If there is no current context, we use a default instance targeting the ThreadPool.
-            m_synchronizationContext = SynchronizationContext.Current ?? ProgressStatics.DefaultContext;
-            Contract.Assert(m_synchronizationContext != null);
-            m_invokeHandlers = new SendOrPostCallback(InvokeHandlers);
+            synchronizationContext = SynchronizationContext.Current ?? ProgressStatics.DefaultContext;
+            Contract.Assert(synchronizationContext != null);
+            invokeHandlers = new SendOrPostCallback(InvokeHandlers);
         }
 
         /// <summary>Initializes the <see cref="Progress{T}"/> with the specified callback.</summary>
@@ -47,7 +52,7 @@ namespace Dotmim.Sync
         public SynchronousProgress(Action<T> handler) : this()
         {
             if (handler == null) throw new ArgumentNullException("handler");
-            m_handler = handler;
+            this.handler = handler;
         }
 
         /// <summary>Raised for each reported progress value.</summary>
@@ -64,13 +69,13 @@ namespace Dotmim.Sync
             // If there's no handler, don't bother going through the [....] context.
             // Inside the callback, we'll need to check again, in case 
             // an event handler is removed between now and then.
-            var handler = m_handler;
+            var handler = this.handler;
             var changedEvent = ProgressChanged;
             if (handler != null || changedEvent != null)
             {
                 // Post the processing to the [....] context.
                 // (If T is a value type, it will get boxed here.)
-                m_synchronizationContext.Post(m_invokeHandlers, value);
+                synchronizationContext.Post(invokeHandlers, value);
             }
         }
 
@@ -84,7 +89,7 @@ namespace Dotmim.Sync
         {
             var value = (T)state;
 
-            var handler = m_handler;
+            var handler = this.handler;
             var changedEvent = ProgressChanged;
 
             handler?.Invoke(value);

@@ -102,7 +102,7 @@ namespace Dotmim.Sync
                             {
                                 (context, sScopeInfoClient) = await this.InternalLoadScopeInfoClientAsync(
                                     context,
-                                    runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.CancellationToken, runnerScopeInfo.Progress).ConfigureAwait(false);
+                                    runnerScopeInfo.Connection, runnerScopeInfo.Transaction, runnerScopeInfo.Progress, runnerScopeInfo.CancellationToken).ConfigureAwait(false);
                             }
 
                             // Getting errors batch info path, saved in scope_info_client table
@@ -126,11 +126,11 @@ namespace Dotmim.Sync
                             {
                                 // Try to clean errors
                                 applyChanges.Changes = clientChanges.ClientBatchInfo;
-                                await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, lastSyncErrorsBatchInfo, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                                await this.InternalApplyCleanErrorsAsync(cScopeInfo, context, lastSyncErrorsBatchInfo, applyChanges, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                                 // Call apply errors on provider
                                 applyChanges.Changes = lastSyncErrorsBatchInfo;
-                                failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                                failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                             }
 
                             if (failureException != null)
@@ -144,7 +144,7 @@ namespace Dotmim.Sync
                             if (clientChanges.ClientBatchInfo != null && clientChanges.ClientBatchInfo.HasData())
                             {
                                 // Call provider to apply changes
-                                failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                                failureException = await this.InternalApplyChangesAsync(cScopeInfo, context, applyChanges, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                             }
 
                             if (failureException != null)
@@ -219,7 +219,7 @@ namespace Dotmim.Sync
 
                     // JUST Before get changes, get the timestamp, to be sure to
                     // get rows inserted / updated elsewhere since the sync is not over
-                    (context, remoteClientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    (context, remoteClientTimestamp) = await this.InternalGetLocalTimestampAsync(context, runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     // Get if we need to get all rows from the datasource
                     var fromScratch = cScopeInfoClient.IsNewScope || context.SyncType == SyncType.Reinitialize || context.SyncType == SyncType.ReinitializeWithUpload;
@@ -242,7 +242,7 @@ namespace Dotmim.Sync
                     // the batch decision comes from batchsize from client
                     serverChangesSelected = await this.InternalGetChangesAsync(cScopeInfo, context, fromScratch, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp, cScopeInfoClient.Id,
                         this.Provider.SupportsMultipleActiveResultSets, serverBatchInfo,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (runner.CancellationToken.IsCancellationRequested)
                         runner.CancellationToken.ThrowIfCancellationRequested();
@@ -268,7 +268,7 @@ namespace Dotmim.Sync
 
                     // Save scope info client coming from client
                     // to scope info client table on server
-                    await this.InternalSaveScopeInfoClientAsync(sScopeInfoClient, context, runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                    await this.InternalSaveScopeInfoClientAsync(sScopeInfoClient, context, runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, serverBatchInfo, serverChangesSelected, serverChangesApplied);
 

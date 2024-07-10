@@ -33,7 +33,7 @@ namespace Dotmim.Sync.Web.Client
                 // Firstly, get the snapshot summary
                 var changesToSend = new HttpMessageSendChangesRequest(context, null);
 
-                var summaryResponseContent = await this.ProcessRequestAsync<HttpMessageSummaryResponse>(context, changesToSend, HttpStep.GetSummary, 0, cancellationToken, progress).ConfigureAwait(false);
+                var summaryResponseContent = await this.ProcessRequestAsync<HttpMessageSummaryResponse>(context, changesToSend, HttpStep.GetSummary, 0, progress, cancellationToken).ConfigureAwait(false);
 
                 if (summaryResponseContent == null)
                     throw new Exception("Summary can't be null");

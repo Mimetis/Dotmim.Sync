@@ -55,7 +55,7 @@ namespace Dotmim.Sync
 
                     bool exists;
                     (context, exists) = await this.InternalExistsTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     // should create only if not exists OR if overwrite has been set
                     var shouldCreate = !exists || overwrite;
@@ -65,10 +65,10 @@ namespace Dotmim.Sync
                         // Drop trigger if already exists
                         if (exists && overwrite)
                             (context, _) = await this.InternalDropTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
-                                runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                                runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                         (context, hasBeenCreated) = await this.InternalCreateTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
                     }
 
                     await runner.CommitAsync().ConfigureAwait(false);
@@ -130,7 +130,7 @@ namespace Dotmim.Sync
 
                     bool created;
                     (context, created) = await this.InternalCreateTriggersAsync(scopeInfo, context, overwrite, tableBuilder,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     await runner.CommitAsync().ConfigureAwait(false);
 
@@ -188,7 +188,7 @@ namespace Dotmim.Sync
 
                     bool exists;
                     (context, exists) = await this.InternalExistsTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     return exists;
                 }
@@ -246,11 +246,11 @@ namespace Dotmim.Sync
 
                     bool existsAndCanBeDeleted;
                     (context, existsAndCanBeDeleted) = await this.InternalExistsTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (existsAndCanBeDeleted)
                         (context, hasBeenDropped) = await this.InternalDropTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
-                            runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                            runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     return hasBeenDropped;
                 }
@@ -306,7 +306,7 @@ namespace Dotmim.Sync
 
                     bool dropped;
                     (context, dropped) = await this.InternalDropTriggersAsync(scopeInfo, context, tableBuilder,
-                        runner.Connection, runner.Transaction, runner.CancellationToken, runner.Progress).ConfigureAwait(false);
+                        runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     await runner.CommitAsync().ConfigureAwait(false);
 
@@ -328,7 +328,7 @@ namespace Dotmim.Sync
         /// Internal create trigger routine.
         /// </summary>
         internal virtual async Task<(SyncContext Context, bool IsCreated)> InternalCreateTriggerAsync(
-            ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbTriggerType triggerType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbTriggerType triggerType, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
             {
@@ -374,7 +374,7 @@ namespace Dotmim.Sync
         /// Internal create triggers routine.
         /// </summary>
         internal virtual async Task<(SyncContext Context, bool IsCreated)> InternalCreateTriggersAsync(
-            ScopeInfo scopeInfo, SyncContext context, bool overwrite, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            ScopeInfo scopeInfo, SyncContext context, bool overwrite, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             var hasCreatedAtLeastOneTrigger = false;
 
@@ -386,11 +386,11 @@ namespace Dotmim.Sync
                 foreach (DbTriggerType triggerType in listTriggerType)
                 {
                     bool exists;
-                    (context, exists) = await this.InternalExistsTriggerAsync(scopeInfo, context, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, exists) = await this.InternalExistsTriggerAsync(scopeInfo, context, tableBuilder, triggerType, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                     // Drop trigger if already exists
                     if (exists && overwrite)
-                        (context, _) = await this.InternalDropTriggerAsync(scopeInfo, context, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                        (context, _) = await this.InternalDropTriggerAsync(scopeInfo, context, tableBuilder, triggerType, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                     var shouldCreate = !exists || overwrite;
 
@@ -398,7 +398,7 @@ namespace Dotmim.Sync
                         continue;
 
                     bool hasBeenCreated;
-                    (context, hasBeenCreated) = await this.InternalCreateTriggerAsync(scopeInfo, context, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, hasBeenCreated) = await this.InternalCreateTriggerAsync(scopeInfo, context, tableBuilder, triggerType, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                     if (hasBeenCreated && !hasCreatedAtLeastOneTrigger)
                         hasCreatedAtLeastOneTrigger = true;
@@ -423,7 +423,7 @@ namespace Dotmim.Sync
         /// Internal drop trigger routine.
         /// </summary>
         internal virtual async Task<(SyncContext Context, bool IsDropped)> InternalDropTriggerAsync(
-            ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbTriggerType triggerType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbTriggerType triggerType, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
             {
@@ -462,7 +462,7 @@ namespace Dotmim.Sync
         /// Internal drop triggers routine.
         /// </summary>
         internal virtual async Task<(SyncContext Context, bool IsDropped)> InternalDropTriggersAsync(
-            ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             var hasDroppeAtLeastOneTrigger = false;
 
@@ -473,12 +473,12 @@ namespace Dotmim.Sync
                 foreach (DbTriggerType triggerType in listTriggerType)
                 {
                     bool exists;
-                    (context, exists) = await this.InternalExistsTriggerAsync(scopeInfo, context, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, exists) = await this.InternalExistsTriggerAsync(scopeInfo, context, tableBuilder, triggerType, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                     if (!exists)
                         continue;
                     bool dropped;
-                    (context, dropped) = await this.InternalDropTriggerAsync(scopeInfo, context, tableBuilder, triggerType, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    (context, dropped) = await this.InternalDropTriggerAsync(scopeInfo, context, tableBuilder, triggerType, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                     if (dropped)
                         hasDroppeAtLeastOneTrigger = true;
@@ -501,7 +501,7 @@ namespace Dotmim.Sync
         /// Internal exists trigger procedure routine.
         /// </summary>
         internal virtual async Task<(SyncContext Context, bool IsExisting)> InternalExistsTriggerAsync(
-            ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbTriggerType triggerType, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbTriggerType triggerType, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
             {

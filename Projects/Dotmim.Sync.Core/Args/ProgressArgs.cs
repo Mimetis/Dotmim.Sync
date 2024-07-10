@@ -1,40 +1,42 @@
 ﻿using Dotmim.Sync.Enumerations;
-using System;
-using System.Collections.Generic;
 using System.Data.Common;
-using System.Text;
 
 namespace Dotmim.Sync
 {
+
+    /// <summary>
+    /// Progress args raised during the sync process.
+    /// </summary>
     public class ProgressArgs
     {
         /// <summary>
-        /// Current connection used 
+        /// Gets current connection used.
         /// </summary>
         public DbConnection Connection { get; internal set; }
 
         /// <summary>
-        /// Current transaction used for the sync
+        /// Gets current transaction used for the sync.
         /// </summary>
         public DbTransaction Transaction { get; internal set; }
 
         /// <summary>
-        /// Gets the current context
+        /// Gets the current context.
         /// </summary>
         public SyncContext Context { get; }
 
         /// <summary>
-        /// Gets the Progress Level
+        /// Gets the Progress Level.
         /// </summary>
         public virtual SyncProgressLevel ProgressLevel { get; }
 
         /// <summary>
-        /// Gets or Sets an arbitrary args you can use for you own purpose
+        /// Gets or Sets an arbitrary args you can use for you own purpose.
         /// </summary>
         public virtual string Hint { get; set; }
 
         /// <summary>
-        /// Constructor
+        /// Initializes a new instance of the <see cref="ProgressArgs"/> class.
+        /// Constructor.
         /// </summary>
         public ProgressArgs(SyncContext context, DbConnection connection, DbTransaction transaction)
         {
@@ -47,7 +49,8 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Constructor
+        /// Initializes a new instance of the <see cref="ProgressArgs"/> class.
+        /// Constructor.
         /// </summary>
         public ProgressArgs(SyncContext context, DbConnection connection)
         {
@@ -58,34 +61,33 @@ namespace Dotmim.Sync
             this.Source = connection?.Database;
         }
 
-
         /// <summary>
-        /// Gets the args type
+        /// Gets the args type.
         /// </summary>
         public string TypeName => this.GetType().Name;
 
         /// <summary>
-        /// return a global message about current progress
+        /// Gets or sets return a global message about current progress.
         /// </summary>
         public virtual string Message { get; set; } = string.Empty;
 
         /// <summary>
-        /// return the progress initiator source
+        /// Gets or sets return the progress initiator source.
         /// </summary>
         public virtual string Source { get; set; } = string.Empty;
 
         /// <summary>
-        /// Gets the event id, used for logging purpose
+        /// Gets or sets the event id, used for logging purpose.
         /// </summary>
         public virtual int EventId { get; set; } = 1;
 
         /// <summary>
-        /// Gets the overall percentage progress
+        /// Gets the overall percentage progress.
         /// </summary>
         public double ProgressPercentage => this.Context.ProgressPercentage;
 
         /// <summary>
-        /// Gets the Message property if any
+        /// Gets the Message property if any.
         /// </summary>
         public override string ToString()
         {
@@ -94,8 +96,5 @@ namespace Dotmim.Sync
 
             return base.ToString();
         }
-
-
-
     }
 }

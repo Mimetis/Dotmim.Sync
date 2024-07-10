@@ -19,7 +19,7 @@ namespace Dotmim.Sync.Web.Client
 
         internal override async Task<(SyncContext context, long timestamp)> InternalGetLocalTimestampAsync(SyncContext context,
                      DbConnection connection, DbTransaction transaction,
-                     CancellationToken cancellationToken, IProgress<ProgressArgs> progress = null)
+                     IProgress<ProgressArgs> progress, CancellationToken cancellationToken = null)
 
         {
             try
@@ -29,7 +29,7 @@ namespace Dotmim.Sync.Web.Client
 
                 // No batch size submitted here, because the schema will be generated in memory and send back to the user.
                 var responseTimestamp = await this.ProcessRequestAsync<HttpMessageRemoteTimestampResponse>
-                    (context, httpMessage, HttpStep.GetRemoteClientTimestamp, 0, cancellationToken, progress).ConfigureAwait(false);
+                    (context, httpMessage, HttpStep.GetRemoteClientTimestamp, 0, progress, cancellationToken).ConfigureAwait(false);
 
                 if (responseTimestamp == null)
                     throw new ArgumentException("Http Message content for Get Client Remote Timestamp can't be null");

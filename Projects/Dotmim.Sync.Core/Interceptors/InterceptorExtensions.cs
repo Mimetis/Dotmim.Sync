@@ -1,11 +1,9 @@
-﻿using System;
-using System.Threading.Tasks;
-
-namespace Dotmim.Sync
+﻿namespace Dotmim.Sync
 {
-
+    /// <summary>
+    /// Interceptors extensions.
+    /// </summary>
     public static partial class InterceptorsExtensions
     {
-
     }
 }
