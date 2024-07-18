@@ -13,6 +13,9 @@ namespace Dotmim.Sync
     /// </summary>
     public class BatchChangesAppliedArgs : ProgressArgs
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="BatchChangesAppliedArgs"/> class.
+        /// </summary>
         public BatchChangesAppliedArgs(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable schemaTable, SyncRowState state, DbCommand command, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {

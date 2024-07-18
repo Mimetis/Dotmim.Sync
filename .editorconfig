@@ -181,6 +181,8 @@ dotnet_diagnostic.SA1633.severity = none
 dotnet_diagnostic.CA1032.severity = none
 dotnet_diagnostic.CA2016.severity = warning
 dotnet_diagnostic.SA1201.severity = none
+dotnet_diagnostic.IDE0047.severity = silent
+dotnet_diagnostic.IDE0048.severity = silent
 
 
 [*.{cs,vb}]
@@ -270,3 +272,5 @@ dotnet_diagnostic.CA1308.severity = suggestion
 dotnet_diagnostic.CA2201.severity = suggestion
 dotnet_diagnostic.CA1305.severity = suggestion
 dotnet_diagnostic.CA1863.severity = none
+dotnet_code_quality_unused_parameters = all:suggestion
+dotnet_diagnostic.CA1002.severity = suggestion

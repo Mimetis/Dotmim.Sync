@@ -36,7 +36,7 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Throws an <see cref="ArgumentNullException" /> if <paramref name="input" /> is null equals to Guid.Empty.
+        /// Throws an <see cref="ArgumentNullException" /> if <paramref name="input" /> is null equals to Guid.empty.
         /// </summary>
         public static Guid ThrowIfNullOrEmpty(Guid? input, string message = null)
         {

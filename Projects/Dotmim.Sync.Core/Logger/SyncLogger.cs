@@ -15,43 +15,50 @@ namespace Dotmim.Sync
 {
 
     /// <summary>
-    /// Default logger used in Dotmim.Sync
+    /// Default logger used in Dotmim.Sync. This logger is synchronous and can log to console and debug output window.
     /// </summary>
     public class SyncLogger : ILogger, IDisposable
     {
-        internal List<OutputWriter> outputWriters = new List<OutputWriter>();
 
         /// <summary>
-        /// Gets a value indicating the mimimum LogLevel value
+        /// Gets a value indicating the minimum LogLevel value.
         /// </summary>
         public LogLevel MinimumLevel { get; internal set; }
 
+        /// <summary>
+        /// Gets the output writers to write log messages.
+        /// </summary>
+        internal List<OutputWriter> OutputWriters { get; } = [];
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SyncLogger"/> class.
+        /// </summary>
         public SyncLogger() => this.MinimumLevel = LogLevel.Error;
 
         /// <summary>
-        /// Adds an output to console when logging something
+        /// Adds an output to console when logging something.
         /// </summary>
         public SyncLogger AddConsole()
         {
-            if (!outputWriters.Any(w => w.Name == "Console"))
-                outputWriters.Add(new ConsoleWriter());
+            if (!this.OutputWriters.Any(w => w.Name == "Console"))
+                this.OutputWriters.Add(new ConsoleWriter());
 
             return this;
         }
 
         /// <summary>
-        /// Adds an output to diagnostics debug window when logging something
+        /// Adds an output to diagnostics debug window when logging something.
         /// </summary>
         public SyncLogger AddDebug()
         {
-            if (!outputWriters.Any(w => w.Name == "Debug"))
-                outputWriters.Add(new DebugWriter());
+            if (!this.OutputWriters.Any(w => w.Name == "Debug"))
+                this.OutputWriters.Add(new DebugWriter());
 
             return this;
         }
 
         /// <summary>
-        /// Adds minimum level : 0 Trace, 1 Debug, 2 Information, 3, Warning, 4 Error, 5 Critical, 6 None
+        /// Adds minimum level : 0 Trace, 1 Debug, 2 Information, 3, Warning, 4 Error, 5 Critical, 6 None.
         /// </summary>
         public SyncLogger SetMinimumLevel(LogLevel minimumLevel)
         {
@@ -59,34 +66,35 @@ namespace Dotmim.Sync
             return this;
         }
 
-
+        /// <summary>
+        /// Begin a new scope.
+        /// </summary>
         public IDisposable BeginScope<TState>(TState state) => this;
 
-        public void Dispose() { }
-
-
         /// <summary>
-        /// Gets if the logger can log something, according to the minimum log level parameterized
+        /// Gets if the logger can log something, according to the minimum log level parameterized.
         /// </summary>
         public bool IsEnabled(LogLevel logLevel) => this.MinimumLevel <= logLevel;
 
         /// <summary>
-        /// Log to all output writers configured
+        /// Log to all output writers configured.
         /// </summary>
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
         {
-            if (!IsEnabled(logLevel))
+            if (!this.IsEnabled(logLevel))
                 return;
 
-            if (this.outputWriters.Count <= 0)
+            if (this.OutputWriters.Count <= 0)
                 return;
 
             var now = DateTime.UtcNow.TimeOfDay.ToString(@"hh\:mm\:ss\.ff");
+            string message = string.Empty;
+            if (formatter != null && state is string)
+                message = formatter(state, exception) ?? string.Empty;
 
-            var message = formatter(state, exception) ?? string.Empty;
             var levelColors = GetLogLevelConsoleColors(logLevel);
 
-            foreach (var outputWriter in this.outputWriters)
+            foreach (var outputWriter in this.OutputWriters)
             {
                 Write(outputWriter, "[", ConsoleColor.Black, ConsoleColor.DarkGray);
                 Write(outputWriter, now, ConsoleColor.Black, ConsoleColor.White);
@@ -104,7 +112,17 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Write a messages without returning to new line
+        /// Dispose the logger.
+        /// </summary>
+        public void Dispose()
+        {
+            this.Dispose(true);
+
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Write a messages without returning to new line.
         /// </summary>
         internal static void Write(OutputWriter outputWriter, string message, ConsoleColor? background = default, ConsoleColor? foreground = default)
         {
@@ -114,7 +132,7 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Write a messages and returns to new line
+        /// Write a messages and returns to new line.
         /// </summary>
         internal static void WriteLine(OutputWriter outputWriter, string message, ConsoleColor? background = default, ConsoleColor? foreground = default)
         {
@@ -123,8 +141,9 @@ namespace Dotmim.Sync
             outputWriter.ResetColor();
         }
 
-        private static readonly ConcurrentDictionary<Type, List<PropertyInfo>> MembersInfo = new();
-
+        /// <summary>
+        /// Get a log message from a value and an event id.
+        /// </summary>
         internal static (string Message, object[] Args) GetLogMessageFrom<T>(T value, EventId id)
         {
             var typeofT = typeof(T);
@@ -140,7 +159,7 @@ namespace Dotmim.Sync
 
             var args = new List<object>(membersInfos.Count + 1);
 
-            // Add event name            
+            // Add event name
             sb.Append($@"Event={{Event}} ");
             args.Add(id.Name);
 
@@ -163,6 +182,19 @@ namespace Dotmim.Sync
             return (sb.ToString(), args.ToArray());
         }
 
+        /// <summary>
+        /// Dispose the logger.
+        /// </summary>
+        protected virtual void Dispose(bool cleanup)
+        {
+            // Dispose managed resources
+            if (cleanup)
+                this.OutputWriters?.Clear();
+
+            // Dispose unmanaged resources
+        }
+
+        private static readonly ConcurrentDictionary<Type, List<PropertyInfo>> MembersInfo = new();
 
         private static object GetValue(MemberInfo member, object obj)
         {
@@ -184,7 +216,6 @@ namespace Dotmim.Sync
             }
 
             return null;
-
         }
 
         private static List<PropertyInfo> GetProperties(Type type, BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static)
@@ -214,13 +245,20 @@ namespace Dotmim.Sync
             return propertyInfo != null ? propertyInfo.GetIndexParameters().Length > 0 : false;
         }
 
-
         private static bool IsAnonymousType(Type type)
         {
+#if NET6_0_OR_GREATER
+            return Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute), false)
+                       && type.IsGenericType && type.Name.Contains("AnonymousType", SyncGlobalization.DataSourceStringComparison)
+                       && (type.Name.StartsWith("<>", SyncGlobalization.DataSourceStringComparison) || type.Name.StartsWith("VB$", SyncGlobalization.DataSourceStringComparison))
+                       && (type.Attributes & TypeAttributes.NotPublic) == TypeAttributes.NotPublic;
+#else
             return Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute), false)
                        && type.IsGenericType && type.Name.Contains("AnonymousType")
-                       && (type.Name.StartsWith("<>") || type.Name.StartsWith("VB$"))
+                       && (type.Name.StartsWith("<>", SyncGlobalization.DataSourceStringComparison) || type.Name.StartsWith("VB$", SyncGlobalization.DataSourceStringComparison))
                        && (type.Attributes & TypeAttributes.NotPublic) == TypeAttributes.NotPublic;
+
+#endif
         }
 
         private static ConsoleColors GetLogLevelConsoleColors(LogLevel logLevel)
@@ -271,44 +309,90 @@ namespace Dotmim.Sync
         {
             public ConsoleColors(ConsoleColor? foreground, ConsoleColor? background)
             {
-                Foreground = foreground;
-                Background = background;
+                this.Foreground = foreground;
+                this.Background = background;
             }
 
             public ConsoleColor? Foreground { get; }
 
             public ConsoleColor? Background { get; }
         }
-
-
     }
 
-
+    /// <summary>
+    /// Output writer to write to console or debug output window.
+    /// </summary>
     internal abstract class OutputWriter
     {
+        /// <summary>
+        /// Write a message to the output writer.
+        /// </summary>
         internal abstract void Write(string value);
+
+        /// <summary>
+        /// Write a formatted message to the output writer.
+        /// </summary>
         internal abstract void Write(string format, params object[] arg);
+
+        /// <summary>
+        /// Write a message to the output writer and return to a new line.
+        /// </summary>
         internal abstract void WriteLine(string value);
+
+        /// <summary>
+        /// Write a formatted message to the output writer and return to a new line.
+        /// </summary>
         internal abstract void WriteLine(string format, params object[] arg);
+
+        /// <summary>
+        /// Gets the name of the output writer.
+        /// </summary>
         internal abstract string Name { get; }
 
+        /// <summary>
+        /// Gets a value indicating whether the output writer supports color.
+        /// </summary>
         internal abstract bool SupportsColor { get; }
+
+        /// <summary>
+        /// Reset the color of the output writer.
+        /// </summary>
         internal abstract void ResetColor();
 
+        /// <summary>
+        /// Set the color of the output writer.
+        /// </summary>
         internal abstract bool SetColor(ConsoleColor? background, ConsoleColor? foreground);
     }
 
+    /// <summary>
+    /// Console output writer to write to console.
+    /// </summary>
     internal class ConsoleWriter : OutputWriter
     {
+
+        /// <inheritdoc/>
         internal override bool SupportsColor => true;
 
+        /// <inheritdoc/>
         internal override string Name => "Console";
 
+        /// <inheritdoc/>
         internal override void Write(string value) => Console.Write(value);
+
+        /// <inheritdoc/>
         internal override void Write(string format, params object[] arg) => Console.Write(format, arg);
+
+        /// <inheritdoc/>
         internal override void WriteLine(string value) => Console.WriteLine(value);
+
+        /// <inheritdoc/>
         internal override void WriteLine(string format, params object[] arg) => Console.WriteLine(format, arg);
+
+        /// <inheritdoc/>
         internal override void ResetColor() => Console.ResetColor();
+
+        /// <inheritdoc/>
         internal override bool SetColor(ConsoleColor? background, ConsoleColor? foreground)
         {
             if (background.HasValue)
@@ -319,19 +403,35 @@ namespace Dotmim.Sync
 
             return background.HasValue || foreground.HasValue;
         }
-
     }
+
+    /// <summary>
+    /// Debug output writer to write to debug output window.
+    /// </summary>
     internal class DebugWriter : OutputWriter
     {
+        /// <inheritdoc/>
         internal override bool SupportsColor => false;
+
+        /// <inheritdoc/>
         internal override string Name => "Debug";
+
+        /// <inheritdoc/>
         internal override void Write(string value) => Debug.Write(value);
+
+        /// <inheritdoc/>
         internal override void Write(string format, params object[] arg) => Debug.Write(string.Format(format, arg));
+
+        /// <inheritdoc/>
         internal override void WriteLine(string value) => Debug.WriteLine(value);
+
+        /// <inheritdoc/>
         internal override void WriteLine(string format, params object[] arg) => Debug.WriteLine(format, arg);
+
+        /// <inheritdoc/>
         internal override void ResetColor() { }
+
+        /// <inheritdoc/>
         internal override bool SetColor(ConsoleColor? background, ConsoleColor? foreground) => false;
-
-
     }
 }
