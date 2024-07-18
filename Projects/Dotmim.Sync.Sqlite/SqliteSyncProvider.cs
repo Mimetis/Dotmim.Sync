@@ -41,6 +41,16 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         public override bool CanBeServerProvider => false;
 
+        /// <summary>
+        /// Gets or sets a value indicating whether SQL filters generation is disabled.
+        /// When set to <c>true</c>, SQL filters will not be generated during command creation.
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if SQL filters generation is disabled; otherwise, <c>false</c>.
+        ///   The default value is <c>true</c>.
+        /// </value>
+        public bool DisableSqlFiltersGeneration { get; set; } = true;
+
         public override string GetProviderTypeName() => ProviderType;
 
         public static string ProviderType
@@ -181,10 +191,10 @@ namespace Dotmim.Sync.Sqlite
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqliteScopeBuilder(scopeInfoTableName);
 
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-        => new SqliteTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
+        => new SqliteTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName, this.DisableSqlFiltersGeneration);
 
         public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-            => new SqliteSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
+            => new SqliteSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName, this.DisableSqlFiltersGeneration);
 
         public override DbBuilder GetDatabaseBuilder() => new SqliteBuilder();
 

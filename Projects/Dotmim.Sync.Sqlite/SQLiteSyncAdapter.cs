@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-
 using System.Data.Common;
 using System.Data;
 using Dotmim.Sync.Builders;
@@ -16,9 +14,9 @@ namespace Dotmim.Sync.Sqlite
 
         public override bool SupportsOutputParameters => false;
 
-        public SqliteSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName) : base(tableDescription, setup, scopeName)
+        public SqliteSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool disableSqlFiltersGeneration) : base(tableDescription, setup, scopeName)
         {
-            this.sqliteObjectNames = new SqliteObjectNames(this.TableDescription, tableName, trackingName, this.Setup, scopeName);
+            this.sqliteObjectNames = new SqliteObjectNames(this.TableDescription, tableName, trackingName, this.Setup, scopeName, disableSqlFiltersGeneration);
         }
 
         public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType commandType, SyncFilter filter = null)
