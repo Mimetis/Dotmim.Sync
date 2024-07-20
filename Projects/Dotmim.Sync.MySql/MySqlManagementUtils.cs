@@ -56,7 +56,7 @@ namespace Dotmim.Sync.MySql
                 {
                     if (reader.HasRows)
                     {
-                        reader.Read();
+                        await reader.ReadAsync().ConfigureAwait(false);
                         dbName = reader.GetString(0);
                         dbVersion = reader.GetString(1);
                     }
@@ -88,7 +88,7 @@ namespace Dotmim.Sync.MySql
 
                 using (var reader = await mySqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
-                    while (reader.Read())
+                    while (await reader.ReadAsync().ConfigureAwait(false))
                     {
                         var tableName = reader.GetString(0);
                         var setupTable = new SetupTable(tableName);

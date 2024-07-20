@@ -39,7 +39,7 @@ namespace Dotmim.Sync.SqlServer
 
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
-                    while (reader.Read())
+                    while (await reader.ReadAsync().ConfigureAwait(false))
                     {
                         var tableName = reader.GetString(0);
                         var schemaName = reader.GetString(1) == "dbo" ? null : reader.GetString(1);
@@ -546,7 +546,7 @@ namespace Dotmim.Sync.SqlServer
                 {
                     if (reader.HasRows)
                     {
-                        reader.Read();
+                        await reader.ReadAsync().ConfigureAwait(false);
 
                         dbName = reader.GetString(0);
                         dbVersion = reader.GetString(1);

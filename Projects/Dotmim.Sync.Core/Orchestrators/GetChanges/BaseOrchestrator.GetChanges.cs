@@ -220,7 +220,7 @@ namespace Dotmim.Sync
                     // Get the reader
                     using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
-                    while (dataReader.Read())
+                    while (await dataReader.ReadAsync().ConfigureAwait(false))
                     {
                         // Create a row from dataReader
                         var syncRow = CreateSyncRowFromReader(context, dataReader, schemaChangesTable);
@@ -438,7 +438,7 @@ namespace Dotmim.Sync
                     // Get the reader
                     using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
-                    while (dataReader.Read())
+                    while (await dataReader.ReadAsync().ConfigureAwait(false))
                     {
                         bool isTombstone = false;
                         for (var i = 0; i < dataReader.FieldCount; i++)
