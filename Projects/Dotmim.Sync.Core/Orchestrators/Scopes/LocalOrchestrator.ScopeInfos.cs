@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Contains methods to get a scope info from the remote data source. A scope contains the <see cref="SyncSetup"/> setup and the <see cref="SyncSet"/> schema.
+    /// </summary>
     public partial class LocalOrchestrator : BaseOrchestrator
     {
         /// <summary>
@@ -22,7 +25,7 @@ namespace Dotmim.Sync
         ///  foreach (var schemaTable in scopeInfo.Schema.Tables)
         ///  {
         ///    Console.WriteLine($"Table Name: {schemaTable.TableName}");
-        ///       
+        ///
         ///    foreach (var column in schemaTable.Columns)
         ///          Console.WriteLine($"Column Name: {column.ColumnName}");
         ///  }
@@ -37,20 +40,21 @@ namespace Dotmim.Sync
             try
             {
                 ScopeInfo cScopeInfo;
-                (context, cScopeInfo) = await InternalEnsureScopeInfoAsync(context, connection, transaction, default, default).ConfigureAwait(false);
+                (context, cScopeInfo) = await this.InternalEnsureScopeInfoAsync(context, connection, transaction, default, default).ConfigureAwait(false);
                 return cScopeInfo;
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                throw this.GetSyncError(context, ex);
             }
         }
 
         /// <inheritdoc cref="GetScopeInfoAsync(string, DbConnection, DbTransaction)"/>
         public virtual Task<ScopeInfo> GetScopeInfoAsync(DbConnection connection = null, DbTransaction transaction = null)
-            => GetScopeInfoAsync(SyncOptions.DefaultScopeName, connection, transaction);
+            => this.GetScopeInfoAsync(SyncOptions.DefaultScopeName, connection, transaction);
 
-        internal virtual async Task<(SyncContext context, ScopeInfo serverScopeInfo)> InternalEnsureScopeInfoAsync(SyncContext context,
+        internal virtual async Task<(SyncContext Context, ScopeInfo ServerScopeInfo)> InternalEnsureScopeInfoAsync(
+            SyncContext context,
             DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
@@ -88,15 +92,15 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                throw this.GetSyncError(context, ex);
             }
         }
 
         /// <summary>
-        /// Check 
+        /// Check if a setup is conflicting with the current setup on the client side.
         /// </summary>
-        internal virtual async Task<(SyncContext, bool, ScopeInfo, ScopeInfo)> InternalIsConflictingSetupAsync(SyncContext context, SyncSetup inputSetup, ScopeInfo clientScopeInfo, ScopeInfo serverScopeInfo,
-            DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal virtual async Task<(SyncContext Context, bool IsConflicting, ScopeInfo ClientScopeInfo, ScopeInfo ServerScopeInfo)> InternalIsConflictingSetupAsync(SyncContext context, SyncSetup inputSetup, ScopeInfo clientScopeInfo, ScopeInfo serverScopeInfo,
+            DbConnection connection = default, DbTransaction transaction = default, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             if (clientScopeInfo.Schema == null)
                 return (context, false, clientScopeInfo, serverScopeInfo);
@@ -141,7 +145,6 @@ namespace Dotmim.Sync
                     throw new SetupConflictOnClientException(serverScopeInfo.Setup, clientScopeInfo.Setup);
 
                 return (context, false, clientScopeInfo, serverScopeInfo);
-
             }
             catch (SetupConflictOnClientException)
             {
@@ -161,7 +164,7 @@ namespace Dotmim.Sync
                 if (serverScopeInfo != null && serverScopeInfo.Setup != null)
                     message += $"Server Scope Setup:{Serializer.Serialize(serverScopeInfo.Setup).ToUtf8String()}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
     }

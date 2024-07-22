@@ -1,28 +1,22 @@
-﻿
-using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Manager;
-using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Contains methods to clear metadatas on the remote provider.
+    /// </summary>
     public partial class RemoteOrchestrator : BaseOrchestrator
     {
 
         /// <summary>
-        /// Delete all metadatas from tracking tables, based on min timestamp from scope info client table
+        /// Delete all metadatas from tracking tables, based on min timestamp from scope info client table.
         /// </summary>
         public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(DbConnection connection = null, DbTransaction transaction = null)
         {
@@ -41,7 +35,8 @@ namespace Dotmim.Sync
                         await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                    var sScopeInfoClients = await this.InternalLoadAllScopeInfoClientsAsync(context,
+                    var sScopeInfoClients = await this.InternalLoadAllScopeInfoClientsAsync(
+                        context,
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (sScopeInfoClients == null || sScopeInfoClients.Count == 0)
@@ -63,17 +58,16 @@ namespace Dotmim.Sync
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                throw this.GetSyncError(context, ex);
             }
         }
 
-
         /// <summary>
-        /// Delete metadatas items from tracking tables
+        /// Delete metadatas items from tracking tables.
         /// </summary>
-        /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp</param>
-        /// <param name="connection">Optional Connection</param>
-        /// <param name="transaction">Optional Transaction</param>
+        /// <param name="timeStampStart">Timestamp start. Used to limit the delete metadatas rows from now to this timestamp.</param>
+        /// <param name="connection">Optional Connection.</param>
+        /// <param name="transaction">Optional Transaction.</param>
         public virtual async Task<DatabaseMetadatasCleaned> DeleteMetadatasAsync(long timeStampStart, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), SyncOptions.DefaultScopeName);
@@ -90,7 +84,6 @@ namespace Dotmim.Sync
                     await runner.CommitAsync().ConfigureAwait(false);
 
                     return databaseMetadatasCleaned;
-
                 }
             }
             catch (Exception ex)
@@ -99,14 +92,14 @@ namespace Dotmim.Sync
 
                 message += $"TimestampStart:{timeStampStart}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
 
         /// <summary>
-        /// Delete metadatas items from tracking tables
+        /// Delete metadatas items from tracking tables.
         /// </summary>
-        internal virtual async Task<(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned)>
+        internal virtual async Task<(SyncContext Context, DatabaseMetadatasCleaned DatabaseMetadatasCleaned)>
             InternalDeleteMetadatasAsync(long? timeStampStart, SyncContext context, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
 
@@ -115,7 +108,7 @@ namespace Dotmim.Sync
             try
             {
 
-                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning, connection, transaction).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken: cancellationToken).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {
 
@@ -153,7 +146,7 @@ namespace Dotmim.Sync
 
                 message += $"TimestampStart:{timeStampStart}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
     }

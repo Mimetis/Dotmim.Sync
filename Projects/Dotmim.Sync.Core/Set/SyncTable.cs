@@ -13,7 +13,7 @@ namespace Dotmim.Sync
     /// Represents a table schema.
     /// </summary>
     [DataContract(Name = "st"), Serializable]
-    public class SyncTable : SyncNamedItem<SyncTable>, IDisposable
+    public class SyncTable : SyncNamedItem<SyncTable>
     {
         [NonSerialized]
         private SyncRows rows;
@@ -106,31 +106,21 @@ namespace Dotmim.Sync
         /// <summary>
         /// Clear the Table's rows.
         /// </summary>
-        public void Clear() => this.Dispose(true);
-
-        public void Dispose() => this.Dispose(true);
-
-        protected virtual void Dispose(bool cleanup)
+        public void Clear()
         {
-            // Dispose managed ressources
-            if (cleanup)
+            if (this.Rows != null)
             {
-                if (this.Rows != null)
-                {
-                    this.Rows.Clear();
-                    this.Rows = null;
-                }
-
-                if (this.Columns != null)
-                {
-                    this.Columns.Clear();
-                    this.Columns = null;
-                }
-
-                this.Schema = null;
+                this.Rows.Clear();
+                this.Rows = null;
             }
 
-            // Dispose unmanaged ressources
+            if (this.Columns != null)
+            {
+                this.Columns.Clear();
+                this.Columns = null;
+            }
+
+            this.Schema = null;
         }
 
         /// <summary>
@@ -291,15 +281,14 @@ namespace Dotmim.Sync
                 return this.TableName;
         }
 
-        /// <summary>
-        /// Get all comparable fields to determine if two instances are identifed as same by name.
-        /// </summary>
+        /// <inheritdoc cref="SyncNamedItem{T}.GetAllNamesProperties"/>
         public override IEnumerable<string> GetAllNamesProperties()
         {
             yield return this.TableName;
             yield return this.SchemaName;
         }
 
+        /// <inheritdoc cref="SyncNamedItem{T}.EqualsByProperties(T)"/>
         public override bool EqualsByProperties(SyncTable otherInstance)
         {
             if (otherInstance == null)

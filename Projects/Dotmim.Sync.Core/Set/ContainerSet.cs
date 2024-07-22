@@ -1,38 +1,36 @@
-﻿
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Collections.ObjectModel;
-using System.Data;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
 
 namespace Dotmim.Sync
 {
+
+    /// <summary>
+    /// ContainerSet is a collection of tables and rows to be sent over the wire.
+    /// </summary>
     [DataContract(Name = "c"), Serializable]
-    public class ContainerSet : IDisposable
+    public class ContainerSet
     {
         /// <summary>
-        /// List of tables
+        /// Gets or sets list of tables.
         /// </summary>
         [DataMember(Name = "t", IsRequired = false, EmitDefaultValue = false, Order = 2)]
-        public Collection<ContainerTable> Tables { get; set; } = new Collection<ContainerTable>();
-
-       
+        public Collection<ContainerTable> Tables { get; set; } = [];
 
         /// <summary>
-        /// Check if we have some tables in the container
+        /// Gets a value indicating whether check if we have some tables in the container.
         /// </summary>
         public bool HasTables => this.Tables?.Count > 0;
 
         /// <summary>
-        /// Check if we have at least one table with one row
+        /// Gets a value indicating whether check if we have at least one table with one row.
         /// </summary>
         public bool HasRows
         {
             get
             {
-                if (!HasTables)
+                if (!this.HasTables)
                     return false;
 
                 // Check if any of the tables has rows inside
@@ -41,42 +39,28 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Getting the container rows count
+        /// Getting the container rows count.
         /// </summary>
         public int RowsCount()
         {
-            if (!HasTables)
+            if (!this.HasTables)
                 return 0;
 
             return this.Tables.Sum(t => t.Rows.Count);
         }
 
+        /// <inheritdoc cref="ContainerSet"/>
         public ContainerSet() { }
 
+        /// <summary>
+        /// Clear all tables and rows in the container.
+        /// </summary>
         public void Clear()
         {
-            foreach (var t in Tables)
+            foreach (var t in this.Tables)
                 t.Clear();
 
-            Tables.Clear();
-        }
-        public void Dispose()
-        {
-            this.Dispose(true);
-
-            //GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool cleanup)
-        {
-            // Dispose managed ressources
-            if (cleanup)
-            {
-                Clear();
-                Tables = null;
-            }
-
-            // Dispose unmanaged ressources
+            this.Tables.Clear();
         }
     }
 }

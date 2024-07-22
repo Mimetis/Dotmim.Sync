@@ -183,7 +183,7 @@ namespace Dotmim.Sync
                 await using (runner.ConfigureAwait(false))
                 {
                     // Creating a fake scope info
-                    var cScopeInfo = this.InternalCreateScopeInfo(scopeName);
+                    var cScopeInfo = InternalCreateScopeInfo(scopeName);
                     cScopeInfo.Setup = setup;
                     cScopeInfo.Schema = new SyncSet(setup);
 
@@ -240,7 +240,7 @@ namespace Dotmim.Sync
                     // try to get some filters
                     var existingFilters = cScopeInfos.SelectMany(si => si.Setup == null ? [] : si.Setup.Filters).ToList();
 
-                    var defaultClientScopeInfo = this.InternalCreateScopeInfo(SyncOptions.DefaultScopeName);
+                    var defaultClientScopeInfo = InternalCreateScopeInfo(SyncOptions.DefaultScopeName);
                     SyncSetup setup;
                     (context, setup) = await this.InternalGetAllTablesAsync(
                         context, runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);

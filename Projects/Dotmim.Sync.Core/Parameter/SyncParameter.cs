@@ -44,9 +44,7 @@ namespace Dotmim.Sync
         /// </summary>
         public override string ToString() => $"{this.Name}: {this.Value}";
 
-        /// <summary>
-        /// Gets all the properties names.
-        /// </summary>
+        /// <inheritdoc cref="SyncNamedItem{T}.GetAllNamesProperties"/>
         public override IEnumerable<string> GetAllNamesProperties()
         {
             yield return this.Name;

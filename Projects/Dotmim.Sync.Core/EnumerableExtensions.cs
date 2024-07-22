@@ -1,34 +1,36 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Enumerable extensions.
+    /// </summary>
     internal static class EnumerableExtensions
     {
         /// <summary>
-        /// Sorts an enumeration based on dependency
+        /// Sorts an enumeration based on dependency.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
         /// <param name="source">source enumeration.</param>
         /// <param name="dependencies">dependencies.</param>
         /// <param name="throwOnCycle">if <see langword="true"/> throw exception if Cyclic dependency found.</param>
         /// <param name="defaultCapacity">default capacity of sorterd buffer.</param>
         /// <returns></returns>
-        public static IEnumerable<T> SortByDependencies<T>(this IEnumerable<T> source
-            , Func<T, IEnumerable<T>> dependencies
-            , bool throwOnCycle = false
-            , int defaultCapacity = 10)
+        public static IEnumerable<T> SortByDependencies<T>(
+            this IEnumerable<T> source,
+            Func<T, IEnumerable<T>> dependencies,
+            bool throwOnCycle = false,
+            int defaultCapacity = 10)
         {
 
             if (source is ICollection<T> collections)
             {
                 defaultCapacity = collections.Count + 1;
             }
+
             var sorted = new List<T>(defaultCapacity);
             var visited = new HashSet<T>();
 
@@ -38,27 +40,9 @@ namespace Dotmim.Sync
             return sorted;
         }
 
-        private static void Visit<T>(T item
-            , HashSet<T> visited
-            , List<T> sorted, Func<T, IEnumerable<T>> dependencies
-            , bool throwOnCycle)
-        {
-            if (!visited.Contains(item))
-            {
-                visited.Add(item);
-
-                foreach (var dep in dependencies(item))
-                    Visit(dep, visited, sorted, dependencies, throwOnCycle);
-
-                sorted.Add(item);
-            }
-            else
-            {
-                if (throwOnCycle && !sorted.Contains(item))
-                    throw new Exception("Cyclic dependency found");
-            }
-        }
-
+        /// <summary>
+        /// Compare two IEnumerable of T. If both are null, return true. If one is null and not the other, return false.
+        /// </summary>
         public static bool CompareWith<T>(this IEnumerable<T> source, IEnumerable<T> other, Func<T, T, bool> compare)
         {
             // checking null ref
@@ -68,15 +52,20 @@ namespace Dotmim.Sync
             // If both are null, return true
             if (source == null && other == null)
                 return true;
+            var lstSource = source.ToList();
 
-            if (source.Count() != other.Count())
+            if (lstSource.Count != other.Count())
                 return false;
 
             // Check all items are identical
-            return source.All(sourceItem => other.Any(otherItem => compare(sourceItem, otherItem)));
-
+            return lstSource.All(sourceItem => other.Any(otherItem => compare(sourceItem, otherItem)));
         }
-        public static bool CompareWith<T>(this IEnumerable<T> source, IEnumerable<T> other) where T : class
+
+        /// <summary>
+        /// Compare two IEnumerable of T. If both are null, return true. If one is null and not the other, return false.
+        /// </summary>
+        public static bool CompareWith<T>(this IEnumerable<T> source, IEnumerable<T> other)
+            where T : class
         {
             // checking null ref
             if ((source == null && other != null) || (source != null && other == null))
@@ -86,11 +75,13 @@ namespace Dotmim.Sync
             if (source == null && other == null)
                 return true;
 
-            if (source.Count() != other.Count())
+            var lstSource = source.ToList();
+
+            if (lstSource.Count != other.Count())
                 return false;
 
             // Check all items are identical
-            return source.All(sourceItem => other.Any(otherItem =>
+            return lstSource.All(sourceItem => other.Any(otherItem =>
             {
                 var cSourceItem = sourceItem as SyncNamedItem<T>;
                 var cOtherItem = otherItem as SyncNamedItem<T>;
@@ -99,16 +90,17 @@ namespace Dotmim.Sync
                     return cSourceItem.EqualsByProperties(otherItem);
                 else
                     return sourceItem.Equals(otherItem);
-
             }));
-
         }
 
+        /// <summary>
+        /// For each async method.
+        /// </summary>
         public static Task ForEachAsync<T>(this IEnumerable<T> source, Func<T, Task> body, int maxDegreeOfParallelism = DataflowBlockOptions.Unbounded, TaskScheduler scheduler = null)
         {
             var options = new ExecutionDataflowBlockOptions
             {
-                MaxDegreeOfParallelism = maxDegreeOfParallelism
+                MaxDegreeOfParallelism = maxDegreeOfParallelism,
             };
             if (scheduler != null)
                 options.TaskScheduler = scheduler;
@@ -153,13 +145,30 @@ namespace Dotmim.Sync
             }
         }
 
-        //public static async Task<TResult[]> ForEachAsync<T, TResult>(this IEnumerable<T> items, Func<T, TResult> body, int maxThreads = 4)
-        //{
+        private static void Visit<T>(
+             T item,
+             HashSet<T> visited,
+             List<T> sorted, Func<T, IEnumerable<T>> dependencies,
+             bool throwOnCycle)
+        {
+            var added = visited.Add(item);
+
+            if (!added && throwOnCycle && !sorted.Contains(item))
+                throw new Exception("Cyclic dependency found");
+
+            foreach (var dep in dependencies(item))
+                Visit(dep, visited, sorted, dependencies, throwOnCycle);
+
+            sorted.Add(item);
+        }
+
+        // public static async Task<TResult[]> ForEachAsync<T, TResult>(this IEnumerable<T> items, Func<T, TResult> body, int maxThreads = 4)
+        // {
         //    var q = new ConcurrentQueue<T>(items);
         //    var qResults = new ConcurrentQueue<TResult>();
         //    var tasks = new List<Task>();
 
-        //    for (int n = 0; n < maxThreads; n++)
+        // for (int n = 0; n < maxThreads; n++)
         //    {
         //        tasks.Add(Task.Run(() =>
         //        {
@@ -168,14 +177,13 @@ namespace Dotmim.Sync
         //        }));
         //    }
 
-        //    await Task.WhenAll(tasks);
+        // await Task.WhenAll(tasks);
 
-        //    return qResults.ToArray();
-        //}
+        // return qResults.ToArray();
+        // }
 
-
-        //public static async Task ForEachAsync<T>(this IEnumerable<T> source, Func<T, Task> body, int maxDegreeOfParallelism = 10)
-        //{
+        // public static async Task ForEachAsync<T>(this IEnumerable<T> source, Func<T, Task> body, int maxDegreeOfParallelism = 10)
+        // {
         //    using var semaphore = new SemaphoreSlim(initialCount: maxDegreeOfParallelism, maxCount: maxDegreeOfParallelism);
         //    var tasks = source.Select(async item =>
         //   {
@@ -190,13 +198,13 @@ namespace Dotmim.Sync
         //       }
         //   });
         //    await Task.WhenAll(tasks);
-        //}
+        // }
 
-        //public static async Task<IEnumerable<U>> ForEachAsync<T, U>(this IEnumerable<T> source, Func<T, Task<U>> body, int maxDegreeOfParallelism = 10)
-        //{
+        // public static async Task<IEnumerable<U>> ForEachAsync<T, U>(this IEnumerable<T> source, Func<T, Task<U>> body, int maxDegreeOfParallelism = 10)
+        // {
         //    using var semaphore = new SemaphoreSlim(initialCount: maxDegreeOfParallelism, maxCount: maxDegreeOfParallelism);
 
-        //    var tasks = source.Select(async item =>
+        // var tasks = source.Select(async item =>
         //    {
         //        await semaphore.WaitAsync();
         //        try
@@ -209,10 +217,10 @@ namespace Dotmim.Sync
         //        }
         //    });
         //    return await Task.WhenAll(tasks);
-        //}
+        // }
 
-        //public static Task ForEachAsync<T>(this IEnumerable<T> source, int dop, Func<T, Task> body)
-        //{
+        // public static Task ForEachAsync<T>(this IEnumerable<T> source, int dop, Func<T, Task> body)
+        // {
         //    async Task AwaitPartition(IEnumerator<T> partition)
         //    {
         //        using (partition)
@@ -227,25 +235,23 @@ namespace Dotmim.Sync
         //            .GetPartitions(dop)
         //            .AsParallel()
         //            .Select(p => AwaitPartition(p)));
-        //}
+        // }
 
-
-        //public static Task ForEachAsync<TSource, TResult>(this IEnumerable<TSource> source, Func<TSource, Task<TResult>> taskSelector, Action<TSource, TResult> resultProcessor, int dop = 4)
-        //{
+        // public static Task ForEachAsync<TSource, TResult>(this IEnumerable<TSource> source, Func<TSource, Task<TResult>> taskSelector, Action<TSource, TResult> resultProcessor, int dop = 4)
+        // {
         //    var oneAtATime = new SemaphoreSlim(initialCount: 1, maxCount: 1);
         //    return Task.WhenAll(
         //         from partition in Partitioner.Create(source).GetPartitions(dop)
         //             from item in source
         //             select ProcessAsync(item, taskSelector, resultProcessor, oneAtATime));
-        //}
+        // }
 
-        //private static async Task ProcessAsync<TSource, TResult>(TSource item, Func<TSource, Task<TResult>> taskSelector, Action<TSource, TResult> resultProcessor, SemaphoreSlim oneAtATime)
-        //{
+        // private static async Task ProcessAsync<TSource, TResult>(TSource item, Func<TSource, Task<TResult>> taskSelector, Action<TSource, TResult> resultProcessor, SemaphoreSlim oneAtATime)
+        // {
         //    TResult result = await taskSelector(item);
         //    await oneAtATime.WaitAsync();
         //    try { resultProcessor(item, result); }
         //    finally { oneAtATime.Release(); }
-        //}
-
+        // }
     }
 }

@@ -92,9 +92,7 @@ namespace Dotmim.Sync.Batch
             return base.ToString();
         }
 
-        /// <summary>
-        /// Get the name properties.
-        /// </summary>
+        /// <inheritdoc cref="SyncNamedItem{T}.GetAllNamesProperties"/>
         public override IEnumerable<string> GetAllNamesProperties()
         {
             yield return this.TableName;

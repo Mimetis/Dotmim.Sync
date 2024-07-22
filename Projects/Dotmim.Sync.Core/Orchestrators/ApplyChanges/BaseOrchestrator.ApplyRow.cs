@@ -32,7 +32,7 @@ namespace Dotmim.Sync
             if (preCommand != null)
             {
                 await this.InterceptAsync(new ExecuteCommandArgs(context, preCommand, DbCommandType.PreDeleteRow, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-                await preCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+                await preCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 preCommand.Dispose();
             }
 
@@ -52,8 +52,8 @@ namespace Dotmim.Sync
             command = batchArgs.Command;
 
             // Set the parameters
-            this.InternalSetCommandParametersValues(context, command, DbCommandType.DeleteRow, syncAdapter, connection, transaction, progress, cancellationToken,
-            row: row, sync_scope_id: senderScopeId, sync_min_timestamp: lastTimestamp, sync_row_is_tombstone: true, sync_force_write: forceWrite);
+            this.InternalSetCommandParametersValues(context, command, DbCommandType.DeleteRow, syncAdapter, connection, transaction,
+            row, senderScopeId, lastTimestamp, true, forceWrite, progress, cancellationToken);
 
             await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DeleteRow, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
@@ -62,7 +62,7 @@ namespace Dotmim.Sync
 
             try
             {
-                rowDeletedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                rowDeletedCount = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
                 // Check if we have a return value instead
                 var syncRowCountParam = syncAdapter.GetParameter(context, command, "sync_row_count");
@@ -106,7 +106,7 @@ namespace Dotmim.Sync
             if (preCommand != null)
             {
                 await this.InterceptAsync(new ExecuteCommandArgs(context, preCommand, DbCommandType.PreUpdateRow, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-                await preCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+                await preCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 preCommand.Dispose();
             }
 
@@ -126,8 +126,8 @@ namespace Dotmim.Sync
             command = batchArgs.Command;
 
             // Set the parameters value from row
-            this.InternalSetCommandParametersValues(context, command, DbCommandType.UpdateRow, syncAdapter, connection, transaction, progress, cancellationToken,
-                 row: batchArgs.SyncRows.First(), sync_scope_id: senderScopeId, sync_min_timestamp: lastTimestamp, sync_row_is_tombstone: false, sync_force_write: forceWrite);
+            this.InternalSetCommandParametersValues(context, command, DbCommandType.UpdateRow, syncAdapter, connection, transaction,
+                 batchArgs.SyncRows.First(), senderScopeId, lastTimestamp, false, forceWrite, progress, cancellationToken);
 
             await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.UpdateRow, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
@@ -135,7 +135,7 @@ namespace Dotmim.Sync
             var rowUpdatedCount = 0;
             try
             {
-                rowUpdatedCount = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                rowUpdatedCount = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
                 // Check if we have a return value instead
                 var syncRowCountParam = syncAdapter.GetParameter(context, command, "sync_row_count");

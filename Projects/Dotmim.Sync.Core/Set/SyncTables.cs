@@ -3,58 +3,64 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Represents a collection of tables used by the SyncSet.
+    /// </summary>
     [CollectionDataContract(Name = "tbls", ItemName = "tbl"), Serializable]
     public class SyncTables : ICollection<SyncTable>, IList<SyncTable>
     {
         /// <summary>
-        /// Exposing the InnerCollection for serialization purpose
+        /// Gets or sets exposing the InnerCollection for serialization purpose.
         /// </summary>
         [DataMember(Name = "c", IsRequired = true, Order = 1)]
-        public Collection<SyncTable> InnerCollection { get; set; } = new Collection<SyncTable>();
+        public Collection<SyncTable> InnerCollection { get; set; } = [];
 
         /// <summary>
-        /// Table's schema
+        /// Gets table's schema.
         /// </summary>
         [IgnoreDataMember]
         public SyncSet Schema { get; internal set; }
 
         /// <summary>
-        /// Create a default collection for SerializersFactory
+        /// Initializes a new instance of the <see cref="SyncTables"/> class.
+        /// Create a default collection for SerializersFactory.
         /// </summary>
         public SyncTables()
         {
         }
 
         /// <summary>
-        /// Create a new collection of tables for a SyncSchema
+        /// Initializes a new instance of the <see cref="SyncTables"/> class.
+        /// Create a new collection of tables for a SyncSchema.
         /// </summary>
         public SyncTables(SyncSet schema) => this.Schema = schema;
 
         /// <summary>
-        /// Since we don't serializer the reference to the schema, this method will reaffect the correct schema
+        /// Since we don't serializer the reference to the schema, this method will reaffect the correct schema.
         /// </summary>
         public void EnsureTables(SyncSet schema)
         {
             this.Schema = schema;
-            if (InnerCollection != null)
+            if (this.InnerCollection != null)
                 foreach (var table in this)
                     table.EnsureTable(schema);
         }
 
         /// <summary>
-        /// Get a table by its name
+        /// Get a table by its name.
         /// </summary>
         public SyncTable this[string tableName]
         {
             get
             {
                 if (string.IsNullOrEmpty(tableName))
-                    throw new ArgumentNullException("tableName");
+                    throw new ArgumentNullException(nameof(tableName));
 
                 var parser = ParserName.Parse(tableName);
                 var tblName = parser.ObjectName;
@@ -63,44 +69,39 @@ namespace Dotmim.Sync
 
                 var sc = SyncGlobalization.DataSourceStringComparison;
 
-                var table = InnerCollection.FirstOrDefault(innerTable =>
+                var table = this.InnerCollection.FirstOrDefault(innerTable =>
                 {
-                    var innerTableSchemaName = String.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
-                    return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName);
+                    var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
+                    return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName, StringComparison.Ordinal);
                 });
 
-                // trying a fallback on default schema name
-                if (table == null)
-                {
-                    table = InnerCollection.FirstOrDefault(innerTable =>
+                // trying a fallback on default schema name: dbo for sql server, public for postgresql
+                table ??= this.InnerCollection.FirstOrDefault(innerTable =>
                     {
                         var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
-                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "dbo");
+                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "dbo", StringComparison.Ordinal);
                     });
-                }
-                if (table == null)
-                {
-                    table = InnerCollection.FirstOrDefault(innerTable =>
+
+                table ??= this.InnerCollection.FirstOrDefault(innerTable =>
                     {
                         var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
-                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "public");
+                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "public", StringComparison.Ordinal);
                     });
-                }
 
                 return table;
             }
         }
 
         /// <summary>
-        /// Get a table by its name
+        /// Get a table by its name.
         /// </summary>
         public SyncTable this[string tableName, string schemaName]
         {
             get
             {
                 if (string.IsNullOrEmpty(tableName))
-                    throw new ArgumentNullException("tableName");
-                
+                    throw new ArgumentNullException(nameof(tableName));
+
                 var parser = ParserName.Parse(tableName);
                 var tblName = parser.ObjectName;
 
@@ -108,45 +109,42 @@ namespace Dotmim.Sync
 
                 var sc = SyncGlobalization.DataSourceStringComparison;
 
-                var table = InnerCollection.FirstOrDefault(innerTable =>
+                var table = this.InnerCollection.FirstOrDefault(innerTable =>
                 {
                     var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
-                    return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName);
+                    return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, schemaName, StringComparison.Ordinal);
                 });
 
-                // trying a fallback on default schema name
-                if (table == null)
-                {
-                    table = InnerCollection.FirstOrDefault(innerTable =>
+                // trying a fallback on default schema name: dbo for sql server, public for postgresql
+                table ??= this.InnerCollection.FirstOrDefault(innerTable =>
                     {
                         var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
-                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "dbo");
+                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "dbo", StringComparison.Ordinal);
                     });
-                }
-                if (table == null)
-                {
-                    table = InnerCollection.FirstOrDefault(innerTable =>
+
+                table ??= this.InnerCollection.FirstOrDefault(innerTable =>
                     {
                         var innerTableSchemaName = string.IsNullOrEmpty(innerTable.SchemaName) ? string.Empty : innerTable.SchemaName;
-                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "public");
+                        return string.Equals(innerTable.TableName, tblName, sc) && string.Equals(innerTableSchemaName, "public", StringComparison.Ordinal);
                     });
-                }
 
                 return table;
             }
         }
 
         /// <summary>
-        /// Add a new table to the Schema table collection
+        /// Add a new table to the Schema table collection.
         /// </summary>
         public void Add(SyncTable item)
         {
-            item.Schema = Schema;
-            InnerCollection.Add(item);
+            Guard.ThrowIfNull(item);
+
+            item.Schema = this.Schema;
+            this.InnerCollection.Add(item);
         }
 
         /// <summary>
-        /// Add a table, by its name. Be careful, can contains schema name
+        /// Add a table, by its name. Be careful, can contains schema name.
         /// </summary>
         public void Add(string table)
         {
@@ -160,43 +158,88 @@ namespace Dotmim.Sync
             var sTable = new SyncTable(tableName, schemaName);
 
             this.Add(sTable);
-
         }
+
         /// <summary>
-        /// Add some tables to ContainerSet Tables property
+        /// Add some tables to ContainerSet Tables property.
         /// </summary>
         public void Add(IEnumerable<string> tables)
         {
+            Guard.ThrowIfNull(tables);
+
             foreach (var t in tables)
                 this.Add(t);
         }
 
-
         /// <summary>
-        /// Clear all the Tables
+        /// Clear all the Tables.
         /// </summary>
         public void Clear()
         {
             foreach (var table in this)
                 table.Clear();
 
-            InnerCollection.Clear();
+            this.InnerCollection.Clear();
         }
 
+        /// <summary>
+        /// Gets get the count of tables in the collection.
+        /// </summary>
+        public int Count => this.InnerCollection.Count;
 
-        public SyncTable this[int index] => InnerCollection[index];
-        public int Count => InnerCollection.Count;
+        /// <summary>
+        /// Gets a value indicating whether gets if the collection is readonly.
+        /// </summary>
         public bool IsReadOnly => false;
-        public bool Remove(SyncTable item) => InnerCollection.Remove(item);
-        public bool Contains(SyncTable item) => InnerCollection.Contains(item);
-        public void CopyTo(SyncTable[] array, int arrayIndex) => InnerCollection.CopyTo(array, arrayIndex);
-        public int IndexOf(SyncTable item) => InnerCollection.IndexOf(item);
-        public void RemoveAt(int index) => InnerCollection.RemoveAt(index);
-        IEnumerator IEnumerable.GetEnumerator() => InnerCollection.GetEnumerator();
-        public IEnumerator<SyncTable> GetEnumerator() => InnerCollection.GetEnumerator();
-        SyncTable IList<SyncTable>.this[int index] { get => InnerCollection[index]; set => InnerCollection[index] = value; }
-        public void Insert(int index, SyncTable item) => InnerCollection.Insert(index, item);
-        public override string ToString() => this.InnerCollection.Count.ToString();
-    }
 
+        /// <summary>
+        /// Get the index of a table in the collection.
+        /// </summary>
+        public SyncTable this[int index] { get => this.InnerCollection[index]; set => this.InnerCollection[index] = value; }
+
+        /// <summary>
+        /// Remove a table from the collection.
+        /// </summary>
+        public bool Remove(SyncTable item) => this.InnerCollection.Remove(item);
+
+        /// <summary>
+        /// Check if the collection contains a table.
+        /// </summary>
+        public bool Contains(SyncTable item) => this.InnerCollection.Contains(item);
+
+        /// <summary>
+        /// Copy the collection to an array.
+        /// </summary>
+        public void CopyTo(SyncTable[] array, int arrayIndex) => this.InnerCollection.CopyTo(array, arrayIndex);
+
+        /// <summary>
+        /// Get the index of a table in the collection.
+        /// </summary>
+        public int IndexOf(SyncTable item) => this.InnerCollection.IndexOf(item);
+
+        /// <summary>
+        /// Remove a table at a specific index.
+        /// </summary>
+        public void RemoveAt(int index) => this.InnerCollection.RemoveAt(index);
+
+        /// <summary>
+        /// Get the enumerator for the collection.
+        /// </summary>
+        IEnumerator IEnumerable.GetEnumerator() => this.InnerCollection.GetEnumerator();
+
+        /// <summary>
+        /// Get the enumerator for the collection.
+        /// </summary>
+        public IEnumerator<SyncTable> GetEnumerator() => this.InnerCollection.GetEnumerator();
+
+        /// <summary>
+        /// Insert a table at a specific index.
+        /// </summary>
+        public void Insert(int index, SyncTable item) => this.InnerCollection.Insert(index, item);
+
+        /// <summary>
+        /// Return the collection as a string representing the tables count.
+        /// </summary>
+        public override string ToString() => this.InnerCollection.Count.ToString(CultureInfo.InvariantCulture);
+    }
 }

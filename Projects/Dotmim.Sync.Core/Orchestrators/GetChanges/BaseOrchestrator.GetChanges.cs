@@ -194,8 +194,8 @@ namespace Dotmim.Sync
                 // Get correct adapter
                 var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
 
-                this.InternalSetCommandParametersValues(context, selectIncrementalChangesCommand, dbCommandType, syncAdapter, connection, transaction, progress, cancellationToken,
-                    sync_scope_id: excludintScopeId, sync_min_timestamp: lastTimestamp);
+                this.InternalSetCommandParametersValues(context, selectIncrementalChangesCommand, dbCommandType, syncAdapter, connection, transaction,
+                    sync_scope_id: excludintScopeId, sync_min_timestamp: lastTimestamp, progress: progress, cancellationToken: cancellationToken);
 
                 var schemaChangesTable = CreateChangesTable(syncTable);
 
@@ -219,7 +219,7 @@ namespace Dotmim.Sync
                     // Get the reader
                     using var dataReader = await args.Command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
-                    while (dataReader.Read())
+                    while (await dataReader.ReadAsync(cancellationToken).ConfigureAwait(false))
                     {
                         // Create a row from dataReader
                         var syncRow = this.CreateSyncRowFromReader(context, dataReader, schemaChangesTable);
@@ -236,7 +236,11 @@ namespace Dotmim.Sync
                             batchPartInfoUpserts = await this.InternalAddRowToBatchPartInfoAsync(context, localSerializerModified, syncRow, batchInfo, batchPartInfoUpserts, batchPartInfos, schemaChangesTable, tableChangesSelected, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                     }
 
+#if NET6_0_OR_GREATER
+                    await dataReader.CloseAsync().ConfigureAwait(false);
+#else
                     dataReader.Close();
+#endif
 
                     // tmp Func
                     var closeSerializer = new Func<LocalJsonSerializer, BatchChangesCreatedArgs, Task>(async (localJsonSerializer, args) =>
@@ -316,6 +320,9 @@ namespace Dotmim.Sync
             }
         }
 
+        /// <summary>
+        /// Add a row to a batch part info.
+        /// </summary>
         internal async Task<BatchPartInfo> InternalAddRowToBatchPartInfoAsync(SyncContext context, LocalJsonSerializer localJsonSerializer, SyncRow syncRow, BatchInfo batchInfo,
             BatchPartInfo batchPartInfo, List<BatchPartInfo> batchPartInfos, SyncTable schemaChangesTable, TableChangesSelected tableChangesSelected,
             DbConnection connection, DbTransaction transaction,
@@ -413,8 +420,8 @@ namespace Dotmim.Sync
                     if (command == null)
                         return;
 
-                    this.InternalSetCommandParametersValues(context, command, dbCommandType, syncAdapter, connection, transaction, progress, cancellationToken,
-                        sync_scope_id: excludingScopeId, sync_min_timestamp: fromLastTimestamp);
+                    this.InternalSetCommandParametersValues(context, command, dbCommandType, syncAdapter, connection, transaction,
+                        sync_scope_id: excludingScopeId, sync_min_timestamp: fromLastTimestamp, progress: progress, cancellationToken: cancellationToken);
 
                     // launch interceptor if any
                     var args = new TableChangesSelectingArgs(context, syncTable, command, connection, transaction);
@@ -431,7 +438,7 @@ namespace Dotmim.Sync
                     // Get the reader
                     using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
 
-                    while (dataReader.Read())
+                    while (await dataReader.ReadAsync().ConfigureAwait(false))
                     {
                         var isTombstone = false;
                         for (var i = 0; i < dataReader.FieldCount; i++)
@@ -442,7 +449,7 @@ namespace Dotmim.Sync
                             if (columnName == "sync_row_is_tombstone")
                             {
                                 var objIsTombstone = dataReader.GetValue(i);
-                                isTombstone = objIsTombstone == DBNull.Value ? false : SyncTypeConverter.TryConvertTo<long>(objIsTombstone) > 0;
+                                isTombstone = objIsTombstone != DBNull.Value && SyncTypeConverter.TryConvertTo<long>(objIsTombstone) > 0;
                                 continue;
                             }
 
@@ -457,7 +464,11 @@ namespace Dotmim.Sync
                             tableChangesSelected.Upserts++;
                     }
 
+#if NET6_0_OR_GREATER
+                    await dataReader.CloseAsync().ConfigureAwait(false);
+#else
                     dataReader.Close();
+#endif
 
                     // Check interceptor
                     var changesArgs = new TableChangesSelectedArgs(context, null, null, syncTable, tableChangesSelected, connection, transaction);
@@ -615,7 +626,7 @@ namespace Dotmim.Sync
                     if (columnName == "sync_row_is_tombstone")
                     {
                         var objIsTombstone = dataReader.GetValue(i);
-                        isTombstone = objIsTombstone == DBNull.Value ? false : SyncTypeConverter.TryConvertTo<long>(objIsTombstone) > 0;
+                        isTombstone = objIsTombstone != DBNull.Value && SyncTypeConverter.TryConvertTo<long>(objIsTombstone) > 0;
                         continue;
                     }
 
@@ -655,8 +666,10 @@ namespace Dotmim.Sync
                 if (lstAllBatchPartInfos == null)
                     return;
 
+                var batchPartInfos = lstAllBatchPartInfos.ToList();
+
                 // delete all empty batchparts (empty tables)
-                foreach (var bpi in lstAllBatchPartInfos.Where(bpi => bpi.RowsCount <= 0))
+                foreach (var bpi in batchPartInfos.Where(bpi => bpi.RowsCount <= 0))
                     File.Delete(Path.Combine(batchInfo.GetDirectoryFullPath(), bpi.FileName));
 
                 // Generate a good index order to be compliant with previous versions
@@ -664,7 +677,7 @@ namespace Dotmim.Sync
                 foreach (var table in schemaTables)
                 {
                     // get all bpi where count > 0 and ordered by index
-                    foreach (var bpi in lstAllBatchPartInfos.Where(bpi => bpi.RowsCount > 0 && bpi.EqualsByName(new BatchPartInfo { TableName = table.TableName, SchemaName = table.SchemaName })).OrderBy(bpi => bpi.Index).ToArray())
+                    foreach (var bpi in batchPartInfos.Where(bpi => bpi.RowsCount > 0 && bpi.EqualsByName(new BatchPartInfo { TableName = table.TableName, SchemaName = table.SchemaName })).OrderBy(bpi => bpi.Index).ToArray())
                     {
                         batchInfo.BatchPartsInfo.Add(bpi);
                         batchInfo.RowsCount += bpi.RowsCount;

@@ -259,7 +259,7 @@ namespace Dotmim.Sync
                 await using (runner.ConfigureAwait(false))
                 {
                     // Creating a fake scope info
-                    var serverScopeInfo = this.InternalCreateScopeInfo(scopeName);
+                    var serverScopeInfo = InternalCreateScopeInfo(scopeName);
                     serverScopeInfo.Setup = setup;
                     serverScopeInfo.Schema = new SyncSet(setup);
 
@@ -315,7 +315,7 @@ namespace Dotmim.Sync
 
                     var existingFilters = serverScopeInfos?.SelectMany(si => si.Setup == null ? new SetupFilters() : si.Setup.Filters).ToList();
 
-                    var defaultServerScopeInfo = this.InternalCreateScopeInfo(SyncOptions.DefaultScopeName);
+                    var defaultServerScopeInfo = InternalCreateScopeInfo(SyncOptions.DefaultScopeName);
 
                     SyncSetup setup;
                     (context, setup) = await this.InternalGetAllTablesAsync(

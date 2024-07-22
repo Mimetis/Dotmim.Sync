@@ -185,7 +185,7 @@ namespace Dotmim.Sync
 
             // tmp sync table with only writable columns
             using var changesSet = schemaTable.Schema.Clone(false);
-            using var schemaChangesTable = CreateChangesTable(schemaTable, changesSet);
+            var schemaChangesTable = CreateChangesTable(schemaTable, changesSet);
 
             // get executioning adapter
             var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaChangesTable, scopeInfo.Setup);
@@ -574,8 +574,8 @@ namespace Dotmim.Sync
                 command = batchArgs.Command;
 
                 // Set the parameters value from row
-                this.InternalSetCommandParametersValues(context, command, dbCommandType, syncAdapter, connection, transaction, progress, cancellationToken,
-                    batchArgs.SyncRows[0], message.SenderScopeId, message.LastTimestamp, applyType == SyncRowState.Deleted, false);
+                this.InternalSetCommandParametersValues(context, command, dbCommandType, syncAdapter, connection, transaction,
+                    batchArgs.SyncRows[0], message.SenderScopeId, message.LastTimestamp, applyType == SyncRowState.Deleted, false, progress, cancellationToken);
 
                 await this.InterceptAsync(
                     new ExecuteCommandArgs(context, command, dbCommandType, connection, transaction),

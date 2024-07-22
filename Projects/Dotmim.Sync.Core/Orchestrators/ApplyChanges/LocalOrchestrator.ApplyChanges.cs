@@ -126,32 +126,31 @@ namespace Dotmim.Sync
                     // check if we need to delete metadatas
                     if (this.Options.CleanMetadatas && cScopeInfoClient.LastSyncTimestamp.HasValue)
                     {
-                        using (var runnerMetadata = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction, progress, cancellationToken).ConfigureAwait(false))
+                        using var runnerMetadata = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
+
+                        var allScopeHistories = await this.InternalLoadAllScopeInfoClientsAsync(context, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.Progress, runnerMetadata.CancellationToken).ConfigureAwait(false);
+
+                        List<ScopeInfo> allClientScopes;
+                        (context, allClientScopes) = await this.InternalLoadAllScopeInfosAsync(context, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.Progress, runnerMetadata.CancellationToken).ConfigureAwait(false);
+
+                        if (allScopeHistories.Count > 0 && allClientScopes.Count > 0)
                         {
-                            var allScopeHistories = await this.InternalLoadAllScopeInfoClientsAsync(context, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.Progress, runnerMetadata.CancellationToken).ConfigureAwait(false);
+                            // Get the min value from LastSyncTimestamp from all scopes
+                            var minLastTimeStamp = allScopeHistories.Min(scope => scope.LastSyncTimestamp.HasValue ? scope.LastSyncTimestamp.Value : long.MaxValue);
+                            minLastTimeStamp = minLastTimeStamp > cScopeInfoClient.LastSyncTimestamp.Value ? cScopeInfoClient.LastSyncTimestamp.Value : minLastTimeStamp;
 
-                            List<ScopeInfo> allClientScopes;
-                            (context, allClientScopes) = await this.InternalLoadAllScopeInfosAsync(context, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.Progress, runnerMetadata.CancellationToken).ConfigureAwait(false);
+                            DatabaseMetadatasCleaned databaseMetadatasCleaned;
+                            (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(allClientScopes, context, minLastTimeStamp, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.Progress, runnerMetadata.CancellationToken).ConfigureAwait(false);
 
-                            if (allScopeHistories.Count > 0 && allClientScopes.Count > 0)
+                            // save last cleanup timestamp
+                            if (databaseMetadatasCleaned?.RowsCleanedCount > 0)
                             {
-                                // Get the min value from LastSyncTimestamp from all scopes
-                                var minLastTimeStamp = allScopeHistories.Min(scope => scope.LastSyncTimestamp.HasValue ? scope.LastSyncTimestamp.Value : long.MaxValue);
-                                minLastTimeStamp = minLastTimeStamp > cScopeInfoClient.LastSyncTimestamp.Value ? cScopeInfoClient.LastSyncTimestamp.Value : minLastTimeStamp;
-
-                                DatabaseMetadatasCleaned databaseMetadatasCleaned;
-                                (context, databaseMetadatasCleaned) = await this.InternalDeleteMetadatasAsync(allClientScopes, context, minLastTimeStamp, runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.Progress, runnerMetadata.CancellationToken).ConfigureAwait(false);
-
-                                // save last cleanup timestamp
-                                if (databaseMetadatasCleaned?.RowsCleanedCount > 0)
+                                foreach (var clientScopeInfo in allClientScopes)
                                 {
-                                    foreach (var clientScopeInfo in allClientScopes)
-                                    {
-                                        clientScopeInfo.LastCleanupTimestamp = databaseMetadatasCleaned.TimestampLimit;
+                                    clientScopeInfo.LastCleanupTimestamp = databaseMetadatasCleaned.TimestampLimit;
 
-                                        await this.InternalSaveScopeInfoAsync(clientScopeInfo, context,
-                                            runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.Progress, runnerMetadata.CancellationToken).ConfigureAwait(false);
-                                    }
+                                    await this.InternalSaveScopeInfoAsync(clientScopeInfo, context,
+                                        runnerMetadata.Connection, runnerMetadata.Transaction, runnerMetadata.Progress, runnerMetadata.CancellationToken).ConfigureAwait(false);
                                 }
                             }
                         }

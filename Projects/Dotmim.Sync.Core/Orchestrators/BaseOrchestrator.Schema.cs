@@ -181,7 +181,7 @@ namespace Dotmim.Sync
                 var syncTable = await this.Provider.GetDatabaseBuilder().EnsureTableAsync(setupTable.TableName, setupTable.SchemaName, connection, transaction).ConfigureAwait(false);
 
                 // tmp scope info
-                var scopeInfo = this.InternalCreateScopeInfo(context.ScopeName);
+                var scopeInfo = InternalCreateScopeInfo(context.ScopeName);
                 scopeInfo.Setup = new SyncSetup();
                 scopeInfo.Setup.Tables.Add(setupTable);
 

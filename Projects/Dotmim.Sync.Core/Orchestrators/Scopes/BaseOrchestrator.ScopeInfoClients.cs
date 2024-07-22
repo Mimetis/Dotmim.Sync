@@ -14,6 +14,7 @@ namespace Dotmim.Sync
     /// </summary>
     public partial class BaseOrchestrator
     {
+
         /// <summary>
         /// Get all scopes info clients instances.
         /// <example>
@@ -109,9 +110,27 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Create an instance of scope info client.
+        /// </summary>
+        internal static ScopeInfoClient InternalCreateScopeInfoClient(string scopeName, SyncParameters syncParameters = null)
+        {
+            var scopeInfoClient = new ScopeInfoClient
+            {
+                Id = Guid.NewGuid(),
+                Name = scopeName,
+                IsNewScope = true,
+                LastSync = null,
+                Hash = syncParameters == null || syncParameters.Count <= 0 ? SyncParameters.DefaultScopeHash : syncParameters.GetHash(),
+                Parameters = syncParameters,
+            };
+
+            return scopeInfoClient;
+        }
+
+        /// <summary>
         /// Internal Sxists Scope Info Client.
         /// </summary>
-        internal virtual async Task<(SyncContext context, bool exists)>
+        internal virtual async Task<(SyncContext Context, bool Exists)>
             InternalExistsScopeInfoClientAsync(SyncContext context, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
@@ -139,7 +158,7 @@ namespace Dotmim.Sync
                     await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     var existsResultObject = await existsCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-                    var exists = Convert.ToInt32(existsResultObject) > 0;
+                    var exists = SyncTypeConverter.TryConvertTo<int>(existsResultObject) > 0;
                     return (context, exists);
                 }
             }
@@ -177,10 +196,14 @@ namespace Dotmim.Sync
 
                     ScopeInfoClient scopeInfoClient = null;
 
-                    if (reader.Read())
+                    if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                         scopeInfoClient = InternalReadScopeInfoClient(reader);
 
+#if NET6_0_OR_GREATER
+                    await reader.CloseAsync().ConfigureAwait(false);
+#else
                     reader.Close();
+#endif
 
                     command.Dispose();
 
@@ -216,14 +239,17 @@ namespace Dotmim.Sync
 
                     using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
-                    while (reader.Read())
+                    while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                     {
                         var scopeInfoClient = InternalReadScopeInfoClient(reader);
 
                         scopeInfoClients.Add(scopeInfoClient);
                     }
-
+#if NET6_0_OR_GREATER
+                    await reader.CloseAsync().ConfigureAwait(false);
+#else
                     reader.Close();
+#endif
                     command.Dispose();
                     return scopeInfoClients;
                 }
@@ -278,11 +304,15 @@ namespace Dotmim.Sync
 
                     using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
-                    reader.Read();
+                    await reader.ReadAsync(cancellationToken).ConfigureAwait(false);
 
                     var newScopeInfoClient = InternalReadScopeInfoClient(reader);
 
+#if NET6_0_OR_GREATER
+                    await reader.CloseAsync().ConfigureAwait(false);
+#else
                     reader.Close();
+#endif
 
                     // await this.InterceptAsync(new ScopeSavedArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), newScopeInfoClient, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                     // command.Dispose();
@@ -296,23 +326,8 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Create an instance of scope info client.
+        /// Set the parameters for the scope info client.
         /// </summary>
-        internal static ScopeInfoClient InternalCreateScopeInfoClient(string scopeName, SyncParameters syncParameters = null)
-        {
-            var scopeInfoClient = new ScopeInfoClient
-            {
-                Id = Guid.NewGuid(),
-                Name = scopeName,
-                IsNewScope = true,
-                LastSync = null,
-                Hash = syncParameters == null || syncParameters.Count <= 0 ? SyncParameters.DefaultScopeHash : syncParameters.GetHash(),
-                Parameters = syncParameters,
-            };
-
-            return scopeInfoClient;
-        }
-
         private static DbCommand InternalSetSaveScopeInfoClientParameters(ScopeInfoClient scopeInfoClient, DbCommand command)
         {
             InternalSetParameterValue(command, "sync_scope_id", scopeInfoClient.Id.ToString());
@@ -329,6 +344,9 @@ namespace Dotmim.Sync
             return command;
         }
 
+        /// <summary>
+        /// Read a scope info client from a reader.
+        /// </summary>
         private static ScopeInfoClient InternalReadScopeInfoClient(DbDataReader reader)
         {
             var scopeInfoClient = new ScopeInfoClient

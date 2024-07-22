@@ -117,7 +117,7 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Returns a command to rename a tracking table.
         /// </summary>
-        [Obsolete]
+        [Obsolete("DMS does not rename tracking tables anymore")]
         public abstract Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction);
 
         /// <summary>

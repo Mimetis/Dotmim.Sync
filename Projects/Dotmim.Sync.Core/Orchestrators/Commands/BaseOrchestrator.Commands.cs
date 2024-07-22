@@ -1,5 +1,4 @@
-﻿
-using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Builders;
 using System;
 using System.Collections.Concurrent;
 using System.Data;
@@ -10,21 +9,58 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Contains internal methods to get command from provider, check connection is opened, affect connection and transaction.
+    /// </summary>
     public abstract partial class BaseOrchestrator
     {
 
-        private static ConcurrentDictionary<string, Lazy<SyncPreparedCommand>> PreparedCommands = new();
+        private static ConcurrentDictionary<string, Lazy<SyncPreparedCommand>> preparedCommands = new();
+
+        /// <summary>
+        /// Create a change table with scope columns and tombstone column.
+        /// </summary>
+        public static SyncTable CreateChangesTable(SyncTable syncTable, SyncSet owner = null)
+        {
+            if (syncTable.Schema == null)
+                throw new ArgumentException("Schema can't be null when creating a changes table");
+
+            // Create an empty sync table without columns
+            var changesTable = new SyncTable(syncTable.TableName, syncTable.SchemaName)
+            {
+                OriginalProvider = syncTable.OriginalProvider,
+
+                // SyncDirection = syncTable.SyncDirection
+            };
+
+            // Adding primary keys
+            foreach (var pkey in syncTable.PrimaryKeys)
+                changesTable.PrimaryKeys.Add(pkey);
+
+            // get ordered columns that are mutables and pkeys
+            var orderedNames = syncTable.GetMutableColumns(false, true);
+
+            foreach (var c in orderedNames)
+                changesTable.Columns.Add(c.Clone());
+
+            if (owner != null)
+            {
+                owner.Tables.Add(changesTable);
+            }
+
+            return changesTable;
+        }
 
         /// <summary>
         /// Get the command from provider, check connection is opened, affect connection and transaction
-        /// Prepare the command parameters and add scope parameters
+        /// Prepare the command parameters and add scope parameters.
         /// </summary>
         internal async Task<(DbCommand Command, bool IsBatch)> InternalGetCommandAsync(ScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, DbCommandType commandType,
             DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             SyncFilter filter = null;
 
-            //if (this.Provider != null && this.Provider.CanBeServerProvider) // Sqlite can't be server
+            // if (this.Provider != null && this.Provider.CanBeServerProvider) // Sqlite can't be server
             if (this.Provider != null) // trying for Sqlite too
                 filter = syncAdapter.TableDescription.GetFilter();
 
@@ -36,7 +72,7 @@ namespace Dotmim.Sync
 
             // Command Timeout if set in Options
             if (this.Options.DbCommandTimeout.HasValue)
-                command.CommandTimeout = Options.DbCommandTimeout.Value;
+                command.CommandTimeout = this.Options.DbCommandTimeout.Value;
 
             // Create the key
             var commandKey = $"{connection.DataSource}-{connection.Database}-{syncAdapter.TableDescription.GetFullName()}-{commandType}";
@@ -47,8 +83,8 @@ namespace Dotmim.Sync
                 command = commandType switch
                 {
                     DbCommandType.None => command,
-                    DbCommandType.SelectChanges or DbCommandType.SelectChangesWithFilters => InternalSetSelectChangesParameters(command, syncAdapter),
-                    DbCommandType.SelectInitializedChanges or DbCommandType.SelectInitializedChangesWithFilters => InternalSetSelectInitializeChangesParameters(command, syncAdapter),
+                    DbCommandType.SelectChanges or DbCommandType.SelectChangesWithFilters => InternalSetSelectChangesParameters(command, syncAdapter, filter),
+                    DbCommandType.SelectInitializedChanges or DbCommandType.SelectInitializedChangesWithFilters => InternalSetSelectInitializeChangesParameters(command, syncAdapter, filter),
                     DbCommandType.SelectRow => InternalSetSelectRowParameters(command, syncAdapter),
                     DbCommandType.UpdateRow or DbCommandType.UpdateRows or DbCommandType.InsertRow or DbCommandType.InsertRows => InternalSetUpsertsParameters(command, syncAdapter),
                     DbCommandType.DeleteRow or DbCommandType.DeleteRows => InternalSetDeleteRowParameters(command, syncAdapter),
@@ -58,7 +94,6 @@ namespace Dotmim.Sync
                     DbCommandType.Reset => InternalSetResetParameters(command, syncAdapter),
                     _ => command,
                 };
-
             }
 
             // Ensure parameters are correct, from DbSyncAdapter
@@ -88,7 +123,7 @@ namespace Dotmim.Sync
             // Check the command has been already prepared
             // Get a lazy command instance
             // Try to get the instance
-            var lazyCommand = PreparedCommands.GetOrAdd(commandKey, k =>
+            var lazyCommand = preparedCommands.GetOrAdd(commandKey, k =>
                 new Lazy<SyncPreparedCommand>(() => new SyncPreparedCommand(commandKey)));
 
             // lazyCommand.Metadata is a boolean indicating if the command is already prepared on the server
@@ -96,23 +131,27 @@ namespace Dotmim.Sync
                 return (command, isBatch);
 
             // Testing The Prepare() performance increase
+#if NET6_0_OR_GREATER
+            await command.PrepareAsync(cancellationToken).ConfigureAwait(false);
+#else
             command.Prepare();
+#endif
 
             // Adding this command as prepared
             lazyCommand.Value.IsPrepared = true;
 
-            PreparedCommands.AddOrUpdate(commandKey, lazyCommand, (key, lc) => new Lazy<SyncPreparedCommand>(() => lc.Value));
+            preparedCommands.AddOrUpdate(commandKey, lazyCommand, (key, lc) => new Lazy<SyncPreparedCommand>(() => lc.Value));
 
             return (command, isBatch);
         }
 
-
         /// <summary>
-        /// Set command parameters value mapped to Row
+        /// Set command parameters value mapped to Row.
         /// </summary>
         internal DbCommand InternalSetCommandParametersValues(SyncContext context, DbCommand command, DbCommandType commandType, DbSyncAdapter syncAdapter,
-            DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken,
-            SyncRow row = null, Guid? sync_scope_id = null, long? sync_min_timestamp = null, bool? sync_row_is_tombstone = null, bool? sync_force_write = null)
+            DbConnection connection, DbTransaction transaction,
+            SyncRow row = null, Guid? sync_scope_id = null, long? sync_min_timestamp = null, bool? sync_row_is_tombstone = null, bool? sync_force_write = null,
+            IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             if (row != null && row.SchemaTable == null)
                 throw new ArgumentException("Schema table columns does not correspond to row values");
@@ -135,7 +174,7 @@ namespace Dotmim.Sync
                     // Check if it's a parameter from the schema table
                     if (!string.IsNullOrEmpty(parameter.SourceColumn))
                     {
-                        // foreach parameter, check if we have a column 
+                        // foreach parameter, check if we have a column
                         var columnIndex = schemaTable.Columns.IndexOf(parameter.SourceColumn);
 
                         if (columnIndex >= 0)
@@ -144,7 +183,6 @@ namespace Dotmim.Sync
                             syncAdapter.AddCommandParameterValue(context, parameter, value, command, commandType);
                         }
                     }
-
                 }
             }
 
@@ -179,7 +217,7 @@ namespace Dotmim.Sync
                 syncAdapter.AddCommandParameterValue(context, syncMinTimestampParameter, sync_min_timestamp.HasValue ? sync_min_timestamp.Value : DBNull.Value, command, commandType);
 
             // Set the sync_row_timestamp
-            // glitch in delete metadata command 
+            // glitch in delete metadata command
             var syncSyncRowTimestamp = syncAdapter.GetParameter(context, command, "sync_row_timestamp");
             if (syncSyncRowTimestamp != null)
                 syncAdapter.AddCommandParameterValue(context, syncSyncRowTimestamp, sync_min_timestamp.HasValue ? sync_min_timestamp.Value : DBNull.Value, command, commandType);
@@ -221,43 +259,8 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Remove a Command from internal shared dictionary
+        /// Remove a Command from internal shared dictionary.
         /// </summary>
-        internal void RemoveCommands() => PreparedCommands.Clear();
-
-        /// <summary>
-        /// Create a change table with scope columns and tombstone column
-        /// </summary>
-        public static SyncTable CreateChangesTable(SyncTable syncTable, SyncSet owner = null)
-        {
-            if (syncTable.Schema == null)
-                throw new ArgumentException("Schema can't be null when creating a changes table");
-
-            // Create an empty sync table without columns
-            var changesTable = new SyncTable(syncTable.TableName, syncTable.SchemaName)
-            {
-                OriginalProvider = syncTable.OriginalProvider,
-                //SyncDirection = syncTable.SyncDirection
-            };
-
-            // Adding primary keys
-            foreach (var pkey in syncTable.PrimaryKeys)
-                changesTable.PrimaryKeys.Add(pkey);
-
-            // get ordered columns that are mutables and pkeys
-            var orderedNames = syncTable.GetMutableColumns(false, true);
-
-            foreach (var c in orderedNames)
-                changesTable.Columns.Add(c.Clone());
-
-            if (owner != null)
-            {
-                owner.Tables.Add(changesTable);
-            }
-
-            return changesTable;
-        }
-
-
+        internal void RemoveCommands() => preparedCommands.Clear();
     }
 }

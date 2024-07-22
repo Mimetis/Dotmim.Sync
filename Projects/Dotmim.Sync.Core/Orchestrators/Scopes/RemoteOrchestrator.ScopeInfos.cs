@@ -24,7 +24,7 @@ namespace Dotmim.Sync
         ///  foreach (var schemaTable in scopeInfo.Schema.Tables)
         ///  {
         ///    Console.WriteLine($"Table Name: {schemaTable.TableName}");
-        ///       
+        ///
         ///    foreach (var column in schemaTable.Columns)
         ///          Console.WriteLine($"Column Name: {column.ColumnName}");
         ///  }
@@ -32,8 +32,8 @@ namespace Dotmim.Sync
         /// </example>
         /// </summary>
         /// <param name="scopeName"></param>
-        /// <param name="connection">Optional Connection</param>
-        /// <param name="transaction">Optional Transaction</param>
+        /// <param name="connection">Optional Connection.</param>
+        /// <param name="transaction">Optional Transaction.</param>
         /// <returns></returns>
         public virtual async Task<ScopeInfo> GetScopeInfoAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default)
         {
@@ -42,19 +42,18 @@ namespace Dotmim.Sync
             try
             {
                 ScopeInfo sScopeInfo;
-                (context, sScopeInfo, _) = await InternalEnsureScopeInfoAsync(context, default, false, connection, transaction, default, default).ConfigureAwait(false);
+                (context, sScopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, default, false, connection, transaction, default, default).ConfigureAwait(false);
                 return sScopeInfo;
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                throw this.GetSyncError(context, ex);
             }
         }
 
         /// <inheritdoc cref="GetScopeInfoAsync(string, DbConnection, DbTransaction)"/>
         public virtual Task<ScopeInfo> GetScopeInfoAsync(DbConnection connection = default, DbTransaction transaction = default)
-            => GetScopeInfoAsync(SyncOptions.DefaultScopeName, connection, transaction);
-
+            => this.GetScopeInfoAsync(SyncOptions.DefaultScopeName, connection, transaction);
 
         /// <summary>
         /// Get a scope info from the remote data source. A scope contains the <see cref="SyncSetup"/> setup and the <see cref="SyncSet"/> schema.
@@ -69,7 +68,7 @@ namespace Dotmim.Sync
         ///  foreach (var schemaTable in scopeInfo.Schema.Tables)
         ///  {
         ///    Console.WriteLine($"Table Name: {schemaTable.TableName}");
-        ///       
+        ///
         ///    foreach (var column in schemaTable.Columns)
         ///          Console.WriteLine($"Column Name: {column.ColumnName}");
         ///  }
@@ -77,12 +76,11 @@ namespace Dotmim.Sync
         /// </example>
         /// </summary>
         /// <param name="setup"></param>
-        /// <param name="connection">Optional Connection</param>
-        /// <param name="transaction">Optional Transaction</param>
+        /// <param name="connection">Optional Connection.</param>
+        /// <param name="transaction">Optional Transaction.</param>
         /// <returns></returns>
         public virtual Task<ScopeInfo> GetScopeInfoAsync(SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default)
-            => GetScopeInfoAsync(SyncOptions.DefaultScopeName, setup, connection, transaction);
-
+            => this.GetScopeInfoAsync(SyncOptions.DefaultScopeName, setup, connection, transaction);
 
         /// <inheritdoc cref="GetScopeInfoAsync(SyncSetup, DbConnection, DbTransaction)"/>
         public virtual async Task<ScopeInfo> GetScopeInfoAsync(string scopeName, SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default)
@@ -92,13 +90,13 @@ namespace Dotmim.Sync
             try
             {
                 ScopeInfo sScopeInfo;
-                (context, sScopeInfo, _) = await InternalEnsureScopeInfoAsync(context, setup, false, connection, transaction, default, default).ConfigureAwait(false);
+                (context, sScopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, setup, false, connection, transaction, default, default).ConfigureAwait(false);
 
                 return sScopeInfo;
             }
             catch (Exception ex)
             {
-                throw GetSyncError(context, ex);
+                throw this.GetSyncError(context, ex);
             }
         }
 
@@ -130,7 +128,7 @@ namespace Dotmim.Sync
 
                     if (!sScopeInfoExists)
                     {
-                        sScopeInfo = this.InternalCreateScopeInfo(context.ScopeName);
+                        sScopeInfo = InternalCreateScopeInfo(context.ScopeName);
                         shouldSave = true;
                     }
                     else
@@ -193,13 +191,12 @@ namespace Dotmim.Sync
 
                 message += $"Overwrite:{overwrite}.";
 
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
 
-
         /// <summary>
-        /// Check 
+        /// Check.
         /// </summary>
         internal virtual async Task<(SyncContext, bool, ScopeInfo)> InternalIsConflictingSetupAsync(SyncContext context, SyncSetup inputSetup, ScopeInfo sScopeInfo,
             DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
@@ -245,7 +242,7 @@ namespace Dotmim.Sync
 
                 if (sScopeInfo != null && sScopeInfo.Setup != null)
                     message += $"Server Setup:{Serializer.Serialize(sScopeInfo.Setup).ToUtf8String()}.";
-                throw GetSyncError(context, ex, message);
+                throw this.GetSyncError(context, ex, message);
             }
         }
     }

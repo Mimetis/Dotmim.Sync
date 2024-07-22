@@ -240,7 +240,7 @@ namespace Dotmim.Sync
                 // Check if we have a problem with the SyncSetup local and the one coming from server
                 // Let a chance to the user to update the local setup accordingly to the server one
                 isConflicting = false;
-                (context, isConflicting, cScopeInfo, sScopeInfo) = await this.LocalOrchestrator.InternalIsConflictingSetupAsync(context, setup, cScopeInfo, sScopeInfo).ConfigureAwait(false);
+                (context, isConflicting, cScopeInfo, sScopeInfo) = await this.LocalOrchestrator.InternalIsConflictingSetupAsync(context, setup, cScopeInfo, sScopeInfo, default, default, progress, cancellationToken).ConfigureAwait(false);
 
                 if (isConflicting)
                 {

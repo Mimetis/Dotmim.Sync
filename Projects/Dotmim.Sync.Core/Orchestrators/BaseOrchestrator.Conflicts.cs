@@ -34,8 +34,8 @@ namespace Dotmim.Sync
                     return (context, null);
 
                 // Set the parameters value from row
-                this.InternalSetCommandParametersValues(context, command, DbCommandType.SelectRow, syncAdapter, connection, transaction, progress, cancellationToken,
-                    row: primaryKeyRow);
+                this.InternalSetCommandParametersValues(context, command, DbCommandType.SelectRow, syncAdapter, connection, transaction,
+                    primaryKeyRow, progress: progress, cancellationToken: cancellationToken);
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.SelectRow, connection, transaction), cancellationToken: cancellationToken).ConfigureAwait(false);
 

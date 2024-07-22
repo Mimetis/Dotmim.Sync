@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
-using System.Text;
 
 namespace Dotmim.Sync
 {
@@ -21,22 +20,18 @@ namespace Dotmim.Sync
         [DataMember(Name = "p", IsRequired = true, Order = 4)]
         public string ParameterName { get; set; }
 
-
         /// <summary>
-        /// Gets the ShemaTable's SyncSchema
+        /// Gets or sets the ShemaTable's SyncSchema.
         /// </summary>
         [IgnoreDataMember]
         public SyncSet Schema { get; set; }
 
-
         /// <summary>
-        /// Ensure filter parameter as the correct schema (since the property is not serialized)
+        /// Ensure filter parameter as the correct schema (since the property is not serialized).
         /// </summary>
         public void EnsureFilterWhereSideItem(SyncSet schema) => this.Schema = schema;
 
-        /// <summary>
-        /// Get all comparable fields to determine if two instances are identifed as same by name
-        /// </summary>
+        /// <inheritdoc cref="SyncNamedItem{T}.GetAllNamesProperties"/>
         public override IEnumerable<string> GetAllNamesProperties()
         {
             yield return this.TableName;
