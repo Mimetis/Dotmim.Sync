@@ -1,43 +1,64 @@
-﻿using System;
+﻿using Dotmim.Sync.Enumerations;
+using System;
 using System.Data.Common;
-using System.Linq;
 using System.Threading.Tasks;
-using Dotmim.Sync.Builders;
-using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
 
 namespace Dotmim.Sync
 {
 
+    /// <summary>
+    /// Raised before a sync operation is done. Can override the whole processus, depending on the <see cref="SyncOperation"/> argument.
+    /// </summary>
     public class OperationArgs : ProgressArgs
     {
+        /// <inheritdoc cref="OperationArgs"/>
         public OperationArgs(SyncContext context, ScopeInfo serverScopeInfo, ScopeInfo clientScopeInfo, ScopeInfoClient scopeInfoClient, DbConnection connection = null, DbTransaction transaction = null)
         : base(context, connection, transaction)
-
         {
             this.ScopeInfoFromServer = serverScopeInfo;
             this.ScopeInfoFromClient = clientScopeInfo;
             this.ScopeInfoClient = scopeInfoClient;
         }
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
-        public override string Message => $"Overriding operation from server. Operation: {Operation}.";
-
+        /// <summary>
+        /// Gets or sets the operation to be done.
+        /// </summary>
         public SyncOperation Operation { get; set; }
 
-        public override int EventId => SyncEventsId.Provisioned.Id;
-
+        /// <summary>
+        /// Gets the scope info from the server.
+        /// </summary>
         public ScopeInfo ScopeInfoFromServer { get; }
+
+        /// <summary>
+        /// Gets the scope info from the client.
+        /// </summary>
         public ScopeInfo ScopeInfoFromClient { get; }
+
+        /// <summary>
+        /// Gets the client scope info.
+        /// </summary>
         public ScopeInfoClient ScopeInfoClient { get; }
+
+        /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
+
+        /// <inheritdoc cref="ProgressArgs.Message"/>
+        public override string Message => $"Overriding operation from server. Operation: {this.Operation}.";
+
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
+        public override int EventId => 5200;
     }
 
-    public static partial class InterceptorsExtensions
+    /// <summary>
+    /// Interceptor extension methods.
+    /// </summary>
+    public partial class InterceptorsExtensions
     {
 
         /// <summary>
-        /// Occurs when server receives a first request for a sync. Can override the whole processus, depending 
-        /// on the <see cref="SyncOperation"/> argument
+        /// Occurs when server receives a first request for a sync. Can override the whole processus, depending
+        /// on the <see cref="SyncOperation"/> argument.
         /// <example>
         /// <code>
         /// [HttpPost]
@@ -62,16 +83,5 @@ namespace Dotmim.Sync
         /// <inheritdoc cref="OnGettingOperation(BaseOrchestrator, Action{OperationArgs})"/>
         public static Guid OnGettingOperation(this BaseOrchestrator orchestrator, Func<OperationArgs, Task> action)
             => orchestrator.AddInterceptor(action);
-
-      
-
     }
-
-    public static partial class SyncEventsId
-    {
-        public static EventId Operation => CreateEventId(5200, nameof(Operation));
-    }
-
-
-
 }

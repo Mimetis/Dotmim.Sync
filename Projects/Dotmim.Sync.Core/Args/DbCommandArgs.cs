@@ -53,6 +53,9 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="ProgressArgs.Message"/>
         public override string Message => $"Sql Statement:{this.Command.CommandText}.";
+
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
+        public override int EventId => 94000;
     }
 
     /// <summary>
@@ -85,7 +88,7 @@ namespace Dotmim.Sync
         public override string Message => $"Sql Statement:{this.Command.CommandText}.";
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.ConnectionOpen.Id;
+        public override int EventId => 95000;
     }
 
     /// <summary>

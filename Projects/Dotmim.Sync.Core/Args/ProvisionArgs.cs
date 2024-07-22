@@ -1,25 +1,19 @@
-﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
+﻿using Dotmim.Sync.Enumerations;
 using System;
 using System.Data.Common;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
 
     /// <summary>
-    ///
+    /// Event args generated after a database has been provisioned.
     /// </summary>
     public class ProvisionedArgs : ProgressArgs
     {
         private readonly bool atLeastSomethingHasBeenCreated;
 
-        public SyncProvision Provision { get; }
-
-        public SyncSet Schema { get; }
-
+        /// <inheritdoc cref="ProvisionedArgs"/>
         public ProvisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, bool atLeastSomethingHasBeenCreated, DbConnection connection = null, DbTransaction transaction = null)
         : base(context, connection, transaction)
         {
@@ -28,15 +22,39 @@ namespace Dotmim.Sync
             this.atLeastSomethingHasBeenCreated = atLeastSomethingHasBeenCreated;
         }
 
+        /// <summary>
+        /// Gets the provision type (Flag enum).
+        /// </summary>
+        public SyncProvision Provision { get; }
+
+        /// <summary>
+        /// Gets the schema that has been applied in the database.
+        /// </summary>
+        public SyncSet Schema { get; }
+
+        /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
         public override SyncProgressLevel ProgressLevel => this.atLeastSomethingHasBeenCreated ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
 
+        /// <inheritdoc cref="ProgressArgs.Message"/>
         public override string Message => $"Provisioned {this.Schema.Tables.Count} Tables. Provision:{this.Provision}.";
 
-        public override int EventId => SyncEventsId.Provisioned.Id;
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
+        public override int EventId => 5050;
     }
 
+    /// <summary>
+    /// Event args generated before a database is provisioned.
+    /// </summary>
     public class ProvisioningArgs : ProgressArgs
     {
+        /// <inheritdoc cref="ProvisioningArgs"/>
+        public ProvisioningArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction)
+        : base(context, connection, transaction)
+        {
+            this.Provision = provision;
+            this.Schema = schema;
+        }
+
         /// <summary>
         /// Gets get the provision type (Flag enum).
         /// </summary>
@@ -47,28 +65,24 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncSet Schema { get; }
 
-        public ProvisioningArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction)
-        : base(context, connection, transaction)
-        {
-            this.Provision = provision;
-            this.Schema = schema;
-        }
-
+        /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
+        /// <inheritdoc cref="ProgressArgs.Message"/>
         public override string Message => $"Provisioning {this.Schema.Tables.Count} Tables. Provision:{this.Provision}.";
 
-        public override int EventId => SyncEventsId.Provisioning.Id;
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
+        public override int EventId => 5000;
     }
 
+    /// <summary>
+    /// Event args generated after a database has been deprovisioned.
+    /// </summary>
     public class DeprovisionedArgs : ProgressArgs
     {
         private readonly bool atLeastSomethingHasBeenDropped;
 
-        public SyncProvision Provision { get; }
-
-        public SyncSetup Setup { get; }
-
+        /// <inheritdoc cref="DeprovisionedArgs"/>
         public DeprovisionedArgs(SyncContext context, SyncProvision provision, SyncSetup setup, bool atLeastSomethingHasBeenDropped, DbConnection connection = null, DbTransaction transaction = null)
         : base(context, connection, transaction)
         {
@@ -77,15 +91,40 @@ namespace Dotmim.Sync
             this.Setup = setup;
         }
 
+        /// <summary>
+        /// Gets the provision type (Flag enum).
+        /// </summary>
+        public SyncProvision Provision { get; }
+
+        /// <summary>
+        /// Gets the schema that has been used to deprovision the database.
+        /// </summary>
+        public SyncSetup Setup { get; }
+
+        /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
         public override SyncProgressLevel ProgressLevel => this.atLeastSomethingHasBeenDropped ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
 
+        /// <inheritdoc cref="ProgressArgs.Message"/>
         public override string Message => $"Deprovisioned {this.Setup.Tables.Count} Tables. Deprovision:{this.Provision}.";
 
-        public override int EventId => SyncEventsId.Deprovisioned.Id;
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
+        public override int EventId => 5150;
     }
 
+    /// <summary>
+    /// Event args generated before a database is deprovisioned.
+    /// </summary>
     public class DeprovisioningArgs : ProgressArgs
     {
+
+        /// <inheritdoc cref="DeprovisioningArgs"/>
+        public DeprovisioningArgs(SyncContext context, SyncProvision provision, SyncSetup setup, DbConnection connection, DbTransaction transaction)
+        : base(context, connection, transaction)
+        {
+            this.Provision = provision;
+            this.Setup = setup;
+        }
+
         /// <summary>
         /// Gets get the provision type (Flag enum).
         /// </summary>
@@ -96,21 +135,20 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncSetup Setup { get; }
 
-        public DeprovisioningArgs(SyncContext context, SyncProvision provision, SyncSetup setup, DbConnection connection, DbTransaction transaction)
-        : base(context, connection, transaction)
-        {
-            this.Provision = provision;
-            this.Setup = setup;
-        }
-
+        /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
+        /// <inheritdoc cref="ProgressArgs.Message"/>
         public override string Message => $"Deprovisioning {this.Setup.Tables.Count} Tables. Deprovision:{this.Provision}.";
 
-        public override int EventId => SyncEventsId.Deprovisioning.Id;
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
+        public override int EventId => 5100;
     }
 
-    public static partial class InterceptorsExtensions
+    /// <summary>
+    /// Interceptors extensions.
+    /// </summary>
+    public partial class InterceptorsExtensions
     {
 
         /// <summary>
@@ -160,16 +198,5 @@ namespace Dotmim.Sync
         /// </summary>
         public static Guid OnDeprovisioned(this BaseOrchestrator orchestrator, Func<DeprovisionedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
-    }
-
-    public static partial class SyncEventsId
-    {
-        public static EventId Provisioning => CreateEventId(5000, nameof(Provisioning));
-
-        public static EventId Provisioned => CreateEventId(5050, nameof(Provisioned));
-
-        public static EventId Deprovisioning => CreateEventId(5100, nameof(Deprovisioning));
-
-        public static EventId Deprovisioned => CreateEventId(5150, nameof(Deprovisioned));
     }
 }

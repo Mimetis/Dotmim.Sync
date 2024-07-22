@@ -1,6 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Data.Common;
 using System.Threading.Tasks;
@@ -61,7 +60,7 @@ namespace Dotmim.Sync
             : $"[{this.SchemaTable.GetFullName()}] [{this.State}] Batch {this.BatchPartInfo.FileName} ({this.BatchPartInfo.Index + 1}/{this.BatchInfo.BatchPartsInfo.Count}) Applied.";
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.BacthChangesApplied.Id;
+        public override int EventId => 13170;
     }
 
     /// <summary>
@@ -120,7 +119,7 @@ namespace Dotmim.Sync
             : $"[{this.SchemaTable.GetFullName()}] Applying Batch {this.BatchPartInfo.FileName} ({this.BatchPartInfo.Index + 1}/{this.BatchInfo.BatchPartsInfo.Count}).";
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.BacthChangesApplying.Id;
+        public override int EventId => 13160;
     }
 
     /// <summary>
@@ -186,21 +185,5 @@ namespace Dotmim.Sync
         /// <inheritdoc cref="OnBatchChangesApplied(BaseOrchestrator, Action{BatchChangesAppliedArgs})"/>
         public static Guid OnBatchChangesApplied(this BaseOrchestrator orchestrator, Func<BatchChangesAppliedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
-    }
-
-    /// <summary>
-    /// Sync Events Id.
-    /// </summary>
-    public static partial class SyncEventsId
-    {
-        /// <summary>
-        /// Gets the unique event id.
-        /// </summary>
-        public static EventId BacthChangesApplying => CreateEventId(13160, nameof(BacthChangesApplying));
-
-        /// <summary>
-        /// Gets the unique event id.
-        /// </summary>
-        public static EventId BacthChangesApplied => CreateEventId(13170, nameof(BacthChangesApplied));
     }
 }

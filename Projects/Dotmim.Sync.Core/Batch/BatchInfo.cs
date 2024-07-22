@@ -9,7 +9,7 @@ using System.Runtime.Serialization;
 namespace Dotmim.Sync.Batch
 {
     /// <summary>
-    /// Represents a Batch, containing a full or serialized change set.
+    /// Represents a collection of files serialized in a directory, and containing all the batch parts.
     /// </summary>
     [DataContract(Name = "bi"), Serializable]
     public class BatchInfo
@@ -17,7 +17,8 @@ namespace Dotmim.Sync.Batch
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BatchInfo"/> class.
-        /// Ctor for serializer.
+        /// <inheritdoc cref="BatchInfo"/>
+        /// By default, the batch directory is the user temp directory.
         /// </summary>
         public BatchInfo()
         {
@@ -30,10 +31,7 @@ namespace Dotmim.Sync.Batch
 #endif
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="BatchInfo"/> class.
-        /// Create a new BatchInfo, containing all BatchPartInfo.
-        /// </summary>
+        /// <inheritdoc cref="BatchInfo"/>
         public BatchInfo(string rootDirectory, string directoryName = null, string info = null)
             : this()
         {

@@ -116,7 +116,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Sync Events Ids.
     /// </summary>
-    public static partial class SyncEventsId
+    public static class SyncEventsId
     {
 
         /// <summary>

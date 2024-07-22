@@ -1,6 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Data.Common;
 using System.Threading.Tasks;
@@ -50,7 +49,7 @@ namespace Dotmim.Sync
         public override string Message => $"Getting Changes. [{this.BatchDirectory}]. Batch size:{this.BatchSize}. IsNew:{this.IsNew}.";
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.DatabaseChangesSelecting.Id;
+        public override int EventId => 1000;
     }
 
     /// <summary>
@@ -92,7 +91,7 @@ namespace Dotmim.Sync
         public DatabaseChangesSelected ChangesSelected { get; }
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.DatabaseChangesSelected.Id;
+        public override int EventId => 1050;
     }
 
     /// <summary>
@@ -119,7 +118,7 @@ namespace Dotmim.Sync
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.DatabaseChangesApplying.Id;
+        public override int EventId => 1100;
     }
 
     /// <summary>
@@ -149,7 +148,7 @@ namespace Dotmim.Sync
             : $"[Total] Applied:{this.ChangesApplied.TotalAppliedChanges}. Conflicts:{this.ChangesApplied.TotalResolvedConflicts}.";
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.DatabaseChangesApplied.Id;
+        public override int EventId => 1150;
     }
 
     /// <summary>
@@ -232,32 +231,5 @@ namespace Dotmim.Sync
         /// <inheritdoc cref="OnDatabaseChangesSelected(BaseOrchestrator, Action{DatabaseChangesSelectedArgs})"/>
         public static Guid OnDatabaseChangesSelected(this BaseOrchestrator orchestrator, Func<DatabaseChangesSelectedArgs, Task> func)
             => orchestrator.AddInterceptor(func);
-    }
-
-    /// <summary>
-    /// Sync Events Ids.
-    /// </summary>
-    public partial class SyncEventsId
-    {
-
-        /// <summary>
-        /// Gets the event id for DatabaseChangesSelecting event.
-        /// </summary>
-        public static EventId DatabaseChangesSelecting => CreateEventId(1000, nameof(DatabaseChangesSelecting));
-
-        /// <summary>
-        /// Gets the event id for DatabaseChangesSelected event.
-        /// </summary>
-        public static EventId DatabaseChangesSelected => CreateEventId(1050, nameof(DatabaseChangesSelected));
-
-        /// <summary>
-        /// Gets the event id for DatabaseChangesApplying event.
-        /// </summary>
-        public static EventId DatabaseChangesApplying => CreateEventId(1100, nameof(DatabaseChangesApplying));
-
-        /// <summary>
-        /// Gets the event id for DatabaseChangesApplied event.
-        /// </summary>
-        public static EventId DatabaseChangesApplied => CreateEventId(1150, nameof(DatabaseChangesApplied));
     }
 }

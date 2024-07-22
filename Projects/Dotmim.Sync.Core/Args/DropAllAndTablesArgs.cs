@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using System;
+﻿using System;
 using System.Data.Common;
 using System.Threading.Tasks;
 
@@ -33,7 +32,7 @@ namespace Dotmim.Sync
         internal bool Confirm() => this.ConfirmYouWantToDeleteTables();
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.DropAll.Id;
+        public override int EventId => 9876;
     }
 
     /// <summary>
@@ -53,16 +52,5 @@ namespace Dotmim.Sync
         /// </summary>
         public static Guid OnDropAll(this BaseOrchestrator orchestrator, Func<DropAllArgs, Task> action)
             => orchestrator.AddInterceptor(action);
-    }
-
-    /// <summary>
-    /// Sync Events Id.
-    /// </summary>
-    public partial class SyncEventsId
-    {
-        /// <summary>
-        /// Gets DropAll event id.
-        /// </summary>
-        public static EventId DropAll => CreateEventId(9876, nameof(DropAll));
     }
 }

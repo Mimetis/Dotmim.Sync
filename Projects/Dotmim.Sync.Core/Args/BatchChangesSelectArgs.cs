@@ -1,6 +1,5 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Data.Common;
 using System.Threading.Tasks;
@@ -65,7 +64,7 @@ namespace Dotmim.Sync
             : $"[{this.SchemaTable.GetFullName()}] [{this.State}] Batch {this.BatchPartInfo.FileName} ({this.BatchPartInfo.Index + 1}) Created.";
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.BatchChangesCreated.Id;
+        public override int EventId => 13175;
     }
 
     /// <summary>
@@ -102,16 +101,5 @@ namespace Dotmim.Sync
         /// <inheritdoc cref="OnBatchChangesCreated(BaseOrchestrator, Action{BatchChangesCreatedArgs})"/>
         public static Guid OnBatchChangesCreated(this BaseOrchestrator orchestrator, Func<BatchChangesCreatedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
-    }
-
-    /// <summary>
-    /// Sync Events Id.
-    /// </summary>
-    public partial class SyncEventsId
-    {
-        /// <summary>
-        /// Gets the unique event id.
-        /// </summary>
-        public static EventId BatchChangesCreated => CreateEventId(13175, nameof(BatchChangesCreated));
     }
 }

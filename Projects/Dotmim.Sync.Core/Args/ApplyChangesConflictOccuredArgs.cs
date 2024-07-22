@@ -1,5 +1,4 @@
 ﻿using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Data.Common;
 using System.Threading.Tasks;
@@ -73,7 +72,7 @@ namespace Dotmim.Sync
         public override string Message => $"Conflict {this.conflictRow}.";
 
         /// <inheritdoc />
-        public override int EventId => SyncEventsId.ApplyChangesFailed.Id;
+        public override int EventId => 300;
     }
 
     /// <summary>
@@ -92,16 +91,5 @@ namespace Dotmim.Sync
         /// </summary>
         public static Guid OnApplyChangesConflictOccured(this BaseOrchestrator orchestrator, Func<ApplyChangesConflictOccuredArgs, Task> action)
             => orchestrator.AddInterceptor(action);
-    }
-
-    /// <summary>
-    /// Sync Events Id.
-    /// </summary>
-    public partial class SyncEventsId
-    {
-        /// <summary>
-        /// Gets the unique event id.
-        /// </summary>
-        public static EventId ApplyChangesFailed => CreateEventId(300, nameof(ApplyChangesFailed));
     }
 }

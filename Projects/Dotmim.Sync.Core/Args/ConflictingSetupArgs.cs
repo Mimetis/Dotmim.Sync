@@ -1,5 +1,4 @@
 ﻿using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Data.Common;
 using System.Threading.Tasks;
@@ -47,7 +46,7 @@ namespace Dotmim.Sync
         public ScopeInfo ServerScopeInfo { get; set; }
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.ConflictingSetup.Id;
+        public override int EventId => 5250;
     }
 
     /// <summary>
@@ -88,16 +87,5 @@ namespace Dotmim.Sync
         /// Rollback the sync, raising an error.
         /// </summary>
         Rollback,
-    }
-
-    /// <summary>
-    /// Sync Events Ids.
-    /// </summary>
-    public partial class SyncEventsId
-    {
-        /// <summary>
-        /// Gets the event id for a conflicting setup.
-        /// </summary>
-        public static EventId ConflictingSetup => CreateEventId(5250, nameof(ConflictingSetup));
     }
 }

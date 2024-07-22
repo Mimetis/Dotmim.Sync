@@ -1,5 +1,4 @@
 ﻿using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Data.Common;
 using System.Threading.Tasks;
@@ -63,7 +62,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the unique event id.
         /// </summary>
-        public override int EventId => SyncEventsId.ApplyChangesErrorOccured.Id;
+        public override int EventId => 301;
     }
 
     /// <summary>
@@ -83,16 +82,5 @@ namespace Dotmim.Sync
         /// </summary>
         public static Guid OnApplyChangesErrorOccured(this BaseOrchestrator orchestrator, Func<ApplyChangesErrorOccuredArgs, Task> action)
             => orchestrator.AddInterceptor(action);
-    }
-
-    /// <summary>
-    /// Sync Events Ids.
-    /// </summary>
-    public partial class SyncEventsId
-    {
-        /// <summary>
-        /// Gets apply changes error occured.
-        /// </summary>
-        public static EventId ApplyChangesErrorOccured => CreateEventId(301, nameof(ApplyChangesErrorOccured));
     }
 }

@@ -1,5 +1,4 @@
 ﻿using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -37,7 +36,7 @@ namespace Dotmim.Sync
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.MetadataCleaning.Id;
+        public override int EventId => 3000;
     }
 
     /// <summary>
@@ -47,10 +46,7 @@ namespace Dotmim.Sync
     {
         /// <inheritdoc cref="MetadataCleanedArgs"/>
         public MetadataCleanedArgs(SyncContext context, DatabaseMetadatasCleaned databaseMetadatasCleaned, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, connection, transaction)
-        {
-            this.DatabaseMetadatasCleaned = databaseMetadatasCleaned;
-        }
+            : base(context, connection, transaction) => this.DatabaseMetadatasCleaned = databaseMetadatasCleaned;
 
         /// <summary>
         /// Gets or Sets the rows count cleaned for all tables, during a DeleteMetadatasAsync call.
@@ -67,7 +63,7 @@ namespace Dotmim.Sync
             : $"Tables Cleaned:{this.DatabaseMetadatasCleaned.Tables.Count}. Rows Cleaned:{this.DatabaseMetadatasCleaned.RowsCleanedCount}. TimestampLimit:{this.DatabaseMetadatasCleaned.TimestampLimit}";
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.MetadataCleaned.Id;
+        public override int EventId => 3050;
     }
 
     /// <summary>
@@ -98,21 +94,5 @@ namespace Dotmim.Sync
         /// </summary>
         public static Guid OnMetadataCleaned(this BaseOrchestrator orchestrator, Func<MetadataCleanedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
-    }
-
-    /// <summary>
-    /// Sync Events Id.
-    /// </summary>
-    public partial class SyncEventsId
-    {
-        /// <summary>
-        /// Gets the unique event id.
-        /// </summary>
-        public static EventId MetadataCleaning => CreateEventId(3000, nameof(MetadataCleaning));
-
-        /// <summary>
-        /// Gets the unique event id.
-        /// </summary>
-        public static EventId MetadataCleaned => CreateEventId(3050, nameof(MetadataCleaned));
     }
 }

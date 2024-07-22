@@ -1,6 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Data.Common;
 using System.Threading.Tasks;
@@ -46,7 +45,7 @@ namespace Dotmim.Sync
         public override string Message => $"[{this.ColumnName}] Added.";
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.ColumnCreated.Id;
+        public override int EventId => 12350;
     }
 
     /// <summary>
@@ -96,7 +95,7 @@ namespace Dotmim.Sync
         public override string Message => $"[{this.ColumnName}] Adding.";
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.ColumnCreating.Id;
+        public override int EventId => 12300;
     }
 
     /// <summary>
@@ -135,7 +134,7 @@ namespace Dotmim.Sync
         public override string Message => $"[{this.ColumnName}] Dropped.";
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.ColumnDropped.Id;
+        public override int EventId => 12450;
     }
 
     /// <summary>
@@ -186,7 +185,7 @@ namespace Dotmim.Sync
         public override string Message => $"[{this.ColumnName}] Dropping.";
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.ColumnDropping.Id;
+        public override int EventId => 12400;
     }
 
     /// <summary>
@@ -241,31 +240,5 @@ namespace Dotmim.Sync
         /// </summary>
         public static Guid OnColumnDropped(this BaseOrchestrator orchestrator, Func<ColumnDroppedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
-    }
-
-    /// <summary>
-    /// Sync Events Id.
-    /// </summary>
-    public partial class SyncEventsId
-    {
-        /// <summary>
-        /// Gets the unique event id.
-        /// </summary>
-        public static EventId ColumnCreating => CreateEventId(12300, nameof(ColumnCreating));
-
-        /// <summary>
-        /// Gets the unique event id.
-        /// </summary>
-        public static EventId ColumnCreated => CreateEventId(12350, nameof(ColumnCreated));
-
-        /// <summary>
-        /// Gets the unique event id.
-        /// </summary>
-        public static EventId ColumnDropping => CreateEventId(12400, nameof(ColumnDropping));
-
-        /// <summary>
-        /// Gets the unique event id.
-        /// </summary>
-        public static EventId ColumnDropped => CreateEventId(12450, nameof(ColumnDropped));
     }
 }

@@ -1,5 +1,4 @@
 ﻿using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Data.Common;
 using System.Threading.Tasks;
@@ -36,7 +35,7 @@ namespace Dotmim.Sync
         public override string Message => $"Getting Local Timestamp.";
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
-        public override int EventId => SyncEventsId.LocalTimestampLoading.Id;
+        public override int EventId => 2000;
     }
 
     /// <summary>
@@ -44,22 +43,29 @@ namespace Dotmim.Sync
     /// </summary>
     public class LocalTimestampLoadedArgs : ProgressArgs
     {
+        /// <inheritdoc cref="LocalTimestampLoadedArgs"/>
         public LocalTimestampLoadedArgs(SyncContext context, long localTimestamp, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction)
-        {
-            this.LocalTimestamp = localTimestamp;
-        }
+            : base(context, connection, transaction) => this.LocalTimestamp = localTimestamp;
 
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
-
-        public override string Message => $"Local Timestamp Loaded:{this.LocalTimestamp}.";
-
+        /// <summary>
+        /// Gets the local timestamp loaded from the current provider.
+        /// </summary>
         public long LocalTimestamp { get; }
 
-        public override int EventId => SyncEventsId.LocalTimestampLoaded.Id;
+        /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
+
+        /// <inheritdoc cref="ProgressArgs.Message"/>/>
+        public override string Message => $"Local Timestamp Loaded:{this.LocalTimestamp}.";
+
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
+        public override int EventId => 2050;
     }
 
-    public static partial class InterceptorsExtensions
+    /// <summary>
+    /// Interceptor called before and after getting the local timestamp from the current provider.
+    /// </summary>
+    public partial class InterceptorsExtensions
     {
         /// <summary>
         /// Intercept the provider action when a database is reading a timestamp.
@@ -84,12 +90,5 @@ namespace Dotmim.Sync
         /// </summary>
         public static Guid OnLocalTimestampLoaded(this BaseOrchestrator orchestrator, Func<LocalTimestampLoadedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
-    }
-
-    public static partial class SyncEventsId
-    {
-        public static EventId LocalTimestampLoading => CreateEventId(2000, nameof(LocalTimestampLoading));
-
-        public static EventId LocalTimestampLoaded => CreateEventId(2050, nameof(LocalTimestampLoaded));
     }
 }

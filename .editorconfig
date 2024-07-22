@@ -183,6 +183,7 @@ dotnet_diagnostic.CA2016.severity = warning
 dotnet_diagnostic.SA1201.severity = none
 dotnet_diagnostic.IDE0047.severity = silent
 dotnet_diagnostic.IDE0048.severity = silent
+dotnet_diagnostic.IDE0290.severity = none
 
 
 [*.{cs,vb}]

@@ -174,10 +174,10 @@ namespace Dotmim.Sync
             // We don't get the conflict on automatic conflict resolution
             // Since it's an automatic resolution, we don't need to get the local conflict row
             // So far we get the conflict only if an interceptor exists
+            var arg = new ApplyChangesConflictOccuredArgs(scopeInfo, context, this, conflictRow, schemaChangesTable, resolution, senderScopeId, connection, transaction);
             if (interceptors.Count > 0)
             {
                 // Interceptor
-                var arg = new ApplyChangesConflictOccuredArgs(scopeInfo, context, this, conflictRow, schemaChangesTable, resolution, senderScopeId, connection, transaction);
                 await this.InterceptAsync(arg, progress, cancellationToken).ConfigureAwait(false);
 
                 resolution = arg.Resolution;
@@ -190,10 +190,7 @@ namespace Dotmim.Sync
             {
                 // Check logger, because we make some reflection here
                 if (this.Logger.IsEnabled(LogLevel.Debug))
-                {
-                    var args = new { Row = conflictRow, Resolution = resolution, Connection = connection, Transaction = transaction };
-                    this.Logger.LogDebug(new EventId(SyncEventsId.ApplyChangesFailed.Id, "ApplyChangesFailed"), args);
-                }
+                    this.Logger.LogDebug(new EventId(arg.EventId, "ApplyChangesConflictOccured"), arg);
             }
 
             // returning the action to take, and actually the finalRow if action is set to Merge
