@@ -200,7 +200,7 @@ namespace Dotmim.Sync
                         }
                     }, cancellationToken).ConfigureAwait(false);
 
-                failedRows.Dispose();
+                failedRows.Clear();
 
                 try
                 {

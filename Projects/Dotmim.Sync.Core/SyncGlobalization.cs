@@ -29,11 +29,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets a boolean indicating if the StringComparison is case sensitive.
         /// </summary>
-        /// <returns></returns>
-        public static bool IsCaseSensitive()
-        {
-            return DataSourceStringComparison.HasFlag(
+        public static bool IsCaseSensitive() => DataSourceStringComparison.HasFlag(
                 StringComparison.InvariantCulture | StringComparison.CurrentCulture | StringComparison.Ordinal);
-        }
     }
 }

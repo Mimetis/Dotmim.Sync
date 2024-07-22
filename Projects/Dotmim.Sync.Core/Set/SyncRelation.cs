@@ -5,8 +5,11 @@ using System.Runtime.Serialization;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Represents a relation between two tables.
+    /// </summary>
     [DataContract(Name = "sr"), Serializable]
-    public class SyncRelation : SyncNamedItem<SyncRelation>, IDisposable
+    public class SyncRelation : SyncNamedItem<SyncRelation>
     {
 
         /// <summary>
@@ -33,14 +36,17 @@ namespace Dotmim.Sync
         [IgnoreDataMember]
         public SyncSet Schema { get; set; }
 
+        /// <inheritdoc cref="SyncRelation"/>
         public SyncRelation() { }
 
+        /// <inheritdoc cref="SyncRelation"/>
         public SyncRelation(string relationName, SyncSet schema = null)
         {
             this.RelationName = relationName;
             this.Schema = schema;
         }
 
+        /// <inheritdoc cref="SyncRelation"/>
         public SyncRelation(string relationName, IList<SyncColumnIdentifier> columns, IList<SyncColumnIdentifier> parentColumns, SyncSet schema = null)
         {
             this.RelationName = relationName;
@@ -49,6 +55,9 @@ namespace Dotmim.Sync
             this.Schema = schema;
         }
 
+        /// <summary>
+        /// Return a clone of this relation.
+        /// </summary>
         public SyncRelation Clone()
         {
             var clone = new SyncRelation();
@@ -66,26 +75,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Clear.
         /// </summary>
-        public void Clear() => this.Dispose(true);
-
-        public void Dispose()
+        public void Clear()
         {
-            this.Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool cleanup)
-        {
-            // Dispose managed ressources
-            if (cleanup)
-            {
-                // clean rows
-                this.Keys.Clear();
-                this.ParentKeys.Clear();
-                this.Schema = null;
-            }
-
-            // Dispose unmanaged ressources
+            // clean rows
+            this.Keys.Clear();
+            this.ParentKeys.Clear();
+            this.Schema = null;
         }
 
         /// <summary>

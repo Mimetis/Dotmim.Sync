@@ -18,7 +18,6 @@ namespace Dotmim.Sync
         /// <param name="dependencies">dependencies.</param>
         /// <param name="throwOnCycle">if <see langword="true"/> throw exception if Cyclic dependency found.</param>
         /// <param name="defaultCapacity">default capacity of sorterd buffer.</param>
-        /// <returns></returns>
         public static IEnumerable<T> SortByDependencies<T>(
             this IEnumerable<T> source,
             Func<T, IEnumerable<T>> dependencies,

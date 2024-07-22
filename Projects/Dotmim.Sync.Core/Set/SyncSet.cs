@@ -5,8 +5,11 @@ using System.Runtime.Serialization;
 namespace Dotmim.Sync
 {
 
+    /// <summary>
+    /// Represents a Sync Set.
+    /// </summary>
     [DataContract(Name = "s"), Serializable]
-    public class SyncSet : IDisposable
+    public class SyncSet
     {
         /// <summary>
         /// Gets or Sets the sync set tables.
@@ -41,7 +44,6 @@ namespace Dotmim.Sync
         /// Initializes a new instance of the <see cref="SyncSet"/> class.
         /// Creates a new SyncSet based on a Sync setup (containing tables).
         /// </summary>
-        /// <param name="setup"></param>
         public SyncSet(SyncSetup setup)
             : this()
         {
@@ -97,49 +99,28 @@ namespace Dotmim.Sync
         /// <summary>
         /// Clear the SyncSet.
         /// </summary>
-        public void Clear() => this.Dispose(true);
-
-        /// <summary>
-        /// Dispose the whole SyncSet.
-        /// </summary>
-        public void Dispose()
+        public void Clear()
         {
-            this.Dispose(true);
             if (this.Tables != null)
-                this.Tables.Schema = null;
-            if (this.Relations != null)
-                this.Relations.Schema = null;
-            if (this.Filters != null)
-                this.Filters.Schema = null;
-
-            // GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool cleanup)
-        {
-            // Dispose managed ressources
-            if (cleanup)
             {
-                if (this.Tables != null)
-                {
-                    this.Tables.Clear();
-                    this.Tables = null;
-                }
-
-                if (this.Relations != null)
-                {
-                    this.Relations.Clear();
-                    this.Relations = null;
-                }
-
-                if (this.Filters != null)
-                {
-                    this.Filters.Clear();
-                    this.Filters = null;
-                }
+                this.Tables.Clear();
+                this.Tables.Schema = null;
+                this.Tables = null;
             }
 
-            // Dispose unmanaged ressources
+            if (this.Relations != null)
+            {
+                this.Relations.Clear();
+                this.Relations.Schema = null;
+                this.Relations = null;
+            }
+
+            if (this.Filters != null)
+            {
+                this.Filters.Clear();
+                this.Filters.Schema = null;
+                this.Filters = null;
+            }
         }
 
         /// <inheritdoc cref="SyncNamedItem{T}.EqualsByProperties(T)"/>
@@ -161,6 +142,9 @@ namespace Dotmim.Sync
             return true;
         }
 
+        /// <summary>
+        /// Returns a string that represents the current SyncSet.
+        /// </summary>
         public override string ToString() => $"{this.Tables.Count} tables";
 
         /// <summary>
@@ -198,6 +182,9 @@ namespace Dotmim.Sync
         /// </summary>
         public override bool Equals(object obj) => this.EqualsByProperties(obj as SyncSet);
 
+        /// <summary>
+        /// Returns the hash code for this instance.
+        /// </summary>
         public override int GetHashCode() => base.GetHashCode();
     }
 }

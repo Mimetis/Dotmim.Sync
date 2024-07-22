@@ -769,7 +769,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Get batch changes.
         /// </summary>
-        /// <returns></returns>
+        
         protected internal virtual Task<HttpMessageSendChangesResponse> GetMoreChangesAsync(HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
             SessionCache sessionCache, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         => this.GetChangesResponseAsync(httpContext, httpMessage.SyncContext, sessionCache.RemoteClientTimestamp,

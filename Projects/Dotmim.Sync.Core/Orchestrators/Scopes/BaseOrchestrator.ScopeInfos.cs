@@ -41,8 +41,10 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (!exists)
+                    {
                         await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     List<ScopeInfo> localScopes;
                     (context, localScopes) = await this.InternalLoadAllScopeInfosAsync(
@@ -87,8 +89,10 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (!exists)
+                    {
                         await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     (context, scopeInfo) = await this.InternalSaveScopeInfoAsync(scopeInfo, context,
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
@@ -130,8 +134,10 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (!exists)
+                    {
                         await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     bool isDeleted;
                     (context, isDeleted) = await this.InternalDeleteScopeInfoAsync(scopeInfo, context,

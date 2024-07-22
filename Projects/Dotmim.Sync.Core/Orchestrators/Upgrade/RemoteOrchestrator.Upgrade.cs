@@ -291,8 +291,10 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (!existsCScopeInfo)
+                    {
                         (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     message = $"- Created new version of {sScopeInfoTableName} table.";
                     await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress, cancellationToken).ConfigureAwait(false);
@@ -305,8 +307,10 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (!existsCScopeInfoClient)
+                    {
                         (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     message = $"- Created {sScopeInfoClientTableName} table.";
                     await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress, cancellationToken).ConfigureAwait(false);

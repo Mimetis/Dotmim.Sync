@@ -213,7 +213,7 @@ namespace Dotmim.Sync
                     IEnumerable<SyncTable> schemaTables;
                     if (scopeInfo == null)
                     {
-                        schemaTables = new List<SyncTable>();
+                        schemaTables = [];
                     }
                     else
                     {
@@ -223,7 +223,7 @@ namespace Dotmim.Sync
                         }
                         else
                         {
-                            schemaTables = new List<SyncTable>();
+                            schemaTables = [];
                             foreach (var setupTable in scopeInfo.Setup.Tables)
                                 ((List<SyncTable>)schemaTables).Add(new SyncTable(setupTable.TableName, setupTable.SchemaName));
                         }
@@ -273,7 +273,7 @@ namespace Dotmim.Sync
                             (context, spDropped) = await this.InternalDropStoredProceduresAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, progress, cancellationToken).ConfigureAwait(false);
 
                             // Removing cached commands
-                            this.RemoveCommands();
+                            BaseOrchestrator.RemoveCommands();
 
                             if (spDropped && !atLeastOneStoredProcedureHasBeenDropped)
                                 atLeastOneStoredProcedureHasBeenDropped = true;

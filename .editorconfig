@@ -184,6 +184,15 @@ dotnet_diagnostic.SA1201.severity = none
 dotnet_diagnostic.IDE0047.severity = silent
 dotnet_diagnostic.IDE0048.severity = silent
 dotnet_diagnostic.IDE0290.severity = none
+dotnet_diagnostic.SA1611.severity = none
+dotnet_diagnostic.SA1615.severity = none
+dotnet_diagnostic.SA1117.severity = none
+dotnet_diagnostic.SA1503.severity = none
+dotnet_diagnostic.SA1649.severity = none
+dotnet_diagnostic.SA1502.severity = silent
+dotnet_diagnostic.IDE0042.severity = none
+dotnet_diagnostic.IDE0130.severity = none
+dotnet_diagnostic.IDE0060.severity = silent
 
 
 [*.{cs,vb}]
@@ -268,11 +277,14 @@ dotnet_style_predefined_type_for_locals_parameters_members = true:silent
 dotnet_diagnostic.CA1848.severity = none
 dotnet_diagnostic.CA2254.severity = none
 dotnet_diagnostic.CA1068.severity = warning
-dotnet_diagnostic.CA1710.severity = suggestion
+dotnet_diagnostic.CA1710.severity = none
 dotnet_diagnostic.CA1308.severity = suggestion
-dotnet_diagnostic.CA2201.severity = suggestion
+dotnet_diagnostic.CA2201.severity = silent
 dotnet_diagnostic.CA1305.severity = suggestion
 dotnet_diagnostic.CA1863.severity = none
 dotnet_code_quality_unused_parameters = all:suggestion
-dotnet_diagnostic.CA1002.severity = suggestion
-dotnet_diagnostic.CA1062.severity = suggestion
+dotnet_diagnostic.CA1002.severity = silent
+dotnet_diagnostic.CA1062.severity = silent
+dotnet_diagnostic.CA5362.severity = none
+dotnet_diagnostic.CA1024.severity = silent
+dotnet_diagnostic.CA1721.severity = silent

@@ -10,6 +10,9 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Contains methods to get a scope info from the remote data source.
+    /// </summary>
     public partial class RemoteOrchestrator : BaseOrchestrator
     {
         /// <summary>
@@ -31,10 +34,9 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </summary>
-        /// <param name="scopeName"></param>
+        /// <param name="scopeName">Scope Name.</param>
         /// <param name="connection">Optional Connection.</param>
         /// <param name="transaction">Optional Transaction.</param>
-        /// <returns></returns>
         public virtual async Task<ScopeInfo> GetScopeInfoAsync(string scopeName, DbConnection connection = default, DbTransaction transaction = default)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
@@ -75,10 +77,9 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </summary>
-        /// <param name="setup"></param>
+        /// <param name="setup">Setup.</param>
         /// <param name="connection">Optional Connection.</param>
         /// <param name="transaction">Optional Transaction.</param>
-        /// <returns></returns>
         public virtual Task<ScopeInfo> GetScopeInfoAsync(SyncSetup setup, DbConnection connection = default, DbTransaction transaction = default)
             => this.GetScopeInfoAsync(SyncOptions.DefaultScopeName, setup, connection, transaction);
 
@@ -100,7 +101,10 @@ namespace Dotmim.Sync
             }
         }
 
-        internal virtual async Task<(SyncContext context, ScopeInfo serverScopeInfo, bool shouldProvision)> InternalEnsureScopeInfoAsync(SyncContext context, SyncSetup setup, bool overwrite,
+        /// <summary>
+        /// Ensure the scope info is present on the remote data source. If not, creates a new one.
+        /// </summary>
+        internal virtual async Task<(SyncContext Context, ScopeInfo ServerScopeInfo, bool ShouldProvision)> InternalEnsureScopeInfoAsync(SyncContext context, SyncSetup setup, bool overwrite,
             DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             try
@@ -196,10 +200,10 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Check.
+        /// Check if the setup is conflicting with the server setup. If it is, user can choose to rollback, abort or continue.
         /// </summary>
-        internal virtual async Task<(SyncContext, bool, ScopeInfo)> InternalIsConflictingSetupAsync(SyncContext context, SyncSetup inputSetup, ScopeInfo sScopeInfo,
-            DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal virtual async Task<(SyncContext SyncContext, bool IsConflicting, ScopeInfo ScopeInfo)> InternalIsConflictingSetupAsync(SyncContext context, SyncSetup inputSetup, ScopeInfo sScopeInfo,
+            DbConnection connection = default, DbTransaction transaction = default, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             if (sScopeInfo.Schema == null)
                 return (context, false, sScopeInfo);

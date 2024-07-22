@@ -186,7 +186,7 @@ namespace Dotmim.Sync
                             batchIndex++;
                         }
 
-                        failedRows.Dispose();
+                        failedRows.Clear();
                     }
 
                     // generate the new scope item

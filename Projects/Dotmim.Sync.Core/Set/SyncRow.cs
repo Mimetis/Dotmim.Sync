@@ -1,32 +1,29 @@
 ﻿using Dotmim.Sync.Enumerations;
 using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Diagnostics;
-using System.Linq;
+using System.Globalization;
 using System.Text;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Represents a row in a table.
+    /// </summary>
     public class SyncRow
     {
         // all the values for this line
         private object[] buffer;
 
         /// <summary>
-        /// Gets or Sets the row's table
+        /// Gets or Sets the row's table.
         /// </summary>
-        
         public SyncTable SchemaTable { get; set; }
 
+        /// <inheritdoc cref="SyncRow" />/>
         public SyncRow()
         {
-            
         }
 
-        /// <summary>
-        /// Add a new buffer row
-        /// </summary>
+        /// <inheritdoc cref="SyncRow" />/>
         public SyncRow(SyncTable schemaTable, SyncRowState state = SyncRowState.None)
         {
             // Buffer is +1 to store state
@@ -40,12 +37,11 @@ namespace Dotmim.Sync
 
             // Affect new state
             this.buffer[0] = (int)state;
-
         }
 
-
         /// <summary>
-        /// Add a new buffer row. This ctor does not make a copy
+        /// Initializes a new instance of the <see cref="SyncRow"/> class.
+        /// Add a new buffer row. This ctor does not make a copy.
         /// </summary>
         public SyncRow(SyncTable schemaTable, object[] row)
         {
@@ -63,39 +59,33 @@ namespace Dotmim.Sync
 
             // Get a ref
             this.SchemaTable = schemaTable;
-
         }
 
         /// <summary>
-        /// Gets the state of the row
+        /// Gets or sets the state of the row.
         /// </summary>
         public SyncRowState RowState
         {
-            get => (SyncRowState)Convert.ToInt32(this.buffer[0]);
+            get => (SyncRowState)SyncTypeConverter.TryConvertTo<int>(this.buffer[0]);
             set => this.buffer[0] = (int)value;
         }
 
         /// <summary>
-        /// Gets the row Length
+        /// Gets the row Length.
         /// </summary>
         public int Length { get; }
 
         /// <summary>
-        /// Get the value in the array that correspond to the column index given
+        /// Get the value in the array that correspond to the column index given.
         /// </summary>
         public object this[int index]
         {
-            get => buffer[index + 1];
+            get => this.buffer[index + 1];
             set => this.buffer[index + 1] = value;
         }
 
         /// <summary>
-        /// Get the value in the array that correspond to the SchemaColumn instance given
-        /// </summary>
-        public object this[SyncColumn column] => this[column.ColumnName];
-
-        /// <summary>
-        /// Get the value in the array that correspond to the column name given
+        /// Get the value in the array that correspond to the column name given.
         /// </summary>
         public object this[string columnName]
         {
@@ -110,6 +100,7 @@ namespace Dotmim.Sync
 
                 return this[index];
             }
+
             set
             {
                 var column = this.SchemaTable.Columns[columnName];
@@ -124,20 +115,17 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Get the inner copy array
+        /// Get the inner copy array.
         /// </summary>
-        /// <returns></returns>
         public object[] ToArray() => this.buffer;
 
-
         /// <summary>
-        /// Clear the data in the buffer
+        /// Clear the data in the buffer.
         /// </summary>
         public void Clear() => Array.Clear(this.buffer, 0, this.buffer.Length);
 
-
         /// <summary>
-        /// ToString()
+        /// ToString().
         /// </summary>
         public override string ToString()
         {
@@ -149,7 +137,11 @@ namespace Dotmim.Sync
 
             var sb = new StringBuilder();
 
+#if NET6_0_OR_GREATER
+            sb.Append(CultureInfo.InvariantCulture, $"[Sync state]:{this.RowState}");
+#else
             sb.Append($"[Sync state]:{this.RowState}");
+#endif
 
             var columns = this.RowState == SyncRowState.Deleted ? this.SchemaTable.GetPrimaryKeysColumns() : this.SchemaTable.Columns;
 
@@ -158,7 +150,11 @@ namespace Dotmim.Sync
                 var o = this[c.ColumnName];
                 var os = o == null ? "<NULL />" : o.ToString();
 
+#if NET6_0_OR_GREATER
+                sb.Append(CultureInfo.InvariantCulture, $", [{c.ColumnName}]:{os}");
+#else
                 sb.Append($", [{c.ColumnName}]:{os}");
+#endif
             }
 
             return sb.ToString();

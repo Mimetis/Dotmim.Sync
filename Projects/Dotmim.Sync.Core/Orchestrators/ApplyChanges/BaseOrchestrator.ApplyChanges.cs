@@ -71,8 +71,11 @@ namespace Dotmim.Sync
                     if (context.SyncWay == SyncWay.Download && context.SyncType != SyncType.Normal && !message.SnapshoteApplied)
                     {
                         foreach (var table in reverseSchemaTables)
+                        {
+
                             context = await this.InternalResetTableAsync(scopeInfo, context, table, connection, transaction,
                                         progress, cancellationToken).ConfigureAwait(false);
+                        }
                     }
 
                     // Trying to change order (from deletes-upserts to upserts-deletes)
@@ -112,8 +115,10 @@ namespace Dotmim.Sync
 
                     // Re enable check constraints
                     if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnSessionLevel)
+                    {
                         foreach (var table in schemaTables)
                             context = await this.InternalEnableConstraintsAsync(scopeInfo, context, table, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
+                    }
                 }
 
                 // if we set option to clean folder && message allows to clean (it won't allow to clean if batch is an error batch)
@@ -184,7 +189,7 @@ namespace Dotmim.Sync
             this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. table {{TableName}}. init {{Init}} command type {{DbCommandType}}", schemaTable.GetFullName(), init, dbCommandType);
 
             // tmp sync table with only writable columns
-            using var changesSet = schemaTable.Schema.Clone(false);
+            var changesSet = schemaTable.Schema.Clone(false);
             var schemaChangesTable = CreateChangesTable(schemaTable, changesSet);
 
             // get executioning adapter
@@ -335,8 +340,10 @@ namespace Dotmim.Sync
 
                                     // Check conflicts
                                     if (conflictSyncRows != null && conflictSyncRows.Count > 0)
+                                    {
                                         foreach (var conflictRow in conflictSyncRows)
                                             conflictRows.Add(conflictRow);
+                                    }
                                 }
                                 else
                                 {
@@ -377,7 +384,9 @@ namespace Dotmim.Sync
                                         if (applyType == SyncRowState.Deleted && batchRow.RowState != SyncRowState.RetryDeletedOnNextSync && batchRow.RowState != SyncRowState.Deleted)
                                             continue;
 
+#pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
                                         command.CommandText = cmdText;
+#pragma warning restore CA2100 // Review SQL queries for security vulnerabilities
                                         command.Connection = runner.Connection;
                                         command.Transaction = runner.Transaction;
 
@@ -559,7 +568,7 @@ namespace Dotmim.Sync
             DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
 
-            var batchArgs = new RowsChangesApplyingArgs(context, message.Changes, new List<SyncRow> { syncRow }, schemaChangesTable, applyType, command, connection, transaction);
+            var batchArgs = new RowsChangesApplyingArgs(context, message.Changes, [syncRow], schemaChangesTable, applyType, command, connection, transaction);
             await this.InterceptAsync(batchArgs, progress, cancellationToken).ConfigureAwait(false);
 
             if (batchArgs.Cancel || batchArgs.Command == null || batchArgs.SyncRows == null || batchArgs.SyncRows.Count <= 0)
@@ -601,7 +610,7 @@ namespace Dotmim.Sync
                 errorException = new Exception(errorMessage, ex);
             }
 
-            var rowAppliedArgs = new RowsChangesAppliedArgs(context, message.Changes, new List<SyncRow> { batchArgs.SyncRows[0] }, schemaChangesTable, applyType, rowAppliedCount, errorException, connection, transaction);
+            var rowAppliedArgs = new RowsChangesAppliedArgs(context, message.Changes, [batchArgs.SyncRows[0]], schemaChangesTable, applyType, rowAppliedCount, errorException, connection, transaction);
             await this.InterceptAsync(rowAppliedArgs, progress, cancellationToken).ConfigureAwait(false);
 
             return (rowAppliedCount, errorException);
@@ -755,12 +764,20 @@ namespace Dotmim.Sync
             return (appliedRows, conflictsResolvedCount, failedRows, failureException);
         }
 
+        /// <summary>
+        /// Internal method to apply clean errors.
+        /// </summary>
         internal virtual async Task InternalApplyCleanErrorsAsync(ScopeInfo scopeInfo, SyncContext context,
                          BatchInfo lastSyncErrorsBatchInfo, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
                          IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             if (lastSyncErrorsBatchInfo == null)
                 return;
+
+            LocalJsonSerializer localSerializerReader = null;
+
+            LocalJsonSerializer localSerializerWriter = null;
+
             try
             {
                 context.SyncStage = SyncStage.ChangesApplying;
@@ -787,18 +804,15 @@ namespace Dotmim.Sync
                     var schemaChangesTable = CreateChangesTable(schemaTable, changesSet);
 
                     // get bpi from changes to be isApplied
-                    var bpiTables = message.Changes.GetBatchPartsInfos(schemaTable);
+                    var bpiTables = message.Changes.GetBatchPartsInfos(schemaTable)?.ToList();
 
-                    if (bpiTables == null || !bpiTables.Any())
+                    if (bpiTables == null || bpiTables.Count == 0)
                         continue;
 
-                    var tableBpis = lastSyncErrorsBatchInfo.GetBatchPartsInfos(schemaTable);
+                    var tableBpis = lastSyncErrorsBatchInfo.GetBatchPartsInfos(schemaTable)?.ToList();
 
-                    if (tableBpis == null || !tableBpis.Any())
+                    if (tableBpis == null || tableBpis.Count == 0)
                         continue;
-
-                    using var localSerializerReader = new LocalJsonSerializer(this, context);
-                    using var localSerializerWriter = new LocalJsonSerializer(this, context);
 
                     // Load in memory failed rows for this table
                     var failedRows = new List<SyncRow>();
@@ -806,8 +820,15 @@ namespace Dotmim.Sync
                     // Read already present lines
                     var lastSyncErrorsBpiFullPath = lastSyncErrorsBatchInfo.GetBatchPartInfoFullPath(tableBpis.ToList()[0]);
 
-                    var syncRows = localSerializerReader.GetRowsFromFile(lastSyncErrorsBpiFullPath, schemaChangesTable);
-                    failedRows.AddRange(syncRows);
+                    using (var localFailedRowsSerializerReader = new LocalJsonSerializer(this, context))
+                    {
+                        var syncRows = localFailedRowsSerializerReader.GetRowsFromFile(lastSyncErrorsBpiFullPath, schemaChangesTable);
+                        failedRows.AddRange(syncRows);
+                    }
+
+                    localSerializerReader = new LocalJsonSerializer(this, context);
+
+                    localSerializerWriter = new LocalJsonSerializer(this, context);
 
                     // Open again the same file
                     await localSerializerWriter.OpenFileAsync(lastSyncErrorsBpiFullPath, schemaChangesTable, SyncRowState.None).ConfigureAwait(false);
@@ -851,6 +872,20 @@ namespace Dotmim.Sync
             catch (Exception ex)
             {
                 throw this.GetSyncError(context, ex);
+            }
+            finally
+            {
+                if (localSerializerWriter != null)
+                {
+                    await localSerializerWriter.CloseFileAsync().ConfigureAwait(false);
+                    await localSerializerWriter.DisposeAsync().ConfigureAwait(false);
+                }
+
+                if (localSerializerReader != null)
+                {
+                    await localSerializerReader.CloseFileAsync().ConfigureAwait(false);
+                    await localSerializerReader.DisposeAsync().ConfigureAwait(false);
+                }
             }
         }
     }

@@ -761,7 +761,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         /// Manipulate the client scope as it should be marked as not new (and set the correct timestamps)
         /// Then trying to sync
         /// </summary>
-        /// <returns></returns>
+        
         [Fact]
         public virtual async Task StartingWithARestoredBackupOnClientWithData()
         {

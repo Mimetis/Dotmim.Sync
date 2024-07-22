@@ -49,11 +49,17 @@ namespace Dotmim.Sync
                     bool operationComplete;
 
                     if (applyType == SyncRowState.Deleted)
+                    {
+
                         (_, operationComplete, operationException) = await this.InternalApplyDeleteAsync(scopeInfo, context, batchInfo, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
                             connection, transaction, progress, cancellationToken).ConfigureAwait(false);
+                    }
                     else
+                    {
+
                         (_, operationComplete, operationException) = await this.InternalApplyUpdateAsync(scopeInfo, context, batchInfo, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
                             connection, transaction, progress, cancellationToken).ConfigureAwait(false);
+                    }
 
                     if (operationComplete)
                     {

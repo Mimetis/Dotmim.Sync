@@ -52,6 +52,11 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
+        /// Remove a Command from internal shared dictionary.
+        /// </summary>
+        internal static void RemoveCommands() => preparedCommands.Clear();
+
+        /// <summary>
         /// Get the command from provider, check connection is opened, affect connection and transaction
         /// Prepare the command parameters and add scope parameters.
         /// </summary>
@@ -190,7 +195,7 @@ namespace Dotmim.Sync
             if (tableFilter != null && tableFilter.Parameters != null && tableFilter.Parameters.Count > 0)
             {
                 // context parameters can be null at some point.
-                var contexParameters = context.Parameters ?? new SyncParameters();
+                var contexParameters = context.Parameters ?? [];
 
                 foreach (var filterParam in tableFilter.Parameters)
                 {
@@ -257,10 +262,5 @@ namespace Dotmim.Sync
 
             return command;
         }
-
-        /// <summary>
-        /// Remove a Command from internal shared dictionary.
-        /// </summary>
-        internal void RemoveCommands() => preparedCommands.Clear();
     }
 }

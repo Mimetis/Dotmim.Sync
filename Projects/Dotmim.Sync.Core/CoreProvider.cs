@@ -16,9 +16,6 @@ namespace Dotmim.Sync
     public abstract partial class CoreProvider
     {
 
-        internal Action<DbConnection> onConnectionOpened = new(c => { });
-        internal Action<DbConnection> onConnectionClosed = new(c => { });
-
         /// <summary>
         /// Gets the reference to the orchestrator owner of this instance.
         /// </summary>
@@ -29,12 +26,16 @@ namespace Dotmim.Sync
         /// <summary>
         /// Connection is opened. this method is called before any Interceptors.
         /// </summary>
-        public virtual void OnConnectionOpened(Action<DbConnection> onConnectionOpened) => this.onConnectionOpened = onConnectionOpened;
+        public virtual void OnConnectionOpened(DbConnection connection)
+        {
+        }
 
         /// <summary>
         /// Connection is closed. this method is called after all Interceptors.
         /// </summary>
-        public virtual void OnConnectionClosed(Action<DbConnection> onConnectionClosed) => this.onConnectionClosed = onConnectionClosed;
+        public virtual void OnConnectionClosed(DbConnection connection)
+        {
+        }
 
         /// <summary>
         /// Create a new instance of the implemented Connection provider.
@@ -44,13 +45,11 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get Database Builder which can create object at the database level.
         /// </summary>
-        /// <returns></returns>
         public abstract DbBuilder GetDatabaseBuilder();
 
         /// <summary>
         /// Get a table builder helper which can create object at the table level.
         /// </summary>
-        /// <returns></returns>
         public abstract DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName);
 
         /// <summary>
@@ -81,7 +80,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the database name if any.
         /// </summary>
-        /// <returns></returns>
         public abstract string GetDatabaseName();
 
         /// <summary>
@@ -127,7 +125,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets additional options for the provider.
         /// </summary>
-        public Dictionary<string, string> AdditionalProperties { get; } = new();
+        public Dictionary<string, string> AdditionalProperties { get; } = [];
 
         /// <summary>
         /// Get naming tables.
@@ -137,7 +135,9 @@ namespace Dotmim.Sync
         /// <summary>
         /// Let a chance to provider to enrich SyncExecption.
         /// </summary>
-        public virtual void EnsureSyncException(SyncException syncException) { }
+        public virtual void EnsureSyncException(SyncException syncException)
+        {
+        }
 
         /// <summary>
         /// Let's a chance to retry on error if connection has been refused.

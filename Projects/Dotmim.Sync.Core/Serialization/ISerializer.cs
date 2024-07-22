@@ -19,7 +19,6 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Gets the serializer.
         /// </summary>
-        /// <returns></returns>
         ISerializer GetSerializer();
     }
 

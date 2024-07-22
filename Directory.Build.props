@@ -28,7 +28,7 @@
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<NoWarn>1591;SA1503;SA1519;SA1117;SA1611;SA1615;SA1616;SA1502;SA1649;</NoWarn>
+		<NoWarn></NoWarn>
 	</PropertyGroup>
 
 

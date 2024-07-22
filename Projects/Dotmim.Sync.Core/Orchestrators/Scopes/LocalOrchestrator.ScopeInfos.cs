@@ -53,6 +53,9 @@ namespace Dotmim.Sync
         public virtual Task<ScopeInfo> GetScopeInfoAsync(DbConnection connection = null, DbTransaction transaction = null)
             => this.GetScopeInfoAsync(SyncOptions.DefaultScopeName, connection, transaction);
 
+        /// <summary>
+        /// Ensure the scope info is created on the client side. If the scope info table is not existing, it will be created.
+        /// </summary>
         internal virtual async Task<(SyncContext Context, ScopeInfo ServerScopeInfo)> InternalEnsureScopeInfoAsync(
             SyncContext context,
             DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)

@@ -173,7 +173,6 @@ namespace Dotmim.Sync
         /// <param name="transaction">Optional Transaction.</param>
         /// <param name="progress">option IProgress{ProgressArgs}.</param>
         /// <param name="cancellationToken">optional cancellation token.</param>
-        /// <returns></returns>
         public virtual Task<bool> DeprovisionAsync(SyncProvision provision = default, DbConnection connection = null, DbTransaction transaction = null, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
             => this.DeprovisionAsync(SyncOptions.DefaultScopeName, provision, connection, transaction, progress, cancellationToken);
 
@@ -196,9 +195,12 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (exists)
+                    {
+
                         (context, serverScopeInfo) = await this.InternalLoadScopeInfoAsync(
                             context,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     bool isDeprovisioned;
                     (context, isDeprovisioned) = await this.InternalDeprovisionAsync(serverScopeInfo, context, provision,
@@ -245,7 +247,6 @@ namespace Dotmim.Sync
         /// <param name="transaction">Optional Transaction.</param>
         /// <param name="progress">optional IProgress{ProgressArgs}.</param>
         /// <param name="cancellationToken">optional cancellation token.</param>
-        /// <returns></returns>
         public virtual async Task<bool> DeprovisionAsync(string scopeName, SyncSetup setup, SyncProvision provision = default,
             DbConnection connection = null, DbTransaction transaction = null, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
@@ -306,14 +307,17 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (exists)
+                    {
+
                         (context, serverScopeInfos) = await this.InternalLoadAllScopeInfosAsync(
                             context,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     // fallback to "try to drop an hypothetical default scope"
-                    serverScopeInfos ??= new List<ScopeInfo>();
+                    serverScopeInfos ??= [];
 
-                    var existingFilters = serverScopeInfos?.SelectMany(si => si.Setup == null ? new SetupFilters() : si.Setup.Filters).ToList();
+                    var existingFilters = serverScopeInfos?.SelectMany(si => si.Setup == null ? [] : si.Setup.Filters).ToList();
 
                     var defaultServerScopeInfo = InternalCreateScopeInfo(SyncOptions.DefaultScopeName);
 

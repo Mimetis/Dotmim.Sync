@@ -91,7 +91,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets a readable version of LastSyncDuration.
         /// </summary>
-        /// <returns></returns>
         [IgnoreDataMember]
         public string LastSyncDurationString
         {

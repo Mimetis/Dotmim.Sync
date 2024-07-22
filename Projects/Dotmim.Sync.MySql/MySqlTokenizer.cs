@@ -263,7 +263,7 @@ namespace Dotmim.Sync.MySql
         ///  Read a single quoted identifier from the stream
         /// </summary>
         /// <param name="quoteChar"></param>
-        /// <returns></returns>
+        
         private void ReadQuotedToken(char quoteChar)
         {
             if (quoteChar == '[')

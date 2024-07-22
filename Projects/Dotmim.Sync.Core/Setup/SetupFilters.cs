@@ -1,47 +1,48 @@
-﻿using Dotmim.Sync.Builders;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Data;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
 
 namespace Dotmim.Sync
 {
+
+    /// <summary>
+    /// Setup filters for a table.
+    /// </summary>
     [CollectionDataContract(Name = "fils", ItemName = "fil"), Serializable]
     public class SetupFilters : ICollection<SetupFilter>, IList<SetupFilter>
     {
         /// <summary>
-        /// Exposing the InnerCollection for serialization purpose
+        /// Gets or sets exposing the InnerCollection for serialization purpose.
         /// </summary>
         [DataMember(Name = "c", IsRequired = true, Order = 1)]
         public Collection<SetupFilter> InnerCollection { get; set; } = new Collection<SetupFilter>();
 
         /// <summary>
-        /// Create a default collection for SerializersFactory
+        /// Initializes a new instance of the <see cref="SetupFilters"/> class.
+        /// Create a default collection for SerializersFactory.
         /// </summary>
         public SetupFilters()
         {
         }
 
         /// <summary>
-        /// Add a new filter 
+        /// Add a new filter.
         /// </summary>
         public void Add(SetupFilter item)
         {
-            if (string.IsNullOrEmpty(item.TableName))
-                throw new ArgumentNullException("A SetupFilter needs a table name on which the filter is applied.");
+            Guard.ThrowIfNullOrEmpty(item.TableName, "A SetupFilter needs a table name on which the filter is applied.");
 
-            if (InnerCollection.Any(st => item.EqualsByName(st)))
+            if (this.InnerCollection.Any(st => item.EqualsByName(st)))
                 throw new FilterAlreadyExistsException(item.TableName);
 
             this.InnerCollection.Add(item);
         }
 
         /// <summary>
-        /// Add a new filter 
+        /// Add a new filter.
         /// </summary>
         public SetupFilters Add(string tableName, string columnName, string schemaName = null, bool allowNull = false)
         {
@@ -58,21 +59,69 @@ namespace Dotmim.Sync
             return this;
         }
 
-
+        /// <summary>
+        /// Clear all filters.
+        /// </summary>
         public void Clear() => this.InnerCollection.Clear();
-        public SetupFilter this[int index] => InnerCollection[index];
-        public int Count => InnerCollection.Count;
+
+        /// <summary>
+        /// Gets the number of elements contained in the collection.
+        /// </summary>
+        public int Count => this.InnerCollection.Count;
+
+        /// <summary>
+        /// Gets a value indicating whether the collection is read-only.
+        /// </summary>
         public bool IsReadOnly => false;
-        SetupFilter IList<SetupFilter>.this[int index] { get => InnerCollection[index]; set => InnerCollection[index] = value; }
-        public void Insert(int index, SetupFilter item) => InnerCollection.Insert(index, item);
-        public bool Remove(SetupFilter item) => InnerCollection.Remove(item);
-        public bool Contains(SetupFilter item) => InnerCollection.Any(f => f.EqualsByName(item));
-        public void CopyTo(SetupFilter[] array, int arrayIndex) => InnerCollection.CopyTo(array, arrayIndex);
-        public int IndexOf(SetupFilter item) => InnerCollection.IndexOf(item);
-        public void RemoveAt(int index) => InnerCollection.RemoveAt(index);
-        IEnumerator IEnumerable.GetEnumerator() => InnerCollection.GetEnumerator();
-        public IEnumerator<SetupFilter> GetEnumerator() => InnerCollection.GetEnumerator();
+
+        /// <summary>
+        /// Gets a filter by its index.
+        /// </summary>
+        public SetupFilter this[int index] { get => this.InnerCollection[index]; set => this.InnerCollection[index] = value; }
+
+        /// <summary>
+        /// Insert a filter at a specific index.
+        /// </summary>
+        public void Insert(int index, SetupFilter item) => this.InnerCollection.Insert(index, item);
+
+        /// <summary>
+        /// Remove a filter from the collection.
+        /// </summary>
+        public bool Remove(SetupFilter item) => this.InnerCollection.Remove(item);
+
+        /// <summary>
+        /// Check if the collection contains a filter.
+        /// </summary>
+        public bool Contains(SetupFilter item) => this.InnerCollection.Any(f => f.EqualsByName(item));
+
+        /// <summary>
+        /// Copy the collection to an array.
+        /// </summary>
+        public void CopyTo(SetupFilter[] array, int arrayIndex) => this.InnerCollection.CopyTo(array, arrayIndex);
+
+        /// <summary>
+        /// Get the index of a filter in the collection.
+        /// </summary>
+        public int IndexOf(SetupFilter item) => this.InnerCollection.IndexOf(item);
+
+        /// <summary>
+        /// Remove a filter at a specific index.
+        /// </summary>
+        public void RemoveAt(int index) => this.InnerCollection.RemoveAt(index);
+
+        /// <summary>
+        /// Gets the enumerator for the collection.
+        /// </summary>
+        IEnumerator IEnumerable.GetEnumerator() => this.InnerCollection.GetEnumerator();
+
+        /// <summary>
+        /// Gets the enumerator for the collection.
+        /// </summary>
+        public IEnumerator<SetupFilter> GetEnumerator() => this.InnerCollection.GetEnumerator();
+
+        /// <summary>
+        /// Returns a string representation of the number of filters in the collection.
+        /// </summary>
         public override string ToString() => this.InnerCollection.Count.ToString();
     }
-
 }

@@ -3,6 +3,7 @@ using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
@@ -76,8 +77,10 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction).ConfigureAwait(false);
 
                     if (!tmpScopeInfoClientExists)
+                    {
                         await dbBuilder.RenameTableAsync(cScopeInfoTableName, null, tmpCScopeInfoTableName, null,
                             runner.Connection, runner.Transaction).ConfigureAwait(false);
+                    }
 
                     var message = $"- Temporary renamed {cScopeInfoTableName} to {tmpCScopeInfoTableName}.";
                     await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
@@ -90,8 +93,10 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (!existsCScopeInfo)
+                    {
                         (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     message = $"- Created new version of {cScopeInfoTableName} table.";
                     await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
@@ -104,8 +109,10 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (!existsCScopeInfoClient)
+                    {
                         (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     message = $"- Created {cScopeInfoClientTableName} table.";
                     await this.InterceptAsync(new UpgradeProgressArgs(context, message, SyncVersion.Current, runner.Connection, runner.Transaction), runner.Progress).ConfigureAwait(false);
@@ -150,12 +157,16 @@ namespace Dotmim.Sync
                                     throw new Exception("Your setup to migrate contains one or more filters. Please use a SyncParameters argument when calling ManualUpgradeWithFiltersParameterAsync() (or SynchronizeAsync()).");
 
                                 foreach (var setupParameter in setupParameters)
+                                {
                                     if (!parameters.Any(p => string.Equals(p.Name, setupParameter, SyncGlobalization.DataSourceStringComparison)))
                                         throw new Exception("Your setup filters contains at least one parameter that is not available from SyncParameters argument.");
+                                }
 
                                 foreach (var parameter in parameters)
+                                {
                                     if (!setupParameters.Any(n => string.Equals(n, parameter.Name, SyncGlobalization.DataSourceStringComparison)))
                                         throw new Exception("Your SyncParameters argument contains a parameter that is not contained in your setup filters.");
+                                }
                             }
                         }
 
@@ -213,8 +224,7 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     // fallback to "try to drop an hypothetical default scope"
-                    if (cScopeInfos == null)
-                        cScopeInfos = new List<ScopeInfo>();
+                    cScopeInfos ??= [];
 
                     // Get all filters and fake them for the default scope
                     var existingFilters = cScopeInfos.SelectMany(si => si.Setup.Filters).ToList();
@@ -525,9 +535,15 @@ namespace Dotmim.Sync
                         if (hasFilters)
                         {
                             var stringBuilder = new StringBuilder();
+#if NET6_0_OR_GREATER
+                            stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Your version is {version} and you need to manually upgrade your client to be able to use the current verison {SyncVersion.Current}.");
+                            stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Your {this.Options.ScopeInfoTableName} table contains setup with filters that need to be migrated manually, as new version needs the parameters values saved in the {this.Options.ScopeInfoTableName} table and they are not present in the {this.Options.ScopeInfoTableName} table version {version}.");
+                            stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Please see this discussion on how to migrate to your version to the last one : https://github.com/Mimetis/Dotmim.Sync/discussions/802#discussioncomment-3594681");
+#else
                             stringBuilder.AppendLine($"Your version is {version} and you need to manually upgrade your client to be able to use the current verison {SyncVersion.Current}.");
                             stringBuilder.AppendLine($"Your {this.Options.ScopeInfoTableName} table contains setup with filters that need to be migrated manually, as new version needs the parameters values saved in the {this.Options.ScopeInfoTableName} table and they are not present in the {this.Options.ScopeInfoTableName} table version {version}.");
                             stringBuilder.AppendLine($"Please see this discussion on how to migrate to your version to the last one : https://github.com/Mimetis/Dotmim.Sync/discussions/802#discussioncomment-3594681");
+#endif
                             throw new Exception(stringBuilder.ToString());
                         }
                     }
@@ -629,7 +645,7 @@ namespace Dotmim.Sync
                     runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                 // fallback to "try to drop an hypothetical default scope"
-                cScopeInfos ??= new List<ScopeInfo>();
+                cScopeInfos ??= [];
 
                 var defaultCScopeInfo = new ScopeInfo
                 {

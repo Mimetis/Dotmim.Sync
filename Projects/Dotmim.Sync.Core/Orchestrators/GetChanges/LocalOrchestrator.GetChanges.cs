@@ -141,12 +141,16 @@ namespace Dotmim.Sync
 
                     // Locally, if we are new, no need to get changes
                     if (isNew)
+                    {
                         clientChangesSelected = new DatabaseChangesSelected();
+                    }
                     else
+                    {
                         (context, clientChangesSelected) = await this.InternalGetEstimatedChangesCountAsync(
                             cScopeInfo, context,
                             isNew, lastTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     await runner.CommitAsync().ConfigureAwait(false);
 

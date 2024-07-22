@@ -174,13 +174,13 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncTable SchemaTable { get; }
 
-        // <inheritdoc cref="ProgressArgs.ProgressLevel"/>
+        /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
-        // <inheritdoc cref="ProgressArgs.Message"/>
+        /// <inheritdoc cref="ProgressArgs.Message"/>
         public override string Message => $"Fallback from Batch to Row per Row on table [{this.SchemaTable.GetFullName()}]. Error:{this.Exception?.Message}. State:{this.State}. Count:{this.SyncRows.Count}";
 
-        // <inheritdoc cref="ProgressArgs.EventId"/>
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
         public override int EventId => 13160;
     }
 

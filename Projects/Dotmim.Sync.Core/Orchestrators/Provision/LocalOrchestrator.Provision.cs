@@ -97,7 +97,6 @@ namespace Dotmim.Sync
         /// <param name="transaction">optional transaction.</param>
         /// <param name="progress">option IProgress{ProgressArgs}.</param>
         /// <param name="cancellationToken">optional cancellation token.</param>
-        /// <returns></returns>
         public Task<bool> DeprovisionAsync(SyncProvision provision = default, DbConnection connection = null, DbTransaction transaction = null, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
             => this.DeprovisionAsync(SyncOptions.DefaultScopeName, provision, connection, transaction, progress, cancellationToken);
 
@@ -120,9 +119,11 @@ namespace Dotmim.Sync
                     (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo, runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (exists)
+                    {
                         (context, cScopeInfo) = await this.InternalLoadScopeInfoAsync(
                             context,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     bool isDeprovisioned;
                     (context, isDeprovisioned) = await this.InternalDeprovisionAsync(cScopeInfo, context, provision,
@@ -169,7 +170,6 @@ namespace Dotmim.Sync
         /// <param name="transaction">Optional Transaction.</param>
         /// <param name="progress">option IProgress{ProgressArgs}.</param>
         /// <param name="cancellationToken">optional cancellation token.</param>
-        /// <returns></returns>
         public virtual async Task<bool> DeprovisionAsync(string scopeName, SyncSetup setup, SyncProvision provision = default,
             DbConnection connection = null, DbTransaction transaction = null, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
@@ -231,8 +231,11 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (exists)
+                    {
+
                         (context, cScopeInfos) = await this.InternalLoadAllScopeInfosAsync(context, runner.Connection,
                             runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     // fallback to "try to drop an hypothetical default scope"
                     cScopeInfos ??= [];

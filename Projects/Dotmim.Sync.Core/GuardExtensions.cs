@@ -15,7 +15,6 @@ namespace Dotmim.Sync
         /// <typeparam name="T">Instance.</typeparam>
         /// <param name="input">Object to check.</param>
         /// <param name="message">Exception message.</param>
-        /// <returns></returns>
         public static T ThrowIfNull<T>(T input, string message = null)
         {
             if (input is null)

@@ -57,7 +57,7 @@ namespace Dotmim.Sync.SampleConsole
         /// <summary>
         /// create a server database with datas and an empty client database
         /// </summary>
-        /// <returns></returns>
+        
         public static async Task EnsureDatabasesAsync(string databaseName, bool useSeeding = true)
         {
             // Create server database with items

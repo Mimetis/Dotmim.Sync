@@ -187,7 +187,6 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Enumerate over the stream and read the properties.
         /// </summary>
-        /// <returns></returns>
         public IEnumerable<JsonReaderValue> Values()
         {
             while (this.Read())
@@ -237,7 +236,6 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Read the next token and get the value as a string.
         /// </summary>
-        /// <returns></returns>
         public string ReadAsString()
         {
             this.Read();
@@ -284,7 +282,6 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Read the next token and get the value as a string.
         /// </summary>
-        /// <returns></returns>
         public string ReadAsEscapedString()
         {
             this.Read();
@@ -332,7 +329,6 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Read the next token and get the value as a Guid.
         /// </summary>
-        /// <returns></returns>
         public Guid? ReadAsGuid()
         {
             this.Read();
@@ -342,7 +338,6 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Gets the current token value as a Guid, if the token is a string.
         /// </summary>
-        /// <returns></returns>
         public Guid? GetGuid()
         {
             if (this.TokenType != JsonTokenType.String)
@@ -782,7 +777,6 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Read the next token and get the value as a byte.
         /// </summary>
-        /// <returns></returns>
         public byte? ReadAsByte()
         {
             this.Read();
@@ -836,7 +830,7 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Gets the current token value as a bool, if the token is a boolean.
         /// </summary>
-        /// <returns></returns>
+
 #pragma warning disable CA1024 // Use properties where appropriate
         public bool? GetBoolean()
 #pragma warning restore CA1024 // Use properties where appropriate
@@ -881,7 +875,6 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Gets the current token value as a byte array, if the token is a base 64 string.
         /// </summary>
-        /// <returns></returns>
         public byte[] GetBytesFromBase64()
         {
             if (this.TokenType != JsonTokenType.PropertyName && this.TokenType != JsonTokenType.String)
@@ -955,7 +948,6 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Read the next token as a base 64 string and convert the value as a byte array.
         /// </summary>
-        /// <returns></returns>
         public Span<byte> ReadAsSpanFromBase64()
         {
             this.Read();
@@ -965,7 +957,6 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Gets the current token value as a byte array, if the token is a base 64 string.
         /// </summary>
-        /// <returns></returns>
         public Span<byte> GetSpanFromBase64()
         {
             if (this.TokenType != JsonTokenType.PropertyName && this.TokenType != JsonTokenType.String)
@@ -1030,7 +1021,9 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Initializes a new instance of the <see cref="JsonReaderValue"/> struct.
         /// </summary>
-        public JsonReaderValue() { }
+        public JsonReaderValue()
+        {
+        }
 
         /// <summary>
         /// Gets or sets the value.
@@ -1076,7 +1069,7 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Compare two JsonReaderValue.
         /// </summary>
-        public override bool Equals(object obj) => obj is JsonReaderValue value &&
+        public override readonly bool Equals(object obj) => obj is JsonReaderValue value &&
                    EqualityComparer<JsonValue>.Default.Equals(this.Value, value.Value) &&
                    this.TokenType == value.TokenType &&
                    this.Depth == value.Depth;
@@ -1084,13 +1077,12 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Gets the hash code.
         /// </summary>
-        /// <returns></returns>
-        public override int GetHashCode() => base.GetHashCode();
+        public override readonly int GetHashCode() => base.GetHashCode();
 
         /// <summary>
         /// Compare two JsonReaderValue.
         /// </summary>
-        public bool Equals(JsonReaderValue other) => EqualityComparer<JsonValue>.Default.Equals(this.Value, other.Value) &&
+        public readonly bool Equals(JsonReaderValue other) => EqualityComparer<JsonValue>.Default.Equals(this.Value, other.Value) &&
             this.TokenType == other.TokenType &&
             this.Depth == other.Depth;
     }

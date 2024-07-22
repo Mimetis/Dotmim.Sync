@@ -32,17 +32,17 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Parse a SyncTable and return a ParserName object.
         /// </summary>
-        public static ParserName Parse(SyncTable syncTable, string leftQuote = null, string rightQuote = null) => new ParserName(syncTable, leftQuote, rightQuote);
+        public static ParserName Parse(SyncTable syncTable, string leftQuote = null, string rightQuote = null) => new(syncTable, leftQuote, rightQuote);
 
         /// <summary>
         /// Parse a SyncColumn and return a ParserName object.
         /// </summary>
-        public static ParserName Parse(SyncColumn syncColumn, string leftQuote = null, string rightQuote = null) => new ParserName(syncColumn, leftQuote, rightQuote);
+        public static ParserName Parse(SyncColumn syncColumn, string leftQuote = null, string rightQuote = null) => new(syncColumn, leftQuote, rightQuote);
 
         /// <summary>
         /// Parse a string and return a ParserName object.
         /// </summary>
-        public static ParserName Parse(string input, string leftQuote = null, string rightQuote = null) => new ParserName(input, leftQuote, rightQuote);
+        public static ParserName Parse(string input, string leftQuote = null, string rightQuote = null) => new(input, leftQuote, rightQuote);
 
         /// <summary>
         /// Add database name if available to the final string.
@@ -65,7 +65,6 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Add quotes ([] or ``) on all objects.
         /// </summary>
-        /// <returns></returns>
         public ParserName Quoted()
         {
             this.withQuotes = true;
@@ -75,7 +74,6 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Remove quotes ([] or ``) on all objects.
         /// </summary>
-        /// <returns></returns>
         public ParserName Unquoted()
         {
             this.withQuotes = false;
@@ -85,7 +83,6 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Normalize the object name (replace space, dot and - by _).
         /// </summary>
-        /// <returns></returns>
         public ParserName Normalized()
         {
             this.withNormalized = true;
@@ -114,9 +111,11 @@ namespace Dotmim.Sync.Builders
             }
 
             var name = this.withQuotes ? parsedName.QuotedObjectName : this.ObjectName;
-#pragma warning disable CA1307 // Specify StringComparison for clarity
+#if NET6_0_OR_GREATER
+            name = this.withNormalized ? name.Replace(" ", "_", SyncGlobalization.DataSourceStringComparison).Replace(".", "_", SyncGlobalization.DataSourceStringComparison).Replace("-", "_", SyncGlobalization.DataSourceStringComparison) : name;
+#else
             name = this.withNormalized ? name.Replace(" ", "_").Replace(".", "_").Replace("-", "_") : name;
-#pragma warning restore CA1307 // Specify StringComparison for clarity
+#endif
             sb.Append(name);
 
             // now we have the correct string, reset options for the next time we call the same instance
@@ -128,7 +127,9 @@ namespace Dotmim.Sync.Builders
             return sb.ToString();
         }
 
-        private ParserName() { }
+        private ParserName()
+        {
+        }
 
         private ParserName(string input, string leftQuote = null, string rightQuote = null) => this.ParseString(input, leftQuote, rightQuote);
 

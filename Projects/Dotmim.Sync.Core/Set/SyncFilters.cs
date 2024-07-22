@@ -1,64 +1,69 @@
-﻿using Dotmim.Sync.Builders;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
+using System.Globalization;
 using System.Runtime.Serialization;
-using System.Text;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Sync filters collection.
+    /// </summary>
     [CollectionDataContract(Name = "filters", ItemName = "filt"), Serializable]
     public class SyncFilters : ICollection<SyncFilter>, IList<SyncFilter>
     {
         /// <summary>
-        /// Exposing the InnerCollection for serialization purpose
+        /// Gets or sets exposing the InnerCollection for serialization purpose.
         /// </summary>
         [DataMember(Name = "c", IsRequired = true, Order = 1)]
-        public Collection<SyncFilter> InnerCollection { get; set; } = new Collection<SyncFilter>();
+        public Collection<SyncFilter> InnerCollection { get; set; } = [];
 
         /// <summary>
-        /// Filter's schema
+        /// Gets filter's schema.
         /// </summary>
         [IgnoreDataMember]
         public SyncSet Schema { get; internal set; }
 
         /// <summary>
-        /// Create a default collection for SerializersFactory
+        /// Initializes a new instance of the <see cref="SyncFilters"/> class.
+        /// Create a default collection for SerializersFactory.
         /// </summary>
         public SyncFilters()
         {
         }
 
         /// <summary>
-        /// Create a new collection of tables for a SyncSchema
+        /// Initializes a new instance of the <see cref="SyncFilters"/> class.
+        /// Create a new collection of tables for a SyncSchema.
         /// </summary>
         public SyncFilters(SyncSet schema) => this.Schema = schema;
 
         /// <summary>
-        /// Since we don't serializer the reference to the schema, this method will reaffect the correct schema
+        /// Since we don't serializer the reference to the schema, this method will reaffect the correct schema.
         /// </summary>
         public void EnsureFilters(SyncSet schema)
         {
             this.Schema = schema;
 
-            if (InnerCollection != null)
+            if (this.InnerCollection != null)
+            {
                 foreach (var item in this)
                     item.EnsureFilter(schema);
+            }
         }
 
         /// <summary>
-        /// Add a new filter 
+        /// Add a new filter.
         /// </summary>
         public void Add(SyncFilter item)
         {
-            item.Schema = Schema;
-            InnerCollection.Add(item);
+            item.Schema = this.Schema;
+            this.InnerCollection.Add(item);
         }
 
         /// <summary>
-        /// Add a new filter 
+        /// Add a new filter.
         /// </summary>
         public void Add(SetupFilter setupFilter)
         {
@@ -92,17 +97,17 @@ namespace Dotmim.Sync
             foreach (var s in setupFilter.CustomWheres)
                 item.CustomWheres.Add(s);
 
-            InnerCollection.Add(item);
+            this.InnerCollection.Add(item);
         }
 
         /// <summary>
-        /// Add a new filter 
+        /// Add a new filter.
         /// </summary>
         public void Add(string tableName, string columnName, string schemaName = null)
         {
             var item = new SyncFilter(tableName, schemaName)
             {
-                Schema = Schema
+                Schema = this.Schema,
             };
 
             // Add a column as parameter. This column will be automaticaly added in the tracking table
@@ -111,33 +116,78 @@ namespace Dotmim.Sync
             // add the side where expression, allowing to be null
             item.Wheres.Add(new SyncFilterWhereSideItem { ColumnName = columnName, TableName = tableName, SchemaName = schemaName });
 
-            InnerCollection.Add(item);
+            this.InnerCollection.Add(item);
         }
 
         /// <summary>
-        /// Clear
+        /// Clear.
         /// </summary>
         public void Clear()
         {
-            foreach (var item in InnerCollection)
+            foreach (var item in this.InnerCollection)
                 item.Clear();
 
-            InnerCollection.Clear();
+            this.InnerCollection.Clear();
         }
 
-        public SyncFilter this[int index] => InnerCollection[index];
-        public int Count => InnerCollection.Count;
-        public bool IsReadOnly => false;
-        SyncFilter IList<SyncFilter>.this[int index] { get => InnerCollection[index]; set => InnerCollection[index] = value; }
-        public void Insert(int index, SyncFilter item) => InnerCollection.Insert(index, item);
-        public bool Remove(SyncFilter item) => InnerCollection.Remove(item);
-        public bool Contains(SyncFilter item) => InnerCollection.Contains(item);
-        public void CopyTo(SyncFilter[] array, int arrayIndex) => InnerCollection.CopyTo(array, arrayIndex);
-        public int IndexOf(SyncFilter item) => InnerCollection.IndexOf(item);
-        public void RemoveAt(int index) => InnerCollection.RemoveAt(index);
-        IEnumerator IEnumerable.GetEnumerator() => InnerCollection.GetEnumerator();
-        public IEnumerator<SyncFilter> GetEnumerator() => InnerCollection.GetEnumerator();
-        public override string ToString() => this.InnerCollection.Count.ToString();
-    }
+        /// <summary>
+        /// Gets the count of filters.
+        /// </summary>
+        public int Count => this.InnerCollection.Count;
 
+        /// <summary>
+        /// Gets a value indicating whether the collection is read-only.
+        /// </summary>
+        public bool IsReadOnly => false;
+
+        /// <summary>
+        /// Gets or sets the filter at the specified index.
+        /// </summary>
+        public SyncFilter this[int index] { get => this.InnerCollection[index]; set => this.InnerCollection[index] = value; }
+
+        /// <summary>
+        /// Insert a filter at the specified index.
+        /// </summary>
+        public void Insert(int index, SyncFilter item) => this.InnerCollection.Insert(index, item);
+
+        /// <summary>
+        /// Remove a filter.
+        /// </summary>
+        public bool Remove(SyncFilter item) => this.InnerCollection.Remove(item);
+
+        /// <summary>
+        /// Check if the collection contains a filter.
+        /// </summary>
+        public bool Contains(SyncFilter item) => this.InnerCollection.Contains(item);
+
+        /// <summary>
+        /// Copy the collection to an array.
+        /// </summary>
+        public void CopyTo(SyncFilter[] array, int arrayIndex) => this.InnerCollection.CopyTo(array, arrayIndex);
+
+        /// <summary>
+        /// Get the index of a filter.
+        /// </summary>
+        public int IndexOf(SyncFilter item) => this.InnerCollection.IndexOf(item);
+
+        /// <summary>
+        /// Remove a filter at the specified index.
+        /// </summary>
+        public void RemoveAt(int index) => this.InnerCollection.RemoveAt(index);
+
+        /// <summary>
+        /// Gets the enumerator.
+        /// </summary>
+        IEnumerator IEnumerable.GetEnumerator() => this.InnerCollection.GetEnumerator();
+
+        /// <summary>
+        /// Gets the enumerator.
+        /// </summary>
+        public IEnumerator<SyncFilter> GetEnumerator() => this.InnerCollection.GetEnumerator();
+
+        /// <summary>
+        /// Returns a string that represents the current object.
+        /// </summary>
+        public override string ToString() => this.InnerCollection.Count.ToString(CultureInfo.InvariantCulture);
+    }
 }

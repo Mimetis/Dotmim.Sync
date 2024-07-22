@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.Reflection;
 using System.Runtime.Serialization;
 
@@ -175,6 +176,8 @@ namespace Dotmim.Sync
         /// </summary>
         public static string GetAssemblyQualifiedName(Type valueType)
         {
+            Guard.ThrowIfNull(valueType);
+
             if (valueType == typeof(bool))
                 return "1";
             else if (valueType == typeof(byte))
@@ -233,7 +236,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Clone a SyncColumn.
         /// </summary>
-        /// <returns></returns>
         public SyncColumn Clone()
         {
             var clone = new SyncColumn
@@ -272,7 +274,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Evaluate DbType, if needed.
         /// </summary>
-        /// <returns></returns>
         public DbType CoerceDbType()
         {
             // Otherwise fallback on a deduction from DataType
@@ -344,8 +345,126 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get DataType from compressed string type.
         /// </summary>
-        /// <returns></returns>
         public Type GetDataType() => GetTypeFromAssemblyQualifiedName(this.DataType);
+
+        /// <summary>
+        /// Get auto inc values, coercing Step.
+        /// </summary>
+        public (long Seed, long Step) GetAutoIncrementSeedAndStep()
+        {
+            var seed = this.AutoIncrementSeed;
+            var step = this.AutoIncrementStep <= 0 ? 1 : this.AutoIncrementStep;
+
+            return (seed, step);
+        }
+
+        /// <summary>
+        /// Gets or Sets the default value.
+        /// </summary>
+        public dynamic GetDefaultValue()
+        {
+            var type = this.GetDataType();
+
+            if (type == typeof(string))
+                return null;
+
+            return this.IsValueType() ? Activator.CreateInstance(type) : null;
+        }
+
+        /// <summary>
+        /// Gets if the column type is a value type.
+        /// </summary>
+        public bool IsValueType()
+        {
+            var type = this.GetDataType();
+
+            if (StorageClassType.TryGetValue(type, out var storageClassType))
+                return storageClassType;
+
+            return type.GetTypeInfo().IsValueType;
+        }
+
+        /// <summary>
+        /// Returns a string that represents the current object.
+        /// </summary>
+        public override string ToString() => string.Format(CultureInfo.InvariantCulture, $"{this.ColumnName} - {this.GetDataType().Name}");
+
+        /// <inheritdoc cref="SyncNamedItem{T}.GetAllNamesProperties"/>
+        public override IEnumerable<string> GetAllNamesProperties()
+        {
+            yield return this.ColumnName;
+        }
+
+        /// <inheritdoc cref="SyncNamedItem{T}.EqualsByProperties(T)"/>
+        public override bool EqualsByProperties(SyncColumn otherInstance)
+        {
+            if (otherInstance == null)
+                return false;
+
+            if (!this.EqualsByName(otherInstance))
+                return false;
+
+            var sc = SyncGlobalization.DataSourceStringComparison;
+
+            return
+               string.Equals(this.DataType, otherInstance.DataType, sc) &&
+               this.AllowDBNull == otherInstance.AllowDBNull &&
+               this.IsUnique == otherInstance.IsUnique &&
+               this.IsReadOnly == otherInstance.IsReadOnly &&
+               this.IsAutoIncrement == otherInstance.IsAutoIncrement &&
+               this.AutoIncrementSeed == otherInstance.AutoIncrementSeed &&
+               this.AutoIncrementStep == otherInstance.AutoIncrementStep &&
+               this.IsUnsigned == otherInstance.IsUnsigned &&
+               this.IsUnicode == otherInstance.IsUnicode &&
+               this.IsCompute == otherInstance.IsCompute &&
+               this.MaxLength == otherInstance.MaxLength &&
+               this.Ordinal == otherInstance.Ordinal &&
+               this.PrecisionIsSpecified == otherInstance.PrecisionIsSpecified &&
+               this.Precision == otherInstance.Precision &&
+               this.ScaleIsSpecified == otherInstance.ScaleIsSpecified &&
+               this.Scale == otherInstance.Scale &&
+               string.Equals(this.OriginalDbType, otherInstance.OriginalDbType, sc) &&
+               string.Equals(this.OriginalTypeName, otherInstance.OriginalTypeName, sc) &&
+               this.DbType == otherInstance.DbType &&
+               string.Equals(this.DefaultValue, otherInstance.DefaultValue, sc) &&
+               string.Equals(this.ExtraProperty1, otherInstance.ExtraProperty1, sc);
+        }
+
+        /// <summary>
+        ///  Collection of autorized types
+        ///  each type is marked as Value type or not.
+        /// </summary>
+        internal static readonly Dictionary<Type, bool> StorageClassType = [];
+
+        static SyncColumn()
+        {
+            StorageClassType.Add(typeof(bool), true);
+            StorageClassType.Add(typeof(char), true);
+            StorageClassType.Add(typeof(sbyte), true);
+            StorageClassType.Add(typeof(byte), true);
+            StorageClassType.Add(typeof(short), true);
+            StorageClassType.Add(typeof(ushort), true);
+            StorageClassType.Add(typeof(int), true);
+            StorageClassType.Add(typeof(uint), true);
+            StorageClassType.Add(typeof(long), true);
+            StorageClassType.Add(typeof(ulong), true);
+            StorageClassType.Add(typeof(float), true);
+            StorageClassType.Add(typeof(double), true);
+            StorageClassType.Add(typeof(decimal), true);
+            StorageClassType.Add(typeof(DateTime), true);
+            StorageClassType.Add(typeof(TimeSpan), true);
+            StorageClassType.Add(typeof(DateTimeOffset), true);
+            StorageClassType.Add(typeof(Guid), true);
+
+            StorageClassType.Add(typeof(string), true);
+
+            // Not a value type but authorized
+            StorageClassType.Add(typeof(byte[]), false);
+            StorageClassType.Add(typeof(char[]), false);
+
+            // test to add object type
+            StorageClassType.Add(typeof(object), false);
+        }
 
         /// <summary>
         /// Get DataType from a string value.
@@ -396,126 +515,6 @@ namespace Dotmim.Sync
                 return typeof(object);
 
             return Type.GetType(valueType, true, true);
-        }
-
-        /// <summary>
-        /// Get auto inc values, coercing Step.
-        /// </summary>
-        public (long Seed, long Step) GetAutoIncrementSeedAndStep()
-        {
-            var seed = this.AutoIncrementSeed;
-            var step = this.AutoIncrementStep <= 0 ? 1 : this.AutoIncrementStep;
-
-            return (seed, step);
-        }
-
-        /// <summary>
-        /// Gets or Sets the default value.
-        /// </summary>
-        public dynamic GetDefaultValue()
-        {
-            var type = this.GetDataType();
-
-            if (type == typeof(string))
-                return null;
-
-            return this.IsValueType() ? Activator.CreateInstance(type) : null;
-        }
-
-        /// <summary>
-        /// Gets if the column type is a value type.
-        /// </summary>
-        public bool IsValueType()
-        {
-            var type = this.GetDataType();
-
-            if (StorageClassType.TryGetValue(type, out var storageClassType))
-                return storageClassType;
-
-            return type.GetTypeInfo().IsValueType;
-        }
-
-        /// <summary>
-        /// Returns a string that represents the current object.
-        /// </summary>
-        /// <returns></returns>
-        public override string ToString() => string.Format($"{this.ColumnName} - {this.GetDataType().Name}");
-
-        /// <inheritdoc cref="SyncNamedItem{T}.GetAllNamesProperties"/>
-        public override IEnumerable<string> GetAllNamesProperties()
-        {
-            yield return this.ColumnName;
-        }
-
-        /// <inheritdoc cref="SyncNamedItem{T}.EqualsByProperties(T)"/>
-        public override bool EqualsByProperties(SyncColumn otherInstance)
-        {
-            if (otherInstance == null)
-                return false;
-
-            if (!this.EqualsByName(otherInstance))
-                return false;
-
-            var sc = SyncGlobalization.DataSourceStringComparison;
-
-            return
-               string.Equals(this.DataType, otherInstance.DataType, sc) &&
-               this.AllowDBNull == otherInstance.AllowDBNull &&
-               this.IsUnique == otherInstance.IsUnique &&
-               this.IsReadOnly == otherInstance.IsReadOnly &&
-               this.IsAutoIncrement == otherInstance.IsAutoIncrement &&
-               this.AutoIncrementSeed == otherInstance.AutoIncrementSeed &&
-               this.AutoIncrementStep == otherInstance.AutoIncrementStep &&
-               this.IsUnsigned == otherInstance.IsUnsigned &&
-               this.IsUnicode == otherInstance.IsUnicode &&
-               this.IsCompute == otherInstance.IsCompute &&
-               this.MaxLength == otherInstance.MaxLength &&
-               this.Ordinal == otherInstance.Ordinal &&
-               this.PrecisionIsSpecified == otherInstance.PrecisionIsSpecified &&
-               this.Precision == otherInstance.Precision &&
-               this.ScaleIsSpecified == otherInstance.ScaleIsSpecified &&
-               this.Scale == otherInstance.Scale &&
-               string.Equals(this.OriginalDbType, otherInstance.OriginalDbType, sc) &&
-               string.Equals(this.OriginalTypeName, otherInstance.OriginalTypeName, sc) &&
-               this.DbType == otherInstance.DbType &&
-               string.Equals(this.DefaultValue, otherInstance.DefaultValue, sc) &&
-               string.Equals(this.ExtraProperty1, otherInstance.ExtraProperty1, sc);
-        }
-
-        /// <summary>
-        ///  Collection of autorized types
-        ///  each type is marked as Value type or not.
-        /// </summary>
-        internal static readonly Dictionary<Type, bool> StorageClassType = new Dictionary<Type, bool>();
-
-        static SyncColumn()
-        {
-            StorageClassType.Add(typeof(bool), true);
-            StorageClassType.Add(typeof(char), true);
-            StorageClassType.Add(typeof(sbyte), true);
-            StorageClassType.Add(typeof(byte), true);
-            StorageClassType.Add(typeof(short), true);
-            StorageClassType.Add(typeof(ushort), true);
-            StorageClassType.Add(typeof(int), true);
-            StorageClassType.Add(typeof(uint), true);
-            StorageClassType.Add(typeof(long), true);
-            StorageClassType.Add(typeof(ulong), true);
-            StorageClassType.Add(typeof(float), true);
-            StorageClassType.Add(typeof(double), true);
-            StorageClassType.Add(typeof(decimal), true);
-            StorageClassType.Add(typeof(DateTime), true);
-            StorageClassType.Add(typeof(TimeSpan), true);
-            StorageClassType.Add(typeof(DateTimeOffset), true);
-            StorageClassType.Add(typeof(Guid), true);
-
-            StorageClassType.Add(typeof(string), true);
-
-            // Not a value type but authorized
-            StorageClassType.Add(typeof(byte[]), false);
-            StorageClassType.Add(typeof(char[]), false);
-
-            // test to add object type
-            StorageClassType.Add(typeof(object), false);
         }
     }
 }

@@ -45,6 +45,9 @@ namespace Dotmim.Sync
         public override int EventId => 5000;
     }
 
+    /// <summary>
+    /// Outdated action enumeration.
+    /// </summary>
     public enum OutdatedAction
     {
         /// <summary>

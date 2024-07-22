@@ -487,7 +487,7 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Handle a request error.
         /// </summary>
-        /// <returns></returns>
+        
         private static async Task HandleSyncError(HttpResponseMessage response)
         {
             try

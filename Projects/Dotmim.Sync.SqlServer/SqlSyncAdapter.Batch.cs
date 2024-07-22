@@ -10,15 +10,23 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
+
+    /// <summary>
+    /// Sql Server Sync Adapter.
+    /// </summary>
     public partial class SqlSyncAdapter : DbSyncAdapter
     {
         /// <summary>
-        /// Executing a batch command
+        /// Executing a batch command.
         /// </summary>
-        public override async Task ExecuteBatchCommandAsync(SyncContext context, DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable,
+        public override async Task ExecuteBatchCommandAsync(SyncContext context, DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable,
                                                             SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
         {
-            var applyRowsCount = applyRows.Count();
+
+            if (arrayItems == null || !arrayItems.Any())
+                return;
+
+            var applyRowsCount = arrayItems.Count();
 
             if (applyRowsCount <= 0)
                 return;
@@ -30,11 +38,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             SqlMetaData[] metadatas = new SqlMetaData[schemaChangesTable.Columns.Count];
 
             for (int i = 0; i < schemaChangesTable.Columns.Count; i++)
-                metadatas[i] = GetSqlMetadaFromType(schemaChangesTable.Columns[i]);
+                metadatas[i] = this.GetSqlMetadaFromType(schemaChangesTable.Columns[i]);
 
             try
             {
-                foreach (var row in applyRows)
+                foreach (var row in arrayItems)
                 {
                     syncRowState = row.RowState;
 
@@ -47,7 +55,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         var schemaColumn = schemaChangesTable.Columns[i];
 
                         // Get the default value
-                        //var columnType = schemaColumn.GetDataType();
+                        // var columnType = schemaColumn.GetDataType();
                         dynamic defaultValue = schemaColumn.GetDefaultValue();
 
                         // metadatas don't have readonly values, so get from sqlMetadataIndex
@@ -104,7 +112,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         failedRow[columnName] = columnValueObject == DBNull.Value ? null : columnValueObject;
                     }
 
-                    // don't care about row state 
+                    // don't care about row state
                     // Since it will be requested by next request from GetConflict()
                     failedRows.Rows.Add(failedRow);
                 }
@@ -143,7 +151,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                             rowValue = SqlDateMin;
                         else if (sqlMetadataType == SqlDbType.SmallDateTime && rowValue < SqlSmallDateMin)
                             rowValue = SqlSmallDateMin;
-                            break;
+                        break;
                     case SqlDbType.DateTimeOffset:
                         rowValue = SyncTypeConverter.TryConvertTo<DateTimeOffset>(rowValue);
                         break;
@@ -205,7 +213,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             long maxLength = column.MaxLength;
 
-            var sqlDbType = GetSqlDbType(column);
+            var sqlDbType = this.GetSqlDbType(column);
 
             // Since we validate length before, it's not mandatory here.
             // let's say.. just in case..
@@ -234,6 +242,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         if (s == 0)
                             s = Math.Min((byte)(p - 1), (byte)6);
                     }
+
                     return new SqlMetaData(column.ColumnName, sqlDbType, p, s);
                 default:
                     var dataType = column.GetDataType();

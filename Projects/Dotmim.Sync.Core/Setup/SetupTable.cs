@@ -97,7 +97,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the full name of the table, based on schema name + "." + table name (if schema name exists).
         /// </summary>
-        /// <returns></returns>
         public string GetFullName()
             => string.IsNullOrEmpty(this.SchemaName) ? this.TableName : $"{this.SchemaName}.{this.TableName}";
 

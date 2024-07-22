@@ -75,7 +75,7 @@ namespace Dotmim.Sync.PostgreSql
         /// <summary>
         /// Get the NpgsqlCommand that will creates the pg_temp.table_update command
         /// </summary>
-        /// <returns></returns>
+        
         private (DbCommand, bool) CreatePreUpdateCommand()
         {
             var storedProcedureName = $"{this.Setup?.StoredProceduresPrefix}{TableName.Unquoted().Normalized()}{this.Setup?.StoredProceduresSuffix}_";
@@ -207,7 +207,7 @@ namespace Dotmim.Sync.PostgreSql
         /// <summary>
         /// Get the NpgsqlCommand that will creates the pg_temp.table_delete command
         /// </summary>
-        /// <returns></returns>
+        
         private (DbCommand, bool) CreatePreDeleteCommand()
         {
             var storedProcedureName = $"{this.Setup?.StoredProceduresPrefix}{TableName.Unquoted().Normalized()}{this.Setup?.StoredProceduresSuffix}_";

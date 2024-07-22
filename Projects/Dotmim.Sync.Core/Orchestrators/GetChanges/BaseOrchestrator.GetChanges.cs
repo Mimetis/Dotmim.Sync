@@ -117,8 +117,10 @@ namespace Dotmim.Sync
                 }
 
                 while (!lstTableChangesSelected.IsEmpty)
+                {
                     if (lstTableChangesSelected.TryTake(out var tableChangesSelected))
                         changesSelected.TableChangesSelected.Add(tableChangesSelected);
+                }
 
                 // Ensure correct order
                 this.EnsureLastBatchInfo(scopeInfo, context, batchInfo, lstAllBatchPartInfos, schemaTables);

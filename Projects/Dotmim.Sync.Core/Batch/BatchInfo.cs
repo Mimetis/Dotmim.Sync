@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -25,9 +26,9 @@ namespace Dotmim.Sync.Batch
             this.BatchPartsInfo = [];
             this.DirectoryRoot = SyncOptions.GetDefaultUserBatchDirectory();
 #if NET6_0_OR_GREATER
-            this.DirectoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", string.Empty, SyncGlobalization.DataSourceStringComparison));
+            this.DirectoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss", CultureInfo.InvariantCulture), Path.GetRandomFileName().Replace(".", string.Empty, SyncGlobalization.DataSourceStringComparison));
 #else
-            this.DirectoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", string.Empty));
+            this.DirectoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss", CultureInfo.InvariantCulture), Path.GetRandomFileName().Replace(".", string.Empty));
 #endif
         }
 
@@ -39,9 +40,9 @@ namespace Dotmim.Sync.Batch
             this.DirectoryRoot = rootDirectory;
 
 #if NET6_0_OR_GREATER
-            var randomName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", string.Empty, SyncGlobalization.DataSourceStringComparison));
+            var randomName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss", CultureInfo.InvariantCulture), Path.GetRandomFileName().Replace(".", string.Empty, SyncGlobalization.DataSourceStringComparison));
 #else
-            var randomName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", string.Empty));
+            var randomName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss", CultureInfo.InvariantCulture), Path.GetRandomFileName().Replace(".", string.Empty));
 #endif
             randomName = string.IsNullOrEmpty(info) ? randomName : $"{info}_{randomName}";
             this.DirectoryName = string.IsNullOrEmpty(directoryName) ? randomName : directoryName;
@@ -120,7 +121,6 @@ namespace Dotmim.Sync.Batch
         /// <summary>
         /// Get the full path of the Batch directory.
         /// </summary>
-        /// <returns></returns>
         public string GetDirectoryFullPath() => Path.Combine(this.DirectoryRoot, this.DirectoryName);
 
         /// <summary>
@@ -144,7 +144,7 @@ namespace Dotmim.Sync.Batch
         public (string FullPath, string FileName) GetNewBatchPartInfoPath(SyncTable syncTable, int batchIndex, string extension, string info)
         {
             var tableName = ParserName.Parse(syncTable).Unquoted().Schema().Normalized().ToString();
-            var fileName = GenerateNewFileName(batchIndex.ToString(), tableName, extension, info);
+            var fileName = GenerateNewFileName(batchIndex.ToString(CultureInfo.InvariantCulture), tableName, extension, info);
             var fullPath = Path.Combine(this.GetDirectoryFullPath(), fileName);
             return (fullPath, fileName);
         }

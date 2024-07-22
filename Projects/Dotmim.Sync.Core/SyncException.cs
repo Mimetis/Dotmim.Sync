@@ -166,7 +166,6 @@ namespace Dotmim.Sync
         /// </summary>
         public AlreadyInProgressException()
             : base("Synchronization already in progress") { }
-
     }
 
     /// <summary>
@@ -207,34 +206,47 @@ namespace Dotmim.Sync
     {
         private new const string Message = "The type {0} is not supported ";
 
+        /// <inheritdoc cref="FormatTypeException"/>/>
         public FormatTypeException(Type type)
             : base(string.Format(Message, type.Name)) { }
 
+        /// <inheritdoc cref="FormatTypeException"/>/>
         public FormatTypeException()
         {
         }
 
-        public FormatTypeException(string message) : base(message)
+        /// <inheritdoc cref="FormatTypeException"/>/>
+        public FormatTypeException(string message)
+            : base(message)
         {
         }
 
-        public FormatTypeException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="FormatTypeException"/>/>
+        public FormatTypeException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
 
+    /// <summary>
+    /// Occurs when a DbType is not supported.
+    /// </summary>
     public class FormatDbTypeException : Exception
     {
-        private const string Message = "The DbType {0} is not supported ";
+        private new const string Message = "The DbType {0} is not supported ";
 
+        /// <inheritdoc cref="FormatDbTypeException"/>
         public FormatDbTypeException(DbType type)
             : base(string.Format(Message, type.ToString())) { }
 
+        /// <inheritdoc cref="FormatDbTypeException"/>
         public FormatDbTypeException()
         {
         }
 
-        public FormatDbTypeException(string message) : base(message)
+        /// <inheritdoc cref="FormatDbTypeException"/>
+        public FormatDbTypeException(string message)
+            : base(message)
         {
         }
     }
@@ -244,17 +256,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class InvalidRemoteOrchestratorException : Exception
     {
-        private const string Message = "The remote orchestrator used here is not able to intercept the OnApplyChangedFailed event, since this event is occuring on the server side only";
+        private new const string Message = "The remote orchestrator used here is not able to intercept the OnApplyChangedFailed event, since this event is occuring on the server side only";
 
+        /// <inheritdoc cref="InvalidRemoteOrchestratorException"/>
         public InvalidRemoteOrchestratorException()
             : base(Message) { }
 
+        /// <inheritdoc cref="InvalidRemoteOrchestratorException"/>
         public InvalidRemoteOrchestratorException(string message)
             : base(message)
         {
         }
 
-        public InvalidRemoteOrchestratorException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="InvalidRemoteOrchestratorException"/>
+        public InvalidRemoteOrchestratorException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -264,17 +280,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class InvalidProvisionForLocalOrchestratorException : Exception
     {
-        private const string Message = "A local database should not have a server scope table. Please provide a correct SyncProvision flag.";
+        private new const string Message = "A local database should not have a server scope table. Please provide a correct SyncProvision flag.";
 
+        /// <inheritdoc cref="InvalidProvisionForLocalOrchestratorException"/>
         public InvalidProvisionForLocalOrchestratorException()
             : base(Message) { }
 
+        /// <inheritdoc cref="InvalidProvisionForLocalOrchestratorException"/>
         public InvalidProvisionForLocalOrchestratorException(string message)
             : base(message)
         {
         }
 
-        public InvalidProvisionForLocalOrchestratorException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="InvalidProvisionForLocalOrchestratorException"/>
+        public InvalidProvisionForLocalOrchestratorException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -284,17 +304,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class InvalidProvisionForRemoteOrchestratorException : Exception
     {
-        private const string Message = "A server database should not have a client scope table. Please provide a correct SyncProvision flag.";
+        private new const string Message = "A server database should not have a client scope table. Please provide a correct SyncProvision flag.";
 
+        /// <inheritdoc cref="InvalidProvisionForRemoteOrchestratorException"/>
         public InvalidProvisionForRemoteOrchestratorException()
             : base(Message) { }
 
+        /// <inheritdoc cref="InvalidProvisionForRemoteOrchestratorException"/>
         public InvalidProvisionForRemoteOrchestratorException(string message)
             : base(message)
         {
         }
 
-        public InvalidProvisionForRemoteOrchestratorException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="InvalidProvisionForRemoteOrchestratorException"/>
+        public InvalidProvisionForRemoteOrchestratorException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -304,17 +328,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingConnectionException : Exception
     {
-        private const string Message = "Connection is null";
+        private new const string Message = "Connection is null";
 
+        /// <inheritdoc cref="MissingConnectionException"/>
         public MissingConnectionException()
             : base(Message) { }
 
+        /// <inheritdoc cref="MissingConnectionException"/>
         public MissingConnectionException(string message)
             : base(message)
         {
         }
 
-        public MissingConnectionException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MissingConnectionException"/>
+        public MissingConnectionException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -324,17 +352,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingLocalOrchestratorSchemaException : Exception
     {
-        private const string Message = "Schema does not exists yet in your local database. You must make a first sync with your server, to initialize everything required locally.";
+        private new const string Message = "Schema does not exists yet in your local database. You must make a first sync with your server, to initialize everything required locally.";
 
+        /// <inheritdoc cref="MissingLocalOrchestratorSchemaException"/>
         public MissingLocalOrchestratorSchemaException()
             : base(Message) { }
 
+        /// <inheritdoc cref="MissingLocalOrchestratorSchemaException"/>
         public MissingLocalOrchestratorSchemaException(string message)
             : base(message)
         {
         }
 
-        public MissingLocalOrchestratorSchemaException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MissingLocalOrchestratorSchemaException"/>
+        public MissingLocalOrchestratorSchemaException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -344,17 +376,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingRemoteOrchestratorSchemaException : Exception
     {
-        private const string Message = "Schema does not exists yet in your remote database. You must make a first sync with your server, to initialize everything required locally.";
+        private new const string Message = "Schema does not exists yet in your remote database. You must make a first sync with your server, to initialize everything required locally.";
 
+        /// <inheritdoc cref="MissingRemoteOrchestratorSchemaException"/>
         public MissingRemoteOrchestratorSchemaException()
             : base(Message) { }
 
+        /// <inheritdoc cref="MissingRemoteOrchestratorSchemaException"/>
         public MissingRemoteOrchestratorSchemaException(string message)
             : base(message)
         {
         }
 
-        public MissingRemoteOrchestratorSchemaException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MissingRemoteOrchestratorSchemaException"/>
+        public MissingRemoteOrchestratorSchemaException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -364,17 +400,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingClientScopeInfoException : Exception
     {
-        private const string Message = "The client scope info is invalid. You need to make a first sync before.";
+        private new const string Message = "The client scope info is invalid. You need to make a first sync before.";
 
+        /// <inheritdoc cref="MissingClientScopeInfoException"/>
         public MissingClientScopeInfoException()
             : base(Message) { }
 
+        /// <inheritdoc cref="MissingClientScopeInfoException"/>
         public MissingClientScopeInfoException(string message)
             : base(message)
         {
         }
 
-        public MissingClientScopeInfoException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MissingClientScopeInfoException"/>
+        public MissingClientScopeInfoException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -384,17 +424,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingServerScopeInfoException : Exception
     {
-        private const string Message = "The server scope info is invalid. You need to make a first sync before.";
+        private new const string Message = "The server scope info is invalid. You need to make a first sync before.";
 
+        /// <inheritdoc cref="MissingServerScopeInfoException"/>
         public MissingServerScopeInfoException()
             : base(Message) { }
 
+        /// <inheritdoc cref="MissingServerScopeInfoException"/>
         public MissingServerScopeInfoException(string message)
             : base(message)
         {
         }
 
-        public MissingServerScopeInfoException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MissingServerScopeInfoException"/>
+        public MissingServerScopeInfoException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -404,17 +448,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class InvalidScopeInfoException : Exception
     {
-        private const string Message = "The scope name is invalid. Be sure to declare a scope name correctly.";
+        private new const string Message = "The scope name is invalid. Be sure to declare a scope name correctly.";
 
+        /// <inheritdoc cref="InvalidScopeInfoException"/>
         public InvalidScopeInfoException()
             : base(Message) { }
 
+        /// <inheritdoc cref="InvalidScopeInfoException"/>
         public InvalidScopeInfoException(string message)
             : base(message)
         {
         }
 
-        public InvalidScopeInfoException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="InvalidScopeInfoException"/>
+        public InvalidScopeInfoException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -424,16 +472,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class InvalidColumnAutoIncrementException : Exception
     {
-        private const string Message = "The column {0} is an auto increment column, but it's not used as a primary key for the table {1}. It's not allowed in DMS. Please consider to remove this column from your sync setup.";
+        private new const string Message = "The column {0} is an auto increment column, but it's not used as a primary key for the table {1}. It's not allowed in DMS. Please consider to remove this column from your sync setup.";
 
+        /// <inheritdoc cref="InvalidColumnAutoIncrementException"/>
         public InvalidColumnAutoIncrementException(string columnName, string sourceTableName)
             : base(string.Format(Message, columnName, sourceTableName)) { }
 
+        /// <inheritdoc cref="InvalidColumnAutoIncrementException"/>
         public InvalidColumnAutoIncrementException()
         {
         }
 
-        public InvalidColumnAutoIncrementException(string message) : base(message)
+        /// <inheritdoc cref="InvalidColumnAutoIncrementException"/>
+        public InvalidColumnAutoIncrementException(string message)
+            : base(message)
         {
         }
     }
@@ -443,16 +495,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingPrimaryKeyException : Exception
     {
-        private const string Message = "Table {0} does not have any primary key.";
+        private new const string Message = "Table {0} does not have any primary key.";
 
+        /// <inheritdoc cref="MissingPrimaryKeyException"/>
         public MissingPrimaryKeyException(string tableName)
             : base(string.Format(Message, tableName)) { }
 
+        /// <inheritdoc cref="MissingPrimaryKeyException"/>
         public MissingPrimaryKeyException()
         {
         }
 
-        public MissingPrimaryKeyException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MissingPrimaryKeyException"/>
+        public MissingPrimaryKeyException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -462,16 +518,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingTableException : Exception
     {
-        private const string Message = "Table {0} does not exists in database {1}.";
+        private new const string Message = "Table {0} does not exists in database {1}.";
 
+        /// <inheritdoc cref="MissingTableException"/>
         public MissingTableException(string tableName, string schemaName, string databaseName)
             : base(string.Format(Message, string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}", databaseName)) { }
 
+        /// <inheritdoc cref="MissingTableException"/>
         public MissingTableException()
         {
         }
 
-        public MissingTableException(string message) : base(message)
+        /// <inheritdoc cref="MissingTableException"/>
+        public MissingTableException(string message)
+            : base(message)
         {
         }
     }
@@ -494,14 +554,18 @@ namespace Dotmim.Sync
 
         private static ISerializer serializer = SerializersFactory.JsonSerializerFactory.GetSerializer();
 
+        /// <inheritdoc cref="SetupConflictOnClientException"/>
         public SetupConflictOnClientException(SyncSetup inputSetup, SyncSetup clientScopeInfoSetup)
             : base(string.Format(CultureInfo.InvariantCulture, Message, serializer.Serialize(inputSetup).ToUtf8String(), serializer.Serialize(clientScopeInfoSetup).ToUtf8String())) { }
 
+        /// <inheritdoc cref="SetupConflictOnClientException"/>
         public SetupConflictOnClientException()
         {
         }
 
-        public SetupConflictOnClientException(string message) : base(message)
+        /// <inheritdoc cref="SetupConflictOnClientException"/>
+        public SetupConflictOnClientException(string message)
+            : base(message)
         {
         }
     }
@@ -511,7 +575,7 @@ namespace Dotmim.Sync
     /// </summary>
     public class SetupConflictOnServerException : Exception
     {
-        private const string Message = "Seems you are trying another Setup that what is stored in your server scope database.\n" +
+        private new const string Message = "Seems you are trying another Setup that what is stored in your server scope database.\n" +
                                "You have already made a sync with a setup that has been stored in the server (and client) database.\n" +
                                "And you are trying now a new setup in your code, different from the one you have used before.\n" +
                                "If you want to use 2 differents setups, please use a different a scope name for each setup.\n" +
@@ -521,16 +585,21 @@ namespace Dotmim.Sync
                                "-----------------------------------------------------\n" +
                                "Setup found in your database: {1}\n" +
                                "-----------------------------------------------------\n";
+
         private static ISerializer serializer = SerializersFactory.JsonSerializerFactory.GetSerializer();
 
+        /// <inheritdoc cref="SetupConflictOnServerException"/>
         public SetupConflictOnServerException(SyncSetup inputSetup, SyncSetup clientScopeInfoSetup)
             : base(string.Format(Message, serializer.Serialize(inputSetup).ToUtf8String(), serializer.Serialize(clientScopeInfoSetup).ToUtf8String())) { }
 
+        /// <inheritdoc cref="SetupConflictOnServerException"/>
         public SetupConflictOnServerException()
         {
         }
 
-        public SetupConflictOnServerException(string message) : base(message)
+        /// <inheritdoc cref="SetupConflictOnServerException"/>
+        public SetupConflictOnServerException(string message)
+            : base(message)
         {
         }
     }
@@ -540,16 +609,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingColumnException : Exception
     {
-        private const string Message = "Column {0} does not exists in the table {1}.";
+        private new const string Message = "Column {0} does not exists in the table {1}.";
 
+        /// <inheritdoc cref="MissingColumnException"/>
         public MissingColumnException(string columnName, string sourceTableName)
             : base(string.Format(Message, columnName, sourceTableName)) { }
 
+        /// <inheritdoc cref="MissingColumnException"/>
         public MissingColumnException()
         {
         }
 
-        public MissingColumnException(string message) : base(message)
+        /// <inheritdoc cref="MissingColumnException"/>
+        public MissingColumnException(string message)
+            : base(message)
         {
         }
     }
@@ -559,16 +632,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingsColumnException : Exception
     {
-        private const string Message = "Table {0} has no columns.";
+        private new const string Message = "Table {0} has no columns.";
 
+        /// <inheritdoc cref="MissingsColumnException"/>
         public MissingsColumnException(string sourceTableName)
             : base(string.Format(Message, sourceTableName)) { }
 
+        /// <inheritdoc cref="MissingsColumnException"/>
         public MissingsColumnException()
         {
         }
 
-        public MissingsColumnException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MissingsColumnException"/>
+        public MissingsColumnException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -578,16 +655,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingPrimaryKeyColumnException : Exception
     {
-        private const string Message = "Primary key column {0} should be part of the columns list in your Setup table {1}.";
+        private new const string Message = "Primary key column {0} should be part of the columns list in your Setup table {1}.";
 
+        /// <inheritdoc cref="MissingPrimaryKeyColumnException"/>
         public MissingPrimaryKeyColumnException(string columnName, string sourceTableName)
             : base(string.Format(Message, columnName, sourceTableName)) { }
 
+        /// <inheritdoc cref="MissingPrimaryKeyColumnException"/>
         public MissingPrimaryKeyColumnException()
         {
         }
 
-        public MissingPrimaryKeyColumnException(string message) : base(message)
+        /// <inheritdoc cref="MissingPrimaryKeyColumnException"/>
+        public MissingPrimaryKeyColumnException(string message)
+            : base(message)
         {
         }
     }
@@ -597,16 +678,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingProviderException : Exception
     {
-        private const string Message = "You need a provider for {0}.";
+        private new const string Message = "You need a provider for {0}.";
 
+        /// <inheritdoc cref="MissingProviderException"/>
         public MissingProviderException(string methodName)
             : base(string.Format(Message, methodName)) { }
 
+        /// <inheritdoc cref="MissingProviderException"/>
         public MissingProviderException()
         {
         }
 
-        public MissingProviderException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MissingProviderException"/>
+        public MissingProviderException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -616,17 +701,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingTablesException : Exception
     {
-        private const string Message = "Your setup does not contains any table.";
+        private new const string Message = "Your setup does not contains any table.";
 
+        /// <inheritdoc cref="MissingTablesException"/>
         public MissingTablesException()
             : base(Message) { }
 
+        /// <inheritdoc cref="MissingTablesException"/>
         public MissingTablesException(string message)
             : base(message)
         {
         }
 
-        public MissingTablesException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MissingTablesException"/>
+        public MissingTablesException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -636,16 +725,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingServerScopeTablesException : Exception
     {
-        private const string Message = "Your server scope {0} is not existing on server, or you did not provide a setup with tables to provision on the server.";
+        private new const string Message = "Your server scope {0} is not existing on server, or you did not provide a setup with tables to provision on the server.";
 
+        /// <inheritdoc cref="MissingServerScopeTablesException"/>
         public MissingServerScopeTablesException(string scopeName)
             : base(string.Format(Message, scopeName)) { }
 
+        /// <inheritdoc cref="MissingServerScopeTablesException"/>
         public MissingServerScopeTablesException()
         {
         }
 
-        public MissingServerScopeTablesException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MissingServerScopeTablesException"/>
+        public MissingServerScopeTablesException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -655,17 +748,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingSchemaInScopeException : Exception
     {
-        private const string Message = "Your scope does not contains any schema.";
+        private new const string Message = "Your scope does not contains any schema.";
 
+        /// <inheritdoc cref="MissingSchemaInScopeException"/>
         public MissingSchemaInScopeException()
             : base(Message) { }
 
+        /// <inheritdoc cref="MissingSchemaInScopeException"/>
         public MissingSchemaInScopeException(string message)
             : base(message)
         {
         }
 
-        public MissingSchemaInScopeException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MissingSchemaInScopeException"/>
+        public MissingSchemaInScopeException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -675,17 +772,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingColumnsException : Exception
     {
-        private const string Message = "Your setup does not contains any column.";
+        private new const string Message = "Your setup does not contains any column.";
 
+        /// <inheritdoc cref="MissingColumnsException"/>
         public MissingColumnsException()
             : base(Message) { }
 
+        /// <inheritdoc cref="MissingColumnsException"/>
         public MissingColumnsException(string message)
             : base(message)
         {
         }
 
-        public MissingColumnsException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MissingColumnsException"/>
+        public MissingColumnsException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -695,17 +796,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class MigrationTableDropNotAllowedException : Exception
     {
-        private const string Message = "During a migration, droping a table is not allowed";
+        private new const string Message = "During a migration, droping a table is not allowed";
 
+        /// <inheritdoc cref="MigrationTableDropNotAllowedException"/>
         public MigrationTableDropNotAllowedException()
             : base(Message) { }
 
+        /// <inheritdoc cref="MigrationTableDropNotAllowedException"/>
         public MigrationTableDropNotAllowedException(string message)
             : base(message)
         {
         }
 
-        public MigrationTableDropNotAllowedException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MigrationTableDropNotAllowedException"/>
+        public MigrationTableDropNotAllowedException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -715,16 +820,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class MetadataException : Exception
     {
-        private const string Message = "No metadatas rows found for table {0}.";
+        private new const string Message = "No metadatas rows found for table {0}.";
 
+        /// <inheritdoc cref="MetadataException"/>
         public MetadataException(string tableName)
             : base(string.Format(Message, tableName)) { }
 
+        /// <inheritdoc cref="MetadataException"/>
         public MetadataException()
         {
         }
 
-        public MetadataException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MetadataException"/>
+        public MetadataException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -734,16 +843,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class RowOverSizedException : Exception
     {
-        private const string Message = "Row is too big ({0} kb.) for the current DownloadBatchSizeInKB.";
+        private new const string Message = "Row is too big ({0} kb.) for the current DownloadBatchSizeInKB.";
 
+        /// <inheritdoc cref="RowOverSizedException"/>
         public RowOverSizedException(string finalFieldSize)
             : base(string.Format(Message, finalFieldSize)) { }
 
+        /// <inheritdoc cref="RowOverSizedException"/>
         public RowOverSizedException()
         {
         }
 
-        public RowOverSizedException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="RowOverSizedException"/>
+        public RowOverSizedException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -753,16 +866,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingCommandException : Exception
     {
-        private const string Message = "Missing command {0}.";
+        private new const string Message = "Missing command {0}.";
 
+        /// <inheritdoc cref="MissingCommandException"/>
         public MissingCommandException(string commandType)
             : base(string.Format(Message, commandType)) { }
 
+        /// <inheritdoc cref="MissingCommandException"/>
         public MissingCommandException()
         {
         }
 
-        public MissingCommandException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MissingCommandException"/>
+        public MissingCommandException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -772,16 +889,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingChangeTrackingException : Exception
     {
-        private const string Message = "Change Tracking is not activated for database {0}. Please execute this statement : Alter database {0} SET CHANGE_TRACKING = ON (CHANGE_RETENTION = 14 DAYS, AUTO_CLEANUP = ON)";
+        private new const string Message = "Change Tracking is not activated for database {0}. Please execute this statement : Alter database {0} SET CHANGE_TRACKING = ON (CHANGE_RETENTION = 14 DAYS, AUTO_CLEANUP = ON)";
 
+        /// <inheritdoc cref="MissingChangeTrackingException"/>
         public MissingChangeTrackingException(string databaseName)
             : base(string.Format(Message, databaseName)) { }
 
+        /// <inheritdoc cref="MissingChangeTrackingException"/>
         public MissingChangeTrackingException()
         {
         }
 
-        public MissingChangeTrackingException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MissingChangeTrackingException"/>
+        public MissingChangeTrackingException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -791,16 +912,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class MissingTrackingTableException : Exception
     {
-        private const string Message = "No tracking table for table {0}. Please Provision your database before calling this method";
+        private new const string Message = "No tracking table for table {0}. Please Provision your database before calling this method";
 
+        /// <inheritdoc cref="MissingTrackingTableException"/>
         public MissingTrackingTableException(string tableName)
             : base(string.Format(Message, tableName)) { }
 
+        /// <inheritdoc cref="MissingTrackingTableException"/>
         public MissingTrackingTableException()
         {
         }
 
-        public MissingTrackingTableException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MissingTrackingTableException"/>
+        public MissingTrackingTableException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -811,16 +936,20 @@ namespace Dotmim.Sync
     public class MissingDatabaseException : Exception
     {
 
-        private const string Message = "Database {0} does not exist";
+        private new const string Message = "Database {0} does not exist";
 
+        /// <inheritdoc cref="MissingDatabaseException"/>
         public MissingDatabaseException(string databaseName)
             : base(string.Format(Message, databaseName)) { }
 
+        /// <inheritdoc cref="MissingDatabaseException"/>
         public MissingDatabaseException()
         {
         }
 
-        public MissingDatabaseException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="MissingDatabaseException"/>
+        public MissingDatabaseException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -831,16 +960,20 @@ namespace Dotmim.Sync
     public class InvalidDatabaseVersionException : Exception
     {
 
-        private const string Message = "Engine {1} version {0} is not supported. Please upgrade your server to the last version.";
+        private new const string Message = "Engine {1} version {0} is not supported. Please upgrade your server to the last version.";
 
+        /// <inheritdoc cref="InvalidDatabaseVersionException"/>
         public InvalidDatabaseVersionException(string version, string engine)
             : base(string.Format(Message, version, engine)) { }
 
+        /// <inheritdoc cref="InvalidDatabaseVersionException"/>
         public InvalidDatabaseVersionException()
         {
         }
 
-        public InvalidDatabaseVersionException(string message) : base(message)
+        /// <inheritdoc cref="InvalidDatabaseVersionException"/>
+        public InvalidDatabaseVersionException(string message)
+            : base(message)
         {
         }
     }
@@ -850,16 +983,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class UnsupportedColumnTypeException : Exception
     {
-        private const string Message = "In table {0}, the Column {1} of type {2} from provider {3} is not currently supported.";
+        private new const string Message = "In table {0}, the Column {1} of type {2} from provider {3} is not currently supported.";
 
+        /// <inheritdoc cref="UnsupportedColumnTypeException"/>
         public UnsupportedColumnTypeException(string tableName, string columnName, string columnType, string provider)
             : base(string.Format(Message, tableName, columnName, columnType, provider)) { }
 
+        /// <inheritdoc cref="UnsupportedColumnTypeException"/>
         public UnsupportedColumnTypeException()
         {
         }
 
-        public UnsupportedColumnTypeException(string message) : base(message)
+        /// <inheritdoc cref="UnsupportedColumnTypeException"/>
+        public UnsupportedColumnTypeException(string message)
+            : base(message)
         {
         }
     }
@@ -869,17 +1006,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class UnsupportedColumnNameException : Exception
     {
-        private const string Message = "In table {0}, the Column name {1} is not allowed. Please consider to change the column name.";
+        private new const string Message = "In table {0} (Provider {3}), the Column name {1} of type {2} is not allowed. Please consider to change the column name.";
 
+        /// <inheritdoc cref="UnsupportedColumnNameException"/>
         public UnsupportedColumnNameException(string tableName, string columnName, string columnType, string provider)
             : base(string.Format(Message, tableName, columnName, columnType, provider))
         { }
 
+        /// <inheritdoc cref="UnsupportedColumnNameException"/>
         public UnsupportedColumnNameException()
         {
         }
 
-        public UnsupportedColumnNameException(string message) : base(message)
+        /// <inheritdoc cref="UnsupportedColumnNameException"/>
+        public UnsupportedColumnNameException(string message)
+            : base(message)
         {
         }
     }
@@ -889,16 +1030,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class UnsupportedPrimaryKeyColumnNameException : Exception
     {
-        private const string Message = "In table {0}, the Column name {1} is not allowed as a primary key. Please consider to change the column name or choose another primary key for your table.";
+        private new const string Message = "In table {0} (Provider {3}), the Column name {1} of type {2} is not allowed as a primary key. Please consider to change the column name or choose another primary key for your table.";
 
+        /// <inheritdoc cref="UnsupportedPrimaryKeyColumnNameException"/>
         public UnsupportedPrimaryKeyColumnNameException(string tableName, string columnName, string columnType, string provider)
             : base(string.Format(Message, tableName, columnName, columnType, provider)) { }
 
+        /// <inheritdoc cref="UnsupportedPrimaryKeyColumnNameException"/>
         public UnsupportedPrimaryKeyColumnNameException()
         {
         }
 
-        public UnsupportedPrimaryKeyColumnNameException(string message) : base(message)
+        /// <inheritdoc cref="UnsupportedPrimaryKeyColumnNameException"/>
+        public UnsupportedPrimaryKeyColumnNameException(string message)
+            : base(message)
         {
         }
     }
@@ -908,16 +1053,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class UnsupportedServerProviderException : Exception
     {
-        private const string Message = "The provider {0} can not be used as a server provider";
+        private new const string Message = "The provider {0} can not be used as a server provider";
 
+        /// <inheritdoc cref="UnsupportedServerProviderException"/>
         public UnsupportedServerProviderException(string provider)
             : base(string.Format(Message, provider)) { }
 
+        /// <inheritdoc cref="UnsupportedServerProviderException"/>
         public UnsupportedServerProviderException()
         {
         }
 
-        public UnsupportedServerProviderException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="UnsupportedServerProviderException"/>
+        public UnsupportedServerProviderException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -927,16 +1076,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class OutOfDateException : Exception
     {
-        private const string Message = "Client database is out of date. Last client sync timestamp:{0}. Last server cleanup metadata:{1} Try to make a Reinitialize sync.";
+        private new const string Message = "Client database is out of date. Last client sync timestamp:{0}. Last server cleanup metadata:{1} Try to make a Reinitialize sync.";
 
+        /// <inheritdoc cref="OutOfDateException"/>
         public OutOfDateException(long? timestampLimit, long? serverLastCleanTimestamp)
             : base(string.Format(Message, timestampLimit, serverLastCleanTimestamp)) { }
 
+        /// <inheritdoc cref="OutOfDateException"/>
         public OutOfDateException()
         {
         }
 
-        public OutOfDateException(string message) : base(message)
+        /// <inheritdoc cref="OutOfDateException"/>
+        public OutOfDateException(string message)
+            : base(message)
         {
         }
     }
@@ -946,17 +1099,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class HttpEmptyResponseContentException : Exception
     {
-        private const string Message = "The reponse has an empty body.";
+        private new const string Message = "The reponse has an empty body.";
 
+        /// <inheritdoc cref="HttpEmptyResponseContentException"/>
         public HttpEmptyResponseContentException()
             : base(Message) { }
 
+        /// <inheritdoc cref="HttpEmptyResponseContentException"/>
         public HttpEmptyResponseContentException(string message)
             : base(message)
         {
         }
 
-        public HttpEmptyResponseContentException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="HttpEmptyResponseContentException"/>
+        public HttpEmptyResponseContentException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -966,16 +1123,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class HttpHeaderMissingException : Exception
     {
-        private const string Message = "Header {0} is missing.";
+        private new const string Message = "Header {0} is missing.";
 
+        /// <inheritdoc cref="HttpHeaderMissingException"/>
         public HttpHeaderMissingException(string header)
             : base(string.Format(Message, header)) { }
 
+        /// <inheritdoc cref="HttpHeaderMissingException"/>
         public HttpHeaderMissingException()
         {
         }
 
-        public HttpHeaderMissingException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="HttpHeaderMissingException"/>
+        public HttpHeaderMissingException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -985,17 +1146,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class HttpCacheNotConfiguredException : Exception
     {
-        private const string Message = "Cache is not configured! Please add memory cache (distributed or not). See https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2).";
+        private new const string Message = "Cache is not configured! Please add memory cache (distributed or not). See https://docs.microsoft.com/en-us/aspnet/core/performance/caching/response?view=aspnetcore-2.2).";
 
+        /// <inheritdoc cref="HttpCacheNotConfiguredException"/>
         public HttpCacheNotConfiguredException()
             : base(Message) { }
 
+        /// <inheritdoc cref="HttpCacheNotConfiguredException"/>
         public HttpCacheNotConfiguredException(string message)
             : base(message)
         {
         }
 
-        public HttpCacheNotConfiguredException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="HttpCacheNotConfiguredException"/>
+        public HttpCacheNotConfiguredException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -1005,9 +1170,10 @@ namespace Dotmim.Sync
     /// </summary>
     public class HttpSerializerNotConfiguredException : Exception
     {
-        private const string Message = "Unexpected value for serializer. Available serializers on the server: {0}";
+        private new const string Message = "Unexpected value for serializer. Available serializers on the server: {0}";
         private const string MessageEmpty = "Unexpected value for serializer. Server has not any serializer registered";
 
+        /// <inheritdoc cref="HttpSerializerNotConfiguredException"/>
         public HttpSerializerNotConfiguredException(IEnumerable<string> serializers)
             : base(
                 serializers.Any() ?
@@ -1015,23 +1181,27 @@ namespace Dotmim.Sync
                     : MessageEmpty)
         { }
 
+        /// <inheritdoc cref="HttpSerializerNotConfiguredException"/>
         public HttpSerializerNotConfiguredException()
         {
         }
 
-        public HttpSerializerNotConfiguredException(string message) : base(message)
+        /// <inheritdoc cref="HttpSerializerNotConfiguredException"/>
+        public HttpSerializerNotConfiguredException(string message)
+            : base(message)
         {
         }
     }
 
     /// <summary>
-    /// Occurs when a Serializer is not available on the server side.
+    /// Occurs when a Converter is not available.
     /// </summary>
     public class HttpConverterNotConfiguredException : Exception
     {
-        private const string Message = "Unexpected value for converter. Available converters on the server: {0}";
+        private new const string Message = "Unexpected value for converter. Available converters on the server: {0}";
         private const string MessageEmpty = "Unexpected value for converter. Server has not any converter registered";
 
+        /// <inheritdoc cref="HttpConverterNotConfiguredException"/>
         public HttpConverterNotConfiguredException(IEnumerable<string> converters)
             : base(
                 converters.Any() ?
@@ -1039,11 +1209,14 @@ namespace Dotmim.Sync
                     : MessageEmpty)
         { }
 
+        /// <inheritdoc cref="HttpConverterNotConfiguredException"/>
         public HttpConverterNotConfiguredException()
         {
         }
 
-        public HttpConverterNotConfiguredException(string message) : base(message)
+        /// <inheritdoc cref="HttpConverterNotConfiguredException"/>
+        public HttpConverterNotConfiguredException(string message)
+            : base(message)
         {
         }
     }
@@ -1053,16 +1226,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class HttpScopeNameInvalidException : Exception
     {
-        private const string Message = "The scope {0} does not exist on the server side. Please provider a correct scope name";
+        private new const string Message = "The scope {0} does not exist on the server side. Please provider a correct scope name";
 
+        /// <inheritdoc cref="HttpScopeNameInvalidException"/>
         public HttpScopeNameInvalidException(string scopeName)
             : base(string.Format(Message, scopeName)) { }
 
+        /// <inheritdoc cref="HttpScopeNameInvalidException"/>
         public HttpScopeNameInvalidException()
         {
         }
 
-        public HttpScopeNameInvalidException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="HttpScopeNameInvalidException"/>
+        public HttpScopeNameInvalidException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -1072,16 +1249,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class HttpScopeNameFromClientIsInvalidException : Exception
     {
-        private const string Message = "Scope name received from client {0} is different from the scope name specified in the web server agent {1}";
+        private new const string Message = "Scope name received from client {0} is different from the scope name specified in the web server agent {1}";
 
+        /// <inheritdoc cref="HttpScopeNameFromClientIsInvalidException"/>
         public HttpScopeNameFromClientIsInvalidException(string scopeNameClientReceived, string scopeNameServerDeclared)
             : base(string.Format(Message, scopeNameClientReceived, scopeNameServerDeclared)) { }
 
+        /// <inheritdoc cref="HttpScopeNameFromClientIsInvalidException"/>
         public HttpScopeNameFromClientIsInvalidException()
         {
         }
 
-        public HttpScopeNameFromClientIsInvalidException(string message) : base(message)
+        /// <inheritdoc cref="HttpScopeNameFromClientIsInvalidException"/>
+        public HttpScopeNameFromClientIsInvalidException(string message)
+            : base(message)
         {
         }
     }
@@ -1091,16 +1272,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class HttpSessionLostException : Exception
     {
-        private const string Message = "Session loss: No batchPartInfo could found for the current sessionId {0}. It seems the session was lost. Please try again.";
+        private new const string Message = "Session loss: No batchPartInfo could found for the current sessionId {0}. It seems the session was lost. Please try again.";
 
+        /// <inheritdoc cref="HttpSessionLostException"/>
         public HttpSessionLostException(string sessionId)
             : base(string.Format(Message, sessionId)) { }
 
+        /// <inheritdoc cref="HttpSessionLostException"/>
         public HttpSessionLostException()
         {
         }
 
-        public HttpSessionLostException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="HttpSessionLostException"/>
+        public HttpSessionLostException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -1110,16 +1295,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class FilterParameterAlreadyExistsException : Exception
     {
-        private const string Message = "The parameter {0} has been already added for the {1} changes stored procedure";
+        private new const string Message = "The parameter {0} has been already added for the {1} changes stored procedure";
 
+        /// <inheritdoc cref="FilterParameterAlreadyExistsException"/>
         public FilterParameterAlreadyExistsException(string parameterName, string tableName)
             : base(string.Format(Message, parameterName, tableName)) { }
 
+        /// <inheritdoc cref="FilterParameterAlreadyExistsException"/>
         public FilterParameterAlreadyExistsException()
         {
         }
 
-        public FilterParameterAlreadyExistsException(string message) : base(message)
+        /// <inheritdoc cref="FilterParameterAlreadyExistsException"/>
+        public FilterParameterAlreadyExistsException(string message)
+            : base(message)
         {
         }
     }
@@ -1129,16 +1318,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class FilterAlreadyExistsException : Exception
     {
-        private const string Message = "The filter for the {0} changes stored procedure already exists";
+        private new const string Message = "The filter for the {0} changes stored procedure already exists";
 
+        /// <inheritdoc cref="FilterAlreadyExistsException"/>
         public FilterAlreadyExistsException(string tableName)
             : base(string.Format(Message, tableName)) { }
 
+        /// <inheritdoc cref="FilterAlreadyExistsException"/>
         public FilterAlreadyExistsException()
         {
         }
 
-        public FilterAlreadyExistsException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="FilterAlreadyExistsException"/>
+        public FilterAlreadyExistsException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -1148,16 +1341,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class FilterTrackingWhereException : Exception
     {
-        private const string Message = "The column {0} does not exist in the columns parameters list, so can't be add as a where filter clause to the tracking table";
+        private new const string Message = "The column {0} does not exist in the columns parameters list, so can't be add as a where filter clause to the tracking table";
 
+        /// <inheritdoc cref="FilterTrackingWhereException"/>
         public FilterTrackingWhereException(string columName)
             : base(string.Format(Message, columName)) { }
 
+        /// <inheritdoc cref="FilterTrackingWhereException"/>
         public FilterTrackingWhereException()
         {
         }
 
-        public FilterTrackingWhereException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="FilterTrackingWhereException"/>
+        public FilterTrackingWhereException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -1167,16 +1364,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class FilterParamColumnNotExistsException : Exception
     {
-        private const string Message = "The parameter {0} does not exist as a column in the table {1}";
+        private new const string Message = "The parameter {0} does not exist as a column in the table {1}";
 
+        /// <inheritdoc cref="FilterParamColumnNotExistsException"/>
         public FilterParamColumnNotExistsException(string columName, string tableName)
             : base(string.Format(Message, columName, tableName)) { }
 
+        /// <inheritdoc cref="FilterParamColumnNotExistsException"/>
         public FilterParamColumnNotExistsException()
         {
         }
 
-        public FilterParamColumnNotExistsException(string message) : base(message)
+        /// <inheritdoc cref="FilterParamColumnNotExistsException"/>
+        public FilterParamColumnNotExistsException(string message)
+            : base(message)
         {
         }
     }
@@ -1186,16 +1387,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class FilterParamTableNotExistsException : Exception
     {
-        private const string Message = "The table {0} does not exist";
+        private new const string Message = "The table {0} does not exist";
 
+        /// <inheritdoc cref="FilterParamTableNotExistsException"/>
         public FilterParamTableNotExistsException(string tableName)
             : base(string.Format(Message, tableName)) { }
 
+        /// <inheritdoc cref="FilterParamTableNotExistsException"/>
         public FilterParamTableNotExistsException()
         {
         }
 
-        public FilterParamTableNotExistsException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="FilterParamTableNotExistsException"/>
+        public FilterParamTableNotExistsException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -1205,16 +1410,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class SyncParameterAlreadyExistsException : Exception
     {
-        private const string Message = "The parameter {0} already exists in the parameter list.";
+        private new const string Message = "The parameter {0} already exists in the parameter list.";
 
+        /// <inheritdoc cref="SyncParameterAlreadyExistsException"/>
         public SyncParameterAlreadyExistsException(string parameterName)
             : base(string.Format(Message, parameterName)) { }
 
+        /// <inheritdoc cref="SyncParameterAlreadyExistsException"/>
         public SyncParameterAlreadyExistsException()
         {
         }
 
-        public SyncParameterAlreadyExistsException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="SyncParameterAlreadyExistsException"/>
+        public SyncParameterAlreadyExistsException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -1224,16 +1433,20 @@ namespace Dotmim.Sync
     /// </summary>
     public class SnapshotNotExistsException : Exception
     {
-        private const string Message = "The snapshot {0} does not exists.";
+        private new const string Message = "The snapshot {0} does not exists.";
 
+        /// <inheritdoc cref="SnapshotNotExistsException"/>
         public SnapshotNotExistsException(string directoryName)
             : base(string.Format(Message, directoryName)) { }
 
+        /// <inheritdoc cref="SnapshotNotExistsException"/>
         public SnapshotNotExistsException()
         {
         }
 
-        public SnapshotNotExistsException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="SnapshotNotExistsException"/>
+        public SnapshotNotExistsException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -1243,17 +1456,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class SnapshotMissingMandatariesOptionsException : Exception
     {
-        private const string Message = "To be able to create a snapshot, you need to precise SnapshotsDirectory and BatchSize in the SyncOptions from the RemoteOrchestrator";
+        private new const string Message = "To be able to create a snapshot, you need to precise SnapshotsDirectory and BatchSize in the SyncOptions from the RemoteOrchestrator";
 
+        /// <inheritdoc cref="SnapshotMissingMandatariesOptionsException"/>
         public SnapshotMissingMandatariesOptionsException()
             : base(Message) { }
 
+        /// <inheritdoc cref="SnapshotMissingMandatariesOptionsException"/>
         public SnapshotMissingMandatariesOptionsException(string message)
             : base(message)
         {
         }
 
-        public SnapshotMissingMandatariesOptionsException(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="SnapshotMissingMandatariesOptionsException"/>
+        public SnapshotMissingMandatariesOptionsException(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -1263,17 +1480,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class OptionsReferencesAreNotSameExecption : Exception
     {
-        private const string Message = "Remote orchestrator options instance is different from Local orchestrator options instance. Please use the same instance.";
+        private new const string Message = "Remote orchestrator options instance is different from Local orchestrator options instance. Please use the same instance.";
 
+        /// <inheritdoc cref="OptionsReferencesAreNotSameExecption"/>
         public OptionsReferencesAreNotSameExecption()
             : base(Message) { }
 
+        /// <inheritdoc cref="OptionsReferencesAreNotSameExecption"/>
         public OptionsReferencesAreNotSameExecption(string message)
             : base(message)
         {
         }
 
-        public OptionsReferencesAreNotSameExecption(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="OptionsReferencesAreNotSameExecption"/>
+        public OptionsReferencesAreNotSameExecption(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -1283,17 +1504,21 @@ namespace Dotmim.Sync
     /// </summary>
     public class SetupReferencesAreNotSameExecption : Exception
     {
-        private const string Message = "Remote orchestrator setup instance is different from Local orchestrator setup instance. Please use the same instance.";
+        private new const string Message = "Remote orchestrator setup instance is different from Local orchestrator setup instance. Please use the same instance.";
 
+        /// <inheritdoc cref="SetupReferencesAreNotSameExecption"/>
         public SetupReferencesAreNotSameExecption()
             : base(Message) { }
 
+        /// <inheritdoc cref="SetupReferencesAreNotSameExecption"/>
         public SetupReferencesAreNotSameExecption(string message)
             : base(message)
         {
         }
 
-        public SetupReferencesAreNotSameExecption(string message, Exception innerException) : base(message, innerException)
+        /// <inheritdoc cref="SetupReferencesAreNotSameExecption"/>
+        public SetupReferencesAreNotSameExecption(string message, Exception innerException)
+            : base(message, innerException)
         {
         }
     }
@@ -1303,32 +1528,43 @@ namespace Dotmim.Sync
     /// </summary>
     public class SyncHashException : Exception
     {
-        private const string Message = "The batch file is corrupted. Hash is not valid";
+        private new const string Message = "The batch file is corrupted. Hash is not valid ({0} compared to {1}";
 
+        /// <inheritdoc cref="SyncHashException"/>
         public SyncHashException(string hash1, string hash2)
             : base(string.Format(Message, hash1, hash2)) { }
 
+        /// <inheritdoc cref="SyncHashException"/>
         public SyncHashException()
         {
         }
 
-        public SyncHashException(string message) : base(message)
+        /// <inheritdoc cref="SyncHashException"/>
+        public SyncHashException(string message)
+            : base(message)
         {
         }
     }
 
+    /// <summary>
+    /// Apply changes exception.
+    /// </summary>
     public class ApplyChangesException : Exception
     {
-        private const string Message = "Error on table [{0}]: {1}. Row:{2}. ApplyType:{3}";
+        private new const string Message = "Error on table [{0}]: {1}. Row:{2}. ApplyType:{3}";
 
+        /// <inheritdoc cref="ApplyChangesException"/>
         public ApplyChangesException(SyncRow errorRow, SyncTable schemaChangesTable, SyncRowState rowState, Exception innerException)
             : base(string.Format(Message, schemaChangesTable.GetFullName(), innerException.Message, errorRow, rowState), innerException) { }
 
+        /// <inheritdoc cref="ApplyChangesException"/>
         public ApplyChangesException()
         {
         }
 
-        public ApplyChangesException(string message) : base(message)
+        /// <inheritdoc cref="ApplyChangesException"/>
+        public ApplyChangesException(string message)
+            : base(message)
         {
         }
     }

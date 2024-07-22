@@ -30,25 +30,25 @@ namespace Dotmim.Sync
         /// Gets or sets the custom joins list, used with custom wheres.
         /// </summary>
         [DataMember(Name = "j", IsRequired = false, EmitDefaultValue = false, Order = 3)]
-        public List<SetupFilterJoin> Joins { get; set; } = new List<SetupFilterJoin>();
+        public List<SetupFilterJoin> Joins { get; set; } = [];
 
         /// <summary>
         /// Gets or sets the custom joins list, used with custom wheres.
         /// </summary>
         [DataMember(Name = "cw", IsRequired = false, EmitDefaultValue = false, Order = 4)]
-        public List<string> CustomWheres { get; set; } = new List<string>();
+        public List<string> CustomWheres { get; set; } = [];
 
         /// <summary>
         /// Gets or sets the parameters list, used as input in the stored procedure.
         /// </summary>
         [DataMember(Name = "p", IsRequired = false, EmitDefaultValue = false, Order = 5)]
-        public List<SetupFilterParameter> Parameters { get; set; } = new List<SetupFilterParameter>();
+        public List<SetupFilterParameter> Parameters { get; set; } = [];
 
         /// <summary>
         /// Gets or sets side where filters list.
         /// </summary>
         [DataMember(Name = "w", IsRequired = false, EmitDefaultValue = false, Order = 6)]
-        public List<SetupFilterWhere> Wheres { get; set; } = new List<SetupFilterWhere>();
+        public List<SetupFilterWhere> Wheres { get; set; } = [];
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SetupFilter"/> class.
@@ -114,11 +114,6 @@ namespace Dotmim.Sync
         public SetupFilterOn AddJoin(Join join, string tableName, string schemaName = null) => new(this, join, tableName, schemaName);
 
         /// <summary>
-        /// Internal add custom join.
-        /// </summary>
-        internal void AddJoin(SetupFilterJoin setupFilterJoin) => this.Joins.Add(setupFilterJoin);
-
-        /// <summary>
         /// Add a Where clause.
         /// </summary>
         public SetupFilter AddWhere(string columnName, string tableName, string parameterName, string schemaName = null)
@@ -136,7 +131,7 @@ namespace Dotmim.Sync
         public SetupFilter AddCustomWhere(string where)
         {
             // check we don't add a null value
-            where = where ?? string.Empty;
+            where ??= string.Empty;
 
             this.CustomWheres.Add(where);
             return this;
@@ -200,5 +195,10 @@ namespace Dotmim.Sync
             else
                 return this.TableName;
         }
+
+        /// <summary>
+        /// Internal add custom join.
+        /// </summary>
+        internal void AddJoin(SetupFilterJoin setupFilterJoin) => this.Joins.Add(setupFilterJoin);
     }
 }

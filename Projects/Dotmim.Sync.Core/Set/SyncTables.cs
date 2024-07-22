@@ -48,8 +48,10 @@ namespace Dotmim.Sync
         {
             this.Schema = schema;
             if (this.InnerCollection != null)
+            {
                 foreach (var table in this)
                     table.EnsureTable(schema);
+            }
         }
 
         /// <summary>

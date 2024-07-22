@@ -43,8 +43,10 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (!exists)
+                    {
                         await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     // Get scope if exists
                     ScopeInfoClient scopeInfoClient;

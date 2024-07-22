@@ -31,8 +31,7 @@ namespace Dotmim.Sync
             Guard.ThrowIfNull(clientProvider);
             Guard.ThrowIfNull(serverProvider);
 
-            if (options == null)
-                options = new SyncOptions();
+            options ??= new SyncOptions();
 
             // Affect local and remote orchestrators
             this.LocalOrchestrator = new LocalOrchestrator(clientProvider, options);
@@ -225,7 +224,7 @@ namespace Dotmim.Sync
                 (context, sScopeInfo, shouldProvision) = await this.RemoteOrchestrator.InternalEnsureScopeInfoAsync(context, setup, false, default, default, progress, cancellationToken).ConfigureAwait(false);
 
                 var isConflicting = false;
-                (context, isConflicting, sScopeInfo) = await this.RemoteOrchestrator.InternalIsConflictingSetupAsync(context, setup, sScopeInfo).ConfigureAwait(false);
+                (context, isConflicting, sScopeInfo) = await this.RemoteOrchestrator.InternalIsConflictingSetupAsync(context, setup, sScopeInfo, default, default, progress, cancellationToken).ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     cancellationToken.ThrowIfCancellationRequested();

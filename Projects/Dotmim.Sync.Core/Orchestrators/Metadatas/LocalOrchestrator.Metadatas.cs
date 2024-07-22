@@ -37,8 +37,10 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (!exists)
+                    {
                         (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     List<ScopeInfo> clientScopeInfos;
                     (context, clientScopeInfos) = await this.InternalLoadAllScopeInfosAsync(
@@ -53,8 +55,10 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (!existsCScopeInfoClient)
+                    {
                         (context, _) = await this.InternalCreateScopeInfoTableAsync(context, DbScopeType.ScopeInfoClient,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     var clientHistoriesScopeInfos = await this.InternalLoadAllScopeInfoClientsAsync(
                         context,

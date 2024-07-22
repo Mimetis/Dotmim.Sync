@@ -57,7 +57,9 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets or Sets the result array that will be deserialized from the json stream.
         /// </summary>
+#pragma warning disable CA1819 // Properties should not return arrays
         public object[] Result { get; set; }
+#pragma warning restore CA1819 // Properties should not return arrays
 
         /// <summary>
         /// Gets the schema table, corresponding to the row array objects.

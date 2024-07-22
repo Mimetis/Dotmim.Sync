@@ -11,12 +11,18 @@ namespace Dotmim.Sync
     /// Design a filter clause on Dmtable.
     /// </summary>
     [DataContract(Name = "sf"), Serializable]
-    public class SyncFilter : SyncNamedItem<SyncFilter>, IDisposable
+    public class SyncFilter : SyncNamedItem<SyncFilter>
     {
 
+        /// <summary>
+        /// Gets or sets the name of the table where the filter will be applied (and so the _Changes stored proc).
+        /// </summary>
         [DataMember(Name = "t", IsRequired = true, Order = 1)]
         public string TableName { get; set; }
 
+        /// <summary>
+        /// Gets or Sets the schema name of the table where the filter will be applied (and so the _Changes stored proc).
+        /// </summary>
         [DataMember(Name = "s", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public string SchemaName { get; set; }
 
@@ -24,25 +30,25 @@ namespace Dotmim.Sync
         /// Gets or Sets the parameters list, used as input in the stored procedure.
         /// </summary>
         [DataMember(Name = "p", IsRequired = false, EmitDefaultValue = false, Order = 3)]
-        public SyncFilterParameters Parameters { get; set; } = new SyncFilterParameters();
+        public SyncFilterParameters Parameters { get; set; } = [];
 
         /// <summary>
         /// Gets or Sets side where filters list.
         /// </summary>
         [DataMember(Name = "w", IsRequired = false, EmitDefaultValue = false, Order = 4)]
-        public SyncFilterWhereSideItems Wheres { get; set; } = new SyncFilterWhereSideItems();
+        public SyncFilterWhereSideItems Wheres { get; set; } = [];
 
         /// <summary>
         /// Gets or Sets side where filters list.
         /// </summary>
         [DataMember(Name = "j", IsRequired = false, EmitDefaultValue = false, Order = 5)]
-        public SyncFilterJoins Joins { get; set; } = new SyncFilterJoins();
+        public SyncFilterJoins Joins { get; set; } = [];
 
         /// <summary>
         /// Gets or Sets customs where.
         /// </summary>
         [DataMember(Name = "cw", IsRequired = false, EmitDefaultValue = false, Order = 6)]
-        public List<string> CustomWheres { get; set; } = new List<string>();
+        public List<string> CustomWheres { get; set; } = [];
 
         /// <summary>
         /// Gets or sets the ShemaFilter's SyncSchema.
@@ -67,9 +73,11 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncFilter Clone()
         {
-            var clone = new SyncFilter();
-            clone.SchemaName = this.SchemaName;
-            clone.TableName = this.TableName;
+            var clone = new SyncFilter
+            {
+                SchemaName = this.SchemaName,
+                TableName = this.TableName,
+            };
 
             return clone;
         }
@@ -151,25 +159,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Clear.
         /// </summary>
-        public void Clear() => this.Dispose(true);
-
-        public void Dispose()
-        {
-            this.Dispose(true);
-
-            // GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool cleanup)
-        {
-            // Dispose managed ressources
-            if (cleanup)
-            {
-                // clean rows
-                this.Schema = null;
-            }
-
-            // Dispose unmanaged ressources
-        }
+        public void Clear() => this.Schema = null;
     }
 }

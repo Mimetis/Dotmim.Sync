@@ -7,6 +7,7 @@ using System;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -206,7 +207,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the inner provider name if any.
         /// </summary>
-        /// <returns></returns>
         public override string ToString()
         {
             if (this.Provider == null)
@@ -326,7 +326,7 @@ namespace Dotmim.Sync
             await policy.ExecuteAsync(ct => connection.OpenAsync(ct), cancellationToken).ConfigureAwait(false);
 
             // Let provider knows a connection is opened
-            this.Provider.onConnectionOpened(connection);
+            this.Provider.OnConnectionOpened(connection);
 
             await this.InterceptAsync(new ConnectionOpenedArgs(context, connection), progress, cancellationToken).ConfigureAwait(false);
         }
@@ -359,7 +359,7 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(new ConnectionClosedArgs(context, connection), progress, cancellationToken).ConfigureAwait(false);
 
             // Let provider knows a connection is closed
-            this.Provider.onConnectionClosed(connection);
+            this.Provider.OnConnectionClosed(connection);
 
             if (isClosedHere && connection != null)
                 connection.Dispose();
@@ -455,9 +455,11 @@ namespace Dotmim.Sync
                     var cleanValue = new string(value.Where(char.IsLetterOrDigit).ToArray());
                     var cleanName = new string(p.Name.Where(char.IsLetterOrDigit).ToArray());
 
-#pragma warning disable CA1305 // Specify IFormatProvider
+#if NET6_0_OR_GREATER
+                    sb.Append(CultureInfo.InvariantCulture, $"{underscore}{cleanName}_{cleanValue}");
+#else
                     sb.Append($"{underscore}{cleanName}_{cleanValue}");
-#pragma warning restore CA1305 // Specify IFormatProvider
+#endif
                     underscore = "_";
                 }
             }

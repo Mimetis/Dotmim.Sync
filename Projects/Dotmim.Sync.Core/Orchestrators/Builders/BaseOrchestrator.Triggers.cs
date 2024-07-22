@@ -64,8 +64,11 @@ namespace Dotmim.Sync
                     {
                         // Drop trigger if already exists
                         if (exists && overwrite)
+                        {
+
                             (context, _) = await this.InternalDropTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
                                 runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                        }
 
                         (context, hasBeenCreated) = await this.InternalCreateTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
@@ -249,8 +252,11 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (existsAndCanBeDeleted)
+                    {
+
                         (context, hasBeenDropped) = await this.InternalDropTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     return hasBeenDropped;
                 }
@@ -351,7 +357,7 @@ namespace Dotmim.Sync
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 await this.InterceptAsync(new TriggerCreatedArgs(context, tableBuilder.TableDescription, triggerType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                 action.Command.Dispose();
 
@@ -439,7 +445,7 @@ namespace Dotmim.Sync
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                await action.Command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                 await this.InterceptAsync(new TriggerDroppedArgs(context, tableBuilder.TableDescription, triggerType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                 action.Command.Dispose();
 
@@ -513,7 +519,7 @@ namespace Dotmim.Sync
 
                 await this.InterceptAsync(new ExecuteCommandArgs(context, existsCommand, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                var existsResultObject = await existsCommand.ExecuteScalarAsync().ConfigureAwait(false);
+                var existsResultObject = await existsCommand.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
                 var exists = SyncTypeConverter.TryConvertTo<int>(existsResultObject) > 0;
                 return (context, exists);
             }

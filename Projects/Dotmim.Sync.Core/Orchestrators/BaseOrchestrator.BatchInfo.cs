@@ -27,9 +27,6 @@ namespace Dotmim.Sync
         /// </code>
         /// </example>
         /// </summary>
-        /// <returns>
-        ///
-        /// </returns>
         public virtual IList<BatchInfo> LoadBatchInfos()
         {
             var directoryInfo = new DirectoryInfo(this.Options.BatchDirectory);
@@ -112,8 +109,10 @@ namespace Dotmim.Sync
                         currentTable ??= syncTable.Clone();
 
                         foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, syncTable))
+                        {
                             if (!syncRowState.HasValue || syncRowState == default || (syncRowState.HasValue && syncRowState.Value.HasFlag(syncRow.RowState)))
                                 currentTable.Rows.Add(syncRow);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -242,8 +241,11 @@ namespace Dotmim.Sync
                     (syncTable, _, _) = LocalJsonSerializer.GetSchemaTableFromFile(fullPath);
 
                 foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, syncTable))
+                {
+
                     if (!syncRowState.HasValue || syncRowState == default || (syncRowState.HasValue && syncRowState.Value.HasFlag(syncRow.RowState)))
                         syncTable.Rows.Add(syncRow);
+                }
             }
 
             return syncTable;
@@ -263,8 +265,10 @@ namespace Dotmim.Sync
             var (syncTable, _, _) = LocalJsonSerializer.GetSchemaTableFromFile(fullPath);
 
             foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, syncTable))
+            {
                 if (!syncRowState.HasValue || syncRowState == default || (syncRowState.HasValue && syncRowState.Value.HasFlag(syncRow.RowState)))
                     syncTable.Rows.Add(syncRow);
+            }
 
             return syncTable;
         }

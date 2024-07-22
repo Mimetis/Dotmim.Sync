@@ -73,8 +73,11 @@ namespace Dotmim.Sync
 
             var parameters = new List<object>();
             if (command.Parameters != null && command.Parameters.Count > 0)
+            {
+
                 foreach (DbParameter p in command.Parameters)
-                    parameters.Add(new { Name = p.ParameterName, Value = p.Value });
+                    parameters.Add(new { Name = p.ParameterName, p.Value });
+            }
 
             var s = serializer.Serialize(new { command.CommandText, Parameters = parameters });
 

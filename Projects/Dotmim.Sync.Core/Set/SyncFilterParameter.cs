@@ -19,6 +19,7 @@ namespace Dotmim.Sync
         [IgnoreDataMember]
         public SyncSet Schema { get; set; }
 
+        /// <inheritdoc cref="SyncFilterParameter"/>/>
         public SyncFilterParameter()
         {
         }
@@ -92,6 +93,9 @@ namespace Dotmim.Sync
         [DataMember(Name = "ml", IsRequired = false, Order = 7)]
         public int MaxLength { get; set; }
 
+        /// <summary>
+        /// Returns the name of the filter parameter.
+        /// </summary>
         public override string ToString() => this.Name;
 
         /// <inheritdoc cref="SyncNamedItem{T}.GetAllNamesProperties"/>

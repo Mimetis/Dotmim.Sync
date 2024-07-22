@@ -57,8 +57,11 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (!schemaExists)
+                    {
+
                         (context, _) = await this.InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     bool exists;
                     (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder,
@@ -71,8 +74,10 @@ namespace Dotmim.Sync
                     {
                         // Drop if already exists and we need to overwrite
                         if (exists && overwrite)
+                        {
                             (context, _) = await this.InternalDropTableAsync(scopeInfo, context, tableBuilder,
                                 runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                        }
 
                         (context, hasBeenCreated) = await this.InternalCreateTableAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
@@ -131,8 +136,10 @@ namespace Dotmim.Sync
                                 runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                             if (exists)
+                            {
                                 (context, _) = await this.InternalDropTableAsync(scopeInfo, context, tableBuilder,
                                     runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                            }
                         }
                     }
 
@@ -147,8 +154,10 @@ namespace Dotmim.Sync
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                         if (!schemaExists)
+                        {
                             (context, _) = await this.InternalCreateSchemaAsync(scopeInfo, context, tableBuilder,
                                 runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                        }
 
                         bool exists;
                         (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder,
@@ -161,8 +170,10 @@ namespace Dotmim.Sync
                         {
                             // Drop if already exists and we need to overwrite
                             if (exists && overwrite)
+                            {
                                 (context, _) = await this.InternalDropTableAsync(scopeInfo, context, tableBuilder,
                                     runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                            }
 
                             bool hasBeenCreated;
                             (context, hasBeenCreated) = await this.InternalCreateTableAsync(scopeInfo, context, tableBuilder,
@@ -274,8 +285,10 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (exists)
+                    {
                         (context, hasBeenDropped) = await this.InternalDropTableAsync(scopeInfo, context, tableBuilder,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    }
 
                     await runner.CommitAsync().ConfigureAwait(false);
 
@@ -331,8 +344,10 @@ namespace Dotmim.Sync
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                         if (exists)
+                        {
                             (context, atLeastOneTableHasBeenDropped) = await this.InternalDropTableAsync(scopeInfo, context, tableBuilder,
                                 runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                        }
                     }
 
                     await runner.CommitAsync().ConfigureAwait(false);

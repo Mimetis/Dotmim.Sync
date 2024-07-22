@@ -2,99 +2,107 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Represents a list of tables to be added to the sync process.
+    /// </summary>
     [DataContract(Name = "s"), Serializable]
     public class SyncSetup : IEquatable<SyncSetup>
     {
 
         /// <summary>
-        /// Gets or Sets the tables involved in the sync
+        /// Gets or Sets the tables involved in the sync.
         /// </summary>
         [DataMember(Name = "tbls", IsRequired = false, EmitDefaultValue = false, Order = 1)]
         public SetupTables Tables { get; set; }
 
         /// <summary>
-        /// Gets or Sets the filters involved in the sync
+        /// Gets or Sets the filters involved in the sync.
         /// </summary>
         [DataMember(Name = "fils", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public SetupFilters Filters { get; set; }
 
         /// <summary>
-        /// Specify a prefix for naming stored procedure. Default is empty string
+        /// Gets or sets specify a prefix for naming stored procedure. Default is empty string.
         /// </summary>
         [DataMember(Name = "spp", IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public string StoredProceduresPrefix { get; set; }
 
         /// <summary>
-        /// Specify a suffix for naming stored procedures. Default is empty string
+        /// Gets or sets specify a suffix for naming stored procedures. Default is empty string.
         /// </summary>
         [DataMember(Name = "sps", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public string StoredProceduresSuffix { get; set; }
 
         /// <summary>
-        /// Specify a prefix for naming stored procedure. Default is empty string
+        /// Gets or sets specify a prefix for naming stored procedure. Default is empty string.
         /// </summary>
         [DataMember(Name = "tf", IsRequired = false, EmitDefaultValue = false, Order = 5)]
         public string TriggersPrefix { get; set; }
 
         /// <summary>
-        /// Specify a suffix for naming stored procedures. Default is empty string
+        /// Gets or sets specify a suffix for naming stored procedures. Default is empty string.
         /// </summary>
         [DataMember(Name = "ts", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public string TriggersSuffix { get; set; }
 
         /// <summary>
-        /// Specify a prefix for naming tracking tables. Default is empty string
+        /// Gets or sets specify a prefix for naming tracking tables. Default is empty string.
         /// </summary>
         [DataMember(Name = "ttp", IsRequired = false, EmitDefaultValue = false, Order = 7)]
         public string TrackingTablesPrefix { get; set; }
 
         /// <summary>
-        /// Specify a suffix for naming tracking tables.
+        /// Gets or sets specify a suffix for naming tracking tables.
         /// </summary>
         [DataMember(Name = "tts", IsRequired = false, EmitDefaultValue = false, Order = 8)]
         public string TrackingTablesSuffix { get; set; }
 
         /// <summary>
-        /// Create a list of tables to be added to the sync process
+        /// Initializes a new instance of the <see cref="SyncSetup"/> class.
+        /// Create a list of tables to be added to the sync process.
         /// </summary>
-        public SyncSetup(IEnumerable<string> tables) : this() => this.Tables.AddRange(tables);
+        public SyncSetup(IEnumerable<string> tables)
+            : this() => this.Tables.AddRange(tables);
 
         /// <summary>
-        /// Create a list of tables to be added to the sync process
+        /// Initializes a new instance of the <see cref="SyncSetup"/> class.
+        /// Create a list of tables to be added to the sync process.
         /// </summary>
-        public SyncSetup(params string[] tables) : this() => this.Tables.AddRange(tables);
+        public SyncSetup(params string[] tables)
+            : this() => this.Tables.AddRange(tables);
 
         /// <summary>
-        /// ctor
+        /// Initializes a new instance of the <see cref="SyncSetup"/> class.
+        /// ctor.
         /// </summary>
         public SyncSetup()
         {
             this.Tables = new SetupTables();
             this.Filters = new SetupFilters();
-            //this.Version = SyncVersion.Current.ToString();
+
+            // this.Version = SyncVersion.Current.ToString();
         }
 
         /// <summary>
-        /// Check if Setup has tables
+        /// Gets a value indicating whether check if Setup has tables.
         /// </summary>
         public bool HasTables => this.Tables?.Count > 0;
 
         /// <summary>
-        /// Check if Setup has at least one table with columns
+        /// Gets a value indicating whether check if Setup has at least one table with columns.
         /// </summary>
         public bool HasColumns => this.Tables?.SelectMany(t => t.Columns).Count() > 0;  // using SelectMany to get columns and not Collection<Column>
 
         /// <summary>
-        /// Check if Setup has a table that has columns
+        /// Check if Setup has a table that has columns.
         /// </summary>
         public bool HasTableWithColumns(string tableName) => this.Tables[tableName]?.Columns?.Count > 0;
 
         /// <summary>
-        /// Check if two setups have the same local options
+        /// Check if two setups have the same local options.
         /// </summary>
         public bool HasSameOptions(SyncSetup otherSetup)
         {
@@ -115,7 +123,7 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Check if two setups have the same tables / filters structure
+        /// Check if two setups have the same tables / filters structure.
         /// </summary>
         public bool HasSameStructure(SyncSetup otherSetup)
         {
@@ -132,32 +140,39 @@ namespace Dotmim.Sync
             return true;
         }
 
+        /// <inheritdoc cref="SyncNamedItem{T}.EqualsByProperties(T)" />
         public bool EqualsByProperties(SyncSetup otherSetup)
         {
             if (otherSetup == null)
                 return false;
 
-            if (!HasSameOptions(otherSetup))
+            if (!this.HasSameOptions(otherSetup))
                 return false;
 
-            if (!HasSameStructure(otherSetup))
+            if (!this.HasSameStructure(otherSetup))
                 return false;
 
             return true;
         }
 
+        /// <summary>
+        /// Returns a string that represents the current object.
+        /// </summary>
         public override string ToString() => $"{this.Tables.Count} tables";
 
         /// <summary>
-        /// Gets a true boolean if other instance is defined as same based on all properties
+        /// Gets a true boolean if other instance is defined as same based on all properties.
         /// </summary>
         public bool Equals(SyncSetup other) => this.EqualsByProperties(other);
 
         /// <summary>
-        /// Gets a true boolean if other instance is defined as same based on all properties
+        /// Gets a true boolean if other instance is defined as same based on all properties.
         /// </summary>
         public override bool Equals(object obj) => this.EqualsByProperties(obj as SyncSetup);
 
+        /// <summary>
+        /// Returns a hash code for this instance.
+        /// </summary>
         public override int GetHashCode() => base.GetHashCode();
     }
 }

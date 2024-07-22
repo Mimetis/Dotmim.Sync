@@ -257,7 +257,7 @@
 //        /// <summary>
 //        /// Handle a request error
 //        /// </summary>
-//        /// <returns></returns>
+//        
 //        private async Task HandleSyncError(HttpResponseMessage response)
 //        {
 //            try

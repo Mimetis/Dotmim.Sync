@@ -32,20 +32,26 @@ namespace Dotmim.Sync.Serialization
                 return;
 
             if (orchestrator.HasInterceptors<DeserializingRowArgs>())
+            {
+
                 this.OnReadingRow(async (schemaTable, rowString) =>
                 {
                     var args = new DeserializingRowArgs(context, schemaTable, rowString);
                     await orchestrator.InterceptAsync(args).ConfigureAwait(false);
                     return args.Result;
                 });
+            }
 
             if (orchestrator.HasInterceptors<SerializingRowArgs>())
+            {
+
                 this.OnWritingRow(async (schemaTable, rowArray) =>
                 {
                     var args = new SerializingRowArgs(context, schemaTable, rowArray);
                     await orchestrator.InterceptAsync(args).ConfigureAwait(false);
                     return args.Result;
                 });
+            }
         }
 
         /// <summary>
@@ -289,10 +295,14 @@ namespace Dotmim.Sync.Serialization
                 this.writer.WriteStartArray();
 
                 if (this.writingRowAsync != null)
+                {
                     this.writer.WriteStringValue(str);
+                }
                 else
+                {
                     for (var i = 0; i < innerRow.Length; i++)
                         this.writer.WriteRawValue(Serializer.Serialize(innerRow[i]));
+                }
 
                 this.writer.WriteEndArray();
                 await this.writer.FlushAsync().ConfigureAwait(false);

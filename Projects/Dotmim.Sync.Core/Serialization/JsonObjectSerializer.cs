@@ -21,7 +21,6 @@ namespace Dotmim.Sync.Serialization
         /// <summary>
         /// Gets the JSON serializer.
         /// </summary>
-        /// <returns></returns>
         public ISerializer GetSerializer() => JsonSerializer;
     }
 

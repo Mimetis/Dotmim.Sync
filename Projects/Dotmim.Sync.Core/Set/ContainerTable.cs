@@ -58,6 +58,9 @@ namespace Dotmim.Sync
         /// </summary>
         public bool HasRows => this.Rows.Count > 0;
 
+        /// <summary>
+        /// Clear all rows in the container table.
+        /// </summary>
         public void Clear() => this.Rows.Clear();
 
         /// <inheritdoc cref="SyncNamedItem{T}.GetAllNamesProperties"/>

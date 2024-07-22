@@ -45,9 +45,16 @@ namespace Dotmim.Sync
 
                 using var dataReader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
-                if (!dataReader.Read())
+                var read = await dataReader.ReadAsync(cancellationToken).ConfigureAwait(false);
+
+                if (!read)
                 {
+
+#if NET6_0_OR_GREATER
+                    await dataReader.CloseAsync().ConfigureAwait(false);
+#else
                     dataReader.Close();
+#endif
                     command.Dispose();
                     return (context, null);
                 }
@@ -78,7 +85,12 @@ namespace Dotmim.Sync
                 if (syncRow != null && syncRow.RowState == SyncRowState.None)
                     syncRow.RowState = SyncRowState.Modified;
 
+#if NET6_0_OR_GREATER
+                await dataReader.CloseAsync().ConfigureAwait(false);
+#else
                 dataReader.Close();
+#endif
+
                 command.Dispose();
 
                 return (context, syncRow);

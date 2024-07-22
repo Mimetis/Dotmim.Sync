@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
 
@@ -13,8 +14,8 @@ namespace Dotmim.Sync
     [CollectionDataContract(Name = "cols", ItemName = "col"), Serializable]
     public class SyncColumns : ICollection<SyncColumn>, IList<SyncColumn>
     {
-        private Dictionary<string, int> indexes = new();
-        private Collection<SyncColumn> innerCollection = new Collection<SyncColumn>();
+        private Dictionary<string, int> indexes = [];
+        private Collection<SyncColumn> innerCollection = [];
 
         /// <summary>
         /// Gets or sets exposing the InnerCollection for serialization purpose.
@@ -63,7 +64,7 @@ namespace Dotmim.Sync
             get
             {
                 // InnerCollection.FirstOrDefault(c => string.Equals(c.ColumnName, columnName, SyncGlobalization.DataSourceStringComparison));
-                if (this.indexes.TryGetValue(columnName.ToLowerInvariant(), out var index))
+                if (this.indexes.TryGetValue(columnName.ToUpperInvariant(), out var index))
                     return this.InnerCollection[index];
 
                 return null;
@@ -73,7 +74,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Returns a bool indicating if the columns contains at least one column of type argument.
         /// </summary>
-        /// <returns></returns>
         public bool HasSyncColumnOfType(Type type) => this.InnerCollection.Any(sc => sc.GetDataType() == type);
 
         /// <summary>
@@ -141,7 +141,7 @@ namespace Dotmim.Sync
             for (int i = 0; i < this.InnerCollection.Count; i++)
             {
                 var column = this.InnerCollection[i];
-                this.indexes[column.ColumnName.ToLowerInvariant()] = i;
+                this.indexes[column.ColumnName.ToUpperInvariant()] = i;
                 column.Ordinal = i;
             }
         }
@@ -192,12 +192,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Returns the index of a column in the collection.
         /// </summary>
-        public int IndexOf(SyncColumn item) => this.indexes[item.ColumnName.ToLowerInvariant()];
+        public int IndexOf(SyncColumn item) => this.indexes[item.ColumnName.ToUpperInvariant()];
 
         /// <summary>
         /// Returns the index of a column in the collection.
         /// </summary>
-        public int IndexOf(string columnName) => this.indexes[columnName.ToLowerInvariant()];
+        public int IndexOf(string columnName) => this.indexes[columnName.ToUpperInvariant()];
 
         /// <summary>
         /// Remove a column at a specific index.
@@ -217,7 +217,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Returns a string that represents the current object.
         /// </summary>
-        public override string ToString() => this.InnerCollection.Count.ToString();
+        public override string ToString() => this.InnerCollection.Count.ToString(CultureInfo.InvariantCulture);
 
         /// <summary>
         /// Insert a column at a specific index.

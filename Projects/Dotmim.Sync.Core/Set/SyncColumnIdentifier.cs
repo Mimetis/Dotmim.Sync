@@ -44,7 +44,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Clone the current SyncColumnIdentifier.
         /// </summary>
-        /// <returns></returns>
         public SyncColumnIdentifier Clone() => new()
         {
             ColumnName = this.ColumnName,

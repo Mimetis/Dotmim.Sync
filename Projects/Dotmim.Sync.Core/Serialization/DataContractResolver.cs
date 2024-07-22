@@ -47,8 +47,10 @@ namespace System.Text.Json.Serialization.Metadata
             options ??= JsonSerializerOptions.Default;
 
             if (jsonTypeInfo.Kind == JsonTypeInfoKind.Object)
+            {
                 foreach (var jsonPropertyInfo in CreateDataMembers(jsonTypeInfo, options).OrderBy((x) => x.Order))
                     jsonTypeInfo.Properties.Add(jsonPropertyInfo);
+            }
 
             return jsonTypeInfo;
         }

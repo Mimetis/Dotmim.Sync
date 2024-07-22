@@ -57,7 +57,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the scope name / last cleanup / setup tables count.
         /// </summary>
-        /// <returns></returns>
         public override string ToString() => $"Scope Name:{this.Name}({this.Version}). Last cleanup:{this.LastCleanupTimestamp}. Setup tables:{this.Setup?.Tables?.Count}. Schema tables:{this.Schema?.Tables?.Count}";
     }
 }

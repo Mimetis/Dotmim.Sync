@@ -46,7 +46,7 @@ namespace Dotmim.Sync
         /// Gets or Sets the table primary keys.
         /// </summary>
         [DataMember(Name = "pk", IsRequired = false, EmitDefaultValue = false, Order = 6)]
-        public Collection<string> PrimaryKeys { get; set; } = new Collection<string>();
+        public Collection<string> PrimaryKeys { get; set; } = [];
 
         /// <summary>
         /// Gets the ShemaTable's rows.
@@ -65,6 +65,7 @@ namespace Dotmim.Sync
         [IgnoreDataMember]
         public SyncSet Schema { get; set; }
 
+        /// <inheritdoc cref="SyncTable"/>
         public SyncTable()
         {
             this.Rows = new SyncRows(this);
@@ -147,15 +148,15 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a new row.
         /// </summary>
-        public SyncRow NewRow(SyncRowState state = SyncRowState.None)
-        {
-            return new SyncRow(this, state);
-        }
+        public SyncRow NewRow(SyncRowState state = SyncRowState.None) => new(this, state);
 
+        /// <summary>
+        /// Returns all the relations where the current table is the child table.
+        /// </summary>
         public IEnumerable<SyncRelation> GetRelations()
         {
             if (this.Schema == null)
-                return Enumerable.Empty<SyncRelation>();
+                return [];
 
             return this.Schema.Relations.Where(r => r.GetTable().EqualsByName(this));
         }
@@ -163,7 +164,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the full name of the table, based on schema name + "." + table name (if schema name exists).
         /// </summary>
-        /// <returns></returns>
         public string GetFullName()
             => string.IsNullOrEmpty(this.SchemaName) ? this.TableName : $"{this.SchemaName}.{this.TableName}";
 
@@ -200,10 +200,10 @@ namespace Dotmim.Sync
             }
         }
 
-        public bool IsPrimaryKey(SyncColumn column)
-        {
-            return this.PrimaryKeys.Any(primaryKey => column.ColumnName.Equals(primaryKey, SyncGlobalization.DataSourceStringComparison));
-        }
+        /// <summary>
+        /// Returns a value indicating whether the column is a primary key.
+        /// </summary>
+        public bool IsPrimaryKey(SyncColumn column) => this.PrimaryKeys.Any(primaryKey => column.ColumnName.Equals(primaryKey, SyncGlobalization.DataSourceStringComparison));
 
         /// <summary>
         /// Get all filters for a selected sync table.
@@ -224,8 +224,13 @@ namespace Dotmim.Sync
             });
         }
 
+        /// <summary>
+        /// Load rows in the sync table from a DbDataReader.
+        /// </summary>
         public void Load(DbDataReader reader)
         {
+            Guard.ThrowIfNull(reader);
+
             var readerFieldCount = reader.FieldCount;
 
             if (readerFieldCount == 0 || !reader.HasRows)
@@ -273,6 +278,9 @@ namespace Dotmim.Sync
         /// </summary>
         public bool HasRows => this.Rows != null && this.Rows.Count > 0;
 
+        /// <summary>
+        /// Returns a string that represents the current SyncTable.
+        /// </summary>
         public override string ToString()
         {
             if (!string.IsNullOrEmpty(this.SchemaName))
