@@ -1,23 +1,11 @@
-﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.MariaDB;
-using Dotmim.Sync.MySql;
-using Dotmim.Sync.PostgreSql;
-using Dotmim.Sync.Sqlite;
-using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.SqlServer.Manager;
+﻿using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Fixtures;
 using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
-using Dotmim.Sync.Web.Client;
-using Dotmim.Sync.Web.Server;
-using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
-#if NET6_0 || NET8_0 
+#if NET6_0 || NET8_0
 using MySqlConnector;
 #elif NETCOREAPP3_1
 using MySql.Data.MySqlClient;
@@ -48,11 +36,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         private IEnumerable<CoreProvider> clientsProvider;
         private SyncSetup setup;
 
-        public TcpConflictsTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        protected TcpConflictsTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
-            serverProvider = GetServerProvider();
-            clientsProvider = GetClientProviders();
-            setup = GetSetup();
+            this.serverProvider = this.GetServerProvider();
+            this.clientsProvider = this.GetClientProviders();
+            this.setup = this.GetSetup();
         }
 
         [Fact]
@@ -61,27 +50,29 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Adding two rows on server side, that are correct
-            var str = HelperDatabase.GetRandomName().ToUpper()[..9];
-            await serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
-            await serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
+            var str = HelperDatabase.GetRandomName().ToUpper(System.Globalization.CultureInfo.CurrentCulture)[..9];
+            await this.serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
+            await this.serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 // Get a random directory to be sure we are not conflicting with another test
                 var directoryName = HelperDatabase.GetRandomName();
                 options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
                 // Enable constraints check
                 options.DisableConstraintsOnApplyChanges = false;
+
                 // Disable bulk operations to have the same results for SQL as others providers
                 clientProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 // To generate a unique key constraint, will modify the batch part info on client just before load it.
                 // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
@@ -91,18 +82,19 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
-                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
+                        {
                             if (row["ProductCategoryID"].ToString() == $"Z1{str}")
                                 row["Name"] = $"Z2{str}";
+                        }
 
                         agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
                 });
 
-
-                var exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(setup));
+                var exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(this.setup));
                 Assert.NotNull(exc);
 
                 var batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
@@ -116,25 +108,27 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Adding two rows on server side, that are correct
-            var str = HelperDatabase.GetRandomName().ToUpper()[..9];
-            await serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
-            await serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
+            var str = HelperDatabase.GetRandomName().ToUpper(System.Globalization.CultureInfo.CurrentCulture)[..9];
+            await this.serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
+            await this.serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 // Get a random directory to be sure we are not conflicting with another test
                 var directoryName = HelperDatabase.GetRandomName();
                 options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
                 // Enable constraints check
                 options.DisableConstraintsOnApplyChanges = false;
+
                 // Disable bulk operations to have the same results for SQL as others providers
                 clientProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 // To generate a unique key constraint, will modify the batch part info on client just before load it.
                 // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
@@ -144,11 +138,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
-                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
+                        {
                             if (row["ProductCategoryID"].ToString() == $"Z1{str}")
                                 row["Name"] = $"Z2{str}";
+                        }
 
                         agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
@@ -164,7 +160,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(SyncRowState.Modified, args.ApplyType);
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(2, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -194,7 +190,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
                 }
 
-                s = await agent.SynchronizeAsync(setup);
+                s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -232,25 +228,27 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Adding two rows on server side, that are correct
-            var str = HelperDatabase.GetRandomName().ToUpper()[..9];
-            await serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
-            await serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
+            var str = HelperDatabase.GetRandomName().ToUpper(System.Globalization.CultureInfo.CurrentCulture)[..9];
+            await this.serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
+            await this.serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 // Get a random directory to be sure we are not conflicting with another test
                 var directoryName = HelperDatabase.GetRandomName();
                 options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
                 // Enable constraints check
                 options.DisableConstraintsOnApplyChanges = false;
+
                 // Disable bulk operations to have the same results for SQL as others providers
                 clientProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 // To generate a unique key constraint, will modify the batch part info on client just before load it.
                 // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
@@ -260,11 +258,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
-                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
+                        {
                             if (row["ProductCategoryID"].ToString() == $"Z1{str}")
                                 row["Name"] = $"Z2{str}";
+                        }
 
                         agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
@@ -280,12 +280,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(SyncRowState.Modified, args.ApplyType);
                 });
 
-                var exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(setup));
+                var exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(this.setup));
                 Assert.NotNull(exc);
                 var batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
                 Assert.Empty(batchInfos);
 
-                exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(setup));
+                exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(this.setup));
                 Assert.NotNull(exc);
                 batchInfos = agent.LocalOrchestrator.LoadBatchInfos();
                 Assert.Empty(batchInfos);
@@ -298,25 +298,27 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Adding two rows on server side, that are correct
-            var str = HelperDatabase.GetRandomName().ToUpper()[..9];
-            await serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
-            await serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
+            var str = HelperDatabase.GetRandomName().ToUpper(System.Globalization.CultureInfo.CurrentCulture)[..9];
+            await this.serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
+            await this.serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 // Get a random directory to be sure we are not conflicting with another test
                 var directoryName = HelperDatabase.GetRandomName();
                 options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
                 // Enable constraints check
                 options.DisableConstraintsOnApplyChanges = false;
+
                 // Disable bulk operations to have the same results for SQL as others providers
                 clientProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 // To generate a unique key constraint, will modify the batch part info on client just before load it.
                 // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
@@ -326,16 +328,17 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
-                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
+                        {
                             if (row["ProductCategoryID"].ToString() == $"Z1{str}")
                                 row["Name"] = $"Z2{str}";
+                        }
 
                         agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
                 });
-
 
                 agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
                 {
@@ -347,7 +350,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(SyncRowState.Modified, args.ApplyType);
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(2, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -385,25 +388,27 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Adding two rows on server side, that are correct
-            var str = HelperDatabase.GetRandomName().ToUpper()[..9];
-            await serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
-            await serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
+            var str = HelperDatabase.GetRandomName().ToUpper(System.Globalization.CultureInfo.CurrentCulture)[..9];
+            await this.serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
+            await this.serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 // Get a random directory to be sure we are not conflicting with another test
                 var directoryName = HelperDatabase.GetRandomName();
                 options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
                 // Enable constraints check
                 options.DisableConstraintsOnApplyChanges = false;
+
                 // Disable bulk operations to have the same results for SQL as others providers
                 clientProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 // To generate a unique key constraint, will modify the batch part info on client just before load it.
                 // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
@@ -413,11 +418,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
-                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
+                        {
                             if (row["ProductCategoryID"].ToString() == $"Z1{str}")
                                 row["Name"] = $"Z2{str}";
+                        }
 
                         agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
@@ -433,7 +440,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(SyncRowState.Modified, args.ApplyType);
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(2, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -463,7 +470,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(SyncRowState.RetryModifiedOnNextSync, syncTable.Rows[0].RowState);
                 }
 
-                s = await agent.SynchronizeAsync(setup);
+                s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -501,25 +508,27 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Adding two rows on server side, that are correct
-            var str = HelperDatabase.GetRandomName().ToUpper()[..9];
-            await serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
-            await serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
+            var str = HelperDatabase.GetRandomName().ToUpper(System.Globalization.CultureInfo.CurrentCulture)[..9];
+            await this.serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
+            await this.serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 // Get a random directory to be sure we are not conflicting with another test
                 var directoryName = HelperDatabase.GetRandomName();
                 options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
                 // Enable constraints check
                 options.DisableConstraintsOnApplyChanges = false;
+
                 // Disable bulk operations to have the same results for SQL as others providers
                 clientProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 // To generate a unique key constraint, will modify the batch part info on client just before load it.
                 // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
@@ -529,11 +538,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
-                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
+                        {
                             if (row["ProductCategoryID"].ToString() == $"Z2{str}")
                                 row["Name"] = $"Z1{str}";
+                        }
 
                         agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
@@ -549,7 +560,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(SyncRowState.Modified, args.ApplyType);
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(2, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -589,17 +600,19 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
-                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
+                        {
                             if (row["ProductCategoryID"].ToString() == $"Z2{str}")
                                 row["Name"] = $"Z2{str}";
+                        }
 
                         agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
                 });
 
-                s = await agent.SynchronizeAsync(setup);
+                s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -621,30 +634,32 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             var x = 1;
             var y = 2;
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 // reinit client
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
                 // Adding two rows on server side, that are correct
-                var str = HelperDatabase.GetRandomName().ToUpper()[..6];
-                await serverProvider.AddProductCategoryAsync($"Z{x}{str}", name: $"Z{x}{str}");
-                await serverProvider.AddProductCategoryAsync($"Z{y}{str}", name: $"Z{y}{str}");
+                var str = HelperDatabase.GetRandomName().ToUpper(System.Globalization.CultureInfo.CurrentCulture)[..6];
+                await this.serverProvider.AddProductCategoryAsync($"Z{x}{str}", name: $"Z{x}{str}");
+                await this.serverProvider.AddProductCategoryAsync($"Z{y}{str}", name: $"Z{y}{str}");
 
                 // Get a random directory to be sure we are not conflicting with another test
                 var directoryName = HelperDatabase.GetRandomName();
                 options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
                 // Enable constraints check
                 options.DisableConstraintsOnApplyChanges = false;
+
                 // Disable bulk operations to have the same results for SQL as others providers
                 clientProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 // To generate a unique key constraint, will modify the batch part info on client just before load it.
                 // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
@@ -654,11 +669,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
-                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
+                        {
                             if (row["ProductCategoryID"].ToString() == $"Z{y}{str}")
                                 row["Name"] = $"Z{x}{str}";
+                        }
 
                         agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
@@ -674,7 +691,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(SyncRowState.Modified, args.ApplyType);
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(2, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -708,9 +725,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 agent.LocalOrchestrator.ClearInterceptors(interceptorId);
 
                 // And then delete the values on server side
-                await serverProvider.DeleteProductCategoryAsync($"Z{y}{str}");
+                await this.serverProvider.DeleteProductCategoryAsync($"Z{y}{str}");
 
-                s = await agent.SynchronizeAsync(setup);
+                s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(1, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -735,25 +752,27 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Adding two rows on server side, that are correct
-            var str = HelperDatabase.GetRandomName().ToUpper()[..9];
-            await serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
-            await serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
+            var str = HelperDatabase.GetRandomName().ToUpper(System.Globalization.CultureInfo.CurrentCulture)[..9];
+            await this.serverProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
+            await this.serverProvider.AddProductCategoryAsync($"Z2{str}", name: $"Z2{str}");
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 // Get a random directory to be sure we are not conflicting with another test
                 var directoryName = HelperDatabase.GetRandomName();
                 options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
                 // Enable constraints check
                 options.DisableConstraintsOnApplyChanges = false;
+
                 // Disable bulk operations to have the same results for SQL as others providers
                 clientProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 // To generate a unique key constraint, will modify the batch part info on client just before load it.
                 // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
@@ -763,11 +782,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     {
                         var fullPath = args.BatchInfo.GetBatchPartInfoFullPath(args.BatchPartInfo);
 
-                        using var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
+                        var table = agent.LocalOrchestrator.LoadTableFromBatchPartInfo(fullPath);
 
                         foreach (var row in table.Rows)
+                        {
                             if (row["ProductCategoryID"].ToString() == $"Z2{str}")
                                 row["Name"] = $"Z1{str}";
+                        }
 
                         agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
@@ -783,7 +804,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(SyncRowState.Modified, args.ApplyType);
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(2, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -817,11 +838,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 agent.LocalOrchestrator.ClearInterceptors(interceptorId);
 
                 // And then delete the values on server side
-                var pc = await serverProvider.GetProductCategoryAsync($"Z2{str}");
+                var pc = await this.serverProvider.GetProductCategoryAsync($"Z2{str}");
                 pc.Name = $"Z2{str}";
-                await serverProvider.UpdateProductCategoryAsync(pc);
+                await this.serverProvider.UpdateProductCategoryAsync(pc);
 
-                s = await agent.SynchronizeAsync(setup);
+                s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(1, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -837,12 +858,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-
-
         //// ------------------------------------------------------------------------
         //// Foreign Key failure
         //// ------------------------------------------------------------------------
-
 
         [Fact]
         public virtual async Task ErrorForeignKeyOnSameTableRaiseError()
@@ -850,23 +868,25 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            await serverProvider.AddProductCategoryAsync("ZZZZ");
-            await serverProvider.AddProductCategoryAsync("AAAA", "ZZZZ");
+            await this.serverProvider.AddProductCategoryAsync("ZZZZ");
+            await this.serverProvider.AddProductCategoryAsync("AAAA", "ZZZZ");
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 // Get a random directory to be sure we are not conflicting with another test
                 var directoryName = HelperDatabase.GetRandomName();
                 options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectoryName(), directoryName);
+
                 // enablig constraints check
                 options.DisableConstraintsOnApplyChanges = false;
+
                 // Disable bulk operations to have the same results for SQL as others providers
                 clientProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 // Generate the foreignkey error
                 agent.LocalOrchestrator.OnRowsChangesApplying(args =>
@@ -878,7 +898,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                         row["ParentProductCategoryId"] = "BBBBB";
                 });
 
-                var exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(setup));
+                var exc = await Assert.ThrowsAsync<SyncException>(() => agent.SynchronizeAsync(this.setup));
 
                 Assert.NotNull(exc);
 
@@ -894,23 +914,25 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            await serverProvider.AddProductCategoryAsync("ZZZZ");
-            await serverProvider.AddProductCategoryAsync("AAAA", "ZZZZ");
+            await this.serverProvider.AddProductCategoryAsync("ZZZZ");
+            await this.serverProvider.AddProductCategoryAsync("AAAA", "ZZZZ");
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 // Get a random directory to be sure we are not conflicting with another test
                 var directoryName = HelperDatabase.GetRandomName();
                 options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
                 // enablig constraints check
                 options.DisableConstraintsOnApplyChanges = false;
+
                 // Disable bulk operations to have the same results for SQL as others providers
                 clientProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 // Generate error on foreign key on second row
                 agent.LocalOrchestrator.OnRowsChangesApplying(args =>
@@ -932,7 +954,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(SyncRowState.Modified, args.ApplyType);
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 // Download 2 rows
                 // But applied only 1
@@ -963,7 +985,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
                 }
 
-                s = await agent.SynchronizeAsync(setup);
+                s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -990,7 +1012,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                     Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
                 }
-
             }
         }
 
@@ -1000,25 +1021,28 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            await serverProvider.AddProductCategoryAsync("ZZZZ");
-            await serverProvider.AddProductCategoryAsync("AAAA", "ZZZZ");
+            await this.serverProvider.AddProductCategoryAsync("ZZZZ");
+            await this.serverProvider.AddProductCategoryAsync("AAAA", "ZZZZ");
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 // Get a random directory to be sure we are not conflicting with another test
                 var directoryName = HelperDatabase.GetRandomName();
                 options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
                 // enablig constraints check
                 options.DisableConstraintsOnApplyChanges = false;
+
                 // set error policy
                 options.ErrorResolutionPolicy = ErrorResolution.ContinueOnError;
+
                 // Disable bulk operations to have the same results for SQL as others providers
                 clientProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 // Generate error on foreign key on second row
                 agent.LocalOrchestrator.OnRowsChangesApplying(args =>
@@ -1030,7 +1054,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                         row["ParentProductCategoryId"] = "BBBBB";
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 // Download 2 rows
                 // But applied only 1
@@ -1061,7 +1085,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
                 }
 
-                s = await agent.SynchronizeAsync(setup);
+                s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -1088,7 +1112,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                     Assert.Equal(SyncRowState.ApplyModifiedFailed, syncTable.Rows[0].RowState);
                 }
-
             }
         }
 
@@ -1098,25 +1121,28 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            await serverProvider.AddProductCategoryAsync("ZZZZ");
-            await serverProvider.AddProductCategoryAsync("AAAA", "ZZZZ");
+            await this.serverProvider.AddProductCategoryAsync("ZZZZ");
+            await this.serverProvider.AddProductCategoryAsync("AAAA", "ZZZZ");
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 // Get a random directory to be sure we are not conflicting with another test
                 var directoryName = HelperDatabase.GetRandomName();
                 options.BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), directoryName);
+
                 // enablig constraints check
                 options.DisableConstraintsOnApplyChanges = false;
+
                 // set error policy
                 options.ErrorResolutionPolicy = ErrorResolution.ContinueOnError;
+
                 // Disable bulk operations to have the same results for SQL as others providers
                 clientProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 // As OnRowsChangesApplying will be called 2 times, we only apply tricky change one time
                 var rowChanged = false;
@@ -1166,7 +1192,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(SyncRowState.Modified, args.ApplyType);
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 // Download 2 rows
                 // But applied only 1
@@ -1187,8 +1213,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         //// Transient Errors
         //// ------------------------------------------------------------------------
 
-
-        private void HookExceptionToTransient(Exception ex, ProviderType providerType)
+        private static void HookExceptionToTransient(Exception ex, ProviderType providerType)
         {
             if (providerType == ProviderType.Sql)
             {
@@ -1202,15 +1227,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                         var errorNumber = errorType.GetField("_number", BindingFlags.Default | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                         errorNumber.SetValue(error, 64);
                         break;
-
                     }
                     else
                     {
                         ex = ex.InnerException;
                     }
                 }
-
             }
+
             if (providerType == ProviderType.Sqlite)
             {
                 var exception = ex as SqlException;
@@ -1222,7 +1246,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                         var errorNumber = errorType.GetRuntimeFields().FirstOrDefault(f => f.Name.Contains("SqliteErrorCode"));
                         errorNumber.SetValue(sqliteException, 11);
                         break;
-
                     }
                     else
                     {
@@ -1235,7 +1258,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         [Fact]
         public virtual async Task ErrorTransientOnServerWithoutTransactionShouldWork()
         {
-            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(this.serverProvider);
 
             if (serverProviderType != ProviderType.Sql)
                 return;
@@ -1243,23 +1266,23 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions
             {
                 DisableConstraintsOnApplyChanges = true,
-                TransactionMode = TransactionMode.None
+                TransactionMode = TransactionMode.None,
             };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             var upload = 0;
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 // Adding one row
-                var str = HelperDatabase.GetRandomName().ToUpper()[..9];
+                var str = HelperDatabase.GetRandomName().ToUpper(System.Globalization.CultureInfo.CurrentCulture)[..9];
                 await clientProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 var transientErrorHappened = false;
                 string commandText = null;
@@ -1286,8 +1309,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     HookExceptionToTransient(args.Exception, serverProviderType);
                 });
 
-
-                var r = await agent.SynchronizeAsync(setup);
+                var r = await agent.SynchronizeAsync(this.setup);
                 Assert.Equal(1, r.TotalChangesUploadedToServer);
                 Assert.Equal(1, r.TotalChangesAppliedOnServer);
                 Assert.Equal(upload, r.TotalChangesDownloadedFromServer);
@@ -1300,7 +1322,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         [Fact]
         public virtual async Task ErrorTransientOnServerOnFullTransactionShouldWork()
         {
-            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(this.serverProvider);
 
             if (serverProviderType != ProviderType.Sql)
                 return;
@@ -1308,19 +1330,19 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             var upload = 0;
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 // Adding one row
-                var str = HelperDatabase.GetRandomName().ToUpper()[..9];
+                var str = HelperDatabase.GetRandomName().ToUpper(System.Globalization.CultureInfo.CurrentCulture)[..9];
                 await clientProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 var transientErrorHappened = false;
                 string commandText = null;
@@ -1347,8 +1369,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     HookExceptionToTransient(args.Exception, serverProviderType);
                 });
 
-
-                var r = await agent.SynchronizeAsync(setup);
+                var r = await agent.SynchronizeAsync(this.setup);
                 Assert.Equal(1, r.TotalChangesUploadedToServer);
                 Assert.Equal(1, r.TotalChangesAppliedOnServer);
                 Assert.Equal(upload, r.TotalChangesDownloadedFromServer);
@@ -1361,7 +1382,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         [Fact]
         public virtual async Task ErrorTransientOnServerOnBatchTransactionShouldWork()
         {
-            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(this.serverProvider);
 
             if (serverProviderType != ProviderType.Sql)
                 return;
@@ -1369,23 +1390,23 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions
             {
                 DisableConstraintsOnApplyChanges = true,
-                TransactionMode = TransactionMode.PerBatch
+                TransactionMode = TransactionMode.PerBatch,
             };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             var upload = 0;
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 // Adding one row
-                var str = HelperDatabase.GetRandomName().ToUpper()[..9];
+                var str = HelperDatabase.GetRandomName().ToUpper(System.Globalization.CultureInfo.CurrentCulture)[..9];
                 await clientProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 var transientErrorHappened = false;
                 string commandText = null;
@@ -1412,8 +1433,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     HookExceptionToTransient(args.Exception, serverProviderType);
                 });
 
-
-                var r = await agent.SynchronizeAsync(setup);
+                var r = await agent.SynchronizeAsync(this.setup);
                 Assert.Equal(1, r.TotalChangesUploadedToServer);
                 Assert.Equal(1, r.TotalChangesAppliedOnServer);
                 Assert.Equal(upload, r.TotalChangesDownloadedFromServer);
@@ -1426,7 +1446,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         [Fact]
         public virtual async Task ErrorTransientOnServerOnFullTransactionLineByLineShouldWork()
         {
-            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(this.serverProvider);
 
             if (serverProviderType != ProviderType.Sql)
                 return;
@@ -1434,22 +1454,22 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             var upload = 0;
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 // Adding one row
-                var str = HelperDatabase.GetRandomName().ToUpper()[..9];
+                var str = HelperDatabase.GetRandomName().ToUpper(System.Globalization.CultureInfo.CurrentCulture)[..9];
                 await clientProvider.AddProductCategoryAsync($"Z1{str}", name: $"Z1{str}");
 
                 // Disabling bulk operations
-                serverProvider.UseBulkOperations = false;
+                this.serverProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 var transientErrorHappened = false;
                 string commandText = null;
@@ -1475,8 +1495,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     HookExceptionToTransient(args.Exception, serverProviderType);
                 });
 
-
-                var r = await agent.SynchronizeAsync(setup);
+                var r = await agent.SynchronizeAsync(this.setup);
                 Assert.Equal(1, r.TotalChangesUploadedToServer);
                 Assert.Equal(1, r.TotalChangesAppliedOnServer);
                 Assert.Equal(upload, r.TotalChangesDownloadedFromServer);
@@ -1489,7 +1508,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         [Fact]
         public virtual async Task ErrorTransientOnServerOnBatchTransactionLineByLineShouldWork()
         {
-            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(this.serverProvider);
 
             if (serverProviderType != ProviderType.Sql)
                 return;
@@ -1497,15 +1516,15 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions
             {
                 DisableConstraintsOnApplyChanges = true,
-                TransactionMode = TransactionMode.PerBatch
+                TransactionMode = TransactionMode.PerBatch,
             };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             var download = 0;
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
@@ -1522,9 +1541,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 await clientProvider.AddProductCategoryAsync();
 
                 // Disabling bulk operations
-                serverProvider.UseBulkOperations = false;
+                this.serverProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 var transientErrorHappened = false;
                 string commandText = null;
@@ -1557,8 +1576,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     HookExceptionToTransient(args.Exception, serverProviderType);
                 });
 
-
-                var r = await agent.SynchronizeAsync(setup);
+                var r = await agent.SynchronizeAsync(this.setup);
                 Assert.Equal(10, r.TotalChangesUploadedToServer);
                 Assert.Equal(10, r.TotalChangesAppliedOnServer);
                 Assert.Equal(download, r.TotalChangesDownloadedFromServer);
@@ -1571,7 +1589,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         [Fact]
         public virtual async Task ErrorTransientOnClientWithoutTransactionShouldWork()
         {
-            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(this.serverProvider);
 
             if (serverProviderType != ProviderType.Sql)
                 return;
@@ -1579,20 +1597,20 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions
             {
                 DisableConstraintsOnApplyChanges = true,
-                TransactionMode = TransactionMode.None
+                TransactionMode = TransactionMode.None,
             };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Adding one row
-            await serverProvider.AddProductCategoryAsync();
+            await this.serverProvider.AddProductCategoryAsync();
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 var transientErrorHappened = false;
                 string commandText = null;
@@ -1620,8 +1638,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     HookExceptionToTransient(args.Exception.InnerException, clientProviderType);
                 });
 
-
-                var r = await agent.SynchronizeAsync(setup);
+                var r = await agent.SynchronizeAsync(this.setup);
                 Assert.Equal(0, r.TotalChangesUploadedToServer);
                 Assert.Equal(0, r.TotalChangesAppliedOnServer);
                 Assert.Equal(1, r.TotalChangesDownloadedFromServer);
@@ -1633,7 +1650,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         [Fact]
         public virtual async Task ErrorTransientOnClientOnFullTransactionShouldWork()
         {
-            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(this.serverProvider);
 
             if (serverProviderType != ProviderType.Sql)
                 return;
@@ -1641,16 +1658,16 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Adding one row
-            await serverProvider.AddProductCategoryAsync();
+            await this.serverProvider.AddProductCategoryAsync();
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 var transientErrorHappened = false;
                 string commandText = null;
@@ -1678,8 +1695,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     HookExceptionToTransient(args.Exception, clientProviderType);
                 });
 
-
-                var r = await agent.SynchronizeAsync(setup);
+                var r = await agent.SynchronizeAsync(this.setup);
                 Assert.Equal(0, r.TotalChangesUploadedToServer);
                 Assert.Equal(0, r.TotalChangesAppliedOnServer);
                 Assert.Equal(1, r.TotalChangesDownloadedFromServer);
@@ -1691,7 +1707,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         [Fact]
         public virtual async Task ErrorTransientOnClientOnBatchTransactionShouldWork()
         {
-            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(this.serverProvider);
 
             if (serverProviderType != ProviderType.Sql)
                 return;
@@ -1699,20 +1715,20 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions
             {
                 DisableConstraintsOnApplyChanges = true,
-                TransactionMode = TransactionMode.PerBatch
+                TransactionMode = TransactionMode.PerBatch,
             };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Adding one row
-            await serverProvider.AddProductCategoryAsync();
+            await this.serverProvider.AddProductCategoryAsync();
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 var transientErrorHappened = false;
                 string commandText = null;
@@ -1740,8 +1756,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     HookExceptionToTransient(args.Exception, clientProviderType);
                 });
 
-
-                var r = await agent.SynchronizeAsync(setup);
+                var r = await agent.SynchronizeAsync(this.setup);
                 Assert.Equal(0, r.TotalChangesUploadedToServer);
                 Assert.Equal(0, r.TotalChangesAppliedOnServer);
                 Assert.Equal(1, r.TotalChangesDownloadedFromServer);
@@ -1753,7 +1768,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         [Fact]
         public virtual async Task ErrorTransientOnClientOnFullTransactionLineByLineShouldWork()
         {
-            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(this.serverProvider);
 
             if (serverProviderType != ProviderType.Sql)
                 return;
@@ -1764,20 +1779,20 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Adding one row
-            await serverProvider.AddProductCategoryAsync();
+            await this.serverProvider.AddProductCategoryAsync();
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 // disable bulk operation
                 clientProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 var transientErrorHappened = false;
                 string commandText = null;
@@ -1805,8 +1820,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     HookExceptionToTransient(args.Exception, clientProviderType);
                 });
 
-
-                var r = await agent.SynchronizeAsync(setup);
+                var r = await agent.SynchronizeAsync(this.setup);
                 Assert.Equal(0, r.TotalChangesUploadedToServer);
                 Assert.Equal(0, r.TotalChangesAppliedOnServer);
                 Assert.Equal(1, r.TotalChangesDownloadedFromServer);
@@ -1818,7 +1832,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         [Fact]
         public virtual async Task ErrorTransientOnClientOnBatchTransactionLineByLineShouldWork()
         {
-            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(serverProvider);
+            var (serverProviderType, _) = HelperDatabase.GetDatabaseType(this.serverProvider);
 
             if (serverProviderType != ProviderType.Sql)
                 return;
@@ -1826,24 +1840,24 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions
             {
                 DisableConstraintsOnApplyChanges = true,
-                TransactionMode = TransactionMode.PerBatch
+                TransactionMode = TransactionMode.PerBatch,
             };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Adding one row
-            await serverProvider.AddProductCategoryAsync();
+            await this.serverProvider.AddProductCategoryAsync();
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 // disable bulk operation
                 clientProvider.UseBulkOperations = false;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 var transientErrorHappened = false;
                 string commandText = null;
@@ -1871,8 +1885,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     HookExceptionToTransient(args.Exception, clientProviderType);
                 });
 
-
-                var r = await agent.SynchronizeAsync(setup);
+                var r = await agent.SynchronizeAsync(this.setup);
                 Assert.Equal(0, r.TotalChangesUploadedToServer);
                 Assert.Equal(0, r.TotalChangesAppliedOnServer);
                 Assert.Equal(1, r.TotalChangesDownloadedFromServer);
@@ -1881,14 +1894,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-
         // ------------------------------------------------------------------------
         // InsertClient - InsertServer
         // ------------------------------------------------------------------------
 
         /// <summary>
         /// Generate a conflict when inserting one row on server and the same row on each client
-        /// Server should wins the conflict since it's the default behavior
+        /// Server should wins the conflict since it's the default behavior.
         /// </summary>
         [Fact]
         public virtual async Task Conflict_IC_IS_ServerShouldWins()
@@ -1896,24 +1908,24 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             var productCategoryNameClient = HelperDatabase.GetRandomName("CLI");
             var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
             var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
-            await serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
+            await this.serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
 
             // Execute a sync on all clients and check results
             // Each client will upload its row (conflicting)
             // then download the others client lines + the conflict (some Clients.count)
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 await clientProvider.AddProductCategoryAsync(productId, name: productCategoryNameClient);
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(1, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesAppliedOnClient);
@@ -1927,12 +1939,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(pcServer.Name, pcClient.Name);
                 Assert.StartsWith("SRV", pcClient.Name);
             }
-
         }
 
         /// <summary>
         /// Generate a conflict when inserting one row on server and the same row on each client
-        /// Server should wins the conflict since it's the default behavior
+        /// Server should wins the conflict since it's the default behavior.
         /// </summary>
         [Fact]
         public virtual async Task Conflict_IC_IS_ServerShouldWins_CozHandler()
@@ -1940,20 +1951,20 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             var productCategoryNameClient = HelperDatabase.GetRandomName("CLI");
             var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
             var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
-            await serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
+            await this.serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
 
             // Execute a sync on all clients and check results
             // Each client will upload its row (conflicting)
             // then download the others client lines + the conflict (some Clients.count)
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 await clientProvider.AddProductCategoryAsync(productId, name: productCategoryNameClient);
 
@@ -1999,7 +2010,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(1, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -2011,12 +2022,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(pcServer.Name, pcClient.Name);
                 Assert.StartsWith("SRV", pcClient.Name);
             }
-
         }
 
         /// <summary>
         /// Generate a conflict when inserting one row on server and the same row on each client
-        /// Client should wins the conflict because configuration set to ClientWins
+        /// Client should wins the conflict because configuration set to ClientWins.
         /// </summary>
         [Fact]
         public virtual async Task Conflict_IC_IS_ClientShouldWins_CozConfiguration()
@@ -2024,28 +2034,28 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Execute a sync on all clients and check results
             // Each client will upload its row (conflicting)
             // then download the others client lines (and not the conflict since it's resolved)
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
-                // Reinit 
+                // Reinit
                 await agent.SynchronizeAsync();
 
                 var productCategoryNameClient = HelperDatabase.GetRandomName("CLI");
                 var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
                 var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
-                await serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
+                await this.serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
                 await clientProvider.AddProductCategoryAsync(productId, name: productCategoryNameClient);
 
                 agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -2061,7 +2071,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
         /// <summary>
         /// Generate a conflict when inserting one row on server and the same row on each client
-        /// Client should wins the conflict because configuration set to ClientWins
+        /// Client should wins the conflict because configuration set to ClientWins.
         /// </summary>
         [Fact]
         public virtual async Task Conflict_IC_IS_ClientShouldWins_CozConfiguration_CozHandler()
@@ -2069,23 +2079,23 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Execute a sync on all clients and check results
             // Each client will upload its row (conflicting)
             // then download the others client lines (and not the conflict since it's resolved)
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
-                // Reinit 
+                // Reinit
                 await agent.SynchronizeAsync();
 
                 var productCategoryNameClient = HelperDatabase.GetRandomName("CLI");
                 var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
                 var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
-                await serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
+                await this.serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
                 await clientProvider.AddProductCategoryAsync(productId, name: productCategoryNameClient);
 
                 var localOrchestrator = agent.LocalOrchestrator;
@@ -2099,7 +2109,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     // Since the conflict has been resolver on server
                     // And Server forces applied the client row
                     // So far the client row is good and should not raise any conflict
-
                     throw new Exception("Should not happen !!");
                 });
 
@@ -2119,8 +2128,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     acf.Resolution = ConflictResolution.ClientWins;
                 });
 
-
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -2136,7 +2144,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
         /// <summary>
         /// Generate a conflict when inserting one row on server and the same row on each client
-        /// Client should wins the conflict because we have an event raised
+        /// Client should wins the conflict because we have an event raised.
         /// </summary>
         [Fact]
         public virtual async Task Conflict_IC_IS_ClientShouldWins_CozHandler()
@@ -2144,23 +2152,23 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Execute a sync on all clients and check results
             // Each client will upload its row (conflicting)
             // then download the others client lines (and not the conflict since it's resolved)
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
-                // Reinit 
+                // Reinit
                 await agent.SynchronizeAsync();
 
                 var productCategoryNameClient = HelperDatabase.GetRandomName("CLI");
                 var productCategoryNameServer = HelperDatabase.GetRandomName("SRV");
                 var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
-                await serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
+                await this.serverProvider.AddProductCategoryAsync(productId, name: productCategoryNameServer);
                 await clientProvider.AddProductCategoryAsync(productId, name: productCategoryNameClient);
 
                 var localOrchestrator = agent.LocalOrchestrator;
@@ -2174,7 +2182,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     // Since the conflict has been resolver on server
                     // And Server forces applied the client row
                     // So far the client row is good and should not raise any conflict
-
                     throw new Exception("Should not happen because ConflictResolution.ClientWins !!");
                 });
 
@@ -2199,7 +2206,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     acf.Resolution = ConflictResolution.ClientWins;
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -2211,7 +2218,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(pcServer.Name, pcClient.Name);
                 Assert.StartsWith("CLI", pcClient.Name);
             }
-
         }
 
         // ------------------------------------------------------------------------
@@ -2219,7 +2225,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         // ------------------------------------------------------------------------
 
         /// <summary>
-        /// Generate an update on both side; will be resolved as RemoteExistsLocalExists on both side
+        /// Generate an update on both side; will be resolved as RemoteExistsLocalExists on both side.
         /// </summary>
         private async Task<string> Generate_UC_US_Conflict(SyncAgent agent)
         {
@@ -2231,7 +2237,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             await agent.RemoteOrchestrator.Provider.AddProductCategoryAsync(conflictProductCategoryId);
 
             // Init both client and server
-            await agent.SynchronizeAsync(setup);
+            await agent.SynchronizeAsync(this.setup);
 
             // Generate an update conflict
             var pc = await agent.RemoteOrchestrator.Provider.GetProductCategoryAsync(conflictProductCategoryId);
@@ -2247,7 +2253,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
         /// <summary>
         /// Generate a conflict when inserting one row on server and the same row on each client
-        /// Server should wins the conflict because default behavior
+        /// Server should wins the conflict because default behavior.
         /// </summary>
         [Fact]
         public virtual async Task Conflict_UC_US_ServerShouldWins()
@@ -2255,19 +2261,19 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Execute a sync on all clients and check results
             // Each client will upload its row (conflicting)
             // then download the others client lines + conflict that should be ovewritten on client
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
-                var productCategoryId = await Generate_UC_US_Conflict(agent);
+                var productCategoryId = await this.Generate_UC_US_Conflict(agent);
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(1, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -2278,15 +2284,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 Assert.Equal(pcServer.Name, pcClient.Name);
                 Assert.StartsWith("SRV", pcClient.Name);
-
             }
-
-
         }
 
         /// <summary>
         /// Generate a conflict when inserting one row on server and the same row on each client
-        /// Server should wins the conflict because default behavior
+        /// Server should wins the conflict because default behavior.
         /// </summary>
         [Fact]
         public virtual async Task Conflict_UC_US_ServerShouldWins_CozHandler()
@@ -2294,14 +2297,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
-                var productCategoryId = await Generate_UC_US_Conflict(agent);
+                var productCategoryId = await this.Generate_UC_US_Conflict(agent);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -2345,7 +2348,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(1, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -2357,13 +2360,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(pcServer.Name, pcClient.Name);
                 Assert.StartsWith("SRV", pcClient.Name);
             }
-
-
         }
 
         /// <summary>
         /// Generate a conflict when inserting one row on server and the same row on each client
-        /// Server should wins the conflict because default behavior
+        /// Server should wins the conflict because default behavior.
         /// </summary>
         [Fact]
         public virtual async Task Conflict_UC_US_ClientShouldWins_CozConfiguration()
@@ -2371,18 +2372,18 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
-                var productCategoryId = await Generate_UC_US_Conflict(agent);
+                var productCategoryId = await this.Generate_UC_US_Conflict(agent);
 
                 agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -2398,7 +2399,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
         /// <summary>
         /// Generate a conflict when inserting one row on server and the same row on each client
-        /// Server should wins the conflict because default behavior
+        /// Server should wins the conflict because default behavior.
         /// </summary>
         [Fact]
         public virtual async Task Conflict_UC_US_ClientShouldWins_CozConfiguration_CozHandler()
@@ -2406,17 +2407,17 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // Execute a sync on all clients and check results
             // Each client will upload its row (conflicting)
             // then download the others client lines + conflict that should be ovewritten on client
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
-                var productCategoryId = await Generate_UC_US_Conflict(agent);
+                var productCategoryId = await this.Generate_UC_US_Conflict(agent);
 
                 agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
@@ -2449,7 +2450,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(ConflictType.RemoteExistsLocalExists, conflict.Type);
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -2465,7 +2466,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
         /// <summary>
         /// Generate a conflict when inserting one row on server and the same row on each client
-        /// Client should wins coz handler
+        /// Client should wins coz handler.
         /// </summary>
         [Fact]
         public virtual async Task Conflict_UC_US_ClientShouldWins_CozHandler()
@@ -2473,14 +2474,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
-                var productCategoryId = await Generate_UC_US_Conflict(agent);
+                var productCategoryId = await this.Generate_UC_US_Conflict(agent);
 
                 agent.RemoteOrchestrator.OnApplyChangesConflictOccured(async acf =>
                 {
@@ -2498,7 +2499,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     acf.Resolution = ConflictResolution.ClientWins;
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -2514,7 +2515,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
         /// <summary>
         /// Generate a conflict when inserting one row on server and the same row on each client
-        /// Client should wins coz handler
+        /// Client should wins coz handler.
         /// </summary>
         [Fact]
         public virtual async Task Conflict_UC_US_Resolved_ByMerge()
@@ -2522,14 +2523,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
-                var productCategoryId = await Generate_UC_US_Conflict(agent);
+                var productCategoryId = await this.Generate_UC_US_Conflict(agent);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -2563,7 +2564,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     var remoteRow = conflict.RemoteRow;
 
                     // remote is client; local is server
-
                     Assert.StartsWith("SRV", localRow["Name"].ToString());
                     Assert.StartsWith("CLI", remoteRow["Name"].ToString());
 
@@ -2579,11 +2579,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.NotNull(acf.FinalRow);
 
                     acf.FinalRow["Name"] = "BOTH BIKES" + HelperDatabase.GetRandomName();
-
                 });
 
-
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(1, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -2604,7 +2602,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         /// <summary>
         /// Generate a delete on the client and an update on the server; will generate:
         /// - RemoteIsDeletedLocalExists from the Server POV
-        /// - RemoteExistsLocalIsDeleted from the Client POV
+        /// - RemoteExistsLocalIsDeleted from the Client POV.
         /// </summary>
         private async Task<string> Generate_DC_US_Conflict(SyncAgent agent)
         {
@@ -2617,7 +2615,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             await agent.RemoteOrchestrator.Provider.AddProductCategoryAsync(conflictProductCategoryId);
 
             // Init both client and server
-            await agent.SynchronizeAsync(setup);
+            await agent.SynchronizeAsync(this.setup);
 
             // Generate an delete update conflict
             // Update on server
@@ -2637,17 +2635,17 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
-                var productCategoryId = await Generate_DC_US_Conflict(agent);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
+                var productCategoryId = await this.Generate_DC_US_Conflict(agent);
 
                 agent.Options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -2666,13 +2664,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
-                var productCategoryId = await Generate_DC_US_Conflict(agent);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
+                var productCategoryId = await this.Generate_DC_US_Conflict(agent);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -2685,7 +2683,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     // Since the conflict has been resolver on server
                     // And Server forces applied the client row
                     // So far the client row is good and should not raise any conflict
-
                     throw new Exception("Should not happen !!");
                 });
 
@@ -2706,7 +2703,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     acf.Resolution = ConflictResolution.ClientWins;
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -2719,22 +2716,21 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-
         [Fact]
         public virtual async Task Conflict_DC_US_ServerShouldWins()
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
-                var productCategoryId = await Generate_DC_US_Conflict(agent);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
+                var productCategoryId = await this.Generate_DC_US_Conflict(agent);
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(1, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -2754,13 +2750,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
-                var productCategoryId = await Generate_DC_US_Conflict(agent);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
+                var productCategoryId = await this.Generate_DC_US_Conflict(agent);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -2795,7 +2791,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalExists, conflict.Type);
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(1, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -2814,9 +2810,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         // ------------------------------------------------------------------------
 
         /// <summary>
-        /// Generate an outdated conflict. Both lines exists on both side but server has cleaned metadatas
+        /// Generate an outdated conflict. Both lines exists on both side but server has cleaned metadatas.
         /// </summary>
-        private async Task Generate_UC_OUTDATED_Conflict(SyncAgent agent)
+        private static async Task Generate_UC_OUTDATED_Conflict(SyncAgent agent)
         {
             // Insert the conflict product category on each client
             var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
@@ -2832,19 +2828,18 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             await agent.RemoteOrchestrator.DeleteMetadatasAsync(ts + 1);
         }
 
-
         [Fact]
         public virtual async Task Conflict_UC_OUTDATED_ServerShouldWins()
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 await Generate_UC_OUTDATED_Conflict(agent);
 
@@ -2855,7 +2850,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 localOrchestrator.OnApplyChangesConflictOccured(acf =>
                 {
                     throw new Exception("Should not happen since we are reinitializing");
-
                 });
 
                 // From Server : Remote is client, Local is server
@@ -2869,9 +2863,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     oa.Action = OutdatedAction.ReinitializeWithUpload;
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
-                var rowsCount = serverProvider.GetDatabaseRowsCount();
+                var rowsCount = this.serverProvider.GetDatabaseRowsCount();
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -2885,14 +2879,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 await Generate_UC_OUTDATED_Conflict(agent);
 
@@ -2916,9 +2910,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     oa.Action = OutdatedAction.ReinitializeWithUpload;
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
-                var rowsCount = serverProvider.GetDatabaseRowsCount();
+                var rowsCount = this.serverProvider.GetDatabaseRowsCount();
 
                 Assert.Equal(rowsCount, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -2930,13 +2924,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         //// Update Client - Delete Server
         //// ------------------------------------------------------------------------
 
-
         /// <summary>
         /// Generate an update on the client and delete on the server; will be resolved as:
         /// - RemoteExistsLocalIsDeleted from the server side POV
-        /// - RemoteIsDeletedLocalExists from the client side POV
+        /// - RemoteIsDeletedLocalExists from the client side POV.
         /// </summary>
-        private async Task<string> Generate_UC_DS_Conflict(SyncAgent agent)
+        private static async Task<string> Generate_UC_DS_Conflict(SyncAgent agent)
         {
             var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
             var productCategoryName = HelperDatabase.GetRandomName("CLI");
@@ -2945,7 +2938,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             // Insert a product category and sync it on all clients
             await agent.RemoteOrchestrator.Provider.AddProductCategoryAsync(productId, name: productCategoryName);
 
-            // Execute a sync to initialize client and server schema 
+            // Execute a sync to initialize client and server schema
             await agent.SynchronizeAsync();
 
             // Update product category on each client
@@ -2965,16 +2958,16 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 var productCategoryId = await Generate_UC_DS_Conflict(agent);
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(1, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -2985,7 +2978,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var pcServer = await clientProvider.GetProductCategoryAsync(productCategoryId);
                 Assert.Null(pcServer);
             }
-
         }
 
         [Fact]
@@ -2994,12 +2986,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 var productCategoryId = await Generate_UC_DS_Conflict(agent);
 
@@ -3043,7 +3035,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(ConflictType.RemoteExistsLocalIsDeleted, conflict.Type);
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(1, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -3054,7 +3046,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var pcServer = await clientProvider.GetProductCategoryAsync(productCategoryId);
                 Assert.Null(pcServer);
             }
-
         }
 
         [Fact]
@@ -3063,18 +3054,18 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
                 var productCategoryId = await Generate_UC_DS_Conflict(agent);
 
                 // Resolution is set to client side
                 options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -3085,7 +3076,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var pcServer = await clientProvider.GetProductCategoryAsync(productCategoryId);
                 Assert.NotNull(pcServer);
             }
-
         }
 
         [Fact]
@@ -3094,12 +3084,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
                 var productCategoryId = await Generate_UC_DS_Conflict(agent);
 
                 var localOrchestrator = agent.LocalOrchestrator;
@@ -3131,7 +3121,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     acf.Resolution = ConflictResolution.ClientWins;
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -3142,7 +3132,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var pcServer = await clientProvider.GetProductCategoryAsync(productCategoryId);
                 Assert.NotNull(pcServer);
             }
-
         }
 
         // ------------------------------------------------------------------------
@@ -3151,16 +3140,16 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
         /// <summary>
         /// Generate a deleted row on the server and on the client, it's resolved as:
-        /// - RemoteIsDeletedLocalIsDeleted from both side POV
+        /// - RemoteIsDeletedLocalIsDeleted from both side POV.
         /// </summary>
-        private async Task<string> Generate_DC_DS_Conflict(SyncAgent agent)
+        private static async Task<string> Generate_DC_DS_Conflict(SyncAgent agent)
         {
             var productId = HelperDatabase.GetRandomName().ToUpperInvariant().Substring(0, 6);
 
             // Insert a product category and sync it on all clients
             await agent.RemoteOrchestrator.Provider.AddProductCategoryAsync(productId);
 
-            // Execute a sync to initialize client and server schema 
+            // Execute a sync to initialize client and server schema
             await agent.SynchronizeAsync();
 
             // Delete on client
@@ -3178,15 +3167,15 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
                 var productCategoryId = await Generate_DC_DS_Conflict(agent);
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(1, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -3205,12 +3194,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
                 var productCategoryId = await Generate_DC_DS_Conflict(agent);
 
                 var localOrchestrator = agent.LocalOrchestrator;
@@ -3220,6 +3209,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 localOrchestrator.OnApplyChangesConflictOccured(async acf =>
                 {
                     var conflict = await acf.GetSyncConflictAsync();
+
                     // Check conflict is correctly set
                     var localRow = conflict.LocalRow;
                     var remoteRow = conflict.RemoteRow;
@@ -3247,7 +3237,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(ConflictType.RemoteIsDeletedLocalIsDeleted, conflict.Type);
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(1, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -3258,7 +3248,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var pcServer = await clientProvider.GetProductCategoryAsync(productCategoryId);
                 Assert.Null(pcServer);
             }
-
         }
 
         [Fact]
@@ -3267,17 +3256,17 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
                 var productCategoryId = await Generate_DC_DS_Conflict(agent);
 
                 options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalChangesAppliedOnServer);
@@ -3298,12 +3287,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
 
                 var productCategoryId = await Generate_DC_DS_Conflict(agent);
 
@@ -3333,7 +3322,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     acf.Resolution = ConflictResolution.ClientWins;
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
                 Assert.Equal(0, s.TotalChangesAppliedOnServer);
@@ -3354,15 +3343,17 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
         /// <summary>
         /// Generate a deleted row on client, that does not exists on server, it's resolved as:
-        ///  - RemoteIsDeletedLocalNotExists from the Server POV 
-        ///  - RemoteNotExistsLocalIsDeleted from the Client POV, but it can't happen
+        ///  - RemoteIsDeletedLocalNotExists from the Server POV
+        ///  - RemoteNotExistsLocalIsDeleted from the Client POV, but it can't happen.
         /// </summary>
-        private async Task<string> Generate_DC_NULLS_Conflict(SyncAgent agent)
+        private static async Task<string> Generate_DC_NULLS_Conflict(SyncAgent agent)
         {
             // Insert a product category on  clients
             var productCategory = await agent.LocalOrchestrator.Provider.AddProductCategoryAsync();
+
             // Then delete it
             await agent.LocalOrchestrator.Provider.DeleteProductCategoryAsync(productCategory.ProductCategoryId);
+
             // So far we have a row marked as deleted in the tracking table.
             return productCategory.ProductCategoryId;
         }
@@ -3373,15 +3364,15 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
                 var productCategoryId = await Generate_DC_NULLS_Conflict(agent);
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -3392,7 +3383,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var pcServer = await clientProvider.GetProductCategoryAsync(productCategoryId);
                 Assert.Null(pcServer);
             }
-
         }
 
         [Fact]
@@ -3401,12 +3391,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
                 var productCategoryId = await Generate_DC_NULLS_Conflict(agent);
 
                 var localOrchestrator = agent.LocalOrchestrator;
@@ -3432,7 +3422,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Null(localRow);
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -3443,7 +3433,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var pcServer = await clientProvider.GetProductCategoryAsync(productCategoryId);
                 Assert.Null(pcServer);
             }
-
         }
 
         [Fact]
@@ -3452,21 +3441,21 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             // since we have no interceptor, we don't know what kind of conflict (delete - no rows)
             // is happening. So server will try to apply the delete and will add the metadata
             // then it's normal to download this delete on next client
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
                 var productCategoryId = await Generate_DC_NULLS_Conflict(agent);
 
                 // Set conflict resolution to client
                 options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -3485,12 +3474,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
                 var productCategoryId = await Generate_DC_NULLS_Conflict(agent);
 
                 var localOrchestrator = agent.LocalOrchestrator;
@@ -3515,10 +3504,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     Assert.Equal(SyncRowState.Deleted, conflict.RemoteRow.RowState);
                     Assert.Null(localRow);
                     acf.Resolution = ConflictResolution.ClientWins;
-
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -3529,21 +3517,21 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var pcServer = await clientProvider.GetProductCategoryAsync(productCategoryId);
                 Assert.Null(pcServer);
             }
-
         }
 
         /// <summary>
-        /// Generate a deleted row on Server, that does not exists on Client, it's resolved as:
+        /// Generate a deleted row on Server, that does not exists on Client, it's resolved as:.
         /// </summary>
-        private async Task<string> Generate_NULLC_DS_Conflict(SyncAgent agent)
+        private static async Task<string> Generate_NULLC_DS_Conflict(SyncAgent agent)
         {
             var productCategory = await agent.RemoteOrchestrator.Provider.AddProductCategoryAsync();
+
             // Then delete it
             await agent.RemoteOrchestrator.Provider.DeleteProductCategoryAsync(productCategory.ProductCategoryId);
+
             // So far we have a row marked as deleted in the tracking table.
             return productCategory.ProductCategoryId;
         }
-
 
         [Fact]
         public virtual async Task Conflict_NULLC_DS_ServerShouldWins()
@@ -3551,16 +3539,16 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             var download = 1;
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
                 var productCategoryId = await Generate_NULLC_DS_Conflict(agent);
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(download, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -3573,7 +3561,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Null(pcServer);
                 download++;
             }
-
         }
 
         [Fact]
@@ -3582,13 +3569,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             var download = 1;
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
                 var productCategoryId = await Generate_NULLC_DS_Conflict(agent);
 
                 var localOrchestrator = agent.LocalOrchestrator;
@@ -3614,7 +3601,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     throw new Exception("Should not happen since since client did not sent anything. SO far server will send back the deleted row as standard batch row");
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(download, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -3635,19 +3622,19 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             var download = 1;
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
                 var productCategoryId = await Generate_NULLC_DS_Conflict(agent);
 
                 // Set conflict resolution to client
                 options.ConflictResolutionPolicy = ConflictResolutionPolicy.ClientWins;
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(download, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -3660,7 +3647,6 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Null(pcServer);
                 download++;
             }
-
         }
 
         [Fact]
@@ -3669,13 +3655,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
             var download = 1;
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
                 var productCategoryId = await Generate_NULLC_DS_Conflict(agent);
 
                 var localOrchestrator = agent.LocalOrchestrator;
@@ -3704,7 +3690,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     throw new Exception("Should not happen since since client did not sent anything. SO far server will send back the deleted row as standard batch row");
                 });
 
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(download, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
@@ -3719,24 +3705,24 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
         }
 
-        /// Generate a conflict when inserting one row on server and the same row on each client
-        /// Server should wins the conflict because default behavior
-        /// </summary>
+        // Generate a conflict when inserting one row on server and the same row on each client
+        // Server should wins the conflict because default behavior
+        // </summary>
         [Fact]
         public virtual async Task Conflict_UC_US_ClientChoosedTheWinner()
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
 
             // make a first sync to init the two databases
-            foreach (var clientProvider in clientsProvider)
-                await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
+            foreach (var clientProvider in this.clientsProvider)
+                await new SyncAgent(clientProvider, this.serverProvider, options).SynchronizeAsync(this.setup);
 
-            foreach (var clientProvider in clientsProvider)
+            foreach (var clientProvider in this.clientsProvider)
             {
                 var clientNameDecidedOnClientMachine = HelperDatabase.GetRandomName();
 
-                var agent = new SyncAgent(clientProvider, serverProvider, options);
-                var productCategoryId = await Generate_UC_US_Conflict(agent);
+                var agent = new SyncAgent(clientProvider, this.serverProvider, options);
+                var productCategoryId = await this.Generate_UC_US_Conflict(agent);
 
                 var localOrchestrator = agent.LocalOrchestrator;
                 var remoteOrchestrator = agent.RemoteOrchestrator;
@@ -3767,9 +3753,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                     // for testing purpose; will just going to set name to some fancy UI_CLIENT... instead of CLI or SRV
 
                     // SHOW UI
-                    // OH.... CLIENT DECIDED TO SET NAME TO /// clientNameDecidedOnClientMachine 
-
+                    // OH.... CLIENT DECIDED TO SET NAME TO /// clientNameDecidedOnClientMachine
                     remoteRow["Name"] = clientNameDecidedOnClientMachine;
+
                     // Mandatory to override the winner registered in the tracking table
                     // Use with caution !
                     // To be sure the row will be marked as updated locally, the scope id should be set to null
@@ -3798,7 +3784,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 });
 
                 // First sync, we allow server to resolve the conflict and send back the result to client
-                var s = await agent.SynchronizeAsync(setup);
+                var s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(1, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -3807,9 +3793,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 // From this point the Server row Name is "SRV...."
                 // And the Client row NAME is "UI_CLIENT..."
                 // Make a new sync to send "UI_CLIENT..." to Server
-
-                s = await agent.SynchronizeAsync(setup);
-
+                s = await agent.SynchronizeAsync(this.setup);
 
                 Assert.Equal(0, s.TotalChangesDownloadedFromServer);
                 Assert.Equal(1, s.TotalChangesUploadedToServer);
@@ -3817,7 +3801,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 var pcClient = await clientProvider.GetProductCategoryAsync(productCategoryId);
                 Assert.Equal(clientNameDecidedOnClientMachine, pcClient.Name);
-                var pcServer = await serverProvider.GetProductCategoryAsync(productCategoryId);
+                var pcServer = await this.serverProvider.GetProductCategoryAsync(productCategoryId);
                 Assert.Equal(clientNameDecidedOnClientMachine, pcServer.Name);
             }
         }

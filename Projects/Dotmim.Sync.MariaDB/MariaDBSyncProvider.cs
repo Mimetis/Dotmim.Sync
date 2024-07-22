@@ -1,8 +1,8 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
 using System.Data.Common;
-using Dotmim.Sync.Enumerations;
-#if NET6_0 || NET8_0 
+#if NET6_0 || NET8_0
 using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;
@@ -21,29 +21,33 @@ namespace Dotmim.Sync.MariaDB
 {
     public class MariaDBSyncProvider : CoreProvider
     {
-        DbMetadata dbMetadata;
+        private DbMetadata dbMetadata;
         private MySqlConnectionStringBuilder builder;
-        static string providerType;
+        private static string providerType;
 
-        public MariaDBSyncProvider() : base()
+        public MariaDBSyncProvider()
+            : base()
         {
         }
 
         public override string ConnectionString
         {
-            get => builder == null || string.IsNullOrEmpty(builder.ConnectionString) ? null : builder.ConnectionString;
+            get => this.builder == null || string.IsNullOrEmpty(this.builder.ConnectionString) ? null : this.builder.ConnectionString;
             set
             {
                 this.builder = string.IsNullOrEmpty(value) ? null : new MySqlConnectionStringBuilder(value);
+
                 // Set the default behavior to use Found rows and not Affected rows !
-                builder.UseAffectedRows = false;
-                builder.AllowUserVariables = true;
+                this.builder.UseAffectedRows = false;
+                this.builder.AllowUserVariables = true;
             }
         }
 
-        public MariaDBSyncProvider(string connectionString) : base() => this.ConnectionString = connectionString;
+        public MariaDBSyncProvider(string connectionString)
+            : base() => this.ConnectionString = connectionString;
 
-        public MariaDBSyncProvider(MySqlConnectionStringBuilder builder) : base()
+        public MariaDBSyncProvider(MySqlConnectionStringBuilder builder)
+            : base()
         {
             if (builder == null || string.IsNullOrEmpty(builder.ConnectionString))
                 throw new Exception("You have to provide parameters to the MySql builder to be able to construct a valid connection string.");
@@ -53,7 +57,6 @@ namespace Dotmim.Sync.MariaDB
             // Set the default behavior to use Found rows and not Affected rows !
             this.builder.UseAffectedRows = false;
         }
-
 
         public override string GetProviderTypeName() => ProviderType;
 
@@ -70,10 +73,13 @@ namespace Dotmim.Sync.MariaDB
                 return providerType;
             }
         }
+
         public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnTableLevel;
 
-        static string shortProviderType;
+        private static string shortProviderType;
+
         public override string GetShortProviderTypeName() => ShortProviderType;
+
         public static string ShortProviderType
         {
             get
@@ -89,38 +95,38 @@ namespace Dotmim.Sync.MariaDB
         }
 
         /// <summary>
-        /// MySql can be a server side provider
+        /// Gets a value indicating whether mySql can be a server side provider.
         /// </summary>
         public override bool CanBeServerProvider => true;
 
         /// <summary>
-        /// Gets or Sets the MySql Metadata object, provided to validate the MySql Columns issued from MySql
+        /// Gets or Sets the MySql Metadata object, provided to validate the MySql Columns issued from MySql.
         /// </summary>
         /// <summary>
-        /// Gets or sets the Metadata object which parse Sql server types
+        /// Gets or sets the Metadata object which parse Sql server types.
         /// </summary>
         public override DbMetadata GetMetadata()
         {
-            if (dbMetadata == null)
-                dbMetadata = new MySqlDbMetadata();
+            if (this.dbMetadata == null)
+                this.dbMetadata = new MySqlDbMetadata();
 
-            return dbMetadata;
+            return this.dbMetadata;
         }
+
         public override string GetDatabaseName()
         {
-            if (builder != null && !String.IsNullOrEmpty(builder.Database))
-                return builder.Database;
+            if (this.builder != null && !string.IsNullOrEmpty(this.builder.Database))
+                return this.builder.Database;
 
             return string.Empty;
-
         }
-      
+
         public override void EnsureSyncException(SyncException syncException)
         {
             if (this.builder != null && !string.IsNullOrEmpty(this.builder.ConnectionString))
             {
-                syncException.DataSource = builder.Server;
-                syncException.InitialCatalog = builder.Database;
+                syncException.DataSource = this.builder.Server;
+                syncException.InitialCatalog = this.builder.Database;
             }
 
             if (syncException.InnerException is not MySqlException mySqlException)
@@ -141,10 +147,12 @@ namespace Dotmim.Sync.MariaDB
                 else
                     ex = ex.InnerException;
             }
+
             return false;
         }
 
         public override DbConnection CreateConnection() => new MySqlConnection(this.ConnectionString);
+
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
             => new MySqlTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
 
@@ -152,17 +160,19 @@ namespace Dotmim.Sync.MariaDB
             => new MySqlSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
 
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new MySqlScopeInfoBuilder(scopeInfoTableName);
+
         public override DbBuilder GetDatabaseBuilder() => new MySqlBuilder();
-        public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
+
+        public override (ParserName TableName, ParserName TrackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
         {
             string tableAndPrefixName = tableDescription.TableName;
 
             var originalTableName = ParserName.Parse(tableDescription, "`");
 
-            var pref = setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : "";
-            var suf = setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : "";
+            var pref = setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : string.Empty;
+            var suf = setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : string.Empty;
 
-            // be sure, at least, we have a suffix if we have empty values. 
+            // be sure, at least, we have a suffix if we have empty values.
             // othewise, we have the same name for both table and tracking table
             if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
                 suf = "_tracking";
@@ -171,6 +181,5 @@ namespace Dotmim.Sync.MariaDB
 
             return (originalTableName, trackingTableName);
         }
-
     }
 }

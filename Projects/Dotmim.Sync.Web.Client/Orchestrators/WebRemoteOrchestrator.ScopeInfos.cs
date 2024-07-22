@@ -1,14 +1,5 @@
-﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,7 +8,7 @@ namespace Dotmim.Sync.Web.Client
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
 
-        internal override async Task<(SyncContext context, ScopeInfo scopeInfo)> InternalLoadScopeInfoAsync(
+        internal override async Task<(SyncContext Context, ScopeInfo ScopeInfo)> InternalLoadScopeInfoAsync(
             SyncContext context,
             DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
@@ -26,7 +17,7 @@ namespace Dotmim.Sync.Web.Client
             return (context, scopeInfo);
         }
 
-        internal override async Task<(SyncContext context, ScopeInfo serverScopeInfo, bool shouldProvision)>
+        internal override async Task<(SyncContext Context, ScopeInfo ServerScopeInfo, bool ShouldProvision)>
             InternalEnsureScopeInfoAsync(
             SyncContext context, SyncSetup setup, bool overwrite, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {

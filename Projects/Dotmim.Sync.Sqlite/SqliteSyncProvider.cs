@@ -1,11 +1,11 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
+using Dotmim.Sync.Sqlite.Builders;
+using Microsoft.Data.Sqlite;
 using System;
 using System.Data.Common;
-using Microsoft.Data.Sqlite;
 using System.IO;
-using Dotmim.Sync.Sqlite.Builders;
-using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -13,31 +13,30 @@ namespace Dotmim.Sync.Sqlite
     public class SqliteSyncProvider : CoreProvider
     {
 
-
         private DbMetadata dbMetadata;
-        private static String providerType;
+        private static string providerType;
         private SqliteConnectionStringBuilder builder;
 
         public override DbMetadata GetMetadata()
         {
-            if (dbMetadata == null)
-                dbMetadata = new SqliteDbMetadata();
+            if (this.dbMetadata == null)
+                this.dbMetadata = new SqliteDbMetadata();
 
-            return dbMetadata;
+            return this.dbMetadata;
         }
 
         public override string ConnectionString
         {
-            get => builder == null || string.IsNullOrEmpty(builder.ConnectionString) ? null : builder.ConnectionString;
+            get => this.builder == null || string.IsNullOrEmpty(this.builder.ConnectionString) ? null : this.builder.ConnectionString;
             set => this.builder = string.IsNullOrEmpty(value) ? null : new SqliteConnectionStringBuilder(value);
         }
 
         public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnDatabaseLevel;
 
         /// <summary>
-        /// SQLIte does not support to be a server side.
+        /// Gets a value indicating whether sQLIte does not support to be a server side.
         /// Reason 1 : Can't easily insert / update batch with handling conflict
-        /// Reason 2 : Can't filter rows (based on filterclause)
+        /// Reason 2 : Can't filter rows (based on filterclause).
         /// </summary>
         public override bool CanBeServerProvider => false;
 
@@ -65,12 +64,12 @@ namespace Dotmim.Sync.Sqlite
 
                 return providerType;
             }
-
         }
 
+        private static string shortProviderType;
 
-        static string shortProviderType;
         public override string GetShortProviderTypeName() => ShortProviderType;
+
         public static string ShortProviderType
         {
             get
@@ -84,7 +83,9 @@ namespace Dotmim.Sync.Sqlite
                 return shortProviderType;
             }
         }
-        public SqliteSyncProvider() : base()
+
+        public SqliteSyncProvider()
+            : base()
         {
         }
 
@@ -101,12 +102,11 @@ namespace Dotmim.Sync.Sqlite
 
                     return null;
                 }
-
             }
         }
 
         /// <summary>
-        /// Gets a chance to make a retry if the error is a transient error
+        /// Gets a chance to make a retry if the error is a transient error.
         /// </summary>
         public override bool ShouldRetryOn(Exception exception)
         {
@@ -118,9 +118,12 @@ namespace Dotmim.Sync.Sqlite
                 else
                     ex = ex.InnerException;
             }
+
             return false;
         }
-        public SqliteSyncProvider(string filePath) : this()
+
+        public SqliteSyncProvider(string filePath)
+            : this()
         {
             if (filePath.StartsWith("data source", SyncGlobalization.DataSourceStringComparison))
             {
@@ -138,23 +141,24 @@ namespace Dotmim.Sync.Sqlite
 
                 this.builder = new SqliteConnectionStringBuilder { DataSource = filePath };
             }
-
         }
 
-        public SqliteSyncProvider(FileInfo fileInfo) : this()
+        public SqliteSyncProvider(FileInfo fileInfo)
+            : this()
         {
             this.builder = new SqliteConnectionStringBuilder { DataSource = fileInfo.FullName };
         }
 
         public override string GetDatabaseName()
         {
-            if (builder != null && !string.IsNullOrEmpty(builder.DataSource))
-                return new FileInfo(builder.DataSource).Name;
+            if (this.builder != null && !string.IsNullOrEmpty(this.builder.DataSource))
+                return new FileInfo(this.builder.DataSource).Name;
 
             return string.Empty;
         }
 
-        public SqliteSyncProvider(SqliteConnectionStringBuilder sqliteConnectionStringBuilder) : this()
+        public SqliteSyncProvider(SqliteConnectionStringBuilder sqliteConnectionStringBuilder)
+            : this()
         {
             if (string.IsNullOrEmpty(sqliteConnectionStringBuilder.DataSource))
                 throw new Exception("You have to provide at least a DataSource property to be able to connect to your SQlite database.");
@@ -164,24 +168,23 @@ namespace Dotmim.Sync.Sqlite
 
         public override void EnsureSyncException(SyncException syncException)
         {
-            if (builder != null)
-                syncException.DataSource = builder.DataSource;
+            if (this.builder != null)
+                syncException.DataSource = this.builder.DataSource;
 
             if (syncException.InnerException is not SqliteException sqliteException)
                 return;
 
             syncException.Number = sqliteException.SqliteErrorCode;
 
-
             return;
         }
 
         public override DbConnection CreateConnection()
         {
-            if (!builder.ForeignKeys.HasValue && this.Orchestrator != null)
-                builder.ForeignKeys = !this.Orchestrator.Options.DisableConstraintsOnApplyChanges;
+            if (!this.builder.ForeignKeys.HasValue && this.Orchestrator != null)
+                this.builder.ForeignKeys = !this.Orchestrator.Options.DisableConstraintsOnApplyChanges;
 
-            var connectionString = builder.ToString();
+            var connectionString = this.builder.ToString();
 
             var sqliteConnection = new SqliteConnection(connectionString);
 
@@ -198,15 +201,15 @@ namespace Dotmim.Sync.Sqlite
 
         public override DbBuilder GetDatabaseBuilder() => new SqliteBuilder();
 
-        public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
+        public override (ParserName TableName, ParserName TrackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
         {
             string tableAndPrefixName = tableDescription.TableName;
             var originalTableName = ParserName.Parse(tableDescription);
 
-            var pref = setup != null && setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : "";
-            var suf = setup != null && setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : "";
+            var pref = setup != null && setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : string.Empty;
+            var suf = setup != null && setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : string.Empty;
 
-            // be sure, at least, we have a suffix if we have empty values. 
+            // be sure, at least, we have a suffix if we have empty values.
             // othewise, we have the same name for both table and tracking table
             if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
                 suf = "_tracking";
