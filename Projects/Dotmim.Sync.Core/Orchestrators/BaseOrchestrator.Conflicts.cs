@@ -37,13 +37,13 @@ namespace Dotmim.Sync
                 this.InternalSetCommandParametersValues(context, command, DbCommandType.SelectRow, syncAdapter, connection, transaction, progress, cancellationToken,
                     row: primaryKeyRow);
 
-                await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.SelectRow, connection, transaction)).ConfigureAwait(false);
+                await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.SelectRow, connection, transaction), cancellationToken: cancellationToken).ConfigureAwait(false);
 
                 // Create a select table based on the schema in parameter + scope columns
                 var changesSet = schemaTable.Schema.Clone(false);
                 var selectTable = CreateChangesTable(schemaTable, changesSet);
 
-                using var dataReader = await command.ExecuteReaderAsync().ConfigureAwait(false);
+                using var dataReader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
                 if (!dataReader.Read())
                 {
@@ -162,7 +162,7 @@ namespace Dotmim.Sync
             var resolution = policy == ConflictResolutionPolicy.ClientWins ? ConflictResolution.ClientWins : ConflictResolution.ServerWins;
 
             // check the interceptor
-            var interceptors = this.interceptors.GetInterceptors<ApplyChangesConflictOccuredArgs>();
+            var interceptors = this.Interceptors.GetInterceptors<ApplyChangesConflictOccuredArgs>();
 
             SyncRow finalRow = null;
             Guid? finalSenderScopeId = senderScopeId;
@@ -183,7 +183,8 @@ namespace Dotmim.Sync
                 resolution = arg.Resolution;
                 finalRow = arg.Resolution == ConflictResolution.MergeRow ? arg.FinalRow : null;
                 finalSenderScopeId = arg.SenderScopeId;
-                conflictType = arg.conflict != null ? arg.conflict.Type : conflictType;
+                var conflict = await arg.GetSyncConflictAsync().ConfigureAwait(false);
+                conflictType = conflict != null ? conflict.Type : conflictType;
             }
             else
             {

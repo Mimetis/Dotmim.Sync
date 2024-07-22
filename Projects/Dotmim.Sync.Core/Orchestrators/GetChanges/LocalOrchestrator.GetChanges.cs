@@ -145,7 +145,7 @@ namespace Dotmim.Sync
                     else
                         (context, clientChangesSelected) = await this.InternalGetEstimatedChangesCountAsync(
                             cScopeInfo, context,
-                            isNew, lastTimestamp, clientTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
+                            isNew, lastTimestamp, remoteScopeId, this.Provider.SupportsMultipleActiveResultSets,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     await runner.CommitAsync().ConfigureAwait(false);
@@ -198,8 +198,7 @@ namespace Dotmim.Sync
 
                     // Call interceptor
                     var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, clientBatchInfo.GetDirectoryFullPath(), this.Options.BatchSize, cScopeInfoClient.IsNewScope,
-                        cScopeInfoClient.LastSyncTimestamp, clientTimestamp,
-                        runner.Connection, runner.Transaction);
+                        cScopeInfoClient.LastSyncTimestamp, runner.Connection, runner.Transaction);
 
                     await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
 
@@ -216,12 +215,12 @@ namespace Dotmim.Sync
                     {
                         clientChangesSelected = await this.InternalGetChangesAsync(
                             cScopeInfo,
-                            context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp, clientTimestamp, remoteScopeId,
+                            context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastSyncTimestamp, remoteScopeId,
                             this.Provider.SupportsMultipleActiveResultSets, clientBatchInfo,
                             runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
                     }
 
-                    var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastSyncTimestamp, clientTimestamp,
+                    var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastSyncTimestamp,
                             clientBatchInfo, clientChangesSelected, runner.Connection, runner.Transaction);
 
                     await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);

@@ -1,10 +1,9 @@
 ﻿using Dotmim.Sync.Manager;
+using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Data;
-
-using Microsoft.Data.Sqlite;
+using System.Text;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -28,7 +27,7 @@ namespace Dotmim.Sync.Sqlite
                 "datetime" => DbType.DateTime,
                 "time" => DbType.Time,
                 "text" or "varchar" => DbType.String,
-                _ => throw new Exception($"this type {columnDefinition.OriginalTypeName} for column {columnDefinition.ColumnName} is not supported")
+                _ => throw new Exception($"this type {columnDefinition.OriginalTypeName} for column {columnDefinition.ColumnName} is not supported"),
             };
         }
 
@@ -51,10 +50,10 @@ namespace Dotmim.Sync.Sqlite
 
         public SqliteType GetOwnerDbTypeFromDbType(SyncColumn columnDefinition) => columnDefinition.GetDbType() switch
         {
-            DbType.AnsiString or DbType.AnsiStringFixedLength or DbType.String or DbType.StringFixedLength or DbType.Xml or 
+            DbType.AnsiString or DbType.AnsiStringFixedLength or DbType.String or DbType.StringFixedLength or DbType.Xml or
             DbType.Time or DbType.DateTimeOffset or DbType.Guid or DbType.Date or DbType.DateTime or DbType.DateTime2 => SqliteType.Text,
             DbType.Binary or DbType.Object => SqliteType.Blob,
-            DbType.Boolean or DbType.Byte or DbType.Int16 or DbType.Int32 or DbType.UInt16 or DbType.Int64 or DbType.UInt32 or 
+            DbType.Boolean or DbType.Byte or DbType.Int16 or DbType.Int32 or DbType.UInt16 or DbType.Int64 or DbType.UInt32 or
             DbType.UInt64 or DbType.SByte => SqliteType.Integer,
             DbType.Decimal or DbType.Double or DbType.Single or DbType.Currency or DbType.VarNumeric => SqliteType.Real,
             _ => throw new Exception($"In Column {columnDefinition.ColumnName}, the type {columnDefinition.GetDbType()} is not supported"),
@@ -64,7 +63,7 @@ namespace Dotmim.Sync.Sqlite
 
         public override Type GetType(SyncColumn columnDefinition)
         {
-            var dbType = (SqliteType)GetOwnerDbType(columnDefinition);
+            var dbType = (SqliteType)this.GetOwnerDbType(columnDefinition);
 
             return dbType switch
             {
@@ -76,18 +75,18 @@ namespace Dotmim.Sync.Sqlite
             };
         }
 
-        public override int GetMaxLength(SyncColumn columnDefinition) 
+        public override int GetMaxLength(SyncColumn columnDefinition)
             => columnDefinition.MaxLength > int.MaxValue ? int.MaxValue : Convert.ToInt32(columnDefinition.MaxLength);
 
-        public override (byte precision, byte scale) GetPrecisionAndScale(SyncColumn columnDefinition) => (0, 0);
+        public override (byte Precision, byte Scale) GetPrecisionAndScale(SyncColumn columnDefinition) => (0, 0);
 
         public override byte GetPrecision(SyncColumn columnDefinition) => columnDefinition.Precision;
 
-        public override bool IsSupportingScale(SyncColumn columnDefinition) => GetSqliteType(columnDefinition) == SqliteType.Real;
+        public override bool IsSupportingScale(SyncColumn columnDefinition) => this.GetSqliteType(columnDefinition) == SqliteType.Real;
 
         public override bool IsNumericType(SyncColumn columnDefinition)
         {
-            var sqliteType = GetSqliteType(columnDefinition);
+            var sqliteType = this.GetSqliteType(columnDefinition);
             return sqliteType == SqliteType.Integer || sqliteType == SqliteType.Real;
         }
 
@@ -97,8 +96,8 @@ namespace Dotmim.Sync.Sqlite
 
             return dbType switch
             {
-                DbType.AnsiString or DbType.AnsiStringFixedLength or 
-                DbType.String or DbType.StringFixedLength or 
+                DbType.AnsiString or DbType.AnsiStringFixedLength or
+                DbType.String or DbType.StringFixedLength or
                 DbType.Xml or DbType.Guid => true,
                 _ => false,
             };
@@ -113,7 +112,7 @@ namespace Dotmim.Sync.Sqlite
 
             return typeName switch
             {
-                "integer" or "float" or "decimal" or "bit" or "bigint" or "numeric" or "blob" or "image" or 
+                "integer" or "float" or "decimal" or "bit" or "bigint" or "numeric" or "blob" or "image" or
                 "datetime" or "time" or "text" or "varchar" or "real" or "smallint" => true,
                 _ => false,
             };
@@ -121,12 +120,10 @@ namespace Dotmim.Sync.Sqlite
 
         public override bool IsReadonly(SyncColumn columnDefinition) => false;
 
-
         // ----------------------------------------------------------------------------------
 
-
         /// <summary>
-        /// Gets a compatible column definition
+        /// Gets a compatible column definition.
         /// </summary>
         public string GetCompatibleColumnTypeDeclarationString(SyncColumn column, string fromProviderType)
         {
@@ -144,8 +141,6 @@ namespace Dotmim.Sync.Sqlite
                 SqliteType.Blob => "blob",
                 _ => throw new Exception($"In Column {column.ColumnName}, the type {column.GetDbType()} is not supported"),
             };
-
         }
-
     }
 }

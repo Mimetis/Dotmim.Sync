@@ -1,23 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
+﻿using Dotmim.Sync.Batch;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Dotmim.Sync.Batch;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
 
 namespace Dotmim.Sync.Web.Client
 {
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
 
-        internal override async Task<SyncContext> InternalBeginSessionAsync(SyncContext context, IProgress<ProgressArgs> progress, CancellationToken cancellationToken = null)
+        internal override async Task<SyncContext> InternalBeginSessionAsync(SyncContext context, IProgress<ProgressArgs> progress = default, CancellationToken cancellationToken = default)
         {
             // Progress & interceptor
             var sessionBegin = new SessionBeginArgs(context, null) { Source = this.GetServiceHost() };
@@ -25,14 +16,14 @@ namespace Dotmim.Sync.Web.Client
             await this.InterceptAsync(sessionBegin, progress, cancellationToken).ConfigureAwait(false);
 
             return context;
-
         }
 
-        internal override async Task<SyncContext> InternalEndSessionAsync(SyncContext context, SyncResult result, ServerSyncChanges serverSyncChanges, SyncException syncException = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal override async Task<SyncContext> InternalEndSessionAsync(SyncContext context, SyncResult result, ServerSyncChanges serverSyncChanges,
+            SyncException syncException = default, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             try
             {
-                await WebRemoteCleanFolderAsync(context, serverSyncChanges?.ServerBatchInfo).ConfigureAwait(false);
+                await this.WebRemoteCleanFolderAsync(context, serverSyncChanges?.ServerBatchInfo).ConfigureAwait(false);
 
                 // Create the message to be sent
                 var httpMessage = new HttpMessageEndSessionRequest(context)
@@ -48,8 +39,8 @@ namespace Dotmim.Sync.Web.Client
                 };
 
                 // No batch size submitted here, because the schema will be generated in memory and send back to the user.
-                var endSessionResponse = await this.ProcessRequestAsync<HttpMessageEndSessionResponse>
-                    (context, httpMessage, HttpStep.EndSession, 0, progress, cancellationToken).ConfigureAwait(false);
+                var endSessionResponse = await this.ProcessRequestAsync<HttpMessageEndSessionResponse>(
+                    context, httpMessage, HttpStep.EndSession, 0, progress, cancellationToken).ConfigureAwait(false);
 
                 if (endSessionResponse == null)
                     throw new ArgumentException("Http Message content for End session can't be null");
@@ -62,9 +53,14 @@ namespace Dotmim.Sync.Web.Client
                 // Return scopes and new shema
                 return context;
             }
-            catch (HttpSyncWebException) { throw; } // throw server error
-            catch (Exception ex) { throw GetSyncError(context, ex); } // throw client error
-
+            catch (HttpSyncWebException)
+            {
+                throw;
+            } // throw server error
+            catch (Exception ex)
+            {
+                throw this.GetSyncError(context, ex);
+            } // throw client error
         }
 
         private async Task WebRemoteCleanFolderAsync(SyncContext context, BatchInfo changes)

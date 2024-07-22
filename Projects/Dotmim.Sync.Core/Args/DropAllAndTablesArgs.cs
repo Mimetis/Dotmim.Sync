@@ -1,14 +1,18 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Data.Common;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
+
+    /// <summary>
+    /// Event args raised before a DropAll is performed.
+    /// When you want to drop ALSO the tables, you need to confirm it.
+    /// </summary>
     public class DropAllArgs : ProgressArgs
     {
+        /// <inheritdoc cref="DropAllArgs" />
         public DropAllArgs(SyncContext context, DbConnection connection, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
@@ -18,35 +22,47 @@ namespace Dotmim.Sync
             });
         }
 
-        internal bool Confirm() => this.ConfirmYouWantToDeleteTables();
-
+        /// <summary>
+        /// Gets or Sets the confirmation function to confirm you want to delete all tables.
+        /// </summary>
         public Func<bool> ConfirmYouWantToDeleteTables { get; set; }
 
+        /// <summary>
+        /// Return true if you want to delete all tables.
+        /// </summary>
+        internal bool Confirm() => this.ConfirmYouWantToDeleteTables();
+
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
         public override int EventId => SyncEventsId.DropAll.Id;
     }
 
     /// <summary>
-    /// Partial interceptors extensions 
+    /// Partial Interceptors extensions.
     /// </summary>
-    public static partial class InterceptorsExtensions
+    public partial class InterceptorsExtensions
     {
 
         /// <summary>
-        /// Intercept the provider when a DropAll is called where you specified you want to drop the tables
+        /// Intercept the provider when a DropAll is called where you specified you want to drop the tables.
         /// </summary>
         public static Guid OnDropAll(this BaseOrchestrator orchestrator, Action<DropAllArgs> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider when a DropAll is called where you specified you want to drop the tables
+        /// Intercept the provider when a DropAll is called where you specified you want to drop the tables.
         /// </summary>
         public static Guid OnDropAll(this BaseOrchestrator orchestrator, Func<DropAllArgs, Task> action)
             => orchestrator.AddInterceptor(action);
-
-
     }
-    public static partial class SyncEventsId
+
+    /// <summary>
+    /// Sync Events Id.
+    /// </summary>
+    public partial class SyncEventsId
     {
+        /// <summary>
+        /// Gets DropAll event id.
+        /// </summary>
         public static EventId DropAll => CreateEventId(9876, nameof(DropAll));
     }
 }

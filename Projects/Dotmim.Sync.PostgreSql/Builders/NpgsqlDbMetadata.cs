@@ -1,28 +1,30 @@
 ﻿using Dotmim.Sync.Manager;
+using Npgsql;
+using NpgsqlTypes;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Data;
 using System.Linq;
-using NpgsqlTypes;
-using Npgsql;
+using System.Text;
 
 namespace Dotmim.Sync.PostgreSql.Builders
 {
     public class NpgsqlDbMetadata : DbMetadata
     {
-        public const byte PRECISION_MAX = 28;
-        public const byte SCALE_MAX = 18;
+        public const byte PRECISIONMAX = 28;
+        public const byte SCALEMAX = 18;
+
         public NpgsqlDbMetadata() { }
+
         public static (byte p, byte s) CoercePrecisionAndScale(int precision, int scale)
         {
             byte p = Convert.ToByte(precision);
             byte s = Convert.ToByte(scale);
-            if (p > PRECISION_MAX)
-                p = PRECISION_MAX;
+            if (p > PRECISIONMAX)
+                p = PRECISIONMAX;
 
-            if (s > SCALE_MAX)
-                s = SCALE_MAX;
+            if (s > SCALEMAX)
+                s = SCALEMAX;
 
             // scale should always be lesser than precision
             if (s >= p && p > 1)
@@ -35,7 +37,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
         {
             // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
             var sqlDbType = fromProviderType == NpgsqlSyncProvider.ProviderType ?
-                this.GetNpgsqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
+                this.GetNpgsqlDbType(column) : GetOwnerDbTypeFromDbType(column);
 
             return sqlDbType switch
             {
@@ -49,21 +51,21 @@ namespace Dotmim.Sync.PostgreSql.Builders
             string argument = string.Empty;
 
             // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
-            var sqlDbType = fromProviderType == NpgsqlSyncProvider.ProviderType ? this.GetNpgsqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
+            var sqlDbType = fromProviderType == NpgsqlSyncProvider.ProviderType ? this.GetNpgsqlDbType(column) : GetOwnerDbTypeFromDbType(column);
 
             switch (sqlDbType)
             {
                 case NpgsqlDbType.Varbit:
                 case NpgsqlDbType.Varchar:
                 case NpgsqlDbType.Char:
-                    //case NpgsqlDbType.Text:
-                    argument = column.MaxLength > 0 ? $"({column.MaxLength})" : "";
+                    // case NpgsqlDbType.Text:
+                    argument = column.MaxLength > 0 ? $"({column.MaxLength})" : string.Empty;
                     break;
                 case NpgsqlDbType.Numeric:
                     var (p, s) = this.GetPrecisionAndScale(column);
 
                     if (column.DbType == (int)DbType.Single && column.Precision == 0 && column.Scale == 0)
-                        argument = $"({PRECISION_MAX}, 8)";
+                        argument = $"({PRECISIONMAX}, 8)";
                     else if (p > 0 && s <= 0)
                         argument = $"({p})";
                     else if (p > 0 && s > 0)
@@ -83,7 +85,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
         {
             // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
             var sqlDbType = fromProviderType == NpgsqlSyncProvider.ProviderType ?
-                this.GetNpgsqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
+                this.GetNpgsqlDbType(column) : GetOwnerDbTypeFromDbType(column);
 
             return sqlDbType switch
             {
@@ -92,9 +94,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
             };
         }
 
-        public override DbType GetDbType(SyncColumn column)
+        public override DbType GetDbType(SyncColumn columnDefinition)
         {
-            switch (column.OriginalTypeName.ToLowerInvariant())
+            switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
             {
                 case "smallint":
                 case "int2":
@@ -116,7 +118,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case "serial8":
                     return DbType.Int64;
 
-                // Bit strings are strings of 1's and 0's.They can be used to store or visualize bit masks.  
+                // Bit strings are strings of 1's and 0's.They can be used to store or visualize bit masks.
                 // https://www.postgresql.org/docs/current/datatype-bit.html
                 case "bit":
                     return DbType.Boolean;
@@ -127,7 +129,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case "boolean":
                 case "bool":
                     return DbType.Boolean;
-
 
                 // IPv4, IPv6, and MAC addresses
                 // https://www.postgresql.org/docs/current/datatype-net-types.html
@@ -163,7 +164,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case "bpchar":
                     return DbType.AnsiStringFixedLength;
 
-
                 case "varchar":
                 case "character varying":
                 case "refcursor":
@@ -187,7 +187,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case "time":
                 case "time without time zone":
                     return DbType.Time;
-
 
                 case "double precision":
                 case "float8":
@@ -218,15 +217,16 @@ namespace Dotmim.Sync.PostgreSql.Builders
                     return DbType.String;
                 case "array":
                     return DbType.Object;
-
             }
-            throw new Exception($"this type {column.OriginalTypeName.ToLowerInvariant()} is not supported");
-        }
-        public override int GetMaxLength(SyncColumn column)
-        {
-            var sqlDbType = GetNpgsqlDbType(column);
 
-            var iMaxLength = column.MaxLength > 8000 ? 8000 : Convert.ToInt32(column.MaxLength);
+            throw new Exception($"this type {columnDefinition.OriginalTypeName.ToLowerInvariant()} is not supported");
+        }
+
+        public override int GetMaxLength(SyncColumn columnDefinition)
+        {
+            var sqlDbType = this.GetNpgsqlDbType(columnDefinition);
+
+            var iMaxLength = columnDefinition.MaxLength > 8000 ? 8000 : Convert.ToInt32(columnDefinition.MaxLength);
 
             if (iMaxLength > 0 && sqlDbType != NpgsqlDbType.Varchar && sqlDbType != NpgsqlDbType.Text &&
                 sqlDbType != NpgsqlDbType.Char && sqlDbType != NpgsqlDbType.Bytea)
@@ -237,8 +237,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         public NpgsqlDbType GetNpgsqlDbType(SyncColumn column) => (NpgsqlDbType)this.GetOwnerDbType(column);
 
-
-        public override object GetOwnerDbType(SyncColumn column) => column.OriginalTypeName.ToLowerInvariant() switch
+        public override object GetOwnerDbType(SyncColumn columnDefinition) => columnDefinition.OriginalTypeName.ToLowerInvariant() switch
         {
             "bigint" or "int8" => NpgsqlDbType.Bigint,
             "bit" => NpgsqlDbType.Bit,
@@ -293,13 +292,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
             "varchar" or "character varying" => NpgsqlDbType.Varchar,
             "xid" => NpgsqlDbType.Xid,
             "xml" => (object)NpgsqlDbType.Xml,
-            _ => throw new Exception($"Type '{column.OriginalTypeName.ToLowerInvariant()}' (column {column.ColumnName}) is not supported"),
+            _ => throw new Exception($"Type '{columnDefinition.OriginalTypeName.ToLowerInvariant()}' (column {columnDefinition.ColumnName}) is not supported"),
         };
 
-
-        public NpgsqlDbType GetOwnerDbTypeFromDbType(SyncColumn column)
+        public static NpgsqlDbType GetOwnerDbTypeFromDbType(SyncColumn column)
         {
-#if NET6_0_OR_GREATER            
+#if NET6_0_OR_GREATER
             // Getting EnableLegacyTimestampBehavior behavior
             var legacyTimestampBehavior = false;
             AppContext.TryGetSwitch("Npgsql.EnableLegacyTimestampBehavior", out legacyTimestampBehavior);
@@ -334,6 +332,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             return npgsqlDbType;
         }
+
         public override byte GetPrecision(SyncColumn columnDefinition)
         {
             var (p, _) = CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
@@ -341,15 +340,15 @@ namespace Dotmim.Sync.PostgreSql.Builders
             return p;
         }
 
-        public override (byte precision, byte scale) GetPrecisionAndScale(SyncColumn columnDefinition)
+        public override (byte Precision, byte Scale) GetPrecisionAndScale(SyncColumn columnDefinition)
         {
             if (columnDefinition.DbType == (int)DbType.Single && columnDefinition.Precision == 0 && columnDefinition.Scale == 0)
-                return (PRECISION_MAX, 8);
+                return (PRECISIONMAX, 8);
 
             return CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
         }
 
-        public override Type GetType(SyncColumn column) => GetNpgsqlDbType(column) switch
+        public override Type GetType(SyncColumn columnDefinition) => this.GetNpgsqlDbType(columnDefinition) switch
         {
             NpgsqlDbType.Bigint => typeof(long),
             NpgsqlDbType.Double => typeof(double),
@@ -367,11 +366,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
             NpgsqlDbType.Inet or NpgsqlDbType.Cidr or NpgsqlDbType.MacAddr or NpgsqlDbType.MacAddr8 or NpgsqlDbType.Bit or NpgsqlDbType.Varbit or NpgsqlDbType.TsVector or NpgsqlDbType.TsQuery => typeof(string),
             NpgsqlDbType.Uuid => typeof(Guid),
             NpgsqlDbType.Xml or NpgsqlDbType.Json or NpgsqlDbType.Jsonb or NpgsqlDbType.Hstore => typeof(string),
-            _ => throw new Exception($"this NpgsqlDbType {GetNpgsqlDbType(column)} is not supported"),
+            _ => throw new Exception($"this NpgsqlDbType {this.GetNpgsqlDbType(columnDefinition)} is not supported"),
         };
-        public override bool IsNumericType(SyncColumn column)
+
+        public override bool IsNumericType(SyncColumn columnDefinition)
         {
-            switch (column.OriginalTypeName.ToLowerInvariant())
+            switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
             {
                 case "bigint":
                 case "int8":
@@ -395,9 +395,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
                     return true;
             }
+
             return false;
         }
+
         public override bool IsReadonly(SyncColumn columnDefinition) => string.Equals(columnDefinition.OriginalTypeName, "timestamp", SyncGlobalization.DataSourceStringComparison) || columnDefinition.IsCompute;
+
         public override bool IsSupportingScale(SyncColumn columnDefinition)
         {
             switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
@@ -407,8 +410,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case "numeric":
                     return true;
             }
+
             return false;
         }
+
         public override bool IsValid(SyncColumn columnDefinition)
         {
             switch (columnDefinition.OriginalTypeName.ToLowerInvariant())
@@ -479,6 +484,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 case "bpchar":
                     return true;
             }
+
             return false;
         }
     }

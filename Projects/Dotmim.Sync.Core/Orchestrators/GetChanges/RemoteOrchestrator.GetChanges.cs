@@ -81,20 +81,19 @@ namespace Dotmim.Sync
 
                     // Call interceptor
                     var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, serverBatchInfo.GetDirectoryFullPath(), this.Options.BatchSize, true,
-                        cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
-                        runner.Connection, runner.Transaction);
+                        cScopeInfoClient.LastServerSyncTimestamp, runner.Connection, runner.Transaction);
 
                     await this.InterceptAsync(databaseChangesSelectingArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     // When we get the chnages from server, we create the batches if it's requested by the client
                     // the batch decision comes from batchsize from client
-                    var serverChangesSelected = await this.InternalGetChangesAsync(sScopeInfo, context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
+                    var serverChangesSelected = await this.InternalGetChangesAsync(sScopeInfo, context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastServerSyncTimestamp,
                         cScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets, serverBatchInfo,
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     await runner.CommitAsync().ConfigureAwait(false);
 
-                    var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastServerSyncTimestamp, remoteClientTimestamp,
+                    var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, cScopeInfoClient.LastServerSyncTimestamp,
                     serverBatchInfo, serverChangesSelected, runner.Connection, runner.Transaction);
                     await this.InterceptAsync(databaseChangesSelectedArgs, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
@@ -169,7 +168,7 @@ namespace Dotmim.Sync
                     // the batch decision comes from batchsize from client
                     (context, serverChangesSelected) =
                         await this.InternalGetEstimatedChangesCountAsync(sScopeInfo, context, cScopeInfoClient.IsNewScope, cScopeInfoClient.LastServerSyncTimestamp,
-                        remoteClientTimestamp, cScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets, runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                        cScopeInfoClient.Id, this.Provider.SupportsMultipleActiveResultSets, runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     var serverSyncChanges = new ServerSyncChanges(remoteClientTimestamp, null, serverChangesSelected, null);
 

@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Dotmim.Sync.Extensions;
+using Dotmim.Sync.Serialization;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -8,9 +10,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Dotmim.Sync.Extensions;
-using Dotmim.Sync.Serialization;
-#if NET8_0 
+#if NET8_0
 using Microsoft.Net.Http.Headers;
 #endif
 
@@ -22,26 +22,27 @@ namespace Dotmim.Sync.Web.Client
         public Dictionary<string, string> ScopeParameters = new Dictionary<string, string>();
 
         /// <summary>
-        /// Gets or Sets a custom identifier, that can be used on server side to choose the correct web server agent
+        /// Gets or Sets a custom identifier, that can be used on server side to choose the correct web server agent.
         /// </summary>
         public string Identifier { get; set; }
 
         /// <summary>
-        /// Gets or Sets custom converter for all rows
+        /// Gets or Sets custom converter for all rows.
         /// </summary>
         public IConverter Converter { get; set; }
 
         /// <summary>
-        /// Max threads used to get parts from server
+        /// Gets max threads used to get parts from server.
         /// </summary>
         public int MaxDownladingDegreeOfParallelism { get; }
 
         /// <summary>
-        /// Gets or Sets serializer used to serialize and deserialize rows coming from server
+        /// Gets or Sets serializer used to serialize and deserialize rows coming from server.
         /// </summary>
         public ISerializerFactory SerializerFactory { get; set; }
+
         /// <summary>
-        /// Gets or Sets a custom sync policy
+        /// Gets or Sets a custom sync policy.
         /// </summary>
         public SyncPolicy SyncPolicy { get; set; }
 
@@ -51,7 +52,7 @@ namespace Dotmim.Sync.Web.Client
         public string ServiceUri { get; set; }
 
         /// <summary>
-        /// Gets or Sets the HttpClient instanced used for this web client orchestrator
+        /// Gets or Sets the HttpClient instanced used for this web client orchestrator.
         /// </summary>
         public HttpClient HttpClient { get; set; }
 
@@ -68,9 +69,11 @@ namespace Dotmim.Sync.Web.Client
         }
 
         /// <summary>
-        /// Gets a new web proxy orchestrator
+        /// Initializes a new instance of the <see cref="WebRemoteOrchestrator"/> class.
+        /// Gets a new web proxy orchestrator.
         /// </summary>
-        public WebRemoteOrchestrator(string serviceUri,
+        public WebRemoteOrchestrator(
+            string serviceUri,
             IConverter customConverter = null,
             HttpClient client = null,
             SyncPolicy syncPolicy = null,
@@ -103,7 +106,7 @@ namespace Dotmim.Sync.Web.Client
         }
 
         /// <summary>
-        /// Adds some scope parameters
+        /// Adds some scope parameters.
         /// </summary>
         public void AddScopeParameter(string key, string value)
         {
@@ -111,7 +114,7 @@ namespace Dotmim.Sync.Web.Client
         }
 
         /// <summary>
-        /// Adds some custom headers
+        /// Adds some custom headers.
         /// </summary>
         public void AddCustomHeader(string key, string value)
         {
@@ -119,7 +122,7 @@ namespace Dotmim.Sync.Web.Client
         }
 
         /// <summary>
-        /// Ensure we have policy. Create a new one, if not provided
+        /// Ensure we have policy. Create a new one, if not provided.
         /// </summary>
         private SyncPolicy EnsurePolicy(SyncPolicy policy)
         {
@@ -127,18 +130,18 @@ namespace Dotmim.Sync.Web.Client
                 return policy;
 
             // Defining my retry policy
-            policy = SyncPolicy.WaitAndRetry(2,
-            (retryNumber) =>
+            policy = SyncPolicy.WaitAndRetry(
+                2,
+                (retryNumber) =>
             {
                 return TimeSpan.FromMilliseconds(500 * retryNumber);
             },
-            (ex, arg) =>
+                (ex, arg) =>
             {
                 var webEx = ex as SyncException;
 
                 // handle session lost
                 return webEx == null || webEx.TypeName != nameof(HttpSessionLostException);
-
             }, async (ex, cpt, ts, arg) =>
             {
                 await this.InterceptAsync(new HttpSyncPolicyArgs(10, cpt, ts, this.GetServiceHost()), default).ConfigureAwait(false);
@@ -147,7 +150,7 @@ namespace Dotmim.Sync.Web.Client
             return policy;
         }
 
-        private async Task SerializeAsync(HttpResponseMessage response, string fileName, string directoryFullPath, BaseOrchestrator orchestrator = null)
+        private static async Task SerializeAsync(HttpResponseMessage response, string fileName, string directoryFullPath, BaseOrchestrator orchestrator = null)
         {
             if (!Directory.Exists(directoryFullPath))
                 Directory.CreateDirectory(directoryFullPath);
@@ -173,14 +176,14 @@ namespace Dotmim.Sync.Web.Client
             requestUri.Append(baseUri.EndsWith("/", StringComparison.CurrentCultureIgnoreCase) ? string.Empty : "/");
 
             // Add params if any
-            if (ScopeParameters != null && ScopeParameters.Count > 0)
+            if (this.ScopeParameters != null && this.ScopeParameters.Count > 0)
             {
                 string prefix = "?";
-                foreach (var kvp in ScopeParameters)
+                foreach (var kvp in this.ScopeParameters)
                 {
                     requestUri.AppendFormat("{0}{1}={2}", prefix, Uri.EscapeDataString(kvp.Key),
                                             Uri.EscapeDataString(kvp.Value));
-                    if (prefix.Equals("?"))
+                    if (prefix.Equals("?", StringComparison.Ordinal))
                         prefix = "&";
                 }
             }
@@ -189,10 +192,11 @@ namespace Dotmim.Sync.Web.Client
         }
 
         /// <summary>
-        /// This ProcessRequestAsync\<T\> Will deserialize the message and then send back it to caller
+        /// This ProcessRequestAsync\.<T\> Will deserialize the message and then send back it to caller
         /// </summary>
         public async Task<T> ProcessRequestAsync<T>(SyncContext context, IScopeMessage message, HttpStep step, int batchSize,
-            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null) where T : IScopeMessage
+            IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
+            where T : IScopeMessage
         {
             if (this.HttpClient is null)
                 throw new ArgumentNullException(nameof(this.HttpClient));
@@ -227,7 +231,8 @@ namespace Dotmim.Sync.Web.Client
 
                 context = messageResponse?.SyncContext;
 
-                await this.InterceptAsync(new HttpGettingResponseMessageArgs(response, this.ServiceUri.ToString(),
+                await this.InterceptAsync(
+                    new HttpGettingResponseMessageArgs(response, this.ServiceUri.ToString(),
                     HttpStep.SendChangesInProgress, context, messageResponse, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                 return messageResponse;
@@ -262,10 +267,10 @@ namespace Dotmim.Sync.Web.Client
         }
 
         /// <summary>
-        /// This ProcessRequestAsync will not deserialize the message and then send back directly the HttpResponseMessage
+        /// This ProcessRequestAsync will not deserialize the message and then send back directly the HttpResponseMessage.
         /// </summary>
         public async Task<HttpResponseMessage> ProcessRequestAsync(IScopeMessage message, HttpStep step, int batchSize,
-            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             if (this.HttpClient is null)
                 throw new ArgumentNullException(nameof(this.HttpClient));
@@ -346,7 +351,7 @@ namespace Dotmim.Sync.Web.Client
             // var cookieList = response.Headers.GetValues("Set-Cookie").ToList();
             if (cookieList != null && cookieList.Count > 0)
             {
-                //try to parse the very first cookie
+                // try to parse the very first cookie
                 if (CookieHeaderValue.TryParse(cookieList[0], out var cookie))
                     this.Cookie = cookie;
             }
@@ -363,7 +368,7 @@ namespace Dotmim.Sync.Web.Client
             var jsonSerializer = new JsonObjectSerializer();
             var serializerInfoJsonBytes = await jsonSerializer.SerializeAsync(serializerInfo).ConfigureAwait(false);
 
-            var requestUri = BuildUri(this.ServiceUri);
+            var requestUri = this.BuildUri(this.ServiceUri);
 
             // Create the request message
             var requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri);
@@ -389,7 +394,7 @@ namespace Dotmim.Sync.Web.Client
                     if (!requestMessage.Headers.Contains(kvp.Key))
                         requestMessage.Headers.Add(kvp.Key, kvp.Value);
 
-            var args = new HttpSendingRequestMessageArgs(requestMessage, message.SyncContext, message, GetServiceHost());
+            var args = new HttpSendingRequestMessageArgs(requestMessage, message.SyncContext, message, this.GetServiceHost());
             await this.InterceptAsync(args, progress: default, cancellationToken).ConfigureAwait(false);
 
             var binaryData = await serializer.SerializeAsync(args.Data).ConfigureAwait(false);
@@ -428,8 +433,8 @@ namespace Dotmim.Sync.Web.Client
             // get response from server
             if (!response.IsSuccessStatusCode)
             {
-                // Invoke response failure interceptors to handle the failed response
-                await InvokeResponseFailureInterceptors(response).ConfigureAwait(false);
+                // Invoke response failure Interceptors to handle the failed response
+                await this.InvokeResponseFailureInterceptors(response).ConfigureAwait(false);
 
                 // If response content is available, handle the synchronization error
                 if (response.Content != null)
@@ -440,33 +445,33 @@ namespace Dotmim.Sync.Web.Client
         }
 
         /// <summary>
-        /// Invokes response failure interceptors to handle unsuccessful HTTP responses.
+        /// Invokes response failure Interceptors to handle unsuccessful HTTP responses.
         /// This method triggers interception logic to process and respond to failed HTTP responses,
         /// allowing for centralized error handling and customization.
         /// </summary>
         /// <param name="response">The HttpResponseMessage representing the failed HTTP response.</param>
         /// <returns>A task representing the asynchronous operation.</returns>
         /// <remarks>
-        /// Response failure interceptors provide a mechanism for executing custom logic
+        /// Response failure Interceptors provide a mechanism for executing custom logic
         /// when an HTTP response indicates failure (non-success status codes).
         /// Interceptors may include logging, error handling, retry logic, or other actions
         /// to be taken upon encountering failed responses from API calls.
         /// </remarks>
         private async Task InvokeResponseFailureInterceptors(HttpResponseMessage response)
         {
-            // Check if there are any interceptors registered for HttpResponseFailureArgs
-            if (!HasInterceptors<HttpResponseFailureArgs>())
-                return; // No interceptors registered, so return early
+            // Check if there are any Interceptors registered for HttpResponseFailureArgs
+            if (!this.HasInterceptors<HttpResponseFailureArgs>())
+                return; // No Interceptors registered, so return early
 
             // Construct HttpResponseFailureArgs instance with details of the failed response
             var failureArgs = await CreateFailureArgs(response).ConfigureAwait(false);
 
-            // Invoke interceptors asynchronously, allowing custom logic to be executed
-            await InterceptAsync(failureArgs).ConfigureAwait(false);
+            // Invoke Interceptors asynchronously, allowing custom logic to be executed
+            await this.InterceptAsync(failureArgs).ConfigureAwait(false);
         }
 
         // Method to create HttpResponseFailureArgs instance based on the provided HttpResponseMessage
-        private async Task<HttpResponseFailureArgs> CreateFailureArgs(HttpResponseMessage response)
+        private static async Task<HttpResponseFailureArgs> CreateFailureArgs(HttpResponseMessage response)
         {
             // Extract necessary details from the HttpResponseMessage
             int statusCode = (int)response.StatusCode;
@@ -480,10 +485,10 @@ namespace Dotmim.Sync.Web.Client
         }
 
         /// <summary>
-        /// Handle a request error
+        /// Handle a request error.
         /// </summary>
         /// <returns></returns>
-        private async Task HandleSyncError(HttpResponseMessage response)
+        private static async Task HandleSyncError(HttpResponseMessage response)
         {
             try
             {
@@ -521,7 +526,7 @@ namespace Dotmim.Sync.Web.Client
                                 InitialCatalog = webError.InitialCatalog,
                                 Number = webError.Number,
                                 SyncStage = webError.SyncStage,
-                                TypeName = webError.TypeName
+                                TypeName = webError.TypeName,
                             };
                         }
                         else
@@ -562,6 +567,6 @@ namespace Dotmim.Sync.Web.Client
             return false;
         }
 
-        public override string ToString() => !String.IsNullOrEmpty(this.ServiceUri) ? this.ServiceUri : base.ToString();
+        public override string ToString() => !string.IsNullOrEmpty(this.ServiceUri) ? this.ServiceUri : base.ToString();
     }
 }

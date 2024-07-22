@@ -26,8 +26,10 @@ namespace Dotmim.Sync
         /// </summary>
         internal static ISerializer Serializer => SerializersFactory.JsonSerializerFactory.GetSerializer();
 
-        // Collection of Interceptors
-        private Interceptors interceptors = new();
+        /// <summary>
+        /// Gets all the interceptors for this orchestrator.
+        /// </summary>
+        internal Interceptors Interceptors { get; } = new();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BaseOrchestrator"/> class.
@@ -66,32 +68,32 @@ namespace Dotmim.Sync
         public virtual ILogger Logger { get; set; }
 
         /// <summary>
-        /// Remove all interceptors based on type of ProgressArgs.
+        /// Remove all Interceptors based on type of ProgressArgs.
         /// </summary>
         public void ClearInterceptors<T>()
             where T : ProgressArgs
-            => this.interceptors.Clear<T>();
+            => this.Interceptors.Clear<T>();
 
         /// <summary>
-        /// Remove all interceptors.
+        /// Remove all Interceptors.
         /// </summary>
-        public void ClearInterceptors() => this.interceptors.Clear();
+        public void ClearInterceptors() => this.Interceptors.Clear();
 
         /// <summary>
         /// Remove interceptor based on Id.
         /// </summary>
-        public void ClearInterceptors(Guid id) => this.interceptors.Clear(id);
+        public void ClearInterceptors(Guid id) => this.Interceptors.Clear(id);
 
         /// <summary>
-        /// Returns a boolean value indicating if we have any interceptors for the current type T.
+        /// Returns a boolean value indicating if we have any Interceptors for the current type T.
         /// </summary>
         public bool HasInterceptors<T>()
             where T : ProgressArgs
         {
-            if (this.interceptors == null)
+            if (this.Interceptors == null)
                 return false;
 
-            var interceptors = this.interceptors.GetInterceptors<T>();
+            var interceptors = this.Interceptors.GetInterceptors<T>();
 
             return interceptors.Count != 0;
         }
@@ -218,14 +220,14 @@ namespace Dotmim.Sync
         /// </summary>
         internal virtual Guid AddInterceptor<T>(Action<T> action)
             where T : ProgressArgs
-            => this.interceptors.Add(action);
+            => this.Interceptors.Add(action);
 
         /// <summary>
         /// Add an async interceptor of T.
         /// </summary>
         internal virtual Guid AddInterceptor<T>(Func<T, Task> action)
             where T : ProgressArgs
-            => this.interceptors.Add(action);
+            => this.Interceptors.Add(action);
 
         /// <summary>
         /// Try to proc a On[Method].
@@ -233,10 +235,10 @@ namespace Dotmim.Sync
         internal async Task<T> InterceptAsync<T>(T args, IProgress<ProgressArgs> progress = default, CancellationToken cancellationToken = default)
             where T : ProgressArgs
         {
-            if (this.interceptors == null)
+            if (this.Interceptors == null)
                 return args;
 
-            var interceptors = this.interceptors.GetInterceptors<T>();
+            var interceptors = this.Interceptors.GetInterceptors<T>();
 
             // Check logger, because we make some reflection here
             if (this.Logger.IsEnabled(LogLevel.Debug))
@@ -247,6 +249,7 @@ namespace Dotmim.Sync
 #else
                 var argsTypeName = args.GetType().Name.Replace("Args", string.Empty);
 #endif
+                this.Logger.LogDebug(SyncEventsId.CreateEventId(0, argsTypeName), args);
 
                 this.Logger.LogDebug(new EventId(args.EventId, argsTypeName), args);
             }

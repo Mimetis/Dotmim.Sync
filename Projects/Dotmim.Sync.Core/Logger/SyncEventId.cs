@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using System;
 
 namespace Dotmim.Sync
 {
@@ -117,7 +118,6 @@ namespace Dotmim.Sync
     /// </summary>
     public static partial class SyncEventsId
     {
-        private static EventId CreateEventId(int id, string eventName) => new(id, eventName);
 
         /// <summary>
         /// Gets the event id for the exception event.
@@ -133,5 +133,29 @@ namespace Dotmim.Sync
         /// Gets the event id for the interceptor event.
         /// </summary>
         public static EventId Interceptor => CreateEventId(10, nameof(Interceptor));
+
+        /// <summary>
+        /// Creates a new EventId.
+        /// </summary>
+        internal static EventId CreateEventId(int id, string eventName)
+        {
+            return new EventId(GetSyncEventId(eventName), eventName);
+        }
+
+        private static int GetSyncEventId(string eventName)
+        {
+
+            string concatInt = string.Empty;
+            for (int i = 0; i < eventName.Length; i++)
+            {
+                var letter = Convert.ToInt32(eventName[i]).ToString();
+                letter = letter.Substring(letter.Length - 1);
+                if (string.IsNullOrEmpty(letter))
+                    letter = "0";
+                concatInt += letter;
+            }
+
+            return int.Parse(concatInt);
+        }
     }
 }

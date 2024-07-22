@@ -1,24 +1,24 @@
-﻿using System;
+﻿using Dotmim.Sync.Batch;
+using Dotmim.Sync.Enumerations;
+using Dotmim.Sync.Serialization;
+using System;
 using System.Data.Common;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Dotmim.Sync.Batch;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
 
 namespace Dotmim.Sync.Web.Client
 {
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
         /// <summary>
-        /// Apply changes
+        /// Apply changes.
         /// </summary>
-        internal override async Task<(SyncContext context, ServerSyncChanges serverSyncChanges, ConflictResolutionPolicy serverResolutionPolicy)>
-            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, ClientSyncChanges clientChanges, 
-            DbConnection connection = default, DbTransaction transaction = default, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        internal override async Task<(SyncContext Context, ServerSyncChanges ServerSyncChanges, ConflictResolutionPolicy ServerResolutionPolicy)>
+            InternalApplyThenGetChangesAsync(ScopeInfoClient cScopeInfoClient, ScopeInfo cScopeInfo, SyncContext context, ClientSyncChanges clientChanges,
+            DbConnection connection = default, DbTransaction transaction = default, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             SyncSet schema = cScopeInfo.Schema;
             schema.EnsureSchema();
@@ -30,7 +30,6 @@ namespace Dotmim.Sync.Web.Client
             // --------------------------------------------------------------
             // STEP 1 : Send everything to the server side
             // --------------------------------------------------------------
-
             HttpResponseMessage response = null;
 
             // If not in memory and BatchPartsInfo.Count == 0, nothing to send.
@@ -45,12 +44,17 @@ namespace Dotmim.Sync.Web.Client
 
                     await this.InterceptAsync(new HttpSendingClientChangesRequestArgs(changesToSend, 0, 0, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
-                    response = await this.ProcessRequestAsync
-                        (changesToSend, HttpStep.SendChangesInProgress, this.Options.BatchSize, progress, cancellationToken).ConfigureAwait(false);
+                    response = await this.ProcessRequestAsync(
+                        changesToSend, HttpStep.SendChangesInProgress, this.Options.BatchSize, progress, cancellationToken).ConfigureAwait(false);
                 }
-                catch (HttpSyncWebException) { throw; } // throw server error
-                catch (Exception ex) { throw GetSyncError(context, ex); } // throw client error
-
+                catch (HttpSyncWebException)
+                {
+                    throw;
+                } // throw server error
+                catch (Exception ex)
+                {
+                    throw this.GetSyncError(context, ex);
+                } // throw client error
             }
             else
             {
@@ -87,7 +91,7 @@ namespace Dotmim.Sync.Web.Client
                         {
                             if (this.Converter != null && row.Length > 0)
                                 this.Converter.BeforeSerialize(row, schemaTable);
-                            
+
                             containerTable.Rows.Add(row.ToArray());
                         }
 
@@ -103,9 +107,14 @@ namespace Dotmim.Sync.Web.Client
                             response.Dispose();
                     }
                 }
-                catch (HttpSyncWebException) { throw; } // throw server error
-                catch (Exception ex) { throw GetSyncError(context, ex); } // throw client error
-
+                catch (HttpSyncWebException)
+                {
+                    throw;
+                } // throw server error
+                catch (Exception ex)
+                {
+                    throw this.GetSyncError(context, ex);
+                } // throw client error
             }
 
             // --------------------------------------------------------------
@@ -113,8 +122,8 @@ namespace Dotmim.Sync.Web.Client
             // --------------------------------------------------------------
 
             // Now we have sent all the datas to the server and now :
-            // We have a FIRST response from the server with new datas 
-            // 1) Could be the only one response 
+            // We have a FIRST response from the server with new datas
+            // 1) Could be the only one response
             // 2) Could be the first response and we need to download all batchs
 
             // Create the BatchInfo
@@ -135,9 +144,9 @@ namespace Dotmim.Sync.Web.Client
                     summaryResponseContent = await responseSerializer.DeserializeAsync<HttpMessageSummaryResponse>(streamResponse).ConfigureAwait(false);
                     context = summaryResponseContent.SyncContext;
 
-                    await this.InterceptAsync(new HttpGettingResponseMessageArgs(response, this.ServiceUri.ToString(),
+                    await this.InterceptAsync(
+                        new HttpGettingResponseMessageArgs(response, this.ServiceUri.ToString(),
                         HttpStep.SendChangesInProgress, context, summaryResponseContent, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
-
                 }
 
                 serverBatchInfo.RowsCount = summaryResponseContent.BatchInfo.RowsCount;
@@ -151,16 +160,15 @@ namespace Dotmim.Sync.Web.Client
 
                 // Generate the batch directory
                 var batchDirectoryRoot = this.Options.BatchDirectory;
-                var batchDirectoryName = string.Concat("WEB_REMOTE_GETCHANGES_", DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", ""));
+                var batchDirectoryName = string.Concat("WEB_REMOTE_GETCHANGES_", DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", string.Empty));
 
                 serverBatchInfo.DirectoryRoot = batchDirectoryRoot;
                 serverBatchInfo.DirectoryName = batchDirectoryName;
 
-                await DownladBatchInfoAsync(context, schema, serverBatchInfo, summaryResponseContent, progress, cancellationToken).ConfigureAwait(false);
+                await this.DownladBatchInfoAsync(context, schema, serverBatchInfo, summaryResponseContent, progress, cancellationToken).ConfigureAwait(false);
 
                 // generate the new scope item
                 this.CompleteTime = DateTime.UtcNow;
-
 
                 var serverSyncChanges = new ServerSyncChanges(
                     summaryResponseContent.RemoteClientTimestamp,
@@ -168,24 +176,22 @@ namespace Dotmim.Sync.Web.Client
                     summaryResponseContent.ServerChangesSelected,
                     summaryResponseContent.ClientChangesApplied);
 
-
                 return (context, serverSyncChanges, summaryResponseContent.ConflictResolutionPolicy);
             }
             catch (HttpSyncWebException)
             {
                 // Try to delete the local folder where we download everything from server
-                await WebRemoteCleanFolderAsync(context, serverBatchInfo).ConfigureAwait(false);
+                await this.WebRemoteCleanFolderAsync(context, serverBatchInfo).ConfigureAwait(false);
 
                 throw;
             } // throw server error
             catch (Exception ex)
             {
                 // Try to delete the local folder where we download everything from server
-                await WebRemoteCleanFolderAsync(context, serverBatchInfo).ConfigureAwait(false);
+                await this.WebRemoteCleanFolderAsync(context, serverBatchInfo).ConfigureAwait(false);
 
-                throw GetSyncError(context, ex);
+                throw this.GetSyncError(context, ex);
             } // throw client error
-
         }
     }
 }

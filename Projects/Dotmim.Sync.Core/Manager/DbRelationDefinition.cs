@@ -26,7 +26,7 @@ namespace Dotmim.Sync.Manager
         /// <summary>
         /// Gets the table columns collection.
         /// </summary>
-        public IList<DbRelationColumnDefinition> Columns { get; } = [];
+        public List<DbRelationColumnDefinition> Columns { get; } = [];
 
         /// <summary>
         /// Gets or Sets the reference table name.

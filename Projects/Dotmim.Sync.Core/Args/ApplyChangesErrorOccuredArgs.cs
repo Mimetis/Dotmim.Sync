@@ -69,7 +69,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Interceptors extensions.
     /// </summary>
-    public static partial class InterceptorsExtensions
+    public partial class InterceptorsExtensions
     {
 
         /// <summary>
@@ -88,7 +88,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// Sync Events Ids.
     /// </summary>
-    public static partial class SyncEventsId
+    public partial class SyncEventsId
     {
         /// <summary>
         /// Gets apply changes error occured.

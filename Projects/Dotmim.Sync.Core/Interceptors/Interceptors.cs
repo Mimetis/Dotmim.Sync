@@ -17,7 +17,7 @@ namespace Dotmim.Sync
         private readonly ConcurrentDictionary<Type, IList> internalInterceptors = new();
 
         /// <summary>
-        /// Get all interceptors of T.
+        /// Get all Interceptors of T.
         /// </summary>
         public IList<InterceptorWrapper<T>> GetInterceptors<T>()
             where T : ProgressArgs
@@ -27,21 +27,21 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Returns a boolean value indicating if we have any interceptors for the current type T.
+        /// Returns a boolean value indicating if we have any Interceptors for the current type T.
         /// </summary>
         public bool HasInterceptors<T>()
             where T : ProgressArgs
             => this.GetInterceptors<T>().Count > 0;
 
         /// <summary>
-        /// Remove all interceptors based on type of ProgressArgs.
+        /// Remove all Interceptors based on type of ProgressArgs.
         /// </summary>
         public void Clear<T>()
             where T : ProgressArgs
             => this.GetInterceptors<T>().Clear();
 
         /// <summary>
-        /// Remove all interceptors.
+        /// Remove all Interceptors.
         /// </summary>
         public void Clear() => this.internalInterceptors.Clear();
 

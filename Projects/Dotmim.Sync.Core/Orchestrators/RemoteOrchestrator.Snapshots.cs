@@ -252,7 +252,7 @@ namespace Dotmim.Sync
                 var info = connection != null && !string.IsNullOrEmpty(connection.Database) ? $"{connection.Database}_REMOTE_SNAPSHOTS_GETCHANGES" : "REMOTE_SNAPSHOTS_GETCHANGES";
                 var serverBatchInfo = new BatchInfo(rootDirectory, nameDirectory);
 
-                await this.InternalGetChangesAsync(sScopeInfo, context, true, null, null, Guid.Empty,
+                await this.InternalGetChangesAsync(sScopeInfo, context, true, null, Guid.Empty,
                         this.Provider.SupportsMultipleActiveResultSets, serverBatchInfo,
                         connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 

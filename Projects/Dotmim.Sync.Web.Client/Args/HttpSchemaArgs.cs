@@ -49,7 +49,7 @@ namespace Dotmim.Sync
     }
 
     /// <summary>
-    /// Partial interceptors extensions 
+    /// Partial Interceptors extensions 
     /// </summary>
     public static partial class HttpInterceptorsExtensions
     {

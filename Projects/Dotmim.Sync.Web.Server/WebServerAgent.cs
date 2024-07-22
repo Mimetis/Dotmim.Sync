@@ -5,15 +5,12 @@ using Dotmim.Sync.Extensions;
 using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Web.Client;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -21,12 +18,13 @@ namespace Dotmim.Sync.Web.Server
 {
     public class WebServerAgent
     {
-        private static readonly ISerializer jsonSerializer = SerializersFactory.JsonSerializerFactory.GetSerializer();
+        private static readonly ISerializer JsonSerializer = SerializersFactory.JsonSerializerFactory.GetSerializer();
 
         private static bool checkUpgradeDone;
 
         /// <summary>
-        /// Default ctor. Using default options and schema
+        /// Initializes a new instance of the <see cref="WebServerAgent"/> class.
+        /// Default ctor. Using default options and schema.
         /// </summary>
         public WebServerAgent(CoreProvider provider, SyncSetup setup, SyncOptions options = null, WebServerOptions webServerOptions = null,
             string scopeName = null, string identifier = null)
@@ -40,7 +38,8 @@ namespace Dotmim.Sync.Web.Server
         }
 
         /// <summary>
-        /// Default ctor. Using default options and schema
+        /// Initializes a new instance of the <see cref="WebServerAgent"/> class.
+        /// Default ctor. Using default options and schema.
         /// </summary>
         public WebServerAgent(CoreProvider provider, string[] tables, SyncOptions options = null, WebServerOptions webServerOptions = null,
             string scopeName = null,
@@ -52,61 +51,61 @@ namespace Dotmim.Sync.Web.Server
             this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, options ?? new SyncOptions());
             this.ScopeName = string.IsNullOrEmpty(scopeName) ? SyncOptions.DefaultScopeName : scopeName;
             this.Identifier = identifier;
-
         }
 
         /// <summary>
-        /// Client Converter
+        /// Client Converter.
         /// </summary>
         private IConverter clientConverter;
 
         /// <summary>
-        /// Gets or Sets the setup used in this webServerAgent
+        /// Gets or Sets the setup used in this webServerAgent.
         /// </summary>
         public SyncSetup Setup { get; set; }
 
         /// <summary>
-        /// Gets or Sets the options used in this webServerAgent
+        /// Gets the options used in this webServerAgent.
         /// </summary>
         public SyncOptions Options => this.RemoteOrchestrator?.Options;
 
         /// <summary>
-        /// Gets or Sets the options used in this webServerAgent
+        /// Gets ts the options used in this webServerAgent.
         /// </summary>
         public CoreProvider Provider { get; private set; }
 
         /// <summary>
-        /// Gets or Sets Web server options parameters
+        /// Gets ts Web server options parameters.
         /// </summary>
         public WebServerOptions WebServerOptions { get; private set; }
 
         /// <summary>
-        /// Gets or Sets an identifier used to identify your webServerAgent.
-        /// Can be really usefull in multi sync scenarios
+        /// Gets ts an identifier used to identify your webServerAgent.
+        /// Can be really usefull in multi sync scenarios.
         /// </summary>
         public string Identifier { get; private set; }
 
         /// <summary>
-        /// Gets or Sets a scope name used when multiple SyncSetup in one server.
-        /// Can be really usefull in multi sync scenarios
+        /// Gets ts a scope name used when multiple SyncSetup in one server.
+        /// Can be really usefull in multi sync scenarios.
         /// </summary>
         public string ScopeName { get; private set; }
 
         /// <summary>
-        /// Gets or sets the RemoteOrchestrator used in this webServerAgent
+        /// Gets the RemoteOrchestrator used in this webServerAgent.
         /// </summary>
         public RemoteOrchestrator RemoteOrchestrator { get; private set; }
 
         /// <summary>
-        /// Call this method to handle requests on the server, sent by the client
+        /// Call this method to handle requests on the server, sent by the client.
         /// </summary>
-        public virtual Task HandleRequestAsync(HttpContext context, CancellationToken token = default, IProgress<ProgressArgs> progress = null) =>
-            HandleRequestAsync(context, null, token, progress);
+        public virtual Task HandleRequestAsync(HttpContext context, IProgress<ProgressArgs> progress = null, CancellationToken token = default) =>
+            this.HandleRequestAsync(context, null, progress, token);
 
         /// <summary>
-        /// Call this method to handle requests on the server, sent by the client
+        /// Call this method to handle requests on the server, sent by the client.
         /// </summary>
-        public virtual async Task HandleRequestAsync(HttpContext httpContext, Action<RemoteOrchestrator> action, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
+        public virtual async Task HandleRequestAsync(HttpContext httpContext, Action<RemoteOrchestrator> action,
+            IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             var httpRequest = httpContext.Request;
             var httpResponse = httpContext.Response;
@@ -124,7 +123,6 @@ namespace Dotmim.Sync.Web.Server
             if (!TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-step", out string iStep))
                 throw new HttpHeaderMissingException("dotmim-sync-step");
 
-
             var step = (HttpStep)Convert.ToInt32(iStep);
             var readableStream = new MemoryStream();
 
@@ -135,7 +133,11 @@ namespace Dotmim.Sync.Web.Server
 
                 // Copty stream to a readable and seekable stream
                 // HttpRequest.Body is a HttpRequestStream that is readable but can't be Seek
+#if NET6_0_OR_GREATER
+                await httpRequest.Body.CopyToAsync(readableStream, cancellationToken).ConfigureAwait(false);
+#else
                 await httpRequest.Body.CopyToAsync(readableStream).ConfigureAwait(false);
+#endif
                 httpRequest.Body.Close();
                 httpRequest.Body.Dispose();
 
@@ -152,7 +154,7 @@ namespace Dotmim.Sync.Web.Server
                 await httpContext.Session.LoadAsync(cancellationToken).ConfigureAwait(false);
 
                 // Get schema and clients batch infos / summaries, from session
-                //var schema = httpContext.Session.Get<SyncSet>(scopeName);
+                // var schema = httpContext.Session.Get<SyncSet>(scopeName);
                 var sessionCache = httpContext.Session.Get<SessionCache>(sessionId);
 
                 // HttpStep.EnsureSchema is the first call from client when client is new
@@ -268,7 +270,8 @@ namespace Dotmim.Sync.Web.Server
                     case HttpStep.GetSnapshot:
                         messageResponse = await this.GetSnapshotAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, sessionCache, progress, cancellationToken).ConfigureAwait(false);
                         break;
-                    // version >= 0.8    
+
+                    // version >= 0.8
                     case HttpStep.GetSummary:
                         messageResponse = await this.GetSnapshotSummaryAsync(httpContext, (HttpMessageSendChangesRequest)messsageRequest, sessionCache, progress, cancellationToken).ConfigureAwait(false);
                         break;
@@ -306,6 +309,7 @@ namespace Dotmim.Sync.Web.Server
                 // calculate hash
                 var hash = HashAlgorithm.SHA256.Create(binaryData);
                 var hashString = Convert.ToBase64String(hash);
+
                 // Add hash to header
                 httpResponse.Headers.Append("dotmim-sync-hash", hashString);
 
@@ -321,7 +325,7 @@ namespace Dotmim.Sync.Web.Server
             }
             catch (Exception ex)
             {
-                await WriteExceptionAsync(httpRequest, httpResponse, ex).ConfigureAwait(false);
+                await this.WriteExceptionAsync(httpRequest, httpResponse, ex).ConfigureAwait(false);
             }
             finally
             {
@@ -330,7 +334,6 @@ namespace Dotmim.Sync.Web.Server
                 readableStream.Dispose();
             }
         }
-
 
         private static async Task UpgradeAsync(RemoteOrchestrator remoteOrchestrator)
         {
@@ -347,7 +350,7 @@ namespace Dotmim.Sync.Web.Server
         }
 
         /// <summary>
-        /// Ensure we have a Compression setting or not
+        /// Ensure we have a Compression setting or not.
         /// </summary>
         public virtual byte[] EnsureCompression(HttpRequest httpRequest, HttpResponse httpResponse, byte[] binaryData)
         {
@@ -374,7 +377,7 @@ namespace Dotmim.Sync.Web.Server
         }
 
         /// <summary>
-        /// Returns the serializer used by the client, that should be used on the server
+        /// Returns the serializer used by the client, that should be used on the server.
         /// </summary>
         public virtual (int clientBatchSize, ISerializerFactory clientSerializer) GetClientSerializer(string serializerInfoString)
         {
@@ -383,10 +386,11 @@ namespace Dotmim.Sync.Web.Server
                 if (string.IsNullOrEmpty(serializerInfoString))
                     throw new Exception("Serializer header is null, coming from http header");
 
-                var serializerInfo = jsonSerializer.Deserialize<SerializerInfo>(serializerInfoString);
+                var serializerInfo = JsonSerializer.Deserialize<SerializerInfo>(serializerInfoString);
 
                 var clientSerializerFactory = this.WebServerOptions.SerializerFactories.FirstOrDefault(sf => sf.Key == serializerInfo.SerializerKey);
-                if (clientSerializerFactory == null) clientSerializerFactory = SerializersFactory.JsonSerializerFactory;
+                if (clientSerializerFactory == null)
+                    clientSerializerFactory = SerializersFactory.JsonSerializerFactory;
 
                 return (serializerInfo.ClientBatchSize, clientSerializerFactory);
             }
@@ -397,7 +401,7 @@ namespace Dotmim.Sync.Web.Server
         }
 
         /// <summary>
-        /// Returns the converter used by the client, that should be used on the server
+        /// Returns the converter used by the client, that should be used on the server.
         /// </summary>
         public virtual IConverter GetClientConverter(string cliConverterKey)
         {
@@ -406,7 +410,7 @@ namespace Dotmim.Sync.Web.Server
                 if (string.IsNullOrEmpty(cliConverterKey))
                     return null;
 
-                var clientConverter = this.WebServerOptions.Converters.First(c => c.Key.ToLowerInvariant() == cliConverterKey);
+                var clientConverter = this.WebServerOptions.Converters.First(c => c.Key.Equals(cliConverterKey, StringComparison.OrdinalIgnoreCase));
 
                 return clientConverter;
             }
@@ -417,32 +421,32 @@ namespace Dotmim.Sync.Web.Server
         }
 
         /// <summary>
-        /// Get Scope Name sent by the client
+        /// Get Scope Name sent by the client.
         /// </summary>
-        public string GetScopeName(HttpContext httpContext) => TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-scope-name", out var val) ? val : null;
+        public static string GetScopeName(HttpContext httpContext) => TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-scope-name", out var val) ? val : null;
 
         /// <summary>
-        /// Get the DMS Version used by the client
+        /// Get the DMS Version used by the client.
         /// </summary>
-        public string GetVersion(HttpContext httpContext) => TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-version", out var v) ? v : null;
+        public static string GetVersion(HttpContext httpContext) => TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-version", out var v) ? v : null;
 
         /// <summary>
-        /// Get Scope Name sent by the client
+        /// Get Scope Name sent by the client.
         /// </summary>
-        public Guid? GetClientScopeId(HttpContext httpContext) => TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-scope-id", out var val) ? new Guid(val) : null;
+        public static Guid? GetClientScopeId(HttpContext httpContext) => TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-scope-id", out var val) ? new Guid(val) : null;
 
         /// <summary>
-        /// Get the current client session id
+        /// Get the current client session id.
         /// </summary>
-        public string GetClientSessionId(HttpContext httpContext) => TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-session-id", out var val) ? val : null;
+        public static string GetClientSessionId(HttpContext httpContext) => TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-session-id", out var val) ? val : null;
 
         /// <summary>
-        /// Get the current Step
+        /// Get the current Step.
         /// </summary>
-        public HttpStep GetCurrentStep(HttpContext httpContext) => TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-step", out var val) ? (HttpStep)Convert.ToInt32(val) : HttpStep.None;
+        public static HttpStep GetCurrentStep(HttpContext httpContext) => TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-step", out var val) ? (HttpStep)Convert.ToInt32(val) : HttpStep.None;
 
         /// <summary>
-        /// Get an header value
+        /// Get an header value.
         /// </summary>
         public static bool TryGetHeaderValue(IHeaderDictionary n, string key, out string header)
         {
@@ -456,8 +460,8 @@ namespace Dotmim.Sync.Web.Server
             return false;
         }
 
-        internal protected virtual async Task<HttpMessageEnsureScopesResponse> EnsureScopesAsync(HttpContext httpContext, HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
-                                            IProgress<ProgressArgs> progress, CancellationToken cancellationToken = null)
+        protected internal virtual async Task<HttpMessageEnsureScopesResponse> EnsureScopesAsync(HttpContext httpContext, HttpMessageEnsureScopesRequest httpMessage, SessionCache sessionCache,
+                                            IProgress<ProgressArgs> progress, CancellationToken cancellationToken = default)
         {
             if (httpMessage == null)
                 throw new ArgumentException("EnsureScopesAsync message could not be null");
@@ -488,8 +492,8 @@ namespace Dotmim.Sync.Web.Server
             return httpResponse;
         }
 
-        internal protected virtual async Task<HttpMessageSendChangesResponse> GetEstimatedChangesCountAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage,
-                        CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        protected internal virtual async Task<HttpMessageSendChangesResponse> GetEstimatedChangesCountAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage,
+                        IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             var changes = await this.RemoteOrchestrator.GetEstimatedChangesCountAsync(httpMessage.ScopeInfoClient).ConfigureAwait(false);
 
@@ -500,22 +504,22 @@ namespace Dotmim.Sync.Web.Server
                 ServerStep = HttpStep.GetMoreChanges,
                 ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy,
                 IsLastBatch = true,
-                RemoteClientTimestamp = changes.RemoteClientTimestamp
+                RemoteClientTimestamp = changes.RemoteClientTimestamp,
             };
 
             return changesResponse;
         }
 
-        internal protected virtual async Task<HttpMessageRemoteTimestampResponse> GetRemoteClientTimestampAsync(HttpContext httpContext, HttpMessageRemoteTimestampRequest httpMessage,
-                CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        protected internal virtual async Task<HttpMessageRemoteTimestampResponse> GetRemoteClientTimestampAsync(HttpContext httpContext, HttpMessageRemoteTimestampRequest httpMessage,
+                IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             var ts = await this.RemoteOrchestrator.GetLocalTimestampAsync(httpMessage.SyncContext.ScopeName).ConfigureAwait(false);
 
             return new HttpMessageRemoteTimestampResponse(httpMessage.SyncContext, ts);
         }
 
-        internal protected virtual async Task<HttpMessageOperationResponse> GetOperationAsync(HttpContext httpContext, HttpMessageOperationRequest httpMessage,
-             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        protected internal virtual async Task<HttpMessageOperationResponse> GetOperationAsync(HttpContext httpContext, HttpMessageOperationRequest httpMessage,
+             IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             var context = httpMessage.SyncContext;
 
@@ -529,8 +533,8 @@ namespace Dotmim.Sync.Web.Server
             return new HttpMessageOperationResponse(context, operation);
         }
 
-        internal protected virtual async Task<HttpMessageEndSessionResponse> EndSessionAsync(HttpContext httpContext, HttpMessageEndSessionRequest httpMessage,
-             CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        protected internal virtual async Task<HttpMessageEndSessionResponse> EndSessionAsync(HttpContext httpContext, HttpMessageEndSessionRequest httpMessage,
+             IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             var context = httpMessage.SyncContext;
 
@@ -555,8 +559,8 @@ namespace Dotmim.Sync.Web.Server
             return new HttpMessageEndSessionResponse(context);
         }
 
-        internal protected virtual async Task<HttpMessageSummaryResponse> GetSnapshotSummaryAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
-                        CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        protected internal virtual async Task<HttpMessageSummaryResponse> GetSnapshotSummaryAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
+                        IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             // Get context from request message
             var context = httpMessage.SyncContext;
@@ -590,8 +594,8 @@ namespace Dotmim.Sync.Web.Server
             return summaryResponse;
         }
 
-        internal protected virtual async Task<HttpMessageSendChangesResponse> GetSnapshotAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
-                            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        protected internal virtual async Task<HttpMessageSendChangesResponse> GetSnapshotAsync(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
+                            IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             ScopeInfo sScopeInfo;
 
@@ -607,7 +611,8 @@ namespace Dotmim.Sync.Web.Server
             sessionCache.RemoteClientTimestamp = snap.RemoteClientTimestamp;
             sessionCache.ServerBatchInfo = snap.ServerBatchInfo;
             sessionCache.ServerChangesSelected = snap.ServerChangesSelected;
-            //httpContext.Session.Set(sessionId, sessionCache);
+
+            // httpContext.Session.Set(sessionId, sessionCache);
 
             // if no snapshot, return empty response
             if (snap.ServerBatchInfo == null)
@@ -619,7 +624,7 @@ namespace Dotmim.Sync.Web.Server
                     BatchCount = 0,
                     IsLastBatch = true,
                     RemoteClientTimestamp = 0,
-                    Changes = null
+                    Changes = null,
                 };
                 return changesResponse;
             }
@@ -628,11 +633,11 @@ namespace Dotmim.Sync.Web.Server
             sessionCache.ServerBatchInfo = snap.ServerBatchInfo;
 
             // Get the firt response to send back to client
-            return await GetChangesResponseAsync(httpContext, httpMessage.SyncContext, snap.RemoteClientTimestamp, snap.ServerBatchInfo, null, snap.ServerChangesSelected, 0).ConfigureAwait(false);
+            return await this.GetChangesResponseAsync(httpContext, httpMessage.SyncContext, snap.RemoteClientTimestamp, snap.ServerBatchInfo, null, snap.ServerChangesSelected, 0).ConfigureAwait(false);
         }
 
-        internal protected virtual async Task<HttpMessageSummaryResponse> ApplyThenGetChangesAsync2(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
-                        int clientBatchSize, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+        protected internal virtual async Task<HttpMessageSummaryResponse> ApplyThenGetChangesAsync2(HttpContext httpContext, HttpMessageSendChangesRequest httpMessage, SessionCache sessionCache,
+                        int clientBatchSize, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             // Overriding batch size options value, coming from client
             // having changes from server in batch size or not is decided by the client.
@@ -735,8 +740,7 @@ namespace Dotmim.Sync.Web.Server
             var cleanFolder = this.Options.CleanFolder;
 
             if (cleanFolder)
-                cleanFolder = await this.RemoteOrchestrator.InternalCanCleanFolderAsync(httpMessage.SyncContext.ScopeName,
-                    context.Parameters, sessionCache.ClientBatchInfo, default).ConfigureAwait(false);
+                cleanFolder = await this.RemoteOrchestrator.InternalCanCleanFolderAsync(httpMessage.SyncContext.ScopeName, context.Parameters, sessionCache.ClientBatchInfo, default, cancellationToken).ConfigureAwait(false);
 
             if (cleanFolder)
                 sessionCache.ClientBatchInfo.TryRemoveDirectory();
@@ -763,19 +767,19 @@ namespace Dotmim.Sync.Web.Server
         }
 
         /// <summary>
-        /// Get batch changes
+        /// Get batch changes.
         /// </summary>
         /// <returns></returns>
-        internal protected virtual Task<HttpMessageSendChangesResponse> GetMoreChangesAsync(HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
-            SessionCache sessionCache, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
-        => GetChangesResponseAsync(httpContext, httpMessage.SyncContext, sessionCache.RemoteClientTimestamp,
+        protected internal virtual Task<HttpMessageSendChangesResponse> GetMoreChangesAsync(HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
+            SessionCache sessionCache, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
+        => this.GetChangesResponseAsync(httpContext, httpMessage.SyncContext, sessionCache.RemoteClientTimestamp,
                 sessionCache.ServerBatchInfo, sessionCache.ClientChangesApplied,
                 sessionCache.ServerChangesSelected, httpMessage.BatchIndexRequested);
 
         /// <summary>
-        /// Get changes from server
+        /// Get changes from server.
         /// </summary>
-        internal protected virtual async Task<HttpMessageSendChangesResponse> GetChangesResponseAsync(HttpContext httpContext, SyncContext context, long remoteClientTimestamp, BatchInfo serverBatchInfo,
+        protected internal virtual async Task<HttpMessageSendChangesResponse> GetChangesResponseAsync(HttpContext httpContext, SyncContext context, long remoteClientTimestamp, BatchInfo serverBatchInfo,
                               DatabaseChangesApplied clientChangesApplied, DatabaseChangesSelected serverChangesSelected, int batchIndexRequested)
         {
             ScopeInfo sScopeInfo;
@@ -792,7 +796,7 @@ namespace Dotmim.Sync.Web.Server
                 ServerChangesSelected = serverChangesSelected,
                 ClientChangesApplied = clientChangesApplied,
                 ServerStep = HttpStep.GetMoreChanges,
-                ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy
+                ConflictResolutionPolicy = this.Options.ConflictResolutionPolicy,
             };
 
             if (serverBatchInfo == null)
@@ -842,9 +846,9 @@ namespace Dotmim.Sync.Web.Server
             return changesResponse;
         }
 
-        internal protected virtual async Task<HttpMessageSendChangesResponse> SendEndDownloadChangesAsync(
+        protected internal virtual async Task<HttpMessageSendChangesResponse> SendEndDownloadChangesAsync(
             HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
-            SessionCache sessionCache, CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            SessionCache sessionCache, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             var batchPartInfo = sessionCache.ServerBatchInfo.BatchPartsInfo.FirstOrDefault(d => d.Index == httpMessage.BatchIndexRequested);
 
@@ -852,16 +856,15 @@ namespace Dotmim.Sync.Web.Server
             var cleanFolder = (batchPartInfo == null || batchPartInfo.IsLastBatch) && this.Options.CleanFolder;
 
             if (cleanFolder)
-                cleanFolder = await this.RemoteOrchestrator.InternalCanCleanFolderAsync(httpMessage.SyncContext.ScopeName, httpMessage.SyncContext.Parameters, sessionCache.ServerBatchInfo, default).ConfigureAwait(false);
+                cleanFolder = await this.RemoteOrchestrator.InternalCanCleanFolderAsync(httpMessage.SyncContext.ScopeName, httpMessage.SyncContext.Parameters, sessionCache.ServerBatchInfo, default, cancellationToken).ConfigureAwait(false);
 
             if (cleanFolder)
                 sessionCache.ServerBatchInfo.TryRemoveDirectory();
             return new HttpMessageSendChangesResponse(httpMessage.SyncContext) { ServerStep = HttpStep.SendEndDownloadChanges };
         }
 
-
         /// <summary>
-        /// Write exception to output message
+        /// Write exception to output message.
         /// </summary>
         public virtual async Task WriteExceptionAsync(HttpRequest httpRequest, HttpResponse httpResponse, Exception exception)
         {
@@ -911,7 +914,7 @@ namespace Dotmim.Sync.Web.Server
                 Number = syncException.Number,
             };
 
-            var data = await jsonSerializer.SerializeAsync(webException).ConfigureAwait(false);
+            var data = await JsonSerializer.SerializeAsync(webException).ConfigureAwait(false);
 
             // data to send back, as the response
             byte[] compressedData = this.EnsureCompression(httpRequest, httpResponse, data);
@@ -919,17 +922,21 @@ namespace Dotmim.Sync.Web.Server
             httpResponse.Headers.Append("dotmim-sync-error", syncException.TypeName);
             httpResponse.StatusCode = StatusCodes.Status400BadRequest;
             httpResponse.ContentLength = compressedData.Length;
-            await httpResponse.Body.WriteAsync(compressedData, 0, compressedData.Length, default).ConfigureAwait(false);
+#if NET6_0_OR_GREATER
+            await httpResponse.Body.WriteAsync(compressedData).ConfigureAwait(false);
+#else
+            await httpResponse.Body.WriteAsync(compressedData, 0, compressedData.Length).ConfigureAwait(false);
+#endif
         }
 
         /// <summary>
-        /// Write server debug information
+        /// Write server debug information.
         /// </summary>
         public Task WriteHelloAsync(HttpContext context, CancellationToken cancellationToken = default)
             => WriteHelloAsync(context, new[] { this }, cancellationToken);
 
         /// <summary>
-        /// Write server debug information
+        /// Write server debug information.
         /// </summary>
         public static async Task WriteHelloAsync(HttpContext httpContext, IEnumerable<WebServerAgent> webServerAgents, CancellationToken cancellationToken = default)
         {
@@ -997,7 +1004,7 @@ namespace Dotmim.Sync.Web.Server
                     stringBuilder.AppendLine("</ul>");
                 }
 
-                var setup = await jsonSerializer.SerializeAsync(webServerAgent.Setup).ConfigureAwait(false);
+                var setup = await JsonSerializer.SerializeAsync(webServerAgent.Setup).ConfigureAwait(false);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Setup</li>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
@@ -1007,7 +1014,7 @@ namespace Dotmim.Sync.Web.Server
                 stringBuilder.AppendLine("</li>");
                 stringBuilder.AppendLine("</ul>");
 
-                var provider = await jsonSerializer.SerializeAsync(webServerAgent.Provider).ConfigureAwait(false);
+                var provider = await JsonSerializer.SerializeAsync(webServerAgent.Provider).ConfigureAwait(false);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Provider</li>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
@@ -1017,7 +1024,7 @@ namespace Dotmim.Sync.Web.Server
                 stringBuilder.AppendLine("</li>");
                 stringBuilder.AppendLine("</ul>");
 
-                var options = await jsonSerializer.SerializeAsync(webServerAgent.Options).ConfigureAwait(false);
+                var options = await JsonSerializer.SerializeAsync(webServerAgent.Options).ConfigureAwait(false);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Options</li>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
@@ -1027,7 +1034,7 @@ namespace Dotmim.Sync.Web.Server
                 stringBuilder.AppendLine("</li>");
                 stringBuilder.AppendLine("</ul>");
 
-                var webServerOptions = await jsonSerializer.SerializeAsync(webServerAgent.WebServerOptions).ConfigureAwait(false);
+                var webServerOptions = await JsonSerializer.SerializeAsync(webServerAgent.WebServerOptions).ConfigureAwait(false);
                 stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Web Server Options</li>");
                 stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");

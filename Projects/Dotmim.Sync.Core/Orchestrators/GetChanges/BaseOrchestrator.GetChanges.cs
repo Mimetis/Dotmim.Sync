@@ -26,7 +26,7 @@ namespace Dotmim.Sync
         /// </summary>
         /// <returns>A DbSyncContext object that will be used to retrieve the modified data.</returns>
         internal virtual async Task<DatabaseChangesSelected> InternalGetChangesAsync(
-                             ScopeInfo scopeInfo, SyncContext context, bool isNew, long? fromLastTimestamp, long? toNewTimestamp, Guid? excludingScopeId,
+                             ScopeInfo scopeInfo, SyncContext context, bool isNew, long? fromLastTimestamp, Guid? excludingScopeId,
                              bool supportsMultiActiveResultSets, BatchInfo batchInfo,
                              DbConnection connection, DbTransaction transaction,
                              IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
@@ -125,7 +125,7 @@ namespace Dotmim.Sync
 
                 if (batchInfo.RowsCount <= 0)
                 {
-                    var cleanFolder = await this.InternalCanCleanFolderAsync(scopeInfo.Name, context.Parameters, batchInfo).ConfigureAwait(false);
+                    var cleanFolder = await this.InternalCanCleanFolderAsync(scopeInfo.Name, context.Parameters, batchInfo, cancellationToken: cancellationToken).ConfigureAwait(false);
 
                     if (cleanFolder)
                         batchInfo.TryRemoveDirectory();
@@ -142,7 +142,7 @@ namespace Dotmim.Sync
 
                 message += $"Supports MultiActiveResultSets:{supportsMultiActiveResultSets}.";
                 message += $"Is New:{isNew}.";
-                message += $"Interval:{fromLastTimestamp}/{toNewTimestamp}.";
+                message += $"From:{fromLastTimestamp}.";
 
                 throw this.GetSyncError(context, ex, message);
             }
@@ -217,7 +217,7 @@ namespace Dotmim.Sync
                     await this.InterceptAsync(new ExecuteCommandArgs(context, args.Command, dbCommandType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                     // Get the reader
-                    using var dataReader = await args.Command.ExecuteReaderAsync().ConfigureAwait(false);
+                    using var dataReader = await args.Command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
 
                     while (dataReader.Read())
                     {
@@ -357,7 +357,7 @@ namespace Dotmim.Sync
         /// Gets changes rows count estimation.
         /// </summary>
         internal virtual async Task<(SyncContext Context, DatabaseChangesSelected DatabaseChangesSelected)> InternalGetEstimatedChangesCountAsync(
-                             ScopeInfo scopeInfo, SyncContext context, bool isNew, long? fromLastTimestamp, long? toLastTimestamp, Guid? excludingScopeId,
+                             ScopeInfo scopeInfo, SyncContext context, bool isNew, long? fromLastTimestamp, Guid? excludingScopeId,
                              bool supportsMultiActiveResultSets,
                              DbConnection connection, DbTransaction transaction,
                              IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
@@ -372,7 +372,7 @@ namespace Dotmim.Sync
 
                 // Call interceptor
                 var databaseChangesSelectingArgs = new DatabaseChangesSelectingArgs(context, default, this.Options.BatchSize, true,
-                    fromLastTimestamp, toLastTimestamp, connection, transaction);
+                    fromLastTimestamp, connection, transaction);
 
                 await this.InterceptAsync(databaseChangesSelectingArgs, progress, cancellationToken).ConfigureAwait(false);
 
@@ -467,7 +467,7 @@ namespace Dotmim.Sync
                         changes.TableChangesSelected.Add(tableChangesSelected);
                 }, threadNumberLimits).ConfigureAwait(false);
 
-                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, fromLastTimestamp, toLastTimestamp,
+                var databaseChangesSelectedArgs = new DatabaseChangesSelectedArgs(context, fromLastTimestamp,
                             default, changes, connection, transaction);
 
                 await this.InterceptAsync(databaseChangesSelectedArgs, progress, cancellationToken).ConfigureAwait(false);
@@ -480,7 +480,7 @@ namespace Dotmim.Sync
 
                 message += $"Supports MultiActiveResultSets:{supportsMultiActiveResultSets}.";
                 message += $"Is New:{isNew}.";
-                message += $"Interval:{fromLastTimestamp}/{toLastTimestamp}.";
+                message += $"From:{fromLastTimestamp}.";
 
                 throw this.GetSyncError(context, ex, message);
             }

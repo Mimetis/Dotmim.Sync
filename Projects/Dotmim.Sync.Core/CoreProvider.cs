@@ -27,12 +27,12 @@ namespace Dotmim.Sync
         public BaseOrchestrator Orchestrator { get; internal set; }
 
         /// <summary>
-        /// Connection is opened. this method is called before any interceptors
+        /// Connection is opened. this method is called before any Interceptors
         /// </summary>
         public virtual void OnConnectionOpened(Action<DbConnection> onConnectionOpened) => this.onConnectionOpened = onConnectionOpened;
 
         /// <summary>
-        /// Connection is closed. this method is called after all interceptors
+        /// Connection is closed. this method is called after all Interceptors
         /// </summary>
         public virtual void OnConnectionClosed(Action<DbConnection> onConnectionClosed) => this.onConnectionClosed = onConnectionClosed;
 

@@ -25,7 +25,7 @@ namespace Dotmim.Sync
         public SyncContext Context { get; }
 
         /// <summary>
-        /// Gets the Progress Level.
+        /// Gets the Progress Level of information raised during the OnProgres event.
         /// </summary>
         public virtual SyncProgressLevel ProgressLevel { get; }
 
@@ -67,14 +67,14 @@ namespace Dotmim.Sync
         public string TypeName => this.GetType().Name;
 
         /// <summary>
-        /// Gets or sets return a global message about current progress.
+        /// Gets return a global message about current progress.
         /// </summary>
-        public virtual string Message { get; set; } = string.Empty;
+        public virtual string Message { get; } = string.Empty;
 
         /// <summary>
-        /// Gets or sets return the progress initiator source.
+        /// Gets return the progress initiator source.
         /// </summary>
-        public virtual string Source { get; set; } = string.Empty;
+        public virtual string Source { get; internal set; } = string.Empty;
 
         /// <summary>
         /// Gets or sets the event id, used for logging purpose.

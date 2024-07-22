@@ -12,12 +12,30 @@ namespace Dotmim.Sync
     public class ApplyChangesConflictOccuredArgs : ProgressArgs
     {
         private readonly ScopeInfo scopeInfo;
-        private BaseOrchestrator orchestrator;
         private readonly SyncRow conflictRow;
+        private BaseOrchestrator orchestrator;
         private SyncTable schemaChangesTable;
+        private SyncConflict conflict;
 
-        // used only internally
-        internal SyncConflict conflict;
+        /// <inheritdoc cref="ApplyChangesConflictOccuredArgs"/>
+        public ApplyChangesConflictOccuredArgs(ScopeInfo scopeInfo, SyncContext context, BaseOrchestrator orchestrator,
+            SyncRow conflictRow, SyncTable schemaChangesTable, ConflictResolution action, Guid? senderScopeId, DbConnection connection, DbTransaction transaction)
+            : base(context, connection, transaction)
+        {
+            Guard.ThrowIfNull(conflictRow);
+
+            this.scopeInfo = scopeInfo;
+            this.orchestrator = orchestrator;
+            this.conflictRow = conflictRow;
+            this.schemaChangesTable = schemaChangesTable;
+            this.Resolution = action;
+            this.SenderScopeId = senderScopeId;
+
+            var finalRowArray = new object[conflictRow.ToArray().Length];
+            conflictRow.ToArray().CopyTo(finalRowArray, 0);
+
+            this.FinalRow = new SyncRow(schemaChangesTable.Clone(), finalRowArray);
+        }
 
         /// <summary>
         /// Gets or Sets the action to be taken when resolving the conflict.
@@ -51,23 +69,6 @@ namespace Dotmim.Sync
             return this.conflict;
         }
 
-        public ApplyChangesConflictOccuredArgs(ScopeInfo scopeInfo, SyncContext context, BaseOrchestrator orchestrator,
-            SyncRow conflictRow, SyncTable schemaChangesTable, ConflictResolution action, Guid? senderScopeId, DbConnection connection, DbTransaction transaction)
-            : base(context, connection, transaction)
-        {
-            this.scopeInfo = scopeInfo;
-            this.orchestrator = orchestrator;
-            this.conflictRow = conflictRow;
-            this.schemaChangesTable = schemaChangesTable;
-            this.Resolution = action;
-            this.SenderScopeId = senderScopeId;
-
-            var finalRowArray = new object[conflictRow.ToArray().Length];
-            conflictRow.ToArray().CopyTo(finalRowArray, 0);
-
-            this.FinalRow = new SyncRow(schemaChangesTable.Clone(), finalRowArray);
-        }
-
         /// <inheritdoc />
         public override string Message => $"Conflict {this.conflictRow}.";
 
@@ -75,9 +76,11 @@ namespace Dotmim.Sync
         public override int EventId => SyncEventsId.ApplyChangesFailed.Id;
     }
 
-    public static partial class InterceptorsExtensions
+    /// <summary>
+    /// Interceptors extensions.
+    /// </summary>
+    public partial class InterceptorsExtensions
     {
-
         /// <summary>
         /// Intercept the provider when a conflict is happening.
         /// </summary>
@@ -91,8 +94,14 @@ namespace Dotmim.Sync
             => orchestrator.AddInterceptor(action);
     }
 
-    public static partial class SyncEventsId
+    /// <summary>
+    /// Sync Events Id.
+    /// </summary>
+    public partial class SyncEventsId
     {
+        /// <summary>
+        /// Gets the unique event id.
+        /// </summary>
         public static EventId ApplyChangesFailed => CreateEventId(300, nameof(ApplyChangesFailed));
     }
 }
