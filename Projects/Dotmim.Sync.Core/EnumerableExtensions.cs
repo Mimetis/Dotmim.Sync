@@ -144,21 +144,24 @@ namespace Dotmim.Sync
             }
         }
 
-        private static void Visit<T>(
-             T item,
-             HashSet<T> visited,
-             List<T> sorted, Func<T, IEnumerable<T>> dependencies,
-             bool throwOnCycle)
+        private static void Visit<T>(T item, HashSet<T> visited, List<T> sorted, Func<T, IEnumerable<T>> dependencies, bool throwOnCycle)
         {
-            var added = visited.Add(item);
+#pragma warning disable CA1868 // Unnecessary call to 'Contains(item)'
+            if (!visited.Contains(item))
+            {
+                visited.Add(item);
 
-            if (!added && throwOnCycle && !sorted.Contains(item))
-                throw new Exception("Cyclic dependency found");
+                foreach (var dep in dependencies(item))
+                    Visit(dep, visited, sorted, dependencies, throwOnCycle);
 
-            foreach (var dep in dependencies(item))
-                Visit(dep, visited, sorted, dependencies, throwOnCycle);
-
-            sorted.Add(item);
+                sorted.Add(item);
+            }
+            else
+            {
+                if (throwOnCycle && !sorted.Contains(item))
+                    throw new Exception("Cyclic dependency found");
+            }
+#pragma warning restore CA1868 // Unnecessary call to 'Contains(item)'
         }
 
         // public static async Task<TResult[]> ForEachAsync<T, TResult>(this IEnumerable<T> items, Func<T, TResult> body, int maxThreads = 4)
