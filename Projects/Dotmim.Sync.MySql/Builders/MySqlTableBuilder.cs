@@ -18,7 +18,6 @@ namespace Dotmim.Sync.MySql.Builders
     public class MySqlTableBuilder : DbTableBuilder
     {
 
-        private MySqlObjectNames sqlObjectNames;
         private MySqlBuilderProcedure sqlBuilderProcedure;
         private MySqlBuilderTable sqlBuilderTable;
         private MySqlBuilderTrackingTable sqlBuilderTrackingTable;
@@ -28,7 +27,6 @@ namespace Dotmim.Sync.MySql.Builders
             : base(tableDescription, tableName, trackingTableName, setup, scopeName)
         {
 
-            this.sqlObjectNames = new MySqlObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup, scopeName);
             this.sqlBuilderProcedure = new MySqlBuilderProcedure(tableDescription, this.TableName, this.TrackingTableName, setup, scopeName);
             this.sqlBuilderTable = new MySqlBuilderTable(tableDescription, this.TableName, this.TrackingTableName, setup);
             this.sqlBuilderTrackingTable = new MySqlBuilderTrackingTable(tableDescription, tableName, trackingTableName, this.Setup);
@@ -74,7 +72,7 @@ namespace Dotmim.Sync.MySql.Builders
         public override Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
             => this.sqlBuilderTrackingTable.GetDropTrackingTableCommandAsync(connection, transaction);
 
-        [System.Obsolete]
+        [System.Obsolete("DMS is not renaming tracking tables anymore")]
         public override Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
             => this.sqlBuilderTrackingTable.GetRenameTrackingTableCommandAsync(oldTableName, connection, transaction);
 

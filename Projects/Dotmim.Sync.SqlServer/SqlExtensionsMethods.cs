@@ -24,7 +24,7 @@ namespace Dotmim.Sync.SqlServer
 
             try
             {
-                var getParamsCommand = new SqlCommand("sp_procedure_params_rowset", connection);
+                using var getParamsCommand = new SqlCommand("sp_procedure_params_rowset", connection);
                 getParamsCommand.CommandType = CommandType.StoredProcedure;
                 getParamsCommand.Transaction = transaction;
 
@@ -57,7 +57,7 @@ namespace Dotmim.Sync.SqlServer
                         // ADO.NET 1.1 does not support XML, replace with text
                         // if (0 == String.Compare("xml", datatype, true))
                         //    datatype = "Text";
-                        if (string.Compare("table", datatype, true) == 0)
+                        if (string.Equals("table", datatype, StringComparison.OrdinalIgnoreCase))
                             datatype = "Structured";
 
                         // TODO : Should we raise an error here ??

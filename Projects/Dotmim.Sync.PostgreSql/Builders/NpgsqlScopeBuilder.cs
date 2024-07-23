@@ -1,5 +1,4 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.PostgreSql.Builders;
 using System.Data;
 using System.Data.Common;
 
@@ -7,10 +6,12 @@ namespace Dotmim.Sync.PostgreSql.Scope
 {
     public class NpgsqlScopeBuilder : DbScopeBuilder
     {
-        public NpgsqlScopeBuilder(string scopeInfoTableName) : base(scopeInfoTableName) { }
+        public NpgsqlScopeBuilder(string scopeInfoTableName)
+            : base(scopeInfoTableName) { }
+
         public override DbCommand GetAllScopeInfoClientsCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
             var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.ScopeInfoTableName);
             var commandText =
                 $@"SELECT  sync_scope_id
@@ -31,6 +32,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
 
             return command;
         }
+
         public override DbCommand GetAllScopeInfosCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
@@ -50,9 +52,10 @@ namespace Dotmim.Sync.PostgreSql.Scope
 
             return command;
         }
+
         public override DbCommand GetCreateScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
             var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.ScopeInfoTableName);
             var commandText =
                 $@"
@@ -76,9 +79,10 @@ namespace Dotmim.Sync.PostgreSql.Scope
             command.CommandText = commandText;
             return command;
         }
+
         public override DbCommand GetCreateScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}";
             var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.ScopeInfoTableName);
             var commandText =
                 $@"CREATE TABLE {schemaName}.{tableName} (
@@ -97,9 +101,10 @@ namespace Dotmim.Sync.PostgreSql.Scope
             command.CommandText = commandText;
             return command;
         }
+
         public override DbCommand GetDeleteScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
             var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.ScopeInfoTableName);
             var commandText =
                 $@"DELETE FROM {schemaName}.{tableName}
@@ -129,6 +134,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
 
             return command;
         }
+
         public override DbCommand GetDeleteScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
@@ -148,15 +154,17 @@ namespace Dotmim.Sync.PostgreSql.Scope
 
             return command;
         }
+
         public override DbCommand GetDropScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
             var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.ScopeInfoTableName);
             var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = $"DROP Table {schemaName}.{tableName}";
             return command;
         }
+
         public override DbCommand GetDropScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
@@ -167,9 +175,10 @@ namespace Dotmim.Sync.PostgreSql.Scope
             command.CommandText = $"DROP Table {schemaName}.{tableName}";
             return command;
         }
+
         public override DbCommand GetExistsScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
             var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.ScopeInfoTableName);
 
             var command = connection.CreateCommand();
@@ -199,9 +208,10 @@ namespace Dotmim.Sync.PostgreSql.Scope
 
             return command;
         }
+
         public override DbCommand GetExistsScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
             var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.ScopeInfoTableName);
             var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -220,11 +230,12 @@ namespace Dotmim.Sync.PostgreSql.Scope
             command.Parameters.Add(parameter);
             return command;
         }
+
         public override DbCommand GetExistsScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}";
             var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.ScopeInfoTableName);
             command.CommandText = $@"Select count(*) from {schemaName}.{tableName} where sync_scope_name = @sync_scope_name;";
 
@@ -236,6 +247,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
 
             return command;
         }
+
         public override DbCommand GetExistsScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
@@ -259,10 +271,13 @@ namespace Dotmim.Sync.PostgreSql.Scope
 
             return command;
         }
+
         public override DbCommand GetInsertScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
-            => GetUpdateScopeInfoClientCommand(connection, transaction);
+            => this.GetUpdateScopeInfoClientCommand(connection, transaction);
+
         public override DbCommand GetInsertScopeInfoCommand(DbConnection connection, DbTransaction transaction)
-             => GetUpdateScopeInfoCommand(connection, transaction);
+             => this.GetUpdateScopeInfoCommand(connection, transaction);
+
         public override DbCommand GetLocalTimestampCommand(DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
@@ -278,9 +293,10 @@ namespace Dotmim.Sync.PostgreSql.Scope
 
             return command;
         }
+
         public override DbCommand GetScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
             var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.ScopeInfoTableName);
             var commandText =
                 $@"SELECT    sync_scope_id
@@ -322,6 +338,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
 
             return command;
         }
+
         public override DbCommand GetScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
@@ -348,9 +365,10 @@ namespace Dotmim.Sync.PostgreSql.Scope
 
             return command;
         }
+
         public override DbCommand GetUpdateScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
             var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.ScopeInfoTableName);
             var commandText = $@"
                                 with changes as (
@@ -439,8 +457,8 @@ namespace Dotmim.Sync.PostgreSql.Scope
             command.Parameters.Add(p);
 
             return command;
-
         }
+
         public override DbCommand GetUpdateScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();

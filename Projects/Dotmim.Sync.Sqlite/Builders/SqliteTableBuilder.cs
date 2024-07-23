@@ -255,7 +255,7 @@ namespace Dotmim.Sync.Sqlite
             return Task.FromResult(command);
         }
 
-        [Obsolete]
+        [Obsolete("DMS is not renaming tracking tables anymore")]
         public override Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
         {
             var tableNameString = this.TrackingTableName.Quoted().ToString();
@@ -306,7 +306,7 @@ namespace Dotmim.Sync.Sqlite
             return Task.FromResult(command);
         }
 
-        private DbCommand CreateInsertTriggerCommand(DbConnection connection, DbTransaction transaction)
+        private SqliteCommand CreateInsertTriggerCommand(DbConnection connection, DbTransaction transaction)
         {
             var insTriggerName = string.Format(this.sqliteObjectNames.GetTriggerCommandName(DbTriggerType.Insert), this.TableName.Unquoted().ToString());
 
@@ -335,7 +335,7 @@ namespace Dotmim.Sync.Sqlite
                 argAnd = " AND ";
             }
 
-            createTrigger.Append(stringBuilderArguments.ToString());
+            createTrigger.Append(stringBuilderArguments);
             createTrigger.AppendLine("\t\t,[update_scope_id]");
             createTrigger.AppendLine("\t\t,[timestamp]");
             createTrigger.AppendLine("\t\t,[sync_row_is_tombstone]");
@@ -343,7 +343,7 @@ namespace Dotmim.Sync.Sqlite
 
             createTrigger.AppendLine("\t) ");
             createTrigger.AppendLine("\tVALUES (");
-            createTrigger.Append(stringBuilderArguments2.ToString());
+            createTrigger.Append(stringBuilderArguments2);
             createTrigger.AppendLine("\t\t,NULL");
             createTrigger.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
             createTrigger.AppendLine("\t\t,0");
@@ -354,7 +354,7 @@ namespace Dotmim.Sync.Sqlite
             return new SqliteCommand(createTrigger.ToString(), (SqliteConnection)connection, (SqliteTransaction)transaction);
         }
 
-        private DbCommand CreateDeleteTriggerCommand(DbConnection connection, DbTransaction transaction)
+        private SqliteCommand CreateDeleteTriggerCommand(DbConnection connection, DbTransaction transaction)
         {
             var delTriggerName = string.Format(this.sqliteObjectNames.GetTriggerCommandName(DbTriggerType.Delete), this.TableName.Unquoted().ToString());
 
@@ -382,7 +382,7 @@ namespace Dotmim.Sync.Sqlite
                 argAnd = " AND ";
             }
 
-            createTrigger.Append(stringBuilderArguments.ToString());
+            createTrigger.Append(stringBuilderArguments);
             createTrigger.AppendLine("\t\t,[update_scope_id]");
             createTrigger.AppendLine("\t\t,[timestamp]");
             createTrigger.AppendLine("\t\t,[sync_row_is_tombstone]");
@@ -390,7 +390,7 @@ namespace Dotmim.Sync.Sqlite
 
             createTrigger.AppendLine("\t) ");
             createTrigger.AppendLine("\tVALUES (");
-            createTrigger.Append(stringBuilderArguments2.ToString());
+            createTrigger.Append(stringBuilderArguments2);
             createTrigger.AppendLine("\t\t,NULL");
             createTrigger.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
             createTrigger.AppendLine("\t\t,1");
@@ -401,7 +401,7 @@ namespace Dotmim.Sync.Sqlite
             return new SqliteCommand(createTrigger.ToString(), (SqliteConnection)connection, (SqliteTransaction)transaction);
         }
 
-        private DbCommand CreateUpdateTriggerCommand(DbConnection connection, DbTransaction transaction)
+        private SqliteCommand CreateUpdateTriggerCommand(DbConnection connection, DbTransaction transaction)
         {
             var updTriggerName = string.Format(this.sqliteObjectNames.GetTriggerCommandName(DbTriggerType.Update), this.TableName.Unquoted().ToString());
 
@@ -472,7 +472,7 @@ namespace Dotmim.Sync.Sqlite
                 argAnd = " AND ";
             }
 
-            createTrigger.Append(stringBuilderArguments.ToString());
+            createTrigger.Append(stringBuilderArguments);
             createTrigger.AppendLine("\t\t,[update_scope_id]");
             createTrigger.AppendLine("\t\t,[timestamp]");
             createTrigger.AppendLine("\t\t,[sync_row_is_tombstone]");
@@ -480,7 +480,7 @@ namespace Dotmim.Sync.Sqlite
 
             createTrigger.AppendLine("\t) ");
             createTrigger.AppendLine("\tSELECT ");
-            createTrigger.Append(stringBuilderArguments2.ToString());
+            createTrigger.Append(stringBuilderArguments2);
             createTrigger.AppendLine("\t\t,NULL");
             createTrigger.AppendLine($"\t\t,{SqliteObjectNames.TimestampValue}");
             createTrigger.AppendLine("\t\t,0");
@@ -537,17 +537,17 @@ namespace Dotmim.Sync.Sqlite
             return new SqliteCommand(createTrigger.ToString(), (SqliteConnection)connection, (SqliteTransaction)transaction);
         }
 
-        public override Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
-        {
-            // return Task.FromResult<DbCommand>(null);
-            return triggerType switch
+#pragma warning disable CA2000 // Dispose objects before losing scope
+        public override Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction) =>
+
+            triggerType switch
             {
-                DbTriggerType.Insert => Task.FromResult(this.CreateInsertTriggerCommand(connection, transaction)),
-                DbTriggerType.Update => Task.FromResult(this.CreateUpdateTriggerCommand(connection, transaction)),
-                DbTriggerType.Delete => Task.FromResult(this.CreateDeleteTriggerCommand(connection, transaction)),
+                DbTriggerType.Insert => Task.FromResult((DbCommand)this.CreateInsertTriggerCommand(connection, transaction)),
+                DbTriggerType.Update => Task.FromResult((DbCommand)this.CreateUpdateTriggerCommand(connection, transaction)),
+                DbTriggerType.Delete => Task.FromResult((DbCommand)this.CreateDeleteTriggerCommand(connection, transaction)),
                 _ => throw new NotImplementedException("This trigger type is not supported when creating the sqlite trigger"),
             };
-        }
+#pragma warning restore CA2000 // Dispose objects before losing scope
 
         public override Task<DbCommand> GetDropTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
@@ -636,7 +636,7 @@ namespace Dotmim.Sync.Sqlite
                 }
             }
 
-            return relations.OrderBy(t => t.ForeignKey).ToArray();
+            return [.. relations.OrderBy(t => t.ForeignKey)];
         }
 
         public override async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction)

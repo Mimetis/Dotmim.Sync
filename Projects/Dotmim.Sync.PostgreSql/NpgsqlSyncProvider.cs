@@ -15,10 +15,24 @@ namespace Dotmim.Sync.PostgreSql
         private static string shortProviderType;
         private NpgsqlConnectionStringBuilder builder;
         private NpgsqlDbMetadata dbMetadata;
-        internal const string NPGSQL_PREFIX_PARAMETER = "in_";
+        internal const string NPGSQLPREFIXPARAMETER = "in_";
 
         public NpgsqlSyncProvider()
             : base() { }
+
+        public static string ShortProviderType
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(shortProviderType))
+                    return shortProviderType;
+
+                var type = typeof(NpgsqlSyncProvider);
+                shortProviderType = type.Name;
+
+                return shortProviderType;
+            }
+        }
 
         public override string ConnectionString
         {
@@ -58,20 +72,6 @@ namespace Dotmim.Sync.PostgreSql
 
         public override string DefaultSchemaName => "public";
 
-        public static string ShortProviderType
-        {
-            get
-            {
-                if (!string.IsNullOrEmpty(shortProviderType))
-                    return shortProviderType;
-
-                var type = typeof(NpgsqlSyncProvider);
-                shortProviderType = type.Name;
-
-                return shortProviderType;
-            }
-        }
-
         public override DbConnection CreateConnection() => new NpgsqlConnection(this.ConnectionString);
 
         /// <summary>
@@ -103,8 +103,7 @@ namespace Dotmim.Sync.PostgreSql
 
         public override DbMetadata GetMetadata()
         {
-            if (this.dbMetadata == null)
-                this.dbMetadata = new NpgsqlDbMetadata();
+            this.dbMetadata ??= new NpgsqlDbMetadata();
 
             return this.dbMetadata;
         }

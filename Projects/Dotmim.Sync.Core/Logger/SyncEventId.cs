@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using System;
 
 namespace Dotmim.Sync
 {
@@ -137,25 +136,22 @@ namespace Dotmim.Sync
         /// <summary>
         /// Creates a new EventId.
         /// </summary>
-        internal static EventId CreateEventId(int id, string eventName)
-        {
-            return new EventId(GetSyncEventId(eventName), eventName);
-        }
+        internal static EventId CreateEventId(int id, string eventName) => new(id, eventName);
 
-        private static int GetSyncEventId(string eventName)
-        {
+        // private static int GetSyncEventId(string eventName)
+        // {
 
-            string concatInt = string.Empty;
-            for (int i = 0; i < eventName.Length; i++)
-            {
-                var letter = Convert.ToInt32(eventName[i]).ToString();
-                letter = letter.Substring(letter.Length - 1);
-                if (string.IsNullOrEmpty(letter))
-                    letter = "0";
-                concatInt += letter;
-            }
+        // string concatInt = string.Empty;
+        //    for (int i = 0; i < eventName.Length; i++)
+        //    {
+        //        var letter = Convert.ToInt32(eventName[i]).ToString();
+        //        letter = letter.Substring(letter.Length - 1);
+        //        if (string.IsNullOrEmpty(letter))
+        //            letter = "0";
+        //        concatInt += letter;
+        //    }
 
-            return int.Parse(concatInt);
-        }
+        // return int.Parse(concatInt);
+        // }
     }
 }

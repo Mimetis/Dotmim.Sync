@@ -1,11 +1,9 @@
 ﻿using Dotmim.Sync.Builders;
-using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text;
-using System.Xml;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -17,8 +15,8 @@ namespace Dotmim.Sync.Sqlite
         internal const string UpdateTriggerName = "[{0}_update_trigger]";
         internal const string DeleteTriggerName = "[{0}_delete_trigger]";
 
-        private Dictionary<DbCommandType, string> commandNames = new Dictionary<DbCommandType, string>();
-        private Dictionary<DbTriggerType, string> triggersNames = new Dictionary<DbTriggerType, string>();
+        private Dictionary<DbCommandType, string> commandNames = [];
+        private Dictionary<DbTriggerType, string> triggersNames = [];
 
         private ParserName tableName;
         private ParserName trackingName;
@@ -296,7 +294,7 @@ namespace Dotmim.Sync.Sqlite
             if (columnsToUpdate)
             {
                 stringBuilder.AppendLine($" ON CONFLICT ({primaryKeys}) DO UPDATE SET ");
-                stringBuilder.Append(stringBuilderUpdateSet.ToString()).AppendLine(";");
+                stringBuilder.Append(stringBuilderUpdateSet).AppendLine(";");
             }
             else
             {
@@ -331,7 +329,6 @@ namespace Dotmim.Sync.Sqlite
         private void CreateDeleteCommandText()
         {
             var stringBuilder = new StringBuilder();
-            string str1 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[c]", "[base]");
             string str7 = SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[p]", "[side]");
 
             stringBuilder.AppendLine(";WITH [c] AS (");
@@ -566,9 +563,13 @@ namespace Dotmim.Sync.Sqlite
             {
                 // Template escape character
                 var customWhereIteration = customWhere;
+#if NET6_0_OR_GREATER
+                customWhereIteration = customWhereIteration.Replace("{{{", "[", SyncGlobalization.DataSourceStringComparison);
+                customWhereIteration = customWhereIteration.Replace("}}}", "]", SyncGlobalization.DataSourceStringComparison);
+#else
                 customWhereIteration = customWhereIteration.Replace("{{{", "[");
                 customWhereIteration = customWhereIteration.Replace("}}}", "]");
-
+#endif
                 stringBuilder.Append($"{and2}{customWhereIteration}");
                 and2 = " AND ";
             }
@@ -713,15 +714,15 @@ namespace Dotmim.Sync.Sqlite
                 comma = ", ";
             }
 
-            stringBuilder.Append(str1.ToString());
+            stringBuilder.Append(str1);
             stringBuilder.AppendLine($", [update_scope_id], [sync_row_is_tombstone], [timestamp], [last_change_datetime]");
             stringBuilder.AppendLine($")");
             stringBuilder.Append($"SELECT ");
-            stringBuilder.Append(str2.ToString());
+            stringBuilder.Append(str2);
             stringBuilder.AppendLine($", NULL, 0, {SqliteObjectNames.TimestampValue}, datetime('now')");
             stringBuilder.AppendLine($"FROM {this.tableName.Quoted()} as [base] WHERE NOT EXISTS");
             stringBuilder.Append($"(SELECT ");
-            stringBuilder.Append(str3.ToString());
+            stringBuilder.Append(str3);
             stringBuilder.AppendLine($" FROM {this.trackingName.Quoted()} as [side] ");
             stringBuilder.AppendLine($"WHERE {str4})");
 

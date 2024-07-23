@@ -21,8 +21,8 @@ namespace Dotmim.Sync.SqlServer.Builders
         // but different table schema
         // So the string should contains the connection string as well
         private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters = new();
-        private static DateTime sqlDateMin = new DateTime(1753, 1, 1);
-        private static DateTime sqlSmallDateMin = new DateTime(1900, 1, 1);
+        private static DateTime sqlDateMin = new(1753, 1, 1);
+        private static DateTime sqlSmallDateMin = new(1900, 1, 1);
 
         public SqlObjectNames SqlObjectNames { get; }
 
@@ -40,11 +40,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.trackingName = trackingName;
         }
 
-        public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType commandType, SyncFilter filter)
         {
-            var command = new SqlCommand();
+            using var command = new SqlCommand();
             bool isBatch;
-            switch (nameType)
+            switch (commandType)
             {
                 case DbCommandType.SelectChanges:
                     command.CommandType = CommandType.StoredProcedure;
@@ -177,7 +177,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 case DbCommandType.PreUpdateRows:
                     return (default, false);
                 default:
-                    throw new NotImplementedException($"This command type {nameType} is not implemented");
+                    throw new NotImplementedException($"This command type {commandType} is not implemented");
             }
 
             return (command, isBatch);
@@ -284,7 +284,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var sqlParameter = (SqlParameter)parameter;
 
                 // try to get the source column (from the SchemaTable)
+#if NET6_0_OR_GREATER
+                var sqlParameterName = sqlParameter.ParameterName.Replace("@", string.Empty, SyncGlobalization.DataSourceStringComparison);
+#else
                 var sqlParameterName = sqlParameter.ParameterName.Replace("@", string.Empty);
+#endif
                 var colDesc = this.TableDescription.Columns.FirstOrDefault(c => c.ColumnName.Equals(sqlParameterName, SyncGlobalization.DataSourceStringComparison));
 
                 if (colDesc != null && !string.IsNullOrEmpty(colDesc.ColumnName))

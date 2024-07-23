@@ -19,8 +19,7 @@ namespace Dotmim.Sync.Sqlite
 
         public override DbMetadata GetMetadata()
         {
-            if (this.dbMetadata == null)
-                this.dbMetadata = new SqliteDbMetadata();
+            this.dbMetadata ??= new SqliteDbMetadata();
 
             return this.dbMetadata;
         }
@@ -144,10 +143,7 @@ namespace Dotmim.Sync.Sqlite
         }
 
         public SqliteSyncProvider(FileInfo fileInfo)
-            : this()
-        {
-            this.builder = new SqliteConnectionStringBuilder { DataSource = fileInfo.FullName };
-        }
+            : this() => this.builder = new SqliteConnectionStringBuilder { DataSource = fileInfo.FullName };
 
         public override string GetDatabaseName()
         {

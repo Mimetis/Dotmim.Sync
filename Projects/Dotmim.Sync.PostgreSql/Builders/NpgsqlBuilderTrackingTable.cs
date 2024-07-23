@@ -1,17 +1,9 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.PostgreSql.Builders;
 using Npgsql;
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Windows.Input;
-using static Npgsql.Replication.PgOutput.Messages.RelationMessage;
 
 namespace Dotmim.Sync.PostgreSql.Builders
 {
@@ -34,10 +26,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         public Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var trackingTableQuoted = ParserName.Parse(trackingName.ToString(), "\"").Quoted().ToString();
-            var trackingTableUnquoted = trackingName.Unquoted().ToString();
+            var trackingTableQuoted = ParserName.Parse(this.trackingName.ToString(), "\"").Quoted().ToString();
+            var trackingTableUnquoted = this.trackingName.Unquoted().ToString();
             var stringBuilder = new StringBuilder();
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.trackingName);
             stringBuilder.AppendLine($"CREATE TABLE \"{schema}\".{trackingTableQuoted} (");
 
             // Adding the primary key
@@ -71,11 +63,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 if (i < primaryKeysColumns.Count - 1)
                     stringBuilder.Append(", ");
             }
+
             stringBuilder.AppendLine(");");
-
-
-            // Index
-            var indexName = trackingName.Schema().Quoted().Normalized().ToString();
 
             stringBuilder.AppendLine($"CREATE INDEX {trackingTableUnquoted}_timestamp_index ON \"{schema}\".{trackingTableQuoted} (");
             stringBuilder.AppendLine($"\t  \"timestamp\" ASC");
@@ -86,32 +75,32 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
                 stringBuilder.AppendLine($"\t,{columnName} ASC");
             }
+
             stringBuilder.Append(");");
 
             var command = new NpgsqlCommand(stringBuilder.ToString(), (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
             NpgsqlParameter sqlParameter = new NpgsqlParameter()
             {
                 ParameterName = "@tableName",
-                Value = trackingTableUnquoted
+                Value = trackingTableUnquoted,
             };
             command.Parameters.Add(sqlParameter);
 
             sqlParameter = new NpgsqlParameter()
             {
                 ParameterName = "@schemaName",
-                Value = schema
+                Value = schema,
             };
             command.Parameters.Add(sqlParameter);
 
-            var query = stringBuilder.ToString();
             return Task.FromResult((DbCommand)command);
         }
 
         public Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var trackingTableQuoted = ParserName.Parse(trackingName.ToString(), "\"").Quoted().ToString();
-            var trackingTableUnquoted = trackingName.Unquoted().ToString();
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
+            var trackingTableQuoted = ParserName.Parse(this.trackingName.ToString(), "\"").Quoted().ToString();
+            var trackingTableUnquoted = this.trackingName.Unquoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.trackingName);
 
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"DROP TABLE \"{schema}\".{trackingTableQuoted};");
@@ -121,14 +110,14 @@ namespace Dotmim.Sync.PostgreSql.Builders
             NpgsqlParameter sqlParameter = new NpgsqlParameter()
             {
                 ParameterName = "@tableName",
-                Value = trackingTableUnquoted
+                Value = trackingTableUnquoted,
             };
             command.Parameters.Add(sqlParameter);
 
             sqlParameter = new NpgsqlParameter()
             {
                 ParameterName = "@schemaName",
-                Value = schema
+                Value = schema,
             };
             command.Parameters.Add(sqlParameter);
 
@@ -137,9 +126,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         public Task<DbCommand> GetExistsTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var trackingTableQuoted = ParserName.Parse(trackingName.ToString(), "\"").Quoted().ToString();
-            var trackingTableUnquoted = trackingName.Unquoted().ToString();
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
+            var trackingTableUnquoted = this.trackingName.Unquoted().ToString();
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.trackingName);
 
             var command = connection.CreateCommand();
 
@@ -160,9 +148,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
             return Task.FromResult(command);
         }
 
-        public Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
-        {
-            return Task.FromResult((DbCommand)null);
-        }
+        public Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction) => Task.FromResult((DbCommand)null);
     }
 }

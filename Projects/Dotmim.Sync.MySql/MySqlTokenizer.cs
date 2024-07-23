@@ -12,117 +12,52 @@ namespace Dotmim.Sync.MySql
     {
         private string sql;
 
-        private int startIndex;
-        private int stopIndex;
-
-        private bool ansiQuotes;
-        private bool backslashEscapes;
-        private bool returnComments;
-        private bool multiLine;
-        private bool sqlServerMode;
-
-        private bool quoted;
-        private bool isComment;
-
-        private int pos;
-
         public MySqlTokenizer()
         {
-            this.backslashEscapes = true;
-            this.multiLine = true;
-            this.pos = 0;
+            this.BackslashEscapes = true;
+            this.MultiLine = true;
+            this.Position = 0;
         }
 
         public MySqlTokenizer(string input)
-          : this()
-        {
-            this.sql = input;
-        }
+          : this() => this.sql = input;
 
         public string Text
         {
-            get
-            {
-                return this.sql;
-            }
+            get => this.sql;
 
             set
             {
                 this.sql = value;
-                this.pos = 0;
+                this.Position = 0;
             }
         }
 
-        public bool AnsiQuotes
-        {
-            get { return this.ansiQuotes; }
-            set { this.ansiQuotes = value; }
-        }
+        public bool AnsiQuotes { get; set; }
 
-        public bool BackslashEscapes
-        {
-            get { return this.backslashEscapes; }
-            set { this.backslashEscapes = value; }
-        }
+        public bool BackslashEscapes { get; set; }
 
-        public bool MultiLine
-        {
-            get { return this.multiLine; }
-            set { this.multiLine = value; }
-        }
+        public bool MultiLine { get; set; }
 
-        public bool SqlServerMode
-        {
-            get { return this.sqlServerMode; }
-            set { this.sqlServerMode = value; }
-        }
+        public bool SqlServerMode { get; set; }
 
-        public bool Quoted
-        {
-            get { return this.quoted; }
-            private set { this.quoted = value; }
-        }
+        public bool Quoted { get; private set; }
 
-        public bool IsComment
-        {
-            get { return this.isComment; }
-        }
+        public bool IsComment { get; private set; }
 
-        public int StartIndex
-        {
-            get { return this.startIndex; }
-            set { this.startIndex = value; }
-        }
+        public int StartIndex { get; set; }
 
-        public int StopIndex
-        {
-            get { return this.stopIndex; }
-            set { this.stopIndex = value; }
-        }
+        public int StopIndex { get; set; }
 
-        public int Position
-        {
-            get { return this.pos; }
-            set { this.pos = value; }
-        }
+        public int Position { get; set; }
 
-        public bool ReturnComments
-        {
-            get { return this.returnComments; }
-            set { this.returnComments = value; }
-        }
+        public bool ReturnComments { get; set; }
 
-        public static bool IsParameter(string s)
-        {
-            if (string.IsNullOrEmpty(s)) return false;
-            if (s[0] == '?') return true;
-            if (s.Length > 1 && s[0] == '@' && s[1] != '@') return true;
-            return false;
-        }
+        public static bool IsParameter(string s) => !string.IsNullOrEmpty(s) && (s[0] == '?' || (s.Length > 1 && s[0] == '@' && s[1] != '@'));
 
         public List<string> GetAllTokens()
         {
-            List<string> tokens = new List<string>();
+            List<string> tokens = [];
             string token = this.NextToken();
             while (token != null)
             {
@@ -137,7 +72,7 @@ namespace Dotmim.Sync.MySql
         {
             while (this.FindToken())
             {
-                string token = this.sql.Substring(this.startIndex, this.stopIndex - this.startIndex);
+                string token = this.sql.Substring(this.StartIndex, this.StopIndex - this.StartIndex);
                 return token;
             }
 
@@ -148,12 +83,12 @@ namespace Dotmim.Sync.MySql
         {
             while (this.FindToken())
             {
-                if ((this.stopIndex - this.startIndex) < 2) continue;
-                char c1 = this.sql[this.startIndex];
-                char c2 = this.sql[this.startIndex + 1];
+                if ((this.StopIndex - this.StartIndex) < 2) continue;
+                char c1 = this.sql[this.StartIndex];
+                char c2 = this.sql[this.StartIndex + 1];
                 if (c1 == '?' ||
                     (c1 == '@' && c2 != '@'))
-                    return this.sql.Substring(this.startIndex, this.stopIndex - this.startIndex);
+                    return this.sql.Substring(this.StartIndex, this.StopIndex - this.StartIndex);
             }
 
             return null;
@@ -161,12 +96,12 @@ namespace Dotmim.Sync.MySql
 
         public bool FindToken()
         {
-            this.isComment = this.quoted = false;  // reset our flags
-            this.startIndex = this.stopIndex = -1;
+            this.IsComment = this.Quoted = false;  // reset our flags
+            this.StartIndex = this.StopIndex = -1;
 
-            while (this.pos < this.sql.Length)
+            while (this.Position < this.sql.Length)
             {
-                char c = this.sql[this.pos++];
+                char c = this.sql[this.Position++];
                 if (char.IsWhiteSpace(c)) continue;
 
                 if (c == '`' || c == '\'' || c == '"' || (c == '[' && this.SqlServerMode))
@@ -183,7 +118,7 @@ namespace Dotmim.Sync.MySql
                     this.ReadUnquotedToken();
                 }
 
-                if (this.startIndex != -1) return true;
+                if (this.StartIndex != -1) return true;
             }
 
             return false;
@@ -192,7 +127,6 @@ namespace Dotmim.Sync.MySql
         public string ReadParenthesis()
         {
             StringBuilder sb = new StringBuilder("(");
-            int start = this.StartIndex;
             string token = this.NextToken();
             while (true)
             {
@@ -206,85 +140,65 @@ namespace Dotmim.Sync.MySql
             return sb.ToString();
         }
 
-        private static bool IsQuoteChar(char c)
-        {
-            return c == '`' || c == '\'' || c == '\"';
-        }
+        private static bool IsParameterMarker(char c) => c == '@' || c == '?';
 
-        private static bool IsParameterMarker(char c)
-        {
-            return c == '@' || c == '?';
-        }
-
-        private static bool IsSpecialCharacter(char c)
-        {
-            if (char.IsLetterOrDigit(c) ||
-                c == '$' || c == '_' || c == '.') return false;
-            if (IsParameterMarker(c)) return false;
-            return true;
-        }
+        private static bool IsSpecialCharacter(char c) => !char.IsLetterOrDigit(c) &&
+                c != '$' && c != '_' && c != '.' && !IsParameterMarker(c);
 
         private bool ReadComment(char c)
         {
             // make sure the comment starts correctly
-            if (c == '/' && (this.pos >= this.sql.Length || this.sql[this.pos] != '*')) return false;
-            if (c == '-' && ((this.pos + 1) >= this.sql.Length || this.sql[this.pos] != '-' || this.sql[this.pos + 1] != ' ')) return false;
+            if (c == '/' && (this.Position >= this.sql.Length || this.sql[this.Position] != '*')) return false;
+            if (c == '-' && ((this.Position + 1) >= this.sql.Length || this.sql[this.Position] != '-' || this.sql[this.Position + 1] != ' ')) return false;
 
             string endingPattern = "\n";
-            if (this.sql[this.pos] == '*')
+            if (this.sql[this.Position] == '*')
                 endingPattern = "*/";
 
-            int startingIndex = this.pos - 1;
+            int startingIndex = this.Position - 1;
 
-            int index = this.sql.IndexOf(endingPattern, this.pos);
+            int index = this.sql.IndexOf(endingPattern, this.Position);
             if (endingPattern == "\n")
-                index = this.sql.IndexOf('\n', this.pos);
+                index = this.sql.IndexOf('\n', this.Position);
             if (index == -1)
                 index = this.sql.Length - 1;
             else
                 index += endingPattern.Length;
 
-            this.pos = index;
+            this.Position = index;
             if (this.ReturnComments)
             {
-                this.startIndex = startingIndex;
-                this.stopIndex = index;
-                this.isComment = true;
+                this.StartIndex = startingIndex;
+                this.StopIndex = index;
+                this.IsComment = true;
             }
 
             return true;
         }
 
-        private void CalculatePosition(int start, int stop)
-        {
-            this.startIndex = start;
-            this.stopIndex = stop;
-            if (!this.MultiLine) return;
-        }
-
         private void ReadUnquotedToken()
         {
-            this.startIndex = this.pos - 1;
+            this.StartIndex = this.Position - 1;
 
-            if (!IsSpecialCharacter(this.sql[this.startIndex]))
+            if (!IsSpecialCharacter(this.sql[this.StartIndex]))
             {
-                while (this.pos < this.sql.Length)
+                while (this.Position < this.sql.Length)
                 {
-                    char c = this.sql[this.pos];
+                    char c = this.sql[this.Position];
                     if (char.IsWhiteSpace(c)) break;
                     if (IsSpecialCharacter(c)) break;
-                    this.pos++;
+                    this.Position++;
                 }
             }
 
             this.Quoted = false;
-            this.stopIndex = this.pos;
+            this.StopIndex = this.Position;
         }
 
         private void ReadSpecialToken()
         {
-            this.startIndex = this.pos - 1;
-            this.stopIndex = this.pos;
+            this.StartIndex = this.Position - 1;
+            this.StopIndex = this.Position;
             this.Quoted = false;
         }
 
@@ -295,13 +209,13 @@ namespace Dotmim.Sync.MySql
         {
             if (quoteChar == '[')
                 quoteChar = ']';
-            this.startIndex = this.pos - 1;
+            this.StartIndex = this.Position - 1;
             bool escaped = false;
 
             bool found = false;
-            while (this.pos < this.sql.Length)
+            while (this.Position < this.sql.Length)
             {
-                char c = this.sql[this.pos];
+                char c = this.sql[this.Position];
 
                 if (c == quoteChar && !escaped)
                 {
@@ -313,12 +227,12 @@ namespace Dotmim.Sync.MySql
                     escaped = false;
                 else if (c == '\\' && this.BackslashEscapes)
                     escaped = true;
-                this.pos++;
+                this.Position++;
             }
 
-            if (found) this.pos++;
+            if (found) this.Position++;
             this.Quoted = found;
-            this.stopIndex = this.pos;
+            this.StopIndex = this.Position;
         }
     }
 }

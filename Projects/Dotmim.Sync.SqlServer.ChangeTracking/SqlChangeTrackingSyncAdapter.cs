@@ -1,15 +1,10 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.SqlServer.Builders;
 using Microsoft.Data.SqlClient;
-using Microsoft.Data.SqlClient.Server;
-using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer
 {
@@ -28,31 +23,31 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Overriding adapter since the update metadata is not a stored proc that we can override.
         /// </summary>
-        public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType nameType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType commandType, SyncFilter filter)
         {
-            if (nameType == DbCommandType.UpdateMetadata)
+            if (commandType == DbCommandType.UpdateMetadata)
             {
                 var c = new SqlCommand("Set @sync_row_count = 1;");
                 c.Parameters.Add("@sync_row_count", SqlDbType.Int);
                 return (c, false);
             }
 
-            if (nameType == DbCommandType.SelectRow)
+            if (commandType == DbCommandType.SelectRow)
             {
                 return (this.BuildSelectInitializedChangesCommand(), false);
             }
 
-            if (nameType == DbCommandType.DeleteMetadata)
+            if (commandType == DbCommandType.DeleteMetadata)
             {
                 return (null, false);
             }
 
-            if (nameType == DbCommandType.Reset)
+            if (commandType == DbCommandType.Reset)
             {
                 return (this.CreateResetCommand(), false);
             }
 
-            return base.GetCommand(context, nameType, filter);
+            return base.GetCommand(context, commandType, filter);
         }
 
         private SqlCommand BuildSelectInitializedChangesCommand()

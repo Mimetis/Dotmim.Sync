@@ -132,7 +132,7 @@ namespace Dotmim.Sync.MySql
             // 0 and should appear first.
             while (token != "(")
             {
-                if (string.Compare(token, "FUNCTION", StringComparison.OrdinalIgnoreCase) == 0)
+                if (string.Equals(token, "FUNCTION", StringComparison.OrdinalIgnoreCase))
                 {
                     var newRow = parametersTable.NewRow();
                     InitParameterRow(newRow, schema, procName);
@@ -173,7 +173,7 @@ namespace Dotmim.Sync.MySql
             // now parse out the return parameter if there is one.
             token = tokenizer.NextToken().ToUpperInvariant();
 
-            if (string.Compare(token, "RETURNS", StringComparison.OrdinalIgnoreCase) == 0)
+            if (string.Equals(token, "RETURNS", StringComparison.OrdinalIgnoreCase))
             {
                 var parameterRow = parametersTable.Rows[0];
                 parameterRow["PARAMETER_NAME"] = "RETURN_VALUE";
@@ -226,27 +226,27 @@ namespace Dotmim.Sync.MySql
 
             while (token != ")" &&
                    token != "," &&
-                   string.Compare(token, "begin", StringComparison.OrdinalIgnoreCase) != 0 &&
-                   string.Compare(token, "return", StringComparison.OrdinalIgnoreCase) != 0)
+                    !string.Equals(token, "begin", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(token, "return", StringComparison.OrdinalIgnoreCase))
             {
-                if (string.Compare(token, "CHARACTER", StringComparison.OrdinalIgnoreCase) == 0 ||
-                    string.Compare(token, "BINARY", StringComparison.OrdinalIgnoreCase) == 0)
+                if (string.Equals(token, "CHARACTER", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(token, "BINARY", StringComparison.OrdinalIgnoreCase))
                 {
                 } // we don't need to do anything with this
-                else if (string.Compare(token, "SET", StringComparison.OrdinalIgnoreCase) == 0 ||
-                         string.Compare(token, "CHARSET", StringComparison.OrdinalIgnoreCase) == 0)
+                else if (string.Equals(token, "SET", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(token, "CHARSET", StringComparison.OrdinalIgnoreCase))
                 {
                     row["CHARACTER_SET_NAME"] = tokenizer.NextToken();
                 }
-                else if (string.Compare(token, "ASCII", StringComparison.OrdinalIgnoreCase) == 0)
+                else if (string.Equals(token, "ASCII", StringComparison.OrdinalIgnoreCase))
                 {
                     row["CHARACTER_SET_NAME"] = "latin1";
                 }
-                else if (string.Compare(token, "UNICODE", StringComparison.OrdinalIgnoreCase) == 0)
+                else if (string.Equals(token, "UNICODE", StringComparison.OrdinalIgnoreCase))
                 {
                     row["CHARACTER_SET_NAME"] = "ucs2";
                 }
-                else if (string.Compare(token, "COLLATE", StringComparison.OrdinalIgnoreCase) == 0)
+                else if (string.Equals(token, "COLLATE", StringComparison.OrdinalIgnoreCase))
                 {
                     row["COLLATION_NAME"] = tokenizer.NextToken();
                 }
@@ -289,10 +289,7 @@ namespace Dotmim.Sync.MySql
 
         private static string GetDataTypeDefaults(string type, SyncRow row)
         {
-            var metadata = new MySqlDbMetadata();
-
             string format = "({0},{1})";
-            object precision = row["NUMERIC_PRECISION"];
 
             if (IsNumericType(type) && string.IsNullOrEmpty((string)row["NUMERIC_PRECISION"]))
             {
@@ -316,7 +313,6 @@ namespace Dotmim.Sync.MySql
 
         private static void ParseDataTypeSize(SyncRow row, string size)
         {
-            var metadata = new MySqlDbMetadata();
             size = size.Trim('(', ')');
             string[] parts = size.Split(',');
 

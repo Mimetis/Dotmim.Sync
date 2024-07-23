@@ -16,25 +16,21 @@ namespace Dotmim.Sync.MySql.Builders
 {
     public class MySqlBuilderTrackingTable
     {
-        private readonly SyncSetup setup;
         private readonly SyncTable tableDescription;
         private readonly MySqlDbMetadata dbMetadata;
-        private ParserName tableName;
         private ParserName trackingName;
 
         public MySqlBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
             this.dbMetadata = new MySqlDbMetadata();
             this.tableDescription = tableDescription;
-            this.tableName = tableName;
             this.trackingName = trackingName;
-            this.setup = setup;
         }
 
         public Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TABLE {this.trackingName.Quoted().ToString()} (");
+            stringBuilder.AppendLine($"CREATE TABLE {this.trackingName.Quoted()} (");
 
             // Adding the primary key
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())

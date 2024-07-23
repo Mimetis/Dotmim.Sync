@@ -1,15 +1,15 @@
-﻿using Npgsql;
-using System;
-using System.Collections.Generic;
-using System.Data.Common;
+﻿using Dotmim.Sync.Builders;
+using Npgsql;
 using System.Data;
-using System.Text;
-using Dotmim.Sync.Builders;
-using NpgsqlTypes;
+using System.Data.Common;
 using System.Linq;
+using System.Text;
 
 namespace Dotmim.Sync.PostgreSql
 {
+    /// <summary>
+    /// Npgsql sync adapter.
+    /// </summary>
     public partial class NpgsqlSyncAdapter : DbSyncAdapter
     {
 
@@ -18,11 +18,11 @@ namespace Dotmim.Sync.PostgreSql
         // ---------------------------------------------------
 
         /// <summary>
-        /// Get the Select Changes Command
+        /// Get the Select Changes Command.
         /// </summary>
-        private (DbCommand, bool) GetSelectChangesCommand(SyncFilter filter = null)
+        private (DbCommand Command, bool IsBatchCommand) GetSelectChangesCommand(SyncFilter filter = null)
         {
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(TableName);
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.TableName);
 
             StringBuilder stringBuilder = new StringBuilder();
 
@@ -30,6 +30,7 @@ namespace Dotmim.Sync.PostgreSql
                 stringBuilder.AppendLine("SELECT DISTINCT");
             else
                 stringBuilder.AppendLine("SELECT");
+
             // ----------------------------------
             // Add all columns
             // ----------------------------------
@@ -38,22 +39,25 @@ namespace Dotmim.Sync.PostgreSql
                 var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
                 stringBuilder.AppendLine($"\tside.{columnName}, ");
             }
+
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns())
             {
                 var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
                 stringBuilder.AppendLine($"\tbase.{columnName}, ");
             }
+
             stringBuilder.AppendLine($"\tside.\"sync_row_is_tombstone\", ");
             stringBuilder.AppendLine($"\tside.\"update_scope_id\" as \"sync_update_scope_id\" ");
+
             // ----------------------------------
-            stringBuilder.AppendLine($"FROM \"{schema}\".{TableName.Quoted()} base");
+            stringBuilder.AppendLine($"FROM \"{schema}\".{this.TableName.Quoted()} base");
 
             // ----------------------------------
             // Make Right Join
             // ----------------------------------
-            stringBuilder.Append($"RIGHT JOIN \"{schema}\".{TrackingTableName.Quoted()} side ON ");
+            stringBuilder.Append($"RIGHT JOIN \"{schema}\".{this.TrackingTableName.Quoted()} side ON ");
 
-            string empty = "";
+            string empty = string.Empty;
             foreach (var pkColumn in this.TableDescription.PrimaryKeys)
             {
                 var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
@@ -65,7 +69,7 @@ namespace Dotmim.Sync.PostgreSql
             // Custom Joins
             // ----------------------------------
             if (filter != null)
-                stringBuilder.Append(CreateFilterCustomJoins(filter));
+                stringBuilder.Append(this.CreateFilterCustomJoins(filter));
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
@@ -75,21 +79,20 @@ namespace Dotmim.Sync.PostgreSql
             // ----------------------------------
             if (filter != null)
             {
-                var createFilterWhereSide = CreateFilterWhereSide(filter, true);
+                var createFilterWhereSide = this.CreateFilterWhereSide(filter, true);
                 stringBuilder.Append(createFilterWhereSide);
 
                 if (!string.IsNullOrEmpty(createFilterWhereSide))
                     stringBuilder.AppendLine($"AND ");
 
-                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
+                var createFilterCustomWheres = this.CreateFilterCustomWheres(filter);
                 stringBuilder.Append(createFilterCustomWheres);
 
                 if (!string.IsNullOrEmpty(createFilterCustomWheres))
                     stringBuilder.AppendLine($"AND ");
             }
+
             // ----------------------------------
-
-
             stringBuilder.AppendLine("\tside.\"timestamp\" > @sync_min_timestamp");
             stringBuilder.AppendLine("\tAND (side.\"update_scope_id\" <> @sync_scope_id OR side.\"update_scope_id\" IS NULL)");
             stringBuilder.AppendLine(");");
@@ -97,7 +100,7 @@ namespace Dotmim.Sync.PostgreSql
             var sqlCommand = new NpgsqlCommand
             {
                 CommandType = CommandType.Text,
-                CommandText = stringBuilder.ToString()
+                CommandText = stringBuilder.ToString(),
             };
 
             return (sqlCommand, false);
@@ -106,10 +109,9 @@ namespace Dotmim.Sync.PostgreSql
         // ---------------------------------------------------
         // Select Initialize Changes Command
         // ---------------------------------------------------
-
-        private (DbCommand, bool) GetSelectInitializedChangesCommand(SyncFilter filter = null)
+        private (DbCommand Command, bool IsBatchCommand) GetSelectInitializedChangesCommand(SyncFilter filter = null)
         {
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(TableName);
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.TableName);
             var stringBuilder = new StringBuilder();
 
             // if we have a filter we may have joins that will duplicate lines
@@ -124,15 +126,16 @@ namespace Dotmim.Sync.PostgreSql
                 stringBuilder.AppendLine($"\t{comma}base.{ParserName.Parse(mutableColumn, "\"").Quoted()}");
                 comma = ", ";
             }
+
             stringBuilder.AppendLine($"\t, side.\"sync_row_is_tombstone\" as \"sync_row_is_tombstone\"");
-            stringBuilder.AppendLine($"FROM \"{schema}\".{TableName.Quoted()} base");
+            stringBuilder.AppendLine($"FROM \"{schema}\".{this.TableName.Quoted()} base");
 
             // ----------------------------------
             // Make Left Join
             // ----------------------------------
-            stringBuilder.Append($"LEFT JOIN \"{schema}\".{TrackingTableName.Quoted()} side ON ");
+            stringBuilder.Append($"LEFT JOIN \"{schema}\".{this.TrackingTableName.Quoted()} side ON ");
 
-            string empty = "";
+            string empty = string.Empty;
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
@@ -144,7 +147,7 @@ namespace Dotmim.Sync.PostgreSql
             // Custom Joins
             // ----------------------------------
             if (filter != null)
-                stringBuilder.Append(CreateFilterCustomJoins(filter));
+                stringBuilder.Append(this.CreateFilterCustomJoins(filter));
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
@@ -154,21 +157,20 @@ namespace Dotmim.Sync.PostgreSql
             // ----------------------------------
             if (filter != null)
             {
-                var createFilterWhereSide = CreateFilterWhereSide(filter);
+                var createFilterWhereSide = this.CreateFilterWhereSide(filter);
                 stringBuilder.Append(createFilterWhereSide);
 
                 if (!string.IsNullOrEmpty(createFilterWhereSide))
                     stringBuilder.AppendLine($"AND ");
 
-                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
+                var createFilterCustomWheres = this.CreateFilterCustomWheres(filter);
                 stringBuilder.Append(createFilterCustomWheres);
 
                 if (!string.IsNullOrEmpty(createFilterCustomWheres))
                     stringBuilder.AppendLine($"AND ");
             }
+
             // ----------------------------------
-
-
             stringBuilder.AppendLine("\t(side.\"timestamp\" > @sync_min_timestamp OR  @sync_min_timestamp IS NULL)");
             stringBuilder.AppendLine(")");
             stringBuilder.AppendLine("UNION");
@@ -186,35 +188,36 @@ namespace Dotmim.Sync.PostgreSql
 
                 comma = ", ";
             }
+
             stringBuilder.AppendLine($"\t, side.\"sync_row_is_tombstone\" as \"sync_row_is_tombstone\"");
-            stringBuilder.AppendLine($"FROM \"{schema}\".{TableName.Quoted()} base");
+            stringBuilder.AppendLine($"FROM \"{schema}\".{this.TableName.Quoted()} base");
 
             // ----------------------------------
             // Make Left Join
             // ----------------------------------
-            stringBuilder.Append($"RIGHT JOIN \"{schema}\".{TrackingTableName.Quoted()} side ON ");
+            stringBuilder.Append($"RIGHT JOIN \"{schema}\".{this.TrackingTableName.Quoted()} side ON ");
 
-            empty = "";
+            empty = string.Empty;
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
                 stringBuilder.Append($"{empty}base.{columnName} = side.{columnName}");
                 empty = " AND ";
             }
+
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (side.\"timestamp\" > @sync_min_timestamp AND \"side\".\"sync_row_is_tombstone\" = 1);");
-            
+
             var sqlCommand = new NpgsqlCommand
             {
                 CommandType = CommandType.Text,
-                CommandText = stringBuilder.ToString()
+                CommandText = stringBuilder.ToString(),
             };
 
             return (sqlCommand, false);
         }
 
         //----------------------------------------------------
-
         private string CreateFilterCustomJoins(SyncFilter filter)
         {
             var customJoins = filter.Joins;
@@ -257,7 +260,7 @@ namespace Dotmim.Sync.PostgreSql
 
                 var fullRightTableName = string.IsNullOrEmpty(customJoin.RightTableSchemaName) ? customJoin.RightTableName : $"{customJoin.RightTableSchemaName}.{customJoin.RightTableName}";
                 var rightTableName = ParserName.Parse(fullRightTableName, "\"").Quoted().Schema().ToString();
-                
+
                 if (string.Equals(filterTableName, rightTableName, SyncGlobalization.DataSourceStringComparison))
                     rightTableName = "base";
 
@@ -285,8 +288,14 @@ namespace Dotmim.Sync.PostgreSql
             {
                 // Template escape character
                 var customWhereIteration = customWhere;
+#if NET6_0_OR_GREATER
+                customWhereIteration = customWhereIteration.Replace("{{{", "\"", SyncGlobalization.DataSourceStringComparison);
+                customWhereIteration = customWhereIteration.Replace("}}}", "\"", SyncGlobalization.DataSourceStringComparison);
+#else
                 customWhereIteration = customWhereIteration.Replace("{{{", "\"");
                 customWhereIteration = customWhereIteration.Replace("}}}", "\"");
+
+#endif
 
                 stringBuilder.Append($"{and2}{customWhereIteration}");
                 and2 = " AND ";
@@ -312,7 +321,6 @@ namespace Dotmim.Sync.PostgreSql
                 stringBuilder.AppendLine($"(");
 
             stringBuilder.AppendLine($" (");
-
 
             var and2 = "   ";
 
@@ -348,8 +356,8 @@ namespace Dotmim.Sync.PostgreSql
                 stringBuilder.Append($")");
 
                 and2 = " AND ";
-
             }
+
             stringBuilder.AppendLine();
 
             stringBuilder.AppendLine($"  )");
@@ -359,10 +367,9 @@ namespace Dotmim.Sync.PostgreSql
                 stringBuilder.AppendLine($" OR side.sync_row_is_tombstone = 1");
                 stringBuilder.AppendLine($")");
             }
-            // Managing when state is tombstone
 
+            // Managing when state is tombstone
             return stringBuilder.ToString();
         }
-
     }
 }

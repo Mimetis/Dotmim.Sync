@@ -1,10 +1,8 @@
 ﻿using Dotmim.Sync.Builders;
 using Microsoft.Data.Sqlite;
-using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -33,7 +31,7 @@ namespace Dotmim.Sync.Sqlite
 
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
-                    while (reader.Read())
+                    while (await reader.ReadAsync().ConfigureAwait(false))
                     {
                         var tableName = reader.GetString(0);
                         var setupTable = new SetupTable(tableName);
@@ -50,7 +48,11 @@ namespace Dotmim.Sync.Sqlite
                 }
 
                 if (!alreadyOpened)
-                    connection.Close();
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
+                connection.Close();
+#endif
             }
 
             return syncSetup;
@@ -79,7 +81,11 @@ namespace Dotmim.Sync.Sqlite
                 }
 
                 if (!alreadyOpened)
-                    connection.Close();
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
+                connection.Close();
+#endif
             }
 
             return syncTable;
@@ -106,7 +112,11 @@ namespace Dotmim.Sync.Sqlite
                 syncTable.Load(reader);
 
             if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                await connection.CloseAsync().ConfigureAwait(false);
+#else
                 connection.Close();
+#endif
 
             return syncTable;
         }
@@ -131,7 +141,11 @@ namespace Dotmim.Sync.Sqlite
             await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                await connection.CloseAsync().ConfigureAwait(false);
+#else
                 connection.Close();
+#endif
         }
 
         public static async Task<SyncTable> GetColumnsForTableAsync(string tableName, SqliteConnection connection, SqliteTransaction transaction)
@@ -156,7 +170,11 @@ namespace Dotmim.Sync.Sqlite
                 }
 
                 if (!alreadyOpened)
-                    connection.Close();
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
+                connection.Close();
+#endif
             }
 
             return syncTable;
@@ -183,7 +201,11 @@ namespace Dotmim.Sync.Sqlite
             }
 
             if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                await connection.CloseAsync().ConfigureAwait(false);
+#else
                 connection.Close();
+#endif
 
             return syncTable;
         }
@@ -208,7 +230,11 @@ namespace Dotmim.Sync.Sqlite
                 }
 
                 if (!alreadyOpened)
-                    connection.Close();
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
+                connection.Close();
+#endif
             }
 
             return syncTable;
@@ -218,26 +244,22 @@ namespace Dotmim.Sync.Sqlite
         {
             var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
 
-            using (DbCommand command = connection.CreateCommand())
-            {
-                command.CommandText = $"drop table if exist {pTableName}";
-                command.Transaction = transaction;
+            using DbCommand command = connection.CreateCommand();
+            command.CommandText = $"drop table if exist {pTableName}";
+            command.Transaction = transaction;
 
-                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         public static async Task DropTriggerIfExistsAsync(SqliteConnection connection, SqliteTransaction transaction, string quotedTriggerName)
         {
             var triggerName = ParserName.Parse(quotedTriggerName).ToString();
 
-            using (DbCommand dbCommand = connection.CreateCommand())
-            {
-                dbCommand.CommandText = $"drop trigger if exist {triggerName}";
-                dbCommand.Transaction = transaction;
+            using DbCommand dbCommand = connection.CreateCommand();
+            dbCommand.CommandText = $"drop trigger if exist {triggerName}";
+            dbCommand.Transaction = transaction;
 
-                await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
+            await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
         public static async Task<bool> TableExistsAsync(string tableName, SqliteConnection connection, SqliteTransaction transaction)

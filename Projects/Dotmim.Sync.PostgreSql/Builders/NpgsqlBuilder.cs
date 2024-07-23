@@ -1,11 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Npgsql;
-using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.PostgreSql.Builders
@@ -28,9 +23,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
             // PostgreSQL version 15.1 supported only
             if (version < 150000)
                 throw new InvalidDatabaseVersionException(version.ToString(), "PostgreSQL");
-
-
         }
+
         public override Task<SyncTable> EnsureTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
             => Task.FromResult(new SyncTable(tableName, schemaName));
 
@@ -42,10 +36,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var setup = await NpgsqlManagementUtils.GetAllTablesAsync(connection as NpgsqlConnection, transaction as NpgsqlTransaction).ConfigureAwait(false);
             return setup;
         }
+
         public override async Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection, DbTransaction transaction = null)
            => await NpgsqlManagementUtils.GetHelloAsync(connection as NpgsqlConnection, transaction as NpgsqlTransaction).ConfigureAwait(false);
+
         public override Task<SyncTable> GetTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
             => NpgsqlManagementUtils.GetTableAsync(connection as NpgsqlConnection, transaction as NpgsqlTransaction, tableName, schemaName);
+
         public override Task<SyncTable> GetTableColumnsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
             => NpgsqlManagementUtils.GetColumnsForTableAsync(connection as NpgsqlConnection, transaction as NpgsqlTransaction, tableName, schemaName);
 

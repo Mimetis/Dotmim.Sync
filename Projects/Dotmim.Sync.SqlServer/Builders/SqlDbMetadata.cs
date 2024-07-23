@@ -331,8 +331,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             var isSameProvider = fromProviderType == SqlSyncProvider.ProviderType ||
                 fromProviderType == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider";
 
-            var sqlDbType = fromProviderType == SqlSyncProvider.ProviderType ?
-                this.GetSqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
+            var sqlDbType = isSameProvider ? this.GetSqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
 
             return sqlDbType switch
             {

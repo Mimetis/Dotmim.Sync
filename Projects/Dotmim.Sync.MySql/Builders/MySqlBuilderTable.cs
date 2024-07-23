@@ -315,7 +315,11 @@ namespace Dotmim.Sync.MySql.Builders
             using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
             syncTable.Load(reader);
 
+#if NET6_0_OR_GREATER
+            await reader.CloseAsync().ConfigureAwait(false);
+#else
             reader.Close();
+#endif
 
             var mySqlDbMetadata = new MySqlDbMetadata();
 
@@ -368,7 +372,11 @@ namespace Dotmim.Sync.MySql.Builders
             }
 
             if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                await connection.CloseAsync().ConfigureAwait(false);
+#else
                 connection.Close();
+#endif
 
             return [.. columns];
         }
@@ -401,7 +409,11 @@ namespace Dotmim.Sync.MySql.Builders
             }
 
             if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                await connection.CloseAsync().ConfigureAwait(false);
+#else
                 connection.Close();
+#endif
 
             var lstKeys = new List<SyncColumn>();
 
@@ -460,9 +472,13 @@ namespace Dotmim.Sync.MySql.Builders
             }
 
             if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                await connection.CloseAsync().ConfigureAwait(false);
+#else
                 connection.Close();
+#endif
 
-            if (relationsList != null && relationsList.Rows.Count > 0)
+            if (relationsList.Rows.Count > 0)
             {
                 foreach (var fk in relationsList.Rows.GroupBy(row =>
                     new { Name = (string)row["ForeignKey"], TableName = (string)row["TableName"], ReferenceTableName = (string)row["ReferenceTableName"] }))

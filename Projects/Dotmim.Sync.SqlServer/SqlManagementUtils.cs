@@ -34,7 +34,7 @@ namespace Dotmim.Sync.SqlServer
 
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
-                    while (reader.Read())
+                    while (await reader.ReadAsync().ConfigureAwait(false))
                     {
                         var tableName = reader.GetString(0);
                         var schemaName = reader.GetString(1) == "dbo" ? null : reader.GetString(1);
@@ -52,7 +52,11 @@ namespace Dotmim.Sync.SqlServer
                 }
 
                 if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
                     connection.Close();
+#endif
             }
 
             return syncSetup;
@@ -97,7 +101,11 @@ namespace Dotmim.Sync.SqlServer
                     syncTable.Load(reader);
 
                 if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
                     connection.Close();
+#endif
             }
 
             return syncTable;
@@ -111,11 +119,11 @@ namespace Dotmim.Sync.SqlServer
             var name = $"{pTableName.Quoted()}";
             var sName = string.IsNullOrEmpty(schemaName) ? "[dbo]" : $"{pSchemaName.Quoted()}";
 
-            var command = $"Select * from {sName}.{name};";
+            var commandText = $"Select * from {sName}.{name};";
 
             var syncTable = new SyncTable(name, sName);
 
-            using var sqlCommand = new SqlCommand(command, connection);
+            using var sqlCommand = new SqlCommand(commandText, connection);
 
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -128,7 +136,11 @@ namespace Dotmim.Sync.SqlServer
                 syncTable.Load(reader);
 
             if (!alreadyOpened)
-                connection.Close();
+#if NET6_0_OR_GREATER
+                await connection.CloseAsync().ConfigureAwait(false);
+#else
+                    connection.Close();
+#endif
 
             return syncTable;
         }
@@ -158,7 +170,11 @@ namespace Dotmim.Sync.SqlServer
             await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             if (!alreadyOpened)
-                connection.Close();
+#if NET6_0_OR_GREATER
+                await connection.CloseAsync().ConfigureAwait(false);
+#else
+                    connection.Close();
+#endif
         }
 
         /// <summary>
@@ -199,7 +215,11 @@ namespace Dotmim.Sync.SqlServer
                     syncTable.Load(reader);
 
                 if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
                     connection.Close();
+#endif
             }
 
             return syncTable;
@@ -258,7 +278,11 @@ namespace Dotmim.Sync.SqlServer
                     syncTable.Load(reader);
 
                 if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
                     connection.Close();
+#endif
             }
 
             return syncTable;
@@ -306,7 +330,11 @@ namespace Dotmim.Sync.SqlServer
                     syncTable.Load(reader);
 
                 if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
                     connection.Close();
+#endif
             }
 
             return syncTable;
@@ -355,7 +383,11 @@ namespace Dotmim.Sync.SqlServer
                     syncTable.Load(reader);
 
                 if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
                     connection.Close();
+#endif
             }
 
             return syncTable;
@@ -379,7 +411,11 @@ namespace Dotmim.Sync.SqlServer
             await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             if (!alreadyOpened)
-                connection.Close();
+#if NET6_0_OR_GREATER
+                await connection.CloseAsync().ConfigureAwait(false);
+#else
+                    connection.Close();
+#endif
         }
 
         public static async Task DropTableIfExistsAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
@@ -409,7 +445,11 @@ namespace Dotmim.Sync.SqlServer
             await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             if (!alreadyOpened)
-                connection.Close();
+#if NET6_0_OR_GREATER
+                await connection.CloseAsync().ConfigureAwait(false);
+#else
+                    connection.Close();
+#endif
         }
 
         public static async Task DropTriggerIfExistsAsync(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTriggerName)
@@ -431,7 +471,11 @@ namespace Dotmim.Sync.SqlServer
             await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             if (!alreadyOpened)
-                connection.Close();
+#if NET6_0_OR_GREATER
+                await connection.CloseAsync().ConfigureAwait(false);
+#else
+                    connection.Close();
+#endif
         }
 
         public static async Task DropTypeIfExistsAsync(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTypeName)
@@ -453,7 +497,11 @@ namespace Dotmim.Sync.SqlServer
             await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             if (!alreadyOpened)
-                connection.Close();
+#if NET6_0_OR_GREATER
+                await connection.CloseAsync().ConfigureAwait(false);
+#else
+                    connection.Close();
+#endif
         }
 
         public static string GetUnquotedSqlSchemaName(ParserName parser)
@@ -489,7 +537,11 @@ namespace Dotmim.Sync.SqlServer
                 flag = (int)result != 0;
 
                 if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
                     connection.Close();
+#endif
             }
 
             return flag;
@@ -522,7 +574,7 @@ namespace Dotmim.Sync.SqlServer
                 {
                     if (reader.HasRows)
                     {
-                        reader.Read();
+                        await reader.ReadAsync().ConfigureAwait(false);
 
                         dbName = reader.GetString(0);
                         dbVersion = reader.GetString(1);
@@ -530,7 +582,11 @@ namespace Dotmim.Sync.SqlServer
                 }
 
                 if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
                     connection.Close();
+#endif
             }
 
             return (dbName, dbVersion);
@@ -563,7 +619,11 @@ namespace Dotmim.Sync.SqlServer
                 tableExist = (int)result != 0;
 
                 if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
                     connection.Close();
+#endif
             }
 
             return tableExist;
@@ -591,7 +651,11 @@ namespace Dotmim.Sync.SqlServer
                 flag = (int)result != 0;
 
                 if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
                     connection.Close();
+#endif
             }
 
             return flag;
@@ -633,7 +697,11 @@ namespace Dotmim.Sync.SqlServer
             var tableExist = (int)result != 0;
 
             if (!alreadyOpened)
-                connection.Close();
+#if NET6_0_OR_GREATER
+                await connection.CloseAsync().ConfigureAwait(false);
+#else
+                    connection.Close();
+#endif
 
             return tableExist;
         }
@@ -670,7 +738,11 @@ namespace Dotmim.Sync.SqlServer
             schemaExist = (int)result != 0;
 
             if (!alreadyOpened)
-                connection.Close();
+#if NET6_0_OR_GREATER
+                await connection.CloseAsync().ConfigureAwait(false);
+#else
+                    connection.Close();
+#endif
 
             return schemaExist;
         }
@@ -697,7 +769,11 @@ namespace Dotmim.Sync.SqlServer
                 triggerExist = (int)result != 0;
 
                 if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
                     connection.Close();
+#endif
             }
 
             return triggerExist;
@@ -726,7 +802,11 @@ namespace Dotmim.Sync.SqlServer
                 typeExist = (int)result != 0;
 
                 if (!alreadyOpened)
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
                     connection.Close();
+#endif
             }
 
             return typeExist;

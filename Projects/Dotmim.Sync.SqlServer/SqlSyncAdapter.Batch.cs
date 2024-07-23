@@ -23,10 +23,12 @@ namespace Dotmim.Sync.SqlServer.Builders
                                                             SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
         {
 
-            if (arrayItems == null || !arrayItems.Any())
+            var items = arrayItems?.ToList();
+
+            if (items == null)
                 return;
 
-            var applyRowsCount = arrayItems.Count();
+            var applyRowsCount = items.Count;
 
             if (applyRowsCount <= 0)
                 return;
@@ -42,7 +44,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             try
             {
-                foreach (var row in arrayItems)
+                foreach (var row in items)
                 {
                     syncRowState = row.RowState;
 
@@ -100,7 +102,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 using var dataReader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
 
-                while (dataReader.Read())
+                while (await dataReader.ReadAsync().ConfigureAwait(false))
                 {
                     var failedRow = new SyncRow(schemaChangesTable, syncRowState);
 
@@ -117,14 +119,22 @@ namespace Dotmim.Sync.SqlServer.Builders
                     failedRows.Rows.Add(failedRow);
                 }
 
+#if NET6_0_OR_GREATER
+                await dataReader.CloseAsync().ConfigureAwait(false);
+#else
                 dataReader.Close();
+#endif
             }
             finally
             {
                 records.Clear();
 
                 if (!alreadyOpened && connection.State != ConnectionState.Closed)
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
                     connection.Close();
+#endif
             }
         }
 

@@ -35,7 +35,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         public override Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
             => this.sqlChangeTrackingBuilderTrackingTable.GetDropTrackingTableCommandAsync(connection, transaction);
 
-        [Obsolete]
+        [Obsolete("DMS is not renaming tracking table anymore")]
         public override Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
             => this.sqlChangeTrackingBuilderTrackingTable.GetRenameTrackingTableCommandAsync(oldTableName, connection, transaction);
 

@@ -1,25 +1,23 @@
-﻿using Npgsql;
-using System;
-using System.Collections.Generic;
-using System.Data.Common;
+﻿using Dotmim.Sync.Builders;
+using Npgsql;
 using System.Data;
-using System.Text;
-using Dotmim.Sync.Builders;
-using NpgsqlTypes;
+using System.Data.Common;
 using System.Linq;
-using static Npgsql.Replication.PgOutput.Messages.RelationMessage;
+using System.Text;
 
 namespace Dotmim.Sync.PostgreSql
 {
+    /// <summary>
+    /// Npgsql sync adapter.
+    /// </summary>
     public partial class NpgsqlSyncAdapter : DbSyncAdapter
     {
         // ---------------------------------------------------
         // Select Row Command
         // ---------------------------------------------------
-
-        private (DbCommand, bool) GetSelectRowCommand()
+        private (DbCommand Command, bool IsBatchCommand) GetSelectRowCommand()
         {
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(TableName);
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.TableName);
 
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("SELECT ");
@@ -33,6 +31,7 @@ namespace Dotmim.Sync.PostgreSql
                 stringBuilderWhere.Append($@"{empty}side.{columnName} = @{parameterName}");
                 empty = " AND ";
             }
+
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
             {
                 var columnName = ParserName.Parse(mutableColumn, "\"").Quoted().ToString();
@@ -43,10 +42,11 @@ namespace Dotmim.Sync.PostgreSql
                 else
                     stringBuilder.AppendLine($"\tbase.{columnName}, ");
             }
+
             stringBuilder.AppendLine($"\tside.\"sync_row_is_tombstone\" as sync_row_is_tombstone, ");
             stringBuilder.AppendLine($"\tside.\"update_scope_id\" as sync_update_scope_id");
-            stringBuilder.AppendLine($"FROM \"{schema}\".{TableName.Quoted()} base");
-            stringBuilder.AppendLine($"RIGHT JOIN \"{schema}\".{TrackingTableName.Quoted()} side ON");
+            stringBuilder.AppendLine($"FROM \"{schema}\".{this.TableName.Quoted()} base");
+            stringBuilder.AppendLine($"RIGHT JOIN \"{schema}\".{this.TrackingTableName.Quoted()} side ON");
 
             string str2 = string.Empty;
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
@@ -55,39 +55,38 @@ namespace Dotmim.Sync.PostgreSql
                 stringBuilder.Append($"{str2}base.{columnName} = side.{columnName} ");
                 str2 = " AND ";
             }
-            //stringBuilder.AppendLine();
+
+            // stringBuilder.AppendLine();
             stringBuilder.Append(string.Concat("WHERE ", stringBuilderWhere.ToString(), ";"));
 
             var sqlCommand = new NpgsqlCommand
             {
                 CommandType = CommandType.Text,
-                CommandText = stringBuilder.ToString()
+                CommandText = stringBuilder.ToString(),
             };
 
             return (sqlCommand, false);
         }
-
 
         // ---------------------------------------------------
         // Pre Update Command
         // ---------------------------------------------------
 
         /// <summary>
-        /// Get the NpgsqlCommand that will creates the pg_temp.table_update command
+        /// Get the NpgsqlCommand that will creates the pg_temp.table_update command.
         /// </summary>
-        
-        private (DbCommand, bool) CreatePreUpdateCommand()
+        private (DbCommand Command, bool IsBatchCommand) CreatePreUpdateCommand()
         {
-            var storedProcedureName = $"{this.Setup?.StoredProceduresPrefix}{TableName.Unquoted().Normalized()}{this.Setup?.StoredProceduresSuffix}_";
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(TableName);
-            var scopeNameWithoutDefaultScope = this.ScopeName == SyncOptions.DefaultScopeName ? "" : $"{this.ScopeName}_";
-            var procName = string.Format(updateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope);
+            var storedProcedureName = $"{this.Setup?.StoredProceduresPrefix}{this.TableName.Unquoted().Normalized()}{this.Setup?.StoredProceduresSuffix}_";
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.TableName);
+            var scopeNameWithoutDefaultScope = this.ScopeName == SyncOptions.DefaultScopeName ? string.Empty : $"{this.ScopeName}_";
+            var procName = string.Format(UpdateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope);
             var procNameQuoted = ParserName.Parse(procName, "\"").Quoted().ToString();
 
             var hasMutableColumns = this.TableDescription.GetMutableColumns(false).Any();
 
             var trackingTableQuoted = ParserName.Parse(this.TrackingTableName.ToString(), "\"").Quoted().ToString();
-            var tableQuoted = ParserName.Parse(TableName.ToString(), "\"").Quoted().ToString();
+            var tableQuoted = ParserName.Parse(this.TableName.ToString(), "\"").Quoted().ToString();
 
             var sqlCommand = new NpgsqlCommand();
             var stringBuilder = new StringBuilder();
@@ -122,24 +121,25 @@ namespace Dotmim.Sync.PostgreSql
             stringBuilder.AppendLine($"\tside.\"update_scope_id\" as \"sync_update_scope_id\", side.\"timestamp\" as \"sync_timestamp\", side.\"sync_row_is_tombstone\" as \"sync_row_is_tombstone\"");
             stringBuilder.AppendLine($"\tFROM (SELECT ");
             stringBuilder.Append($"\t\t ");
-            string comma = "";
+            string comma = string.Empty;
             foreach (var c in this.TableDescription.Columns.Where(col => !col.IsReadOnly))
             {
                 stringBuilder.Append($"{comma}\"in_{ParserName.Parse(c).Unquoted().Normalized()}\" as {ParserName.Parse(c, "\"").Quoted()}");
                 comma = ", ";
             }
+
             stringBuilder.AppendLine($") AS p");
             stringBuilder.AppendLine($"\tLEFT JOIN \"{schema}\".{this.TrackingTableName.Quoted()} side ON ");
             stringBuilder.AppendLine($"\t{NpgsqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "p", "side")}");
             stringBuilder.AppendLine($"\t)");
-            stringBuilder.AppendLine($"MERGE INTO \"{schema}\".{TableName.Quoted()} AS base");
+            stringBuilder.AppendLine($"MERGE INTO \"{schema}\".{this.TableName.Quoted()} AS base");
             stringBuilder.AppendLine($"USING changes on {NpgsqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "changes", "base")}");
             if (hasMutableColumns)
             {
                 stringBuilder.AppendLine($"WHEN MATCHED AND (changes.\"sync_timestamp\" <= sync_min_timestamp OR changes.\"sync_timestamp\" IS NULL OR changes.\"sync_update_scope_id\" =sync_scope_id OR sync_force_write = 1) THEN");
                 stringBuilder.AppendLine($"\tUPDATE SET");
 
-                string strSeparator = "";
+                string strSeparator = string.Empty;
                 foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false))
                 {
                     stringBuilder.AppendLine($"\t{strSeparator}{ParserName.Parse(mutableColumn, "\"").Quoted()} = changes.{ParserName.Parse(mutableColumn, "\"").Quoted()}");
@@ -155,6 +155,7 @@ namespace Dotmim.Sync.PostgreSql
                 stringBuilderParameters.Append(string.Concat(empty, $"changes.{ParserName.Parse(mutableColumn, "\"").Quoted()}"));
                 empty = ", ";
             }
+
             stringBuilder.AppendLine($"\tINSERT");
             stringBuilder.AppendLine($"\t({stringBuilderArguments})");
             stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters});");
@@ -163,10 +164,10 @@ namespace Dotmim.Sync.PostgreSql
             stringBuilder.AppendLine($"");
             stringBuilder.AppendLine($"IF (sync_row_count > 0) THEN");
 
-            string selectPkeys = "";
-            string insertPkeys = "";
-            string insertePkeysValues = "";
-            foreach(var pkeyColumn in this.TableDescription.GetPrimaryKeysColumns())
+            string selectPkeys = string.Empty;
+            string insertPkeys = string.Empty;
+            string insertePkeysValues = string.Empty;
+            foreach (var pkeyColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkeyColumn, "\"").Unquoted().Normalized();
                 insertPkeys += $"{ParserName.Parse(pkeyColumn, "\"").Quoted()}, ";
@@ -199,24 +200,22 @@ namespace Dotmim.Sync.PostgreSql
             return (sqlCommand, false);
         }
 
-
         // ---------------------------------------------------
         // Pre Delete Command
         // ---------------------------------------------------
 
         /// <summary>
-        /// Get the NpgsqlCommand that will creates the pg_temp.table_delete command
+        /// Get the NpgsqlCommand that will creates the pg_temp.table_delete command.
         /// </summary>
-        
-        private (DbCommand, bool) CreatePreDeleteCommand()
+        private (DbCommand Command, bool IsBatchCommand) CreatePreDeleteCommand()
         {
-            var storedProcedureName = $"{this.Setup?.StoredProceduresPrefix}{TableName.Unquoted().Normalized()}{this.Setup?.StoredProceduresSuffix}_";
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(TableName);
-            var scopeNameWithoutDefaultScope = this.ScopeName == SyncOptions.DefaultScopeName ? "" : $"{this.ScopeName}_";
-            var procName = string.Format(deleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope);
+            var storedProcedureName = $"{this.Setup?.StoredProceduresPrefix}{this.TableName.Unquoted().Normalized()}{this.Setup?.StoredProceduresSuffix}_";
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.TableName);
+            var scopeNameWithoutDefaultScope = this.ScopeName == SyncOptions.DefaultScopeName ? string.Empty : $"{this.ScopeName}_";
+            var procName = string.Format(DeleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope);
             var procNameQuoted = ParserName.Parse(procName, "\"").Quoted().ToString();
 
-            var fullTableName = $"\"{schema}\".{TableName.Quoted()}";
+            var fullTableName = $"\"{schema}\".{this.TableName.Quoted()}";
             var sqlCommand = new NpgsqlCommand();
             var stringBuilder = new StringBuilder();
 
@@ -240,17 +239,17 @@ namespace Dotmim.Sync.PostgreSql
             stringBuilder.AppendLine($"");
             stringBuilder.AppendLine($"DELETE from {fullTableName} ");
             stringBuilder.AppendLine($"USING {fullTableName} base");
-            stringBuilder.AppendLine($"LEFT JOIN \"{schema}\".{TrackingTableName.Quoted()} side ON {NpgsqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "base", "side")} ");
+            stringBuilder.AppendLine($"LEFT JOIN \"{schema}\".{this.TrackingTableName.Quoted()} side ON {NpgsqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "base", "side")} ");
             stringBuilder.AppendLine($"WHERE {NpgsqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "base", fullTableName)}  ");
             stringBuilder.AppendLine($"AND (side.timestamp <= sync_min_timestamp OR side.timestamp IS NULL OR side.update_scope_id = sync_scope_id OR sync_force_write = 1)");
-            stringBuilder.AppendLine($"AND ({NpgsqlManagementUtils.ColumnsAndParameters(this.TableDescription.PrimaryKeys, "base", NpgsqlSyncProvider.NPGSQL_PREFIX_PARAMETER)});");
+            stringBuilder.AppendLine($"AND ({NpgsqlManagementUtils.ColumnsAndParameters(this.TableDescription.PrimaryKeys, "base", NpgsqlSyncProvider.NPGSQLPREFIXPARAMETER)});");
             stringBuilder.AppendLine($"");
             stringBuilder.AppendLine($"GET DIAGNOSTICS \"sync_row_count\" = ROW_COUNT;");
             stringBuilder.AppendLine($"IF (sync_row_count > 0) THEN");
 
-            string selectPkeys = "";
-            string insertPkeys = "";
-            string insertePkeysValues = "";
+            string selectPkeys = string.Empty;
+            string insertPkeys = string.Empty;
+            string insertePkeysValues = string.Empty;
             foreach (var pkeyColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkeyColumn, "\"").Unquoted().Normalized();
@@ -259,7 +258,7 @@ namespace Dotmim.Sync.PostgreSql
                 selectPkeys += $", \"in_{ParserName.Parse(pkeyColumn, "\"").Unquoted().Normalized()}\" as {ParserName.Parse(pkeyColumn, "\"").Quoted()}";
             }
 
-            stringBuilder.AppendLine($"\tMERGE INTO \"{schema}\".{TrackingTableName.Quoted()} AS base");
+            stringBuilder.AppendLine($"\tMERGE INTO \"{schema}\".{this.TrackingTableName.Quoted()} AS base");
             stringBuilder.AppendLine($"\tUSING (SELECT sync_scope_id {selectPkeys}) AS changes on {NpgsqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "changes", "base")}");
             stringBuilder.AppendLine($"\t\tWHEN MATCHED THEN");
             stringBuilder.AppendLine($"\t\tUPDATE ");
@@ -286,13 +285,12 @@ namespace Dotmim.Sync.PostgreSql
         // ---------------------------------------------------
         // Update Command
         // ---------------------------------------------------
-
-        private (DbCommand, bool) GetUpdateRowCommand()
+        private (DbCommand Command, bool IsBatchCommand) GetUpdateRowCommand()
         {
-            var storedProcedureName = $"{this.Setup?.StoredProceduresPrefix}{TableName.Unquoted().Normalized()}{this.Setup?.StoredProceduresSuffix}_";
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(TableName);
-            var scopeNameWithoutDefaultScope = this.ScopeName == SyncOptions.DefaultScopeName ? "" : $"{this.ScopeName}_";
-            var procName = string.Format(updateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope);
+            var storedProcedureName = $"{this.Setup?.StoredProceduresPrefix}{this.TableName.Unquoted().Normalized()}{this.Setup?.StoredProceduresSuffix}_";
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.TableName);
+            var scopeNameWithoutDefaultScope = this.ScopeName == SyncOptions.DefaultScopeName ? string.Empty : $"{this.ScopeName}_";
+            var procName = string.Format(UpdateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope);
             var procNameQuoted = ParserName.Parse(procName, "\"").Quoted().ToString();
 
             var strCommandText = new StringBuilder();
@@ -306,7 +304,7 @@ namespace Dotmim.Sync.PostgreSql
             var command = new NpgsqlCommand
             {
                 CommandType = CommandType.Text,
-                CommandText = strCommandText.ToString()
+                CommandText = strCommandText.ToString(),
             };
             return (command, false);
         }
@@ -314,13 +312,12 @@ namespace Dotmim.Sync.PostgreSql
         // ---------------------------------------------------
         // Delete Command
         // ---------------------------------------------------
-
-        private (DbCommand, bool) GetDeleteRowCommand()
+        private (DbCommand Command, bool IsBatchCommand) GetDeleteRowCommand()
         {
-            var storedProcedureName = $"{this.Setup?.StoredProceduresPrefix}{TableName.Unquoted().Normalized()}{this.Setup?.StoredProceduresSuffix}_";
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(TableName);
-            var scopeNameWithoutDefaultScope = this.ScopeName == SyncOptions.DefaultScopeName ? "" : $"{this.ScopeName}_";
-            var procName = string.Format(deleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope);
+            var storedProcedureName = $"{this.Setup?.StoredProceduresPrefix}{this.TableName.Unquoted().Normalized()}{this.Setup?.StoredProceduresSuffix}_";
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.TableName);
+            var scopeNameWithoutDefaultScope = this.ScopeName == SyncOptions.DefaultScopeName ? string.Empty : $"{this.ScopeName}_";
+            var procName = string.Format(DeleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope);
             var procNameQuoted = ParserName.Parse(procName, "\"").Quoted().ToString();
 
             var strCommandText = new StringBuilder();
@@ -334,12 +331,11 @@ namespace Dotmim.Sync.PostgreSql
             var command = new NpgsqlCommand
             {
                 CommandType = CommandType.Text,
-                CommandText = strCommandText.ToString()
+                CommandText = strCommandText.ToString(),
             };
             return (command, false);
         }
 
         //----------------------------------------------------
-
     }
 }

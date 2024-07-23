@@ -1,9 +1,8 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Manager;
-using Dotmim.Sync.PostgreSql.Builders;
+using System;
 using System.Collections.Generic;
 using System.Data.Common;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.PostgreSql.Builders
@@ -13,77 +12,87 @@ namespace Dotmim.Sync.PostgreSql.Builders
         public NpgsqlTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
             : base(tableDescription, tableName, trackingTableName, setup, scopeName)
         {
-            this.dbMetadata = new NpgsqlDbMetadata();
+            this.DbMetadata = new NpgsqlDbMetadata();
 
-            this.builderTable = new NpgsqlBuilderTable(tableDescription, tableName, trackingTableName, Setup);
-            this.builderTrackingTable = new NpgsqlBuilderTrackingTable(tableDescription, tableName, trackingTableName, Setup);
-            this.builderTrigger = new NpgsqlBuilderTrigger(tableDescription, tableName, trackingTableName, Setup, scopeName);
+            this.BuilderTable = new NpgsqlBuilderTable(tableDescription, tableName, trackingTableName, this.Setup);
+            this.BuilderTrackingTable = new NpgsqlBuilderTrackingTable(tableDescription, tableName, trackingTableName, this.Setup);
+            this.BuilderTrigger = new NpgsqlBuilderTrigger(tableDescription, tableName, trackingTableName, this.Setup, scopeName);
         }
 
-        public NpgsqlBuilderTable builderTable { get; }
-        public NpgsqlBuilderTrackingTable builderTrackingTable { get; }
-        public NpgsqlBuilderTrigger builderTrigger { get; }
-        public NpgsqlDbMetadata dbMetadata { get; }
+        public NpgsqlBuilderTable BuilderTable { get; }
+
+        public NpgsqlBuilderTrackingTable BuilderTrackingTable { get; }
+
+        public NpgsqlBuilderTrigger BuilderTrigger { get; }
+
+        public NpgsqlDbMetadata DbMetadata { get; }
 
         public override Task<DbCommand> GetAddColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
-           => this.builderTable.GetAddColumnCommandAsync(columnName, connection, transaction);
+           => this.BuilderTable.GetAddColumnCommandAsync(columnName, connection, transaction);
 
         public override Task<IEnumerable<SyncColumn>> GetColumnsAsync(DbConnection connection, DbTransaction transaction)
-           => this.builderTable.GetColumnsAsync(connection, transaction);
+           => this.BuilderTable.GetColumnsAsync(connection, transaction);
 
         public override Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
-                             => this.builderTable.GetCreateSchemaCommandAsync(connection, transaction);
+                             => this.BuilderTable.GetCreateSchemaCommandAsync(connection, transaction);
+
         public override Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
-                    => this.builderTable.GetCreateTableCommandAsync(connection, transaction);
+                    => this.BuilderTable.GetCreateTableCommandAsync(connection, transaction);
+
         public override Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
-            => this.builderTrackingTable.GetCreateTrackingTableCommandAsync(connection, transaction);
+            => this.BuilderTrackingTable.GetCreateTrackingTableCommandAsync(connection, transaction);
 
         public override Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
-            => this.builderTrigger.GetCreateTriggerCommandAsync(triggerType, connection, transaction);
+            => this.BuilderTrigger.GetCreateTriggerCommandAsync(triggerType, connection, transaction);
 
         public override Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
-            => this.builderTable.GetDropColumnCommandAsync(columnName, connection, transaction);
+            => this.BuilderTable.GetDropColumnCommandAsync(columnName, connection, transaction);
 
         // ---------------------------------
         // No stored procedures
         // ---------------------------------
         public override Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
             => Task.FromResult<DbCommand>(null);
+
         public override Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
            => Task.FromResult<DbCommand>(null);
+
         public override Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
             => Task.FromResult<DbCommand>(null);
-        // ---------------------------------
 
+        // ---------------------------------
         public override Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
-           => this.builderTable.GetDropTableCommandAsync(connection, transaction);
+           => this.BuilderTable.GetDropTableCommandAsync(connection, transaction);
 
         public override Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
-           => this.builderTrackingTable.GetDropTrackingTableCommandAsync(connection, transaction);
+           => this.BuilderTrackingTable.GetDropTrackingTableCommandAsync(connection, transaction);
 
         public override Task<DbCommand> GetDropTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
-             => this.builderTrigger.GetDropTriggerCommandAsync(triggerType, connection, transaction);
+             => this.BuilderTrigger.GetDropTriggerCommandAsync(triggerType, connection, transaction);
 
         public override Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
-           => this.builderTable.GetExistsColumnCommandAsync(columnName, connection, transaction);
+           => this.BuilderTable.GetExistsColumnCommandAsync(columnName, connection, transaction);
 
         public override Task<DbCommand> GetExistsSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
-            => this.builderTable.GetExistsSchemaCommandAsync(connection, transaction);
+            => this.BuilderTable.GetExistsSchemaCommandAsync(connection, transaction);
 
         public override Task<DbCommand> GetExistsTableCommandAsync(DbConnection connection, DbTransaction transaction)
-                                                                                            => this.builderTable.GetExistsTableCommandAsync(connection, transaction);
+                                                                                            => this.BuilderTable.GetExistsTableCommandAsync(connection, transaction);
+
         public override Task<DbCommand> GetExistsTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
-            => this.builderTrackingTable.GetExistsTrackingTableCommandAsync(connection, transaction);
+            => this.BuilderTrackingTable.GetExistsTrackingTableCommandAsync(connection, transaction);
 
         public override Task<DbCommand> GetExistsTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
-            => this.builderTrigger.GetExistsTriggerCommandAsync(triggerType, connection, transaction);
+            => this.BuilderTrigger.GetExistsTriggerCommandAsync(triggerType, connection, transaction);
 
         public override Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction)
-            => this.builderTable.GetPrimaryKeysAsync(connection, transaction);
+            => this.BuilderTable.GetPrimaryKeysAsync(connection, transaction);
 
         public override Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync(DbConnection connection, DbTransaction transaction)
-                                    => this.builderTable.GetRelationsAsync(connection, transaction);
+                                    => this.BuilderTable.GetRelationsAsync(connection, transaction);
+
+        [Obsolete("DMS is not renaming tracking tables anymore")]
         public override Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
-             => this.builderTrackingTable.GetRenameTrackingTableCommandAsync(oldTableName, connection, transaction);
+             => this.BuilderTrackingTable.GetRenameTrackingTableCommandAsync(oldTableName, connection, transaction);
     }
 }

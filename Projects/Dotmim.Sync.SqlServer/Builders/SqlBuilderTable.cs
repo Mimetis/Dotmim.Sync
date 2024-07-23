@@ -34,7 +34,11 @@ namespace Dotmim.Sync.SqlServer.Builders
         private Dictionary<string, string> createdRelationNames = [];
 
         private static string GetRandomString() =>
-            Path.GetRandomFileName().Replace(".", string.Empty).ToLowerInvariant();
+#if NET6_0_OR_GREATER
+            Path.GetRandomFileName().Replace(".", string.Empty, SyncGlobalization.DataSourceStringComparison).ToLowerInvariant();
+#else
+        Path.GetRandomFileName().Replace(".", string.Empty).ToLowerInvariant();
+#endif
 
         /// <summary>
         /// Ensure the relation name is correct to be created in MySql.
@@ -50,7 +54,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                 name = $"{relation.Substring(0, 110)}_{GetRandomString()}";
 
             // MySql could have a special character in its relation names
+#if NET6_0_OR_GREATER
+            name = name.Replace("~", string.Empty, SyncGlobalization.DataSourceStringComparison).Replace("#", string.Empty, SyncGlobalization.DataSourceStringComparison);
+#else
             name = name.Replace("~", string.Empty).Replace("#", string.Empty);
+#endif
 
             this.createdRelationNames.Add(relation, name);
 

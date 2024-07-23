@@ -15,10 +15,7 @@ namespace Dotmim.Sync.Sqlite
         public override bool SupportsOutputParameters => false;
 
         public SqliteSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool disableSqlFiltersGeneration)
-            : base(tableDescription, setup, scopeName)
-        {
-            this.sqliteObjectNames = new SqliteObjectNames(this.TableDescription, tableName, trackingName, this.Setup, scopeName, disableSqlFiltersGeneration);
-        }
+            : base(tableDescription, setup, scopeName) => this.sqliteObjectNames = new SqliteObjectNames(this.TableDescription, tableName, trackingName, this.Setup, scopeName, disableSqlFiltersGeneration);
 
         public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType commandType, SyncFilter filter = null)
         {
@@ -41,24 +38,9 @@ namespace Dotmim.Sync.Sqlite
                 parameter.Value = SyncTypeConverter.TryConvertFromDbType(value, parameter.DbType);
         }
 
-        public override DbCommand EnsureCommandParametersValues(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
-        {
+        public override DbCommand EnsureCommandParametersValues(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction) => command;
 
-            return command;
-        }
-
-        public override Task ExecuteBatchCommandAsync(SyncContext context, DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
+        public override Task ExecuteBatchCommandAsync(SyncContext context, DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
             => throw new NotImplementedException();
-
-        private DbType GetValidDbType(DbType dbType)
-        {
-            if (dbType == DbType.Time)
-                return DbType.String;
-
-            if (dbType == DbType.Object)
-                return DbType.String;
-
-            return dbType;
-        }
     }
 }

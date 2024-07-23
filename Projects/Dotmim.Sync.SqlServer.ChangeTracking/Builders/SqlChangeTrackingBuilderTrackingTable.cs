@@ -7,16 +7,12 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 {
     public class SqlChangeTrackingBuilderTrackingTable
     {
+        private readonly SqlDbMetadata sqlDbMetadata;
         private ParserName tableName;
         private ParserName trackingName;
-        private readonly SyncTable tableDescription;
-        private readonly SyncSetup setup;
-        private readonly SqlDbMetadata sqlDbMetadata;
 
         public SqlChangeTrackingBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
-            this.tableDescription = tableDescription;
-            this.setup = setup;
             this.tableName = tableName;
             this.trackingName = trackingName;
             this.sqlDbMetadata = new SqlDbMetadata();
