@@ -173,6 +173,8 @@ namespace Dotmim.Sync
                                     foreach (var row in table.Rows)
                                         await localSerializer.WriteRowToFileAsync(row, table).ConfigureAwait(false);
 
+                                    await localSerializer.CloseFileAsync().ConfigureAwait(false);
+
                                     batchIndex++;
                                 }
                             }

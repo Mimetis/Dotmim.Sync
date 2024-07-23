@@ -11,21 +11,15 @@ using MySqlConnector;
 using MySql.Data.MySqlClient;
 #endif
 
-using Npgsql;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Sockets;
 using System.Reflection;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace Dotmim.Sync.Tests.IntegrationTests
 {
@@ -76,7 +70,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 // To generate a unique key constraint, will modify the batch part info on client just before load it.
                 // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
-                agent.LocalOrchestrator.OnBatchChangesApplying(args =>
+                agent.LocalOrchestrator.OnBatchChangesApplying(async args =>
                 {
                     if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
                     {
@@ -90,7 +84,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                                 row["Name"] = $"Z2{str}";
                         }
 
-                        agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
+                        await agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
                 });
 
@@ -132,7 +126,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 // To generate a unique key constraint, will modify the batch part info on client just before load it.
                 // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
-                agent.LocalOrchestrator.OnBatchChangesApplying(args =>
+                agent.LocalOrchestrator.OnBatchChangesApplying(async args =>
                 {
                     if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
                     {
@@ -146,7 +140,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                                 row["Name"] = $"Z2{str}";
                         }
 
-                        agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
+                        await agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
                 });
 
@@ -252,7 +246,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 // To generate a unique key constraint, will modify the batch part info on client just before load it.
                 // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
-                agent.LocalOrchestrator.OnBatchChangesApplying(args =>
+                agent.LocalOrchestrator.OnBatchChangesApplying(async args =>
                 {
                     if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
                     {
@@ -266,7 +260,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                                 row["Name"] = $"Z2{str}";
                         }
 
-                        agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
+                        await agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
                 });
 
@@ -322,7 +316,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 // To generate a unique key constraint, will modify the batch part info on client just before load it.
                 // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
-                agent.LocalOrchestrator.OnBatchChangesApplying(args =>
+                agent.LocalOrchestrator.OnBatchChangesApplying(async args =>
                 {
                     if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
                     {
@@ -336,7 +330,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                                 row["Name"] = $"Z2{str}";
                         }
 
-                        agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
+                        await agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
                 });
 
@@ -412,7 +406,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 // To generate a unique key constraint, will modify the batch part info on client just before load it.
                 // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
-                agent.LocalOrchestrator.OnBatchChangesApplying(args =>
+                agent.LocalOrchestrator.OnBatchChangesApplying(async args =>
                 {
                     if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
                     {
@@ -426,7 +420,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                                 row["Name"] = $"Z2{str}";
                         }
 
-                        agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
+                        await agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
                 });
 
@@ -532,7 +526,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 // To generate a unique key constraint, will modify the batch part info on client just before load it.
                 // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
-                var interceptorId = agent.LocalOrchestrator.OnBatchChangesApplying(args =>
+                var interceptorId = agent.LocalOrchestrator.OnBatchChangesApplying(async args =>
                 {
                     if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
                     {
@@ -546,7 +540,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                                 row["Name"] = $"Z1{str}";
                         }
 
-                        agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
+                        await agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
                 });
 
@@ -594,7 +588,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 agent.LocalOrchestrator.ClearInterceptors(interceptorId);
 
                 // And then intercept again the error batch re applied to change the value
-                agent.LocalOrchestrator.OnBatchChangesApplying(args =>
+                agent.LocalOrchestrator.OnBatchChangesApplying(async args =>
                 {
                     if (args.BatchPartInfo != null && args.SchemaTable.TableName == "ProductCategory")
                     {
@@ -608,7 +602,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                                 row["Name"] = $"Z2{str}";
                         }
 
-                        agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
+                        await agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
                 });
 
@@ -663,7 +657,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 // To generate a unique key constraint, will modify the batch part info on client just before load it.
                 // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
-                var interceptorId = agent.LocalOrchestrator.OnBatchChangesApplying(args =>
+                var interceptorId = agent.LocalOrchestrator.OnBatchChangesApplying(async args =>
                 {
                     if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
                     {
@@ -677,7 +671,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                                 row["Name"] = $"Z{x}{str}";
                         }
 
-                        agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
+                        await agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
                 });
 
@@ -776,7 +770,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 // To generate a unique key constraint, will modify the batch part info on client just before load it.
                 // Replacing $"Z1{str}" with $"Z2{str}" will generate a unique key constraint
-                var interceptorId = agent.LocalOrchestrator.OnBatchChangesApplying(args =>
+                var interceptorId = agent.LocalOrchestrator.OnBatchChangesApplying(async args =>
                 {
                     if (args.BatchPartInfo != null && args.State == SyncRowState.Modified && args.SchemaTable.TableName == "ProductCategory")
                     {
@@ -790,7 +784,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                                 row["Name"] = $"Z1{str}";
                         }
 
-                        agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
+                        await agent.LocalOrchestrator.SaveTableToBatchPartInfoAsync(args.BatchInfo, args.BatchPartInfo, table);
                     }
                 });
 

@@ -693,6 +693,8 @@ namespace Dotmim.Sync.Web.Server
                     await localSerializer.WriteRowToFileAsync(syncRow, schemaTable).ConfigureAwait(false);
                 }
 
+                await localSerializer.CloseFileAsync().ConfigureAwait(false);
+
                 var bpi = new BatchPartInfo
                 {
                     FileName = fileName,
@@ -769,7 +771,6 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Get batch changes.
         /// </summary>
-        
         protected internal virtual Task<HttpMessageSendChangesResponse> GetMoreChangesAsync(HttpContext httpContext, HttpMessageGetMoreChangesRequest httpMessage,
             SessionCache sessionCache, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         => this.GetChangesResponseAsync(httpContext, httpMessage.SyncContext, sessionCache.RemoteClientTimestamp,

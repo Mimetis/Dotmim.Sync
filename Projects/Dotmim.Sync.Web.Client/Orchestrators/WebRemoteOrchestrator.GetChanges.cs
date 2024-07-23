@@ -53,8 +53,10 @@ namespace Dotmim.Sync.Web.Client
                 serverBatchInfo.Timestamp = summaryResponseContent.RemoteClientTimestamp;
 
                 if (summaryResponseContent.BatchInfo.BatchPartsInfo != null)
+                {
                     foreach (var bpi in summaryResponseContent.BatchInfo.BatchPartsInfo)
                         serverBatchInfo.BatchPartsInfo.Add(bpi);
+                }
 
                 //-----------------------
                 // In Batch Mode
@@ -186,7 +188,11 @@ namespace Dotmim.Sync.Web.Client
             if (this.SerializerFactory.Key != "json" || this.Interceptors.HasInterceptors<HttpGettingResponseMessageArgs>() || this.Converter != null)
             {
                 var webSerializer = this.SerializerFactory.GetSerializer();
+#if NET6_0_OR_GREATER
+                using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+#else
                 using var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+#endif
                 var getMoreChanges = await webSerializer.DeserializeAsync<HttpMessageSendChangesResponse>(responseStream).ConfigureAwait(false);
                 context = getMoreChanges.SyncContext;
 
@@ -223,6 +229,8 @@ namespace Dotmim.Sync.Web.Client
 
                         await localSerializer.WriteRowToFileAsync(syncRow, schemaTable).ConfigureAwait(false);
                     }
+
+                    await localSerializer.CloseFileAsync().ConfigureAwait(false);
                 }
             }
             else

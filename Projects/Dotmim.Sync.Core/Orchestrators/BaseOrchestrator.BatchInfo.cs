@@ -294,6 +294,8 @@ namespace Dotmim.Sync
 
             foreach (var row in syncTable.Rows)
                 await localSerializer.WriteRowToFileAsync(row, syncTable).ConfigureAwait(false);
+
+            await localSerializer.CloseFileAsync().ConfigureAwait(false);
         }
     }
 }
