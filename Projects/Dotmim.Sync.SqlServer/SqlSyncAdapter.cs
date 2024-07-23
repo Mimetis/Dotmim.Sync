@@ -1,21 +1,17 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.SqlServer.Manager;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Data;
 using System.Data.Common;
-using Microsoft.Data.SqlClient;
 using System.Diagnostics;
-using System.Globalization;
 using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.Data.SqlClient.Server;
-using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
+    /// <inheritdoc />
     public partial class SqlSyncAdapter : DbSyncAdapter
     {
 
@@ -24,26 +20,25 @@ namespace Dotmim.Sync.SqlServer.Builders
         // this static class could be shared accross databases with same command name
         // but different table schema
         // So the string should contains the connection string as well
-        private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters
-            = new ConcurrentDictionary<string, List<SqlParameter>>();
+        private static ConcurrentDictionary<string, List<SqlParameter>> derivingParameters = new();
+        private static DateTime sqlDateMin = new DateTime(1753, 1, 1);
+        private static DateTime sqlSmallDateMin = new DateTime(1900, 1, 1);
 
-        public static DateTime SqlDateMin = new DateTime(1753, 1, 1);
-
-        public static DateTime SqlSmallDateMin = new DateTime(1900, 1, 1);
         public SqlObjectNames SqlObjectNames { get; }
+
         public SqlDbMetadata SqlMetadata { get; }
 
         private readonly ParserName tableName;
         private readonly ParserName trackingName;
 
-        public SqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool useBulkOperations) : base(tableDescription, setup, scopeName, useBulkOperations)
+        public SqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool useBulkOperations)
+            : base(tableDescription, setup, scopeName, useBulkOperations)
         {
             this.SqlObjectNames = new SqlObjectNames(tableDescription, tableName, trackingName, setup, scopeName);
             this.SqlMetadata = new SqlDbMetadata();
             this.tableName = tableName;
             this.trackingName = trackingName;
         }
-
 
         public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType nameType, SyncFilter filter)
         {
@@ -95,6 +90,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow, filter);
                         isBatch = false;
                     }
+
                     break;
                 case DbCommandType.DeleteRow:
                     command.CommandType = CommandType.StoredProcedure;
@@ -113,6 +109,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         command.CommandText = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow, filter);
                         isBatch = false;
                     }
+
                     break;
                 case DbCommandType.DisableConstraints:
                     command.CommandType = CommandType.Text;
@@ -130,17 +127,17 @@ namespace Dotmim.Sync.SqlServer.Builders
                     isBatch = false;
                     break;
                 case DbCommandType.UpdateMetadata:
-                    //command.CommandType = CommandType.Text;
-                    //command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
-                    //isBatch = false;
-                    //break;
+                    // command.CommandType = CommandType.Text;
+                    // command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
+                    // isBatch = false;
+                    // break;
                     return (default, false);
 
                 case DbCommandType.SelectMetadata:
-                    //command.CommandType = CommandType.Text;
-                    //command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.SelectMetadata, filter);
-                    //isBatch = false;
-                    //break;
+                    // command.CommandType = CommandType.Text;
+                    // command.CommandText = this.SqlObjectNames.GetCommandName(DbCommandType.SelectMetadata, filter);
+                    // isBatch = false;
+                    // break;
                     return (default, false);
                 case DbCommandType.InsertTrigger:
                     command.CommandType = CommandType.Text;
@@ -186,7 +183,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             return (command, isBatch);
         }
 
-
         public override void AddCommandParameterValue(SyncContext context, DbParameter parameter, object value, DbCommand command, DbCommandType commandType)
             => base.AddCommandParameterValue(context, parameter, value, command, commandType);
 
@@ -197,12 +193,13 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 if (command.Parameters != null && command.Parameters.Count > 0)
                     command.Parameters.Clear();
-                
-                DeriveParameters(command, connection, transaction);
+
+                this.DeriveParameters(command, connection, transaction);
             }
+
             if (commandType == DbCommandType.UpdateMetadata || commandType == DbCommandType.DeleteMetadata || commandType == DbCommandType.SelectMetadata || commandType == DbCommandType.SelectRow)
             {
-                var p = GetParameter(context, command, "sync_row_count");
+                var p = this.GetParameter(context, command, "sync_row_count");
                 if (p != null)
                     command.Parameters.Remove(p);
             }
@@ -219,7 +216,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 foreach (var column in this.TableDescription.GetPrimaryKeysColumns())
                 {
                     var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
-                    var parameter = GetParameter(context, command, unquotedColumn);
+                    var parameter = this.GetParameter(context, command, unquotedColumn);
                     if (parameter != null)
                         parameter.Value = DBNull.Value;
                 }
@@ -230,7 +227,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public override DbParameter GetParameter(SyncContext context, DbCommand command, string parameterName)
             => base.GetParameter(context, command, parameterName);
-
 
         private void DeriveParameters(DbCommand command, DbConnection connection, DbTransaction transaction)
         {
@@ -256,11 +252,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                 }
                 else
                 {
-                    // Using the SqlCommandBuilder.DeriveParameters() method is not working yet, 
+                    // Using the SqlCommandBuilder.DeriveParameters() method is not working yet,
                     // because default value is not well done handled on the Dotmim.Sync framework
                     // TODO: Fix SqlCommandBuilder.DeriveParameters
-                    //SqlCommandBuilder.DeriveParameters((SqlCommand)command);
-
+                    // SqlCommandBuilder.DeriveParameters((SqlCommand)command);
                     ((SqlConnection)connection).DeriveParameters((SqlCommand)command, false, (SqlTransaction)transaction);
 
                     var arrayParameters = new List<SqlParameter>();
@@ -272,7 +267,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 if (command.Parameters.Count > 0 && command.Parameters[0].ParameterName == "@RETURN_VALUE")
                     command.Parameters.RemoveAt(0);
-
             }
             catch (Exception ex)
             {
@@ -285,20 +279,17 @@ namespace Dotmim.Sync.SqlServer.Builders
                     connection.Close();
             }
 
-
             foreach (var parameter in command.Parameters)
             {
                 var sqlParameter = (SqlParameter)parameter;
 
                 // try to get the source column (from the SchemaTable)
-                var sqlParameterName = sqlParameter.ParameterName.Replace("@", "");
-                var colDesc = TableDescription.Columns.FirstOrDefault(c => c.ColumnName.Equals(sqlParameterName, SyncGlobalization.DataSourceStringComparison));
+                var sqlParameterName = sqlParameter.ParameterName.Replace("@", string.Empty);
+                var colDesc = this.TableDescription.Columns.FirstOrDefault(c => c.ColumnName.Equals(sqlParameterName, SyncGlobalization.DataSourceStringComparison));
 
                 if (colDesc != null && !string.IsNullOrEmpty(colDesc.ColumnName))
                     sqlParameter.SourceColumn = colDesc.ColumnName;
             }
         }
-
-       
     }
 }

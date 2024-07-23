@@ -1,18 +1,11 @@
 ﻿using Dotmim.Sync.Builders;
-using System;
-using System.Text;
-
 using System.Data.Common;
-
-using System.Data;
-#if NET6_0 || NET8_0 
+using System.Text;
+#if NET6_0 || NET8_0
 using MySqlConnector;
-#elif NETSTANDARD 
+#elif NETSTANDARD
 using MySql.Data.MySqlClient;
 #endif
-using System.Linq;
-using System.Diagnostics;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 #if MARIADB
@@ -23,13 +16,12 @@ namespace Dotmim.Sync.MySql.Builders
 {
     public class MySqlBuilderTrackingTable
     {
-        private ParserName tableName;
-        private ParserName trackingName;
         private readonly SyncSetup setup;
         private readonly SyncTable tableDescription;
-
-
         private readonly MySqlDbMetadata dbMetadata;
+        private ParserName tableName;
+        private ParserName trackingName;
+
         public MySqlBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
             this.dbMetadata = new MySqlDbMetadata();
@@ -42,7 +34,7 @@ namespace Dotmim.Sync.MySql.Builders
         public Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TABLE {trackingName.Quoted().ToString()} (");
+            stringBuilder.AppendLine($"CREATE TABLE {this.trackingName.Quoted().ToString()} (");
 
             // Adding the primary key
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
@@ -60,7 +52,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             stringBuilder.Append(" PRIMARY KEY (");
 
-            var comma = "";
+            var comma = string.Empty;
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var quotedColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
@@ -70,6 +62,7 @@ namespace Dotmim.Sync.MySql.Builders
 
                 comma = ", ";
             }
+
             stringBuilder.Append("));");
 
             var command = connection.CreateCommand();
@@ -80,10 +73,9 @@ namespace Dotmim.Sync.MySql.Builders
             return Task.FromResult(command);
         }
 
-
         public Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandText = $"drop table {trackingName.Quoted().ToString()}";
+            var commandText = $"drop table {this.trackingName.Quoted()}";
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -106,7 +98,6 @@ namespace Dotmim.Sync.MySql.Builders
             command.CommandText = commandText;
 
             return Task.FromResult(command);
-
         }
 
         public Task<DbCommand> GetExistsTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
@@ -119,13 +110,11 @@ namespace Dotmim.Sync.MySql.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = trackingName.Unquoted().ToString();
+            parameter.Value = this.trackingName.Unquoted().ToString();
 
             command.Parameters.Add(parameter);
 
-
             return Task.FromResult(command);
         }
-   
     }
 }

@@ -5,8 +5,15 @@
 		<LangVersion>12.0</LangVersion>
 	</PropertyGroup>
 	<PropertyGroup>
+		<!-- Static analysis settings -->
+		<EnableNETAnalyzers>false</EnableNETAnalyzers>
+		<AnalysisLevel>none</AnalysisLevel>
+		<RunAnalyzersDuringBuild>False</RunAnalyzersDuringBuild>
+		<RunAnalyzersDuringLiveAnalysis>False</RunAnalyzersDuringLiveAnalysis>
+	</PropertyGroup>
+	
+	<PropertyGroup>
 		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
-		<NoWarn>$(NoWarn);CA2007</NoWarn>
 	</PropertyGroup>
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />

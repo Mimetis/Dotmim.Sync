@@ -1,15 +1,10 @@
 using Dotmim.Sync.Builders;
-
-using System;
+using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using Microsoft.Data.SqlClient;
-using System.Data.SqlTypes;
 using System.Globalization;
-using System.Net.Http.Headers;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer
@@ -17,7 +12,7 @@ namespace Dotmim.Sync.SqlServer
     public static class SqlManagementUtils
     {
         /// <summary>
-        /// Get all Tables
+        /// Get all Tables.
         /// </summary>
         public static async Task<SyncSetup> GetAllTablesAsync(SqlConnection connection, SqlTransaction transaction)
         {
@@ -56,16 +51,15 @@ namespace Dotmim.Sync.SqlServer
                         setupTable.Columns.Add(column["name"].ToString());
                 }
 
-
                 if (!alreadyOpened)
                     connection.Close();
-
             }
+
             return syncSetup;
         }
 
         /// <summary>
-        /// Get Table
+        /// Get Table.
         /// </summary>
         public static async Task<SyncTable> GetTableDefinitionAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
@@ -104,11 +98,10 @@ namespace Dotmim.Sync.SqlServer
 
                 if (!alreadyOpened)
                     connection.Close();
-
             }
+
             return syncTable;
         }
-
 
         public static async Task<SyncTable> GetTableAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
@@ -116,7 +109,7 @@ namespace Dotmim.Sync.SqlServer
             var pSchemaName = ParserName.Parse(schemaName);
 
             var name = $"{pTableName.Quoted()}";
-            var sName = String.IsNullOrEmpty(schemaName) ? "[dbo]" : $"{pSchemaName.Quoted()}";
+            var sName = string.IsNullOrEmpty(schemaName) ? "[dbo]" : $"{pSchemaName.Quoted()}";
 
             var command = $"Select * from {sName}.{name};";
 
@@ -145,7 +138,7 @@ namespace Dotmim.Sync.SqlServer
             var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
             var pSchemaName = ParserName.Parse(schemaName).Unquoted().ToString();
 
-            var pNewTableName = ParserName.Parse(newTableName).Unquoted().ToString(); 
+            var pNewTableName = ParserName.Parse(newTableName).Unquoted().ToString();
             var pNewSchemaName = ParserName.Parse(newSchemaName).Unquoted().ToString();
 
             var quotedTableName = string.IsNullOrEmpty(pSchemaName) ? pTableName : $"{pSchemaName}.{pTableName}";
@@ -168,9 +161,8 @@ namespace Dotmim.Sync.SqlServer
                 connection.Close();
         }
 
-
         /// <summary>
-        /// Get Table
+        /// Get Table.
         /// </summary>
         public static async Task<SyncTable> GetTriggerAsync(string triggerName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
@@ -208,13 +200,13 @@ namespace Dotmim.Sync.SqlServer
 
                 if (!alreadyOpened)
                     connection.Close();
-
             }
+
             return syncTable;
         }
 
         /// <summary>
-        /// Get columns for table
+        /// Get columns for table.
         /// </summary>
         public static async Task<SyncTable> GetColumnsForTableAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
@@ -267,13 +259,13 @@ namespace Dotmim.Sync.SqlServer
 
                 if (!alreadyOpened)
                     connection.Close();
-
             }
+
             return syncTable;
         }
 
         /// <summary>
-        /// Get columns for table
+        /// Get columns for table.
         /// </summary>
         public static async Task<SyncTable> GetPrimaryKeysForTableAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
         {
@@ -310,15 +302,13 @@ namespace Dotmim.Sync.SqlServer
 
                 sqlCommand.Transaction = transaction;
 
-
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                     syncTable.Load(reader);
 
                 if (!alreadyOpened)
                     connection.Close();
-
-
             }
+
             return syncTable;
         }
 
@@ -343,6 +333,7 @@ namespace Dotmim.Sync.SqlServer
             var tableNameString = ParserName.Parse(tableName).ToString();
 
             var schemaNameString = ParserName.Parse(schemaName).ToString();
+
             // default as dbo
             schemaNameString = string.IsNullOrEmpty(schemaNameString) ? "dbo" : schemaNameString;
 
@@ -366,33 +357,29 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     connection.Close();
             }
+
             return syncTable;
         }
 
         public static async Task DropProcedureIfExistsAsync(SqlConnection connection, SqlTransaction transaction, int commandTimout, string quotedProcedureName)
         {
             var procName = ParserName.Parse(quotedProcedureName).ToString();
-            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) DROP PROCEDURE {0}", quotedProcedureName), connection))
-            {
-                sqlCommand.CommandTimeout = commandTimout;
-                sqlCommand.Parameters.AddWithValue("@procName", procName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedProcedureName)));
+            using var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) DROP PROCEDURE {0}", quotedProcedureName), connection);
+            sqlCommand.CommandTimeout = commandTimout;
+            sqlCommand.Parameters.AddWithValue("@procName", procName);
+            sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedProcedureName)));
 
-                bool alreadyOpened = connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
 
-                sqlCommand.Transaction = transaction;
+            sqlCommand.Transaction = transaction;
 
+            await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                if (!alreadyOpened)
-                    connection.Close();
-
-
-            }
+            if (!alreadyOpened)
+                connection.Close();
         }
 
         public static async Task DropTableIfExistsAsync(string tableName, string schemaName, SqlConnection connection, SqlTransaction transaction)
@@ -429,55 +416,45 @@ namespace Dotmim.Sync.SqlServer
         {
             var triggerName = ParserName.Parse(quotedTriggerName).ToString();
 
-            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and s.name = @schemaName) DROP TRIGGER {0}", quotedTriggerName), connection))
-            {
-                sqlCommand.CommandTimeout = commandTimeout;
-                sqlCommand.Parameters.AddWithValue("@triggerName", triggerName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTriggerName)));
+            using var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT tr.name FROM sys.triggers tr JOIN sys.tables t ON tr.parent_id = t.object_id JOIN sys.schemas s ON t.schema_id = s.schema_id WHERE tr.name = @triggerName and s.name = @schemaName) DROP TRIGGER {0}", quotedTriggerName), connection);
+            sqlCommand.CommandTimeout = commandTimeout;
+            sqlCommand.Parameters.AddWithValue("@triggerName", triggerName);
+            sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTriggerName)));
 
-                bool alreadyOpened = connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
 
-                sqlCommand.Transaction = transaction;
+            sqlCommand.Transaction = transaction;
 
+            await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-                if (!alreadyOpened)
-                    connection.Close();
-
-
-            }
+            if (!alreadyOpened)
+                connection.Close();
         }
 
         public static async Task DropTypeIfExistsAsync(SqlConnection connection, SqlTransaction transaction, int commandTimeout, string quotedTypeName)
         {
             var typeName = ParserName.Parse(quotedTypeName).ToString();
 
-            using (var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.types t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @typeName AND s.name = @schemaName) DROP TYPE {0}", quotedTypeName), connection))
-            {
-                sqlCommand.CommandTimeout = commandTimeout;
-                sqlCommand.Parameters.AddWithValue("@typeName", typeName);
-                sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTypeName)));
+            using var sqlCommand = new SqlCommand(string.Format(CultureInfo.InvariantCulture, "IF EXISTS (SELECT * FROM sys.types t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @typeName AND s.name = @schemaName) DROP TYPE {0}", quotedTypeName), connection);
+            sqlCommand.CommandTimeout = commandTimeout;
+            sqlCommand.Parameters.AddWithValue("@typeName", typeName);
+            sqlCommand.Parameters.AddWithValue("@schemaName", SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedTypeName)));
 
-                bool alreadyOpened = connection.State == ConnectionState.Open;
+            bool alreadyOpened = connection.State == ConnectionState.Open;
 
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
+            if (!alreadyOpened)
+                await connection.OpenAsync().ConfigureAwait(false);
 
-                sqlCommand.Transaction = transaction;
+            sqlCommand.Transaction = transaction;
 
-                await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+            await sqlCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-                if (!alreadyOpened)
-                    connection.Close();
-
-
-            }
+            if (!alreadyOpened)
+                connection.Close();
         }
-
 
         public static string GetUnquotedSqlSchemaName(ParserName parser)
         {
@@ -514,10 +491,9 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     connection.Close();
             }
+
             return flag;
-
         }
-
 
         public static async Task<(string DatabaseName, string EngineVersion)> GetHelloAsync(SqlConnection connection, SqlTransaction transaction)
         {
@@ -531,7 +507,7 @@ namespace Dotmim.Sync.SqlServer
                 var sqlParameter = new SqlParameter()
                 {
                     ParameterName = "@databaseName",
-                    Value = connection.Database
+                    Value = connection.Database,
                 };
                 dbCommand.Parameters.Add(sqlParameter);
 
@@ -556,6 +532,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     connection.Close();
             }
+
             return (dbName, dbVersion);
         }
 
@@ -570,7 +547,7 @@ namespace Dotmim.Sync.SqlServer
                 var sqlParameter = new SqlParameter()
                 {
                     ParameterName = "@databaseName",
-                    Value = connection.Database
+                    Value = connection.Database,
                 };
                 dbCommand.Parameters.Add(sqlParameter);
 
@@ -588,6 +565,7 @@ namespace Dotmim.Sync.SqlServer
                 if (!alreadyOpened)
                     connection.Close();
             }
+
             return tableExist;
         }
 
@@ -614,9 +592,8 @@ namespace Dotmim.Sync.SqlServer
 
                 if (!alreadyOpened)
                     connection.Close();
-
-
             }
+
             return flag;
         }
 
@@ -633,14 +610,14 @@ namespace Dotmim.Sync.SqlServer
             SqlParameter sqlParameter = new SqlParameter()
             {
                 ParameterName = "@tableName",
-                Value = pTableName
+                Value = pTableName,
             };
             dbCommand.Parameters.Add(sqlParameter);
 
             sqlParameter = new SqlParameter()
             {
                 ParameterName = "@schemaName",
-                Value = pSchemaName
+                Value = pSchemaName,
             };
             dbCommand.Parameters.Add(sqlParameter);
 
@@ -658,8 +635,6 @@ namespace Dotmim.Sync.SqlServer
             if (!alreadyOpened)
                 connection.Close();
 
-
-
             return tableExist;
         }
 
@@ -673,14 +648,13 @@ namespace Dotmim.Sync.SqlServer
             var pSchemaName = ParserName.Parse(schemaName);
             var sName = pSchemaName.Quoted();
 
-
             using DbCommand dbCommand = connection.CreateCommand();
             dbCommand.CommandText = "IF EXISTS (SELECT sch.name FROM sys.schemas sch WHERE sch.name = @schemaName) SELECT 1 ELSE SELECT 0";
 
             var sqlParameter = new SqlParameter()
             {
                 ParameterName = "@schemaName",
-                Value = sName
+                Value = sName,
             };
             dbCommand.Parameters.Add(sqlParameter);
 
@@ -697,7 +671,6 @@ namespace Dotmim.Sync.SqlServer
 
             if (!alreadyOpened)
                 connection.Close();
-
 
             return schemaExist;
         }
@@ -725,9 +698,8 @@ namespace Dotmim.Sync.SqlServer
 
                 if (!alreadyOpened)
                     connection.Close();
-
-
             }
+
             return triggerExist;
         }
 
@@ -755,19 +727,18 @@ namespace Dotmim.Sync.SqlServer
 
                 if (!alreadyOpened)
                     connection.Close();
-
-
             }
+
             return typeExist;
         }
 
         public static string JoinTwoTablesOnClause(IEnumerable<string> columns, string leftName, string rightName)
         {
             var stringBuilder = new StringBuilder();
-            string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
-            string strLeftName = (string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, "."));
+            string strRightName = string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, ".");
+            string strLeftName = string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, ".");
 
-            string str = "";
+            string str = string.Empty;
             foreach (var column in columns)
             {
                 var quotedColumn = ParserName.Parse(column).Quoted().ToString();
@@ -781,6 +752,7 @@ namespace Dotmim.Sync.SqlServer
 
                 str = " AND ";
             }
+
             return stringBuilder.ToString();
         }
 
@@ -788,7 +760,7 @@ namespace Dotmim.Sync.SqlServer
         {
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
-            string str1 = "";
+            string str1 = string.Empty;
             foreach (var column in columns)
             {
                 var quotedColumn = ParserName.Parse(column).Quoted().ToString();
@@ -801,14 +773,15 @@ namespace Dotmim.Sync.SqlServer
                 stringBuilder.Append($"@{unquotedColumn}");
                 str1 = " AND ";
             }
+
             return stringBuilder.ToString();
         }
 
         public static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
         {
             StringBuilder stringBuilder = new StringBuilder();
-            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
-            string strSeparator = "";
+            string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
+            string strSeparator = string.Empty;
             foreach (var mutableColumn in table.GetMutableColumns(false))
             {
                 var quotedColumn = ParserName.Parse(mutableColumn).Quoted().ToString();
@@ -817,12 +790,8 @@ namespace Dotmim.Sync.SqlServer
                 stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn} = @{unquotedColumn}");
                 strSeparator = ", ";
             }
+
             return stringBuilder.ToString();
-
         }
-
-
-
-
     }
 }

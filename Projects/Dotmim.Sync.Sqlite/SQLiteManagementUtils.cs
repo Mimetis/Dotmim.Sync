@@ -1,12 +1,11 @@
-﻿
-using System.Collections.Generic;
-using System.Data.Common;
-using System.Text;
-using System.Linq;
+﻿using Dotmim.Sync.Builders;
 using Microsoft.Data.Sqlite;
-using Dotmim.Sync.Builders;
 using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
+using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
@@ -15,7 +14,7 @@ namespace Dotmim.Sync.Sqlite
     {
 
         /// <summary>
-        /// Get all Tables
+        /// Get all Tables.
         /// </summary>
         public static async Task<SyncSetup> GetAllTablesAsync(SqliteConnection connection, SqliteTransaction transaction)
         {
@@ -52,8 +51,8 @@ namespace Dotmim.Sync.Sqlite
 
                 if (!alreadyOpened)
                     connection.Close();
-
             }
+
             return syncSetup;
         }
 
@@ -79,11 +78,10 @@ namespace Dotmim.Sync.Sqlite
                     syncTable.Load(reader);
                 }
 
-
                 if (!alreadyOpened)
                     connection.Close();
-
             }
+
             return syncTable;
         }
 
@@ -113,8 +111,7 @@ namespace Dotmim.Sync.Sqlite
             return syncTable;
         }
 
-
-        public static async Task RenameTableAsync(string tableName,string newTableName, SqliteConnection connection, SqliteTransaction transaction)
+        public static async Task RenameTableAsync(string tableName, string newTableName, SqliteConnection connection, SqliteTransaction transaction)
         {
             var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
 
@@ -153,17 +150,15 @@ namespace Dotmim.Sync.Sqlite
 
                 sqlCommand.Transaction = transaction;
 
-
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     syncTable.Load(reader);
                 }
 
-
                 if (!alreadyOpened)
                     connection.Close();
-
             }
+
             return syncTable;
         }
 
@@ -181,7 +176,6 @@ namespace Dotmim.Sync.Sqlite
                 await connection.OpenAsync().ConfigureAwait(false);
 
             sqlCommand.Transaction = transaction;
-
 
             using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
             {
@@ -208,7 +202,6 @@ namespace Dotmim.Sync.Sqlite
 
                 sqlCommand.Transaction = transaction;
 
-
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     syncTable.Load(reader);
@@ -216,8 +209,8 @@ namespace Dotmim.Sync.Sqlite
 
                 if (!alreadyOpened)
                     connection.Close();
-
             }
+
             return syncTable;
         }
 
@@ -256,17 +249,18 @@ namespace Dotmim.Sync.Sqlite
             {
                 dbCommand.CommandText = "select count(*) from sqlite_master where name = @tableName AND type='table'";
 
-                var SqliteParameter = new SqliteParameter()
+                var sqliteParameter = new SqliteParameter()
                 {
                     ParameterName = "@tableName",
-                    Value = pTableName
+                    Value = pTableName,
                 };
-                dbCommand.Parameters.Add(SqliteParameter);
+                dbCommand.Parameters.Add(sqliteParameter);
 
                 dbCommand.Transaction = transaction;
 
                 tableExist = ((long)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0L;
             }
+
             return tableExist;
         }
 
@@ -285,20 +279,20 @@ namespace Dotmim.Sync.Sqlite
 
                 triggerExist = ((long)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0L;
             }
+
             return triggerExist;
         }
 
         public static string JoinOneTablesOnParametersValues(IEnumerable<string> columns, string leftName)
         {
             var stringBuilder = new StringBuilder();
-            string strLeftName = (string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, "."));
+            string strLeftName = string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, ".");
 
-            string str = "";
+            string str = string.Empty;
             foreach (var column in columns)
             {
                 var quotedColumn = ParserName.Parse(column).Quoted().ToString();
                 var unquotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
-
 
                 stringBuilder.Append(str);
                 stringBuilder.Append(strLeftName);
@@ -308,16 +302,17 @@ namespace Dotmim.Sync.Sqlite
 
                 str = " AND ";
             }
+
             return stringBuilder.ToString();
         }
 
         public static string JoinTwoTablesOnClause(IEnumerable<string> columns, string leftName, string rightName)
         {
             var stringBuilder = new StringBuilder();
-            string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
-            string strLeftName = (string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, "."));
+            string strRightName = string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, ".");
+            string strLeftName = string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, ".");
 
-            string str = "";
+            string str = string.Empty;
             foreach (var column in columns)
             {
                 var quotedColumn = ParserName.Parse(column).Quoted().ToString();
@@ -331,6 +326,7 @@ namespace Dotmim.Sync.Sqlite
 
                 str = " AND ";
             }
+
             return stringBuilder.ToString();
         }
 
@@ -338,7 +334,7 @@ namespace Dotmim.Sync.Sqlite
         {
             var stringBuilder = new StringBuilder();
             string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
-            string str1 = "";
+            string str1 = string.Empty;
             foreach (var column in columns)
             {
                 var quotedColumn = ParserName.Parse(column).Quoted().ToString();
@@ -351,6 +347,7 @@ namespace Dotmim.Sync.Sqlite
                 stringBuilder.Append($"@{unquotedColumn}");
                 str1 = " AND ";
             }
+
             return stringBuilder.ToString();
         }
 
@@ -358,7 +355,7 @@ namespace Dotmim.Sync.Sqlite
         {
             var stringBuilder = new StringBuilder();
             string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
-            string str1 = "";
+            string str1 = string.Empty;
             foreach (var column in columns)
             {
                 var quotedColumn = ParserName.Parse(column).Quoted().ToString();
@@ -369,14 +366,15 @@ namespace Dotmim.Sync.Sqlite
                 stringBuilder.Append(" IS NULL ");
                 str1 = " AND ";
             }
+
             return stringBuilder.ToString();
         }
 
         public static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
         {
             var stringBuilder = new StringBuilder();
-            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
-            string strSeparator = "";
+            string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
+            string strSeparator = string.Empty;
             foreach (var mutableColumn in table.GetMutableColumns())
             {
                 var quotedColumn = ParserName.Parse(mutableColumn).Quoted().ToString();
@@ -385,8 +383,8 @@ namespace Dotmim.Sync.Sqlite
                 stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn} = @{unquotedColumn}");
                 strSeparator = ", ";
             }
-            return stringBuilder.ToString();
 
+            return stringBuilder.ToString();
         }
     }
 }

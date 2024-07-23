@@ -1,9 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.SqlServer.Manager;
-using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Linq;
 using System.Text;
 
@@ -11,58 +8,59 @@ namespace Dotmim.Sync.SqlServer.Builders
 {
     public class SqlObjectNames
     {
-        internal const string insertTriggerName = "[{0}].[{1}insert_trigger]";
-        internal const string updateTriggerName = "[{0}].[{1}update_trigger]";
-        internal const string deleteTriggerName = "[{0}].[{1}delete_trigger]";
 
-        internal const string selectChangesProcName = "[{0}].[{1}{2}changes]";
-        internal const string selectChangesProcNameWithFilters = "[{0}].[{1}{2}{3}changes]";
+        internal const string InsertTriggerName = "[{0}].[{1}insert_trigger]";
+        internal const string UpdateTriggerName = "[{0}].[{1}update_trigger]";
+        internal const string DeleteTriggerName = "[{0}].[{1}delete_trigger]";
 
-        internal const string initializeChangesProcName = "[{0}].[{1}{2}initialize]";
-        internal const string initializeChangesProcNameWithFilters = "[{0}].[{1}{2}{3}initialize]";
+        internal const string SelectChangesProcName = "[{0}].[{1}{2}changes]";
+        internal const string SelectChangesProcNameWithFilters = "[{0}].[{1}{2}{3}changes]";
 
-        internal const string selectRowProcName = "[{0}].[{1}{2}selectrow]";
+        internal const string InitializeChangesProcName = "[{0}].[{1}{2}initialize]";
+        internal const string InitializeChangesProcNameWithFilters = "[{0}].[{1}{2}{3}initialize]";
 
-        internal const string insertProcName = "[{0}].[{1}{2}insert]";
-        internal const string updateProcName = "[{0}].[{1}{2}update]";
-        internal const string deleteProcName = "[{0}].[{1}{2}delete]";
+        internal const string SelectRowProcName = "[{0}].[{1}{2}selectrow]";
 
-        internal const string resetMetadataProcName = "[{0}].[{1}{2}reset]";
+        internal const string InsertProcName = "[{0}].[{1}{2}insert]";
+        internal const string UpdateProcName = "[{0}].[{1}{2}update]";
+        internal const string DeleteProcName = "[{0}].[{1}{2}delete]";
 
-        internal const string bulkTableTypeName = "[{0}].[{1}{2}BulkType]";
+        internal const string ResetMetadataProcName = "[{0}].[{1}{2}reset]";
 
-        internal const string bulkInsertProcName = "[{0}].[{1}{2}bulkinsert]";
-        internal const string bulkUpdateProcName = "[{0}].[{1}{2}bulkupdate]";
-        internal const string bulkDeleteProcName = "[{0}].[{1}{2}bulkdelete]";
+        internal const string BulkTableTypeName = "[{0}].[{1}{2}BulkType]";
 
-        internal const string disableConstraintsText = "ALTER TABLE {0} NOCHECK CONSTRAINT ALL";
-        internal const string enableConstraintsText = "ALTER TABLE {0} CHECK CONSTRAINT ALL";
-        internal const string deleteMetadataText = "DELETE [side] FROM {0} [side] WHERE [side].[timestamp] <= @sync_row_timestamp";
+        internal const string BulkInsertProcName = "[{0}].[{1}{2}bulkinsert]";
+        internal const string BulkUpdateProcName = "[{0}].[{1}{2}bulkupdate]";
+        internal const string BulkDeleteProcName = "[{0}].[{1}{2}bulkdelete]";
+
+        internal const string DisableConstraintsText = "ALTER TABLE {0} NOCHECK CONSTRAINT ALL";
+        internal const string EnableConstraintsText = "ALTER TABLE {0} CHECK CONSTRAINT ALL";
+        internal const string DeleteMetadataText = "DELETE [side] FROM {0} [side] WHERE [side].[timestamp] <= @sync_row_timestamp";
 
         private readonly ParserName tableName;
         private readonly ParserName trackingName;
 
-
-        Dictionary<DbStoredProcedureType, string> storedProceduresNames = new();
-        Dictionary<DbTriggerType, string> triggersNames = new();
-        Dictionary<DbCommandType, string> commandNames = new();
-        private readonly SqlDbMetadata sqlDbMetadata;
+        private Dictionary<DbStoredProcedureType, string> storedProceduresNames = [];
+        private Dictionary<DbTriggerType, string> triggersNames = [];
+        private Dictionary<DbCommandType, string> commandNames = [];
 
         public SyncTable TableDescription { get; }
+
         public SyncSetup Setup { get; }
+
         public string ScopeName { get; }
 
         public void AddStoredProcedureName(DbStoredProcedureType objectType, string name)
         {
-            if (storedProceduresNames.ContainsKey(objectType))
+            if (this.storedProceduresNames.ContainsKey(objectType))
                 throw new Exception("Yous can't add an objectType multiple times");
 
-            storedProceduresNames.Add(objectType, name);
+            this.storedProceduresNames.Add(objectType, name);
         }
 
         public string GetStoredProcedureCommandName(DbStoredProcedureType storedProcedureType, SyncFilter filter = null)
         {
-            if (!storedProceduresNames.TryGetValue(storedProcedureType, out var commandName))
+            if (!this.storedProceduresNames.TryGetValue(storedProcedureType, out var commandName))
                 throw new Exception("Yous should provide a value for all DbCommandName");
 
             // concat filter name
@@ -74,15 +72,15 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public void AddTriggerName(DbTriggerType objectType, string name)
         {
-            if (triggersNames.ContainsKey(objectType))
+            if (this.triggersNames.ContainsKey(objectType))
                 throw new Exception("Yous can't add an objectType multiple times");
 
-            triggersNames.Add(objectType, name);
+            this.triggersNames.Add(objectType, name);
         }
 
         public string GetTriggerCommandName(DbTriggerType objectType, SyncFilter filter = null)
         {
-            if (!triggersNames.TryGetValue(objectType, out var commandName))
+            if (!this.triggersNames.TryGetValue(objectType, out var commandName))
                 throw new Exception("Yous should provide a value for all DbCommandName");
 
             // concat filter name
@@ -94,15 +92,15 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         public void AddCommandName(DbCommandType objectType, string name)
         {
-            if (commandNames.ContainsKey(objectType))
+            if (this.commandNames.ContainsKey(objectType))
                 throw new Exception($"Yous can't add an objectType ${objectType} multiple times");
 
-            commandNames.Add(objectType, name);
+            this.commandNames.Add(objectType, name);
         }
 
         public string GetCommandName(DbCommandType objectType, SyncFilter filter = null)
         {
-            if (!commandNames.TryGetValue(objectType, out var commandName))
+            if (!this.commandNames.TryGetValue(objectType, out var commandName))
                 throw new Exception("Yous should provide a value for all DbCommandName");
 
             // concat filter name
@@ -120,11 +118,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.Setup = setup;
             this.ScopeName = scopeName;
             this.SetDefaultNames();
-            this.sqlDbMetadata = new SqlDbMetadata();
         }
 
         /// <summary>
-        /// Set the default stored procedures names
+        /// Set the default stored procedures names.
         /// </summary>
         private void SetDefaultNames()
         {
@@ -133,45 +130,44 @@ namespace Dotmim.Sync.SqlServer.Builders
             var tpref = this.Setup?.TriggersPrefix;
             var tsuf = this.Setup?.TriggersSuffix;
 
-            var tableName = ParserName.Parse(TableDescription);
+            var tableName = ParserName.Parse(this.TableDescription);
 
-            var scopeNameWithoutDefaultScope = ScopeName == SyncOptions.DefaultScopeName ? "" : $"{ScopeName}_";
+            var scopeNameWithoutDefaultScope = this.ScopeName == SyncOptions.DefaultScopeName ? string.Empty : $"{this.ScopeName}_";
 
             var schema = string.IsNullOrEmpty(tableName.SchemaName) ? "dbo" : tableName.SchemaName;
 
-            var storedProcedureName = $"{pref}{tableName.Unquoted().Normalized().ToString()}{suf}_";
-            var triggerName = $"{tpref}{tableName.Unquoted().Normalized().ToString()}{tsuf}_";
+            var storedProcedureName = $"{pref}{tableName.Unquoted().Normalized()}{suf}_";
+            var triggerName = $"{tpref}{tableName.Unquoted().Normalized()}{tsuf}_";
 
-            this.AddStoredProcedureName(DbStoredProcedureType.SelectChanges, string.Format(selectChangesProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
-            this.AddStoredProcedureName(DbStoredProcedureType.SelectChangesWithFilters, string.Format(selectChangesProcNameWithFilters, schema, storedProcedureName, scopeNameWithoutDefaultScope, "{0}_"));
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectChanges, string.Format(SelectChangesProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectChangesWithFilters, string.Format(SelectChangesProcNameWithFilters, schema, storedProcedureName, scopeNameWithoutDefaultScope, "{0}_"));
 
-            this.AddStoredProcedureName(DbStoredProcedureType.SelectInitializedChanges, string.Format(initializeChangesProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
-            this.AddStoredProcedureName(DbStoredProcedureType.SelectInitializedChangesWithFilters, string.Format(initializeChangesProcNameWithFilters, schema, storedProcedureName, scopeNameWithoutDefaultScope, "{0}_"));
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectInitializedChanges, string.Format(InitializeChangesProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectInitializedChangesWithFilters, string.Format(InitializeChangesProcNameWithFilters, schema, storedProcedureName, scopeNameWithoutDefaultScope, "{0}_"));
 
-            this.AddStoredProcedureName(DbStoredProcedureType.SelectRow, string.Format(selectRowProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
-            this.AddStoredProcedureName(DbStoredProcedureType.UpdateRow, string.Format(updateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
-            this.AddStoredProcedureName(DbStoredProcedureType.DeleteRow, string.Format(deleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
-            this.AddStoredProcedureName(DbStoredProcedureType.Reset, string.Format(resetMetadataProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.SelectRow, string.Format(SelectRowProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.UpdateRow, string.Format(UpdateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.DeleteRow, string.Format(DeleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.Reset, string.Format(ResetMetadataProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
 
-            this.AddTriggerName(DbTriggerType.Insert, string.Format(insertTriggerName, schema, triggerName));
-            this.AddTriggerName(DbTriggerType.Update, string.Format(updateTriggerName, schema, triggerName));
-            this.AddTriggerName(DbTriggerType.Delete, string.Format(deleteTriggerName, schema, triggerName));
+            this.AddTriggerName(DbTriggerType.Insert, string.Format(InsertTriggerName, schema, triggerName));
+            this.AddTriggerName(DbTriggerType.Update, string.Format(UpdateTriggerName, schema, triggerName));
+            this.AddTriggerName(DbTriggerType.Delete, string.Format(DeleteTriggerName, schema, triggerName));
 
-            this.AddStoredProcedureName(DbStoredProcedureType.BulkTableType, string.Format(bulkTableTypeName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
-            this.AddStoredProcedureName(DbStoredProcedureType.BulkUpdateRows, string.Format(bulkUpdateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
-            this.AddStoredProcedureName(DbStoredProcedureType.BulkDeleteRows, string.Format(bulkDeleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.BulkTableType, string.Format(BulkTableTypeName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.BulkUpdateRows, string.Format(BulkUpdateProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
+            this.AddStoredProcedureName(DbStoredProcedureType.BulkDeleteRows, string.Format(BulkDeleteProcName, schema, storedProcedureName, scopeNameWithoutDefaultScope));
 
-            this.AddCommandName(DbCommandType.DisableConstraints, string.Format(disableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()));
-            this.AddCommandName(DbCommandType.EnableConstraints, string.Format(enableConstraintsText, ParserName.Parse(TableDescription).Schema().Quoted().ToString()));
+            this.AddCommandName(DbCommandType.DisableConstraints, string.Format(DisableConstraintsText, ParserName.Parse(this.TableDescription).Schema().Quoted().ToString()));
+            this.AddCommandName(DbCommandType.EnableConstraints, string.Format(EnableConstraintsText, ParserName.Parse(this.TableDescription).Schema().Quoted().ToString()));
 
-            this.AddCommandName(DbCommandType.DeleteMetadata, string.Format(deleteMetadataText, trackingName.Schema().Quoted().ToString()));
+            this.AddCommandName(DbCommandType.DeleteMetadata, string.Format(DeleteMetadataText, this.trackingName.Schema().Quoted().ToString()));
 
-            this.AddCommandName(DbCommandType.UpdateUntrackedRows, CreateUpdateUntrackedRowsCommand());
-            this.AddCommandName(DbCommandType.SelectMetadata, CreateSelectMetadataCommand());
-            this.AddCommandName(DbCommandType.UpdateMetadata, CreateUpdateMetadataCommand());
-            this.AddCommandName(DbCommandType.SelectRow, CreateSelectRowCommand());
-            this.AddCommandName(DbCommandType.Reset, CreateResetCommand());
-
+            this.AddCommandName(DbCommandType.UpdateUntrackedRows, this.CreateUpdateUntrackedRowsCommand());
+            this.AddCommandName(DbCommandType.SelectMetadata, this.CreateSelectMetadataCommand());
+            this.AddCommandName(DbCommandType.UpdateMetadata, this.CreateUpdateMetadataCommand());
+            this.AddCommandName(DbCommandType.SelectRow, this.CreateSelectRowCommand());
+            this.AddCommandName(DbCommandType.Reset, this.CreateResetCommand());
         }
 
         private string CreateSelectMetadataCommand()
@@ -182,7 +178,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             string and = string.Empty;
             string comma = string.Empty;
-            foreach (var pkColumn in TableDescription.GetPrimaryKeysColumns())
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
@@ -195,7 +191,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
             stringBuilder.AppendLine($"SELECT {pkeysSelect}, [side].[update_scope_id], [side].[timestamp_bigint] as [timestamp], [side].[sync_row_is_tombstone]");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"FROM {this.trackingName.Schema().Quoted()} [side]");
             stringBuilder.AppendLine($"WHERE {pkeysWhere}");
 
             return stringBuilder.ToString();
@@ -214,7 +210,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             string and = string.Empty;
             string comma = string.Empty;
-            foreach (var pkColumn in TableDescription.GetPrimaryKeysColumns())
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
@@ -230,28 +226,26 @@ namespace Dotmim.Sync.SqlServer.Builders
                 comma = ", ";
             }
 
-
             stringBuilder.AppendLine($"UPDATE [side] SET ");
             stringBuilder.AppendLine($" [update_scope_id] = @sync_scope_id, ");
             stringBuilder.AppendLine($" [sync_row_is_tombstone] = @sync_row_is_tombstone, ");
             stringBuilder.AppendLine($" [last_change_datetime] = GETUTCDATE() ");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"FROM {this.trackingName.Schema().Quoted()} [side]");
             stringBuilder.Append($"WHERE ");
-            stringBuilder.Append(pkeysForUpdate.ToString());
+            stringBuilder.Append(pkeysForUpdate);
             stringBuilder.AppendLine($";");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.AppendLine($"INSERT INTO {this.trackingName.Schema().Quoted()} (");
             stringBuilder.AppendLine(pkeySelectForInsert.ToString());
             stringBuilder.AppendLine(",[update_scope_id], [sync_row_is_tombstone],[last_change_datetime] )");
-            stringBuilder.AppendLine($"SELECT {pkeyISelectForInsert.ToString()} ");
+            stringBuilder.AppendLine($"SELECT {pkeyISelectForInsert} ");
             stringBuilder.AppendLine($"   , i.sync_scope_id, i.sync_row_is_tombstone, i.UtcDate");
             stringBuilder.AppendLine("FROM (");
             stringBuilder.AppendLine($"  SELECT {pkeyAliasSelectForInsert}");
             stringBuilder.AppendLine($"          ,@sync_scope_id as sync_scope_id, @sync_row_is_tombstone as sync_row_is_tombstone, GETUTCDATE() as UtcDate) as i");
-            stringBuilder.AppendLine($"LEFT JOIN  {trackingName.Schema().Quoted().ToString()} [side] ON {pkeysLeftJoinForInsert.ToString()} ");
-            stringBuilder.AppendLine($"WHERE {pkeysIsNullForInsert.ToString()};");
-
+            stringBuilder.AppendLine($"LEFT JOIN  {this.trackingName.Schema().Quoted()} [side] ON {pkeysLeftJoinForInsert} ");
+            stringBuilder.AppendLine($"WHERE {pkeysIsNullForInsert};");
 
             return stringBuilder.ToString();
         }
@@ -264,11 +258,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             var str3 = new StringBuilder();
             var str4 = SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[side]", "[base]");
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.AppendLine($"INSERT INTO {this.trackingName.Schema().Quoted()} (");
 
-
-            var comma = "";
-            foreach (var pkeyColumn in TableDescription.GetPrimaryKeysColumns())
+            var comma = string.Empty;
+            foreach (var pkeyColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var pkeyColumnName = ParserName.Parse(pkeyColumn).Quoted().ToString();
 
@@ -278,22 +271,22 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 comma = ", ";
             }
-            stringBuilder.Append(str1.ToString());
+
+            stringBuilder.Append(str1);
             stringBuilder.AppendLine($", [update_scope_id], [sync_row_is_tombstone], [last_change_datetime]");
             stringBuilder.AppendLine($")");
             stringBuilder.Append($"SELECT ");
-            stringBuilder.Append(str2.ToString());
+            stringBuilder.Append(str2);
             stringBuilder.AppendLine($", NULL, 0, GetUtcDate()");
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} as [base] WHERE NOT EXISTS");
+            stringBuilder.AppendLine($"FROM {this.tableName.Schema().Quoted()} as [base] WHERE NOT EXISTS");
             stringBuilder.Append($"(SELECT ");
-            stringBuilder.Append(str3.ToString());
-            stringBuilder.AppendLine($" FROM {trackingName.Schema().Quoted().ToString()} as [side] ");
+            stringBuilder.Append(str3);
+            stringBuilder.AppendLine($" FROM {this.trackingName.Schema().Quoted()} as [side] ");
             stringBuilder.AppendLine($"WHERE {str4})");
 
             var r = stringBuilder.ToString();
 
             return r;
-
         }
 
         private string CreateSelectRowCommand()
@@ -310,6 +303,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder1.Append($"{empty}[side].{columnName} = @{parameterName}");
                 empty = " AND ";
             }
+
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
@@ -321,11 +315,12 @@ namespace Dotmim.Sync.SqlServer.Builders
                 else
                     stringBuilder.AppendLine($"\t[base].{columnName}, ");
             }
+
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone] as [sync_row_is_tombstone], ");
             stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id]");
 
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
-            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON");
+            stringBuilder.AppendLine($"FROM {this.tableName.Schema().Quoted()} [base]");
+            stringBuilder.AppendLine($"RIGHT JOIN {this.trackingName.Schema().Quoted()} [side] ON");
 
             string str = string.Empty;
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
@@ -334,6 +329,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append($"{str}[base].{columnName} = [side].{columnName}");
                 str = " AND ";
             }
+
             stringBuilder.AppendLine();
             stringBuilder.Append(string.Concat("WHERE ", stringBuilder1.ToString()));
             return stringBuilder.ToString();
@@ -341,33 +337,29 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         private string CreateResetCommand()
         {
-            var updTriggerName = GetTriggerCommandName(DbTriggerType.Update);
-            var delTriggerName = GetTriggerCommandName(DbTriggerType.Delete);
-            var insTriggerName = GetTriggerCommandName(DbTriggerType.Insert);
-
-         
+            var updTriggerName = this.GetTriggerCommandName(DbTriggerType.Update);
+            var delTriggerName = this.GetTriggerCommandName(DbTriggerType.Delete);
+            var insTriggerName = this.GetTriggerCommandName(DbTriggerType.Insert);
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"SET @sync_row_count = 0;");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"DISABLE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted()};");
-            stringBuilder.AppendLine($"DISABLE TRIGGER {insTriggerName} ON {tableName.Schema().Quoted()};");
-            stringBuilder.AppendLine($"DISABLE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"DISABLE TRIGGER {updTriggerName} ON {this.tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"DISABLE TRIGGER {insTriggerName} ON {this.tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"DISABLE TRIGGER {delTriggerName} ON {this.tableName.Schema().Quoted()};");
 
-            stringBuilder.AppendLine($"DELETE FROM {tableName.Schema().Quoted()};");
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"DELETE FROM {this.tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"DELETE FROM {this.trackingName.Schema().Quoted()};");
 
-            stringBuilder.AppendLine($"ENABLE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted()};");
-            stringBuilder.AppendLine($"ENABLE TRIGGER {insTriggerName} ON {tableName.Schema().Quoted()};");
-            stringBuilder.AppendLine($"ENABLE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted()};");
-
+            stringBuilder.AppendLine($"ENABLE TRIGGER {updTriggerName} ON {this.tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"ENABLE TRIGGER {insTriggerName} ON {this.tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"ENABLE TRIGGER {delTriggerName} ON {this.tableName.Schema().Quoted()};");
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(string.Concat("SET @sync_row_count = @@ROWCOUNT;"));
 
             return stringBuilder.ToString();
         }
-
     }
 }

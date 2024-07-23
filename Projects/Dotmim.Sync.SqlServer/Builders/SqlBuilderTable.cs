@@ -1,53 +1,47 @@
 ﻿using Dotmim.Sync.Builders;
-
-
+using Dotmim.Sync.Manager;
 using Dotmim.Sync.SqlServer.Manager;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using Microsoft.Data.SqlClient;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Dotmim.Sync.Manager;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
+
+    /// <summary>
+    /// Sql table builder for Sql Server.
+    /// </summary>
     public class SqlBuilderTable
     {
         private ParserName tableName;
-        private ParserName trackingName;
         private SyncTable tableDescription;
-        private readonly SyncSetup setup;
         private SqlDbMetadata sqlDbMetadata;
 
-
+        /// <inheritdoc cref="SqlBuilderTable"/>
         public SqlBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
             this.tableDescription = tableDescription;
-            this.setup = setup;
             this.tableName = tableName;
-            this.trackingName = trackingName;
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
-
-
-
-        private Dictionary<string, string> createdRelationNames = new Dictionary<string, string>();
+        private Dictionary<string, string> createdRelationNames = [];
 
         private static string GetRandomString() =>
-            Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+            Path.GetRandomFileName().Replace(".", string.Empty).ToLowerInvariant();
 
         /// <summary>
-        /// Ensure the relation name is correct to be created in MySql
+        /// Ensure the relation name is correct to be created in MySql.
         /// </summary>
         public string NormalizeRelationName(string relation)
         {
-            if (createdRelationNames.TryGetValue(relation, out var name))
+            if (this.createdRelationNames.TryGetValue(relation, out var name))
                 return name;
 
             name = relation;
@@ -56,9 +50,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                 name = $"{relation.Substring(0, 110)}_{GetRandomString()}";
 
             // MySql could have a special character in its relation names
-            name = name.Replace("~", "").Replace("#", "");
+            name = name.Replace("~", string.Empty).Replace("#", string.Empty);
 
-            createdRelationNames.Add(relation, name);
+            this.createdRelationNames.Add(relation, name);
 
             return name;
         }
@@ -66,10 +60,10 @@ namespace Dotmim.Sync.SqlServer.Builders
         private SqlCommand BuildCreateTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
-            var tbl = tableName.ToString();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var tbl = this.tableName.ToString();
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(this.tableName);
 
-            stringBuilder.AppendLine($"CREATE TABLE {tableName.Schema().Quoted().ToString()} (");
+            stringBuilder.AppendLine($"CREATE TABLE {this.tableName.Schema().Quoted()} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
@@ -83,6 +77,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     var s = column.GetAutoIncrementSeedAndStep();
                     identity = $"IDENTITY({s.Seed},{s.Step})";
                 }
+
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
                 // if we have a computed column, we should allow null
@@ -104,11 +99,12 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {nullString} {defaultValue}");
                 empty = ",";
             }
+
             stringBuilder.AppendLine(");");
 
             // Primary Keys
-            var primaryKeyNameString = tableName.Schema().Unquoted().Normalized().ToString();
-            stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted().ToString()} ADD CONSTRAINT [PK_{primaryKeyNameString}] PRIMARY KEY(");
+            var primaryKeyNameString = this.tableName.Schema().Unquoted().Normalized().ToString();
+            stringBuilder.AppendLine($"ALTER TABLE {this.tableName.Schema().Quoted()} ADD CONSTRAINT [PK_{primaryKeyNameString}] PRIMARY KEY(");
             for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
                 var pkColumn = this.tableDescription.PrimaryKeys[i];
@@ -118,6 +114,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (i < this.tableDescription.PrimaryKeys.Count - 1)
                     stringBuilder.Append(", ");
             }
+
             stringBuilder.AppendLine(");");
 
             // Foreign Keys
@@ -125,7 +122,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 var tableName = ParserName.Parse(constraint.GetTable()).Quoted().Schema().ToString();
                 var parentTableName = ParserName.Parse(constraint.GetParentTable()).Quoted().Schema().ToString();
-                var relationName = NormalizeRelationName(constraint.RelationName);
+                var relationName = this.NormalizeRelationName(constraint.RelationName);
 
                 stringBuilder.Append("ALTER TABLE ");
                 stringBuilder.Append(tableName);
@@ -140,6 +137,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     stringBuilder.Append($"{empty} {childColumnName}");
                     empty = ", ";
                 }
+
                 stringBuilder.AppendLine(" )");
                 stringBuilder.Append("REFERENCES ");
                 stringBuilder.Append(parentTableName).Append(" (");
@@ -150,8 +148,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                     stringBuilder.Append($"{empty} {parentColumnName}");
                     empty = ", ";
                 }
+
                 stringBuilder.Append(" ) ");
             }
+
             string createTableCommandString = stringBuilder.ToString();
 
             var command = new SqlCommand(createTableCommandString, (SqlConnection)connection, (SqlTransaction)transaction);
@@ -159,23 +159,26 @@ namespace Dotmim.Sync.SqlServer.Builders
             SqlParameter sqlParameter = new SqlParameter()
             {
                 ParameterName = "@tableName",
-                Value = tbl
+                Value = tbl,
             };
             command.Parameters.Add(sqlParameter);
 
             sqlParameter = new SqlParameter()
             {
                 ParameterName = "@schemaName",
-                Value = schema
+                Value = schema,
             };
             command.Parameters.Add(sqlParameter);
 
             return command;
         }
 
+        /// <summary>
+        /// Get the primary keys for the current table.
+        /// </summary>
         internal async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction)
         {
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(this.tableName);
             var syncTableKeys = await SqlManagementUtils.GetPrimaryKeysForTableAsync(this.tableName.ToString(), schema, (SqlConnection)connection, (SqlTransaction)transaction).ConfigureAwait(false);
 
             var lstKeys = new List<SyncColumn>();
@@ -188,11 +191,14 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
             return lstKeys;
-
         }
+
+        /// <summary>
+        /// Get relations definition for the current table.
+        /// </summary>
         internal async Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync(DbConnection connection, DbTransaction transaction)
         {
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(this.tableName);
             var relations = new List<DbRelationDefinition>();
             var tableRelations = await SqlManagementUtils.GetRelationsForTableAsync((SqlConnection)connection, (SqlTransaction)transaction, this.tableName.ToString(), schema).ConfigureAwait(false);
 
@@ -203,9 +209,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                 {
                     Name = (string)row["ForeignKey"],
                     TableName = (string)row["TableName"],
-                    SchemaName = (string)row["SchemaName"] == "dbo" ? "" : (string)row["SchemaName"],
+                    SchemaName = (string)row["SchemaName"] == "dbo" ? string.Empty : (string)row["SchemaName"],
                     ReferenceTableName = (string)row["ReferenceTableName"],
-                    ReferenceSchemaName = (string)row["ReferenceSchemaName"] == "dbo" ? "" : (string)row["ReferenceSchemaName"],
+                    ReferenceSchemaName = (string)row["ReferenceSchemaName"] == "dbo" ? string.Empty : (string)row["ReferenceSchemaName"],
                 }))
                 {
                     var relationDefinition = new DbRelationDefinition()
@@ -222,20 +228,24 @@ namespace Dotmim.Sync.SqlServer.Builders
                        {
                            KeyColumnName = (string)dmRow["ColumnName"],
                            ReferenceColumnName = (string)dmRow["ReferenceColumnName"],
-                           Order = (int)dmRow["ForeignKeyOrder"]
+                           Order = (int)dmRow["ForeignKeyOrder"],
                        }));
 
                     relations.Add(relationDefinition);
                 }
-
             }
-            return relations.OrderBy(t => t.ForeignKey).ToArray();
 
+            return [.. relations.OrderBy(t => t.ForeignKey)];
         }
+
+        /// <summary>
+        /// Get the table columns definition.
+        /// </summary>
         internal async Task<IEnumerable<SyncColumn>> GetColumnsAsync(DbConnection connection, DbTransaction transaction)
         {
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(this.tableName);
             var columns = new List<SyncColumn>();
+
             // Get the columns definition
             var syncTableColumnsList = await SqlManagementUtils.GetColumnsForTableAsync(this.tableName.ToString(), schema, (SqlConnection)connection, (SqlTransaction)transaction).ConfigureAwait(false);
 
@@ -245,12 +255,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var name = c["name"].ToString();
                 var maxLengthLong = Convert.ToInt64(c["max_length"]);
 
-                //// Gets the datastore owner dbType 
-                //var datastoreDbType = (SqlDbType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, maxLengthLong);
+                //// Gets the datastore owner dbType
+                // var datastoreDbType = (SqlDbType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, maxLengthLong);
 
                 //// once we have the datastore type, we can have the managed type
-                //var columnType = sqlDbMetadata.ValidateType(datastoreDbType);
-
+                // var columnType = sqlDbMetadata.ValidateType(datastoreDbType);
                 var sColumn = new SyncColumn(name)
                 {
                     OriginalDbType = typeName,
@@ -261,9 +270,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                     Scale = (byte)c["scale"],
                     AllowDBNull = (bool)c["is_nullable"],
                     IsAutoIncrement = (bool)c["is_identity"],
-                    IsUnique = c["is_unique"] != DBNull.Value ? (bool)c["is_unique"] : false,
+                    IsUnique = c["is_unique"] != DBNull.Value && (bool)c["is_unique"],
                     IsCompute = (bool)c["is_computed"],
-                    DefaultValue = c["defaultvalue"] != DBNull.Value ? c["defaultvalue"].ToString() : null
+                    DefaultValue = c["defaultvalue"] != DBNull.Value ? c["defaultvalue"].ToString() : null,
                 };
 
                 if (sColumn.IsAutoIncrement)
@@ -272,16 +281,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                     sColumn.AutoIncrementStep = Convert.ToInt64(c["step"]);
                 }
 
-                switch (sColumn.OriginalTypeName.ToLowerInvariant())
+                sColumn.IsUnicode = sColumn.OriginalTypeName.ToLowerInvariant() switch
                 {
-                    case "nchar":
-                    case "nvarchar":
-                        sColumn.IsUnicode = true;
-                        break;
-                    default:
-                        sColumn.IsUnicode = false;
-                        break;
-                }
+                    "nchar" or "nvarchar" => true,
+                    _ => false,
+                };
 
                 // No unsigned type in SQL Server
                 sColumn.IsUnsigned = false;
@@ -291,9 +295,13 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return columns;
         }
+
+        /// <summary>
+        /// Get the create schema command.
+        /// </summary>
         public Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(this.tableName);
 
             if (schema == "dbo")
                 return Task.FromResult<DbCommand>(null);
@@ -306,15 +314,23 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return Task.FromResult(command);
         }
+
+        /// <summary>
+        /// Get Create table command.
+        /// </summary>
         public Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var command = BuildCreateTableCommand(connection, transaction);
+            var command = this.BuildCreateTableCommand(connection, transaction);
             return Task.FromResult((DbCommand)command);
         }
+
+        /// <summary>
+        /// Get Exists table command.
+        /// </summary>
         public Task<DbCommand> GetExistsTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var tbl = tableName.ToString();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var tbl = this.tableName.ToString();
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(this.tableName);
 
             var command = connection.CreateCommand();
 
@@ -334,9 +350,13 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return Task.FromResult(command);
         }
+
+        /// <summary>
+        /// Get Exists schema command.
+        /// </summary>
         public Task<DbCommand> GetExistsSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(this.tableName);
 
             var command = connection.CreateCommand();
 
@@ -352,20 +372,22 @@ namespace Dotmim.Sync.SqlServer.Builders
             return Task.FromResult(command);
         }
 
+        /// <summary>
+        /// Get Drop table command.
+        /// </summary>
         public Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
-            var tbl = tableName.ToString();
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(this.tableName);
+            var tbl = this.tableName.ToString();
 
             command.Connection = connection;
             command.Transaction = transaction;
             command.CommandText = $"IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) " +
                 $"BEGIN " +
-                $"ALTER TABLE {tableName.Schema().Quoted().ToString()} NOCHECK CONSTRAINT ALL; " +
-                $"DROP TABLE {tableName.Schema().Quoted().ToString()}; " +
+                $"ALTER TABLE {this.tableName.Schema().Quoted()} NOCHECK CONSTRAINT ALL; " +
+                $"DROP TABLE {this.tableName.Schema().Quoted()}; " +
                 $"END";
-
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
@@ -380,6 +402,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             return Task.FromResult(command);
         }
 
+        /// <summary>
+        /// Get Add column command.
+        /// </summary>
         public Task<DbCommand> GetAddColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
@@ -387,7 +412,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             command.Connection = connection;
             command.Transaction = transaction;
 
-            var stringBuilder = new StringBuilder($"ALTER TABLE {tableName.Schema().Quoted().ToString()} WITH NOCHECK ");
+            var stringBuilder = new StringBuilder($"ALTER TABLE {this.tableName.Schema().Quoted()} WITH NOCHECK ");
 
             var column = this.tableDescription.Columns[columnName];
             var columnNameString = ParserName.Parse(column).Quoted().ToString();
@@ -400,6 +425,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var s = column.GetAutoIncrementSeedAndStep();
                 identity = $"IDENTITY({s.Seed},{s.Step})";
             }
+
             var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
             // if we have a computed column, we should allow null
@@ -425,21 +451,27 @@ namespace Dotmim.Sync.SqlServer.Builders
             return Task.FromResult(command);
         }
 
+        /// <summary>
+        /// Get Drop column command.
+        /// </summary>
         public Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
 
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} WITH NOCHECK DROP COLUMN {columnName};";
+            command.CommandText = $"ALTER TABLE {this.tableName.Schema().Quoted()} WITH NOCHECK DROP COLUMN {columnName};";
 
             return Task.FromResult(command);
         }
 
+        /// <summary>
+        /// Get Exists column command.
+        /// </summary>
         public Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
-            var tbl = tableName.ToString();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var tbl = this.tableName.ToString();
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(this.tableName);
 
             var command = connection.CreateCommand();
 
@@ -468,8 +500,5 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return Task.FromResult(command);
         }
-
     }
-
-
 }

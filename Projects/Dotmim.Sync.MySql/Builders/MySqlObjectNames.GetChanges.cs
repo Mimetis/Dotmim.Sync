@@ -1,9 +1,4 @@
 ﻿using Dotmim.Sync.Builders;
-using MySqlConnector;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.Common;
 using System.Linq;
 using System.Text;
 
@@ -13,6 +8,9 @@ namespace Dotmim.Sync.MariaDB.Builders
 namespace Dotmim.Sync.MySql.Builders
 #endif
 {
+    /// <summary>
+    /// My Sql Object Names.
+    /// </summary>
     public partial class MySqlObjectNames
     {
         //------------------------------------------------------------------
@@ -20,7 +18,7 @@ namespace Dotmim.Sync.MySql.Builders
         //------------------------------------------------------------------
 
         /// <summary>
-        /// Create all custom joins from within a filter 
+        /// Create all custom joins from within a filter.
         /// </summary>
         protected string CreateFilterCustomJoins(SyncFilter filter)
         {
@@ -73,7 +71,7 @@ namespace Dotmim.Sync.MySql.Builders
         }
 
         /// <summary>
-        /// Create all side where criteria from within a filter
+        /// Create all side where criteria from within a filter.
         /// </summary>
         protected string CreateFilterWhereSide(SyncFilter filter, bool checkTombstoneRows = false)
         {
@@ -89,7 +87,6 @@ namespace Dotmim.Sync.MySql.Builders
                 stringBuilder.AppendLine($"(");
 
             stringBuilder.AppendLine($" (");
-
 
             var and2 = "   ";
 
@@ -125,8 +122,8 @@ namespace Dotmim.Sync.MySql.Builders
                 stringBuilder.Append($")");
 
                 and2 = " AND ";
-
             }
+
             stringBuilder.AppendLine();
 
             stringBuilder.AppendLine($"  )");
@@ -136,14 +133,13 @@ namespace Dotmim.Sync.MySql.Builders
                 stringBuilder.AppendLine($" OR `side`.`sync_row_is_tombstone` = 1");
                 stringBuilder.AppendLine($")");
             }
+
             // Managing when state is tombstone
-
-
             return stringBuilder.ToString();
         }
 
         /// <summary>
-        /// Create all custom wheres from witing a filter
+        /// Create all custom wheres from witing a filter.
         /// </summary>
         protected string CreateFilterCustomWheres(SyncFilter filter)
         {
@@ -180,7 +176,6 @@ namespace Dotmim.Sync.MySql.Builders
             // ----------------------------------
             // Add all columns
             // ----------------------------------
-
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
             {
                 var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
@@ -192,15 +187,17 @@ namespace Dotmim.Sync.MySql.Builders
                 else
                     stringBuilder.AppendLine($"\t`base`.{columnName}, ");
             }
+
             stringBuilder.AppendLine($"\t`side`.`sync_row_is_tombstone`, ");
             stringBuilder.AppendLine($"\t`side`.`update_scope_id` as `sync_update_scope_id` ");
-            stringBuilder.AppendLine($"FROM {tableName.Quoted()} `base`");
+            stringBuilder.AppendLine($"FROM {this.tableName.Quoted()} `base`");
+
             // ----------------------------------
             // Make Right Join
             // ----------------------------------
-            stringBuilder.Append($"RIGHT JOIN {trackingName.Quoted()} `side` ON ");
+            stringBuilder.Append($"RIGHT JOIN {this.trackingName.Quoted()} `side` ON ");
 
-            string empty = "";
+            string empty = string.Empty;
             foreach (var pkColumn in this.TableDescription.PrimaryKeys)
             {
                 var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
@@ -212,7 +209,7 @@ namespace Dotmim.Sync.MySql.Builders
             // Custom Joins
             // ----------------------------------
             if (filter != null)
-                stringBuilder.Append(CreateFilterCustomJoins(filter));
+                stringBuilder.Append(this.CreateFilterCustomJoins(filter));
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
@@ -222,21 +219,20 @@ namespace Dotmim.Sync.MySql.Builders
             // ----------------------------------
             if (filter != null)
             {
-                var createFilterWhereSide = CreateFilterWhereSide(filter, true);
+                var createFilterWhereSide = this.CreateFilterWhereSide(filter, true);
                 stringBuilder.Append(createFilterWhereSide);
 
                 if (!string.IsNullOrEmpty(createFilterWhereSide))
                     stringBuilder.AppendLine($"AND ");
 
-                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
+                var createFilterCustomWheres = this.CreateFilterCustomWheres(filter);
                 stringBuilder.Append(createFilterCustomWheres);
 
                 if (!string.IsNullOrEmpty(createFilterCustomWheres))
                     stringBuilder.AppendLine($"AND ");
             }
+
             // ----------------------------------
-
-
             stringBuilder.AppendLine("\t`side`.`timestamp` > @sync_min_timestamp");
             stringBuilder.AppendLine("\tAND (`side`.`update_scope_id` <> @sync_scope_id OR `side`.`update_scope_id` IS NULL) ");
             stringBuilder.AppendLine(");");
@@ -244,14 +240,13 @@ namespace Dotmim.Sync.MySql.Builders
             return stringBuilder.ToString();
         }
 
-
         //------------------------------------------------------------------
         // Select initial changes command
         //------------------------------------------------------------------
-
         public string CreateSelectInitializedChangesCommand(SyncFilter filter = null)
         {
             var stringBuilder = new StringBuilder();
+
             // if we have a filter we may have joins that will duplicate lines
             if (filter != null)
                 stringBuilder.AppendLine("SELECT DISTINCT");
@@ -264,16 +259,16 @@ namespace Dotmim.Sync.MySql.Builders
                 stringBuilder.AppendLine($"\t{comma}`base`.{ParserName.Parse(mutableColumn, "`").Quoted()}");
                 comma = ", ";
             }
+
             stringBuilder.AppendLine($"\t, `side`.`sync_row_is_tombstone` as `sync_row_is_tombstone`");
-            stringBuilder.AppendLine($"FROM {tableName.Quoted()} `base`");
+            stringBuilder.AppendLine($"FROM {this.tableName.Quoted()} `base`");
 
             // ----------------------------------
             // Make Left Join
             // ----------------------------------
-            stringBuilder.Append($"LEFT JOIN {trackingName.Quoted()} `side` ON ");
+            stringBuilder.Append($"LEFT JOIN {this.trackingName.Quoted()} `side` ON ");
 
-
-            string empty = "";
+            string empty = string.Empty;
             foreach (var pkColumn in this.TableDescription.PrimaryKeys)
             {
                 var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
@@ -285,7 +280,7 @@ namespace Dotmim.Sync.MySql.Builders
             // Custom Joins
             // ----------------------------------
             if (filter != null)
-                stringBuilder.Append(CreateFilterCustomJoins(filter));
+                stringBuilder.Append(this.CreateFilterCustomJoins(filter));
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
@@ -295,20 +290,20 @@ namespace Dotmim.Sync.MySql.Builders
             // ----------------------------------
             if (filter != null)
             {
-                var createFilterWhereSide = CreateFilterWhereSide(filter, true);
+                var createFilterWhereSide = this.CreateFilterWhereSide(filter, true);
                 stringBuilder.Append(createFilterWhereSide);
 
                 if (!string.IsNullOrEmpty(createFilterWhereSide))
                     stringBuilder.AppendLine($"AND ");
 
-                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
+                var createFilterCustomWheres = this.CreateFilterCustomWheres(filter);
                 stringBuilder.Append(createFilterCustomWheres);
 
                 if (!string.IsNullOrEmpty(createFilterCustomWheres))
                     stringBuilder.AppendLine($"AND ");
             }
-            // ----------------------------------
 
+            // ----------------------------------
             stringBuilder.AppendLine("\t(`side`.`timestamp` > @sync_min_timestamp or @sync_min_timestamp IS NULL)");
             stringBuilder.AppendLine(")");
             stringBuilder.AppendLine("UNION");
@@ -326,26 +321,27 @@ namespace Dotmim.Sync.MySql.Builders
 
                 comma = ", ";
             }
+
             stringBuilder.AppendLine($"\t, `side`.`sync_row_is_tombstone` as `sync_row_is_tombstone`");
-            stringBuilder.AppendLine($"FROM {tableName.Quoted()} `base`");
+            stringBuilder.AppendLine($"FROM {this.tableName.Quoted()} `base`");
 
             // ----------------------------------
             // Make Left Join
             // ----------------------------------
-            stringBuilder.Append($"RIGHT JOIN {trackingName.Quoted()} `side` ON ");
+            stringBuilder.Append($"RIGHT JOIN {this.trackingName.Quoted()} `side` ON ");
 
-            empty = "";
+            empty = string.Empty;
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
                 stringBuilder.Append($"{empty}`base`.{columnName} = `side`.{columnName}");
                 empty = " AND ";
             }
+
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (`side`.`timestamp` > @sync_min_timestamp AND `side`.`sync_row_is_tombstone` = 1);");
 
             return stringBuilder.ToString();
         }
-        
     }
 }

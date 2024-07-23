@@ -9,15 +9,14 @@ using MySql.Data.MySqlClient;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.MySql.Builders;
 using System;
-using System.Reflection;
 
 namespace Dotmim.Sync.MySql
 {
 
     public class MySqlSyncProvider : CoreProvider
     {
-        private DbMetadata dbMetadata;
         private static string providerType;
+        private DbMetadata dbMetadata;
         private MySqlConnectionStringBuilder builder;
 
         public override string GetProviderTypeName() => ProviderType;
@@ -98,8 +97,7 @@ namespace Dotmim.Sync.MySql
         /// </summary>
         public override DbMetadata GetMetadata()
         {
-            if (this.dbMetadata == null)
-                this.dbMetadata = new MySqlDbMetadata();
+            this.dbMetadata ??= new MySqlDbMetadata();
             return this.dbMetadata;
         }
 

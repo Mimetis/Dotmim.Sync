@@ -13,8 +13,8 @@ namespace Dotmim.Sync.Sqlite
     public class SqliteSyncProvider : CoreProvider
     {
 
-        private DbMetadata dbMetadata;
         private static string providerType;
+        private DbMetadata dbMetadata;
         private SqliteConnectionStringBuilder builder;
 
         public override DbMetadata GetMetadata()

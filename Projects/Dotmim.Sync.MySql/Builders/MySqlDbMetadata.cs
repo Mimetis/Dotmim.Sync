@@ -1,8 +1,6 @@
 ﻿using Dotmim.Sync.Manager;
 using System;
 using System.Data;
-using System.Data.Common;
-using System.Text;
 #if NET6_0 || NET8_0
 using MySqlConnector;
 #elif NETSTANDARD
@@ -21,6 +19,26 @@ namespace Dotmim.Sync.MySql.Builders
         public const byte PRECISIONDEFAULT = 22;
         public const byte SCALEDEFAULT = 8;
         public const byte SCALEMAX = 30;
+
+        /// <summary>
+        /// Check precision and scale.
+        /// </summary>
+        public static (byte Precision, byte Scale) CoercePrecisionAndScale(int precision, int scale)
+        {
+            byte p = Convert.ToByte(precision);
+            byte s = Convert.ToByte(scale);
+            if (p > PRECISIONMAX)
+                p = PRECISIONMAX;
+
+            if (s > SCALEMAX)
+                s = SCALEMAX;
+
+            // scale should always be lesser than precision
+            if (s >= p && p > 1)
+                s = (byte)(p - 1);
+
+            return (p, s);
+        }
 
         public override DbType GetDbType(SyncColumn columnDefinition)
         {
@@ -338,7 +356,7 @@ namespace Dotmim.Sync.MySql.Builders
             _ => throw new Exception($"sqltype not valid"),
         };
 
-        public (byte precision, byte scale) GetCompatibleColumnPrecisionAndScale(SyncColumn column, string fromProviderType)
+        public (byte Precision, byte Scale) GetCompatibleColumnPrecisionAndScale(SyncColumn column, string fromProviderType)
         {
 #if MARIADB
             var originalProvider = MariaDBSyncProvider.ProviderType;
@@ -397,26 +415,6 @@ namespace Dotmim.Sync.MySql.Builders
                 MySqlDbType.VarBinary => column.MaxLength > 0 ? $"({Math.Min(column.MaxLength, 8000)})" : "(8000)",
                 _ => string.Empty,
             };
-        }
-
-        /// <summary>
-        /// Check precision and scale.
-        /// </summary>
-        public static (byte p, byte s) CoercePrecisionAndScale(int precision, int scale)
-        {
-            byte p = Convert.ToByte(precision);
-            byte s = Convert.ToByte(scale);
-            if (p > PRECISIONMAX)
-                p = PRECISIONMAX;
-
-            if (s > SCALEMAX)
-                s = SCALEMAX;
-
-            // scale should always be lesser than precision
-            if (s >= p && p > 1)
-                s = (byte)(p - 1);
-
-            return (p, s);
         }
     }
 }

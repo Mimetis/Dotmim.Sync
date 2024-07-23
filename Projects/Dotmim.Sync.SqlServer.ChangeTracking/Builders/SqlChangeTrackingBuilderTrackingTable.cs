@@ -31,8 +31,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                               $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id " +
                               $"  Where tbl.name = @tableName and sch.name = @schemaName) SELECT 1 ELSE SELECT 0;";
 
-            var tbl = tableName.Unquoted().ToString();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var tbl = this.tableName.Unquoted().ToString();
+            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(this.tableName);
 
             var command = connection.CreateCommand();
 
@@ -57,16 +57,15 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         {
             var command = connection.CreateCommand();
 
-            //if (setup.HasTableWithColumns(tableDescription.TableName))
-            //{
+            // if (setup.HasTableWithColumns(tableDescription.TableName))
+            // {
             //    command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = ON);";
-            //}
-            //else
-            //{
+            // }
+            // else
+            // {
             //    command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);";
-            //}
-
-            command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted()} ENABLE CHANGE_TRACKING;";
+            // }
+            command.CommandText = $"ALTER TABLE {this.tableName.Schema().Quoted()} ENABLE CHANGE_TRACKING;";
             command.Connection = connection;
             command.Transaction = transaction;
 
@@ -75,7 +74,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
         public Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} DISABLE CHANGE_TRACKING;";
+            var commandText = $"ALTER TABLE {this.tableName.Schema().Quoted()} DISABLE CHANGE_TRACKING;";
 
             var command = connection.CreateCommand();
             command.Connection = connection;

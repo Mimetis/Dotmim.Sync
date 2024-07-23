@@ -3,9 +3,9 @@
 using System.Data;
 using System.Data.Common;
 using System.Text;
-#if NET6_0 || NET8_0 
+#if NET6_0 || NET8_0
 using MySqlConnector;
-#elif NETSTANDARD 
+#elif NETSTANDARD
 using MySql.Data.MySqlClient;
 #endif
 
@@ -17,10 +17,8 @@ namespace Dotmim.Sync.MySql.Builders
 {
     public class MySqlScopeInfoBuilder : DbScopeBuilder
     {
-        public MySqlScopeInfoBuilder(string scopeTableName) : base(scopeTableName)
-        {
-            base.ScopeInfoTableName = ParserName.Parse(scopeTableName, "`");
-        }
+        public MySqlScopeInfoBuilder(string scopeTableName)
+            : base(scopeTableName) => this.ScopeInfoTableName = ParserName.Parse(scopeTableName, "`");
 
         public override DbCommand GetLocalTimestampCommand(DbConnection connection, DbTransaction transaction)
         {
@@ -35,10 +33,8 @@ namespace Dotmim.Sync.MySql.Builders
             return command;
         }
 
-
-        //Exists Scope Table
+        // Exists Scope Table
         // ------------------------------
-
         public override DbCommand GetExistsScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
@@ -49,9 +45,10 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
+
         public override DbCommand GetExistsScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
             var command = connection.CreateCommand();
             command.Transaction = transaction;
 
@@ -59,14 +56,14 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
-        // ------------------------------
 
+        // ------------------------------
 
         // Create Table
         // ------------------------------
         public override DbCommand GetCreateScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}";
             var commandText =
                     $@"CREATE TABLE IF NOT EXISTS `{tableName}`(
                          sync_scope_name varchar(100) NOT NULL,
@@ -83,9 +80,10 @@ namespace Dotmim.Sync.MySql.Builders
             command.CommandText = commandText;
             return command;
         }
+
         public override DbCommand GetCreateScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
 
             var commandText =
                 $@"CREATE TABLE IF NOT EXISTS `{tableName}`(
@@ -107,8 +105,8 @@ namespace Dotmim.Sync.MySql.Builders
             command.CommandText = commandText;
             return command;
         }
-        // ------------------------------
 
+        // ------------------------------
 
         // Get all scopes
         // ------------------------------
@@ -131,11 +129,12 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
+
         public override DbCommand GetAllScopeInfoClientsCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
 
-            var commandText =  $@"SELECT  sync_scope_id
+            var commandText = $@"SELECT  sync_scope_id
                          , sync_scope_name
                          , sync_scope_hash
                          , sync_scope_parameters
@@ -152,8 +151,8 @@ namespace Dotmim.Sync.MySql.Builders
             command.CommandText = commandText;
 
             return command;
-
         }
+
         // ------------------------------
 
         // Get scope
@@ -161,7 +160,7 @@ namespace Dotmim.Sync.MySql.Builders
         public override DbCommand GetScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
-         
+
             var commandText =
                 $@"SELECT sync_scope_name, 
                           sync_scope_schema, 
@@ -183,12 +182,11 @@ namespace Dotmim.Sync.MySql.Builders
             command.Parameters.Add(p);
 
             return command;
-
         }
-      
+
         public override DbCommand GetScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
 
             var commandText =
                     $@"SELECT sync_scope_id
@@ -228,8 +226,8 @@ namespace Dotmim.Sync.MySql.Builders
             command.Parameters.Add(p);
 
             return command;
-
         }
+
         // ------------------------------
 
         // Insert Scope
@@ -297,9 +295,10 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
+
         public override DbCommand GetInsertScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
 
             var stmtText = new StringBuilder(
                 $"INSERT INTO `{tableName}` " +
@@ -381,6 +380,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
+
         // ------------------------------
 
         // Update Scope
@@ -447,11 +447,11 @@ namespace Dotmim.Sync.MySql.Builders
             command.Parameters.Add(p);
 
             return command;
-
         }
+
         public override DbCommand GetUpdateScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
 
             var stmtText = new StringBuilder(
                 $"UPDATE `{tableName}` " +
@@ -536,6 +536,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
+
         // ------------------------------
 
         // Delete scope
@@ -560,10 +561,10 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
-      
+
         public override DbCommand GetDeleteScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
 
             var stmtText = $"Delete From `{tableName}` where sync_scope_id=@sync_scope_id and sync_scope_name=@sync_scope_name and sync_scope_hash=@sync_scope_hash;";
 
@@ -592,13 +593,14 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
+
         // ------------------------------
 
         // Drop Scope table
         // ------------------------------
         public override DbCommand GetDropScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -606,9 +608,10 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
+
         public override DbCommand GetDropScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -616,13 +619,14 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
+
         // ------------------------------
 
         // Exist Client Scope
         // ------------------------------
         public override DbCommand GetExistsScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -636,12 +640,13 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
+
         public override DbCommand GetExistsScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
             command.Transaction = transaction;
 
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized().ToString()}_client";
+            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
             command.CommandText = $@"Select count(*) from `{tableName}` where sync_scope_name=@sync_scope_name and sync_scope_id=@sync_scope_id and sync_scope_hash=@sync_scope_hash";
 
             var p = command.CreateParameter();
@@ -655,7 +660,7 @@ namespace Dotmim.Sync.MySql.Builders
             p.DbType = DbType.Guid;
             p.Size = 36;
             command.Parameters.Add(p);
-            
+
             p = command.CreateParameter();
             p.ParameterName = "@sync_scope_hash";
             p.DbType = DbType.String;
@@ -664,6 +669,5 @@ namespace Dotmim.Sync.MySql.Builders
 
             return command;
         }
-
     }
 }

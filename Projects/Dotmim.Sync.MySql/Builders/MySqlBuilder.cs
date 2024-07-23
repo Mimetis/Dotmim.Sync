@@ -1,14 +1,10 @@
 ﻿using Dotmim.Sync.Builders;
 #if NETCOREAPP
 using MySqlConnector;
-#elif NETSTANDARD 
+#elif NETSTANDARD
 using MySql.Data.MySqlClient;
 #endif
-using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Text;
 using System.Threading.Tasks;
 
 #if MARIADB
@@ -17,24 +13,26 @@ namespace Dotmim.Sync.MariaDB.Builders
 namespace Dotmim.Sync.MySql.Builders
 #endif
 {
+    /// <inheritdoc />
     public class MySqlBuilder : DbBuilder
     {
         public override Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
         {
             return Task.CompletedTask;
-            //using var dbCommand = connection.CreateCommand();
-            //dbCommand.CommandText = $"set global innodb_stats_on_metadata=0;";
 
-            //bool alreadyOpened = connection.State == ConnectionState.Open;
+            // using var dbCommand = connection.CreateCommand();
+            // dbCommand.CommandText = $"set global innodb_stats_on_metadata=0;";
 
-            //if (!alreadyOpened)
+            // bool alreadyOpened = connection.State == ConnectionState.Open;
+
+            // if (!alreadyOpened)
             //    await connection.OpenAsync().ConfigureAwait(false);
 
-            //dbCommand.Transaction = transaction;
+            // dbCommand.Transaction = transaction;
 
-            //await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+            // await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
 
-            //if (!alreadyOpened)
+            // if (!alreadyOpened)
             //    connection.Close();
         }
 
@@ -43,7 +41,6 @@ namespace Dotmim.Sync.MySql.Builders
             var setup = await MySqlManagementUtils.GetAllTablesAsync(connection as MySqlConnection, transaction as MySqlTransaction).ConfigureAwait(false);
             return setup;
         }
-
 
         public override Task<SyncTable> EnsureTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
             => Task.FromResult(new SyncTable(tableName));
@@ -64,8 +61,10 @@ namespace Dotmim.Sync.MySql.Builders
 
         public override Task RenameTableAsync(string tableName, string schemaName, string newTableName, string newSchemaName, DbConnection connection, DbTransaction transaction = null)
              => MySqlManagementUtils.RenameTableAsync(tableName, newTableName, connection as MySqlConnection, transaction as MySqlTransaction);
+
         public override Task<SyncTable> GetTableDefinitionAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
               => MySqlManagementUtils.GetTableDefinitionAsync(tableName, connection as MySqlConnection, transaction as MySqlTransaction);
+
         public override Task<SyncTable> GetTableColumnsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
               => MySqlManagementUtils.GetColumnsForTableAsync(tableName, connection as MySqlConnection, transaction as MySqlTransaction);
     }

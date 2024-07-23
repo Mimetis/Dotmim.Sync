@@ -204,8 +204,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                             Assert.Equal(serverColumn.IsUnicode, clientColumn.IsUnicode);
                             Assert.Equal(serverColumn.IsUnsigned, clientColumn.IsUnsigned);
 
-                            var maxPrecision = Math.Min(SqlDbMetadata.PRECISION_MAX, serverColumn.Precision);
-                            var maxScale = Math.Min(SqlDbMetadata.SCALE_MAX, serverColumn.Scale);
+                            var maxPrecision = Math.Min(SqlDbMetadata.PRECISIONMAX, serverColumn.Precision);
+                            var maxScale = Math.Min(SqlDbMetadata.SCALEMAX, serverColumn.Scale);
 
                             // dont assert max length since numeric reset this value
                             //Assert.Equal(serverColumn.MaxLength, clientColumn.MaxLength);

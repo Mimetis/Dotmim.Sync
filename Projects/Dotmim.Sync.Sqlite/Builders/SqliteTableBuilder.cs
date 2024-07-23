@@ -1,12 +1,12 @@
 using Dotmim.Sync.Builders;
-using System.Text;
-using System.Data.Common;
-using System.Threading.Tasks;
-using System.Collections.Generic;
 using Dotmim.Sync.Manager;
-using System;
 using Microsoft.Data.Sqlite;
+using System;
+using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -21,7 +21,7 @@ namespace Dotmim.Sync.Sqlite
         private SqliteObjectNames sqliteObjectNames;
         private SqliteDbMetadata sqliteDbMetadata;
 
-        public SqliteTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName, bool disableSqlFiltersGeneration) 
+        public SqliteTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName, bool disableSqlFiltersGeneration)
             : base(tableDescription, tableName, trackingTableName, setup, scopeName)
         {
             this.sqliteObjectNames = new SqliteObjectNames(tableDescription, this.TableName, this.TrackingTableName, setup, scopeName, disableSqlFiltersGeneration);
@@ -30,21 +30,21 @@ namespace Dotmim.Sync.Sqlite
 
         private string BuildTableCommandText()
         {
-            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {this.TableName.Quoted().ToString()} (");
+            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS {this.TableName.Quoted()} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
             foreach (var column in this.TableDescription.Columns)
             {
                 var columnName = ParserName.Parse(column).Quoted().ToString();
-                var columnType = this.sqliteDbMetadata.GetCompatibleColumnTypeDeclarationString(column, TableDescription.OriginalProvider);
+                var columnType = this.sqliteDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.TableDescription.OriginalProvider);
 
                 // check case
-                string casesensitive = "";
+                string casesensitive = string.Empty;
                 if (this.sqliteDbMetadata.IsTextType(column))
                 {
-                    casesensitive = SyncGlobalization.IsCaseSensitive() ? "" : "COLLATE NOCASE";
+                    casesensitive = SyncGlobalization.IsCaseSensitive() ? string.Empty : "COLLATE NOCASE";
 
-                    //check if it's a primary key, then, even if it's case sensitive, we turn on case insensitive
+                    // check if it's a primary key, then, even if it's case sensitive, we turn on case insensitive
                     if (SyncGlobalization.IsCaseSensitive())
                     {
                         if (this.TableDescription.PrimaryKeys.Contains(column.ColumnName))
@@ -60,15 +60,17 @@ namespace Dotmim.Sync.Sqlite
                     if (seed > 1 || step > 1)
                         throw new NotSupportedException("can't establish a seed / step in Sqlite autoinc value");
 
-                    //identity = $"AUTOINCREMENT";
+                    // identity = $"AUTOINCREMENT";
                     // Actually no need to set AutoIncrement, if we insert a null value
-                    identity = "";
+                    identity = string.Empty;
                 }
+
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
                 // if auto inc, don't specify NOT NULL option, since we need to insert a null value to make it auto inc.
                 if (column.IsAutoIncrement)
-                    nullString = "";
+                    nullString = string.Empty;
+
                 // if it's a readonly column, it could be a computed column, so we need to allow null
                 else if (column.IsReadOnly)
                     nullString = "NULL";
@@ -76,6 +78,7 @@ namespace Dotmim.Sync.Sqlite
                 stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {nullString} {casesensitive}");
                 empty = ",";
             }
+
             stringBuilder.Append("\t,PRIMARY KEY (");
             for (int i = 0; i < this.TableDescription.PrimaryKeys.Count; i++)
             {
@@ -87,16 +90,16 @@ namespace Dotmim.Sync.Sqlite
                 if (i < this.TableDescription.PrimaryKeys.Count - 1)
                     stringBuilder.Append(", ");
             }
+
             stringBuilder.Append(")");
 
             // Constraints
             foreach (var constraint in this.TableDescription.GetRelations())
             {
-                // Don't want foreign key on same table since it could be a problem on first 
+                // Don't want foreign key on same table since it could be a problem on first
                 // sync. We are not sure that parent row will be inserted in first position
-                //if (constraint.GetParentTable().EqualsByName(constraint.GetTable()))
+                // if (constraint.GetParentTable().EqualsByName(constraint.GetTable()))
                 //    continue;
-
                 var parentTable = constraint.GetParentTable();
                 var parentTableName = ParserName.Parse(parentTable.TableName).Quoted().ToString();
 
@@ -109,6 +112,7 @@ namespace Dotmim.Sync.Sqlite
                     stringBuilder.Append($"{empty} {columnName}");
                     empty = ", ";
                 }
+
                 stringBuilder.Append($") ");
                 stringBuilder.Append($"REFERENCES {parentTableName}(");
                 empty = string.Empty;
@@ -118,8 +122,10 @@ namespace Dotmim.Sync.Sqlite
                     stringBuilder.Append($"{empty} {columnName}");
                     empty = ", ";
                 }
+
                 stringBuilder.AppendLine(" )");
             }
+
             stringBuilder.Append(")");
             return stringBuilder.ToString();
         }
@@ -127,13 +133,13 @@ namespace Dotmim.Sync.Sqlite
         private string BuildTrackingTableCommandText()
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TABLE IF NOT EXISTS {this.TrackingTableName.Quoted().ToString()} (");
+            stringBuilder.AppendLine($"CREATE TABLE IF NOT EXISTS {this.TrackingTableName.Quoted()} (");
 
             // Adding the primary key
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                var columnType = this.sqliteDbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, TableDescription.OriginalProvider);
+                var columnType = this.sqliteDbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, this.TableDescription.OriginalProvider);
                 stringBuilder.AppendLine($"{quotedColumnName} {columnType} NOT NULL COLLATE NOCASE, ");
             }
 
@@ -154,12 +160,12 @@ namespace Dotmim.Sync.Sqlite
                 if (i < this.TableDescription.PrimaryKeys.Count - 1)
                     stringBuilder.Append(", ");
             }
-            stringBuilder.Append(")");
 
+            stringBuilder.Append(")");
 
             stringBuilder.Append(");");
 
-            stringBuilder.AppendLine($"CREATE INDEX IF NOT EXISTS [{this.TrackingTableName.Unquoted().Normalized().ToString()}_timestamp_index] ON {this.TrackingTableName.Quoted().ToString()} (");
+            stringBuilder.AppendLine($"CREATE INDEX IF NOT EXISTS [{this.TrackingTableName.Unquoted().Normalized()}_timestamp_index] ON {this.TrackingTableName.Quoted()} (");
             stringBuilder.AppendLine($"\t [timestamp] ASC");
             stringBuilder.AppendLine($"\t,[update_scope_id] ASC");
             stringBuilder.AppendLine($"\t,[sync_row_is_tombstone] ASC");
@@ -168,14 +174,16 @@ namespace Dotmim.Sync.Sqlite
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 stringBuilder.AppendLine($"\t,{columnName} ASC");
             }
+
             stringBuilder.Append(");");
             return stringBuilder.ToString();
         }
+
         public override Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction) => Task.FromResult<DbCommand>(null);
 
         public override Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandText = BuildTableCommandText();
+            var commandText = this.BuildTableCommandText();
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -185,6 +193,7 @@ namespace Dotmim.Sync.Sqlite
 
             return Task.FromResult(command);
         }
+
         public override Task<DbCommand> GetExistsTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var tbl = this.TableName.Unquoted().ToString();
@@ -202,24 +211,29 @@ namespace Dotmim.Sync.Sqlite
 
             return Task.FromResult(command);
         }
+
         public override Task<DbCommand> GetExistsSchemaCommandAsync(DbConnection connection, DbTransaction transaction) => Task.FromResult<DbCommand>(null);
+
         public override Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
 
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"drop table if exists {this.TableName.Quoted().ToString()}";
+            command.CommandText = $"drop table if exists {this.TableName.Quoted()}";
 
             return Task.FromResult(command);
         }
+
         public override Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction) => Task.FromResult<DbCommand>(null);
+
         public override Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction) => Task.FromResult<DbCommand>(null);
+
         public override Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction) => Task.FromResult<DbCommand>(null);
 
         public override Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandText = BuildTrackingTableCommandText();
+            var commandText = this.BuildTrackingTableCommandText();
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -229,17 +243,19 @@ namespace Dotmim.Sync.Sqlite
 
             return Task.FromResult(command);
         }
+
         public override Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
 
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"drop table if exists {this.TrackingTableName.Quoted().ToString()}";
+            command.CommandText = $"drop table if exists {this.TrackingTableName.Quoted()}";
 
             return Task.FromResult(command);
         }
 
+        [Obsolete]
         public override Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
         {
             var tableNameString = this.TrackingTableName.Quoted().ToString();
@@ -252,7 +268,6 @@ namespace Dotmim.Sync.Sqlite
             command.CommandText = $"ALTER TABLE {oldTableNameString} RENAME TO {tableNameString};";
 
             return Task.FromResult(command);
-
         }
 
         public override Task<DbCommand> GetExistsTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
@@ -275,7 +290,7 @@ namespace Dotmim.Sync.Sqlite
 
         public override Task<DbCommand> GetExistsTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
-            var commandTriggerName = string.Format(this.sqliteObjectNames.GetTriggerCommandName(triggerType), TableName.Unquoted().ToString());
+            var commandTriggerName = string.Format(this.sqliteObjectNames.GetTriggerCommandName(triggerType), this.TableName.Unquoted().ToString());
             var triggerName = ParserName.Parse(commandTriggerName).ToString();
 
             var command = connection.CreateCommand();
@@ -291,12 +306,11 @@ namespace Dotmim.Sync.Sqlite
             return Task.FromResult(command);
         }
 
-
         private DbCommand CreateInsertTriggerCommand(DbConnection connection, DbTransaction transaction)
         {
-            var insTriggerName = string.Format(this.sqliteObjectNames.GetTriggerCommandName(DbTriggerType.Insert), TableName.Unquoted().ToString());
+            var insTriggerName = string.Format(this.sqliteObjectNames.GetTriggerCommandName(DbTriggerType.Insert), this.TableName.Unquoted().ToString());
 
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {insTriggerName} AFTER INSERT ON {TableName.Quoted().ToString()} ");
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {insTriggerName} AFTER INSERT ON {this.TableName.Quoted()} ");
             createTrigger.AppendLine();
 
             var stringBuilderArguments = new StringBuilder();
@@ -309,14 +323,14 @@ namespace Dotmim.Sync.Sqlite
             createTrigger.AppendLine("BEGIN");
             createTrigger.AppendLine("-- If row was deleted before, it already exists, so just make an update");
 
-            createTrigger.AppendLine($"\tINSERT OR REPLACE INTO {this.TrackingTableName.Quoted().ToString()} (");
+            createTrigger.AppendLine($"\tINSERT OR REPLACE INTO {this.TrackingTableName.Quoted()} (");
             foreach (var mutableColumn in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
 
                 stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
                 stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName}");
-                stringPkAreNull.Append($"{argAnd}{TrackingTableName.Quoted().ToString()}.{columnName} IS NULL");
+                stringPkAreNull.Append($"{argAnd}{this.TrackingTableName.Quoted()}.{columnName} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
@@ -342,9 +356,9 @@ namespace Dotmim.Sync.Sqlite
 
         private DbCommand CreateDeleteTriggerCommand(DbConnection connection, DbTransaction transaction)
         {
-            var delTriggerName = string.Format(this.sqliteObjectNames.GetTriggerCommandName(DbTriggerType.Delete), TableName.Unquoted().ToString());
+            var delTriggerName = string.Format(this.sqliteObjectNames.GetTriggerCommandName(DbTriggerType.Delete), this.TableName.Unquoted().ToString());
 
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {delTriggerName} AFTER DELETE ON {TableName.Quoted().ToString()} ");
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {delTriggerName} AFTER DELETE ON {this.TableName.Quoted()} ");
             createTrigger.AppendLine();
 
             var stringBuilderArguments = new StringBuilder();
@@ -356,14 +370,14 @@ namespace Dotmim.Sync.Sqlite
             createTrigger.AppendLine();
             createTrigger.AppendLine("BEGIN");
 
-            createTrigger.AppendLine($"\tINSERT OR REPLACE INTO {TrackingTableName.Quoted().ToString()} (");
+            createTrigger.AppendLine($"\tINSERT OR REPLACE INTO {this.TrackingTableName.Quoted()} (");
             foreach (var mutableColumn in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
 
                 stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
                 stringBuilderArguments2.AppendLine($"\t\t{argComma}old.{columnName}");
-                stringPkAreNull.Append($"{argAnd}{TrackingTableName.Quoted().ToString()}.{columnName} IS NULL");
+                stringPkAreNull.Append($"{argAnd}{this.TrackingTableName.Quoted()}.{columnName} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
@@ -387,28 +401,26 @@ namespace Dotmim.Sync.Sqlite
             return new SqliteCommand(createTrigger.ToString(), (SqliteConnection)connection, (SqliteTransaction)transaction);
         }
 
-
         private DbCommand CreateUpdateTriggerCommand(DbConnection connection, DbTransaction transaction)
         {
-            var updTriggerName = string.Format(this.sqliteObjectNames.GetTriggerCommandName(DbTriggerType.Update), TableName.Unquoted().ToString());
+            var updTriggerName = string.Format(this.sqliteObjectNames.GetTriggerCommandName(DbTriggerType.Update), this.TableName.Unquoted().ToString());
 
-            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {TableName.Quoted().ToString()} ");
+            StringBuilder createTrigger = new StringBuilder($"CREATE TRIGGER IF NOT EXISTS {updTriggerName} AFTER UPDATE ON {this.TableName.Quoted()} ");
             createTrigger.AppendLine();
-
 
             createTrigger.AppendLine();
             createTrigger.AppendLine($"Begin ");
 
-            createTrigger.AppendLine($"\tUPDATE {TrackingTableName.Quoted().ToString()} ");
+            createTrigger.AppendLine($"\tUPDATE {this.TrackingTableName.Quoted()} ");
             createTrigger.AppendLine("\tSET [update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             createTrigger.AppendLine($"\t\t,[timestamp] = {SqliteObjectNames.TimestampValue}");
             createTrigger.AppendLine("\t\t,[last_change_datetime] = datetime('now')");
 
             createTrigger.Append($"\tWhere ");
-            createTrigger.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, TrackingTableName.Quoted().ToString(), "new"));
+            createTrigger.Append(SqliteManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, this.TrackingTableName.Quoted().ToString(), "new"));
 
-            //if (this.TableDescription.GetMutableColumns().Count() > 0)
-            //{
+            // if (this.TableDescription.GetMutableColumns().Count() > 0)
+            // {
             //    createTrigger.AppendLine();
             //    createTrigger.AppendLine("\t AND (");
             //    string or = "    ";
@@ -416,7 +428,7 @@ namespace Dotmim.Sync.Sqlite
             //    {
             //        var quotedColumn = ParserName.Parse(column).Quoted().ToString();
 
-            //        createTrigger.Append("\t");
+            // createTrigger.Append("\t");
             //        createTrigger.Append(or);
             //        createTrigger.Append("IFNULL(");
             //        createTrigger.Append("NULLIF(");
@@ -436,13 +448,11 @@ namespace Dotmim.Sync.Sqlite
             //        createTrigger.Append(")");
             //        createTrigger.AppendLine(") IS NOT NULL");
 
-            //        or = " OR ";
+            // or = " OR ";
             //    }
             //    createTrigger.AppendLine("\t ) ");
-            //}
-
+            // }
             createTrigger.AppendLine($"; ");
-
 
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderArguments2 = new StringBuilder();
@@ -450,14 +460,14 @@ namespace Dotmim.Sync.Sqlite
             string argComma = string.Empty;
             string argAnd = string.Empty;
 
-            createTrigger.AppendLine($"\tINSERT OR IGNORE INTO {TrackingTableName.Quoted().ToString()} (");
+            createTrigger.AppendLine($"\tINSERT OR IGNORE INTO {this.TrackingTableName.Quoted()} (");
             foreach (var mutableColumn in this.TableDescription.GetPrimaryKeysColumns().Where(c => !c.IsReadOnly))
             {
                 var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
 
                 stringBuilderArguments.AppendLine($"\t\t{argComma}{columnName}");
                 stringBuilderArguments2.AppendLine($"\t\t{argComma}new.{columnName}");
-                stringPkAreNull.Append($"{argAnd}{TrackingTableName.Quoted().ToString()}.{columnName} IS NULL");
+                stringPkAreNull.Append($"{argAnd}{this.TrackingTableName.Quoted()}.{columnName} IS NULL");
                 argComma = ",";
                 argAnd = " AND ";
             }
@@ -476,25 +486,27 @@ namespace Dotmim.Sync.Sqlite
             createTrigger.AppendLine("\t\t,0");
             createTrigger.AppendLine("\t\t,datetime('now')");
 
-            createTrigger.Append($"\tWHERE (SELECT COUNT(*) FROM {TrackingTableName.Quoted().ToString()} WHERE ");
+            createTrigger.Append($"\tWHERE (SELECT COUNT(*) FROM {this.TrackingTableName.Quoted()} WHERE ");
             var pkeys = this.TableDescription.GetPrimaryKeysColumns();
-            var str1 = "";
+            var str1 = string.Empty;
             foreach (var pkey in pkeys)
             {
                 var quotedColumn = ParserName.Parse(pkey).Quoted().ToString();
                 createTrigger.Append($"{str1}{quotedColumn}=new.{quotedColumn}");
                 str1 = " AND ";
             }
+
             createTrigger.AppendLine(")=0");
-            //if (this.TableDescription.GetMutableColumns().Count() > 0)
-            //{
+
+            // if (this.TableDescription.GetMutableColumns().Count() > 0)
+            // {
             //    createTrigger.AppendLine("\t AND (");
             //    string or = "    ";
             //    foreach (var column in this.TableDescription.GetMutableColumns())
             //    {
             //        var quotedColumn = ParserName.Parse(column).Quoted().ToString();
 
-            //        createTrigger.Append("\t");
+            // createTrigger.Append("\t");
             //        createTrigger.Append(or);
             //        createTrigger.Append("IFNULL(");
             //        createTrigger.Append("NULLIF(");
@@ -514,11 +526,10 @@ namespace Dotmim.Sync.Sqlite
             //        createTrigger.Append(")");
             //        createTrigger.AppendLine(") IS NOT NULL");
 
-            //        or = " OR ";
+            // or = " OR ";
             //    }
             //    createTrigger.AppendLine("\t ) ");
-            //}
-
+            // }
             createTrigger.AppendLine($"; ");
 
             createTrigger.AppendLine($"End; ");
@@ -528,14 +539,13 @@ namespace Dotmim.Sync.Sqlite
 
         public override Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
-            //return Task.FromResult<DbCommand>(null);
-
+            // return Task.FromResult<DbCommand>(null);
             return triggerType switch
             {
-                DbTriggerType.Insert => Task.FromResult(CreateInsertTriggerCommand(connection, transaction)),
-                DbTriggerType.Update => Task.FromResult(CreateUpdateTriggerCommand(connection, transaction)),
-                DbTriggerType.Delete => Task.FromResult(CreateDeleteTriggerCommand(connection, transaction)),
-                _ => throw new NotImplementedException("This trigger type is not supported when creating the sqlite trigger")
+                DbTriggerType.Insert => Task.FromResult(this.CreateInsertTriggerCommand(connection, transaction)),
+                DbTriggerType.Update => Task.FromResult(this.CreateUpdateTriggerCommand(connection, transaction)),
+                DbTriggerType.Delete => Task.FromResult(this.CreateDeleteTriggerCommand(connection, transaction)),
+                _ => throw new NotImplementedException("This trigger type is not supported when creating the sqlite trigger"),
             };
         }
 
@@ -549,14 +559,15 @@ namespace Dotmim.Sync.Sqlite
             dbCommand.CommandText = $"drop trigger if exists {triggerName}";
 
             return Task.FromResult(dbCommand);
-
         }
 
         public override async Task<IEnumerable<SyncColumn>> GetColumnsAsync(DbConnection connection, DbTransaction transaction)
         {
             var columns = new List<SyncColumn>();
+
             // Get the columns definition
-            var columnsList = await SqliteManagementUtils.GetColumnsForTableAsync(this.TableName.Unquoted().ToString(),
+            var columnsList = await SqliteManagementUtils.GetColumnsForTableAsync(
+                this.TableName.Unquoted().ToString(),
                 connection as SqliteConnection, transaction as SqliteTransaction).ConfigureAwait(false);
             var sqlDbMetadata = new SqliteDbMetadata();
 
@@ -565,12 +576,11 @@ namespace Dotmim.Sync.Sqlite
                 var typeName = c["type"].ToString();
                 var name = c["name"].ToString();
 
-                //// Gets the datastore owner dbType 
-                //var datastoreDbType = (SqliteType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, 0);
+                //// Gets the datastore owner dbType
+                // var datastoreDbType = (SqliteType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, 0);
 
                 //// once we have the datastore type, we can have the managed type
-                //var columnType = sqlDbMetadata.ValidateType(datastoreDbType);
-
+                // var columnType = sqlDbMetadata.ValidateType(datastoreDbType);
                 var sColumn = new SyncColumn(name)
                 {
                     OriginalDbType = typeName,
@@ -580,7 +590,7 @@ namespace Dotmim.Sync.Sqlite
                     DefaultValue = c["dflt_value"].ToString(),
 
                     // No unsigned type in SQLite
-                    IsUnsigned = false
+                    IsUnsigned = false,
                 };
 
                 columns.Add(sColumn);
@@ -619,7 +629,7 @@ namespace Dotmim.Sync.Sqlite
                        {
                            KeyColumnName = dmRow["from"].ToString(),
                            ReferenceColumnName = dmRow["to"].ToString(),
-                           Order = Convert.ToInt32(dmRow["seq"])
+                           Order = Convert.ToInt32(dmRow["seq"]),
                        }));
 
                     relations.Add(relationDefinition);
@@ -644,7 +654,6 @@ namespace Dotmim.Sync.Sqlite
             }
 
             return lstKeys;
-
         }
 
         public override Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
@@ -652,7 +661,7 @@ namespace Dotmim.Sync.Sqlite
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"SELECT count(*) FROM pragma_table_info('{this.TableName.Unquoted().ToString()}') WHERE name=@columnName;";
+            command.CommandText = $"SELECT count(*) FROM pragma_table_info('{this.TableName.Unquoted()}') WHERE name=@columnName;";
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@columnName";
@@ -664,7 +673,7 @@ namespace Dotmim.Sync.Sqlite
 
         public override Task<DbCommand> GetAddColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
-            var stringBuilder = new StringBuilder($"ALTER TABLE {this.TableName.Quoted().ToString()} ADD COLUMN");
+            var stringBuilder = new StringBuilder($"ALTER TABLE {this.TableName.Quoted()} ADD COLUMN");
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -673,15 +682,15 @@ namespace Dotmim.Sync.Sqlite
             var column = this.TableDescription.Columns[columnName];
             var columnNameString = ParserName.Parse(column).Quoted().ToString();
 
-            var columnType = this.sqliteDbMetadata.GetCompatibleColumnTypeDeclarationString(column, TableDescription.OriginalProvider);
+            var columnType = this.sqliteDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.TableDescription.OriginalProvider);
 
             // check case
-            string casesensitive = "";
+            string casesensitive = string.Empty;
             if (this.sqliteDbMetadata.IsTextType(column))
             {
-                casesensitive = SyncGlobalization.IsCaseSensitive() ? "" : "COLLATE NOCASE";
+                casesensitive = SyncGlobalization.IsCaseSensitive() ? string.Empty : "COLLATE NOCASE";
 
-                //check if it's a primary key, then, even if it's case sensitive, we turn on case insensitive
+                // check if it's a primary key, then, even if it's case sensitive, we turn on case insensitive
                 if (SyncGlobalization.IsCaseSensitive())
                 {
                     if (this.TableDescription.PrimaryKeys.Contains(column.ColumnName))
@@ -697,26 +706,26 @@ namespace Dotmim.Sync.Sqlite
                 if (seed > 1 || step > 1)
                     throw new NotSupportedException("can't establish a seed / step in Sqlite autoinc value");
 
-                //identity = $"AUTOINCREMENT";
+                // identity = $"AUTOINCREMENT";
                 // Actually no need to set AutoIncrement, if we insert a null value
-                identity = "";
+                identity = string.Empty;
             }
+
             var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
             // if auto inc, don't specify NOT NULL option, since we need to insert a null value to make it auto inc.
             if (column.IsAutoIncrement)
-                nullString = "";
+                nullString = string.Empty;
+
             // if it's a readonly column, it could be a computed column, so we need to allow null
             else if (column.IsReadOnly)
                 nullString = "NULL";
 
             stringBuilder.AppendLine($" {columnNameString} {columnType} {identity} {nullString} {casesensitive};");
 
-
             command.CommandText = stringBuilder.ToString();
 
             return Task.FromResult(command);
-
         }
 
         public override Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)

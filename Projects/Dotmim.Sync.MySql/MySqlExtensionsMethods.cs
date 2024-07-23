@@ -1,7 +1,5 @@
-﻿
-using System;
-using System.Data;
-#if NET6_0 || NET8_0  
+﻿using System;
+#if NET6_0 || NET8_0
 using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;
@@ -13,9 +11,8 @@ using Dotmim.Sync.MariaDB.Builders;
 using Dotmim.Sync.MySql.Builders;
 #endif
 
-using System.Data.SqlTypes;
-using System.Text;
 using System.Globalization;
+using System.Text;
 
 #if MARIADB
 namespace Dotmim.Sync.MariaDB
@@ -25,62 +22,60 @@ namespace Dotmim.Sync.MySql
 {
     public static class MySqlExtensionsMethods
     {
-        public static MySqlParameter[] DeriveParameters(this MySqlConnection connection, 
-            MySqlCommand cmd, bool includeReturnValueParameter = false, 
+        public static MySqlParameter[] DeriveParameters(
+            this MySqlConnection connection,
+            MySqlCommand cmd, bool includeReturnValueParameter = false,
             MySqlTransaction transaction = null)
         {
 
             throw new NotImplementedException("Implementation in progress");
 
-            //if (cmd == null) throw new ArgumentNullException("SqlCommand");
+            // if (cmd == null) throw new ArgumentNullException("SqlCommand");
 
-            //var textParser = new ObjectNameParser(cmd.CommandText);
+            // var textParser = new ObjectNameParser(cmd.CommandText);
 
             //// Hack to check for schema name in the spName
-            //string schemaName = "dbo";
-            //string spName = textParser.UnquotedString;
-            //int firstDot = spName.IndexOf('.');
-            //if (firstDot > 0)
-            //{
+            // string schemaName = "dbo";
+            // string spName = textParser.UnquotedString;
+            // int firstDot = spName.IndexOf('.');
+            // if (firstDot > 0)
+            // {
             //    schemaName = cmd.CommandText.Substring(0, firstDot);
             //    spName = spName.Substring(firstDot + 1);
-            //}
+            // }
 
-            //var alreadyOpened = connection.State == ConnectionState.Open;
+            // var alreadyOpened = connection.State == ConnectionState.Open;
 
-            //if (!alreadyOpened)
+            // if (!alreadyOpened)
             //    connection.Open();
 
-            //try
-            //{
+            // try
+            // {
             //    var dmParameters = GetProcedureParameters(connection, connection.Database, spName);
-                
 
-            //}
-            //finally
-            //{
+            // }
+            // finally
+            // {
             //    if (!alreadyOpened)
             //        connection.Close();
-            //}
+            // }
 
-            //if (!includeReturnValueParameter && cmd.Parameters.Count > 0)
+            // if (!includeReturnValueParameter && cmd.Parameters.Count > 0)
             //    cmd.Parameters.RemoveAt(0);
 
-            //MySqlParameter[] discoveredParameters = new MySqlParameter[cmd.Parameters.Count];
+            // MySqlParameter[] discoveredParameters = new MySqlParameter[cmd.Parameters.Count];
 
-            //cmd.Parameters.CopyTo(discoveredParameters, 0);
+            // cmd.Parameters.CopyTo(discoveredParameters, 0);
 
             //// Init the parameters with a DBNull value
-            //foreach (MySqlParameter discoveredParameter in discoveredParameters)
+            // foreach (MySqlParameter discoveredParameter in discoveredParameters)
             //    discoveredParameter.Value = DBNull.Value;
 
-            //return discoveredParameters;
-
+            // return discoveredParameters;
         }
 
-
         /// <summary>
-        /// Return schema information about parameters for procedures and functions
+        /// Return schema information about parameters for procedures and functions.
         /// </summary>
         internal static SyncTable GetProcedureParameters(this MySqlConnection connection, string schema, string procName)
         {
@@ -109,7 +104,6 @@ namespace Dotmim.Sync.MySql
             return parametersTable;
         }
 
-
         private static void InitParameterRow(SyncRow parameter, string schema, string procName)
         {
             parameter["SPECIFIC_CATALOG"] = null;
@@ -121,14 +115,14 @@ namespace Dotmim.Sync.MySql
 
         private static void ParseProcedureBody(SyncTable parametersTable, string body, string sqlMode, string schema, string procName)
         {
-            var modes = new List<string>(new string[3] { "IN", "OUT", "INOUT" });
+            var modes = new List<string>(["IN", "OUT", "INOUT"]);
 
             int pos = 1;
             var tokenizer = new MySqlTokenizer(body)
             {
                 AnsiQuotes = sqlMode.IndexOf("ANSI_QUOTES") != -1,
                 BackslashEscapes = sqlMode.IndexOf("NO_BACKSLASH_ESCAPES") == -1,
-                ReturnComments = false
+                ReturnComments = false,
             };
             string token = tokenizer.NextToken();
 
@@ -138,14 +132,16 @@ namespace Dotmim.Sync.MySql
             // 0 and should appear first.
             while (token != "(")
             {
-                if (String.Compare(token, "FUNCTION", StringComparison.OrdinalIgnoreCase) == 0)
+                if (string.Compare(token, "FUNCTION", StringComparison.OrdinalIgnoreCase) == 0)
                 {
                     var newRow = parametersTable.NewRow();
                     InitParameterRow(newRow, schema, procName);
                     parametersTable.Rows.Add(newRow);
                 }
+
                 token = tokenizer.NextToken();
             }
+
             token = tokenizer.NextToken();  // now move to the next token past the (
 
             while (token != ")")
@@ -161,6 +157,7 @@ namespace Dotmim.Sync.MySql
                     parmRow["PARAMETER_MODE"] = mode;
                     token = tokenizer.NextToken();
                 }
+
                 if (tokenizer.Quoted)
                     token = token.Substring(1, token.Length - 2);
                 parmRow["PARAMETER_NAME"] = token;
@@ -170,13 +167,13 @@ namespace Dotmim.Sync.MySql
                 if (token == ",")
                     token = tokenizer.NextToken();
 
-                    parametersTable.Rows.Add(parmRow);
+                parametersTable.Rows.Add(parmRow);
             }
 
             // now parse out the return parameter if there is one.
             token = tokenizer.NextToken().ToUpperInvariant();
 
-            if (String.Compare(token, "RETURNS", StringComparison.OrdinalIgnoreCase) == 0)
+            if (string.Compare(token, "RETURNS", StringComparison.OrdinalIgnoreCase) == 0)
             {
                 var parameterRow = parametersTable.Rows[0];
                 parameterRow["PARAMETER_NAME"] = "RETURN_VALUE";
@@ -190,14 +187,14 @@ namespace Dotmim.Sync.MySql
             dt.Columns.Add("SPECIFIC_CATALOG", typeof(string));
             dt.Columns.Add("SPECIFIC_SCHEMA", typeof(string));
             dt.Columns.Add("SPECIFIC_NAME", typeof(string));
-            dt.Columns.Add("ORDINAL_POSITION", typeof(Int32));
+            dt.Columns.Add("ORDINAL_POSITION", typeof(int));
             dt.Columns.Add("PARAMETER_MODE", typeof(string));
             dt.Columns.Add("PARAMETER_NAME", typeof(string));
             dt.Columns.Add("DATA_TYPE", typeof(string));
-            dt.Columns.Add("CHARACTER_MAXIMUM_LENGTH", typeof(Int32));
-            dt.Columns.Add("CHARACTER_OCTET_LENGTH", typeof(Int32));
+            dt.Columns.Add("CHARACTER_MAXIMUM_LENGTH", typeof(int));
+            dt.Columns.Add("CHARACTER_OCTET_LENGTH", typeof(int));
             dt.Columns.Add("NUMERIC_PRECISION", typeof(byte));
-            dt.Columns.Add("NUMERIC_SCALE", typeof(Int32));
+            dt.Columns.Add("NUMERIC_SCALE", typeof(int));
             dt.Columns.Add("CHARACTER_SET_NAME", typeof(string));
             dt.Columns.Add("COLLATION_NAME", typeof(string));
             dt.Columns.Add("DTD_IDENTIFIER", typeof(string));
@@ -223,27 +220,41 @@ namespace Dotmim.Sync.MySql
                 token = tokenizer.NextToken();
             }
             else
+            {
                 dtd.Append(GetDataTypeDefaults(type, row));
+            }
 
             while (token != ")" &&
                    token != "," &&
-                   String.Compare(token, "begin", StringComparison.OrdinalIgnoreCase) != 0 &&
-                   String.Compare(token, "return", StringComparison.OrdinalIgnoreCase) != 0)
+                   string.Compare(token, "begin", StringComparison.OrdinalIgnoreCase) != 0 &&
+                   string.Compare(token, "return", StringComparison.OrdinalIgnoreCase) != 0)
             {
-                if (String.Compare(token, "CHARACTER", StringComparison.OrdinalIgnoreCase) == 0 ||
-                    String.Compare(token, "BINARY", StringComparison.OrdinalIgnoreCase) == 0)
-                { }  // we don't need to do anything with this
-                else if (String.Compare(token, "SET", StringComparison.OrdinalIgnoreCase) == 0 ||
-                         String.Compare(token, "CHARSET", StringComparison.OrdinalIgnoreCase) == 0)
+                if (string.Compare(token, "CHARACTER", StringComparison.OrdinalIgnoreCase) == 0 ||
+                    string.Compare(token, "BINARY", StringComparison.OrdinalIgnoreCase) == 0)
+                {
+                } // we don't need to do anything with this
+                else if (string.Compare(token, "SET", StringComparison.OrdinalIgnoreCase) == 0 ||
+                         string.Compare(token, "CHARSET", StringComparison.OrdinalIgnoreCase) == 0)
+                {
                     row["CHARACTER_SET_NAME"] = tokenizer.NextToken();
-                else if (String.Compare(token, "ASCII", StringComparison.OrdinalIgnoreCase) == 0)
+                }
+                else if (string.Compare(token, "ASCII", StringComparison.OrdinalIgnoreCase) == 0)
+                {
                     row["CHARACTER_SET_NAME"] = "latin1";
-                else if (String.Compare(token, "UNICODE", StringComparison.OrdinalIgnoreCase) == 0)
+                }
+                else if (string.Compare(token, "UNICODE", StringComparison.OrdinalIgnoreCase) == 0)
+                {
                     row["CHARACTER_SET_NAME"] = "ucs2";
-                else if (String.Compare(token, "COLLATE", StringComparison.OrdinalIgnoreCase) == 0)
+                }
+                else if (string.Compare(token, "COLLATE", StringComparison.OrdinalIgnoreCase) == 0)
+                {
                     row["COLLATION_NAME"] = tokenizer.NextToken();
+                }
                 else
+                {
                     dtd.AppendFormat(CultureInfo.InvariantCulture, " {0}", token);
+                }
+
                 token = tokenizer.NextToken();
             }
 
@@ -251,21 +262,20 @@ namespace Dotmim.Sync.MySql
                 row["DTD_IDENTIFIER"] = dtd.ToString();
 
             // now default the collation if one wasn't given
-            //if (string.IsNullOrEmpty((string)row["COLLATION_NAME"]) &&
+            // if (string.IsNullOrEmpty((string)row["COLLATION_NAME"]) &&
             //    !string.IsNullOrEmpty((string)row["CHARACTER_SET_NAME"]))
             //    row["COLLATION_NAME"] = CharSetMap.GetDefaultCollation(
             //        row["CHARACTER_SET_NAME"].ToString(), connection);
 
             // now set the octet length
-            //if (row["CHARACTER_MAXIMUM_LENGTH"] != null)
-            //{
+            // if (row["CHARACTER_MAXIMUM_LENGTH"] != null)
+            // {
             //    if (row["CHARACTER_SET_NAME"] == null)
             //        row["CHARACTER_SET_NAME"] = "";
             //    row["CHARACTER_OCTET_LENGTH"] =
             //        CharSetMap.GetMaxLength((string)row["CHARACTER_SET_NAME"], connection) *
             //        (int)row["CHARACTER_MAXIMUM_LENGTH"];
-            //}
-
+            // }
             return token;
         }
 
@@ -297,10 +307,11 @@ namespace Dotmim.Sync.MySql
                     format = "({0})";
                 }
 
-                return String.Format(format, row["NUMERIC_PRECISION"],
+                return string.Format(format, row["NUMERIC_PRECISION"],
                     row["NUMERIC_SCALE"]);
             }
-            return String.Empty;
+
+            return string.Empty;
         }
 
         private static void ParseDataTypeSize(SyncRow row, string size)
@@ -311,16 +322,16 @@ namespace Dotmim.Sync.MySql
 
             if (!IsNumericType(row["DATA_TYPE"].ToString()))
             {
-                row["CHARACTER_MAXIMUM_LENGTH"] = Int32.Parse(parts[0]);
+                row["CHARACTER_MAXIMUM_LENGTH"] = int.Parse(parts[0]);
+
                 // will set octet length in a minute
             }
             else
             {
-                row["NUMERIC_PRECISION"] = Int32.Parse(parts[0]);
+                row["NUMERIC_PRECISION"] = int.Parse(parts[0]);
                 if (parts.Length == 2)
-                    row["NUMERIC_SCALE"] = Int32.Parse(parts[1]);
+                    row["NUMERIC_SCALE"] = int.Parse(parts[1]);
             }
         }
-
     }
 }

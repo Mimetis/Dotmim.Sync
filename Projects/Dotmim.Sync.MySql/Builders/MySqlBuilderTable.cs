@@ -1,6 +1,6 @@
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Manager;
-#if NET6_0 || NET8_0 
+#if NET6_0 || NET8_0
 using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;
@@ -9,7 +9,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -23,19 +22,16 @@ namespace Dotmim.Sync.MySql.Builders
 {
     public class MySqlBuilderTable
     {
+        private static Dictionary<string, string> createdRelationNames = [];
         private readonly ParserName tableName;
-        private readonly ParserName trackingName;
         private readonly SyncTable tableDescription;
-        private readonly SyncSetup setup;
         private readonly MySqlDbMetadata dbMetadata;
 
-        private static Dictionary<string, string> createdRelationNames = new Dictionary<string, string>();
-
         private static string GetRandomString()
-            => Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+            => Path.GetRandomFileName().Replace(".", string.Empty).ToLowerInvariant();
 
         /// <summary>
-        /// Ensure the relation name is correct to be created in MySql
+        /// Ensure the relation name is correct to be created in MySql.
         /// </summary>
         public static string NormalizeRelationName(string relation)
         {
@@ -55,12 +51,9 @@ namespace Dotmim.Sync.MySql.Builders
         public MySqlBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
         {
             this.tableDescription = tableDescription;
-            this.setup = setup;
             this.tableName = tableName;
-            this.trackingName = trackingName;
             this.dbMetadata = new MySqlDbMetadata();
         }
-
 
         public Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
@@ -76,7 +69,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             stringBuilder.AppendLine("SET FOREIGN_KEY_CHECKS=0;");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"CREATE TABLE {this.tableName.Quoted().ToString()} (");
+            stringBuilder.AppendLine($"CREATE TABLE {this.tableName.Quoted()} (");
             stringBuilder.AppendLine();
             foreach (var column in this.tableDescription.Columns)
             {
@@ -92,6 +85,7 @@ namespace Dotmim.Sync.MySql.Builders
 
                     identity = $"AUTO_INCREMENT";
                 }
+
                 var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
                 // if we have a readonly column, we may have a computed one, so we need to allow null
@@ -107,7 +101,7 @@ namespace Dotmim.Sync.MySql.Builders
                 if (this.tableDescription.OriginalProvider == originalProvider && !string.IsNullOrEmpty(column.DefaultValue) && column.IsCompute)
                 {
                     defaultValue = column.DefaultValue;
-                    nullString = "";
+                    nullString = string.Empty;
                 }
 
                 stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {identity} {defaultValue} {nullString}");
@@ -131,6 +125,7 @@ namespace Dotmim.Sync.MySql.Builders
             stringBuilder.Append("\t,PRIMARY KEY (");
 
             int i = 0;
+
             // It seems we need to specify the increment column in first place
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns().OrderByDescending(pk => pk.IsAutoIncrement))
             {
@@ -163,6 +158,7 @@ namespace Dotmim.Sync.MySql.Builders
                     stringBuilder.Append($"{empty} {foreignKeyColumnName}");
                     empty = ", ";
                 }
+
                 stringBuilder.Append(" ) ");
                 stringBuilder.Append("REFERENCES ");
                 stringBuilder.Append(parentTableName).Append(" (");
@@ -173,9 +169,9 @@ namespace Dotmim.Sync.MySql.Builders
                     stringBuilder.Append($"{empty} {referencesColumnName}");
                     empty = ", ";
                 }
+
                 stringBuilder.AppendLine(" )");
             }
-
 
             stringBuilder.Append(");");
             stringBuilder.AppendLine();
@@ -187,15 +183,15 @@ namespace Dotmim.Sync.MySql.Builders
             command.CommandText = stringBuilder.ToString();
 
             return Task.FromResult(command);
-
         }
 
         public Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction) => Task.FromResult<DbCommand>(null);
+
         public Task<DbCommand> GetExistsSchemaCommandAsync(DbConnection connection, DbTransaction transaction) => Task.FromResult<DbCommand>(null);
 
         public Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandText = $"drop table {this.tableName.Quoted().ToString()}";
+            var commandText = $"drop table {this.tableName.Quoted()}";
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -216,14 +212,12 @@ namespace Dotmim.Sync.MySql.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = tableName.Unquoted().ToString();
+            parameter.Value = this.tableName.Unquoted().ToString();
 
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);
         }
-
-
 
         public Task<DbCommand> GetAddColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
@@ -232,7 +226,7 @@ namespace Dotmim.Sync.MySql.Builders
             command.Connection = connection;
             command.Transaction = transaction;
 
-            var stringBuilder = new StringBuilder($"ALTER TABLE {this.tableName.Quoted().ToString()}  ");
+            var stringBuilder = new StringBuilder($"ALTER TABLE {this.tableName.Quoted()}  ");
 
             var column = this.tableDescription.Columns[columnName];
             var columnNameString = ParserName.Parse(columnName, "`").Quoted().ToString();
@@ -247,6 +241,7 @@ namespace Dotmim.Sync.MySql.Builders
 
                 identity = $"AUTO_INCREMENT";
             }
+
             var nullString = column.AllowDBNull ? "NULL" : "NOT NULL";
 
             // if we have a readonly column, we may have a computed one, so we need to allow null
@@ -266,14 +261,14 @@ namespace Dotmim.Sync.MySql.Builders
 
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"ALTER TABLE {tableName.Quoted().ToString()}  {columnName};";
+            command.CommandText = $"ALTER TABLE {this.tableName.Quoted()}  {columnName};";
 
             return Task.FromResult(command);
         }
 
         public Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
-            var tbl = tableName.ToString();
+            var tbl = this.tableName.ToString();
             var command = connection.CreateCommand();
 
             command.Connection = connection;
@@ -293,7 +288,6 @@ namespace Dotmim.Sync.MySql.Builders
             return Task.FromResult(command);
         }
 
-
         public async Task<IEnumerable<SyncColumn>> GetColumnsAsync(DbConnection connection, DbTransaction transaction)
         {
             string commandColumn = "select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName";
@@ -307,7 +301,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = tableName.Unquoted().ToString();
+            parameter.Value = this.tableName.Unquoted().ToString();
 
             command.Parameters.Add(parameter);
 
@@ -341,9 +335,9 @@ namespace Dotmim.Sync.MySql.Builders
                     ExtraProperty1 = c["column_type"] != DBNull.Value ? c["column_type"].ToString() : null,
                     IsUnsigned = c["column_type"] != DBNull.Value && ((string)c["column_type"]).Contains("unsigned"),
 #if NETSTANDARD2_0
-                    IsUnique = c["column_key"] != DBNull.Value && ((string)c["column_key"]).ToLowerInvariant().Contains("uni")
+                    IsUnique = c["column_key"] != DBNull.Value && ((string)c["column_key"]).ToLowerInvariant().Contains("uni"),
 #else
-                    IsUnique = c["column_key"] != DBNull.Value && ((string)c["column_key"]).Contains("uni", SyncGlobalization.DataSourceStringComparison)
+                    IsUnique = c["column_key"] != DBNull.Value && ((string)c["column_key"]).Contains("uni", SyncGlobalization.DataSourceStringComparison),
 #endif
                 };
 
@@ -368,23 +362,22 @@ namespace Dotmim.Sync.MySql.Builders
                         sColumn.IsCompute = true;
                         sColumn.AllowDBNull = false;
                     }
-
                 }
-                columns.Add(sColumn);
 
+                columns.Add(sColumn);
             }
+
             if (!alreadyOpened)
                 connection.Close();
 
-            return columns.ToArray();
-
+            return [.. columns];
         }
 
         public async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandColumn = @"select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName and column_key='PRI'";
 
-            var keys = new SyncTable(tableName.Unquoted().ToString());
+            var keys = new SyncTable(this.tableName.Unquoted().ToString());
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -393,7 +386,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = tableName.Unquoted().ToString();
+            parameter.Value = this.tableName.Unquoted().ToString();
 
             command.Parameters.Add(parameter);
 
@@ -420,8 +413,6 @@ namespace Dotmim.Sync.MySql.Builders
             }
 
             return lstKeys;
-
-
         }
 
         public async Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync(DbConnection connection, DbTransaction transaction)
@@ -445,7 +436,7 @@ namespace Dotmim.Sync.MySql.Builders
             ORDER BY
               ke.referenced_table_name;";
 
-            var relationsList = new SyncTable(tableName.Unquoted().ToString());
+            var relationsList = new SyncTable(this.tableName.Unquoted().ToString());
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -454,7 +445,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = tableName.Unquoted().ToString();
+            parameter.Value = this.tableName.Unquoted().ToString();
 
             command.Parameters.Add(parameter);
 
@@ -488,14 +479,14 @@ namespace Dotmim.Sync.MySql.Builders
                        {
                            KeyColumnName = (string)dmRow["ColumnName"],
                            ReferenceColumnName = (string)dmRow["ReferenceColumnName"],
-                           Order = Convert.ToInt32(dmRow["ForeignKeyOrder"])
+                           Order = Convert.ToInt32(dmRow["ForeignKeyOrder"]),
                        }));
 
                     relations.Add(relationDefinition);
                 }
             }
 
-            return relations.OrderBy(t => t.ForeignKey).ToArray();
+            return [.. relations.OrderBy(t => t.ForeignKey)];
         }
     }
 }

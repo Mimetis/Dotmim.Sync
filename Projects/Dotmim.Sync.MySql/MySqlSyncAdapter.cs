@@ -1,11 +1,9 @@
+using Dotmim.Sync.Builders;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-
-using System.Data.Common;
 using System.Data;
-using Dotmim.Sync.Builders;
-#if NET6_0 || NET8_0 
+using System.Data.Common;
+#if NET6_0 || NET8_0
 using MySqlConnector;
 using System.Reflection.Metadata;
 #elif NETSTANDARD
@@ -28,14 +26,16 @@ namespace Dotmim.Sync.MySql
     public class MySqlSyncAdapter : DbSyncAdapter
     {
         public MySqlObjectNames MySqlObjectNames { get; }
+
         public MySqlDbMetadata MySqlDbMetadata { get; }
 
-        public MySqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName) : base(tableDescription, setup, scopeName)
+        public MySqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
+            : base(tableDescription, setup, scopeName)
         {
             this.MySqlDbMetadata = new MySqlDbMetadata();
-            this.MySqlObjectNames = new MySqlObjectNames(TableDescription, tableName, trackingName, Setup, scopeName);
-
+            this.MySqlObjectNames = new MySqlObjectNames(this.TableDescription, tableName, trackingName, this.Setup, scopeName);
         }
+
         public override DbCommand EnsureCommandParameters(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
             if (commandType == DbCommandType.UpdateRow || commandType == DbCommandType.UpdateRows ||
@@ -52,7 +52,7 @@ namespace Dotmim.Sync.MySql
                         "in_sync_row_count" => "sync_row_count",
                         "in_sync_row_timestamp" => "sync_row_timestamp",
                         "in_sync_force_write" => "sync_force_write",
-                        _ => parameter.ParameterName
+                        _ => parameter.ParameterName,
                     };
                 }
             }
@@ -68,10 +68,9 @@ namespace Dotmim.Sync.MySql
                         "in_sync_row_count" => "@sync_row_count",
                         "in_sync_row_timestamp" => "@sync_row_timestamp",
                         "in_sync_force_write" => "@sync_force_write",
-                        _ => parameter.ParameterName
+                        _ => parameter.ParameterName,
                     };
                 }
-
             }
 
             // for stored procedures, parameters are prefixed with "in_"
@@ -84,7 +83,7 @@ namespace Dotmim.Sync.MySql
                 {
                     var p = parameter as DbParameter;
                     if (p.ParameterName.StartsWith("in_"))
-                        p.ParameterName = p.ParameterName.Replace("in_", "");
+                        p.ParameterName = p.ParameterName.Replace("in_", string.Empty);
 
                     if (!p.ParameterName.StartsWith("@"))
                         p.ParameterName = $"@{p.ParameterName}";
@@ -100,8 +99,11 @@ namespace Dotmim.Sync.MySql
         }
 
         public override string ParameterPrefix => "in_";
+
         public override string QuotePrefix => "`";
+
         public override string QuoteSuffix => "`";
+
         public override bool SupportsOutputParameters => true;
 
         public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType nameType, SyncFilter filter = null)
@@ -155,14 +157,14 @@ namespace Dotmim.Sync.MySql
                     command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata, filter);
                     break;
                 case DbCommandType.UpdateMetadata:
-                    //command.CommandType = CommandType.Text;
-                    //command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
-                    //break;
+                    // command.CommandType = CommandType.Text;
+                    // command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
+                    // break;
                     return (default, false);
                 case DbCommandType.SelectMetadata:
-                    //command.CommandType = CommandType.Text;
-                    //command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.SelectMetadata, filter);
-                    //break;
+                    // command.CommandType = CommandType.Text;
+                    // command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.SelectMetadata, filter);
+                    // break;
                     return (default, false);
                 case DbCommandType.InsertTrigger:
                     command.CommandType = CommandType.Text;
@@ -198,7 +200,6 @@ namespace Dotmim.Sync.MySql
 
             return (command, isBatch);
         }
-
 
         public override Task ExecuteBatchCommandAsync(SyncContext context, DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
             => throw new NotImplementedException();

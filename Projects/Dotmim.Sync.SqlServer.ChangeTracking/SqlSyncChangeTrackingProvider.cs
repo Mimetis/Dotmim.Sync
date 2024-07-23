@@ -1,29 +1,26 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Manager;
 using Dotmim.Sync.SqlServer.Builders;
 using Dotmim.Sync.SqlServer.ChangeTracking.Builders;
-using Dotmim.Sync.SqlServer.Manager;
-using Dotmim.Sync.SqlServer.Scope;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Data.Common;
-using Microsoft.Data.SqlClient;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer
 {
     public class SqlSyncChangeTrackingProvider : SqlSyncProvider
     {
-        static string providerType;
+        private static string providerType;
 
-        public SqlSyncChangeTrackingProvider() : base(){}
+        public SqlSyncChangeTrackingProvider()
+            : base() { }
 
-        public SqlSyncChangeTrackingProvider(string connectionString) : base(connectionString)
+        public SqlSyncChangeTrackingProvider(string connectionString)
+            : base(connectionString)
         {
-
         }
 
-        public SqlSyncChangeTrackingProvider(SqlConnectionStringBuilder builder) : base(builder)
+        public SqlSyncChangeTrackingProvider(SqlConnectionStringBuilder builder)
+            : base(builder)
         {
         }
 
@@ -39,12 +36,12 @@ namespace Dotmim.Sync.SqlServer
 
                 return providerType;
             }
-
         }
 
         public override string GetProviderTypeName() => ProviderType;
 
-        static string shortProviderType;
+        private static string shortProviderType;
+
         public static new string ShortProviderType
         {
             get
@@ -58,6 +55,7 @@ namespace Dotmim.Sync.SqlServer
                 return shortProviderType;
             }
         }
+
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqlChangeTrackingScopeBuilder(scopeInfoTableName);
 
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
@@ -67,6 +65,5 @@ namespace Dotmim.Sync.SqlServer
             => new SqlChangeTrackingSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName, this.UseBulkOperations);
 
         public override DbBuilder GetDatabaseBuilder() => new SqlChangeTrackingBuilder();
-
     }
 }

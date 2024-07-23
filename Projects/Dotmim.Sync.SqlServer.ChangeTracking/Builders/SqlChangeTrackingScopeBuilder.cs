@@ -6,7 +6,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 {
     public class SqlChangeTrackingScopeBuilder : SqlScopeBuilder
     {
-        public SqlChangeTrackingScopeBuilder(string scopeInfoTableName) : base(scopeInfoTableName)
+        public SqlChangeTrackingScopeBuilder(string scopeInfoTableName)
+            : base(scopeInfoTableName)
         {
         }
 
@@ -54,7 +55,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                             INSERTED.[sync_scope_last_clean_timestamp],
                             INSERTED.[sync_scope_properties];";
 
-
             var command = connection.CreateCommand();
             command.Transaction = transaction;
 
@@ -91,7 +91,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             command.Parameters.Add(p);
 
             return command;
-
         }
     }
 }

@@ -21,9 +21,9 @@ namespace Dotmim.Sync.MariaDB
 {
     public class MariaDBSyncProvider : CoreProvider
     {
+        private static string providerType;
         private DbMetadata dbMetadata;
         private MySqlConnectionStringBuilder builder;
-        private static string providerType;
 
         public MariaDBSyncProvider()
             : base()
@@ -107,8 +107,7 @@ namespace Dotmim.Sync.MariaDB
         /// </summary>
         public override DbMetadata GetMetadata()
         {
-            if (this.dbMetadata == null)
-                this.dbMetadata = new MySqlDbMetadata();
+            this.dbMetadata ??= new MySqlDbMetadata();
 
             return this.dbMetadata;
         }

@@ -20,7 +20,7 @@
 
 	</PropertyGroup>
 	<PropertyGroup>
-		<NoWarn>$(NoWarn)</NoWarn>
+		<NoWarn>$(NoWarn)SA0001;SA1202;CA1308;CA1305;CA1822;CA1834;SA1600;IDE0017;CA2249;CA1866;</NoWarn>
 	</PropertyGroup>
 	<PropertyGroup>
 		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>

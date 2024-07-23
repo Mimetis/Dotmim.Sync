@@ -1,23 +1,40 @@
 ﻿using Dotmim.Sync.Manager;
 using System;
 using System.Data;
-using System.Data.Common;
-using System.Linq;
-using System.Text;
 
 namespace Dotmim.Sync.SqlServer.Manager
 {
     public class SqlDbMetadata : DbMetadata
     {
         // Even if precision max can be 38 on SQL Server, prefer go for 28, to not having a truncation
-        // public const Byte PRECISION_MAX = 28;
+        // public const Byte PRECISIONMAX = 28;
         // 2021/02/16 : Trying to resverse back to 38
-        public const byte PRECISION_MAX = 38;
-        public const byte PRECISION_DEFAULT = 22;
-        public const byte SCALE_DEFAULT = 8;
-        public const byte SCALE_MAX = 18;
+        public const byte PRECISIONMAX = 38;
+        public const byte PRECISIONDEFAULT = 22;
+        public const byte SCALEDEFAULT = 8;
+        public const byte SCALEMAX = 18;
 
         public SqlDbMetadata() { }
+
+        /// <summary>
+        /// Check precision and scale.
+        /// </summary>
+        public static (byte Precision, byte Scale) CoercePrecisionAndScale(int precision, int scale)
+        {
+            byte p = Convert.ToByte(precision);
+            byte s = Convert.ToByte(scale);
+            if (p > PRECISIONMAX)
+                p = PRECISIONMAX;
+
+            if (s > SCALEMAX)
+                s = SCALEMAX;
+
+            // scale should always be lesser than precision
+            if (s >= p && p > 1)
+                s = (byte)(p - 1);
+
+            return (p, s);
+        }
 
         /// <summary>
         /// Gets the DbType issue from the database.
@@ -191,7 +208,7 @@ namespace Dotmim.Sync.SqlServer.Manager
         public override (byte Precision, byte Scale) GetPrecisionAndScale(SyncColumn columnDefinition)
         {
             if ((columnDefinition.DbType == (int)DbType.Single || columnDefinition.DbType == (int)DbType.Decimal || columnDefinition.DbType == (int)DbType.VarNumeric) && columnDefinition.Precision == 0 && columnDefinition.Scale == 0)
-                return (PRECISION_DEFAULT, SCALE_DEFAULT);
+                return (PRECISIONDEFAULT, SCALEDEFAULT);
 
             return CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
         }
@@ -289,7 +306,7 @@ namespace Dotmim.Sync.SqlServer.Manager
         /// <summary>
         /// Gets a compatible precision and scale.
         /// </summary>
-        public (byte precision, byte scale) GetCompatibleColumnPrecisionAndScale(SyncColumn column, string fromProviderType)
+        public (byte Precision, byte Scale) GetCompatibleColumnPrecisionAndScale(SyncColumn column, string fromProviderType)
         {
             // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
 
@@ -322,26 +339,6 @@ namespace Dotmim.Sync.SqlServer.Manager
                 SqlDbType.Binary or SqlDbType.Char or SqlDbType.NChar or SqlDbType.NVarChar or SqlDbType.VarBinary or SqlDbType.VarChar => column.MaxLength,
                 _ => 0,
             };
-        }
-
-        /// <summary>
-        /// Check precision and scale.
-        /// </summary>
-        public static (byte p, byte s) CoercePrecisionAndScale(int precision, int scale)
-        {
-            byte p = Convert.ToByte(precision);
-            byte s = Convert.ToByte(scale);
-            if (p > PRECISION_MAX)
-                p = PRECISION_MAX;
-
-            if (s > SCALE_MAX)
-                s = SCALE_MAX;
-
-            // scale should always be lesser than precision
-            if (s >= p && p > 1)
-                s = (byte)(p - 1);
-
-            return (p, s);
         }
     }
 }

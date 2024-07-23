@@ -11,7 +11,11 @@
 		<SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
 	</PropertyGroup>
 	<PropertyGroup>
-		<NoWarn>$(NoWarn);CA2007</NoWarn>
+		<!-- Static analysis settings -->
+		<EnableNETAnalyzers>false</EnableNETAnalyzers>
+		<AnalysisLevel>none</AnalysisLevel>
+		<RunAnalyzersDuringBuild>False</RunAnalyzersDuringBuild>
+		<RunAnalyzersDuringLiveAnalysis>False</RunAnalyzersDuringLiveAnalysis>
 	</PropertyGroup>
 	<ItemGroup>
 		<Compile Remove="UnitTests\Mock\**" />

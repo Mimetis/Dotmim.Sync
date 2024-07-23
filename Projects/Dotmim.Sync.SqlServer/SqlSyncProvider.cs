@@ -6,20 +6,32 @@ using Dotmim.Sync.SqlServer.Manager;
 using Dotmim.Sync.SqlServer.Scope;
 using Microsoft.Data.SqlClient;
 using System;
-using System.Data;
 using System.Data.Common;
 
 namespace Dotmim.Sync.SqlServer
 {
     public class SqlSyncProvider : CoreProvider
     {
-        private DbMetadata dbMetadata;
         private static string providerType;
+        private DbMetadata dbMetadata;
         private SqlConnectionStringBuilder builder;
 
         public SqlSyncProvider()
-            : base()
-        { }
+            : base() { }
+
+        public static string ProviderType
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(providerType))
+                    return providerType;
+
+                var type = typeof(SqlSyncProvider);
+                providerType = $"{type.Name}, {type}";
+
+                return providerType;
+            }
+        }
 
         public override string ConnectionString
         {
@@ -49,20 +61,6 @@ namespace Dotmim.Sync.SqlServer
         public override string GetProviderTypeName() => ProviderType;
 
         public override string DefaultSchemaName => "dbo";
-
-        public static string ProviderType
-        {
-            get
-            {
-                if (!string.IsNullOrEmpty(providerType))
-                    return providerType;
-
-                var type = typeof(SqlSyncProvider);
-                providerType = $"{type.Name}, {type}";
-
-                return providerType;
-            }
-        }
 
         public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnSessionLevel;
 
@@ -97,8 +95,7 @@ namespace Dotmim.Sync.SqlServer
         /// </summary>
         public override DbMetadata GetMetadata()
         {
-            if (this.dbMetadata == null)
-                this.dbMetadata = new SqlDbMetadata();
+            this.dbMetadata ??= new SqlDbMetadata();
 
             return this.dbMetadata;
         }

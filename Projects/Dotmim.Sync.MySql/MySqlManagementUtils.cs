@@ -5,19 +5,16 @@ using Dotmim.Sync.MariaDB.Builders;
 using Dotmim.Sync.MySql.Builders;
 #endif
 
-#if NET6_0 || NET8_0 
+#if NET6_0 || NET8_0
 using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;
 #endif
 
-using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 #if MARIADB
@@ -41,7 +38,7 @@ namespace Dotmim.Sync.MySql
                 var sqlParameter = new MySqlParameter()
                 {
                     ParameterName = "@databaseName",
-                    Value = connection.Database
+                    Value = connection.Database,
                 };
                 dbCommand.Parameters.Add(sqlParameter);
 
@@ -65,11 +62,12 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     connection.Close();
             }
+
             return (dbName, dbVersion);
         }
 
         /// <summary>
-        /// Get all Tables
+        /// Get all Tables.
         /// </summary>
         public static async Task<SyncSetup> GetAllTablesAsync(MySqlConnection connection, MySqlTransaction transaction)
         {
@@ -107,6 +105,7 @@ namespace Dotmim.Sync.MySql
                 if (!alreadyOpened)
                     connection.Close();
             }
+
             return syncSetup;
         }
 
@@ -136,7 +135,6 @@ namespace Dotmim.Sync.MySql
             return syncTable;
         }
 
-
         public static async Task RenameTableAsync(string tableName, string newTableName, MySqlConnection connection, MySqlTransaction transaction)
         {
             var pTableName = ParserName.Parse(tableName, "`").Unquoted().ToString();
@@ -158,7 +156,6 @@ namespace Dotmim.Sync.MySql
             if (!alreadyOpened)
                 connection.Close();
         }
-
 
         public static async Task<SyncTable> GetTableDefinitionAsync(string tableName, MySqlConnection connection, MySqlTransaction transaction)
         {
@@ -209,8 +206,8 @@ namespace Dotmim.Sync.MySql
 
                 if (!alreadyOpened)
                     connection.Close();
-
             }
+
             return syncTable;
         }
 
@@ -231,7 +228,6 @@ namespace Dotmim.Sync.MySql
 
                 sqlCommand.Transaction = transaction;
 
-
                 using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
                 {
                     syncTable.Load(reader);
@@ -239,8 +235,8 @@ namespace Dotmim.Sync.MySql
 
                 if (!alreadyOpened)
                     connection.Close();
-
             }
+
             return syncTable;
         }
 
@@ -321,7 +317,7 @@ namespace Dotmim.Sync.MySql
             if (!alreadyOpened)
                 await connection.OpenAsync().ConfigureAwait(false);
 
-            dbCommand.CommandText = $"drop trigger {triggerName.Unquoted().ToString()}";
+            dbCommand.CommandText = $"drop trigger {triggerName.Unquoted()}";
             dbCommand.Transaction = transaction;
 
             await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
@@ -349,13 +345,12 @@ namespace Dotmim.Sync.MySql
             var sqlParameter = new MySqlParameter()
             {
                 ParameterName = "@tableName",
-                Value = tableNameParser.Unquoted().ToString()
+                Value = tableNameParser.Unquoted().ToString(),
             };
 
             dbCommand.Parameters.Add(sqlParameter);
 
-            tableExist = ((Int64)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
-
+            tableExist = ((long)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0;
 
             if (!alreadyOpened)
                 connection.Close();
@@ -383,11 +378,10 @@ namespace Dotmim.Sync.MySql
 
                 triggerExist = ((long)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0L;
 
-
                 if (!alreadyOpened)
                     connection.Close();
-
             }
+
             return triggerExist;
         }
 
@@ -414,21 +408,20 @@ namespace Dotmim.Sync.MySql
 
                 procExist = ((long)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0L;
 
-
                 if (!alreadyOpened)
                     connection.Close();
-
             }
+
             return procExist;
         }
 
         public static string JoinTwoTablesOnClause(IEnumerable<SyncColumn> pkeys, string leftName, string rightName)
         {
             var stringBuilder = new StringBuilder();
-            string strRightName = (string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, "."));
-            string strLeftName = (string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, "."));
+            string strRightName = string.IsNullOrEmpty(rightName) ? string.Empty : string.Concat(rightName, ".");
+            string strLeftName = string.IsNullOrEmpty(leftName) ? string.Empty : string.Concat(leftName, ".");
 
-            string str = "";
+            string str = string.Empty;
             foreach (var column in pkeys)
             {
                 var quotedColumn = ParserName.Parse(column, "`");
@@ -442,15 +435,16 @@ namespace Dotmim.Sync.MySql
 
                 str = " AND ";
             }
+
             return stringBuilder.ToString();
         }
 
         public static string ColumnsAndParameters(IEnumerable<SyncColumn> pkeys, string fromPrefix)
         {
-            var prefix_parameter = MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER;
+            var prefix_parameter = MySqlBuilderProcedure.MYSQLPREFIXPARAMETER;
             var stringBuilder = new StringBuilder();
-            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
-            string str1 = "";
+            string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
+            string str1 = string.Empty;
             foreach (var pkey in pkeys)
             {
                 var quotedColumn = ParserName.Parse(pkey, "`");
@@ -459,17 +453,18 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append(strFromPrefix);
                 stringBuilder.Append(quotedColumn.Quoted().ToString());
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"{prefix_parameter}{quotedColumn.Unquoted().Normalized().ToString()}");
+                stringBuilder.Append($"{prefix_parameter}{quotedColumn.Unquoted().Normalized()}");
                 str1 = " AND ";
             }
+
             return stringBuilder.ToString();
         }
 
-        public static string WhereColumnAndParameters(IEnumerable<SyncColumn> primaryKeys, string fromPrefix, string mysql_prefix = MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER)
+        public static string WhereColumnAndParameters(IEnumerable<SyncColumn> primaryKeys, string fromPrefix, string mysql_prefix = MySqlBuilderProcedure.MYSQLPREFIXPARAMETER)
         {
             StringBuilder stringBuilder = new StringBuilder();
             string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
-            string str1 = "";
+            string str1 = string.Empty;
             foreach (var column in primaryKeys)
             {
                 var quotedColumn = ParserName.Parse(column, "`");
@@ -482,23 +477,24 @@ namespace Dotmim.Sync.MySql
                 stringBuilder.Append($"{paramQuotedColumn.Quoted()}");
                 str1 = " AND ";
             }
+
             return stringBuilder.ToString();
         }
 
-        public static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "", string mysql_prefix = MySqlBuilderProcedure.MYSQL_PREFIX_PARAMETER)
+        public static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "", string mysql_prefix = MySqlBuilderProcedure.MYSQLPREFIXPARAMETER)
         {
             var stringBuilder = new StringBuilder();
-            string strFromPrefix = (string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, "."));
-            string strSeparator = "";
+            string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
+            string strSeparator = string.Empty;
             foreach (var mutableColumn in table.GetMutableColumns())
             {
                 var quotedColumn = ParserName.Parse(mutableColumn.ColumnName, "`");
                 var argQuotedColumn = ParserName.Parse($"{mysql_prefix}{mutableColumn.ColumnName}", "`");
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.Quoted().ToString()} = {argQuotedColumn.Quoted().Normalized().ToString()}");
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.Quoted()} = {argQuotedColumn.Quoted().Normalized().ToString()}");
                 strSeparator = ", ";
             }
-            return stringBuilder.ToString();
 
+            return stringBuilder.ToString();
         }
     }
 }

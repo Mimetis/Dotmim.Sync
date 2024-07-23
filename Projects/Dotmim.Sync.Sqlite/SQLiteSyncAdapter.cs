@@ -1,9 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data.Common;
-using System.Data;
-using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Builders;
 using Microsoft.Data.Sqlite;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.Common;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
@@ -14,7 +14,8 @@ namespace Dotmim.Sync.Sqlite
 
         public override bool SupportsOutputParameters => false;
 
-        public SqliteSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool disableSqlFiltersGeneration) : base(tableDescription, setup, scopeName)
+        public SqliteSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool disableSqlFiltersGeneration)
+            : base(tableDescription, setup, scopeName)
         {
             this.sqliteObjectNames = new SqliteObjectNames(this.TableDescription, tableName, trackingName, this.Setup, scopeName, disableSqlFiltersGeneration);
         }
@@ -48,7 +49,6 @@ namespace Dotmim.Sync.Sqlite
 
         public override Task ExecuteBatchCommandAsync(SyncContext context, DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> applyRows, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
             => throw new NotImplementedException();
-
 
         private DbType GetValidDbType(DbType dbType)
         {

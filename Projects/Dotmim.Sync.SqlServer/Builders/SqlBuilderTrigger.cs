@@ -1,27 +1,21 @@
 ﻿using Dotmim.Sync.Builders;
-
-
-
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using Microsoft.Data.SqlClient;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using System.Globalization;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
     public class SqlBuilderTrigger
     {
-        private ParserName tableName;
-        private ParserName trackingName;
         private readonly SyncTable tableDescription;
         private readonly SyncSetup setup;
         private readonly SqlObjectNames sqlObjectNames;
+        private ParserName tableName;
+        private ParserName trackingName;
+
         public SqlBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
         {
             this.tableDescription = tableDescription;
@@ -29,7 +23,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.tableName = tableName;
             this.trackingName = trackingName;
             this.sqlObjectNames = new SqlObjectNames(this.tableDescription, tableName, trackingName, this.setup, scopeName);
-
         }
 
         private string CreateDeleteTriggerAsync()
@@ -42,12 +35,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 1");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"FROM {this.trackingName.Schema().Quoted()} [side]");
             stringBuilder.Append($"JOIN DELETED AS [d] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[d]"));
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.AppendLine($"INSERT INTO {this.trackingName.Schema().Quoted()} (");
 
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderArguments2 = new StringBuilder();
@@ -67,24 +60,23 @@ namespace Dotmim.Sync.SqlServer.Builders
                 argAnd = " AND ";
             }
 
-            stringBuilder.Append(stringBuilderArguments2.ToString());
+            stringBuilder.Append(stringBuilderArguments2);
             stringBuilder.AppendLine("\t,[update_scope_id]");
             stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
             stringBuilder.AppendLine("\t,[last_change_datetime]");
             stringBuilder.AppendLine(") ");
             stringBuilder.AppendLine("SELECT");
-            stringBuilder.Append(stringBuilderArguments.ToString());
+            stringBuilder.Append(stringBuilderArguments);
             stringBuilder.AppendLine("\t,NULL");
             stringBuilder.AppendLine("\t,1");
             stringBuilder.AppendLine("\t,GetUtcDate()");
             stringBuilder.AppendLine("FROM DELETED [d]");
-            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.Append($"LEFT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[side]"));
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
 
             return stringBuilder.ToString();
-
         }
 
         private string CreateInsertTriggerAsync()
@@ -98,12 +90,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 0");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"FROM {this.trackingName.Schema().Quoted()} [side]");
             stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[i]"));
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.AppendLine($"INSERT INTO {this.trackingName.Schema().Quoted()} (");
 
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderArguments2 = new StringBuilder();
@@ -123,25 +115,23 @@ namespace Dotmim.Sync.SqlServer.Builders
                 argAnd = " AND ";
             }
 
-            stringBuilder.Append(stringBuilderArguments2.ToString());
+            stringBuilder.Append(stringBuilderArguments2);
             stringBuilder.AppendLine("\t,[update_scope_id]");
             stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
             stringBuilder.AppendLine("\t,[last_change_datetime]");
             stringBuilder.AppendLine(") ");
             stringBuilder.AppendLine("SELECT");
-            stringBuilder.Append(stringBuilderArguments.ToString());
+            stringBuilder.Append(stringBuilderArguments);
             stringBuilder.AppendLine("\t,NULL");
             stringBuilder.AppendLine("\t,0");
             stringBuilder.AppendLine("\t,GetUtcDate()");
             stringBuilder.AppendLine("FROM INSERTED [i]");
-            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.Append($"LEFT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[i]", "[side]"));
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
 
-
             return stringBuilder.ToString();
-
         }
 
         private string CreateUpdateTriggerAsync()
@@ -156,22 +146,22 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"FROM {this.trackingName.Schema().Quoted()} [side]");
             stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[i]"));
 
-            //if (this.tableDescription.GetMutableColumns().Count() > 0)
-            //{
+            // if (this.tableDescription.GetMutableColumns().Count() > 0)
+            // {
             //    stringBuilder.Append($"JOIN DELETED AS [d] ON ");
             //    stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[i]"));
 
-            //    stringBuilder.AppendLine("WHERE (");
+            // stringBuilder.AppendLine("WHERE (");
             //    string or = "";
             //    foreach (var column in this.tableDescription.GetMutableColumns())
             //    {
             //        var quotedColumn = ParserName.Parse(column).Quoted().ToString();
 
-            //        stringBuilder.Append("\t");
+            // stringBuilder.Append("\t");
             //        stringBuilder.Append(or);
             //        stringBuilder.Append("ISNULL(");
             //        stringBuilder.Append("NULLIF(");
@@ -191,12 +181,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             //        stringBuilder.Append(")");
             //        stringBuilder.AppendLine(") IS NOT NULL");
 
-            //        or = " OR ";
+            // or = " OR ";
             //    }
             //    stringBuilder.AppendLine(") ");
-            //}
-
-            stringBuilder.AppendLine($"INSERT INTO {trackingName.Schema().Quoted().ToString()} (");
+            // }
+            stringBuilder.AppendLine($"INSERT INTO {this.trackingName.Schema().Quoted()} (");
 
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderArguments2 = new StringBuilder();
@@ -216,33 +205,33 @@ namespace Dotmim.Sync.SqlServer.Builders
                 argAnd = " AND ";
             }
 
-            stringBuilder.Append(stringBuilderArguments2.ToString());
+            stringBuilder.Append(stringBuilderArguments2);
             stringBuilder.AppendLine("\t,[update_scope_id]");
             stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
             stringBuilder.AppendLine("\t,[last_change_datetime]");
             stringBuilder.AppendLine(") ");
             stringBuilder.AppendLine("SELECT");
-            stringBuilder.Append(stringBuilderArguments.ToString());
+            stringBuilder.Append(stringBuilderArguments);
             stringBuilder.AppendLine("\t,NULL");
             stringBuilder.AppendLine("\t,0");
             stringBuilder.AppendLine("\t,GetUtcDate()");
             stringBuilder.AppendLine("FROM INSERTED [i]");
             stringBuilder.Append($"JOIN DELETED AS [d] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[i]"));
-            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.Append($"LEFT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[i]", "[side]"));
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
 
-            //if (this.tableDescription.GetMutableColumns().Count() > 0)
-            //{
+            // if (this.tableDescription.GetMutableColumns().Count() > 0)
+            // {
             //    stringBuilder.AppendLine("AND (");
             //    string or = "";
             //    foreach (var column in this.tableDescription.GetMutableColumns())
             //    {
             //        var quotedColumn = ParserName.Parse(column).Quoted().ToString();
 
-            //        stringBuilder.Append("\t");
+            // stringBuilder.Append("\t");
             //        stringBuilder.Append(or);
             //        stringBuilder.Append("ISNULL(");
             //        stringBuilder.Append("NULLIF(");
@@ -262,13 +251,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             //        stringBuilder.Append(")");
             //        stringBuilder.AppendLine(") IS NOT NULL");
 
-            //        or = " OR ";
+            // or = " OR ";
             //    }
             //    stringBuilder.AppendLine(") ");
-            //}
-
+            // }
             return stringBuilder.ToString();
-
         }
 
         public virtual Task<DbCommand> GetExistsTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
@@ -284,7 +271,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var command = connection.CreateCommand();
             command.Connection = connection;
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
@@ -299,8 +286,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             command.Parameters.Add(p2);
 
             return Task.FromResult(command);
-
         }
+
         public virtual Task<DbCommand> GetDropTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
 
@@ -310,21 +297,22 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var command = connection.CreateCommand();
             command.Connection = connection;
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = commandText;
 
             return Task.FromResult(command);
         }
+
         public virtual Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
 
             var commandTriggerCommandString = triggerType switch
             {
-                DbTriggerType.Delete => CreateDeleteTriggerAsync(),
-                DbTriggerType.Insert => CreateInsertTriggerAsync(),
-                DbTriggerType.Update => CreateUpdateTriggerAsync(),
-                _ => throw new NotImplementedException()
+                DbTriggerType.Delete => this.CreateDeleteTriggerAsync(),
+                DbTriggerType.Insert => this.CreateInsertTriggerAsync(),
+                DbTriggerType.Update => this.CreateUpdateTriggerAsync(),
+                _ => throw new NotImplementedException(),
             };
             string triggerFor = triggerType == DbTriggerType.Delete ? "DELETE"
                               : triggerType == DbTriggerType.Update ? "UPDATE"
@@ -333,17 +321,16 @@ namespace Dotmim.Sync.SqlServer.Builders
             var commandTriggerName = this.sqlObjectNames.GetTriggerCommandName(triggerType);
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TRIGGER {commandTriggerName} ON {tableName.Schema().Quoted().ToString()} FOR {triggerFor} AS");
+            stringBuilder.AppendLine($"CREATE TRIGGER {commandTriggerName} ON {this.tableName.Schema().Quoted()} FOR {triggerFor} AS");
             stringBuilder.AppendLine(commandTriggerCommandString);
 
             var command = connection.CreateCommand();
             command.Connection = connection;
-                command.Transaction = transaction;
+            command.Transaction = transaction;
 
             command.CommandText = stringBuilder.ToString();
 
             return Task.FromResult(command);
         }
-
     }
 }

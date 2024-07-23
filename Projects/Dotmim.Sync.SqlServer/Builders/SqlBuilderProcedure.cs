@@ -4,32 +4,37 @@ using Microsoft.Data.SqlClient;
 using System;
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
+    /// <summary>
+    /// Sql Builder for Sql Server stored procedures.
+    /// </summary>
     public class SqlBuilderProcedure
     {
+        private readonly SyncTable tableDescription;
+        private readonly SqlObjectNames sqlObjectNames;
+        private readonly SqlDbMetadata sqlDbMetadata;
+
         private ParserName tableName;
         private ParserName trackingName;
 
-        private readonly SyncTable tableDescription;
-        private readonly SyncSetup setup;
-        private readonly SqlObjectNames sqlObjectNames;
-        private readonly SqlDbMetadata sqlDbMetadata;
+        /// <inheritdoc cref="SqlBuilderProcedure" />
         public SqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
         {
             this.tableDescription = tableDescription;
-            this.setup = setup;
             this.tableName = tableName;
             this.trackingName = trackingName;
             this.sqlObjectNames = new SqlObjectNames(this.tableDescription, tableName, trackingName, setup, scopeName);
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
+        /// <summary>
+        /// Get the command to check if a stored procedure exists.
+        /// </summary>
         public Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
@@ -63,6 +68,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             return Task.FromResult(sqlCommand);
         }
 
+        /// <summary>
+        /// Get the command to drop a stored procedure.
+        /// </summary>
         public Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
@@ -80,6 +88,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             return Task.FromResult(sqlCommand);
         }
 
+        /// <summary>
+        /// Get the command to create a stored procedure.
+        /// </summary>
         public Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             var command = storedProcedureType switch
@@ -101,22 +112,32 @@ namespace Dotmim.Sync.SqlServer.Builders
             return Task.FromResult(command);
         }
 
+        /// <summary>
+        /// Add the primary key columns to the command.
+        /// </summary>
         protected void AddPkColumnParametersToCommand(SqlCommand sqlCommand)
         {
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-                sqlCommand.Parameters.Add(GetSqlParameter(pkColumn));
+                sqlCommand.Parameters.Add(this.GetSqlParameter(pkColumn));
         }
+
+        /// <summary>
+        /// Add the columns parameters to the command.
+        /// </summary>
         protected void AddColumnParametersToCommand(SqlCommand sqlCommand)
         {
             foreach (var column in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
-                sqlCommand.Parameters.Add(GetSqlParameter(column));
+                sqlCommand.Parameters.Add(this.GetSqlParameter(column));
         }
 
+        /// <summary>
+        /// Get Sql Parameter.
+        /// </summary>
         protected SqlParameter GetSqlParameter(SyncColumn column)
         {
             var sqlParameter = new SqlParameter
             {
-                ParameterName = $"@{ParserName.Parse(column).Unquoted().Normalized().ToString()}"
+                ParameterName = $"@{ParserName.Parse(column).Unquoted().Normalized()}",
             };
 
             // Get the good SqlDbType (even if we are not from Sql Server def)
@@ -126,7 +147,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var sqlDbType = isSameProvider ?
                 this.sqlDbMetadata.GetSqlDbType(column) : this.sqlDbMetadata.GetOwnerDbTypeFromDbType(column);
-
 
             sqlParameter.SqlDbType = sqlDbType;
             sqlParameter.IsNullable = column.AllowDBNull;
@@ -149,7 +169,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
         /// <summary>
-        /// From a SqlParameter, create the declaration
+        /// From a SqlParameter, create the declaration.
         /// </summary>
         public static string CreateParameterDeclaration(SqlParameter param)
         {
@@ -191,11 +211,11 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
         /// <summary>
-        /// Create a stored procedure Command
+        /// Create a stored procedure Command.
         /// </summary>
-        protected DbCommand CreateProcedureCommand(Func<SqlCommand> BuildCommand, string procName, DbConnection connection, DbTransaction transaction)
+        protected DbCommand CreateProcedureCommand(Func<SqlCommand> buildCommand, string procName, DbConnection connection, DbTransaction transaction)
         {
-            var cmd = BuildCommand();
+            var cmd = buildCommand();
 
             StringBuilder stringBuilder = new StringBuilder(string.Concat("CREATE PROCEDURE ", procName));
             string str = "\n\t";
@@ -205,6 +225,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
                 str = ",\n\t";
             }
+
             stringBuilder.Append("\nAS\nBEGIN\n");
             stringBuilder.Append(cmd.CommandText);
             stringBuilder.Append("\nEND");
@@ -213,10 +234,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             return command;
         }
 
-
-        private DbCommand CreateProcedureCommand<T>(Func<T, SqlCommand> BuildCommand, string procName, T t, DbConnection connection, DbTransaction transaction)
+        private SqlCommand CreateProcedureCommand<T>(Func<T, SqlCommand> buildCommand, string procName, T t, DbConnection connection, DbTransaction transaction)
         {
-            var cmd = BuildCommand(t);
+            var cmd = buildCommand(t);
 
             StringBuilder stringBuilder = new StringBuilder(string.Concat("CREATE PROCEDURE ", procName));
             string str = "\n\t";
@@ -226,6 +246,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append(string.Concat(str, CreateParameterDeclaration(parameter)));
                 str = ",\n\t";
             }
+
             stringBuilder.Append("\nAS\nBEGIN\n");
             stringBuilder.Append(cmd.CommandText);
             stringBuilder.Append("\nEND");
@@ -233,10 +254,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
 
             return command;
-
         }
 
-
+        /// <summary>
+        /// Create bulk command.
+        /// </summary>
         protected string BulkSelectUnsuccessfulRows()
         {
             var stringBuilder = new StringBuilder();
@@ -274,14 +296,18 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append($"{pkeyComma}[t].{cc} = [i].{cc}");
                 pkeyComma = " AND ";
             }
+
             stringBuilder.AppendLine("\t)");
             return stringBuilder.ToString();
         }
 
-
         //------------------------------------------------------------------
         // Bulk Delete command
         //------------------------------------------------------------------
+
+        /// <summary>
+        /// Create a bulk delete command.
+        /// </summary>
         protected virtual SqlCommand BuildBulkDeleteCommand()
         {
             var sqlCommand = new SqlCommand();
@@ -294,7 +320,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
-                TypeName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType)
+                TypeName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType),
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
@@ -310,8 +336,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 // Get the good SqlDbType (even if we are not from Sql Server def)
                 var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(c, this.tableDescription.OriginalProvider);
-                stringBuilder.Append($"{ParserName.Parse(c).Quoted().ToString()} {columnType}, ");
+                stringBuilder.Append($"{ParserName.Parse(c).Quoted()} {columnType}, ");
             }
+
             stringBuilder.Append(" PRIMARY KEY (");
             for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
@@ -321,6 +348,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (i < this.tableDescription.PrimaryKeys.Count - 1)
                     stringBuilder.Append(", ");
             }
+
             stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
 
@@ -331,15 +359,15 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var columnName = ParserName.Parse(c).Quoted().ToString();
                 stringBuilder.Append($"[p].{columnName}, ");
             }
+
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id], [side].[timestamp] as [sync_timestamp], [side].[sync_row_is_tombstone] as [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM @changeTable [p]");
-            stringBuilder.Append($"\tLEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.Append($"\tLEFT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
             stringBuilder.AppendLine($"\t{str7}");
             stringBuilder.AppendLine($"\t)");
 
-
-            stringBuilder.AppendLine($"DELETE {tableName.Schema().Quoted().ToString()}");
+            stringBuilder.AppendLine($"DELETE {this.tableName.Schema().Quoted()}");
             stringBuilder.Append($"OUTPUT ");
             for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
@@ -350,8 +378,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                 else
                     stringBuilder.AppendLine();
             }
+
             stringBuilder.AppendLine($"INTO @dms_changed ");
-            stringBuilder.AppendLine($"FROM {tableName.Quoted().ToString()} [base]");
+            stringBuilder.AppendLine($"FROM {this.tableName.Quoted()} [base]");
             stringBuilder.AppendLine($"JOIN [changes] ON {str5}");
             stringBuilder.AppendLine("WHERE [changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR [changes].[sync_update_scope_id] = @sync_scope_id;");
             stringBuilder.AppendLine();
@@ -360,25 +389,31 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\tsync_row_is_tombstone = 1, ");
             stringBuilder.AppendLine("\tupdate_scope_id = @sync_scope_id,");
             stringBuilder.AppendLine("\tlast_change_datetime = GETUTCDATE()");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"FROM {this.trackingName.Schema().Quoted()} [side]");
             stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
-            stringBuilder.Append(BulkSelectUnsuccessfulRows());
+            stringBuilder.Append(this.BulkSelectUnsuccessfulRows());
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
 
+        /// <summary>
+        /// Create a bulk delete stored procedure command.
+        /// </summary>
         public DbCommand CreateBulkDeleteCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkDeleteRows);
-            return CreateProcedureCommand(this.BuildBulkDeleteCommand, commandName, connection, transaction);
+            return this.CreateProcedureCommand(this.BuildBulkDeleteCommand, commandName, connection, transaction);
         }
-
 
         //------------------------------------------------------------------
         // Bulk Update command
         //------------------------------------------------------------------
+
+        /// <summary>
+        /// Create bulk update command.
+        /// </summary>
         protected virtual SqlCommand BuildBulkUpdateCommand(bool hasMutableColumns)
         {
             var sqlCommand = new SqlCommand();
@@ -394,7 +429,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
-                TypeName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType)
+                TypeName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType),
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
@@ -413,6 +448,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 stringBuilder.Append($"{columnName} {columnType}, ");
             }
+
             stringBuilder.Append(" PRIMARY KEY (");
 
             string pkeyComma = " ";
@@ -430,10 +466,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.tableName.Schema().Quoted()} ON;");
                 stringBuilder.AppendLine();
             }
-
 
             stringBuilder.AppendLine(";WITH [changes] AS (");
             stringBuilder.Append("\tSELECT ");
@@ -442,14 +477,15 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var columnName = ParserName.Parse(c).Quoted().ToString();
                 stringBuilder.Append($"[p].{columnName}, ");
             }
+
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id], [side].[timestamp] as [sync_timestamp], [side].[sync_row_is_tombstone] as [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM @changeTable [p]");
-            stringBuilder.AppendLine($"\tLEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.AppendLine($"\tLEFT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
             stringBuilder.Append($"\t{str7}");
             stringBuilder.AppendLine($"\t)");
 
-            stringBuilder.AppendLine($"MERGE {tableName.Schema().Quoted().ToString()} AS [base]");
+            stringBuilder.AppendLine($"MERGE {this.tableName.Schema().Quoted()} AS [base]");
             stringBuilder.AppendLine($"USING [changes] on {str5}");
             if (hasMutableColumns)
             {
@@ -461,10 +497,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                     stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName}"));
                     empty = ", ";
                 }
+
                 stringBuilder.AppendLine();
                 stringBuilder.AppendLine($"\tUPDATE SET");
 
-                string strSeparator = "";
+                string strSeparator = string.Empty;
                 foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false))
                 {
                     var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
@@ -474,7 +511,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
             stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL) THEN");
-
 
             stringBuilderArguments = new StringBuilder();
             stringBuilderParameters = new StringBuilder();
@@ -488,11 +524,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilderParameters.Append(string.Concat(empty, $"[changes].{columnName}"));
                 empty = ", ";
             }
+
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"\tINSERT");
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()})");
-
+            stringBuilder.AppendLine($"\t({stringBuilderArguments})");
+            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters})");
 
             stringBuilder.Append($"\tOUTPUT ");
 
@@ -503,6 +539,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append($"{pkeyComma}INSERTED.{columnName}");
                 pkeyComma = ", ";
             }
+
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"\tINTO @dms_changed; -- populates the temp table with successful PKs");
             stringBuilder.AppendLine();
@@ -511,7 +548,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.tableName.Schema().Quoted()} ON;");
                 stringBuilder.AppendLine();
             }
 
@@ -520,16 +557,20 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t[update_scope_id] = @sync_scope_id,");
             stringBuilder.AppendLine("\t[sync_row_is_tombstone] = 0,");
             stringBuilder.AppendLine("\t[last_change_datetime] = GETUTCDATE()");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"FROM {this.trackingName.Schema().Quoted()} [side]");
             stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
-            //stringBuilder.AppendLine($"JOIN @changeTable [p] on {str7}");
+
+            // stringBuilder.AppendLine($"JOIN @changeTable [p] on {str7}");
             stringBuilder.AppendLine();
-            stringBuilder.Append(BulkSelectUnsuccessfulRows());
+            stringBuilder.Append(this.BulkSelectUnsuccessfulRows());
 
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
 
+        /// <summary>
+        /// Create bulk update stored procedure command.
+        /// </summary>
         public DbCommand CreateBulkUpdateCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkUpdateRows);
@@ -537,12 +578,16 @@ namespace Dotmim.Sync.SqlServer.Builders
             // Check if we have mutables columns
             var hasMutableColumns = this.tableDescription.GetMutableColumns(false).Any();
 
-            return CreateProcedureCommand(BuildBulkUpdateCommand, commandName, hasMutableColumns, connection, transaction);
+            return this.CreateProcedureCommand(this.BuildBulkUpdateCommand, commandName, hasMutableColumns, connection, transaction);
         }
 
         //------------------------------------------------------------------
         // Reset command
         //------------------------------------------------------------------
+
+        /// <summary>
+        /// Create reset command.
+        /// </summary>
         protected virtual SqlCommand BuildResetCommand()
         {
             var updTriggerName = this.sqlObjectNames.GetTriggerCommandName(DbTriggerType.Update);
@@ -552,7 +597,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             SqlCommand sqlCommand = new SqlCommand();
             SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
             {
-                Direction = ParameterDirection.Output
+                Direction = ParameterDirection.Output,
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
@@ -560,17 +605,16 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"DISABLE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()};");
-            stringBuilder.AppendLine($"DISABLE TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()};");
-            stringBuilder.AppendLine($"DISABLE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()};");
+            stringBuilder.AppendLine($"DISABLE TRIGGER {updTriggerName} ON {this.tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"DISABLE TRIGGER {insTriggerName} ON {this.tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"DISABLE TRIGGER {delTriggerName} ON {this.tableName.Schema().Quoted()};");
 
-            stringBuilder.AppendLine($"DELETE FROM {tableName.Schema().Quoted().ToString()};");
-            stringBuilder.AppendLine($"DELETE FROM {trackingName.Schema().Quoted().ToString()};");
+            stringBuilder.AppendLine($"DELETE FROM {this.tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"DELETE FROM {this.trackingName.Schema().Quoted()};");
 
-            stringBuilder.AppendLine($"ENABLE TRIGGER {updTriggerName} ON {tableName.Schema().Quoted().ToString()};");
-            stringBuilder.AppendLine($"ENABLE TRIGGER {insTriggerName} ON {tableName.Schema().Quoted().ToString()};");
-            stringBuilder.AppendLine($"ENABLE TRIGGER {delTriggerName} ON {tableName.Schema().Quoted().ToString()};");
-
+            stringBuilder.AppendLine($"ENABLE TRIGGER {updTriggerName} ON {this.tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"ENABLE TRIGGER {insTriggerName} ON {this.tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"ENABLE TRIGGER {delTriggerName} ON {this.tableName.Schema().Quoted()};");
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
@@ -578,16 +622,13 @@ namespace Dotmim.Sync.SqlServer.Builders
             return sqlCommand;
         }
 
-        public DbCommand CreateResetCommand(DbConnection connection, DbTransaction transaction)
-        {
-            //var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.Reset);
-            //return CreateProcedureCommand(BuildResetCommand, commandName, connection, transaction);
-            return null;
-        }
-
         //------------------------------------------------------------------
         // Delete command
         //------------------------------------------------------------------
+
+        /// <summary>
+        /// Create Delete command.
+        /// </summary>
         protected virtual SqlCommand BuildDeleteCommand()
         {
             var sqlCommand = new SqlCommand();
@@ -604,7 +645,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
             {
-                Direction = ParameterDirection.Output
+                Direction = ParameterDirection.Output,
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
@@ -620,6 +661,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(c, this.tableDescription.OriginalProvider);
                 stringBuilder.Append($"{columnName} {columnType}, ");
             }
+
             stringBuilder.Append(" PRIMARY KEY (");
 
             var pkeyComma = " ";
@@ -632,18 +674,19 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"DELETE {tableName.Schema().Quoted().ToString()}");
+            stringBuilder.AppendLine($"DELETE {this.tableName.Schema().Quoted()}");
             stringBuilder.Append($"OUTPUT ");
-            string comma = "";
+            string comma = string.Empty;
             foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
                 stringBuilder.Append($"{comma}DELETED.{columnName}");
                 comma = ", ";
             }
+
             stringBuilder.AppendLine($" INTO @dms_changed -- populates the temp table with successful deleted row");
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
-            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.AppendLine($"FROM {this.tableName.Schema().Quoted()} [base]");
+            stringBuilder.Append($"LEFT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
 
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[base]", "[side]"));
 
@@ -659,7 +702,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t[update_scope_id] = @sync_scope_id,");
             stringBuilder.AppendLine("\t[sync_row_is_tombstone] = 1,");
             stringBuilder.AppendLine("\t[last_change_datetime] = GETUTCDATE()");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"FROM {this.trackingName.Schema().Quoted()} [side]");
             stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
             stringBuilder.AppendLine();
 
@@ -667,114 +710,30 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
+
+        /// <summary>
+        /// Create delete stored procedure command.
+        /// </summary>
         public DbCommand CreateDeleteCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteRow);
-            return CreateProcedureCommand(BuildDeleteCommand, commandName, connection, transaction);
-        }
-
-        //------------------------------------------------------------------
-        // Delete Metadata command
-        //------------------------------------------------------------------
-        protected virtual SqlCommand BuildDeleteMetadataCommand()
-        {
-            SqlCommand sqlCommand = new SqlCommand();
-            this.AddPkColumnParametersToCommand(sqlCommand);
-            SqlParameter sqlParameter1 = new SqlParameter("@sync_row_timestamp", SqlDbType.BigInt);
-            sqlCommand.Parameters.Add(sqlParameter1);
-            SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
-            {
-                Direction = ParameterDirection.Output
-            };
-            sqlCommand.Parameters.Add(sqlParameter2);
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"DELETE [side] FROM {trackingName.Schema().Quoted().ToString()} [side]");
-            stringBuilder.AppendLine($"WHERE [side].[timestamp] < @sync_row_timestamp");
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
-
-        public DbCommand CreateDeleteMetadataCommand(DbConnection connection, DbTransaction transaction)
-        {
-            //var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.DeleteMetadata);
-            //return CreateProcedureCommand(BuildDeleteMetadataCommand, commandName, (SqlConnection)connection, (SqlTransaction)transaction);
-
-            return null;
-        }
-
-        //------------------------------------------------------------------
-        // Select Row command
-        //------------------------------------------------------------------
-        protected virtual SqlCommand BuildSelectRowCommand()
-        {
-            var sqlCommand = new SqlCommand();
-            this.AddPkColumnParametersToCommand(sqlCommand);
-            var sqlParameter = new SqlParameter("@sync_scope_id", SqlDbType.UniqueIdentifier);
-            sqlCommand.Parameters.Add(sqlParameter);
-
-            var stringBuilder = new StringBuilder("SELECT ");
-            stringBuilder.AppendLine();
-            var stringBuilder1 = new StringBuilder();
-            string empty = string.Empty;
-            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-            {
-                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                var parameterName = ParserName.Parse(pkColumn).Unquoted().Normalized().ToString();
-
-                stringBuilder1.Append($"{empty}[side].{columnName} = @{parameterName}");
-                empty = " AND ";
-            }
-            foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
-            {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-
-                var isPrimaryKey = this.tableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
-
-                if (isPrimaryKey)
-                    stringBuilder.AppendLine($"\t[side].{columnName}, ");
-                else
-                    stringBuilder.AppendLine($"\t[base].{columnName}, ");
-            }
-            stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone] as [sync_row_is_tombstone], ");
-            stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id]");
-
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
-            stringBuilder.AppendLine($"RIGHT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON");
-
-            string str = string.Empty;
-            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
-            {
-                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.Append($"{str}[base].{columnName} = [side].{columnName}");
-                str = " AND ";
-            }
-            stringBuilder.AppendLine();
-            stringBuilder.Append(string.Concat("WHERE ", stringBuilder1.ToString()));
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
-
-        public DbCommand CreateSelectRowCommand(DbConnection connection, DbTransaction transaction)
-        {
-            //var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectRow);
-            //return CreateProcedureCommand(BuildSelectRowCommand, commandName, (SqlConnection)connection, (SqlTransaction)transaction);
-            return null;
+            return this.CreateProcedureCommand(this.BuildDeleteCommand, commandName, connection, transaction);
         }
 
         //------------------------------------------------------------------
         // Create TVP command
         //------------------------------------------------------------------
+
+        /// <summary>
+        /// Create bulk table type command.
+        /// </summary>
         private string CreateBulkTableTypeCommandText()
         {
             StringBuilder stringBuilder = new StringBuilder();
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType);
 
             stringBuilder.AppendLine($"CREATE TYPE {commandName} AS TABLE (");
-            string str = "";
+            string str = string.Empty;
 
             foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
@@ -788,9 +747,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.AppendLine($"{str}{columnName} {columnType} {nullString}");
                 str = ", ";
             }
-            //stringBuilder.AppendLine(", [update_scope_id] [uniqueidentifier] NULL");
+
+            // stringBuilder.AppendLine(", [update_scope_id] [uniqueidentifier] NULL");
             stringBuilder.Append(string.Concat(str, "PRIMARY KEY ("));
-            str = "";
+            str = string.Empty;
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(c).Quoted().ToString();
@@ -801,17 +761,23 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append("))");
             return stringBuilder.ToString();
         }
+
+        /// <summary>
+        /// Create bulk table type stored procedure command.
+        /// </summary>
         public DbCommand CreateBulkTableTypeCommand(DbConnection connection, DbTransaction transaction)
         {
             var command = new SqlCommand(this.CreateBulkTableTypeCommandText(), (SqlConnection)connection, (SqlTransaction)transaction);
             return command;
-
         }
-
 
         //------------------------------------------------------------------
         // Update command
         //------------------------------------------------------------------
+
+        /// <summary>
+        /// Create update command.
+        /// </summary>
         protected virtual SqlCommand BuildUpdateCommand(bool hasMutableColumns)
         {
             var sqlCommand = new SqlCommand();
@@ -832,7 +798,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var sqlParameter4 = new SqlParameter("@sync_row_count", SqlDbType.Int)
             {
-                Direction = ParameterDirection.Output
+                Direction = ParameterDirection.Output,
             };
             sqlCommand.Parameters.Add(sqlParameter4);
 
@@ -853,6 +819,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 stringBuilder.Append($"{columnName} {columnType}, ");
             }
+
             stringBuilder.Append(" PRIMARY KEY (");
 
             var pkeyComma = " ";
@@ -870,7 +837,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.tableName.Schema().Quoted()} ON;");
                 stringBuilder.AppendLine();
             }
 
@@ -881,11 +848,12 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var columnName = ParserName.Parse(c).Quoted().ToString();
                 stringBuilder.Append($"[p].{columnName}, ");
             }
+
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id], [side].[timestamp] as [sync_timestamp], [side].[sync_row_is_tombstone] as [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM (SELECT ");
             stringBuilder.Append($"\t\t ");
-            string comma = "";
+            string comma = string.Empty;
             foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
                 var columnName = ParserName.Parse(c).Quoted().ToString();
@@ -894,12 +862,13 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append($"{comma}@{columnParameterName} as {columnName}");
                 comma = ", ";
             }
+
             stringBuilder.AppendLine($") AS [p]");
-            stringBuilder.Append($"\tLEFT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.Append($"\tLEFT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
             stringBuilder.AppendLine($"\t{str7}");
             stringBuilder.AppendLine($"\t)");
 
-            stringBuilder.AppendLine($"MERGE {tableName.Schema().Quoted().ToString()} AS [base]");
+            stringBuilder.AppendLine($"MERGE {this.tableName.Schema().Quoted()} AS [base]");
             stringBuilder.AppendLine($"USING [changes] on {str5}");
             if (hasMutableColumns)
             {
@@ -911,10 +880,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                     stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName}"));
                     empty = ", ";
                 }
+
                 stringBuilder.AppendLine();
                 stringBuilder.AppendLine($"\tUPDATE SET");
 
-                string strSeparator = "";
+                string strSeparator = string.Empty;
                 foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false))
                 {
                     var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
@@ -924,7 +894,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
             stringBuilder.AppendLine("WHEN NOT MATCHED BY TARGET AND ([changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR @sync_force_write = 1) THEN");
-
 
             stringBuilderArguments = new StringBuilder();
             stringBuilderParameters = new StringBuilder();
@@ -938,10 +907,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilderParameters.Append(string.Concat(empty, $"[changes].{columnName}"));
                 empty = ", ";
             }
+
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"\tINSERT");
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()})");
+            stringBuilder.AppendLine($"\t({stringBuilderArguments})");
+            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters})");
 
             stringBuilder.AppendLine();
             stringBuilder.Append($"OUTPUT ");
@@ -953,6 +923,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append($"{pkeyComma}INSERTED.{columnName}");
                 pkeyComma = ", ";
             }
+
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"INTO @dms_changed; -- populates the temp table with successful PKs");
             stringBuilder.AppendLine();
@@ -961,7 +932,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {tableName.Schema().Quoted().ToString()} ON;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.tableName.Schema().Quoted()} ON;");
                 stringBuilder.AppendLine();
             }
 
@@ -973,7 +944,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t[update_scope_id] = @sync_scope_id,");
             stringBuilder.AppendLine("\t[sync_row_is_tombstone] = 0,");
             stringBuilder.AppendLine("\t[last_change_datetime] = GETUTCDATE()");
-            stringBuilder.AppendLine($"FROM {trackingName.Schema().Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"FROM {this.trackingName.Schema().Quoted()} [side]");
             stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"SET {sqlParameter4.ParameterName} = @@ROWCOUNT;");
@@ -981,6 +952,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             sqlCommand.CommandText = stringBuilder.ToString();
             return sqlCommand;
         }
+
+        /// <summary>
+        /// Create update stored procedure command.
+        /// </summary>
         public DbCommand CreateUpdateCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow);
@@ -988,7 +963,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             // Check if we have mutables columns
             var hasMutableColumns = this.tableDescription.GetMutableColumns(false).Any();
 
-            return this.CreateProcedureCommand(BuildUpdateCommand, commandName, hasMutableColumns, (SqlConnection)connection, (SqlTransaction)transaction);
+            return this.CreateProcedureCommand(this.BuildUpdateCommand, commandName, hasMutableColumns, (SqlConnection)connection, (SqlTransaction)transaction);
         }
 
         //------------------------------------------------------------------
@@ -996,7 +971,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         //------------------------------------------------------------------
 
         /// <summary>
-        /// Add all sql parameters
+        /// Add all sql parameters.
         /// </summary>
         protected void CreateFilterParameters(SqlCommand sqlCommand, SyncFilter filter)
         {
@@ -1017,7 +992,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                     {
                         Size = param.MaxLength,
                         IsNullable = param.AllowNull,
-                        Value = param.DefaultValue
+                        Value = param.DefaultValue,
                     };
                     sqlCommand.Parameters.Add(customParameterFilter);
                 }
@@ -1046,16 +1021,15 @@ namespace Dotmim.Sync.SqlServer.Builders
                     {
                         Size = columnFilter.MaxLength,
                         IsNullable = param.AllowNull,
-                        Value = param.DefaultValue
+                        Value = param.DefaultValue,
                     };
                     sqlCommand.Parameters.Add(sqlParamFilter);
                 }
-
             }
         }
 
         /// <summary>
-        /// Create all custom joins from within a filter 
+        /// Create all custom joins from within a filter.
         /// </summary>
         protected string CreateFilterCustomJoins(SyncFilter filter)
         {
@@ -1114,7 +1088,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
         /// <summary>
-        /// Create all side where criteria from within a filter
+        /// Create all side where criteria from within a filter.
         /// </summary>
         protected string CreateFilterWhereSide(SyncFilter filter, bool checkTombstoneRows = false)
         {
@@ -1124,12 +1098,12 @@ namespace Dotmim.Sync.SqlServer.Builders
                 return string.Empty;
 
             var stringBuilder = new StringBuilder();
+
             // Managing when state is tombstone
             if (checkTombstoneRows)
                 stringBuilder.AppendLine($"(");
 
             stringBuilder.AppendLine($" (");
-
 
             var and2 = "   ";
 
@@ -1165,8 +1139,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.Append($")");
 
                 and2 = " AND ";
-
             }
+
             stringBuilder.AppendLine();
 
             stringBuilder.AppendLine($"  )");
@@ -1176,14 +1150,13 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.AppendLine($" OR [side].[sync_row_is_tombstone] = 1");
                 stringBuilder.AppendLine($")");
             }
+
             // Managing when state is tombstone
-
-
             return stringBuilder.ToString();
         }
 
         /// <summary>
-        /// Create all custom wheres from witing a filter
+        /// Create all custom wheres from witing a filter.
         /// </summary>
         protected string CreateFilterCustomWheres(SyncFilter filter)
         {
@@ -1213,6 +1186,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             return stringBuilder.ToString();
         }
 
+        /// <summary>
+        /// Create select incremental changes command.
+        /// </summary>
         protected virtual SqlCommand BuildSelectIncrementalChangesCommand(SyncFilter filter = null)
         {
             var sqlCommand = new SqlCommand();
@@ -1224,7 +1200,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             // Add filter parameters
             if (filter != null)
-                CreateFilterParameters(sqlCommand, filter);
+                this.CreateFilterParameters(sqlCommand, filter);
 
             var stringBuilder = new StringBuilder("SELECT DISTINCT");
 
@@ -1241,18 +1217,19 @@ namespace Dotmim.Sync.SqlServer.Builders
                 else
                     stringBuilder.AppendLine($"\t[base].{columnName}, ");
             }
+
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone] as [sync_row_is_tombstone], ");
             stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id]");
-            // ----------------------------------
 
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted().ToString()} [base]");
+            // ----------------------------------
+            stringBuilder.AppendLine($"FROM {this.tableName.Schema().Quoted()} [base]");
 
             // ----------------------------------
             // Make Right Join
             // ----------------------------------
-            stringBuilder.Append($"RIGHT JOIN {trackingName.Schema().Quoted().ToString()} [side] ON ");
+            stringBuilder.Append($"RIGHT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
 
-            string empty = "";
+            string empty = string.Empty;
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
@@ -1264,7 +1241,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             // Custom Joins
             // ----------------------------------
             if (filter != null)
-                stringBuilder.Append(CreateFilterCustomJoins(filter));
+                stringBuilder.Append(this.CreateFilterCustomJoins(filter));
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
@@ -1274,21 +1251,20 @@ namespace Dotmim.Sync.SqlServer.Builders
             // ----------------------------------
             if (filter != null)
             {
-                var createFilterWhereSide = CreateFilterWhereSide(filter, true);
+                var createFilterWhereSide = this.CreateFilterWhereSide(filter, true);
                 stringBuilder.Append(createFilterWhereSide);
 
                 if (!string.IsNullOrEmpty(createFilterWhereSide))
                     stringBuilder.AppendLine($"AND ");
 
-                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
+                var createFilterCustomWheres = this.CreateFilterCustomWheres(filter);
                 stringBuilder.Append(createFilterCustomWheres);
 
                 if (!string.IsNullOrEmpty(createFilterCustomWheres))
                     stringBuilder.AppendLine($"AND ");
             }
+
             // ----------------------------------
-
-
             stringBuilder.AppendLine("\t[side].[timestamp] > @sync_min_timestamp");
             stringBuilder.AppendLine("\tAND ([side].[update_scope_id] <> @sync_scope_id OR [side].[update_scope_id] IS NULL)");
             stringBuilder.AppendLine(")");
@@ -1297,31 +1273,42 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return sqlCommand;
         }
+
+        /// <summary>
+        /// Create select incremental changes stored procedures command.
+        /// </summary>
         public DbCommand CreateSelectIncrementalChangesCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges);
-            SqlCommand cmdWithoutFilter() => BuildSelectIncrementalChangesCommand(null);
-            return this.CreateProcedureCommand(cmdWithoutFilter, commandName, connection, transaction);
+            SqlCommand CmdWithoutFilter() => this.BuildSelectIncrementalChangesCommand(null);
+            return this.CreateProcedureCommand(CmdWithoutFilter, commandName, connection, transaction);
         }
+
+        /// <summary>
+        /// Create select incremental changes stored procedures with filters command.
+        /// </summary>
         public DbCommand CreateSelectIncrementalChangesWithFilterCommand(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             if (filter == null)
                 return null;
 
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
-            SqlCommand cmdWithFilter() => BuildSelectIncrementalChangesCommand(filter);
-            return this.CreateProcedureCommand(cmdWithFilter, commandName, connection, transaction);
+            SqlCommand CmdWithFilter() => this.BuildSelectIncrementalChangesCommand(filter);
+            return this.CreateProcedureCommand(CmdWithFilter, commandName, connection, transaction);
         }
 
         //------------------------------------------------------------------
         // Select initialized changes command
         //------------------------------------------------------------------
 
+        /// <summary>
+        /// Create select initial changes command.
+        /// </summary>
         protected virtual SqlCommand BuildSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
             var sqlCommand = new SqlCommand
             {
-                CommandTimeout = 0
+                CommandTimeout = 0,
             };
 
             var pTimestamp = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt) { Value = "NULL", IsNullable = true };
@@ -1346,15 +1333,16 @@ namespace Dotmim.Sync.SqlServer.Builders
                 stringBuilder.AppendLine($"\t{comma}[base].{columnName}");
                 comma = ", ";
             }
+
             stringBuilder.AppendLine($"\t, [side].[sync_row_is_tombstone] as [sync_row_is_tombstone]");
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted()} [base]");
+            stringBuilder.AppendLine($"FROM {this.tableName.Schema().Quoted()} [base]");
 
             // ----------------------------------
             // Make Left Join
             // ----------------------------------
-            stringBuilder.Append($"LEFT JOIN {trackingName.Schema().Quoted()} [side] ON ");
+            stringBuilder.Append($"LEFT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
 
-            string empty = "";
+            string empty = string.Empty;
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
@@ -1366,7 +1354,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             // Custom Joins
             // ----------------------------------
             if (filter != null)
-                stringBuilder.Append(CreateFilterCustomJoins(filter));
+                stringBuilder.Append(this.CreateFilterCustomJoins(filter));
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (");
@@ -1376,21 +1364,20 @@ namespace Dotmim.Sync.SqlServer.Builders
             // ----------------------------------
             if (filter != null)
             {
-                var createFilterWhereSide = CreateFilterWhereSide(filter);
+                var createFilterWhereSide = this.CreateFilterWhereSide(filter);
                 stringBuilder.Append(createFilterWhereSide);
 
                 if (!string.IsNullOrEmpty(createFilterWhereSide))
                     stringBuilder.AppendLine($"AND ");
 
-                var createFilterCustomWheres = CreateFilterCustomWheres(filter);
+                var createFilterCustomWheres = this.CreateFilterCustomWheres(filter);
                 stringBuilder.Append(createFilterCustomWheres);
 
                 if (!string.IsNullOrEmpty(createFilterCustomWheres))
                     stringBuilder.AppendLine($"AND ");
             }
+
             // ----------------------------------
-
-
             stringBuilder.AppendLine("\t([side].[timestamp] > @sync_min_timestamp OR  @sync_min_timestamp IS NULL)");
             stringBuilder.AppendLine(")");
             stringBuilder.AppendLine("UNION");
@@ -1408,46 +1395,52 @@ namespace Dotmim.Sync.SqlServer.Builders
 
                 comma = ", ";
             }
+
             stringBuilder.AppendLine($"\t, [side].[sync_row_is_tombstone] as [sync_row_is_tombstone]");
-            stringBuilder.AppendLine($"FROM {tableName.Schema().Quoted()} [base]");
+            stringBuilder.AppendLine($"FROM {this.tableName.Schema().Quoted()} [base]");
 
             // ----------------------------------
             // Make Left Join
             // ----------------------------------
-            stringBuilder.Append($"RIGHT JOIN {trackingName.Schema().Quoted()} [side] ON ");
+            stringBuilder.Append($"RIGHT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
 
-            empty = "";
+            empty = string.Empty;
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
                 var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
                 stringBuilder.Append($"{empty}[base].{columnName} = [side].{columnName}");
                 empty = " AND ";
             }
+
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE ([side].[timestamp] > @sync_min_timestamp AND [side].[sync_row_is_tombstone] = 1);");
-
 
             sqlCommand.CommandText = stringBuilder.ToString();
 
             return sqlCommand;
         }
 
+        /// <summary>
+        /// Create select initial changes stored procedures command.
+        /// </summary>
         public DbCommand CreateSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges);
-            SqlCommand cmdWithoutFilter() => BuildSelectInitializedChangesCommand(connection, transaction, null);
-            return this.CreateProcedureCommand(cmdWithoutFilter, commandName, connection, transaction);
+            SqlCommand CmdWithoutFilter() => this.BuildSelectInitializedChangesCommand(connection, transaction, null);
+            return this.CreateProcedureCommand(CmdWithoutFilter, commandName, connection, transaction);
         }
 
+        /// <summary>
+        /// Create select initial changes stored procedures with filters command.
+        /// </summary>
         public DbCommand CreateSelectInitializedChangesWithFilterCommand(SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             if (filter == null)
                 return null;
 
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
-            SqlCommand cmdWithFilter() => BuildSelectInitializedChangesCommand(connection, transaction, filter);
-            return this.CreateProcedureCommand(cmdWithFilter, commandName, connection, transaction);
-
+            SqlCommand CmdWithFilter() => this.BuildSelectInitializedChangesCommand(connection, transaction, filter);
+            return this.CreateProcedureCommand(CmdWithFilter, commandName, connection, transaction);
         }
     }
 }
