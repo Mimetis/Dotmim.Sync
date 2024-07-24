@@ -17,8 +17,8 @@
 //        private readonly MySqlConnection sqlConnection;
 //        private readonly MySqlDbMetadata mySqlDbMetadata;
 
-// public string TableName { set => this.tableName = value; }
-//        public string SchemaName { set { } }
+// public string ColumnName { set => this.tableName = value; }
+//        public string TableName { set { } }
 
 // public MySqlManagerTable(DbConnection connection, DbTransaction transaction = null)
 //        {
@@ -102,12 +102,12 @@
 // if (relationsList != null && relationsList.Rows.Count > 0)
 //            {
 //                foreach (var fk in relationsList.Rows.GroupBy(row =>
-//                    new { Name = (string)row["ForeignKey"], TableName = (string)row["TableName"], ReferenceTableName = (string)row["ReferenceTableName"] }))
+//                    new { Name = (string)row["ForeignKey"], ColumnName = (string)row["ColumnName"], ReferenceTableName = (string)row["ReferenceTableName"] }))
 //                {
 //                    var relationDefinition = new DbRelationDefinition()
 //                    {
 //                        ForeignKey = fk.Key.Name,
-//                        TableName = fk.Key.TableName,
+//                        ColumnName = fk.Key.ColumnName,
 //                        ReferenceTableName = fk.Key.ReferenceTableName,
 //                    };
 

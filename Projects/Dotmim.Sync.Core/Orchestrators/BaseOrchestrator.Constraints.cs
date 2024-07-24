@@ -17,7 +17,7 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Reset a table designed from tableName and optionally schemaName, deleting all rows from this table and corresponding tracking_table. This method is used when you want to Reinitialize your database.
+        /// Reset a table designed from columnName and optionally tableName, deleting all rows from this table and corresponding tracking_table. This method is used when you want to Reinitialize your database.
         /// </summary>
         public virtual Task ResetTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null,
             IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)

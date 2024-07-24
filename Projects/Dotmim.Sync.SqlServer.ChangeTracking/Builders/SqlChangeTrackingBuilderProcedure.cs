@@ -904,7 +904,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         // stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted().ToString()} DISABLE CHANGE_TRACKING;");
         //    stringBuilder.AppendLine($"DELETE FROM {tableName.Schema().Quoted().ToString()};");
 
-        // if (setup.HasTableWithColumns(tableDescription.TableName))
+        // if (setup.HasTableWithColumns(tableDescription.ColumnName))
         //    {
         //        stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = ON);");
         //    }

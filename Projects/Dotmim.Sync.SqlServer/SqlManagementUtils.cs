@@ -1,4 +1,5 @@
 using Dotmim.Sync.Builders;
+using Dotmim.Sync.DatabaseStringParsers;
 using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 using System.Data;
@@ -139,7 +140,7 @@ namespace Dotmim.Sync.SqlServer
 #if NET6_0_OR_GREATER
                 await connection.CloseAsync().ConfigureAwait(false);
 #else
-                    connection.Close();
+                connection.Close();
 #endif
 
             return syncTable;
@@ -173,7 +174,7 @@ namespace Dotmim.Sync.SqlServer
 #if NET6_0_OR_GREATER
                 await connection.CloseAsync().ConfigureAwait(false);
 #else
-                    connection.Close();
+                connection.Close();
 #endif
         }
 
@@ -414,7 +415,7 @@ namespace Dotmim.Sync.SqlServer
 #if NET6_0_OR_GREATER
                 await connection.CloseAsync().ConfigureAwait(false);
 #else
-                    connection.Close();
+                connection.Close();
 #endif
         }
 
@@ -448,7 +449,7 @@ namespace Dotmim.Sync.SqlServer
 #if NET6_0_OR_GREATER
                 await connection.CloseAsync().ConfigureAwait(false);
 #else
-                    connection.Close();
+                connection.Close();
 #endif
         }
 
@@ -474,7 +475,7 @@ namespace Dotmim.Sync.SqlServer
 #if NET6_0_OR_GREATER
                 await connection.CloseAsync().ConfigureAwait(false);
 #else
-                    connection.Close();
+                connection.Close();
 #endif
         }
 
@@ -500,16 +501,18 @@ namespace Dotmim.Sync.SqlServer
 #if NET6_0_OR_GREATER
                 await connection.CloseAsync().ConfigureAwait(false);
 #else
-                    connection.Close();
+                connection.Close();
 #endif
         }
 
         public static string GetUnquotedSqlSchemaName(ParserName parser)
         {
-            if (string.IsNullOrEmpty(parser.SchemaName))
-                return "dbo";
+            return string.IsNullOrEmpty(parser.SchemaName) ? "dbo" : parser.SchemaName;
+        }
 
-            return parser.SchemaName;
+        public static string GetUnquotedSqlSchemaName(TableParser parser)
+        {
+            return string.IsNullOrEmpty(parser.SchemaName) ? "dbo" : parser.SchemaName;
         }
 
         public static async Task<bool> IsChangeTrackingEnabledAsync(SqlConnection connection, SqlTransaction transaction)
@@ -700,7 +703,7 @@ namespace Dotmim.Sync.SqlServer
 #if NET6_0_OR_GREATER
                 await connection.CloseAsync().ConfigureAwait(false);
 #else
-                    connection.Close();
+                connection.Close();
 #endif
 
             return tableExist;
@@ -741,7 +744,7 @@ namespace Dotmim.Sync.SqlServer
 #if NET6_0_OR_GREATER
                 await connection.CloseAsync().ConfigureAwait(false);
 #else
-                    connection.Close();
+                connection.Close();
 #endif
 
             return schemaExist;

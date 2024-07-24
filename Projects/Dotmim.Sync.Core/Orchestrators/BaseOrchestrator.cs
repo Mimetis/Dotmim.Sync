@@ -111,7 +111,7 @@ namespace Dotmim.Sync
             // var hashString = Convert.ToBase64String(hash);
 
             //// Create the key
-            // var commandKey = $"{p.tableName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
+            // var commandKey = $"{p.columnName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
 
             //// Get a lazy command instance
             // var lazySyncAdapter = syncAdapters.GetOrAdd(commandKey,
@@ -140,7 +140,7 @@ namespace Dotmim.Sync
             // var hashString = Convert.ToBase64String(hash);
 
             //// Create the key
-            // var commandKey = $"{p.tableName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
+            // var commandKey = $"{p.columnName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
 
             //// Get a lazy command instance
             // var lazyTableBuilder = tableBuilders.GetOrAdd(commandKey,
@@ -175,10 +175,7 @@ namespace Dotmim.Sync
             // var scopeBuilder = lazyScopeBuilder.Value;
 
             // return scopeBuilder;
-            if (this.Provider == null)
-                return null;
-
-            return this.Provider.GetScopeBuilder(scopeInfoTableName);
+            return this.Provider == null ? null : this.Provider.GetScopeBuilder(scopeInfoTableName);
         }
 
         /// <summary>
@@ -209,10 +206,7 @@ namespace Dotmim.Sync
         /// </summary>
         public override string ToString()
         {
-            if (this.Provider == null)
-                return base.ToString();
-
-            return $"{this.Provider.GetDatabaseName()}, {this.Provider.GetShortProviderTypeName()}";
+            return this.Provider == null ? base.ToString() : $"{this.Provider.GetDatabaseName()}, {this.Provider.GetShortProviderTypeName()}";
         }
 
         /// <summary>

@@ -26,7 +26,7 @@ namespace Dotmim.Sync
         ///  var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync();
         ///  foreach (var schemaTable in scopeInfo.Schema.Tables)
         ///  {
-        ///    Console.WriteLine($"Table Name: {schemaTable.TableName}");
+        ///    Console.WriteLine($"Table Name: {schemaTable.ColumnName}");
         ///
         ///    foreach (var column in schemaTable.Columns)
         ///          Console.WriteLine($"Column Name: {column.ColumnName}");
@@ -69,7 +69,7 @@ namespace Dotmim.Sync
         ///  var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
         ///  foreach (var schemaTable in scopeInfo.Schema.Tables)
         ///  {
-        ///    Console.WriteLine($"Table Name: {schemaTable.TableName}");
+        ///    Console.WriteLine($"Table Name: {schemaTable.ColumnName}");
         ///
         ///    foreach (var column in schemaTable.Columns)
         ///          Console.WriteLine($"Column Name: {column.ColumnName}");
@@ -227,10 +227,9 @@ namespace Dotmim.Sync
 
                 // We gave 2 chances to user to edit the setup and fill correct values.
                 // Final check, but if not valid, raise an error
-                if (inputSetup != null && sScopeInfo.Setup != null && !sScopeInfo.Setup.EqualsByProperties(inputSetup))
-                    throw new SetupConflictOnServerException(inputSetup, sScopeInfo.Setup);
-
-                return (context, false, sScopeInfo);
+                return inputSetup != null && sScopeInfo.Setup != null && !sScopeInfo.Setup.EqualsByProperties(inputSetup)
+                    ? throw new SetupConflictOnServerException(inputSetup, sScopeInfo.Setup)
+                    : ((SyncContext SyncContext, bool IsConflicting, ScopeInfo ScopeInfo))(context, false, sScopeInfo);
             }
             catch (SetupConflictOnServerException)
             {

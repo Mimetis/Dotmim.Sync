@@ -141,7 +141,7 @@
 //            }
 
 // // Search for deleted tables
-//            var deletedTables = oldClientScopeInfo.Setup.Tables.Where(oldt => newServerScopeInfo.Setup.Tables[oldt.TableName, oldt.SchemaName] == null);
+//            var deletedTables = oldClientScopeInfo.Setup.Tables.Where(oldt => newServerScopeInfo.Setup.Tables[oldt.ColumnName, oldt.TableName] == null);
 
 // // We found some tables present in the old setup, but not in the new setup
 //            // So, we are removing all the sync elements from the table, but we do not remote the table itself
@@ -159,7 +159,7 @@
 //            }
 
 // // Search for new tables
-//            var newTables = newServerScopeInfo.Setup.Tables.Where(newdt => oldClientScopeInfo.Setup.Tables[newdt.TableName, newdt.SchemaName] == null);
+//            var newTables = newServerScopeInfo.Setup.Tables.Where(newdt => oldClientScopeInfo.Setup.Tables[newdt.ColumnName, newdt.TableName] == null);
 
 // // We found some tables present in the new setup, but not in the old setup
 //            foreach (var newTable in newTables)
@@ -179,7 +179,7 @@
 //            foreach (var newTable in newServerScopeInfo.Setup.Tables)
 //            {
 //                // Getting corresponding table in old setup
-//                var oldTable = oldClientScopeInfo.Setup.Tables[newTable.TableName, newTable.SchemaName];
+//                var oldTable = oldClientScopeInfo.Setup.Tables[newTable.ColumnName, newTable.TableName];
 
 // // We do not found the old setup table, we can conclude this "newTable" is a new table included in the new setup
 //                // And therefore will be setup during the last call the EnsureSchema()
@@ -220,7 +220,7 @@
 //            {
 //                foreach (var filter in newServerScopeInfo.Setup.Filters)
 //                {
-//                    var setupTable = newServerScopeInfo.Setup.Tables[filter.TableName, filter.SchemaName];
+//                    var setupTable = newServerScopeInfo.Setup.Tables[filter.ColumnName, filter.TableName];
 
 // if (setupTable == null)
 //                        continue;

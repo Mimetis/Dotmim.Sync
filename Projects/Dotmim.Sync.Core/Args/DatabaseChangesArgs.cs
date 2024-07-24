@@ -220,7 +220,7 @@ namespace Dotmim.Sync
         ///   Console.WriteLine($"Total: {args.ChangesSelected.TotalChangesSelected} " +
         ///             $"({args.ChangesSelected.TotalChangesSelectedUpdates}/{args.ChangesSelected.TotalChangesSelectedDeletes})");
         ///   foreach (var table in args.ChangesSelected.TableChangesSelected)
-        ///           Console.WriteLine($"Table: {table.TableName}. Total: {table.TotalChanges} ({table.Upserts / table.Deletes}");
+        ///           Console.WriteLine($"Table: {table.ColumnName}. Total: {table.TotalChanges} ({table.Upserts / table.Deletes}");
         /// });
         /// </code>
         /// </example>

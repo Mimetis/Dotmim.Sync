@@ -183,10 +183,7 @@ namespace Dotmim.Sync.PostgreSql
             {
                 if (value is DateTime dateTime)
                     npgSqlParameter.Value = dateTime;
-                if (value is DateTimeOffset dateTimeOffset)
-                    npgSqlParameter.Value = dateTimeOffset.DateTime;
-                else
-                    npgSqlParameter.Value = SyncTypeConverter.TryConvertTo<DateTime>(value);
+                npgSqlParameter.Value = value is DateTimeOffset dateTimeOffset ? dateTimeOffset.DateTime : (object)SyncTypeConverter.TryConvertTo<DateTime>(value);
                 return;
             }
 
@@ -303,13 +300,13 @@ namespace Dotmim.Sync.PostgreSql
             // strCommand.AppendLine($"From pg_constraint ct ");
             // strCommand.AppendLine($"join pg_catalog.pg_class  cl on  cl.oid =  ct.conrelid");
             // strCommand.AppendLine($"join pg_catalog.pg_namespace nsp on nsp.oid = ct.connamespace");
-            // strCommand.AppendLine($"where relname = '{TableName.Unquoted()}' and ct.contype = 'f' and nspname='{schema}';");
+            // strCommand.AppendLine($"where relname = '{ColumnName.Unquoted()}' and ct.contype = 'f' and nspname='{schema}';");
             // strCommand.AppendLine($"BEGIN");
             // strCommand.AppendLine($"open cur_trg;");
             // strCommand.AppendLine($"loop");
             // strCommand.AppendLine($"fetch cur_trg into fkname;");
             // strCommand.AppendLine($"exit when not found;");
-            // strCommand.AppendLine($"Execute 'ALTER TABLE \"{schema}\".{TableName.Quoted()} DROP CONSTRAINT \"' || fkname || '\";';");
+            // strCommand.AppendLine($"Execute 'ALTER TABLE \"{schema}\".{ColumnName.Quoted()} DROP CONSTRAINT \"' || fkname || '\";';");
             // strCommand.AppendLine($"end loop;");
             // strCommand.AppendLine($"close cur_trg;");
             // strCommand.AppendLine($"END $$;");

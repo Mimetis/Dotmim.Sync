@@ -24,7 +24,7 @@ namespace Dotmim.Sync
         ///  var scopeInfo = await localOrchestrator.GetScopeInfoAsync();
         ///  foreach (var schemaTable in scopeInfo.Schema.Tables)
         ///  {
-        ///    Console.WriteLine($"Table Name: {schemaTable.TableName}");
+        ///    Console.WriteLine($"Table Name: {schemaTable.ColumnName}");
         ///
         ///    foreach (var column in schemaTable.Columns)
         ///          Console.WriteLine($"Column Name: {column.ColumnName}");
