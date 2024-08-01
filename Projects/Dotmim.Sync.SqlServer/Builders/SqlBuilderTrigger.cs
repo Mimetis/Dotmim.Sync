@@ -16,16 +16,27 @@ namespace Dotmim.Sync.SqlServer.Builders
     /// </summary>
     public class SqlBuilderTrigger
     {
-        private readonly SyncTable tableDescription;
-        private readonly SqlObjectNames sqlObjectNames;
-        private readonly SqlDbMetadata sqlDbMetadata;
+        /// <summary>
+        /// Gets the table description.
+        /// </summary>
+        protected SyncTable TableDescription { get; }
+
+        /// <summary>
+        /// Gets the sql object names.
+        /// </summary>
+        protected SqlObjectNames SqlObjectNames { get; }
+
+        /// <summary>
+        /// Gets the sql database metadata.
+        /// </summary>
+        protected SqlDbMetadata SqlDbMetadata { get; }
 
         /// <inheritdoc cref="SqlBuilderTrigger" />
         public SqlBuilderTrigger(SyncTable tableDescription, SqlObjectNames sqlObjectNames, SqlDbMetadata sqlDbMetadata)
         {
-            this.tableDescription = tableDescription;
-            this.sqlObjectNames = sqlObjectNames;
-            this.sqlDbMetadata = sqlDbMetadata;
+            this.TableDescription = tableDescription;
+            this.SqlObjectNames = sqlObjectNames;
+            this.SqlDbMetadata = sqlDbMetadata;
         }
 
         /// <summary>
@@ -34,7 +45,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public virtual Task<DbCommand> GetExistsTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
 
-            var commandTriggerName = this.sqlObjectNames.GetTriggerCommandName(triggerType);
+            var commandTriggerName = this.SqlObjectNames.GetTriggerCommandName(triggerType);
             var triggerNameParser = new ObjectParser(commandTriggerName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
 
             var commandText = $@"IF EXISTS (SELECT tr.name FROM sys.triggers tr  
@@ -67,7 +78,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public virtual Task<DbCommand> GetDropTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
 
-            var commandTriggerName = this.sqlObjectNames.GetTriggerCommandName(triggerType);
+            var commandTriggerName = this.SqlObjectNames.GetTriggerCommandName(triggerType);
 
             var commandText = $@"DROP TRIGGER {commandTriggerName}";
 
@@ -97,10 +108,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                               : triggerType == DbTriggerType.Update ? "UPDATE"
                               : "INSERT";
 
-            var commandTriggerName = this.sqlObjectNames.GetTriggerCommandName(triggerType);
+            var commandTriggerName = this.SqlObjectNames.GetTriggerCommandName(triggerType);
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TRIGGER {commandTriggerName} ON {this.sqlObjectNames.TableQuotedFullName} FOR {triggerFor} AS");
+            stringBuilder.AppendLine($"CREATE TRIGGER {commandTriggerName} ON {this.SqlObjectNames.TableQuotedFullName} FOR {triggerFor} AS");
             stringBuilder.AppendLine(commandTriggerCommandString);
 
             var command = connection.CreateCommand();
@@ -122,12 +133,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 1");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
-            stringBuilder.AppendLine($"FROM {this.sqlObjectNames.TrackingTableQuotedFullName} [side]");
+            stringBuilder.AppendLine($"FROM {this.SqlObjectNames.TrackingTableQuotedFullName} [side]");
             stringBuilder.Append($"JOIN DELETED AS [d] ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[d]"));
+            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[side]", "[d]"));
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"INSERT INTO {this.sqlObjectNames.TrackingTableQuotedFullName} (");
+            stringBuilder.AppendLine($"INSERT INTO {this.SqlObjectNames.TrackingTableQuotedFullName} (");
 
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderArguments2 = new StringBuilder();
@@ -135,7 +146,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             string argComma = " ";
             string argAnd = string.Empty;
-            var primaryKeys = this.tableDescription.GetPrimaryKeysColumns();
+            var primaryKeys = this.TableDescription.GetPrimaryKeysColumns();
 
             foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
             {
@@ -159,8 +170,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t,1");
             stringBuilder.AppendLine("\t,GetUtcDate()");
             stringBuilder.AppendLine("FROM DELETED [d]");
-            stringBuilder.Append($"LEFT JOIN {this.sqlObjectNames.TrackingTableQuotedFullName} [side] ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[side]"));
+            stringBuilder.Append($"LEFT JOIN {this.SqlObjectNames.TrackingTableQuotedFullName} [side] ON ");
+            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[d]", "[side]"));
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
 
@@ -178,12 +189,12 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("SET  [sync_row_is_tombstone] = 0");
             stringBuilder.AppendLine("\t,[update_scope_id] = NULL -- scope id is always NULL when update is made locally");
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
-            stringBuilder.AppendLine($"FROM {this.sqlObjectNames.TrackingTableQuotedFullName} [side]");
+            stringBuilder.AppendLine($"FROM {this.SqlObjectNames.TrackingTableQuotedFullName} [side]");
             stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[i]"));
+            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[side]", "[i]"));
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"INSERT INTO {this.sqlObjectNames.TrackingTableQuotedFullName} (");
+            stringBuilder.AppendLine($"INSERT INTO {this.SqlObjectNames.TrackingTableQuotedFullName} (");
 
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderArguments2 = new StringBuilder();
@@ -191,7 +202,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             string argComma = " ";
             string argAnd = string.Empty;
-            var primaryKeys = this.tableDescription.GetPrimaryKeysColumns();
+            var primaryKeys = this.TableDescription.GetPrimaryKeysColumns();
 
             foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
             {
@@ -214,8 +225,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t,0");
             stringBuilder.AppendLine("\t,GetUtcDate()");
             stringBuilder.AppendLine("FROM INSERTED [i]");
-            stringBuilder.Append($"LEFT JOIN {this.sqlObjectNames.TrackingTableQuotedFullName} [side] ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[i]", "[side]"));
+            stringBuilder.Append($"LEFT JOIN {this.SqlObjectNames.TrackingTableQuotedFullName} [side] ON ");
+            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[i]", "[side]"));
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
 
@@ -234,11 +245,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"FROM {this.sqlObjectNames.TrackingTableQuotedFullName} [side]");
+            stringBuilder.AppendLine($"FROM {this.SqlObjectNames.TrackingTableQuotedFullName} [side]");
             stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[side]", "[i]"));
+            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[side]", "[i]"));
 
-            stringBuilder.AppendLine($"INSERT INTO {this.sqlObjectNames.TrackingTableQuotedFullName} (");
+            stringBuilder.AppendLine($"INSERT INTO {this.SqlObjectNames.TrackingTableQuotedFullName} (");
 
             var stringBuilderArguments = new StringBuilder();
             var stringBuilderArguments2 = new StringBuilder();
@@ -246,7 +257,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             string argComma = " ";
             string argAnd = string.Empty;
-            var primaryKeys = this.tableDescription.GetPrimaryKeysColumns();
+            var primaryKeys = this.TableDescription.GetPrimaryKeysColumns();
 
             foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
             {
@@ -270,9 +281,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t,GetUtcDate()");
             stringBuilder.AppendLine("FROM INSERTED [i]");
             stringBuilder.Append($"JOIN DELETED AS [d] ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[d]", "[i]"));
-            stringBuilder.Append($"LEFT JOIN {this.sqlObjectNames.TrackingTableQuotedFullName} [side] ON ");
-            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[i]", "[side]"));
+            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[d]", "[i]"));
+            stringBuilder.Append($"LEFT JOIN {this.SqlObjectNames.TrackingTableQuotedFullName} [side] ON ");
+            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[i]", "[side]"));
             stringBuilder.Append("WHERE ");
             stringBuilder.AppendLine(stringPkAreNull.ToString());
 

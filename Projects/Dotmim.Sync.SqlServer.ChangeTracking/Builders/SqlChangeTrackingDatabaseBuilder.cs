@@ -4,8 +4,10 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
+    /// <inheritdoc />
     public class SqlChangeTrackingDatabaseBuilder : SqlDatabaseBuilder
     {
+        /// <inheritdoc />
         public override async Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
         {
             // Chek if db exists

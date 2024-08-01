@@ -1,23 +1,23 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.SqlServer.Manager;
 using System.Data.Common;
 using System.Threading.Tasks;
 
-namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
+namespace Dotmim.Sync.SqlServer.Builders
 {
+
+    /// <summary>
+    /// Sql Change Tracking Builder Tracking Table.
+    /// </summary>
     public class SqlChangeTrackingBuilderTrackingTable
     {
-        private readonly SqlDbMetadata sqlDbMetadata;
-        private ParserName tableName;
-        private ParserName trackingName;
+        private readonly SqlObjectNames sqlObjectNames;
 
-        public SqlChangeTrackingBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
-        {
-            this.tableName = tableName;
-            this.trackingName = trackingName;
-            this.sqlDbMetadata = new SqlDbMetadata();
-        }
+        /// <inheritdoc cref="SqlChangeTrackingBuilderTrackingTable"/>
+        public SqlChangeTrackingBuilderTrackingTable(SqlObjectNames sqlObjectNames) => this.sqlObjectNames = sqlObjectNames;
 
+        /// <summary>
+        /// Get the command to check if the tracking table exists.
+        /// </summary>
         public Task<DbCommand> GetExistsTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var commandText = $"IF EXISTS (Select top 1 tbl.name as TableName, " +
@@ -27,9 +27,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                               $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id " +
                               $"  Where tbl.name = @tableName and sch.name = @schemaName) SELECT 1 ELSE SELECT 0;";
 
-            var tbl = this.tableName.Unquoted().ToString();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(this.tableName);
-
             var command = connection.CreateCommand();
 
             command.Connection = connection;
@@ -38,39 +35,37 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = tbl;
+            parameter.Value = this.sqlObjectNames.TableName;
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaName";
-            parameter.Value = schema;
+            parameter.Value = this.sqlObjectNames.TableSchemaName;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);
         }
 
+        /// <summary>
+        /// Get the command to create the tracking table.
+        /// </summary>
         public Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
 
-            // if (setup.HasTableWithColumns(tableDescription.ObjectName))
-            // {
-            //    command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = ON);";
-            // }
-            // else
-            // {
-            //    command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = OFF);";
-            // }
-            command.CommandText = $"ALTER TABLE {this.tableName.Schema().Quoted()} ENABLE CHANGE_TRACKING;";
+            command.CommandText = $"ALTER TABLE {this.sqlObjectNames.TableQuotedFullName} ENABLE CHANGE_TRACKING;";
             command.Connection = connection;
             command.Transaction = transaction;
 
             return Task.FromResult(command);
         }
 
+        /// <summary>
+        /// Get the command to drop the tracking table.
+        /// </summary>
         public Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandText = $"ALTER TABLE {this.tableName.Schema().Quoted()} DISABLE CHANGE_TRACKING;";
+            var commandText = $"ALTER TABLE {this.sqlObjectNames.TableQuotedFullName} DISABLE CHANGE_TRACKING;";
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -80,6 +75,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             return Task.FromResult(command);
         }
 
+        /// <summary>
+        /// Get the command to rename the tracking table. (Not used anymore).
+        /// </summary>
         public Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
             => Task.FromResult<DbCommand>(null);
     }

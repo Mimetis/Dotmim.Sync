@@ -4,13 +4,16 @@ using System.Data.Common;
 
 namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 {
+    /// <inheritdoc />
     public class SqlChangeTrackingScopeBuilder : SqlScopeBuilder
     {
+        /// <inheritdoc />
         public SqlChangeTrackingScopeBuilder(string scopeInfoTableName)
             : base(scopeInfoTableName)
         {
         }
 
+        /// <inheritdoc />
         public override DbCommand GetLocalTimestampCommand(DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
@@ -19,17 +22,16 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             return command;
         }
 
+        /// <inheritdoc />
         public override DbCommand GetUpdateScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
-
             var commandText = $@"
                     DECLARE @minVersion int;
                     SELECT @minVersion = MIN(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) 
                     FROM sys.tables T 
                     WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
 
-                    MERGE [{tableName}] AS [base] 
+                    MERGE [{this.TableNames.NormalizedFullName}] AS [base] 
                     USING (
                                SELECT  @sync_scope_name AS sync_scope_name,  
 	                                   @sync_scope_schema AS sync_scope_schema,  

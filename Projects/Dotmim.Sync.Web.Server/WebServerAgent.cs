@@ -6,6 +6,7 @@ using Dotmim.Sync.Web.Client;
 using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -114,7 +115,7 @@ namespace Dotmim.Sync.Web.Server
         /// <summary>
         /// Get the current Step.
         /// </summary>
-        public static HttpStep GetCurrentStep(HttpContext httpContext) => TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-step", out var val) ? (HttpStep)Convert.ToInt32(val) : HttpStep.None;
+        public static HttpStep GetCurrentStep(HttpContext httpContext) => TryGetHeaderValue(httpContext.Request.Headers, "dotmim-sync-step", out var val) ? (HttpStep)SyncTypeConverter.TryConvertTo<int>(val) : HttpStep.None;
 
         /// <summary>
         /// Get an header value.
@@ -179,7 +180,7 @@ namespace Dotmim.Sync.Web.Server
                     stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                     stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Exception occured</li>");
                     stringBuilder.AppendLine($"<li class='list-group-item list-group-item-danger'>");
-                    stringBuilder.AppendLine($"{exceptionMessage}");
+                    stringBuilder.AppendLine(exceptionMessage);
                     stringBuilder.AppendLine("</li>");
                     stringBuilder.AppendLine("</ul>");
                 }
@@ -188,14 +189,14 @@ namespace Dotmim.Sync.Web.Server
                     stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                     stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Database</li>");
                     stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
-                    stringBuilder.AppendLine($"Check database {dbName}: Done.");
+                    stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Check database {dbName}: Done.");
                     stringBuilder.AppendLine("</li>");
                     stringBuilder.AppendLine("</ul>");
 
                     stringBuilder.AppendLine("<ul class='list-group mb-2'>");
                     stringBuilder.AppendLine($"<li class='list-group-item list-group-item-primary'>Engine version</li>");
                     stringBuilder.AppendLine($"<li class='list-group-item list-group-item-light'>");
-                    stringBuilder.AppendLine($"{version}");
+                    stringBuilder.AppendLine(version);
                     stringBuilder.AppendLine("</li>");
                     stringBuilder.AppendLine("</ul>");
                 }
@@ -875,7 +876,7 @@ namespace Dotmim.Sync.Web.Server
 
                 var tableName = setupTable.GetFullName().Replace(".", "_").Replace(" ", "_");
 
-                var fileName = BatchInfo.GenerateNewFileName(httpMessage.BatchIndex.ToString(), tableName, LocalJsonSerializer.Extension, "CLICHANGES");
+                var fileName = BatchInfo.GenerateNewFileName(httpMessage.BatchIndex.ToString(CultureInfo.InvariantCulture), tableName, LocalJsonSerializer.Extension, "CLICHANGES");
                 var fullPath = Path.Combine(sessionCache.ClientBatchInfo.GetDirectoryFullPath(), fileName);
 
                 SyncRowState syncRowState = SyncRowState.None;

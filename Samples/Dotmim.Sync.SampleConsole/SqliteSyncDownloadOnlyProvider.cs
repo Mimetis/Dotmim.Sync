@@ -21,15 +21,15 @@
 //        /// <summary>
 //        /// Get a specific adapter for a readonly sqlite database
 //        /// </summary>
-//        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-//            => new SqliteDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName, DisableSqlFiltersGeneration);
+//        public override DbSyncAdapter GetSyncAdapter(SyncTable TableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+//            => new SqliteDownloadOnlySyncAdapter(TableDescription, tableName, trackingTableName, setup, scopeName, DisableSqlFiltersGeneration);
 
 
 //        /// <summary>
 //        /// Removing tracking tables & triggers since they are not needed here
 //        /// </summary>
-//        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-//            => new SqliteDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName, this.DisableSqlFiltersGeneration);
+//        public override DbTableBuilder GetTableBuilder(SyncTable TableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+//            => new SqliteDownloadOnlyTableBuilder(TableDescription, tableName, trackingTableName, setup, scopeName, this.DisableSqlFiltersGeneration);
 //    }
 
 
@@ -38,8 +38,8 @@
 //    /// </summary>
 //    public class SqliteDownloadOnlyTableBuilder : SqliteTableBuilder
 //    {
-//        public SqliteDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName, bool disableSqlFiltersGeneration)
-//            : base(tableDescription, tableName, trackingTableName, setup, scopeName, disableSqlFiltersGeneration) { }
+//        public SqliteDownloadOnlyTableBuilder(SyncTable TableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName, bool disableSqlFiltersGeneration)
+//            : base(TableDescription, tableName, trackingTableName, setup, scopeName, disableSqlFiltersGeneration) { }
 //        public override Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
 //            => Task.FromResult<DbCommand>(null);
 //        public override Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
@@ -54,10 +54,10 @@
 //        private SqliteObjectNames sqliteObjectNames;
 //        private ParserName tableName;
 
-//        public SqliteDownloadOnlySyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool disableSqlFiltersGeneration)
-//            : base(tableDescription, tableName, trackingName, setup, scopeName, disableSqlFiltersGeneration)
+//        public SqliteDownloadOnlySyncAdapter(SyncTable TableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool disableSqlFiltersGeneration)
+//            : base(TableDescription, tableName, trackingName, setup, scopeName, disableSqlFiltersGeneration)
 //        {
-//            this.sqliteObjectNames = new SqliteObjectNames(tableDescription, tableName, trackingName, setup, scopeName, disableSqlFiltersGeneration);
+//            this.sqliteObjectNames = new SqliteObjectNames(TableDescription, tableName, trackingName, setup, scopeName, disableSqlFiltersGeneration);
 //            this.tableName = tableName;
 //        }
 

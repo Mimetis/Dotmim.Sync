@@ -271,7 +271,7 @@ namespace Dotmim.Sync
                         // The remote has delete the row, and local has insert or update it
                         // So delete the local row
                         case ConflictType.RemoteIsDeletedLocalExists:
-                            (context, operationComplete, exception) = await this.InternalApplyDeleteAsync(scopeInfo, context, batchInfo,
+                            (_, operationComplete, exception) = await this.InternalApplyDeleteAsync(scopeInfo, context, batchInfo,
                                 conflictRow, schemaChangesTable, lastTimestamp, nullableSenderScopeId, true, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
 
                             // Conflict, but both have delete the row, so just update the metadata to the right winner

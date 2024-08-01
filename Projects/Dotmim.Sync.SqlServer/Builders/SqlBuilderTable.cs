@@ -19,25 +19,33 @@ namespace Dotmim.Sync.SqlServer.Builders
     /// </summary>
     public class SqlBuilderTable
     {
-        private SyncTable tableDescription;
-        private SqlObjectNames sqlObjectNames;
-        private SqlDbMetadata sqlDbMetadata;
         private Dictionary<string, string> createdRelationNames = [];
+
+        /// <summary>
+        /// Gets the table description.
+        /// </summary>
+        protected SyncTable TableDescription { get; }
+
+        /// <summary>
+        /// Gets the sql object names.
+        /// </summary>
+        protected SqlObjectNames SqlObjectNames { get; }
+
+        /// <summary>
+        /// Gets the sql database metadata.
+        /// </summary>
+        protected SqlDbMetadata SqlDbMetadata { get; }
 
         /// <inheritdoc cref="SqlBuilderTable"/>
         public SqlBuilderTable(SyncTable tableDescription, SqlObjectNames sqlObjectNames, SqlDbMetadata sqlDbMetadata)
         {
-            this.tableDescription = tableDescription;
-            this.sqlObjectNames = sqlObjectNames;
-            this.sqlDbMetadata = sqlDbMetadata;
+            this.TableDescription = tableDescription;
+            this.SqlObjectNames = sqlObjectNames;
+            this.SqlDbMetadata = sqlDbMetadata;
         }
 
         private static string GetRandomString() =>
-#if NET6_0_OR_GREATER
             Path.GetRandomFileName().Replace(".", string.Empty, SyncGlobalization.DataSourceStringComparison).ToLowerInvariant();
-#else
-            Path.GetRandomFileName().Replace(".", string.Empty).ToLowerInvariant();
-#endif
 
         /// <summary>
         /// Ensure the relation name is correct to be created in MySql.
@@ -50,14 +58,14 @@ namespace Dotmim.Sync.SqlServer.Builders
             name = relation;
 
             if (relation.Length > 128)
+#pragma warning disable IDE0079 // Remove unnecessary suppression
+#pragma warning disable IDE0057
                 name = $"{relation.Substring(0, 110)}_{GetRandomString()}";
+#pragma warning restore IDE0057
+#pragma warning disable IDE0079 // Remove unnecessary suppression
 
             // MySql could have a special character in its relation names
-#if NET6_0_OR_GREATER
             name = name.Replace("~", string.Empty, SyncGlobalization.DataSourceStringComparison).Replace("#", string.Empty, SyncGlobalization.DataSourceStringComparison);
-#else
-            name = name.Replace("~", string.Empty).Replace("#", string.Empty);
-#endif
 
             this.createdRelationNames.Add(relation, name);
 
@@ -70,14 +78,14 @@ namespace Dotmim.Sync.SqlServer.Builders
         public Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
         {
 
-            if (this.sqlObjectNames.TableSchemaName == "dbo")
+            if (this.SqlObjectNames.TableSchemaName == "dbo")
                 return Task.FromResult<DbCommand>(null);
 
             var command = connection.CreateCommand();
 
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"Create Schema {this.sqlObjectNames.TableSchemaName}";
+            command.CommandText = $"Create Schema {this.SqlObjectNames.TableSchemaName}";
 
             return Task.FromResult(command);
         }
@@ -104,12 +112,12 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = this.sqlObjectNames.TableName;
+            parameter.Value = this.SqlObjectNames.TableName;
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaName";
-            parameter.Value = this.sqlObjectNames.TableSchemaName;
+            parameter.Value = this.SqlObjectNames.TableSchemaName;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);
@@ -128,7 +136,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaName";
-            parameter.Value = this.sqlObjectNames.TableSchemaName;
+            parameter.Value = this.SqlObjectNames.TableSchemaName;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);
@@ -145,18 +153,18 @@ namespace Dotmim.Sync.SqlServer.Builders
             command.Transaction = transaction;
             command.CommandText = $"IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) " +
                 $"BEGIN " +
-                $"ALTER TABLE {this.sqlObjectNames.TableQuotedFullName} NOCHECK CONSTRAINT ALL; " +
-                $"DROP TABLE {this.sqlObjectNames.TableQuotedFullName}; " +
+                $"ALTER TABLE {this.SqlObjectNames.TableQuotedFullName} NOCHECK CONSTRAINT ALL; " +
+                $"DROP TABLE {this.SqlObjectNames.TableQuotedFullName}; " +
                 $"END";
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = this.sqlObjectNames.TableName;
+            parameter.Value = this.SqlObjectNames.TableName;
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaName";
-            parameter.Value = this.sqlObjectNames.TableSchemaName;
+            parameter.Value = this.SqlObjectNames.TableSchemaName;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);
@@ -172,11 +180,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             command.Connection = connection;
             command.Transaction = transaction;
 
-            var stringBuilder = new StringBuilder($"ALTER TABLE {this.sqlObjectNames.TableQuotedFullName} WITH NOCHECK ");
+            var stringBuilder = new StringBuilder($"ALTER TABLE {this.SqlObjectNames.TableQuotedFullName} WITH NOCHECK ");
             var quotedColumnNameString = new ObjectParser(columnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).QuotedShortName;
 
-            var column = this.tableDescription.Columns[columnName];
-            var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.tableDescription.OriginalProvider);
+            var column = this.TableDescription.Columns[columnName];
+            var columnType = this.SqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.TableDescription.OriginalProvider);
 
             var identity = string.Empty;
 
@@ -195,8 +203,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             string defaultValue = string.Empty;
 
             // Ok, not the best solution to know if we have SqlSyncChangeTrackingProvider ...
-            if (this.tableDescription.OriginalProvider == SqlSyncProvider.ProviderType ||
-                this.tableDescription.OriginalProvider == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider")
+            if (this.TableDescription.OriginalProvider == SqlSyncProvider.ProviderType ||
+                this.TableDescription.OriginalProvider == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider")
             {
                 if (!string.IsNullOrEmpty(column.DefaultValue))
                 {
@@ -220,7 +228,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"ALTER TABLE {this.sqlObjectNames.TableQuotedFullName} WITH NOCHECK DROP COLUMN {columnName};";
+            command.CommandText = $"ALTER TABLE {this.SqlObjectNames.TableQuotedFullName} WITH NOCHECK DROP COLUMN {columnName};";
 
             return Task.FromResult(command);
         }
@@ -242,12 +250,12 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = this.sqlObjectNames.TableName;
+            parameter.Value = this.SqlObjectNames.TableName;
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaName";
-            parameter.Value = this.sqlObjectNames.TableSchemaName;
+            parameter.Value = this.SqlObjectNames.TableSchemaName;
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();
@@ -262,13 +270,13 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var stringBuilder = new StringBuilder();
 
-            stringBuilder.AppendLine($"CREATE TABLE {this.sqlObjectNames.TableQuotedFullName} (");
+            stringBuilder.AppendLine($"CREATE TABLE {this.SqlObjectNames.TableQuotedFullName} (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
-            foreach (var column in this.tableDescription.Columns)
+            foreach (var column in this.TableDescription.Columns)
             {
                 var columnName = new ObjectParser(column.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).QuotedShortName;
-                var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.tableDescription.OriginalProvider);
+                var columnType = this.SqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.TableDescription.OriginalProvider);
                 var identity = string.Empty;
 
                 if (column.IsAutoIncrement)
@@ -286,8 +294,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                 string defaultValue = string.Empty;
 
                 // Ok, not the best solution to know if we have SqlSyncChangeTrackingProvider ...
-                if (this.tableDescription.OriginalProvider == SqlSyncProvider.ProviderType ||
-                    this.tableDescription.OriginalProvider == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider")
+                if (this.TableDescription.OriginalProvider == SqlSyncProvider.ProviderType ||
+                    this.TableDescription.OriginalProvider == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider")
                 {
                     if (!string.IsNullOrEmpty(column.DefaultValue))
                     {
@@ -302,22 +310,22 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine(");");
 
             // Primary Keys
-            stringBuilder.AppendLine($"ALTER TABLE {this.sqlObjectNames.TableQuotedFullName} ADD CONSTRAINT [PK_{this.sqlObjectNames.TableNormalizedFullName}] PRIMARY KEY(");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+            stringBuilder.AppendLine($"ALTER TABLE {this.SqlObjectNames.TableQuotedFullName} ADD CONSTRAINT [PK_{this.SqlObjectNames.TableNormalizedFullName}] PRIMARY KEY(");
+            for (int i = 0; i < this.TableDescription.PrimaryKeys.Count; i++)
             {
-                var pkColumn = this.tableDescription.PrimaryKeys[i];
+                var pkColumn = this.TableDescription.PrimaryKeys[i];
 
                 var quotedColumnName = new ObjectParser(pkColumn, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).QuotedShortName;
                 stringBuilder.Append(quotedColumnName);
 
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
+                if (i < this.TableDescription.PrimaryKeys.Count - 1)
                     stringBuilder.Append(", ");
             }
 
             stringBuilder.AppendLine(");");
 
             // Foreign Keys
-            foreach (var constraint in this.tableDescription.GetRelations())
+            foreach (var constraint in this.TableDescription.GetRelations())
             {
                 var tableName = new TableParser(constraint.GetTable().GetFullName(), SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).QuotedFullName;
                 var parentTableName = new TableParser(constraint.GetParentTable().GetFullName(), SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).QuotedFullName;
@@ -363,7 +371,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// </summary>
         internal async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction)
         {
-            var syncTableKeys = await SqlManagementUtils.GetPrimaryKeysForTableAsync(this.sqlObjectNames.TableName, this.sqlObjectNames.TableSchemaName,
+            var syncTableKeys = await SqlManagementUtils.GetPrimaryKeysForTableAsync(this.SqlObjectNames.TableName, this.SqlObjectNames.TableSchemaName,
                 (SqlConnection)connection, (SqlTransaction)transaction).ConfigureAwait(false);
 
             var lstKeys = new List<SyncColumn>();
@@ -385,7 +393,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var relations = new List<DbRelationDefinition>();
             var tableRelations = await SqlManagementUtils.GetRelationsForTableAsync((SqlConnection)connection, (SqlTransaction)transaction,
-                this.sqlObjectNames.TableName, this.sqlObjectNames.TableSchemaName).ConfigureAwait(false);
+                this.SqlObjectNames.TableName, this.SqlObjectNames.TableSchemaName).ConfigureAwait(false);
 
             if (tableRelations != null && tableRelations.Rows.Count > 0)
             {
@@ -431,7 +439,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             var columns = new List<SyncColumn>();
 
             // Get the columns definition
-            var syncTableColumnsList = await SqlManagementUtils.GetColumnsForTableAsync(this.sqlObjectNames.TableName, this.sqlObjectNames.TableSchemaName,
+            var syncTableColumnsList = await SqlManagementUtils.GetColumnsForTableAsync(this.SqlObjectNames.TableName, this.SqlObjectNames.TableSchemaName,
                 (SqlConnection)connection, (SqlTransaction)transaction).ConfigureAwait(false);
 
             foreach (var c in syncTableColumnsList.Rows.OrderBy(r => (int)r["column_id"]))
@@ -441,10 +449,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var maxLengthLong = Convert.ToInt64(c["max_length"]);
 
                 //// Gets the datastore owner dbType
-                // var datastoreDbType = (SqlDbType)sqlDbMetadata.ValidateOwnerDbType(typeName, false, false, maxLengthLong);
+                // var datastoreDbType = (SqlDbType)SqlDbMetadata.ValidateOwnerDbType(typeName, false, false, maxLengthLong);
 
                 //// once we have the datastore type, we can have the managed type
-                // var columnType = sqlDbMetadata.ValidateType(datastoreDbType);
+                // var columnType = SqlDbMetadata.ValidateType(datastoreDbType);
                 var sColumn = new SyncColumn(name)
                 {
                     OriginalDbType = typeName,

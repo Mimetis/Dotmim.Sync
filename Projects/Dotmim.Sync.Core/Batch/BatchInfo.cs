@@ -25,11 +25,7 @@ namespace Dotmim.Sync.Batch
         {
             this.BatchPartsInfo = [];
             this.DirectoryRoot = SyncOptions.GetDefaultUserBatchDirectory();
-#if NET6_0_OR_GREATER
             this.DirectoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss", CultureInfo.InvariantCulture), Path.GetRandomFileName().Replace(".", string.Empty, SyncGlobalization.DataSourceStringComparison));
-#else
-            this.DirectoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss", CultureInfo.InvariantCulture), Path.GetRandomFileName().Replace(".", string.Empty));
-#endif
         }
 
         /// <inheritdoc cref="BatchInfo"/>
@@ -39,11 +35,7 @@ namespace Dotmim.Sync.Batch
             // We need to create a change table set, containing table with columns not readonly
             this.DirectoryRoot = rootDirectory;
 
-#if NET6_0_OR_GREATER
             var randomName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss", CultureInfo.InvariantCulture), Path.GetRandomFileName().Replace(".", string.Empty, SyncGlobalization.DataSourceStringComparison));
-#else
-            var randomName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss", CultureInfo.InvariantCulture), Path.GetRandomFileName().Replace(".", string.Empty));
-#endif
             randomName = string.IsNullOrEmpty(info) ? randomName : $"{info}_{randomName}";
             this.DirectoryName = string.IsNullOrEmpty(directoryName) ? randomName : directoryName;
         }
@@ -53,11 +45,7 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public static string GenerateNewFileName(string batchIndex, string tableName, string extension, string info)
         {
-#if NET6_0_OR_GREATER
             var randomFileName = Path.GetRandomFileName().Replace(".", "_", SyncGlobalization.DataSourceStringComparison);
-#else
-            var randomFileName = Path.GetRandomFileName().Replace(".", "_");
-#endif
             info = string.IsNullOrEmpty(info) ? string.Empty : $"_{info}";
 
             batchIndex = string.IsNullOrEmpty(batchIndex)
@@ -169,7 +157,7 @@ namespace Dotmim.Sync.Batch
 
                 var bptis = this.BatchPartsInfo.Where(bpi => bpi.EqualsByName(tmpBpi));
 
-                return bptis == null ? false : bptis.Sum(bpti => bpti.RowsCount) > 0;
+                return bptis != null && bptis.Sum(bpti => bpti.RowsCount) > 0;
             }
 
             return false;
@@ -179,9 +167,7 @@ namespace Dotmim.Sync.Batch
         /// Get all batch part for 1 particular table.
         /// </summary>
         public IEnumerable<BatchPartInfo> GetBatchPartsInfos(SyncTable syncTable)
-        {
-            return syncTable == null ? [] : this.GetBatchPartsInfos(syncTable.TableName, syncTable.SchemaName);
-        }
+            => syncTable == null ? [] : this.GetBatchPartsInfos(syncTable.TableName, syncTable.SchemaName);
 
         /// <summary>
         /// Get all batch part for 1 particular table.

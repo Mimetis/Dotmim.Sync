@@ -13,16 +13,27 @@ namespace Dotmim.Sync.SqlServer.Builders
     /// </summary>
     public class SqlBuilderTrackingTable
     {
-        private readonly SyncTable tableDescription;
-        private readonly SqlDbMetadata sqlDbMetadata;
-        private readonly SqlObjectNames sqlObjectNames;
+        /// <summary>
+        /// Gets the table description.
+        /// </summary>
+        protected SyncTable TableDescription { get; }
+
+        /// <summary>
+        /// Gets the sql object names.
+        /// </summary>
+        protected SqlObjectNames SqlObjectNames { get; }
+
+        /// <summary>
+        /// Gets the sql database metadata.
+        /// </summary>
+        protected SqlDbMetadata SqlDbMetadata { get; }
 
         /// <inheritdoc cref="SqlBuilderTrackingTable" />
         public SqlBuilderTrackingTable(SyncTable tableDescription, SqlObjectNames sqlObjectNames, SqlDbMetadata sqlDbMetadata)
         {
-            this.tableDescription = tableDescription;
-            this.sqlObjectNames = sqlObjectNames;
-            this.sqlDbMetadata = sqlDbMetadata;
+            this.TableDescription = tableDescription;
+            this.SqlObjectNames = sqlObjectNames;
+            this.SqlDbMetadata = sqlDbMetadata;
         }
 
         /// <summary>
@@ -32,13 +43,13 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var stringBuilder = new StringBuilder();
 
-            stringBuilder.AppendLine($"CREATE TABLE {this.sqlObjectNames.TrackingTableQuotedFullName} (");
+            stringBuilder.AppendLine($"CREATE TABLE {this.SqlObjectNames.TrackingTableQuotedFullName} (");
 
             // Adding the primary key
-            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var qColumnName = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
-                var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, this.tableDescription.OriginalProvider);
+                var columnType = this.SqlDbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, this.TableDescription.OriginalProvider);
 
                 var nullableColumn = pkColumn.AllowDBNull ? "NULL" : "NOT NULL";
                 stringBuilder.AppendLine($"{qColumnName.QuotedShortName} {columnType} {nullableColumn}, ");
@@ -53,9 +64,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine(");");
 
             // Primary Keys
-            stringBuilder.Append($"ALTER TABLE {this.sqlObjectNames.TrackingTableQuotedFullName} ADD CONSTRAINT [PK_{this.sqlObjectNames.TrackingTableNormalizedFullName}] PRIMARY KEY (");
+            stringBuilder.Append($"ALTER TABLE {this.SqlObjectNames.TrackingTableQuotedFullName} ADD CONSTRAINT [PK_{this.SqlObjectNames.TrackingTableNormalizedFullName}] PRIMARY KEY (");
 
-            var primaryKeysColumns = this.tableDescription.GetPrimaryKeysColumns().ToList();
+            var primaryKeysColumns = this.TableDescription.GetPrimaryKeysColumns().ToList();
             for (int i = 0; i < primaryKeysColumns.Count; i++)
             {
                 var qColumnName = new ObjectParser(primaryKeysColumns[i].ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
@@ -68,11 +79,11 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             stringBuilder.AppendLine(");");
 
-            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{this.sqlObjectNames.TrackingTableNormalizedFullName}_timestamp_index] ON {this.sqlObjectNames.TrackingTableQuotedFullName} (");
+            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{this.SqlObjectNames.TrackingTableNormalizedFullName}_timestamp_index] ON {this.SqlObjectNames.TrackingTableQuotedFullName} (");
             stringBuilder.AppendLine($"\t  [timestamp_bigint] ASC");
             stringBuilder.AppendLine($"\t, [update_scope_id] ASC");
             stringBuilder.AppendLine($"\t, [sync_row_is_tombstone] ASC");
-            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var qColumnName = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
                 stringBuilder.AppendLine($"\t,{qColumnName.QuotedShortName} ASC");
@@ -92,7 +103,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"ALTER TABLE {this.sqlObjectNames.TrackingTableQuotedFullName} NOCHECK CONSTRAINT ALL; DROP TABLE {this.sqlObjectNames.TrackingTableQuotedFullName};");
+            stringBuilder.AppendLine($"ALTER TABLE {this.SqlObjectNames.TrackingTableQuotedFullName} NOCHECK CONSTRAINT ALL; DROP TABLE {this.SqlObjectNames.TrackingTableQuotedFullName};");
 
             var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
 
@@ -112,12 +123,12 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = this.sqlObjectNames.TrackingTableName;
+            parameter.Value = this.SqlObjectNames.TrackingTableName;
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaName";
-            parameter.Value = this.sqlObjectNames.TrackingTableSchemaName;
+            parameter.Value = this.SqlObjectNames.TrackingTableSchemaName;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);

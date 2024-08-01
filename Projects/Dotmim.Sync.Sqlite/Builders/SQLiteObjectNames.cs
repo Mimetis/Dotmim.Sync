@@ -636,13 +636,8 @@ namespace Dotmim.Sync.Sqlite
             {
                 // Template escape character
                 var customWhereIteration = customWhere;
-#if NET6_0_OR_GREATER
                 customWhereIteration = customWhereIteration.Replace("{{{", "[", SyncGlobalization.DataSourceStringComparison);
                 customWhereIteration = customWhereIteration.Replace("}}}", "]", SyncGlobalization.DataSourceStringComparison);
-#else
-                customWhereIteration = customWhereIteration.Replace("{{{", "[");
-                customWhereIteration = customWhereIteration.Replace("}}}", "]");
-#endif
                 stringBuilder.Append($"{and2}{customWhereIteration}");
                 and2 = " AND ";
             }

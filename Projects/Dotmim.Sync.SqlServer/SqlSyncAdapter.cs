@@ -292,11 +292,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 var sqlParameter = (SqlParameter)parameter;
 
                 // try to get the source column (from the SchemaTable)
-#if NET6_0_OR_GREATER
                 var sqlParameterName = sqlParameter.ParameterName.Replace("@", string.Empty, SyncGlobalization.DataSourceStringComparison);
-#else
-                var sqlParameterName = sqlParameter.ParameterName.Replace("@", string.Empty);
-#endif
                 var colDesc = this.TableDescription.Columns.FirstOrDefault(c => c.ColumnName.Equals(sqlParameterName, SyncGlobalization.DataSourceStringComparison));
 
                 if (colDesc != null && !string.IsNullOrEmpty(colDesc.ColumnName))

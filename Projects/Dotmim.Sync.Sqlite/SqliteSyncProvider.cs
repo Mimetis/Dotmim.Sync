@@ -174,12 +174,9 @@ namespace Dotmim.Sync.Sqlite
         }
 
         /// <inheritdoc/>
-        public override string GetDatabaseName()
-        {
-            return this.builder != null && !string.IsNullOrEmpty(this.builder.DataSource)
+        public override string GetDatabaseName() => this.builder != null && !string.IsNullOrEmpty(this.builder.DataSource)
                 ? new FileInfo(this.builder.DataSource).Name
                 : string.Empty;
-        }
 
         /// <inheritdoc/>
         public override void EnsureSyncException(SyncException syncException)

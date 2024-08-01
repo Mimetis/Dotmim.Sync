@@ -30,18 +30,13 @@ namespace Dotmim.Sync
                 // check columns
                 var columns = (await tableBuilder.GetColumnsAsync(runner.Connection, runner.Transaction).ConfigureAwait(false)).ToList();
 
-                if (columns.Count != 6)
-                    return false;
-
-                if (columns[0].ColumnName != "sync_scope_name")
-                    return false;
-                if (columns[1].ColumnName != "sync_scope_schema")
-                    return false;
-                if (columns[2].ColumnName != "sync_scope_setup")
-                    return false;
-                return columns[3].ColumnName != "sync_scope_version"
-                    ? false
-                    : columns[4].ColumnName != "sync_scope_last_clean_timestamp" ? false : columns[5].ColumnName == "sync_scope_properties";
+                return columns.Count == 6
+                        && columns[0].ColumnName == "sync_scope_name"
+                        && columns[1].ColumnName == "sync_scope_schema"
+                        && columns[2].ColumnName == "sync_scope_setup"
+                        && columns[3].ColumnName == "sync_scope_version"
+                        && columns[4].ColumnName == "sync_scope_last_clean_timestamp"
+                        && columns[5].ColumnName == "sync_scope_properties";
             }
         }
 
@@ -64,26 +59,17 @@ namespace Dotmim.Sync
                 // check columns
                 var columns = (await tableBuilder.GetColumnsAsync(runner.Connection, runner.Transaction).ConfigureAwait(false)).ToList();
 
-                if (columns.Count != 10)
-                    return false;
-
-                if (columns[0].ColumnName != "sync_scope_id")
-                    return false;
-                if (columns[1].ColumnName != "sync_scope_name")
-                    return false;
-                if (columns[2].ColumnName != "sync_scope_hash")
-                    return false;
-                if (columns[3].ColumnName != "sync_scope_parameters")
-                    return false;
-                if (columns[4].ColumnName != "scope_last_sync_timestamp")
-                    return false;
-                if (columns[5].ColumnName != "scope_last_server_sync_timestamp")
-                    return false;
-                if (columns[6].ColumnName != "scope_last_sync_duration")
-                    return false;
-                return columns[7].ColumnName != "scope_last_sync"
-                    ? false
-                    : columns[8].ColumnName != "sync_scope_errors" ? false : columns[9].ColumnName == "sync_scope_properties";
+                return columns.Count == 10
+                        && columns[0].ColumnName == "sync_scope_id"
+                        && columns[1].ColumnName == "sync_scope_name"
+                        && columns[2].ColumnName == "sync_scope_hash"
+                        && columns[3].ColumnName == "sync_scope_parameters"
+                        && columns[4].ColumnName == "scope_last_sync_timestamp"
+                        && columns[5].ColumnName == "scope_last_server_sync_timestamp"
+                        && columns[6].ColumnName == "scope_last_sync_duration"
+                        && columns[7].ColumnName == "scope_last_sync"
+                        && columns[8].ColumnName == "sync_scope_errors"
+                        && columns[9].ColumnName == "sync_scope_properties";
             }
         }
 

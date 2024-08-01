@@ -536,15 +536,9 @@ namespace Dotmim.Sync
                         if (hasFilters)
                         {
                             var stringBuilder = new StringBuilder();
-#if NET6_0_OR_GREATER
                             stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Your version is {version} and you need to manually upgrade your client to be able to use the current verison {SyncVersion.Current}.");
                             stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Your {this.Options.ScopeInfoTableName} table contains setup with filters that need to be migrated manually, as new version needs the parameters values saved in the {this.Options.ScopeInfoTableName} table and they are not present in the {this.Options.ScopeInfoTableName} table version {version}.");
                             stringBuilder.AppendLine(CultureInfo.InvariantCulture, $"Please see this discussion on how to migrate to your version to the last one : https://github.com/Mimetis/Dotmim.Sync/discussions/802#discussioncomment-3594681");
-#else
-                            stringBuilder.AppendLine($"Your version is {version} and you need to manually upgrade your client to be able to use the current verison {SyncVersion.Current}.");
-                            stringBuilder.AppendLine($"Your {this.Options.ScopeInfoTableName} table contains setup with filters that need to be migrated manually, as new version needs the parameters values saved in the {this.Options.ScopeInfoTableName} table and they are not present in the {this.Options.ScopeInfoTableName} table version {version}.");
-                            stringBuilder.AppendLine($"Please see this discussion on how to migrate to your version to the last one : https://github.com/Mimetis/Dotmim.Sync/discussions/802#discussioncomment-3594681");
-#endif
                             throw new Exception(stringBuilder.ToString());
                         }
                     }

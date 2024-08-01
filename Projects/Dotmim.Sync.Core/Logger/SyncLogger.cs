@@ -6,6 +6,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -87,7 +88,7 @@ namespace Dotmim.Sync
             if (this.OutputWriters.Count <= 0)
                 return;
 
-            var now = DateTime.UtcNow.TimeOfDay.ToString(@"hh\:mm\:ss\.ff");
+            var now = DateTime.UtcNow.TimeOfDay.ToString(@"hh\:mm\:ss\.ff", CultureInfo.InvariantCulture);
             string message = string.Empty;
             if (formatter != null && state is string)
                 message = formatter(state, exception) ?? string.Empty;
@@ -104,7 +105,7 @@ namespace Dotmim.Sync
                 Write(outputWriter, $"{GetLogLevelString(logLevel)}", levelColors.Background, levelColors.Foreground);
                 Write(outputWriter, ": ");
                 Write(outputWriter, "[", ConsoleColor.Black, ConsoleColor.DarkGray);
-                Write(outputWriter, string.IsNullOrEmpty(eventId.Name) ? eventId.Id.ToString() : eventId.Name, ConsoleColor.Black, ConsoleColor.White);
+                Write(outputWriter, string.IsNullOrEmpty(eventId.Name) ? eventId.Id.ToString(CultureInfo.InvariantCulture) : eventId.Name, ConsoleColor.Black, ConsoleColor.White);
                 Write(outputWriter, "]", ConsoleColor.Black, ConsoleColor.DarkGray);
                 Write(outputWriter, " ");
                 WriteLine(outputWriter, message);
@@ -167,7 +168,7 @@ namespace Dotmim.Sync
             {
                 var member = membersInfos[i];
                 object memberValue = GetValue(member, value);
-                sb.Append($@"{member.Name}={{{member.Name}}} ");
+                sb.Append(CultureInfo.InvariantCulture, $@"{member.Name}={{{member.Name}}} ");
                 args.Add(memberValue);
             }
 
@@ -201,28 +202,22 @@ namespace Dotmim.Sync
             var serializer = SerializersFactory.JsonSerializerFactory.GetSerializer();
 
             PropertyInfo pi = member as PropertyInfo;
-            if (pi != null)
-            {
-                if (pi.PropertyType != null && pi.PropertyType == typeof(DbConnection))
-                    return ((DbConnection)pi.GetValue(obj)).ToLogString();
-                else if (pi.PropertyType != null && pi.PropertyType == typeof(DbTransaction))
-                    return ((DbTransaction)pi.GetValue(obj)).ToLogString();
-                else if (pi.PropertyType != null && pi.PropertyType == typeof(DbCommand))
-                    return ((DbCommand)pi.GetValue(obj)).ToLogString();
-                else if (pi.PropertyType != null && pi.PropertyType == typeof(SyncContext))
-                    return serializer.Serialize((SyncContext)pi.GetValue(obj)).ToUtf8String();
-                else
-                    return pi.GetValue(obj);
-            }
-
-            return null;
+            return pi != null
+                ? pi.PropertyType != null && pi.PropertyType == typeof(DbConnection)
+                    ? ((DbConnection)pi.GetValue(obj)).ToLogString()
+                    : pi.PropertyType != null && pi.PropertyType == typeof(DbTransaction)
+                        ? ((DbTransaction)pi.GetValue(obj)).ToLogString()
+                        : pi.PropertyType != null && pi.PropertyType == typeof(DbCommand)
+                                        ? ((DbCommand)pi.GetValue(obj)).ToLogString()
+                                        : pi.PropertyType != null && pi.PropertyType == typeof(SyncContext)
+                                        ? serializer.Serialize((SyncContext)pi.GetValue(obj)).ToUtf8String()
+                                        : pi.GetValue(obj)
+                : null;
         }
 
         private static List<PropertyInfo> GetProperties(Type type, BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static)
         {
-            List<PropertyInfo> targetMembers = new List<PropertyInfo>();
-
-            targetMembers.AddRange(type.GetProperties(flags));
+            List<PropertyInfo> targetMembers = [.. type.GetProperties(flags)];
 
             List<PropertyInfo> distinctMembers = new List<PropertyInfo>(targetMembers.Count);
 
@@ -237,73 +232,51 @@ namespace Dotmim.Sync
                 distinctMembers.Add(member);
             }
 
-            return distinctMembers.Where(t => !IsIndexedProperty(t)).OrderBy(m => m.Name + m.DeclaringType.Name).ToList();
+            return [.. distinctMembers.Where(t => !IsIndexedProperty(t)).OrderBy(m => m.Name + m.DeclaringType.Name)];
         }
 
-        private static bool IsIndexedProperty(PropertyInfo propertyInfo)
-        {
-            return propertyInfo != null ? propertyInfo.GetIndexParameters().Length > 0 : false;
-        }
+        private static bool IsIndexedProperty(PropertyInfo propertyInfo) => propertyInfo != null && propertyInfo.GetIndexParameters().Length > 0;
 
-        private static bool IsAnonymousType(Type type)
-        {
+        private static bool IsAnonymousType(Type type) =>
 #if NET6_0_OR_GREATER
-            return Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute), false)
+            Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute), false)
                        && type.IsGenericType && type.Name.Contains("AnonymousType", SyncGlobalization.DataSourceStringComparison)
                        && (type.Name.StartsWith("<>", SyncGlobalization.DataSourceStringComparison) || type.Name.StartsWith("VB$", SyncGlobalization.DataSourceStringComparison))
                        && (type.Attributes & TypeAttributes.NotPublic) == TypeAttributes.NotPublic;
 #else
-            return Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute), false)
+            Attribute.IsDefined(type, typeof(CompilerGeneratedAttribute), false)
                        && type.IsGenericType && type.Name.Contains("AnonymousType")
                        && (type.Name.StartsWith("<>", SyncGlobalization.DataSourceStringComparison) || type.Name.StartsWith("VB$", SyncGlobalization.DataSourceStringComparison))
                        && (type.Attributes & TypeAttributes.NotPublic) == TypeAttributes.NotPublic;
 
 #endif
-        }
 
-        private static ConsoleColors GetLogLevelConsoleColors(LogLevel logLevel)
-        {
+        private static ConsoleColors GetLogLevelConsoleColors(LogLevel logLevel) =>
+
             // We must explicitly set the background color if we are setting the foreground color,
             // since just setting one can look bad on the users console.
-            switch (logLevel)
+            logLevel switch
             {
-                case LogLevel.Critical:
-                    return new ConsoleColors(ConsoleColor.White, ConsoleColor.Red);
-                case LogLevel.Error:
-                    return new ConsoleColors(ConsoleColor.White, ConsoleColor.Red);
-                case LogLevel.Warning:
-                    return new ConsoleColors(ConsoleColor.Yellow, ConsoleColor.Black);
-                case LogLevel.Information:
-                    return new ConsoleColors(ConsoleColor.DarkGreen, ConsoleColor.Black);
-                case LogLevel.Debug:
-                    return new ConsoleColors(ConsoleColor.Yellow, ConsoleColor.Black);
-                case LogLevel.Trace:
-                    return new ConsoleColors(ConsoleColor.Gray, ConsoleColor.Black);
-                default:
-                    return new ConsoleColors(null, null);
-            }
-        }
+                LogLevel.Critical => new ConsoleColors(ConsoleColor.White, ConsoleColor.Red),
+                LogLevel.Error => new ConsoleColors(ConsoleColor.White, ConsoleColor.Red),
+                LogLevel.Warning => new ConsoleColors(ConsoleColor.Yellow, ConsoleColor.Black),
+                LogLevel.Information => new ConsoleColors(ConsoleColor.DarkGreen, ConsoleColor.Black),
+                LogLevel.Debug => new ConsoleColors(ConsoleColor.Yellow, ConsoleColor.Black),
+                LogLevel.Trace => new ConsoleColors(ConsoleColor.Gray, ConsoleColor.Black),
+                _ => new ConsoleColors(null, null),
+            };
 
-        private static string GetLogLevelString(LogLevel logLevel)
+        private static string GetLogLevelString(LogLevel logLevel) => logLevel switch
         {
-            switch (logLevel)
-            {
-                case LogLevel.Trace:
-                    return "TRC";
-                case LogLevel.Debug:
-                    return "DBG";
-                case LogLevel.Information:
-                    return "INF";
-                case LogLevel.Warning:
-                    return "WRN";
-                case LogLevel.Error:
-                    return "ERR";
-                case LogLevel.Critical:
-                    return "CRI";
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(logLevel));
-            }
-        }
+            LogLevel.Trace => "TRC",
+            LogLevel.Debug => "DBG",
+            LogLevel.Information => "INF",
+            LogLevel.Warning => "WRN",
+            LogLevel.Error => "ERR",
+            LogLevel.Critical => "CRI",
+            LogLevel.None => string.Empty,
+            _ => throw new ArgumentOutOfRangeException(nameof(logLevel)),
+        };
 
         private readonly struct ConsoleColors
         {
@@ -420,7 +393,7 @@ namespace Dotmim.Sync
         internal override void Write(string value) => Debug.Write(value);
 
         /// <inheritdoc/>
-        internal override void Write(string format, params object[] arg) => Debug.Write(string.Format(format, arg));
+        internal override void Write(string format, params object[] arg) => Debug.Write(string.Format(CultureInfo.InvariantCulture, format, arg));
 
         /// <inheritdoc/>
         internal override void WriteLine(string value) => Debug.WriteLine(value);

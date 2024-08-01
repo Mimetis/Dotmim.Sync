@@ -137,11 +137,7 @@ namespace Dotmim.Sync
 
             var sb = new StringBuilder();
 
-#if NET6_0_OR_GREATER
             sb.Append(CultureInfo.InvariantCulture, $"[Sync state]:{this.RowState}");
-#else
-            sb.Append($"[Sync state]:{this.RowState}");
-#endif
 
             var columns = this.RowState == SyncRowState.Deleted ? this.SchemaTable.GetPrimaryKeysColumns() : this.SchemaTable.Columns;
 
@@ -150,11 +146,7 @@ namespace Dotmim.Sync
                 var o = this[c.ColumnName];
                 var os = o == null ? "<NULL />" : o.ToString();
 
-#if NET6_0_OR_GREATER
                 sb.Append(CultureInfo.InvariantCulture, $", [{c.ColumnName}]:{os}");
-#else
-                sb.Append($", [{c.ColumnName}]:{os}");
-#endif
             }
 
             return sb.ToString();

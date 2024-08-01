@@ -3,27 +3,34 @@ using Dotmim.Sync.SqlServer.Builders;
 using Dotmim.Sync.SqlServer.ChangeTracking.Builders;
 using Microsoft.Data.SqlClient;
 using System;
-using System.Data.Common;
 
 namespace Dotmim.Sync.SqlServer
 {
+    /// <inheritdoc />
     public class SqlSyncChangeTrackingProvider : SqlSyncProvider
     {
         private static string providerType;
+        private static string shortProviderType;
 
+        /// <inheritdoc />
         public SqlSyncChangeTrackingProvider()
             : base() { }
 
+        /// <inheritdoc />
         public SqlSyncChangeTrackingProvider(string connectionString)
             : base(connectionString)
         {
         }
 
+        /// <inheritdoc />
         public SqlSyncChangeTrackingProvider(SqlConnectionStringBuilder builder)
             : base(builder)
         {
         }
 
+        /// <summary>
+        /// Gets the provider type.
+        /// </summary>
         public static new string ProviderType
         {
             get
@@ -38,10 +45,12 @@ namespace Dotmim.Sync.SqlServer
             }
         }
 
+        /// <inheritdoc />
         public override string GetProviderTypeName() => ProviderType;
 
-        private static string shortProviderType;
-
+        /// <summary>
+        /// Gets the short provider type.
+        /// </summary>
         public static new string ShortProviderType
         {
             get
@@ -56,14 +65,14 @@ namespace Dotmim.Sync.SqlServer
             }
         }
 
+        /// <inheritdoc />
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqlChangeTrackingScopeBuilder(scopeInfoTableName);
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-            => new SqlChangeTrackingTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
+        /// <inheritdoc />
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo)
+            => new SqlChangeTrackingSyncAdapter(tableDescription, scopeInfo, this.UseBulkOperations);
 
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-            => new SqlChangeTrackingSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName, this.UseBulkOperations);
-
+        /// <inheritdoc />
         public override DbDatabaseBuilder GetDatabaseBuilder() => new SqlChangeTrackingDatabaseBuilder();
     }
 }

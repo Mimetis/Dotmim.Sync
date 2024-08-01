@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
 
@@ -9,8 +10,38 @@ namespace Dotmim.Sync
     /// <summary>
     /// Enumerable extensions.
     /// </summary>
-    internal static class EnumerableExtensions
+    public static class SyncExtensions
     {
+
+#if NETSTANDARD2_0
+        /// <summary>
+        /// Add this method as it's not supported by .NET Standard 2.0.
+        /// </summary>
+        public static void AppendLine(this StringBuilder stringBuilder, IFormatProvider provider, string value) => stringBuilder.AppendLine(value);
+
+        /// <summary>
+        /// Add this method as it's not supported by .NET Standard 2.0.
+        /// </summary>
+        public static void Append(this StringBuilder stringBuilder, IFormatProvider provider, string value) => stringBuilder.Append(value);
+
+        /// <summary>
+        /// Add this method as it's not supported by .NET Standard 2.0.
+        /// </summary>
+        public static string Replace(this string str, string oldValue, string newValue, StringComparison comparisonType) => str.Replace(oldValue, newValue);
+
+        /// <summary>
+        /// Add this method as it's not supported by .NET Standard 2.0.
+        /// </summary>
+        public static bool Contains(this string str, char value, StringComparison comparisonType)
+            => str.IndexOf(value) >= 0;
+
+        /// <summary>
+        /// Add this method as it's not supported by .NET Standard 2.0.
+        /// </summary>
+        public static string ToString(this string str, IFormatProvider provider) => str;
+
+#endif
+
         /// <summary>
         /// Sorts an enumeration based on dependency.
         /// </summary>
@@ -85,10 +116,7 @@ namespace Dotmim.Sync
                 var cSourceItem = sourceItem as SyncNamedItem<T>;
                 var cOtherItem = otherItem as SyncNamedItem<T>;
 
-                if (cSourceItem != null && cOtherItem != null)
-                    return cSourceItem.EqualsByProperties(otherItem);
-                else
-                    return sourceItem.Equals(otherItem);
+                return cSourceItem != null && cOtherItem != null ? cSourceItem.EqualsByProperties(otherItem) : sourceItem.Equals(otherItem);
             }));
         }
 

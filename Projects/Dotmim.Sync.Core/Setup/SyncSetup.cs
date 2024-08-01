@@ -80,8 +80,8 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncSetup()
         {
-            this.Tables = new SetupTables();
-            this.Filters = new SetupFilters();
+            this.Tables = [];
+            this.Filters = [];
 
             // this.Version = SyncVersion.Current.ToString();
         }
@@ -97,11 +97,6 @@ namespace Dotmim.Sync
         public bool HasColumns => this.Tables?.SelectMany(t => t.Columns).Count() > 0;  // using SelectMany to get columns and not Collection<Column>
 
         /// <summary>
-        /// Check if Setup has a table that has columns.
-        /// </summary>
-        public bool HasTableWithColumns(string tableName) => this.Tables[tableName]?.Columns?.Count > 0;
-
-        /// <summary>
         /// Check if two setups have the same local options.
         /// </summary>
         public bool HasSameOptions(SyncSetup otherSetup)
@@ -111,15 +106,12 @@ namespace Dotmim.Sync
 
             var sc = SyncGlobalization.DataSourceStringComparison;
 
-            if (!string.Equals(this.StoredProceduresPrefix, otherSetup.StoredProceduresPrefix, sc) ||
-                !string.Equals(this.StoredProceduresSuffix, otherSetup.StoredProceduresSuffix, sc) ||
-                !string.Equals(this.TrackingTablesPrefix, otherSetup.TrackingTablesPrefix, sc) ||
-                !string.Equals(this.TrackingTablesSuffix, otherSetup.TrackingTablesSuffix, sc) ||
-                !string.Equals(this.TriggersPrefix, otherSetup.TriggersPrefix, sc) ||
-                !string.Equals(this.TriggersSuffix, otherSetup.TriggersSuffix, sc))
-                return false;
-
-            return true;
+            return string.Equals(this.StoredProceduresPrefix, otherSetup.StoredProceduresPrefix, sc) &&
+                string.Equals(this.StoredProceduresSuffix, otherSetup.StoredProceduresSuffix, sc) &&
+                string.Equals(this.TrackingTablesPrefix, otherSetup.TrackingTablesPrefix, sc) &&
+                string.Equals(this.TrackingTablesSuffix, otherSetup.TrackingTablesSuffix, sc) &&
+                string.Equals(this.TriggersPrefix, otherSetup.TriggersPrefix, sc) &&
+                string.Equals(this.TriggersSuffix, otherSetup.TriggersSuffix, sc);
         }
 
         /// <summary>
@@ -134,10 +126,7 @@ namespace Dotmim.Sync
             if (!this.Tables.CompareWith(otherSetup.Tables))
                 return false;
 
-            if (!this.Filters.CompareWith(otherSetup.Filters))
-                return false;
-
-            return true;
+            return this.Filters.CompareWith(otherSetup.Filters);
         }
 
         /// <inheritdoc cref="SyncNamedItem{T}.EqualsByProperties(T)" />
@@ -149,10 +138,7 @@ namespace Dotmim.Sync
             if (!this.HasSameOptions(otherSetup))
                 return false;
 
-            if (!this.HasSameStructure(otherSetup))
-                return false;
-
-            return true;
+            return this.HasSameStructure(otherSetup);
         }
 
         /// <summary>

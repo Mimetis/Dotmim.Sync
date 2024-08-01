@@ -102,10 +102,7 @@ namespace Dotmim.Sync.SqlServer
         public override string GetShortProviderTypeName() => ShortProviderType;
 
         /// <inheritdoc/>
-        public override string GetDatabaseName()
-        {
-            return this.builder != null && !string.IsNullOrEmpty(this.builder.InitialCatalog) ? this.builder.InitialCatalog : string.Empty;
-        }
+        public override string GetDatabaseName() => this.builder != null && !string.IsNullOrEmpty(this.builder.InitialCatalog) ? this.builder.InitialCatalog : string.Empty;
 
         /// <summary>
         /// Gets or sets the Metadata object which parse Sql server types.

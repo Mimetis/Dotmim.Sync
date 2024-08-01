@@ -5,21 +5,24 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
+    /// <inheritdoc />
     public class SqlChangeTrackingBuilderTrigger : SqlBuilderTrigger
     {
-        private ParserName tableName;
-
-        public SqlChangeTrackingBuilderTrigger(SyncTable tableDescription, SyncSetup setup, SqlObjectNames sqlObjectNames, SqlDbMetadata sqlDbMetadata)
-            : base(tableDescription, setup, sqlObjectNames, sqlDbMetadata)
+        /// <inheritdoc />
+        public SqlChangeTrackingBuilderTrigger(SyncTable tableDescription, SqlObjectNames sqlObjectNames, SqlDbMetadata sqlDbMetadata)
+            : base(tableDescription, sqlObjectNames, sqlDbMetadata)
         {
         }
 
+        /// <inheritdoc />
         public override Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
                         => Task.FromResult<DbCommand>(null);
 
+        /// <inheritdoc />
         public override Task<DbCommand> GetDropTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
                         => Task.FromResult<DbCommand>(null);
 
+        /// <inheritdoc />
         public override Task<DbCommand> GetExistsTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
 
@@ -30,9 +33,6 @@ namespace Dotmim.Sync.SqlServer.Builders
                               $"  Inner join sys.schemas as sch on tbl.schema_id = sch.schema_id " +
                               $"  Where tbl.name = @tableName and sch.name = @schemaName) SELECT 1 ELSE SELECT 0;";
 
-            var tbl = this.tableName.Unquoted().ToString();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(this.tableName);
-
             var command = connection.CreateCommand();
 
             command.Connection = connection;
@@ -41,12 +41,12 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = tbl;
+            parameter.Value = this.SqlObjectNames.TableName;
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaName";
-            parameter.Value = schema;
+            parameter.Value = this.SqlObjectNames.TableSchemaName;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);

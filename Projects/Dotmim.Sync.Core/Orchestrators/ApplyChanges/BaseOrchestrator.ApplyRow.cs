@@ -42,7 +42,7 @@ namespace Dotmim.Sync
             if (command == null)
                 return (context, false, null);
 
-            var batchArgs = new RowsChangesApplyingArgs(context, batchInfo, new List<SyncRow> { row }, schemaTable, SyncRowState.Modified, command, connection, transaction);
+            var batchArgs = new RowsChangesApplyingArgs(context, batchInfo, [row], schemaTable, SyncRowState.Modified, command, connection, transaction);
             await this.InterceptAsync(batchArgs, progress, cancellationToken).ConfigureAwait(false);
 
             if (batchArgs.Cancel || batchArgs.Command == null || batchArgs.SyncRows == null || batchArgs.SyncRows.Count <= 0)
@@ -116,7 +116,7 @@ namespace Dotmim.Sync
             if (command == null)
                 return (context, false, null);
 
-            var batchArgs = new RowsChangesApplyingArgs(context, batchInfo, new List<SyncRow> { row }, schemaTable, SyncRowState.Modified, command, connection, transaction);
+            var batchArgs = new RowsChangesApplyingArgs(context, batchInfo, [row], schemaTable, SyncRowState.Modified, command, connection, transaction);
             await this.InterceptAsync(batchArgs, progress, cancellationToken).ConfigureAwait(false);
 
             if (batchArgs.Cancel || batchArgs.Command == null || batchArgs.SyncRows == null || batchArgs.SyncRows.Count <= 0)

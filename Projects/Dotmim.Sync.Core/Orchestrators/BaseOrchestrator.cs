@@ -169,11 +169,8 @@ namespace Dotmim.Sync
             if (this.Logger.IsEnabled(LogLevel.Debug))
             {
                 // for example, getting DatabaseChangesSelectingArgs and transform to DatabaseChangesSelecting
-#if NET6_0_OR_GREATER
                 var argsTypeName = args.GetType().Name.Replace("Args", string.Empty, SyncGlobalization.DataSourceStringComparison);
-#else
-                var argsTypeName = args.GetType().Name.Replace("Args", string.Empty);
-#endif
+
                 this.Logger.LogDebug(SyncEventsId.CreateEventId(0, argsTypeName), args);
 
                 this.Logger.LogDebug(new EventId(args.EventId, argsTypeName), args);
@@ -196,11 +193,7 @@ namespace Dotmim.Sync
             // Check logger, because we make some reflection here
             if (this.Logger.IsEnabled(LogLevel.Information))
             {
-#if NET6_0_OR_GREATER
                 var argsTypeName = args.GetType().Name.Replace("Args", string.Empty, SyncGlobalization.DataSourceStringComparison);
-#else
-                var argsTypeName = args.GetType().Name.Replace("Args", string.Empty);
-#endif
 
                 if (this.Logger.IsEnabled(LogLevel.Debug))
                     this.Logger.LogDebug(new EventId(args.EventId, argsTypeName), args.Context);
@@ -380,11 +373,7 @@ namespace Dotmim.Sync
                     var cleanValue = new string(value.Where(char.IsLetterOrDigit).ToArray());
                     var cleanName = new string(p.Name.Where(char.IsLetterOrDigit).ToArray());
 
-#if NET6_0_OR_GREATER
                     sb.Append(CultureInfo.InvariantCulture, $"{underscore}{cleanName}_{cleanValue}");
-#else
-                    sb.Append($"{underscore}{cleanName}_{cleanValue}");
-#endif
                     underscore = "_";
                 }
             }
