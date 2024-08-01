@@ -24,7 +24,7 @@ namespace Dotmim.Sync
         {
             try
             {
-                var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+                var syncAdapter = this.GetSyncAdapter(schemaTable, scopeInfo);
 
                 // Get the row in the local repository
                 var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.SelectRow,

@@ -9,10 +9,11 @@ namespace Dotmim.Sync
 {
 
     /// <summary>
-    /// Represents a request made to the server to get the server scope info.
+    /// Represents a request about to be send to the server to get batches .
     /// </summary>
     public class HttpBatchesDownloadingArgs : ProgressArgs
     {
+        /// <inheritdoc cref="HttpBatchesDownloadingArgs"/>
         public HttpBatchesDownloadingArgs(SyncContext context, BatchInfo serverBatchInfo, string host)
             : base(context, null)
         {
@@ -20,21 +21,35 @@ namespace Dotmim.Sync
             this.Host = host;
         }
 
+        /// <inheritdoc />
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
+        /// <inheritdoc />
         public override string Source => this.Host;
 
+        /// <inheritdoc />
         public override int EventId => HttpClientSyncEventsId.HttpGettingSchemaRequest.Id;
 
+        /// <inheritdoc />
         public override string Message => $"Downloading Batches. Scope Name:{this.Context.ScopeName}. Batches Count:{this.ServerBatchInfo.BatchPartsInfo?.Count ?? 1}. Rows Count:{this.ServerBatchInfo.RowsCount}";
 
+        /// <summary>
+        /// Gets the server batch info.
+        /// </summary>
         public BatchInfo ServerBatchInfo { get; }
 
+        /// <summary>
+        /// Gets the host.
+        /// </summary>
         public string Host { get; }
     }
 
+    /// <summary>
+    /// Represents a request sent be send to the server to get batches .
+    /// </summary>
     public class HttpBatchesDownloadedArgs : ProgressArgs
     {
+        /// <inheritdoc cref="HttpBatchesDownloadingArgs"/>
         public HttpBatchesDownloadedArgs(HttpMessageSummaryResponse httpSummary, SyncContext context, string host)
             : base(context, null)
         {
@@ -42,12 +57,16 @@ namespace Dotmim.Sync
             this.Host = host;
         }
 
+        /// <inheritdoc />
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
 
+        /// <inheritdoc />
         public override string Source => this.Host;
 
+        /// <inheritdoc />
         public override int EventId => HttpClientSyncEventsId.HttpGettingSchemaResponse.Id;
 
+        /// <inheritdoc />
         public override string Message
         {
             get
@@ -59,22 +78,38 @@ namespace Dotmim.Sync
             }
         }
 
+        /// <summary>
+        /// Gets the http summary.
+        /// </summary>
         public HttpMessageSummaryResponse HttpSummary { get; }
 
+        /// <summary>
+        /// Gets the host.
+        /// </summary>
         public string Host { get; }
     }
 
-    public static partial class HttpClientSyncEventsId
+    /// <summary>
+    /// Partial class to add interceptor logic.
+    /// </summary>
+    public partial class HttpClientSyncEventsId
     {
-        public static EventId HttpBatchesDownloadingArgs => new EventId(20600, nameof(HttpBatchesDownloadingArgs));
 
-        public static EventId HttpBatchesDownloadedArgs => new EventId(20650, nameof(HttpBatchesDownloadedArgs));
+        /// <summary>
+        /// Gets the event id for HttpBatchesDownloadingArgs.
+        /// </summary>
+        public static EventId HttpBatchesDownloadingArgs => new(20600, nameof(HttpBatchesDownloadingArgs));
+
+        /// <summary>
+        /// Gets the event id for HttpBatchesDownloadedArgs.
+        /// </summary>
+        public static EventId HttpBatchesDownloadedArgs => new(20650, nameof(HttpBatchesDownloadedArgs));
     }
 
     /// <summary>
     /// Partial Interceptors extensions.
     /// </summary>
-    public static partial class HttpInterceptorsExtensions
+    public partial class HttpInterceptorsExtensions
     {
         /// <summary>
         /// Intercept the provider when batches are about to be downloaded.

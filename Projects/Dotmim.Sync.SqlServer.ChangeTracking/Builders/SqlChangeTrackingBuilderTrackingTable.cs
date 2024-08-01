@@ -53,7 +53,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         {
             var command = connection.CreateCommand();
 
-            // if (setup.HasTableWithColumns(tableDescription.ColumnName))
+            // if (setup.HasTableWithColumns(tableDescription.ObjectName))
             // {
             //    command.CommandText = $"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = ON);";
             // }

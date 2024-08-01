@@ -9,14 +9,18 @@ using System.IO;
 
 namespace Dotmim.Sync.Sqlite
 {
-
+    /// <summary>
+    /// Sqlite sync provider.
+    /// </summary>
     public class SqliteSyncProvider : CoreProvider
     {
 
+        private static string shortProviderType;
         private static string providerType;
         private DbMetadata dbMetadata;
         private SqliteConnectionStringBuilder builder;
 
+        /// <inheritdoc />
         public override DbMetadata GetMetadata()
         {
             this.dbMetadata ??= new SqliteDbMetadata();
@@ -24,12 +28,14 @@ namespace Dotmim.Sync.Sqlite
             return this.dbMetadata;
         }
 
+        /// <inheritdoc />
         public override string ConnectionString
         {
             get => this.builder == null || string.IsNullOrEmpty(this.builder.ConnectionString) ? null : this.builder.ConnectionString;
             set => this.builder = string.IsNullOrEmpty(value) ? null : new SqliteConnectionStringBuilder(value);
         }
 
+        /// <inheritdoc />
         public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnDatabaseLevel;
 
         /// <summary>
@@ -49,8 +55,12 @@ namespace Dotmim.Sync.Sqlite
         /// </value>
         public bool DisableSqlFiltersGeneration { get; set; } = true;
 
+        /// <inheritdoc />
         public override string GetProviderTypeName() => ProviderType;
 
+        /// <summary>
+        /// Gets the provider type.
+        /// </summary>
         public static string ProviderType
         {
             get
@@ -65,10 +75,9 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
-        private static string shortProviderType;
-
-        public override string GetShortProviderTypeName() => ShortProviderType;
-
+        /// <summary>
+        /// Gets the short provider type.
+        /// </summary>
         public static string ShortProviderType
         {
             get
@@ -83,11 +92,54 @@ namespace Dotmim.Sync.Sqlite
             }
         }
 
+        /// <inheritdoc />
+        public override string GetShortProviderTypeName() => ShortProviderType;
+
+        /// <inheritdoc cref="SqliteSyncProvider" />
         public SqliteSyncProvider()
             : base()
         {
         }
 
+        /// <inheritdoc cref="SqliteSyncProvider"/>
+        public SqliteSyncProvider(FileInfo fileInfo)
+            : this() => this.builder = new SqliteConnectionStringBuilder { DataSource = fileInfo.FullName };
+
+        /// <inheritdoc cref="SqliteSyncProvider"/>
+        public SqliteSyncProvider(SqliteConnectionStringBuilder sqliteConnectionStringBuilder)
+            : this()
+        {
+            if (string.IsNullOrEmpty(sqliteConnectionStringBuilder.DataSource))
+                throw new Exception("You have to provide at least a DataSource property to be able to connect to your SQlite database.");
+
+            this.builder = sqliteConnectionStringBuilder;
+        }
+
+        /// <inheritdoc cref="SqliteSyncProvider"/>
+        public SqliteSyncProvider(string filePath)
+            : this()
+        {
+            if (filePath.StartsWith("data source", SyncGlobalization.DataSourceStringComparison))
+            {
+                this.builder = new SqliteConnectionStringBuilder(filePath);
+            }
+            else
+            {
+                var fileInfo = new FileInfo(filePath);
+
+                if (!Directory.Exists(fileInfo.Directory.FullName))
+                    throw new Exception($"filePath directory {fileInfo.Directory.FullName} does not exists.");
+
+                if (string.IsNullOrEmpty(fileInfo.Name))
+                    throw new Exception($"Sqlite database file path needs a file name");
+
+                this.builder = new SqliteConnectionStringBuilder { DataSource = filePath };
+            }
+        }
+
+        /// <summary>
+        /// Gets the file path extracted from the connection string.
+        /// </summary>
         public string FilePath
         {
             get
@@ -121,47 +173,15 @@ namespace Dotmim.Sync.Sqlite
             return false;
         }
 
-        public SqliteSyncProvider(string filePath)
-            : this()
-        {
-            if (filePath.StartsWith("data source", SyncGlobalization.DataSourceStringComparison))
-            {
-                this.builder = new SqliteConnectionStringBuilder(filePath);
-            }
-            else
-            {
-                var fileInfo = new FileInfo(filePath);
-
-                if (!Directory.Exists(fileInfo.Directory.FullName))
-                    throw new Exception($"filePath directory {fileInfo.Directory.FullName} does not exists.");
-
-                if (string.IsNullOrEmpty(fileInfo.Name))
-                    throw new Exception($"Sqlite database file path needs a file name");
-
-                this.builder = new SqliteConnectionStringBuilder { DataSource = filePath };
-            }
-        }
-
-        public SqliteSyncProvider(FileInfo fileInfo)
-            : this() => this.builder = new SqliteConnectionStringBuilder { DataSource = fileInfo.FullName };
-
+        /// <inheritdoc/>
         public override string GetDatabaseName()
         {
-            if (this.builder != null && !string.IsNullOrEmpty(this.builder.DataSource))
-                return new FileInfo(this.builder.DataSource).Name;
-
-            return string.Empty;
+            return this.builder != null && !string.IsNullOrEmpty(this.builder.DataSource)
+                ? new FileInfo(this.builder.DataSource).Name
+                : string.Empty;
         }
 
-        public SqliteSyncProvider(SqliteConnectionStringBuilder sqliteConnectionStringBuilder)
-            : this()
-        {
-            if (string.IsNullOrEmpty(sqliteConnectionStringBuilder.DataSource))
-                throw new Exception("You have to provide at least a DataSource property to be able to connect to your SQlite database.");
-
-            this.builder = sqliteConnectionStringBuilder;
-        }
-
+        /// <inheritdoc/>
         public override void EnsureSyncException(SyncException syncException)
         {
             if (this.builder != null)
@@ -175,6 +195,7 @@ namespace Dotmim.Sync.Sqlite
             return;
         }
 
+        /// <inheritdoc/>
         public override DbConnection CreateConnection()
         {
             if (!this.builder.ForeignKeys.HasValue && this.Orchestrator != null)
@@ -187,32 +208,14 @@ namespace Dotmim.Sync.Sqlite
             return sqliteConnection;
         }
 
+        /// <inheritdoc/>
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqliteScopeBuilder(scopeInfoTableName);
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-        => new SqliteTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName, this.DisableSqlFiltersGeneration);
+        /// <inheritdoc/>
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo)
+            => new SqliteSyncAdapter(tableDescription, scopeInfo, this.DisableSqlFiltersGeneration);
 
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-            => new SqliteSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName, this.DisableSqlFiltersGeneration);
-
-        public override DbBuilder GetDatabaseBuilder() => new SqliteBuilder();
-
-        public override (ParserName TableName, ParserName TrackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
-        {
-            string tableAndPrefixName = tableDescription.TableName;
-            var originalTableName = ParserName.Parse(tableDescription);
-
-            var pref = setup != null && setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : string.Empty;
-            var suf = setup != null && setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : string.Empty;
-
-            // be sure, at least, we have a suffix if we have empty values.
-            // othewise, we have the same name for both table and tracking table
-            if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
-                suf = "_tracking";
-
-            var trackingTableName = ParserName.Parse($"{pref}{tableAndPrefixName}{suf}");
-
-            return (originalTableName, trackingTableName);
-        }
+        /// <inheritdoc/>
+        public override DbDatabaseBuilder GetDatabaseBuilder() => new SQLiteDatabaseBuilder();
     }
 }

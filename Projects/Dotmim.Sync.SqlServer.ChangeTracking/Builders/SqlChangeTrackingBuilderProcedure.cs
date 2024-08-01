@@ -19,14 +19,13 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         private ParserName tableName;
         private ParserName trackingName;
 
-        public SqlChangeTrackingBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
-            : base(tableDescription, tableName, trackingName, setup, scopeName)
+        public SqlChangeTrackingBuilderProcedure(SyncTable tableDescription, SyncSetup setup, SqlObjectNames sqlObjectNames, SqlDbMetadata sqlDbMetadata)
+            : base(tableDescription, setup, sqlObjectNames, sqlDbMetadata)
         {
             this.tableDescription = tableDescription;
             this.setup = setup;
-            this.tableName = tableName;
-            this.trackingName = trackingName;
-            this.sqlObjectNames = new SqlObjectNames(this.tableDescription, tableName, trackingName, this.setup, scopeName);
+            this.tableName = this.tableName;
+            this.trackingName = this.trackingName;
             this.sqlDbMetadata = new SqlDbMetadata();
         }
 
@@ -48,7 +47,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             var sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
-                TypeName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType),
+                TypeName = this.sqlObjectNames.GetStoredProcedureNormalizedCommandName(DbStoredProcedureType.BulkTableType),
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
@@ -65,7 +64,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 // Get the good SqlDbType (even if we are not from Sql Server def)
                 var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(c, this.tableDescription.OriginalProvider);
 
-                stringBuilder.Append($"{ParserName.Parse(c).Quoted().ToString()} {columnType}, ");
+                stringBuilder.Append($"{ParserName.Parse(c).Quoted()} {columnType}, ");
             }
 
             stringBuilder.Append(" PRIMARY KEY (");
@@ -84,7 +83,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($";WITH ");
             stringBuilder.AppendLine($"  CHANGE_TRACKING_CONTEXT(@var_sync_scope_id),");
-            stringBuilder.AppendLine($"  {this.trackingName.Quoted().ToString()} AS (");
+            stringBuilder.AppendLine($"  {this.trackingName.Quoted()} AS (");
             stringBuilder.Append($"\tSELECT ");
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
@@ -97,10 +96,10 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine($"\t[CT].[SYS_CHANGE_VERSION] as [sync_timestamp],");
             stringBuilder.AppendLine($"\tCASE WHEN [CT].[SYS_CHANGE_OPERATION] = 'D' THEN 1 ELSE 0 END AS [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM @changeTable AS [p] ");
-            stringBuilder.AppendLine($"\tLEFT JOIN CHANGETABLE(CHANGES {this.tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT] ON {str4}");
+            stringBuilder.AppendLine($"\tLEFT JOIN CHANGETABLE(CHANGES {this.tableName.Schema().Quoted()}, @sync_min_timestamp) AS [CT] ON {str4}");
             stringBuilder.AppendLine($"\t)");
 
-            stringBuilder.AppendLine($"DELETE {this.tableName.Schema().Quoted().ToString()}");
+            stringBuilder.AppendLine($"DELETE {this.tableName.Schema().Quoted()}");
             stringBuilder.Append($"OUTPUT ");
 
             pkeyComma = " ";
@@ -113,8 +112,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"INTO @dms_changed ");
-            stringBuilder.AppendLine($"FROM {this.tableName.Quoted().ToString()} [base]");
-            stringBuilder.AppendLine($"JOIN {this.trackingName.Quoted().ToString()} [changes] ON {str5}");
+            stringBuilder.AppendLine($"FROM {this.tableName.Quoted()} [base]");
+            stringBuilder.AppendLine($"JOIN {this.trackingName.Quoted()} [changes] ON {str5}");
             stringBuilder.AppendLine("WHERE [changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR [changes].[sync_update_scope_id] = @sync_scope_id OR @sync_force_write = 1;");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
@@ -145,7 +144,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             var sqlParameter2 = new SqlParameter("@changeTable", SqlDbType.Structured)
             {
-                TypeName = this.sqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.BulkTableType),
+                TypeName = this.sqlObjectNames.GetStoredProcedureNormalizedCommandName(DbStoredProcedureType.BulkTableType),
             };
             sqlCommand.Parameters.Add(sqlParameter2);
 
@@ -181,7 +180,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.tableName.Schema().Quoted().ToString()} ON;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.tableName.Schema().Quoted()} ON;");
                 stringBuilder.AppendLine();
             }
 
@@ -189,7 +188,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(";WITH ");
             stringBuilder.AppendLine("  CHANGE_TRACKING_CONTEXT(@var_sync_scope_id),");
-            stringBuilder.AppendLine($"  {this.trackingName.Quoted().ToString()} AS (");
+            stringBuilder.AppendLine($"  {this.trackingName.Quoted()} AS (");
             stringBuilder.Append("\tSELECT ");
             foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
@@ -207,10 +206,10 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             }
 
             stringBuilder.AppendLine("\n\tFROM @changeTable AS [p]");
-            stringBuilder.AppendLine($"\tLEFT JOIN CHANGETABLE(CHANGES {this.tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT] ON {str4}");
+            stringBuilder.AppendLine($"\tLEFT JOIN CHANGETABLE(CHANGES {this.tableName.Schema().Quoted()}, @sync_min_timestamp) AS [CT] ON {str4}");
             stringBuilder.AppendLine("\t)");
-            stringBuilder.AppendLine($"MERGE {this.tableName.Schema().Quoted().ToString()} AS [base]");
-            stringBuilder.AppendLine($"USING {this.trackingName.Quoted().ToString()} as [changes] ON {str5}");
+            stringBuilder.AppendLine($"MERGE {this.tableName.Schema().Quoted()} AS [base]");
+            stringBuilder.AppendLine($"USING {this.trackingName.Quoted()} as [changes] ON {str5}");
 
             if (hasMutableColumns)
             {
@@ -265,8 +264,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("\tINSERT");
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()})");
+            stringBuilder.AppendLine($"\t({stringBuilderArguments})");
+            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters})");
             stringBuilder.AppendLine();
             stringBuilder.Append("OUTPUT ");
             pkeyComma = " ";
@@ -285,7 +284,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.tableName.Schema().Quoted().ToString()} OFF;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.tableName.Schema().Quoted()} OFF;");
                 stringBuilder.AppendLine();
             }
 
@@ -326,7 +325,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             stringBuilder.AppendLine(";WITH ");
             stringBuilder.AppendLine("  CHANGE_TRACKING_CONTEXT(@var_sync_scope_id),");
-            stringBuilder.AppendLine($"  {this.trackingName.Quoted().ToString()} AS (");
+            stringBuilder.AppendLine($"  {this.trackingName.Quoted()} AS (");
             stringBuilder.Append("\tSELECT ");
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
@@ -350,11 +349,11 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             }
 
             stringBuilder.AppendLine(") AS [p]");
-            stringBuilder.Append($"\tLEFT JOIN CHANGETABLE(CHANGES {this.tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT] ON {str4}");
+            stringBuilder.Append($"\tLEFT JOIN CHANGETABLE(CHANGES {this.tableName.Schema().Quoted()}, @sync_min_timestamp) AS [CT] ON {str4}");
             stringBuilder.AppendLine("\t)");
-            stringBuilder.AppendLine($"DELETE {this.tableName.Schema().Quoted().ToString()}");
-            stringBuilder.AppendLine($"FROM {this.tableName.Schema().Quoted().ToString()} [base]");
-            stringBuilder.Append($"JOIN {this.trackingName.Quoted().ToString()} [side] ON ");
+            stringBuilder.AppendLine($"DELETE {this.tableName.Schema().Quoted()}");
+            stringBuilder.AppendLine($"FROM {this.tableName.Schema().Quoted()} [base]");
+            stringBuilder.Append($"JOIN {this.trackingName.Quoted()} [side] ON ");
 
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[base]", "[side]"));
 
@@ -401,7 +400,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         //    {
         //        var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
 
-        // var isPrimaryKey = this.tableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
+        // var isPrimaryKey = this.tableDescription.PrimaryKeys.Any(pkey => mutableColumn.ObjectName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
         // if (isPrimaryKey)
         //            stringBuilderColumnsWithSide.AppendLine($"\t[side].{columnName}, ");
@@ -478,7 +477,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             // Check if we have auto inc column
             if (this.tableDescription.HasAutoIncrementColumns)
             {
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.tableName.Schema().Quoted().ToString()} ON;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.tableName.Schema().Quoted()} ON;");
                 stringBuilder.AppendLine();
             }
 
@@ -490,7 +489,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             stringBuilder.AppendLine(";WITH ");
             stringBuilder.AppendLine("  CHANGE_TRACKING_CONTEXT(@var_sync_scope_id),");
-            stringBuilder.AppendLine($"  {this.trackingName.Quoted().ToString()} AS (");
+            stringBuilder.AppendLine($"  {this.trackingName.Quoted()} AS (");
             stringBuilder.Append("\tSELECT ");
             foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
@@ -520,11 +519,11 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             }
 
             stringBuilder.AppendLine(") AS [p]");
-            stringBuilder.Append($"\tLEFT JOIN CHANGETABLE(CHANGES {this.tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT] ON {str4}");
+            stringBuilder.Append($"\tLEFT JOIN CHANGETABLE(CHANGES {this.tableName.Schema().Quoted()}, @sync_min_timestamp) AS [CT] ON {str4}");
             stringBuilder.AppendLine("\t)");
 
-            stringBuilder.AppendLine($"MERGE {this.tableName.Schema().Quoted().ToString()} AS [base]");
-            stringBuilder.AppendLine($"USING {this.trackingName.Quoted().ToString()} as [changes] ON {str5}");
+            stringBuilder.AppendLine($"MERGE {this.tableName.Schema().Quoted()} AS [base]");
+            stringBuilder.AppendLine($"USING {this.trackingName.Quoted()} as [changes] ON {str5}");
 
             if (hasMutableColumns)
             {
@@ -579,8 +578,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("\tINSERT");
-            stringBuilder.AppendLine($"\t({stringBuilderArguments.ToString()})");
-            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters.ToString()});");
+            stringBuilder.AppendLine($"\t({stringBuilderArguments})");
+            stringBuilder.AppendLine($"\tVALUES ({stringBuilderParameters});");
             stringBuilder.AppendLine();
 
             // GET row count BEFORE make identity insert off again
@@ -590,7 +589,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.tableName.Schema().Quoted().ToString()} OFF;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.tableName.Schema().Quoted()} OFF;");
                 stringBuilder.AppendLine();
             }
 
@@ -753,7 +752,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             var stringBuilder = new StringBuilder(string.Empty);
             stringBuilder.AppendLine(";WITH ");
-            stringBuilder.AppendLine($"  {this.trackingName.Quoted().ToString()} AS (");
+            stringBuilder.AppendLine($"  {this.trackingName.Quoted()} AS (");
             stringBuilder.Append("\tSELECT ");
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
@@ -770,7 +769,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                 stringBuilder.Append(",\n\t[CT].[SYS_CHANGE_COLUMNS] AS [sync_change_columns]");
             }
 
-            stringBuilder.AppendLine($"\n\tFROM CHANGETABLE(CHANGES {this.tableName.Schema().Quoted().ToString()}, @sync_min_timestamp) AS [CT]");
+            stringBuilder.AppendLine($"\n\tFROM CHANGETABLE(CHANGES {this.tableName.Schema().Quoted()}, @sync_min_timestamp) AS [CT]");
             stringBuilder.AppendLine("\t)");
 
             stringBuilder.AppendLine("SELECT DISTINCT");
@@ -794,8 +793,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone],");
             stringBuilder.AppendLine("\t[side].[sync_update_scope_id]");
-            stringBuilder.AppendLine($"FROM {this.tableName.Schema().Quoted().ToString()} [base]");
-            stringBuilder.Append($"RIGHT JOIN {this.trackingName.Quoted().ToString()} [side]");
+            stringBuilder.AppendLine($"FROM {this.tableName.Schema().Quoted()} [base]");
+            stringBuilder.Append($"RIGHT JOIN {this.trackingName.Quoted()} [side]");
             stringBuilder.Append("ON ");
 
             string empty = string.Empty;
@@ -904,7 +903,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         // stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted().ToString()} DISABLE CHANGE_TRACKING;");
         //    stringBuilder.AppendLine($"DELETE FROM {tableName.Schema().Quoted().ToString()};");
 
-        // if (setup.HasTableWithColumns(tableDescription.ColumnName))
+        // if (setup.HasTableWithColumns(tableDescription.ObjectName))
         //    {
         //        stringBuilder.AppendLine($"ALTER TABLE {tableName.Schema().Quoted().ToString()} ENABLE CHANGE_TRACKING WITH(TRACK_COLUMNS_UPDATED = ON);");
         //    }

@@ -1,20 +1,25 @@
-﻿using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.DatabaseStringParsers;
+using Dotmim.Sync.SqlServer.Builders;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Data;
 
 namespace Dotmim.Sync.SqlServer
 {
+    /// <summary>
+    /// Sql Extensions Methods.
+    /// </summary>
     public static class SqlExtensionsMethods
     {
 
-        internal static SqlParameter[] DeriveParameters(this SqlConnection connection, SqlCommand cmd, bool includeReturnValueParameter = false, SqlTransaction transaction = null)
+        internal static SqlParameter[] DeriveParameters(this SqlConnection connection, SqlCommand cmd,
+            bool includeReturnValueParameter, SqlTransaction transaction)
         {
             Guard.ThrowIfNull(cmd);
 
-            var textParser = ParserName.Parse(cmd.CommandText);
+            var textParser = new ObjectParser(cmd.CommandText, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
 
-            string schemaName = textParser.SchemaName;
+            string schemaName = textParser.OwnerName;
             string spName = textParser.ObjectName;
 
             var alreadyOpened = connection.State == ConnectionState.Open;

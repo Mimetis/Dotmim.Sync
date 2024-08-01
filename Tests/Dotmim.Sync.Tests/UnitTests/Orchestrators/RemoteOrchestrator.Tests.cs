@@ -3,16 +3,11 @@ using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Fixtures;
 using Dotmim.Sync.Tests.Misc;
-using Dotmim.Sync.Tests.Models;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
@@ -37,7 +32,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
         }
 
-       
+
         [Fact]
         public void RemoteOrchestrator_Constructor()
         {
@@ -63,11 +58,11 @@ namespace Dotmim.Sync.Tests.UnitTests
             var options = new SyncOptions();
             var setup = new SyncSetup();
 
-            var ex1 = Assert.Throws<SyncException>(() => 
+            var ex1 = Assert.Throws<SyncException>(() =>
                 new RemoteOrchestrator(null, null));
             Assert.Equal("ArgumentNullException", ex1.TypeName);
 
-            var ex2 = Assert.Throws<SyncException>(() => 
+            var ex2 = Assert.Throws<SyncException>(() =>
             new RemoteOrchestrator(provider, null));
 
             Assert.Equal("ArgumentNullException", ex2.TypeName);
@@ -287,12 +282,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             };
 
             // trackign table name is composed with prefix and suffix from setup
-            var bulkDelete = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_bulkdelete";
-            var bulkUpdate = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_bulkupdate";
-            var changes = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_changes";
-            var delete = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_delete";
-            var initialize = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_initialize";
-            var update = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_update";
+            var bulkDelete = $"{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_bulkdelete";
+            var bulkUpdate = $"{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_bulkupdate";
+            var changes = $"{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_changes";
+            var delete = $"{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_delete";
+            var initialize = $"{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_initialize";
+            var update = $"{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_{scopeName}_update";
 
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
@@ -307,12 +302,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 await connection.OpenAsync();
 
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, bulkDelete));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, bulkUpdate));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, changes));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, update));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, delete));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, initialize));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, bulkDelete, "SalesLT"));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, bulkUpdate, "SalesLT"));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, changes, "SalesLT"));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, update, "SalesLT"));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, delete, "SalesLT"));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, initialize, "SalesLT"));
 
                 connection.Close();
             }
@@ -327,12 +322,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             };
 
             // trackign table name is composed with prefix and suffix from setup
-            var bulkDelete = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_bulkdelete";
-            var bulkUpdate = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_bulkupdate";
-            var changes = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_changes";
-            var delete = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_delete";
-            var initialize = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_initialize";
-            var update = $"SalesLT.{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_update";
+            var bulkDelete = $"{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_bulkdelete";
+            var bulkUpdate = $"{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_bulkupdate";
+            var changes = $"{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_changes";
+            var delete = $"{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_delete";
+            var initialize = $"{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_initialize";
+            var update = $"{setup.StoredProceduresPrefix}Product{setup.StoredProceduresSuffix}_update";
 
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
@@ -347,12 +342,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             {
                 await connection.OpenAsync();
 
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, bulkDelete));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, bulkUpdate));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, changes));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, initialize));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, update));
-                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, delete));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, bulkDelete, "SalesLT"));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, bulkUpdate, "SalesLT"));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, changes, "SalesLT"));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, initialize, "SalesLT"));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, update, "SalesLT"));
+                Assert.True(await SqlManagementUtils.ProcedureExistsAsync(connection, null, delete, "SalesLT"));
 
                 connection.Close();
             }

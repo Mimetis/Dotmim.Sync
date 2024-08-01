@@ -17,7 +17,7 @@ namespace Dotmim.Sync
     {
 
         /// <summary>
-        /// Reset a table designed from columnName and optionally tableName, deleting all rows from this table and corresponding tracking_table. This method is used when you want to Reinitialize your database.
+        /// Reset a table designed from objectName and optionally ownerName, deleting all rows from this table and corresponding tracking_table. This method is used when you want to Reinitialize your database.
         /// </summary>
         public virtual Task ResetTableAsync(ScopeInfo scopeInfo, string tableName, string schemaName = null, DbConnection connection = null, DbTransaction transaction = null,
             IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
@@ -219,7 +219,7 @@ namespace Dotmim.Sync
                 using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {
-                    var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+                    var syncAdapter = this.GetSyncAdapter(schemaTable, scopeInfo);
 
                     var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DisableConstraints,
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
@@ -257,7 +257,7 @@ namespace Dotmim.Sync
                 using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.ChangesApplying, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {
-                    var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+                    var syncAdapter = this.GetSyncAdapter(schemaTable, scopeInfo);
 
                     var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.EnableConstraints,
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
@@ -299,7 +299,7 @@ namespace Dotmim.Sync
                     if (this.Options.DisableConstraintsOnApplyChanges && this.Provider.ConstraintsLevelAction == ConstraintsLevelAction.OnTableLevel)
                         await this.InternalDisableConstraintsAsync(scopeInfo, context, schemaTable, runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                    var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+                    var syncAdapter = this.GetSyncAdapter(schemaTable, scopeInfo);
 
                     (var command, var _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.Reset,
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);

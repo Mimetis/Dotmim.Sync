@@ -51,7 +51,7 @@ namespace Dotmim.Sync
                     var hasBeenCreated = false;
 
                     // Get table builder
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                     bool exists;
                     (context, exists) = await this.InternalExistsTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
@@ -129,7 +129,7 @@ namespace Dotmim.Sync
                 {
 
                     // Get table builder
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                     bool created;
                     (context, created) = await this.InternalCreateTriggersAsync(scopeInfo, context, overwrite, tableBuilder,
@@ -187,7 +187,7 @@ namespace Dotmim.Sync
                 await using (runner.ConfigureAwait(false))
                 {
                     // Get table builder
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                     bool exists;
                     (context, exists) = await this.InternalExistsTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
@@ -245,7 +245,7 @@ namespace Dotmim.Sync
                     var hasBeenDropped = false;
 
                     // Get table builder
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                     bool existsAndCanBeDeleted;
                     (context, existsAndCanBeDeleted) = await this.InternalExistsTriggerAsync(scopeInfo, context, tableBuilder, triggerType,
@@ -308,7 +308,7 @@ namespace Dotmim.Sync
                 await using (runner.ConfigureAwait(false))
                 {
                     // Get table builder
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                     bool dropped;
                     (context, dropped) = await this.InternalDropTriggersAsync(scopeInfo, context, tableBuilder,

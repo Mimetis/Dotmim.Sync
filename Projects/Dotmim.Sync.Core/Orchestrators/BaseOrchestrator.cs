@@ -102,86 +102,20 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get the provider sync adapter.
         /// </summary>
-        public virtual DbSyncAdapter GetSyncAdapter(string scopeName, SyncTable tableDescription, SyncSetup setup = default)
-        {
-            // var p = this.Provider.GetParsers(tableDescription, setup);
-
-            // var data = JsonSerializer.SerializeToUtf8Bytes(setup);
-            // var hash = HashAlgorithm.SHA256.Create(data);
-            // var hashString = Convert.ToBase64String(hash);
-
-            //// Create the key
-            // var commandKey = $"{p.columnName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
-
-            //// Get a lazy command instance
-            // var lazySyncAdapter = syncAdapters.GetOrAdd(commandKey,
-            //    k => new Lazy<DbSyncAdapter>(() => this.Provider.GetSyncAdapter(tableDescription, setup)));
-
-            //// Get the concrete instance
-            // var syncAdapter = lazySyncAdapter.Value;
-
-            // return syncAdapter;
-            if (this.Provider == null)
-                return null;
-
-            var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, setup);
-            return this.Provider.GetSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
-        }
-
-        /// <summary>
-        /// Get the provider table builder.
-        /// </summary>
-        public DbTableBuilder GetTableBuilder(SyncTable tableDescription, ScopeInfo scopeInfo)
-        {
-            // var p = this.Provider.GetParsers(tableDescription, setup);
-
-            // var data = JsonSerializer.SerializeToUtf8Bytes(setup);
-            // var hash = HashAlgorithm.SHA256.Create(data);
-            // var hashString = Convert.ToBase64String(hash);
-
-            //// Create the key
-            // var commandKey = $"{p.columnName.ToString()}-{p.trackingName.ToString()}-{hashString}-{this.Provider.ConnectionString}";
-
-            //// Get a lazy command instance
-            // var lazyTableBuilder = tableBuilders.GetOrAdd(commandKey,
-            //    k => new Lazy<DbTableBuilder>(() => this.Provider.GetTableBuilder(tableDescription, setup)));
-
-            //// Get the concrete instance
-            // var tableBuilder = lazyTableBuilder.Value;
-
-            // return tableBuilder;
-            if (this.Provider == null)
-                return null;
-
-            Guard.ThrowIfNull(scopeInfo);
-
-            var (tableName, trackingTableName) = this.Provider.GetParsers(tableDescription, scopeInfo.Setup);
-            return this.Provider.GetTableBuilder(tableDescription, tableName, trackingTableName, scopeInfo.Setup, scopeInfo.Name);
-        }
+        public virtual DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo)
+            => this.Provider == null ? null : this.Provider.GetSyncAdapter(tableDescription, scopeInfo);
 
         /// <summary>
         /// Get a provider scope builder by scope table name.
         /// </summary>
         public DbScopeBuilder GetScopeBuilder(string scopeInfoTableName)
-        {
-            //// Create the key
-            // var commandKey = $"{scopeInfoTableName}-{this.Provider.ConnectionString}";
-
-            //// Get a lazy command instance
-            // var lazyScopeBuilder = scopeBuilders.GetOrAdd(commandKey,
-            //    k => new Lazy<DbScopeBuilder>(() => this.Provider.GetScopeBuilder(scopeInfoTableName)));
-
-            //// Get the concrete instance
-            // var scopeBuilder = lazyScopeBuilder.Value;
-
-            // return scopeBuilder;
-            return this.Provider == null ? null : this.Provider.GetScopeBuilder(scopeInfoTableName);
-        }
+            => this.Provider == null ? null : this.Provider.GetScopeBuilder(scopeInfoTableName);
 
         /// <summary>
         /// Check if a database exists, regarding the provider you are using. Returns database name and database version.
         /// </summary>
-        public virtual Task<(SyncContext Context, string DatabaseName, string Version)> GetHelloAsync() => this.GetHelloAsync(SyncOptions.DefaultScopeName);
+        public virtual Task<(SyncContext Context, string DatabaseName, string Version)> GetHelloAsync()
+            => this.GetHelloAsync(SyncOptions.DefaultScopeName);
 
         /// <summary>
         /// Check if a database exists, regarding the provider you are using. Returns database name and database version.
@@ -204,10 +138,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the inner provider name if any.
         /// </summary>
-        public override string ToString()
-        {
-            return this.Provider == null ? base.ToString() : $"{this.Provider.GetDatabaseName()}, {this.Provider.GetShortProviderTypeName()}";
-        }
+        public override string ToString() => this.Provider == null ? base.ToString() : $"{this.Provider.GetDatabaseName()}, {this.Provider.GetShortProviderTypeName()}";
 
         /// <summary>
         /// Add an interceptor of T.

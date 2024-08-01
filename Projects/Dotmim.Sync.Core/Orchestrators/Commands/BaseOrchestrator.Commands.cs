@@ -65,7 +65,6 @@ namespace Dotmim.Sync
         {
             SyncFilter filter = null;
 
-            // if (this.Provider != null && this.Provider.CanBeServerProvider) // Sqlite can't be server
             if (this.Provider != null) // trying for Sqlite too
                 filter = syncAdapter.TableDescription.GetFilter();
 
@@ -91,7 +90,8 @@ namespace Dotmim.Sync
                     DbCommandType.SelectChanges or DbCommandType.SelectChangesWithFilters => InternalSetSelectChangesParameters(command, syncAdapter, filter),
                     DbCommandType.SelectInitializedChanges or DbCommandType.SelectInitializedChangesWithFilters => InternalSetSelectInitializeChangesParameters(command, syncAdapter, filter),
                     DbCommandType.SelectRow => InternalSetSelectRowParameters(command, syncAdapter),
-                    DbCommandType.UpdateRow or DbCommandType.UpdateRows or DbCommandType.InsertRow or DbCommandType.InsertRows => InternalSetUpsertsParameters(command, syncAdapter),
+                    DbCommandType.UpdateRow or DbCommandType.UpdateRows or DbCommandType.InsertRow or DbCommandType.InsertRows
+                        => InternalSetUpsertsParameters(command, syncAdapter),
                     DbCommandType.DeleteRow or DbCommandType.DeleteRows => InternalSetDeleteRowParameters(command, syncAdapter),
                     DbCommandType.DeleteMetadata => InternalSetDeleteMetadataParameters(command, syncAdapter),
                     DbCommandType.UpdateMetadata => InternalSetUpdateMetadataParameters(command, syncAdapter),

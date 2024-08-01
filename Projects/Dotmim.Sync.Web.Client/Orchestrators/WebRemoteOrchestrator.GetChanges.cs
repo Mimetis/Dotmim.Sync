@@ -3,6 +3,7 @@ using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using System;
 using System.Data.Common;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -10,8 +11,13 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Web.Client
 {
+    /// <summary>
+    /// Contains the logic to get changes from the server side.
+    /// </summary>
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
+
+        /// <inheritdoc cref="RemoteOrchestrator.GetChangesAsync(ScopeInfoClient, DbConnection, DbTransaction)"/>
         public override async Task<ServerSyncChanges> GetChangesAsync(ScopeInfoClient cScopeInfoClient, DbConnection connection = null, DbTransaction transaction = null)
         {
             var context = new SyncContext(Guid.NewGuid(), cScopeInfoClient.Name, cScopeInfoClient.Parameters) { ClientId = cScopeInfoClient.Id };
@@ -65,7 +71,7 @@ namespace Dotmim.Sync.Web.Client
 
                 // Generate the batch directory
                 var batchDirectoryRoot = this.Options.BatchDirectory;
-                var batchDirectoryName = string.Concat("WEB_REMOTE_GETCHANGES_", DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", string.Empty));
+                var batchDirectoryName = string.Concat("WEB_REMOTE_GETCHANGES_", DateTime.UtcNow.ToString("yyyy_MM_dd_ss", CultureInfo.InvariantCulture), Path.GetRandomFileName().Replace(".", string.Empty));
 
                 serverBatchInfo.DirectoryRoot = batchDirectoryRoot;
                 serverBatchInfo.DirectoryName = batchDirectoryName;
@@ -197,7 +203,7 @@ namespace Dotmim.Sync.Web.Client
                 context = getMoreChanges.SyncContext;
 
                 await this.InterceptAsync(
-                    new HttpGettingResponseMessageArgs(response, this.ServiceUri.ToString(),
+                    new HttpGettingResponseMessageArgs(response, this.ServiceUri,
                     step, context, getMoreChanges, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                 if (getMoreChanges != null && getMoreChanges.Changes != null && getMoreChanges.Changes.HasRows)

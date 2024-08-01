@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.PostgreSql.Builders
 {
-    public class NpgsqlBuilder : DbBuilder
+    public class NpgsqlDatabaseBuilder : DbDatabaseBuilder
     {
         public override Task DropsTableIfExistsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
             => NpgsqlManagementUtils.DropTableIfExistsAsync(connection as NpgsqlConnection, transaction as NpgsqlTransaction, tableName, schemaName);
@@ -42,12 +42,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         public override Task<SyncTable> GetTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
             => NpgsqlManagementUtils.GetTableAsync(connection as NpgsqlConnection, transaction as NpgsqlTransaction, tableName, schemaName);
-
-        public override Task<SyncTable> GetTableColumnsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-            => NpgsqlManagementUtils.GetColumnsForTableAsync(connection as NpgsqlConnection, transaction as NpgsqlTransaction, tableName, schemaName);
-
-        public override Task<SyncTable> GetTableDefinitionAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-            => NpgsqlManagementUtils.GetTableDefinitionAsync(tableName, schemaName, connection as NpgsqlConnection, transaction as NpgsqlTransaction);
 
         public override Task RenameTableAsync(string tableName, string schemaName, string newTableName, string newSchemaName, DbConnection connection, DbTransaction transaction = null)
                             => NpgsqlManagementUtils.RenameTableAsync(tableName, schemaName, newTableName, newSchemaName, connection as NpgsqlConnection, transaction as NpgsqlTransaction);

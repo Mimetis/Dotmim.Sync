@@ -6,7 +6,7 @@ namespace Dotmim.Sync.Builders
     /// <summary>
     /// Abstract class for all database builders.
     /// </summary>
-    public abstract class DbBuilder
+    public abstract class DbDatabaseBuilder
     {
         /// <summary>
         /// First step before creating schema.
@@ -32,16 +32,6 @@ namespace Dotmim.Sync.Builders
         /// Get a table with all rows from a table.
         /// </summary>
         public abstract Task<SyncTable> GetTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null);
-
-        /// <summary>
-        /// Get a table definition.
-        /// </summary>
-        public abstract Task<SyncTable> GetTableDefinitionAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null);
-
-        /// <summary>
-        /// Get a table columns definition.
-        /// </summary>
-        public abstract Task<SyncTable> GetTableColumnsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null);
 
         /// <summary>
         /// Check if a table exists.

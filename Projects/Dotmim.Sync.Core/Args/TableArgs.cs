@@ -1,5 +1,4 @@
-﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Enumerations;
+﻿using Dotmim.Sync.Enumerations;
 using System;
 using System.Data.Common;
 using System.Threading.Tasks;
@@ -76,10 +75,10 @@ namespace Dotmim.Sync
     public class TableCreatedArgs : ProgressArgs
     {
         /// <inheritdoc cref="TableCreatedArgs" />
-        public TableCreatedArgs(SyncContext context, SyncTable table, ParserName tableName, DbConnection connection = null, DbTransaction transaction = null)
+        public TableCreatedArgs(SyncContext context, SyncTable table, string tableFullName, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
-            this.TableName = tableName;
+            this.TableFullName = tableFullName;
             this.Table = table;
         }
 
@@ -91,7 +90,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the table name created.
         /// </summary>
-        public ParserName TableName { get; }
+        public string TableFullName { get; }
 
         /// <inheritdoc cref="ProgressArgs.Message" />
         public override string Message => $"[{this.Table.GetFullName()}] Table Created.";
@@ -109,11 +108,11 @@ namespace Dotmim.Sync
     public class TableCreatingArgs : ProgressArgs
     {
         /// <inheritdoc cref="TableCreatingArgs" />
-        public TableCreatingArgs(SyncContext context, SyncTable table, ParserName tableName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+        public TableCreatingArgs(SyncContext context, SyncTable table, string tableFullName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.Table = table;
-            this.TableName = tableName;
+            this.TableFullName = tableFullName;
             this.Command = command;
         }
 
@@ -135,7 +134,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the table name creating.
         /// </summary>
-        public ParserName TableName { get; }
+        public string TableFullName { get; }
 
         /// <inheritdoc cref="ProgressArgs.ProgressLevel" />
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
@@ -154,10 +153,9 @@ namespace Dotmim.Sync
     {
 
         /// <inheritdoc cref="TableDroppedArgs"/>
-        public TableDroppedArgs(SyncContext context, SyncTable table, ParserName tableName, DbConnection connection = null, DbTransaction transaction = null)
+        public TableDroppedArgs(SyncContext context, SyncTable table, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
-            this.TableName = tableName;
             this.Table = table;
         }
 
@@ -165,11 +163,6 @@ namespace Dotmim.Sync
         /// Gets the table dropped.
         /// </summary>
         public SyncTable Table { get; }
-
-        /// <summary>
-        /// Gets the table name dropped.
-        /// </summary>
-        public ParserName TableName { get; }
 
         /// <inheritdoc cref="ProgressArgs.Message"/>
         public override string Message => $"[{this.Table.GetFullName()}] Table Dropped.";
@@ -188,11 +181,10 @@ namespace Dotmim.Sync
     {
 
         /// <inheritdoc cref="TableDroppingArgs"/>
-        public TableDroppingArgs(SyncContext context, SyncTable table, ParserName tableName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+        public TableDroppingArgs(SyncContext context, SyncTable table, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.Command = command;
-            this.TableName = tableName;
             this.Table = table;
         }
 
@@ -210,11 +202,6 @@ namespace Dotmim.Sync
         /// Gets the table dropping.
         /// </summary>
         public SyncTable Table { get; }
-
-        /// <summary>
-        /// Gets the table name dropping.
-        /// </summary>
-        public ParserName TableName { get; }
 
         /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;

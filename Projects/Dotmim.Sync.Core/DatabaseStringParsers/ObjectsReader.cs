@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 
 namespace Dotmim.Sync.DatabaseStringParsers
 {
@@ -8,9 +9,8 @@ namespace Dotmim.Sync.DatabaseStringParsers
     public ref struct ObjectsReader
     {
         private readonly ReadOnlySpan<char> input;
-        private readonly char leftQuote;
-        private readonly char rightQuote;
-
+        private readonly char[] leftQuotes;
+        private readonly char[] rightQuotes;
         private int dataPos = 0;
 
         /// <summary>
@@ -18,11 +18,21 @@ namespace Dotmim.Sync.DatabaseStringParsers
         /// </summary>
         public ReadOnlySpan<char> Current { get; private set; }
 
+        /// <summary>
+        /// Gets the first left quote found.
+        /// </summary>
+        public char FirstLeftQuote { get; private set; }
+
+        /// <summary>
+        /// Gets the first right quote found.
+        /// </summary>
+        public char FirstRightQuote { get; private set; }
+
         /// <inheritdoc cref="ObjectsReader"/>
-        public ObjectsReader(ReadOnlySpan<char> input, char leftQuote, char rightQuote)
+        public ObjectsReader(ReadOnlySpan<char> input, char[] leftQuotes, char[] rightQuotes)
         {
-            this.leftQuote = leftQuote;
-            this.rightQuote = rightQuote;
+            this.leftQuotes = leftQuotes;
+            this.rightQuotes = rightQuotes;
             this.input = input;
         }
 
@@ -39,17 +49,33 @@ namespace Dotmim.Sync.DatabaseStringParsers
 
             var startPos = 0;
 
+            // if we have only one left quote, we can set it
+            if (this.leftQuotes.Length == 1)
+                this.FirstLeftQuote = this.leftQuotes[0];
+
+            // if we have only one right quote, we can set it
+            if (this.rightQuotes.Length == 1)
+                this.FirstRightQuote = this.rightQuotes[0];
+
             // iterate through the input
             while (this.dataPos <= this.input.Length - 1)
             {
                 // if we reach the end of the input or the end of the current object
-                if (this.dataPos == this.input.Length - 1 || this.input[this.dataPos] == this.rightQuote)
+                if (this.dataPos == this.input.Length - 1 || (this.rightQuotes.Contains(this.input[this.dataPos]) && reachStartOfOneObject))
                 {
+                    // if we found a right quote and we did not determine the first quote, we can set it
+                    if (this.FirstRightQuote == char.MinValue && this.rightQuotes.Contains(this.input[this.dataPos]))
+                        this.FirstRightQuote = this.input[this.dataPos];
+
                     reachEndOfOneObject = true;
 
                     // if we are at the end of the input and the current character is not a right quote, we can add it to the current object
-                    if (this.input[this.dataPos] != this.rightQuote)
+                    if (!this.rightQuotes.Contains(this.input[this.dataPos]))
                         dataLen++;
+
+                    // we have reached the end of the current object. We can move 1 forward to get the next object
+                    if (this.rightQuotes.Contains(this.input[this.dataPos]) && this.dataPos < this.input.Length - 1)
+                        this.dataPos++;
                 }
 
                 // if we found a special character like ".", we can skip it
@@ -70,8 +96,11 @@ namespace Dotmim.Sync.DatabaseStringParsers
                 }
 
                 // if we found a left quote, we can start reading the current object
-                else if (this.input[this.dataPos] == this.leftQuote)
+                else if (this.leftQuotes.Contains(this.input[this.dataPos]))
                 {
+                    if (this.FirstLeftQuote == char.MinValue && this.leftQuotes.Contains(this.input[this.dataPos]))
+                        this.FirstLeftQuote = this.input[this.dataPos];
+
                     reachStartOfOneObject = true;
 
                     // omits this character

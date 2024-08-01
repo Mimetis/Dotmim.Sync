@@ -1,5 +1,4 @@
-﻿using Dotmim.Sync.Builders;
-using System.Data;
+﻿using System.Data;
 using System.Data.Common;
 using System.Linq;
 
@@ -20,10 +19,10 @@ namespace Dotmim.Sync
 
             foreach (var column in syncAdapter.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
-                var columnName = ParserName.Parse(column, syncAdapter.QuotePrefix, syncAdapter.QuoteSuffix).Unquoted().Normalized().ToString();
+                var columnNames = syncAdapter.GetTableBuilder().GetParsedColumnNames(column);
 
                 p = command.CreateParameter();
-                p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
+                p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnNames.NormalizedName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
                 command.Parameters.Add(p);
@@ -65,10 +64,10 @@ namespace Dotmim.Sync
 
             foreach (var column in syncAdapter.TableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(column, syncAdapter.QuotePrefix, syncAdapter.QuoteSuffix).Unquoted().Normalized().ToString();
+                var columnNames = syncAdapter.GetTableBuilder().GetParsedColumnNames(column);
 
                 p = command.CreateParameter();
-                p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
+                p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnNames.NormalizedName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
                 p.Size = column.GetDataType() == typeof(string) && column.MaxLength > 0 ? column.MaxLength : -1;
@@ -101,10 +100,10 @@ namespace Dotmim.Sync
 
             foreach (var column in syncAdapter.TableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(column, syncAdapter.QuotePrefix, syncAdapter.QuoteSuffix).Unquoted().Normalized().ToString();
+                var columnNames = syncAdapter.GetTableBuilder().GetParsedColumnNames(column);
 
                 p = command.CreateParameter();
-                p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
+                p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnNames.NormalizedName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
                 p.Size = column.GetDataType() == typeof(string) && column.MaxLength > 0 ? column.MaxLength : -1;
@@ -147,10 +146,10 @@ namespace Dotmim.Sync
 
             foreach (var column in syncAdapter.TableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(column, syncAdapter.QuotePrefix, syncAdapter.QuoteSuffix).Unquoted().Normalized().ToString();
+                var columnNames = syncAdapter.GetTableBuilder().GetParsedColumnNames(column);
 
                 p = command.CreateParameter();
-                p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
+                p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnNames.NormalizedName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
                 p.Size = column.GetDataType() == typeof(string) && column.MaxLength > 0 ? column.MaxLength : -1;
@@ -183,10 +182,10 @@ namespace Dotmim.Sync
 
             foreach (var column in syncAdapter.TableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(column, syncAdapter.QuotePrefix, syncAdapter.QuoteSuffix).Unquoted().Normalized().ToString();
+                var columnNames = syncAdapter.GetTableBuilder().GetParsedColumnNames(column);
 
                 p = command.CreateParameter();
-                p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
+                p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnNames.NormalizedName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
                 p.Size = column.GetDataType() == typeof(string) && column.MaxLength > 0 ? column.MaxLength : -1;
@@ -229,10 +228,10 @@ namespace Dotmim.Sync
 
             foreach (var column in syncAdapter.TableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(column, syncAdapter.QuotePrefix, syncAdapter.QuoteSuffix).Unquoted().Normalized().ToString();
+                var columnNames = syncAdapter.GetTableBuilder().GetParsedColumnNames(column);
 
                 p = command.CreateParameter();
-                p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnName}";
+                p.ParameterName = $"{syncAdapter.ParameterPrefix}{columnNames.NormalizedName}";
                 p.DbType = column.GetDbType();
                 p.SourceColumn = column.ColumnName;
                 p.Size = column.GetDataType() == typeof(string) && column.MaxLength > 0 ? column.MaxLength : -1;
@@ -302,8 +301,8 @@ namespace Dotmim.Sync
 
                 if (param.DbType.HasValue)
                 {
-                    // Get column name and type
-                    parameterName = ParserName.Parse(param.Name, syncAdapter.QuotePrefix, syncAdapter.QuoteSuffix).Unquoted().Normalized().ToString();
+                    var columnNames = syncAdapter.GetParsedColumnNames(param.Name);
+                    parameterName = columnNames.NormalizedName;
                     parameterDbType = param.DbType.Value;
                     size = param.MaxLength;
                     defaultValue = param.DefaultValue;
@@ -319,7 +318,9 @@ namespace Dotmim.Sync
                         throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
 
                     // Get column name and type
-                    parameterName = ParserName.Parse(columnFilter, syncAdapter.QuotePrefix, syncAdapter.QuoteSuffix).Unquoted().Normalized().ToString();
+                    var columnNames = syncAdapter.GetTableBuilder().GetParsedColumnNames(columnFilter);
+
+                    parameterName = columnNames.NormalizedName;
                     parameterDbType = columnFilter.GetDbType();
                     size = columnFilter.GetDataType() == typeof(string) && columnFilter.MaxLength > 0 ? columnFilter.MaxLength : -1;
                     defaultValue = param.DefaultValue;
@@ -365,8 +366,8 @@ namespace Dotmim.Sync
 
                 if (param.DbType.HasValue)
                 {
-                    // Get column name and type
-                    parameterName = ParserName.Parse(param.Name, syncAdapter.QuotePrefix, syncAdapter.QuoteSuffix).Unquoted().Normalized().ToString();
+                    var columnNames = syncAdapter.GetParsedColumnNames(param.Name);
+                    parameterName = columnNames.NormalizedName;
                     parameterDbType = param.DbType.Value;
                     size = param.MaxLength;
                     defaultValue = param.DefaultValue;
@@ -382,7 +383,9 @@ namespace Dotmim.Sync
                         throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
 
                     // Get column name and type
-                    parameterName = ParserName.Parse(columnFilter, syncAdapter.QuotePrefix, syncAdapter.QuoteSuffix).Unquoted().Normalized().ToString();
+                    var columnNames = syncAdapter.GetTableBuilder().GetParsedColumnNames(columnFilter);
+
+                    parameterName = columnNames.NormalizedName;
                     parameterDbType = columnFilter.GetDbType();
                     size = columnFilter.GetDataType() == typeof(string) && columnFilter.MaxLength > 0 ? columnFilter.MaxLength : -1;
                     defaultValue = param.DefaultValue;

@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.DatabaseStringParsers;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -64,10 +64,10 @@ namespace Dotmim.Sync
                 if (string.IsNullOrEmpty(tableName))
                     throw new ArgumentNullException(nameof(tableName));
 
-                var parser = ParserName.Parse(tableName);
-                var tblName = parser.ObjectName;
+                var parser = new TableParser(tableName);
+                var tblName = parser.TableName;
                 var schemaName = parser.SchemaName;
-                schemaName = schemaName == null ? string.Empty : schemaName;
+                schemaName ??= string.Empty;
 
                 var sc = SyncGlobalization.DataSourceStringComparison;
 
@@ -104,10 +104,10 @@ namespace Dotmim.Sync
                 if (string.IsNullOrEmpty(tableName))
                     throw new ArgumentNullException(nameof(tableName));
 
-                var parser = ParserName.Parse(tableName);
-                var tblName = parser.ObjectName;
+                var parser = new TableParser(tableName);
+                var tblName = parser.TableName;
 
-                schemaName = schemaName == null ? string.Empty : schemaName;
+                schemaName ??= string.Empty;
 
                 var sc = SyncGlobalization.DataSourceStringComparison;
 
@@ -150,15 +150,10 @@ namespace Dotmim.Sync
         /// </summary>
         public void Add(string table)
         {
-            // Potentially user can pass something like [SalesLT].[Product]
-            // or SalesLT.Product or Product. ParserName will handle it
-            var parser = ParserName.Parse(table);
-
-            var tableName = parser.ObjectName;
+            var parser = new TableParser(table);
+            var tableName = parser.TableName;
             var schemaName = parser.SchemaName;
-
             var sTable = new SyncTable(tableName, schemaName);
-
             this.Add(sTable);
         }
 

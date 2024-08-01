@@ -13,16 +13,17 @@ namespace Dotmim.Sync.Builders
 
         // Internal commands cache
         private ConcurrentDictionary<string, Lazy<SyncPreparedCommand>> commands = new();
-
-        /// <summary>
-        /// Gets or sets the scope info table name.
-        /// </summary>
-        public ParserName ScopeInfoTableName { get; protected set; }
+        private string scopeInfoTableName;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DbScopeBuilder"/> class.
         /// </summary>
-        protected DbScopeBuilder(string scopeInfoTableName) => this.ScopeInfoTableName = ParserName.Parse(scopeInfoTableName);
+        protected DbScopeBuilder(string scopeInfoTableName) => this.scopeInfoTableName = scopeInfoTableName;
+
+        /// <summary>
+        /// Gets the parsed name of the table.
+        /// </summary>
+        public abstract DbTableNames GetParsedScopeInfoTableNames();
 
         /// <summary>
         /// Returns a command to check if the scope_info table exists.
@@ -130,8 +131,10 @@ namespace Dotmim.Sync.Builders
         /// </summary>
         internal DbCommand GetCommandAsync(DbScopeCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
+            var scopeInfoTableNames = this.GetParsedScopeInfoTableNames();
+
             // Create the key
-            var commandKey = $"{connection.DataSource}-{connection.Database}-{this.ScopeInfoTableName.ToString()}-{commandType}";
+            var commandKey = $"{connection.DataSource}-{connection.Database}-{scopeInfoTableNames.NormalizedName}-{commandType}";
 
             var command = commandType switch
             {

@@ -7,20 +7,24 @@ namespace Dotmim.Sync.DatabaseStringParsers
     /// </summary>
     public readonly ref struct TableParser
     {
-        private readonly char leftQuote;
-        private readonly char rightQuote;
-
         private readonly ReadOnlySpan<char> databaseName;
         private readonly ReadOnlySpan<char> schemaName;
         private readonly ReadOnlySpan<char> tableName;
 
-        /// <inheritdoc cref="TableParser"/>
-        public TableParser(ReadOnlySpan<char> input, char leftQuote, char rightQuote)
-        {
-            this.leftQuote = leftQuote;
-            this.rightQuote = rightQuote;
+        /// <summary>
+        /// Gets the first left quote found.
+        /// </summary>
+        public readonly char FirstLeftQuote { get; }
 
-            var reader = new ObjectsReader(input, leftQuote, rightQuote);
+        /// <summary>
+        /// Gets the first right quote found.
+        /// </summary>
+        public readonly char FirstRightQuote { get; }
+
+        /// <inheritdoc cref="TableParser"/>
+        public TableParser(ReadOnlySpan<char> input, char[] leftQuotes, char[] rightQuotes)
+        {
+            var reader = new ObjectsReader(input, leftQuotes, rightQuotes);
 
             var tokensFoundCount = 0;
 
@@ -47,7 +51,18 @@ namespace Dotmim.Sync.DatabaseStringParsers
                     this.tableName = current.ToArray();
                 }
             }
+
+            this.FirstLeftQuote = reader.FirstLeftQuote == char.MinValue ? leftQuotes[0] : reader.FirstLeftQuote;
+            this.FirstRightQuote = reader.FirstRightQuote == char.MinValue ? rightQuotes[0] : reader.FirstRightQuote;
         }
+
+        /// <inheritdoc cref="TableParser"/>
+        public TableParser(string input, char leftQuote, char rightQuote)
+            : this(input.AsSpan(), [leftQuote], [rightQuote]) { }
+
+        /// <inheritdoc cref="TableParser"/>
+        public TableParser(string input)
+            : this(input.AsSpan(), ['[', '`', '"'], [']', '`', '"']) { }
 
         /// <summary>
         /// Gets the name of the table.
@@ -67,17 +82,17 @@ namespace Dotmim.Sync.DatabaseStringParsers
         /// <summary>
         /// Gets the quoted short name of the table, without schema name or database name.
         /// </summary>
-        public string QuotedShortName => $"{this.leftQuote}{this.tableName.ToString()}{this.rightQuote}";
+        public string QuotedShortName => $"{this.FirstLeftQuote}{this.tableName.ToString()}{this.FirstRightQuote}";
 
         /// <summary>
         /// Gets the quoted full name of the table, including schema name and database name if any.
         /// </summary>
         public string QuotedFullName =>
             this.databaseName.Length == 0 && this.schemaName.Length == 0
-                    ? $"{this.leftQuote}{this.tableName.ToString()}{this.rightQuote}"
+                    ? $"{this.FirstLeftQuote}{this.tableName.ToString()}{this.FirstRightQuote}"
                     : this.databaseName.Length == 0
-                    ? $"{this.leftQuote}{this.schemaName.ToString()}{this.rightQuote}.{this.leftQuote}{this.tableName.ToString()}{this.rightQuote}"
-                    : $"{this.leftQuote}{this.databaseName.ToString()}{this.rightQuote}.{this.leftQuote}{this.schemaName.ToString()}{this.rightQuote}.{this.leftQuote}{this.tableName.ToString()}{this.rightQuote}";
+                    ? $"{this.FirstLeftQuote}{this.schemaName.ToString()}{this.FirstRightQuote}.{this.FirstLeftQuote}{this.tableName.ToString()}{this.FirstRightQuote}"
+                    : $"{this.FirstLeftQuote}{this.databaseName.ToString()}{this.FirstRightQuote}.{this.FirstLeftQuote}{this.schemaName.ToString()}{this.FirstRightQuote}.{this.FirstLeftQuote}{this.tableName.ToString()}{this.FirstRightQuote}";
 
         /// <summary>
         /// Replace all occurrences of a character by another character from a ReadOnlySpan and returns a new Span.

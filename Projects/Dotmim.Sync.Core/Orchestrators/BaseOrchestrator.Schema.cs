@@ -185,7 +185,8 @@ namespace Dotmim.Sync
                 scopeInfo.Setup = new SyncSetup();
                 scopeInfo.Setup.Tables.Add(setupTable);
 
-                var tableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
+                var syncAdapter = this.Provider.GetSyncAdapter(syncTable, scopeInfo);
+                var tableBuilder = syncAdapter.GetTableBuilder();
 
                 bool exists;
                 (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder, connection, transaction, progress, cancellationToken).ConfigureAwait(false);

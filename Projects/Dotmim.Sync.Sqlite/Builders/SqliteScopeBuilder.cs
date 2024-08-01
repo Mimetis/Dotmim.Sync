@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.DatabaseStringParsers;
 using Microsoft.Data.Sqlite;
 using System.Data;
 using System.Data.Common;
@@ -6,13 +7,28 @@ using System.Text;
 
 namespace Dotmim.Sync.Sqlite
 {
+    /// <summary>
+    /// Sqlite scope builder.
+    /// </summary>
     public class SqliteScopeBuilder : DbScopeBuilder
     {
+        private DbTableNames tableNames;
+
+        /// <inheritdoc cref="SqliteScopeBuilder" />
         public SqliteScopeBuilder(string scopeInfoTableName)
             : base(scopeInfoTableName)
         {
+            var tableParser = new TableParser(scopeInfoTableName, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote);
+
+            this.tableNames = new DbTableNames(SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote,
+                tableParser.TableName, tableParser.NormalizedFullName, tableParser.NormalizedShortName,
+                tableParser.QuotedFullName, tableParser.QuotedShortName, tableParser.SchemaName);
         }
 
+        /// <inheritdoc />
+        public override DbTableNames GetParsedScopeInfoTableNames() => this.tableNames;
+
+        /// <inheritdoc />
         public override DbCommand GetLocalTimestampCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText = $"Select {SqliteObjectNames.TimestampValue}";
@@ -23,13 +39,10 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
-        // Exists Scope Table
-        // ------------------------------
+        /// <inheritdoc />
         public override DbCommand GetExistsScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
-
-            var commandText = $@"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='{tableName}'";
+            var commandText = $@"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='{this.tableNames.NormalizedName}'";
             var command = connection.CreateCommand();
             command.CommandText = commandText;
             command.Connection = connection;
@@ -37,10 +50,10 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
+        /// <inheritdoc />
         public override DbCommand GetExistsScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
-            var commandText = $@"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='{tableName}'";
+            var commandText = $@"SELECT count(*) FROM sqlite_master WHERE type='table' AND name='{this.tableNames.NormalizedName}_client'";
             var command = connection.CreateCommand();
             command.CommandText = commandText;
             command.Connection = connection;
@@ -48,13 +61,10 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
-        // Exists Scope Info
-        // ------------------------------
+        /// <inheritdoc />
         public override DbCommand GetExistsScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
-
-            var commandText = $@"Select count(*) from {tableName} where sync_scope_name = @sync_scope_name";
+            var commandText = $@"Select count(*) from {this.tableNames.NormalizedName} where sync_scope_name = @sync_scope_name";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -68,12 +78,11 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
+        /// <inheritdoc />
         public override DbCommand GetExistsScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
-
             var command = connection.CreateCommand();
-            command.CommandText = $@"Select count(*) from [{tableName}] 
+            command.CommandText = $@"Select count(*) from [{this.tableNames.NormalizedName}_client] 
                                      where sync_scope_id = @sync_scope_id 
                                      and sync_scope_name = @sync_scope_name
                                      and sync_scope_hash = @sync_scope_hash;";
@@ -100,21 +109,18 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
-        // Create Table
-        // ------------------------------
+        /// <inheritdoc />
         public override DbCommand GetCreateScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}";
-
             var commandText =
-                    $@"CREATE TABLE [{tableName}](
+                    $@"CREATE TABLE [{this.tableNames.NormalizedName}](
                         sync_scope_name text NOT NULL,
                         sync_scope_schema text NULL,
                         sync_scope_setup text NULL,
                         sync_scope_version text NULL,
                         sync_scope_last_clean_timestamp integer NULL,
                         sync_scope_properties text NULL,
-                        CONSTRAINT PKey_{tableName} PRIMARY KEY(sync_scope_name))";
+                        CONSTRAINT PKey_{this.tableNames.NormalizedName} PRIMARY KEY(sync_scope_name))";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -122,12 +128,11 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
+        /// <inheritdoc />
         public override DbCommand GetCreateScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
-
             var commandText =
-                    $@"CREATE TABLE [{tableName}](
+                    $@"CREATE TABLE [{this.tableNames.NormalizedName}_client](
                         sync_scope_id blob NOT NULL,
                         sync_scope_name text NOT NULL,
                         sync_scope_hash text NOT NULL,
@@ -138,7 +143,7 @@ namespace Dotmim.Sync.Sqlite
                         scope_last_sync datetime NULL,
                         sync_scope_errors text NULL,
                         sync_scope_properties text NULL,
-                        CONSTRAINT PKey_{tableName} PRIMARY KEY(sync_scope_id, sync_scope_name, sync_scope_hash))";
+                        CONSTRAINT PKey_{this.tableNames.NormalizedName}_client PRIMARY KEY(sync_scope_id, sync_scope_name, sync_scope_hash))";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -146,12 +151,9 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
-        // Get all scopes
-        // ------------------------------
+        /// <inheritdoc />
         public override DbCommand GetAllScopeInfosCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
-
             var commandText =
                 $@"SELECT [sync_scope_name], 
                           [sync_scope_schema], 
@@ -159,7 +161,7 @@ namespace Dotmim.Sync.Sqlite
                           [sync_scope_version],
                           [sync_scope_last_clean_timestamp],
                           [sync_scope_properties]
-                    FROM  {tableName}";
+                    FROM  {this.tableNames.NormalizedName}";
 
             var command = connection.CreateCommand();
             command.CommandText = commandText;
@@ -169,9 +171,9 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
+        /// <inheritdoc />
         public override DbCommand GetAllScopeInfoClientsCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
             var commandText =
                 $@"SELECT  [sync_scope_id]
                          , [sync_scope_name]
@@ -183,7 +185,7 @@ namespace Dotmim.Sync.Sqlite
                          , [scope_last_sync]
                          , [sync_scope_errors]
                          , [sync_scope_properties]
-                    FROM  [{tableName}]";
+                    FROM  [{this.tableNames.NormalizedName}_client]";
 
             var command = connection.CreateCommand();
             command.CommandText = commandText;
@@ -193,13 +195,10 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
-        // Delete scope
-        // ------------------------------
+        /// <inheritdoc />
         public override DbCommand GetDeleteScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
-
-            var commandText = $@"DELETE FROM [{tableName}] WHERE [sync_scope_name] = @sync_scope_name";
+            var commandText = $@"DELETE FROM [{this.tableNames.NormalizedName}] WHERE [sync_scope_name] = @sync_scope_name";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -215,11 +214,11 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
+        /// <inheritdoc />
         public override DbCommand GetDeleteScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
             var commandText =
-                $@"DELETE FROM [{tableName}]
+                $@"DELETE FROM [{this.tableNames.NormalizedName}_client]
                    WHERE [sync_scope_name] = @sync_scope_name and [sync_scope_id] = @sync_scope_id and [sync_scope_hash] = @sync_scope_hash";
 
             var command = connection.CreateCommand();
@@ -247,11 +246,10 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
-        // Get scope
-        // ------------------------------
+        /// <inheritdoc />
         public override DbCommand GetScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
+            var tableName = this.tableNames.NormalizedName;
 
             var commandText =
                     $@"SELECT [sync_scope_name], 
@@ -276,9 +274,10 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
+        /// <inheritdoc />
         public override DbCommand GetScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
+            var tableName = $"{this.tableNames.NormalizedName}_client";
             var commandText =
                 $@"SELECT    [sync_scope_id]
                            , [sync_scope_name]
@@ -318,21 +317,28 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
-        // Insert Scope
-        // -------------------------------
-        public override DbCommand GetInsertScopeInfoCommand(DbConnection connection, DbTransaction transaction) => this.GetSaveScopeInfoCommand(false, connection, transaction);
+        /// <inheritdoc />
+        public override DbCommand GetInsertScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+            => this.GetSaveScopeInfoCommand(false, connection, transaction);
 
-        public override DbCommand GetInsertScopeInfoClientCommand(DbConnection connection, DbTransaction transaction) => this.GetSaveScopeInfoClientCommand(false, connection, transaction);
+        /// <inheritdoc />
+        public override DbCommand GetInsertScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
+            => this.GetSaveScopeInfoClientCommand(false, connection, transaction);
 
-        // Update Scope
-        // -------------------------------
-        public override DbCommand GetUpdateScopeInfoCommand(DbConnection connection, DbTransaction transaction) => this.GetSaveScopeInfoCommand(true, connection, transaction);
+        /// <inheritdoc />
+        public override DbCommand GetUpdateScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+            => this.GetSaveScopeInfoCommand(true, connection, transaction);
 
-        public override DbCommand GetUpdateScopeInfoClientCommand(DbConnection connection, DbTransaction transaction) => this.GetSaveScopeInfoClientCommand(true, connection, transaction);
+        /// <inheritdoc />
+        public override DbCommand GetUpdateScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
+            => this.GetSaveScopeInfoClientCommand(true, connection, transaction);
 
+        /// <summary>
+        /// Gets the save scope info command.
+        /// </summary>
         public DbCommand GetSaveScopeInfoCommand(bool exist, DbConnection connection, DbTransaction transaction)
         {
-            var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
+            var tableName = this.tableNames.NormalizedName;
 
             var stmtText = new StringBuilder();
 
@@ -401,9 +407,12 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
+        /// <summary>
+        /// Gets the save scope info client command.
+        /// </summary>
         public DbCommand GetSaveScopeInfoClientCommand(bool exist, DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.ScopeInfoTableName.Unquoted().Normalized()}_client";
+            var tableName = $"{this.tableNames.NormalizedName}_client";
 
             var stmtText = new StringBuilder();
 
@@ -498,11 +507,10 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
-        // Drop Scope table
-        // -------------------------------
+        /// <inheritdoc />
         public override DbCommand GetDropScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = this.ScopeInfoTableName.Unquoted().Normalized().ToString();
+            var tableName = this.tableNames.NormalizedName;
 
             var commandText = $"DROP TABLE {tableName}";
 
@@ -514,9 +522,11 @@ namespace Dotmim.Sync.Sqlite
             return command;
         }
 
+        /// <inheritdoc />
         public override DbCommand GetDropScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandText = $"DROP TABLE {this.ScopeInfoTableName.Unquoted()}_client";
+
+            var commandText = $"DROP TABLE {this.tableNames.NormalizedName}_client";
 
             var command = connection.CreateCommand();
             command.CommandText = commandText;

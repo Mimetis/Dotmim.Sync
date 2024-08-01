@@ -3,6 +3,7 @@ using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using System;
 using System.Data.Common;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -11,6 +12,9 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Web.Client
 {
+    /// <summary>
+    /// Contains the logic to apply changes to the server and get changes from the server.
+    /// </summary>
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
         /// <summary>
@@ -65,7 +69,7 @@ namespace Dotmim.Sync.Web.Client
                     // Foreach part, will have to send them to the remote
                     // once finished, return context
                     var initialPctProgress1 = context.ProgressPercentage;
-                    var localSerializer = new LocalJsonSerializer(this, context);
+                    using var localSerializer = new LocalJsonSerializer(this, context);
 
                     foreach (var bpi in clientChanges.ClientBatchInfo.BatchPartsInfo.OrderBy(bpi => bpi.Index))
                     {
@@ -149,7 +153,7 @@ namespace Dotmim.Sync.Web.Client
                     context = summaryResponseContent.SyncContext;
 
                     await this.InterceptAsync(
-                        new HttpGettingResponseMessageArgs(response, this.ServiceUri.ToString(),
+                        new HttpGettingResponseMessageArgs(response, this.ServiceUri,
                         HttpStep.SendChangesInProgress, context, summaryResponseContent, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
                 }
 
@@ -166,7 +170,8 @@ namespace Dotmim.Sync.Web.Client
 
                 // Generate the batch directory
                 var batchDirectoryRoot = this.Options.BatchDirectory;
-                var batchDirectoryName = string.Concat("WEB_REMOTE_GETCHANGES_", DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", string.Empty));
+                var batchDirectoryName = string.Concat("WEB_REMOTE_GETCHANGES_", DateTime.UtcNow.ToString("yyyy_MM_dd_ss", CultureInfo.InvariantCulture),
+                    Path.GetRandomFileName().Replace(".", string.Empty));
 
                 serverBatchInfo.DirectoryRoot = batchDirectoryRoot;
                 serverBatchInfo.DirectoryName = batchDirectoryName;

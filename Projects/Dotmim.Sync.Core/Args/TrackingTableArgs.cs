@@ -1,5 +1,4 @@
-﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Enumerations;
+﻿using Dotmim.Sync.Enumerations;
 using System;
 using System.Data.Common;
 using System.Threading.Tasks;
@@ -12,11 +11,11 @@ namespace Dotmim.Sync
     public class TrackingTableCreatedArgs : ProgressArgs
     {
         /// <inheritdoc cref="TrackingTableCreatedArgs" />
-        public TrackingTableCreatedArgs(SyncContext context, SyncTable table, ParserName trackingTableName, DbConnection connection = null, DbTransaction transaction = null)
+        public TrackingTableCreatedArgs(SyncContext context, SyncTable table, string trackingTableFullName, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.Table = table;
-            this.TrackingTableName = trackingTableName;
+            this.TrackingTableFullName = trackingTableFullName;
         }
 
         /// <summary>
@@ -27,10 +26,10 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the tracking table name.
         /// </summary>
-        public ParserName TrackingTableName { get; }
+        public string TrackingTableFullName { get; }
 
         /// <inheritdoc cref="ProgressArgs.Message" />
-        public override string Message => $"[{this.TrackingTableName}] tracking table created.";
+        public override string Message => $"[{this.TrackingTableFullName}] tracking table created.";
 
         /// <inheritdoc cref="ProgressArgs.ProgressLevel" />
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
@@ -45,11 +44,11 @@ namespace Dotmim.Sync
     public class TrackingTableCreatingArgs : ProgressArgs
     {
         /// <inheritdoc cref="TrackingTableCreatingArgs" />
-        public TrackingTableCreatingArgs(SyncContext context, SyncTable table, ParserName trackingTableName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+        public TrackingTableCreatingArgs(SyncContext context, SyncTable table, string trackingTableFullName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.Table = table;
-            this.TrackingTableName = trackingTableName;
+            this.TrackingTableFullName = trackingTableFullName;
             this.Command = command;
         }
 
@@ -61,7 +60,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the tracking table name.
         /// </summary>
-        public ParserName TrackingTableName { get; }
+        public string TrackingTableFullName { get; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the tracking table creation should be canceled.
@@ -77,7 +76,7 @@ namespace Dotmim.Sync
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
 
         /// <inheritdoc cref="ProgressArgs.Message" />
-        public override string Message => $"[{this.TrackingTableName}] tracking table creating.";
+        public override string Message => $"[{this.TrackingTableFullName}] tracking table creating.";
 
         /// <inheritdoc cref="ProgressArgs.EventId" />
         public override int EventId => 14000;
@@ -89,11 +88,11 @@ namespace Dotmim.Sync
     public class TrackingTableDroppedArgs : ProgressArgs
     {
         /// <inheritdoc cref="TrackingTableDroppedArgs" />
-        public TrackingTableDroppedArgs(SyncContext context, SyncTable table, ParserName trackingTableName, DbConnection connection = null, DbTransaction transaction = null)
+        public TrackingTableDroppedArgs(SyncContext context, SyncTable table, string trackingTableFullName, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.Table = table;
-            this.TrackingTableName = trackingTableName;
+            this.TrackingTableFullName = trackingTableFullName;
         }
 
         /// <summary>
@@ -104,10 +103,10 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the tracking table name.
         /// </summary>
-        public ParserName TrackingTableName { get; }
+        public string TrackingTableFullName { get; }
 
         /// <inheritdoc cref="ProgressArgs.Message" />
-        public override string Message => $"[{this.TrackingTableName}] Tracking Table Dropped.";
+        public override string Message => $"[{this.TrackingTableFullName}] Tracking Table Dropped.";
 
         /// <inheritdoc cref="ProgressArgs.ProgressLevel" />
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
@@ -123,11 +122,11 @@ namespace Dotmim.Sync
     {
 
         /// <inheritdoc cref="TrackingTableDroppingArgs" />
-        public TrackingTableDroppingArgs(SyncContext context, SyncTable table, ParserName trackingTableName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+        public TrackingTableDroppingArgs(SyncContext context, SyncTable table, string trackingTableFullName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.Table = table;
-            this.TrackingTableName = trackingTableName;
+            this.TrackingTableFullName = trackingTableFullName;
             this.Command = command;
         }
 
@@ -149,101 +148,16 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the tracking table name.
         /// </summary>
-        public ParserName TrackingTableName { get; }
+        public string TrackingTableFullName { get; }
 
         /// <inheritdoc cref="ProgressArgs.ProgressLevel" />
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
 
         /// <inheritdoc cref="ProgressArgs.Message" />
-        public override string Message => $"[{this.TrackingTableName}] Tracking Table Dropping.";
+        public override string Message => $"[{this.TrackingTableFullName}] Tracking Table Dropping.";
 
         /// <inheritdoc cref="ProgressArgs.EventId" />
         public override int EventId => 14100;
-    }
-
-    /// <summary>
-    /// Event args generated after a tracking table is renamed.
-    /// </summary>
-    [Obsolete("This method is obsolete. DMS is not in charge anymore to rename a tracking table.")]
-    public class TrackingTableRenamedArgs : ProgressArgs
-    {
-        /// <inheritdoc cref="TrackingTableRenamedArgs" />
-        public TrackingTableRenamedArgs(SyncContext context, SyncTable table, ParserName trackingTableName, ParserName oldTrackingTableName, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, connection, transaction)
-        {
-            this.TrackingTableName = trackingTableName;
-            this.OldTrackingTableName = oldTrackingTableName;
-        }
-
-        /// <summary>
-        /// Gets the tracking table renamed.
-        /// </summary>
-        public ParserName TrackingTableName { get; }
-
-        /// <summary>
-        /// Gets the old tracking table name.
-        /// </summary>
-        public ParserName OldTrackingTableName { get; }
-
-        /// <inheritdoc cref="ProgressArgs.Message" />
-        public override string Message => $"[{this.TrackingTableName}] Tracking Table Renamed.";
-
-        /// <inheritdoc cref="ProgressArgs.ProgressLevel" />
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
-
-        /// <inheritdoc cref="ProgressArgs.EventId" />
-        public override int EventId => 14250;
-    }
-
-    /// <summary>
-    /// Event args generated before a tracking table is renaming.
-    /// </summary>
-    [Obsolete("This method is obsolete. DMS is not in charge anymore to rename a tracking table.")]
-    public class TrackingTableRenamingArgs : ProgressArgs
-    {
-        /// <inheritdoc cref="TrackingTableRenamingArgs" />
-        public TrackingTableRenamingArgs(SyncContext context, SyncTable table, ParserName trackingTableName, ParserName oldTrackingTableName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, connection, transaction)
-        {
-            this.Table = table;
-            this.TrackingTableName = trackingTableName;
-            this.Command = command;
-            this.OldTrackingTableName = oldTrackingTableName;
-        }
-
-        /// <summary>
-        /// Gets the tracking table to be renamed.
-        /// </summary>
-        public SyncTable Table { get; }
-
-        /// <summary>
-        /// Gets the tracking table name.
-        /// </summary>
-        public ParserName TrackingTableName { get; }
-
-        /// <summary>
-        /// Gets or sets a value indicating whether the tracking table renaming should be canceled.
-        /// </summary>
-        public bool Cancel { get; set; }
-
-        /// <summary>
-        /// Gets or sets the command to be executed.
-        /// </summary>
-        public DbCommand Command { get; set; }
-
-        /// <summary>
-        /// Gets the old tracking table name.
-        /// </summary>
-        public ParserName OldTrackingTableName { get; }
-
-        /// <inheritdoc cref="ProgressArgs.ProgressLevel" />
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
-
-        /// <inheritdoc cref="ProgressArgs.Message" />
-        public override string Message => $"[{this.TrackingTableName}] Tracking Table Renaming.";
-
-        /// <inheritdoc cref="ProgressArgs.EventId" />
-        public override int EventId => 14200;
     }
 
     /// <summary>
@@ -297,35 +211,6 @@ namespace Dotmim.Sync
         /// Intercept the provider when a tracking table is dropped.
         /// </summary>
         public static Guid OnTrackingTableDropped(this BaseOrchestrator orchestrator, Func<TrackingTableDroppedArgs, Task> action)
-            => orchestrator.AddInterceptor(action);
-
-        /// <summary>
-        /// Intercept the provider when a tracking table is creating.
-        /// </summary>
-        [Obsolete("This method is obsolete. DMS is not in charge anymore to rename a tracking table.")]
-
-        public static Guid OnTrackingTableRenaming(this BaseOrchestrator orchestrator, Action<TrackingTableRenamingArgs> action)
-            => orchestrator.AddInterceptor(action);
-
-        /// <summary>
-        /// Intercept the provider when a tracking table is creating.
-        /// </summary>
-        [Obsolete("This method is obsolete. DMS is not in charge anymore to rename a tracking table.")]
-        public static Guid OnTrackingTableRenaming(this BaseOrchestrator orchestrator, Func<TrackingTableRenamingArgs, Task> action)
-            => orchestrator.AddInterceptor(action);
-
-        /// <summary>
-        /// Intercept the provider when a tracking table is creating.
-        /// </summary>
-        [Obsolete("This method is obsolete. DMS is not in charge anymore to rename a tracking table.")]
-        public static Guid OnTrackingTableRenamed(this BaseOrchestrator orchestrator, Action<TrackingTableRenamedArgs> action)
-            => orchestrator.AddInterceptor(action);
-
-        /// <summary>
-        /// Intercept the provider when a tracking table is creating.
-        /// </summary>
-        [Obsolete("This method is obsolete. DMS is not in charge anymore to rename a tracking table.")]
-        public static Guid OnTrackingTableRenamed(this BaseOrchestrator orchestrator, Func<TrackingTableRenamedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
     }
 }

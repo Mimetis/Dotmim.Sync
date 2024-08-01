@@ -68,12 +68,13 @@ namespace Dotmim.Sync
         internal async Task<(SyncContext Context, int Updated)> InternalUpdateUntrackedRowsAsync(ScopeInfo scopeInfo, SyncContext context,
             SyncTable schemaTable, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
-            // Get table builder
-            var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
 
             using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Provisioning, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
             await using (runner.ConfigureAwait(false))
             {
+                var syncAdapter = this.GetSyncAdapter(schemaTable, scopeInfo);
+                var tableBuilder = syncAdapter.GetTableBuilder();
+
                 // Check if tracking table exists
                 bool trackingTableExists;
                 (context, trackingTableExists) = await this.InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
@@ -81,8 +82,6 @@ namespace Dotmim.Sync
 
                 if (!trackingTableExists)
                     throw new MissingTrackingTableException(tableBuilder.TableDescription.GetFullName());
-
-                var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
 
                 // Get correct Select incremental changes command
                 var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.UpdateUntrackedRows,

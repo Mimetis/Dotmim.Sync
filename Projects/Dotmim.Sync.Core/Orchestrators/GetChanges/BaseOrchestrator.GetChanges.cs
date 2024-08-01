@@ -194,7 +194,7 @@ namespace Dotmim.Sync
                     return (context, default, default);
 
                 // Get correct adapter
-                var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
+                var syncAdapter = this.GetSyncAdapter(syncTable, scopeInfo);
 
                 this.InternalSetCommandParametersValues(context, selectIncrementalChangesCommand, dbCommandType, syncAdapter, connection, transaction,
                     sync_scope_id: excludintScopeId, sync_min_timestamp: lastTimestamp, progress: progress, cancellationToken: cancellationToken);
@@ -414,7 +414,7 @@ namespace Dotmim.Sync
                         return;
 
                     // Get correct adapter
-                    var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
+                    var syncAdapter = this.GetSyncAdapter(syncTable, scopeInfo);
 
                     // Get Command
                     var (command, dbCommandType) = await this.InternalGetSelectChangesCommandAsync(scopeInfo, context, syncTable, isNew, connection, transaction).ConfigureAwait(false);
@@ -527,13 +527,10 @@ namespace Dotmim.Sync
                     dbCommandType = DbCommandType.SelectInitializedChangesWithFilters;
                 else if (isNew && !hasFilters)
                     dbCommandType = DbCommandType.SelectInitializedChanges;
-                else if (!isNew && hasFilters)
-                    dbCommandType = DbCommandType.SelectChangesWithFilters;
-                else
-                    dbCommandType = DbCommandType.SelectChanges;
+                else dbCommandType = !isNew && hasFilters ? DbCommandType.SelectChangesWithFilters : DbCommandType.SelectChanges;
 
                 // Get correct Select incremental changes command
-                var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
+                var syncAdapter = this.GetSyncAdapter(syncTable, scopeInfo);
 
                 var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType,
                     connection, transaction, default, default).ConfigureAwait(false);

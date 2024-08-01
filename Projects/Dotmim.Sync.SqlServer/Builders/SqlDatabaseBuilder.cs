@@ -8,7 +8,7 @@ namespace Dotmim.Sync.SqlServer.Builders
     /// <summary>
     /// Sql builder for Sql Server.
     /// </summary>
-    public class SqlBuilder : DbBuilder
+    public class SqlDatabaseBuilder : DbDatabaseBuilder
     {
         /// <inheritdoc />
         public override async Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
@@ -21,19 +21,16 @@ namespace Dotmim.Sync.SqlServer.Builders
         }
 
         /// <inheritdoc />
-        public override async Task<SyncSetup> GetAllTablesAsync(DbConnection connection, DbTransaction transaction = null)
-        {
-            var setup = await SqlManagementUtils.GetAllTablesAsync(connection as SqlConnection, transaction as SqlTransaction).ConfigureAwait(false);
-            return setup;
-        }
+        public override Task<SyncSetup> GetAllTablesAsync(DbConnection connection, DbTransaction transaction = null)
+            => SqlManagementUtils.GetAllTablesAsync(connection as SqlConnection, transaction as SqlTransaction);
 
         /// <inheritdoc />
         public override Task<SyncTable> EnsureTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
             => Task.FromResult(new SyncTable(tableName, schemaName));
 
         /// <inheritdoc />
-        public override async Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection, DbTransaction transaction = null)
-            => await SqlManagementUtils.GetHelloAsync(connection as SqlConnection, transaction as SqlTransaction).ConfigureAwait(false);
+        public override Task<(string DatabaseName, string Version)> GetHelloAsync(DbConnection connection, DbTransaction transaction = null)
+            => SqlManagementUtils.GetHelloAsync(connection as SqlConnection, transaction as SqlTransaction);
 
         /// <inheritdoc />
         public override Task<SyncTable> GetTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
@@ -50,13 +47,5 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// <inheritdoc />
         public override Task RenameTableAsync(string tableName, string schemaName, string newTableName, string newSchemaName, DbConnection connection, DbTransaction transaction = null)
              => SqlManagementUtils.RenameTableAsync(tableName, schemaName, newTableName, newSchemaName, connection as SqlConnection, transaction as SqlTransaction);
-
-        /// <inheritdoc />
-        public override Task<SyncTable> GetTableDefinitionAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-            => SqlManagementUtils.GetTableDefinitionAsync(tableName, schemaName, connection as SqlConnection, transaction as SqlTransaction);
-
-        /// <inheritdoc />
-        public override Task<SyncTable> GetTableColumnsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-            => SqlManagementUtils.GetColumnsForTableAsync(tableName, schemaName, connection as SqlConnection, transaction as SqlTransaction);
     }
 }

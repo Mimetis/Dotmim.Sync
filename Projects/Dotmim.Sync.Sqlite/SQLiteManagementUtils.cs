@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.DatabaseStringParsers;
 using Microsoft.Data.Sqlite;
 using System.Collections.Generic;
 using System.Data;
@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Sqlite
 {
+    /// <summary>
+    /// Sqlite Management Utils.
+    /// </summary>
     public static class SqliteManagementUtils
     {
 
@@ -51,22 +54,24 @@ namespace Dotmim.Sync.Sqlite
 #if NET6_0_OR_GREATER
                     await connection.CloseAsync().ConfigureAwait(false);
 #else
-                connection.Close();
+                    connection.Close();
 #endif
             }
 
             return syncSetup;
         }
 
+        /// <summary>
+        /// Get the table definition.
+        /// </summary>
         public static async Task<SyncTable> GetTableDefinitionAsync(string tableName, SqliteConnection connection, SqliteTransaction transaction)
         {
             string command = "select * from sqlite_master where name = @tableName limit 1";
-            var tableNameString = ParserName.Parse(tableName).ToString();
 
-            var syncTable = new SyncTable(tableNameString);
+            var syncTable = new SyncTable(tableName);
             using (var sqlCommand = new SqliteCommand(command, connection))
             {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableNameString);
+                sqlCommand.Parameters.AddWithValue("@tableName", tableName);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -84,20 +89,21 @@ namespace Dotmim.Sync.Sqlite
 #if NET6_0_OR_GREATER
                     await connection.CloseAsync().ConfigureAwait(false);
 #else
-                connection.Close();
+                    connection.Close();
 #endif
             }
 
             return syncTable;
         }
 
-        public static async Task<SyncTable> GetTableAsync(string tableName, SqliteConnection connection, SqliteTransaction transaction)
+        /// <summary>
+        /// Get all rows from a table.
+        /// </summary>
+        public static async Task<SyncTable> GetTableAsync(string quotedTableName, SqliteConnection connection, SqliteTransaction transaction)
         {
-            var pTableName = ParserName.Parse(tableName);
-            var name = $"{pTableName.Quoted()}";
-            var command = $"Select * from {name};";
+            var command = $"Select * from {quotedTableName};";
 
-            var syncTable = new SyncTable(name);
+            var syncTable = new SyncTable(quotedTableName);
 
             using var sqlCommand = new SqliteCommand(command, connection);
 
@@ -121,13 +127,12 @@ namespace Dotmim.Sync.Sqlite
             return syncTable;
         }
 
+        /// <summary>
+        /// Rename a table.
+        /// </summary>
         public static async Task RenameTableAsync(string tableName, string newTableName, SqliteConnection connection, SqliteTransaction transaction)
         {
-            var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
-
-            var pNewTableName = ParserName.Parse(newTableName).Unquoted().ToString();
-
-            var commandText = $"ALTER TABLE [{pTableName}] RENAME TO {pNewTableName};";
+            var commandText = $"ALTER TABLE [{tableName}] RENAME TO {newTableName};";
 
             using var sqlCommand = new SqliteCommand(commandText, connection);
 
@@ -148,11 +153,12 @@ namespace Dotmim.Sync.Sqlite
 #endif
         }
 
+        /// <summary>
+        /// Get all columns for a table.
+        /// </summary>
         public static async Task<SyncTable> GetColumnsForTableAsync(string tableName, SqliteConnection connection, SqliteTransaction transaction)
         {
-            var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
-
-            string commandColumn = $"SELECT * FROM pragma_table_info('{pTableName}');";
+            string commandColumn = $"SELECT * FROM pragma_table_info('{tableName}');";
             var syncTable = new SyncTable(tableName);
 
             using (var sqlCommand = new SqliteCommand(commandColumn, connection))
@@ -173,13 +179,16 @@ namespace Dotmim.Sync.Sqlite
 #if NET6_0_OR_GREATER
                     await connection.CloseAsync().ConfigureAwait(false);
 #else
-                connection.Close();
+                    connection.Close();
 #endif
             }
 
             return syncTable;
         }
 
+        /// <summary>
+        /// Get all primary keys for a table.
+        /// </summary>
         public static async Task<SyncTable> GetPrimaryKeysForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string unquotedTableName)
         {
 
@@ -210,6 +219,9 @@ namespace Dotmim.Sync.Sqlite
             return syncTable;
         }
 
+        /// <summary>
+        /// Get relations for a table.
+        /// </summary>
         public static async Task<SyncTable> GetRelationsForTableAsync(SqliteConnection connection, SqliteTransaction transaction, string unqotedTableName)
         {
             string commandColumn = $"SELECT * FROM pragma_foreign_key_list('{unqotedTableName}')";
@@ -233,39 +245,43 @@ namespace Dotmim.Sync.Sqlite
 #if NET6_0_OR_GREATER
                     await connection.CloseAsync().ConfigureAwait(false);
 #else
-                connection.Close();
+                    connection.Close();
 #endif
             }
 
             return syncTable;
         }
 
+        /// <summary>
+        /// Drop a table if it exists.
+        /// </summary>
         public static async Task DropTableIfExistsAsync(string tableName, SqliteConnection connection, SqliteTransaction transaction)
         {
-            var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
-
             using DbCommand command = connection.CreateCommand();
-            command.CommandText = $"drop table if exist {pTableName}";
+            command.CommandText = $"drop table if exist {tableName}";
             command.Transaction = transaction;
 
             await command.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Drop a trigger if it exists.
+        /// </summary>
         public static async Task DropTriggerIfExistsAsync(SqliteConnection connection, SqliteTransaction transaction, string quotedTriggerName)
         {
-            var triggerName = ParserName.Parse(quotedTriggerName).ToString();
-
             using DbCommand dbCommand = connection.CreateCommand();
-            dbCommand.CommandText = $"drop trigger if exist {triggerName}";
+            dbCommand.CommandText = $"drop trigger if exist {quotedTriggerName}";
             dbCommand.Transaction = transaction;
 
             await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Check if a table exists.
+        /// </summary>
         public static async Task<bool> TableExistsAsync(string tableName, SqliteConnection connection, SqliteTransaction transaction)
         {
             bool tableExist;
-            var pTableName = ParserName.Parse(tableName).Unquoted().ToString();
 
             using (DbCommand dbCommand = connection.CreateCommand())
             {
@@ -274,7 +290,7 @@ namespace Dotmim.Sync.Sqlite
                 var sqliteParameter = new SqliteParameter()
                 {
                     ParameterName = "@tableName",
-                    Value = pTableName,
+                    Value = tableName,
                 };
                 dbCommand.Parameters.Add(sqliteParameter);
 
@@ -286,16 +302,18 @@ namespace Dotmim.Sync.Sqlite
             return tableExist;
         }
 
+        /// <summary>
+        /// Check if a trigger exists.
+        /// </summary>
         public static async Task<bool> TriggerExistsAsync(SqliteConnection connection, SqliteTransaction transaction, string quotedTriggerName)
         {
             bool triggerExist;
-            var triggerName = ParserName.Parse(quotedTriggerName).ToString();
 
             using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "select count(*) from sqlite_master where name = @triggerName AND type='trigger'";
 
-                dbCommand.Parameters.AddWithValue("@triggerName", triggerName);
+                dbCommand.Parameters.AddWithValue("@triggerName", quotedTriggerName);
 
                 dbCommand.Transaction = transaction;
 
@@ -305,6 +323,9 @@ namespace Dotmim.Sync.Sqlite
             return triggerExist;
         }
 
+        /// <summary>
+        /// Returns a string that joins two tables on parameters values.
+        /// </summary>
         public static string JoinOneTablesOnParametersValues(IEnumerable<string> columns, string leftName)
         {
             var stringBuilder = new StringBuilder();
@@ -313,14 +334,13 @@ namespace Dotmim.Sync.Sqlite
             string str = string.Empty;
             foreach (var column in columns)
             {
-                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
-                var unquotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
+                var objectParser = new ObjectParser(column, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote);
 
                 stringBuilder.Append(str);
                 stringBuilder.Append(strLeftName);
-                stringBuilder.Append(quotedColumn);
+                stringBuilder.Append(objectParser.QuotedShortName);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"@{unquotedColumn}");
+                stringBuilder.Append($"@{objectParser.NormalizedShortName}");
 
                 str = " AND ";
             }
@@ -328,6 +348,9 @@ namespace Dotmim.Sync.Sqlite
             return stringBuilder.ToString();
         }
 
+        /// <summary>
+        /// Returns a join table on clause.
+        /// </summary>
         public static string JoinTwoTablesOnClause(IEnumerable<string> columns, string leftName, string rightName)
         {
             var stringBuilder = new StringBuilder();
@@ -337,14 +360,14 @@ namespace Dotmim.Sync.Sqlite
             string str = string.Empty;
             foreach (var column in columns)
             {
-                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+                var objectParser = new ObjectParser(column, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote);
 
                 stringBuilder.Append(str);
                 stringBuilder.Append(strLeftName);
-                stringBuilder.Append(quotedColumn);
+                stringBuilder.Append(objectParser.QuotedShortName);
                 stringBuilder.Append(" = ");
                 stringBuilder.Append(strRightName);
-                stringBuilder.Append(quotedColumn);
+                stringBuilder.Append(objectParser.QuotedShortName);
 
                 str = " AND ";
             }
@@ -352,6 +375,9 @@ namespace Dotmim.Sync.Sqlite
             return stringBuilder.ToString();
         }
 
+        /// <summary>
+        /// Returns a string that joins columns on a where clause.
+        /// </summary>
         public static string WhereColumnAndParameters(IEnumerable<string> columns, string fromPrefix)
         {
             var stringBuilder = new StringBuilder();
@@ -359,20 +385,22 @@ namespace Dotmim.Sync.Sqlite
             string str1 = string.Empty;
             foreach (var column in columns)
             {
-                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
-                var unquotedColumn = ParserName.Parse(column).Unquoted().Normalized().ToString();
+                var objectParser = new ObjectParser(column, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote);
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);
-                stringBuilder.Append(quotedColumn);
+                stringBuilder.Append(objectParser.QuotedShortName);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"@{unquotedColumn}");
+                stringBuilder.Append($"@{objectParser.NormalizedShortName}");
                 str1 = " AND ";
             }
 
             return stringBuilder.ToString();
         }
 
+        /// <summary>
+        /// Returns a string that joins columns on null.
+        /// </summary>
         public static string WhereColumnIsNull(IEnumerable<string> columns, string fromPrefix)
         {
             var stringBuilder = new StringBuilder();
@@ -380,30 +408,13 @@ namespace Dotmim.Sync.Sqlite
             string str1 = string.Empty;
             foreach (var column in columns)
             {
-                var quotedColumn = ParserName.Parse(column).Quoted().ToString();
+                var objectParser = new ObjectParser(column, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote);
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);
-                stringBuilder.Append(quotedColumn);
+                stringBuilder.Append(objectParser.QuotedShortName);
                 stringBuilder.Append(" IS NULL ");
                 str1 = " AND ";
-            }
-
-            return stringBuilder.ToString();
-        }
-
-        public static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "")
-        {
-            var stringBuilder = new StringBuilder();
-            string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
-            string strSeparator = string.Empty;
-            foreach (var mutableColumn in table.GetMutableColumns())
-            {
-                var quotedColumn = ParserName.Parse(mutableColumn).Quoted().ToString();
-                var unquotedColumn = ParserName.Parse(mutableColumn).Unquoted().Normalized().ToString();
-
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn} = @{unquotedColumn}");
-                strSeparator = ", ";
             }
 
             return stringBuilder.ToString();

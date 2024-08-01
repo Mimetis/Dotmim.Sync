@@ -3,14 +3,16 @@ using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Web.Client;
 using Microsoft.Extensions.Logging;
 using System;
-using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
-
+    /// <summary>
+    /// Represents a request about to be send to the server to get batches .
+    /// </summary>
     public class HttpGettingServerChangesRequestArgs : ProgressArgs
     {
+        /// <inheritdoc cref="HttpGettingServerChangesRequestArgs" />
         public HttpGettingServerChangesRequestArgs(int batchIndexRequested, int batchCount, SyncContext context, string host)
              : base(context, null, null)
         {
@@ -19,38 +21,45 @@ namespace Dotmim.Sync
 
             this.Host = host;
         }
+
+        /// <inheritdoc />
         public override string Source => this.Host;
+
+        /// <inheritdoc />
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
+        /// <inheritdoc />
         public override string Message
-        {
-            get
-            {
-                if (this.BatchCount <= 1)
-                    return $"Getting Batch Changes. (1)";
-                else
-                    return $"Getting Batch Changes. ({this.BatchIndexRequested + 1}/{this.BatchCount}).";
-            }
-        }
+            => this.BatchCount <= 1
+                    ? $"Getting Batch Changes. (1)"
+                    : $"Getting Batch Changes. ({this.BatchIndexRequested + 1}/{this.BatchCount}).";
 
         /// <summary>
-        /// Gets the batch index that is asked to be retrieved from the server
+        /// Gets or sets the batch index that is asked to be retrieved from the server.
         /// </summary>
         public int BatchIndexRequested { get; set; }
 
         /// <summary>
-        /// Gets the batch count to be received from server 
+        /// Gets or sets the batch count to be received from server.
         /// </summary>
         public int BatchCount { get; set; }
 
-
+        /// <summary>
+        /// Gets the host.
+        /// </summary>
         public string Host { get; }
 
+        /// <inheritdoc />
         public override int EventId => HttpClientSyncEventsId.HttpGettingChangesRequest.Id;
     }
 
+    /// <summary>
+    /// Represents a response received from the server after getting batches.
+    /// </summary>
     public class HttpGettingServerChangesResponseArgs : ProgressArgs
     {
+
+        /// <inheritdoc cref="HttpGettingServerChangesResponseArgs" />
         public HttpGettingServerChangesResponseArgs(BatchInfo batchInfo, int batchIndex, int batchRowsCount, SyncContext syncContext, string host)
             : base(syncContext, null, null)
         {
@@ -59,9 +68,14 @@ namespace Dotmim.Sync
             this.BatchRowsCount = batchRowsCount;
             this.Host = host;
         }
+
+        /// <inheritdoc />
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Information;
 
+        /// <inheritdoc />
         public override string Source => this.Host;
+
+        /// <inheritdoc />
         public override string Message
         {
             get
@@ -71,16 +85,36 @@ namespace Dotmim.Sync
             }
         }
 
+        /// <summary>
+        /// Gets the batch info.
+        /// </summary>
         public BatchInfo BatchInfo { get; }
+
+        /// <summary>
+        /// Gets the batch index.
+        /// </summary>
         public int BatchIndex { get; }
+
+        /// <summary>
+        /// Gets the batch rows count.
+        /// </summary>
         public int BatchRowsCount { get; }
+
+        /// <summary>
+        /// Gets the host.
+        /// </summary>
         public string Host { get; }
 
+        /// <inheritdoc />
         public override int EventId => HttpClientSyncEventsId.HttpGettingChangesResponse.Id;
     }
 
+    /// <summary>
+    /// Represents the arguments provided when an HTTP request is about to be sent to the server.
+    /// </summary>
     public class HttpSendingClientChangesRequestArgs : ProgressArgs
     {
+        /// <inheritdoc cref="HttpSendingClientChangesRequestArgs" />
         public HttpSendingClientChangesRequestArgs(HttpMessageSendChangesRequest request, int rowsCount, int totalRowsCount, string host)
             : base(request.SyncContext, null, null)
         {
@@ -89,47 +123,68 @@ namespace Dotmim.Sync
             this.TotalRowsCount = totalRowsCount;
             this.Host = host;
         }
+
+        /// <inheritdoc />
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
+        /// <summary>
+        /// Gets the request.
+        /// </summary>
         public HttpMessageSendChangesRequest Request { get; }
-        public string Host { get; }
-        public override string Source => this.Host;
-        public override string Message
-        {
-            get
-            {
-                if (this.Request.BatchCount == 0 && this.Request.BatchIndex == 0)
-                    return $"Sending All Changes. Rows:{this.RowsCount}. Waiting Server Response...";
-                else
-                    return $"Sending Batch Changes. Batches: ({this.Request.BatchIndex + 1}/{this.Request.BatchCount}). Rows: ({this.RowsCount}/{this.TotalRowsCount}). Waiting Server Response...";
-            }
-        }
 
         /// <summary>
-        /// Gets or Sets the rows count sended
+        /// Gets the host.
+        /// </summary>
+        public string Host { get; }
+
+        /// <inheritdoc />
+        public override string Source => this.Host;
+
+        /// <inheritdoc />
+        public override string Message
+            => this.Request.BatchCount == 0 && this.Request.BatchIndex == 0
+                    ? $"Sending All Changes. Rows:{this.RowsCount}. Waiting Server Response..."
+                    : $"Sending Batch Changes. Batches: ({this.Request.BatchIndex + 1}/{this.Request.BatchCount}). Rows: ({this.RowsCount}/{this.TotalRowsCount}). Waiting Server Response...";
+
+        /// <summary>
+        /// Gets or Sets the rows count sended.
         /// </summary>
         public int RowsCount { get; set; }
 
         /// <summary>
-        /// Gets or Sets the total tables rows count to send
+        /// Gets or Sets the total tables rows count to send.
         /// </summary>
         public int TotalRowsCount { get; set; }
 
+        /// <inheritdoc />
         public override int EventId => HttpClientSyncEventsId.HttpSendingChangesRequest.Id;
     }
 
-
-    public static partial class HttpClientSyncEventsId
+    /// <summary>
+    /// HttpClient Sync Events Id.
+    /// </summary>
+    public partial class HttpClientSyncEventsId
     {
-        public static EventId HttpSendingChangesRequest => new EventId(20000, nameof(HttpSendingChangesRequest));
-        public static EventId HttpGettingChangesRequest => new EventId(20100, nameof(HttpGettingChangesRequest));
-        public static EventId HttpGettingChangesResponse => new EventId(20150, nameof(HttpGettingChangesResponse));
+        /// <summary>
+        /// Gets the event id for HttpSendingChangesRequest.
+        /// </summary>
+        public static EventId HttpSendingChangesRequest => new(20000, nameof(HttpSendingChangesRequest));
+
+        /// <summary>
+        /// Gets the event id for HttpGettingChangesRequest.
+        /// </summary>
+        public static EventId HttpGettingChangesRequest => new(20100, nameof(HttpGettingChangesRequest));
+
+        /// <summary>
+        /// Gets the event id for HttpGettingChangesResponse.
+        /// </summary>
+        public static EventId HttpGettingChangesResponse => new(20150, nameof(HttpGettingChangesResponse));
     }
 
     /// <summary>
-    /// Partial Interceptors extensions 
+    /// Partial Interceptors extensions.
     /// </summary>
-    public static partial class HttpInterceptorsExtensions
+    public partial class HttpInterceptorsExtensions
     {
         /// <summary>
         /// Intercept the provider when batch changes is uploading to server.
@@ -156,16 +211,15 @@ namespace Dotmim.Sync
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider when a batch changes has been downloaded from server side
+        /// Intercept the provider when a batch changes has been downloaded from server side.
         /// </summary>
         public static Guid OnHttpGettingChangesResponse(this WebRemoteOrchestrator orchestrator, Action<HttpGettingServerChangesResponseArgs> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider when a batch changes has been downloaded from server side
+        /// Intercept the provider when a batch changes has been downloaded from server side.
         /// </summary>
         public static Guid OnHttpGettingChangesResponse(this WebRemoteOrchestrator orchestrator, Func<HttpGettingServerChangesResponseArgs, Task> action)
             => orchestrator.AddInterceptor(action);
-
     }
 }

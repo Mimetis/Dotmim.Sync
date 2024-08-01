@@ -1,12 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
-using Microsoft.Data.SqlClient;
-using System;
-using System.Collections.Generic;
-using System.Data;
+using Dotmim.Sync.SqlServer.Manager;
 using System.Data.Common;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
@@ -15,10 +9,9 @@ namespace Dotmim.Sync.SqlServer.Builders
     {
         private ParserName tableName;
 
-        public SqlChangeTrackingBuilderTrigger(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
-            : base(tableDescription, tableName, trackingName, setup, scopeName)
+        public SqlChangeTrackingBuilderTrigger(SyncTable tableDescription, SyncSetup setup, SqlObjectNames sqlObjectNames, SqlDbMetadata sqlDbMetadata)
+            : base(tableDescription, setup, sqlObjectNames, sqlDbMetadata)
         {
-            this.tableName = tableName;
         }
 
         public override Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)

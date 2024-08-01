@@ -23,9 +23,9 @@ namespace Dotmim.Sync
                 connection, transaction, progress, cancellationToken).ConfigureAwait(false);
             await using (runner.ConfigureAwait(false))
             {
-                var scopeInfoTableName = this.Provider.GetParsers(new SyncTable(this.Options.ScopeInfoTableName), new SyncSetup()).TableName;
-                var tableName = scopeInfoTableName.Unquoted().Normalized().ToString();
-                var tableBuilder = this.GetTableBuilder(new SyncTable(tableName), new ScopeInfo { Setup = new SyncSetup() });
+                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                var tableName = scopeBuilder.GetParsedScopeInfoTableNames().NormalizedFullName;
+                var tableBuilder = this.GetSyncAdapter(new SyncTable(tableName), new ScopeInfo { Setup = new SyncSetup() }).GetTableBuilder();
 
                 // check columns
                 var columns = (await tableBuilder.GetColumnsAsync(runner.Connection, runner.Transaction).ConfigureAwait(false)).ToList();
@@ -39,14 +39,9 @@ namespace Dotmim.Sync
                     return false;
                 if (columns[2].ColumnName != "sync_scope_setup")
                     return false;
-                if (columns[3].ColumnName != "sync_scope_version")
-                    return false;
-                if (columns[4].ColumnName != "sync_scope_last_clean_timestamp")
-                    return false;
-                if (columns[5].ColumnName != "sync_scope_properties")
-                    return false;
-
-                return true;
+                return columns[3].ColumnName != "sync_scope_version"
+                    ? false
+                    : columns[4].ColumnName != "sync_scope_last_clean_timestamp" ? false : columns[5].ColumnName == "sync_scope_properties";
             }
         }
 
@@ -61,9 +56,10 @@ namespace Dotmim.Sync
 
             await using (runner.ConfigureAwait(false))
             {
-                var scopeInfoTableName = this.Provider.GetParsers(new SyncTable(this.Options.ScopeInfoTableName), new SyncSetup()).TableName;
-                var tableName = $"{scopeInfoTableName.Unquoted().Normalized()}_client";
-                var tableBuilder = this.GetTableBuilder(new SyncTable(tableName), new ScopeInfo { Setup = new SyncSetup() });
+                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                var tableName = scopeBuilder.GetParsedScopeInfoTableNames().NormalizedFullName;
+
+                var tableBuilder = this.GetSyncAdapter(new SyncTable(tableName), new ScopeInfo { Setup = new SyncSetup() }).GetTableBuilder();
 
                 // check columns
                 var columns = (await tableBuilder.GetColumnsAsync(runner.Connection, runner.Transaction).ConfigureAwait(false)).ToList();
@@ -85,14 +81,9 @@ namespace Dotmim.Sync
                     return false;
                 if (columns[6].ColumnName != "scope_last_sync_duration")
                     return false;
-                if (columns[7].ColumnName != "scope_last_sync")
-                    return false;
-                if (columns[8].ColumnName != "sync_scope_errors")
-                    return false;
-                if (columns[9].ColumnName != "sync_scope_properties")
-                    return false;
-
-                return true;
+                return columns[7].ColumnName != "scope_last_sync"
+                    ? false
+                    : columns[8].ColumnName != "sync_scope_errors" ? false : columns[9].ColumnName == "sync_scope_properties";
             }
         }
 
@@ -108,8 +99,9 @@ namespace Dotmim.Sync
                 var dbBuilder = this.Provider.GetDatabaseBuilder();
 
                 // scope info client table name (and tmp table name)
-                var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
-                var cScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
+                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                var parsedName = scopeBuilder.GetParsedScopeInfoTableNames().NormalizedFullName;
+                var cScopeInfoClientTableName = $"{parsedName}_client";
                 var tmpCScopeInfoClientTableName = $"tmp{cScopeInfoClientTableName}";
                 var message = string.Empty;
 
@@ -171,9 +163,11 @@ namespace Dotmim.Sync
                 var dbBuilder = this.Provider.GetDatabaseBuilder();
 
                 // scope info table name (and tmp table name)
-                var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
-                var cScopeInfoTableName = $"{parsedName.Unquoted().Normalized()}";
-                var cScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
+                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                var parsedName = scopeBuilder.GetParsedScopeInfoTableNames().NormalizedFullName;
+
+                var cScopeInfoTableName = parsedName;
+                var cScopeInfoClientTableName = $"{parsedName}_client";
                 var tmpCScopeInfoTableName = $"tmp{cScopeInfoTableName}";
                 var message = string.Empty;
 

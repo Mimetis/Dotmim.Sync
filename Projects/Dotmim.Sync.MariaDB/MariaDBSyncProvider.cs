@@ -160,7 +160,7 @@ namespace Dotmim.Sync.MariaDB
 
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new MySqlScopeInfoBuilder(scopeInfoTableName);
 
-        public override DbBuilder GetDatabaseBuilder() => new MySqlBuilder();
+        public override DbDatabaseBuilder GetDatabaseBuilder() => new MySqlBuilder();
 
         public override (ParserName TableName, ParserName TrackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
         {

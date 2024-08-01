@@ -14,27 +14,9 @@ namespace Dotmim.Sync.MySql.Builders
 #endif
 {
     /// <inheritdoc />
-    public class MySqlBuilder : DbBuilder
+    public class MySqlBuilder : DbDatabaseBuilder
     {
-        public override Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
-        {
-            return Task.CompletedTask;
-
-            // using var dbCommand = connection.CreateCommand();
-            // dbCommand.CommandText = $"set global innodb_stats_on_metadata=0;";
-
-            // bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            // if (!alreadyOpened)
-            //    await connection.OpenAsync().ConfigureAwait(false);
-
-            // dbCommand.Transaction = transaction;
-
-            // await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-            // if (!alreadyOpened)
-            //    connection.Close();
-        }
+        public override Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null) => Task.CompletedTask;
 
         public override async Task<SyncSetup> GetAllTablesAsync(DbConnection connection, DbTransaction transaction = null)
         {
@@ -61,11 +43,5 @@ namespace Dotmim.Sync.MySql.Builders
 
         public override Task RenameTableAsync(string tableName, string schemaName, string newTableName, string newSchemaName, DbConnection connection, DbTransaction transaction = null)
              => MySqlManagementUtils.RenameTableAsync(tableName, newTableName, connection as MySqlConnection, transaction as MySqlTransaction);
-
-        public override Task<SyncTable> GetTableDefinitionAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-              => MySqlManagementUtils.GetTableDefinitionAsync(tableName, connection as MySqlConnection, transaction as MySqlTransaction);
-
-        public override Task<SyncTable> GetTableColumnsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-              => MySqlManagementUtils.GetColumnsForTableAsync(tableName, connection as MySqlConnection, transaction as MySqlTransaction);
     }
 }

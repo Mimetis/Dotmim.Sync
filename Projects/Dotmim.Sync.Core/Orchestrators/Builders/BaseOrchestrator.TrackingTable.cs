@@ -51,7 +51,7 @@ namespace Dotmim.Sync
                     var hasBeenCreated = false;
 
                     // Get table builder
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                     bool schemaExists;
                     (context, schemaExists) = await this.InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
@@ -136,7 +136,7 @@ namespace Dotmim.Sync
                 {
 
                     // Get table builder
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                     bool exists;
                     (context, exists) = await this.InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
@@ -188,7 +188,7 @@ namespace Dotmim.Sync
                     foreach (var schemaTable in scopeInfo.Schema.Tables)
                     {
                         // Get table builder
-                        var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                        var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                         bool schemaExists;
                         (context, schemaExists) = await this.InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
@@ -264,7 +264,7 @@ namespace Dotmim.Sync
                 {
                     var hasBeenDropped = false;
 
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                     bool exists;
                     (context, exists) = await this.InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
@@ -320,7 +320,7 @@ namespace Dotmim.Sync
                     foreach (var schemaTable in scopeInfo.Schema.Tables.Reverse())
                     {
                         // Get table builder
-                        var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                        var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                         bool exists;
                         (context, exists) = await this.InternalExistsTrackingTableAsync(scopeInfo, context, tableBuilder,
@@ -370,10 +370,10 @@ namespace Dotmim.Sync
                     if (command == null)
                         return (context, false);
 
-                    var (_, trackingTableName) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
+                    var trackingTableNames = tableBuilder.GetParsedTrackingTableNames();
 
                     var action = await this.InterceptAsync(
-                        new TrackingTableCreatingArgs(context, tableBuilder.TableDescription, trackingTableName, command, runner.Connection, runner.Transaction),
+                        new TrackingTableCreatingArgs(context, tableBuilder.TableDescription, trackingTableNames.QuotedFullName, command, runner.Connection, runner.Transaction),
                         runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (action.Cancel || action.Command == null)
@@ -383,61 +383,7 @@ namespace Dotmim.Sync
 
                     await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-                    await this.InterceptAsync(new TrackingTableCreatedArgs(context, tableBuilder.TableDescription, trackingTableName, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-
-                    action.Command.Dispose();
-
-                    return (context, true);
-                }
-            }
-            catch (Exception ex)
-            {
-                string message = null;
-
-                if (tableBuilder != null && tableBuilder.TableDescription != null)
-                    message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
-
-                throw this.GetSyncError(context, ex, message);
-            }
-        }
-
-        /// <summary>
-        /// Internal rename tracking table routine.
-        /// </summary>
-        [Obsolete("This method is obsolete. DMS is not in charge anymore to rename a tracking table.")]
-        internal virtual async Task<(SyncContext Context, bool IsRenamed)> InternalRenameTrackingTableAsync(
-            ScopeInfo scopeInfo, SyncContext context, ParserName oldTrackingTableName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
-        {
-            try
-            {
-                using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Provisioning, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
-                await using (runner.ConfigureAwait(false))
-                {
-                    if (tableBuilder.TableDescription.Columns.Count <= 0)
-                        throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
-
-                    if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
-                        throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
-
-                    using var command = await tableBuilder.GetRenameTrackingTableCommandAsync(oldTrackingTableName, runner.Connection, runner.Transaction).ConfigureAwait(false);
-
-                    if (command == null)
-                        return (context, false);
-
-                    var (_, trackingTableName) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
-
-                    var action = await this.InterceptAsync(
-                        new TrackingTableRenamingArgs(context, tableBuilder.TableDescription, trackingTableName, oldTrackingTableName, command, runner.Connection, runner.Transaction),
-                        runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-
-                    if (action.Cancel || action.Command == null)
-                        return (context, false);
-
-                    await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-
-                    await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-
-                    await this.InterceptAsync(new TrackingTableRenamedArgs(context, tableBuilder.TableDescription, trackingTableName, oldTrackingTableName, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new TrackingTableCreatedArgs(context, tableBuilder.TableDescription, trackingTableNames.QuotedFullName, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     action.Command.Dispose();
 
@@ -471,7 +417,7 @@ namespace Dotmim.Sync
                     if (command == null)
                         return (context, false);
 
-                    var (_, trackingTableName) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
+                    var trackingTableName = tableBuilder.GetParsedTrackingTableNames().QuotedFullName;
 
                     var action = await this.InterceptAsync(new TrackingTableDroppingArgs(context, tableBuilder.TableDescription, trackingTableName, command, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 

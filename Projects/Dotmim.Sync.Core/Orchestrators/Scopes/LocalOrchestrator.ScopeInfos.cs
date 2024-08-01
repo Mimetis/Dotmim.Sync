@@ -24,10 +24,10 @@ namespace Dotmim.Sync
         ///  var scopeInfo = await localOrchestrator.GetScopeInfoAsync();
         ///  foreach (var schemaTable in scopeInfo.Schema.Tables)
         ///  {
-        ///    Console.WriteLine($"Table Name: {schemaTable.ColumnName}");
+        ///    Console.WriteLine($"Table Name: {schemaTable.ObjectName}");
         ///
         ///    foreach (var column in schemaTable.Columns)
-        ///          Console.WriteLine($"Column Name: {column.ColumnName}");
+        ///          Console.WriteLine($"Column Name: {column.ObjectName}");
         ///  }
         /// </code>
         /// </example>

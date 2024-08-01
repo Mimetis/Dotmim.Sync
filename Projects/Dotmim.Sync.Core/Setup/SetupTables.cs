@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.DatabaseStringParsers;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -19,7 +19,7 @@ namespace Dotmim.Sync
         /// Gets or sets exposing the InnerCollection for serialization purpose.
         /// </summary>
         [DataMember(Name = "c", IsRequired = true, Order = 1)]
-        public Collection<SetupTable> InnerCollection { get; set; } = new Collection<SetupTable>();
+        public Collection<SetupTable> InnerCollection { get; set; } = [];
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SetupTables"/> class.
@@ -91,10 +91,10 @@ namespace Dotmim.Sync
                 if (string.IsNullOrEmpty(tableName))
                     throw new ArgumentNullException(nameof(tableName));
 
-                var parser = ParserName.Parse(tableName);
-                var tblName = parser.ObjectName;
+                var parser = new TableParser(tableName);
+                var tblName = parser.TableName;
                 var schemaName = parser.SchemaName;
-                schemaName = schemaName == null ? string.Empty : schemaName;
+                schemaName ??= string.Empty;
 
                 var sc = SyncGlobalization.DataSourceStringComparison;
 
@@ -118,7 +118,7 @@ namespace Dotmim.Sync
                 if (string.IsNullOrEmpty(tableName))
                     throw new ArgumentNullException(nameof(tableName));
 
-                schemaName = schemaName == null ? string.Empty : schemaName;
+                schemaName ??= string.Empty;
 
                 var sc = SyncGlobalization.DataSourceStringComparison;
 

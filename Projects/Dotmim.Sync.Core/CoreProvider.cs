@@ -26,61 +26,12 @@ namespace Dotmim.Sync
         /// <summary>
         /// Connection is opened. this method is called before any Interceptors.
         /// </summary>
-        public virtual void OnConnectionOpened(DbConnection connection)
-        {
-        }
+        public virtual void OnConnectionOpened(DbConnection connection) { }
 
         /// <summary>
         /// Connection is closed. this method is called after all Interceptors.
         /// </summary>
-        public virtual void OnConnectionClosed(DbConnection connection)
-        {
-        }
-
-        /// <summary>
-        /// Create a new instance of the implemented Connection provider.
-        /// </summary>
-        public abstract DbConnection CreateConnection();
-
-        /// <summary>
-        /// Get Database Builder which can create object at the database level.
-        /// </summary>
-        public abstract DbBuilder GetDatabaseBuilder();
-
-        /// <summary>
-        /// Get a table builder helper which can create object at the table level.
-        /// </summary>
-        public abstract DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName);
-
-        /// <summary>
-        /// Get sync adapter which can executes all the commands needed for a complete sync.
-        /// </summary>
-        public abstract DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName);
-
-        /// <summary>
-        /// Create a Scope Builder, which can create scope table, and scope config.
-        /// </summary>
-        public abstract DbScopeBuilder GetScopeBuilder(string scopeInfoTableName);
-
-        /// <summary>
-        /// Gets or sets the metadata resolver (validating the columns definition from the data store).
-        /// </summary>
-        public abstract DbMetadata GetMetadata();
-
-        /// <summary>
-        /// Get the provider type name.
-        /// </summary>
-        public abstract string GetProviderTypeName();
-
-        /// <summary>
-        /// Get the provider type name.
-        /// </summary>
-        public abstract string GetShortProviderTypeName();
-
-        /// <summary>
-        /// Gets the database name if any.
-        /// </summary>
-        public abstract string GetDatabaseName();
+        public virtual void OnConnectionClosed(DbConnection connection) { }
 
         /// <summary>
         /// Gets or sets the connection string used by the implemented provider.
@@ -128,9 +79,44 @@ namespace Dotmim.Sync
         public Dictionary<string, string> AdditionalProperties { get; } = [];
 
         /// <summary>
-        /// Get naming tables.
+        /// Create a new instance of the implemented Connection provider.
         /// </summary>
-        public abstract (ParserName TableName, ParserName TrackingName) GetParsers(SyncTable tableDescription, SyncSetup setup);
+        public abstract DbConnection CreateConnection();
+
+        /// <summary>
+        /// Get Database Builder which can create object at the database level.
+        /// </summary>
+        public abstract DbDatabaseBuilder GetDatabaseBuilder();
+
+        /// <summary>
+        /// Get sync adapter which can executes all the commands needed for a complete sync.
+        /// </summary>
+        public abstract DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo);
+
+        /// <summary>
+        /// Create a Scope Builder, which can create scope table, and scope config.
+        /// </summary>
+        public abstract DbScopeBuilder GetScopeBuilder(string scopeInfoTableName);
+
+        /// <summary>
+        /// Gets or sets the metadata resolver (validating the columns definition from the data store).
+        /// </summary>
+        public abstract DbMetadata GetMetadata();
+
+        /// <summary>
+        /// Get the provider type name.
+        /// </summary>
+        public abstract string GetProviderTypeName();
+
+        /// <summary>
+        /// Get the provider type name.
+        /// </summary>
+        public abstract string GetShortProviderTypeName();
+
+        /// <summary>
+        /// Gets the database name if any.
+        /// </summary>
+        public abstract string GetDatabaseName();
 
         /// <summary>
         /// Let a chance to provider to enrich SyncExecption.

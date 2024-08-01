@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Dotmim.Sync.Web.Client
 {
     /// <summary>
-    /// Web remote orchestrator, used to make remote calls to the server side, from the client side, when using an http mode.
+    /// Contains the forbidden logic to handle provisioning on the server side.
     /// </summary>
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {

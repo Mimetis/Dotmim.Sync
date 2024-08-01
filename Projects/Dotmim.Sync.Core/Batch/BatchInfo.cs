@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.DatabaseStringParsers;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -60,24 +60,16 @@ namespace Dotmim.Sync.Batch
 #endif
             info = string.IsNullOrEmpty(info) ? string.Empty : $"_{info}";
 
-            if (string.IsNullOrEmpty(batchIndex))
-            {
-                batchIndex = $"0001";
-            }
-            else
-            {
-
-                if (batchIndex.Length == 1)
-                    batchIndex = $"000{batchIndex}";
-                else if (batchIndex.Length == 2)
-                    batchIndex = $"00{batchIndex}";
-                else if (batchIndex.Length == 3)
-                    batchIndex = $"0{batchIndex}";
-                else if (batchIndex.Length == 4)
-                    batchIndex = $"{batchIndex}";
-                else
-                    throw new OverflowException("too much batches !!! You have reached the maximum amount of batch files generated. You need to increase the batch file value from the SyncOptions instance");
-            }
+            batchIndex = string.IsNullOrEmpty(batchIndex)
+                ? $"0001"
+                : batchIndex.Length switch
+                {
+                    1 => $"000{batchIndex}",
+                    2 => $"00{batchIndex}",
+                    3 => $"0{batchIndex}",
+                    4 => $"{batchIndex}",
+                    _ => throw new OverflowException("too much batches !!! You have reached the maximum amount of batch files generated. You need to increase the batch file value from the SyncOptions instance"),
+                };
 
             return $"{tableName}_{batchIndex}{info}_{randomFileName}.{extension}";
         }
@@ -143,7 +135,10 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public (string FullPath, string FileName) GetNewBatchPartInfoPath(SyncTable syncTable, int batchIndex, string extension, string info)
         {
-            var tableName = ParserName.Parse(syncTable).Unquoted().Schema().Normalized().ToString();
+            // parsing the table name
+            var tableBuilder = new TableParser(syncTable.GetFullName());
+
+            var tableName = tableBuilder.NormalizedFullName;
             var fileName = GenerateNewFileName(batchIndex.ToString(CultureInfo.InvariantCulture), tableName, extension, info);
             var fullPath = Path.Combine(this.GetDirectoryFullPath(), fileName);
             return (fullPath, fileName);
@@ -174,10 +169,7 @@ namespace Dotmim.Sync.Batch
 
                 var bptis = this.BatchPartsInfo.Where(bpi => bpi.EqualsByName(tmpBpi));
 
-                if (bptis == null)
-                    return false;
-
-                return bptis.Sum(bpti => bpti.RowsCount) > 0;
+                return bptis == null ? false : bptis.Sum(bpti => bpti.RowsCount) > 0;
             }
 
             return false;
@@ -188,10 +180,7 @@ namespace Dotmim.Sync.Batch
         /// </summary>
         public IEnumerable<BatchPartInfo> GetBatchPartsInfos(SyncTable syncTable)
         {
-            if (syncTable == null)
-                return [];
-
-            return this.GetBatchPartsInfos(syncTable.TableName, syncTable.SchemaName);
+            return syncTable == null ? [] : this.GetBatchPartsInfos(syncTable.TableName, syncTable.SchemaName);
         }
 
         /// <summary>
@@ -209,10 +198,7 @@ namespace Dotmim.Sync.Batch
 
             bpiTables = this.BatchPartsInfo.Where(bpi => bpi.RowsCount > 0 && bpi.EqualsByName(tmpBpi)).OrderBy(bpi => bpi.Index);
 
-            if (bpiTables == null)
-                return [];
-
-            return bpiTables;
+            return bpiTables ?? [];
         }
 
         /// <summary>

@@ -1,5 +1,4 @@
 ﻿using Dotmim.Sync.Manager;
-using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Threading.Tasks;
@@ -15,13 +14,10 @@ namespace Dotmim.Sync.Builders
         /// Initializes a new instance of the <see cref="DbTableBuilder"/> class.
         /// Construct a DbBuilder.
         /// </summary>
-        protected DbTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
+        protected DbTableBuilder(SyncTable tableDescription, ScopeInfo scopeInfo)
         {
             this.TableDescription = tableDescription;
-            this.Setup = setup;
-            this.ScopeName = scopeName;
-            this.TableName = tableName;
-            this.TrackingTableName = trackingTableName;
+            this.ScopeInfo = scopeInfo;
         }
 
         /// <summary>
@@ -30,24 +26,24 @@ namespace Dotmim.Sync.Builders
         public SyncTable TableDescription { get; set; }
 
         /// <summary>
-        /// Gets setup, containing naming prefix and suffix if needed.
+        /// Gets the scope information.
         /// </summary>
-        public SyncSetup Setup { get; }
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
-        /// Gets the current scope name.
+        /// Gets the parsed name of the table.
         /// </summary>
-        public string ScopeName { get; }
+        public abstract DbTableNames GetParsedTableNames();
 
         /// <summary>
-        /// Gets the table parsed name.
+        /// Gets the parsed name of the table.
         /// </summary>
-        public ParserName TableName { get; }
+        public abstract DbTableNames GetParsedTrackingTableNames();
 
         /// <summary>
-        /// Gets the tracking table parsed name.
+        /// Gets the parsed columns names.
         /// </summary>
-        public ParserName TrackingTableName { get; }
+        public abstract DbColumnNames GetParsedColumnNames(SyncColumn column);
 
         /// <summary>
         /// Returns a command to create a schema.
@@ -113,12 +109,6 @@ namespace Dotmim.Sync.Builders
         /// Returns a command to drop a tracking table.
         /// </summary>
         public abstract Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction);
-
-        /// <summary>
-        /// Returns a command to rename a tracking table.
-        /// </summary>
-        [Obsolete("DMS does not rename tracking tables anymore")]
-        public abstract Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction);
 
         /// <summary>
         /// Returns a command to check if a tracking table exists.

@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Web.Client
 {
+    /// <summary>
+    /// Contains the logic to get the hypothetical override operation from the server.
+    /// </summary>
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
 

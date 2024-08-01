@@ -57,43 +57,6 @@ namespace Dotmim.Sync
                     }
 
                     return false;
-
-                    // await using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.Migrating).ConfigureAwait(false);
-
-                    // var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
-                    // var scopeInfoServerTableName = $"{parsedName.Unquoted().Normalized()}_server";
-                    // var scopeInfoServerHistoryTableName = $"{parsedName.Unquoted().Normalized()}_history";
-
-                    // var sScopeInfoTableName = $"{parsedName.Unquoted().Normalized()}";
-                    // var sScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
-
-                    //// get Database builder
-                    // var dbBuilder = this.Provider.GetDatabaseBuilder();
-
-                    //// Initialize database if needed
-                    // await dbBuilder.EnsureDatabaseAsync(runner.Connection, runner.Transaction).ConfigureAwait(false);
-
-                    //// check old and new scopes tables
-                    // var exist1 = await dbBuilder.ExistsTableAsync(scopeInfoServerTableName, null, runner.Connection, runner.Transaction);
-                    // var exist2 = await dbBuilder.ExistsTableAsync(scopeInfoServerHistoryTableName, null, runner.Connection, runner.Transaction);
-                    // var exist3 = await dbBuilder.ExistsTableAsync(sScopeInfoTableName, null, runner.Connection, runner.Transaction);
-                    // var exist4 = await dbBuilder.ExistsTableAsync(sScopeInfoClientTableName, null, runner.Connection, runner.Transaction);
-
-                    // if (!exist1 && !exist2 && !exist3 && !exist4)
-                    //    return false;
-
-                    //// Check if scope_info exists
-                    //// If exists then we have already upgraded to last version
-                    // bool exists;
-                    // (context, exists) = await this.InternalExistsScopeInfoTableAsync(context, DbScopeType.ScopeInfo,
-                    //    runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-
-                    // if (exists)
-                    //    return false;
-
-                    // await runner.CommitAsync().ConfigureAwait(false);
-
-                    // return true;
                 }
             }
             catch (Exception ex)
@@ -180,9 +143,10 @@ namespace Dotmim.Sync
         {
             try
             {
-                var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
-                var sScopeInfoTableName = $"{parsedName.Unquoted().Normalized()}";
-                var sScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
+                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                var parsedName = scopeBuilder.GetParsedScopeInfoTableNames().NormalizedFullName;
+                var sScopeInfoTableName = parsedName;
+                var sScopeInfoClientTableName = $"{parsedName}_client";
 
                 using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, default, default, progress, default).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
@@ -259,12 +223,14 @@ namespace Dotmim.Sync
         {
             try
             {
-                var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
-                var scopeInfoServerTableName = $"{parsedName.Unquoted().Normalized()}_server";
-                var scopeInfoServerHistoryTableName = $"{parsedName.Unquoted().Normalized()}_history";
+                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                var parsedName = scopeBuilder.GetParsedScopeInfoTableNames().NormalizedFullName;
 
-                var sScopeInfoTableName = $"{parsedName.Unquoted().Normalized()}";
-                var sScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
+                var scopeInfoServerTableName = $"{parsedName}_server";
+                var scopeInfoServerHistoryTableName = $"{parsedName}_history";
+
+                var sScopeInfoTableName = $"{parsedName}";
+                var sScopeInfoClientTableName = $"{parsedName}_client";
 
                 using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, default, default, progress, cancellationToken).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))

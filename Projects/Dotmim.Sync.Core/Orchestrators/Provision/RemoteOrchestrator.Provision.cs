@@ -327,8 +327,9 @@ namespace Dotmim.Sync
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
-                    var scopeInfoTableName = scopeBuilder.ScopeInfoTableName.Unquoted().ToString();
-                    var scopeInfoClientTableName = $"{scopeBuilder.ScopeInfoTableName.Unquoted()}_client";
+                    var scopeTableNames = scopeBuilder.GetParsedScopeInfoTableNames();
+                    var scopeInfoTableName = scopeTableNames.NormalizedName;
+                    var scopeInfoClientTableName = $"{scopeTableNames.NormalizedName}_client";
 
                     // Considering removing tables with "_tracking" at the end
                     var tables = setup.Tables.Where(setupTable => !setupTable.TableName.EndsWith("_tracking", SyncGlobalization.DataSourceStringComparison) && setupTable.TableName != scopeInfoTableName && setupTable.TableName != scopeInfoClientTableName).ToList();

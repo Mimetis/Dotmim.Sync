@@ -107,7 +107,7 @@ namespace Dotmim.Sync
         ///     if (args.BatchPartInfos != null)
         ///     {
         ///         var syncTable = await localOrchestrator.LoadTableFromBatchInfoAsync(
-        ///             args.BatchInfo, args.SchemaTable.ColumnName, args.SchemaTable.TableName, args.State);
+        ///             args.BatchInfo, args.SchemaTable.ObjectName, args.SchemaTable.OwnerName, args.State);
         ///
         ///         if (syncTable != null "and" syncTable.HasRows)
         ///         {

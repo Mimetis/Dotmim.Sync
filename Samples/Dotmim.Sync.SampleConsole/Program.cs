@@ -54,7 +54,7 @@ internal class Program
         // clientProvider.UseBulkOperations = false;
         // var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         // var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        var setup = new SyncSetup("Customer");
+        var setup = new SyncSetup("ProductCategory");
 
         var options = new SyncOptions();
 
@@ -79,38 +79,49 @@ internal class Program
         // await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
 
         // await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
         // await SyncWithReinitialiazeWithChangeTrackingAsync();
 
         // await CreateSnapshotAsync();
+        await CheckProvisionTime();
     }
 
-    private static async Task SyncWithReinitialiazeWithChangeTrackingAsync()
+    public static async Task CheckProvisionTime()
     {
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(ServerDbName));
-        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(ClientDbName));
-
         var setup = new SyncSetup("ProductCategory");
+        var remoteOrchestrator = new RemoteOrchestrator(new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ServerDbName)));
 
-        var options = new SyncOptions
-        {
-            DisableConstraintsOnApplyChanges = true,
-        };
+        await remoteOrchestrator.ProvisionAsync(setup).ConfigureAwait(false);
+        //await remoteOrchestrator.DeprovisionAsync(setup).ConfigureAwait(false);
 
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-            Console.WriteLine($"{s.ProgressPercentage:p}:  " +
-            $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
-
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        // var s = await agent.SynchronizeAsync(setup, progress: progress);
-        // Console.WriteLine(s);
-
-        // await DBHelper.AddProductCategoryRowAsync(clientProvider);
-        var s2 = await agent.SynchronizeAsync(setup, SyncType.Reinitialize, progress: progress);
-        Console.WriteLine(s2);
     }
+
+    //private static async Task SyncWithReinitialiazeWithChangeTrackingAsync()
+    //{
+    //    var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(ServerDbName));
+    //    var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(ClientDbName));
+
+    //    var setup = new SyncSetup("ProductCategory");
+
+    //    var options = new SyncOptions
+    //    {
+    //        DisableConstraintsOnApplyChanges = true,
+    //    };
+
+    //    var progress = new SynchronousProgress<ProgressArgs>(s =>
+    //        Console.WriteLine($"{s.ProgressPercentage:p}:  " +
+    //        $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
+    //    var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+    //    // var s = await agent.SynchronizeAsync(setup, progress: progress);
+    //    // Console.WriteLine(s);
+
+    //    // await DBHelper.AddProductCategoryRowAsync(clientProvider);
+    //    var s2 = await agent.SynchronizeAsync(setup, SyncType.Reinitialize, progress: progress);
+    //    Console.WriteLine(s2);
+    //}
 
     private static async Task CreateSnapshotAsync()
     {
@@ -306,7 +317,7 @@ internal class Program
 
                     options.ProgressLevel = SyncProgressLevel.Debug;
 
-                    var remoteOrchestrator = new WebRemoteOrchestrator(serviceUri, identifier: "01");
+                    var remoteOrchestrator = new WebRemoteOrchestrator(new Uri(serviceUri), identifier: "01");
 
                     // create the agent
                     var agent = new SyncAgent(clientProvider, remoteOrchestrator, options);

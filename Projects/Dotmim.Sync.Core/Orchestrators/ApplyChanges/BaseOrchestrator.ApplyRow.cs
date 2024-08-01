@@ -23,7 +23,7 @@ namespace Dotmim.Sync
             DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             // get executioning adapter
-            var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+            var syncAdapter = this.GetSyncAdapter(schemaTable, scopeInfo);
 
             // Pre command if exists
             var (preCommand, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.PreDeleteRow,
@@ -97,7 +97,7 @@ namespace Dotmim.Sync
             DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
 
-            var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+            var syncAdapter = this.GetSyncAdapter(schemaTable, scopeInfo);
 
             // Pre command if exists
             var (preCommand, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.PreUpdateRow,

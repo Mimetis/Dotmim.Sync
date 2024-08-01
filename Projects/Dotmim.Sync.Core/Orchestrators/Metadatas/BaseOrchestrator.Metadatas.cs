@@ -53,7 +53,7 @@ namespace Dotmim.Sync
                                 continue;
 
                             var syncTable = scopeInfo.Schema.Tables[setupTable.TableName, setupTable.SchemaName];
-                            var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, syncTable, scopeInfo.Setup);
+                            var syncAdapter = this.GetSyncAdapter(syncTable, scopeInfo);
 
                             var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DeleteMetadata,
                                 runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
@@ -122,7 +122,7 @@ namespace Dotmim.Sync
         {
             context.SyncStage = SyncStage.ChangesApplying;
 
-            var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaTable, scopeInfo.Setup);
+            var syncAdapter = this.GetSyncAdapter(schemaTable, scopeInfo);
 
             using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.MetadataCleaning, connection, transaction, cancellationToken: cancellationToken).ConfigureAwait(false);
             await using (runner.ConfigureAwait(false))

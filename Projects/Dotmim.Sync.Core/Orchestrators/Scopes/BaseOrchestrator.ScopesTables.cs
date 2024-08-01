@@ -214,7 +214,9 @@ namespace Dotmim.Sync
                     if (command == null)
                         return (context, false);
 
-                    var action = new ScopeInfoTableDroppingArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, command, runner.Connection, runner.Transaction);
+                    var scopeTableNames = scopeBuilder.GetParsedScopeInfoTableNames();
+
+                    var action = new ScopeInfoTableDroppingArgs(context, scopeTableNames.NormalizedFullName, scopeType, command, runner.Connection, runner.Transaction);
                     await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
                     if (action.Cancel || action.Command == null)
@@ -224,7 +226,7 @@ namespace Dotmim.Sync
 
                     await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-                    await this.InterceptAsync(new ScopeInfoTableDroppedArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new ScopeInfoTableDroppedArgs(context, scopeTableNames.NormalizedFullName, scopeType, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     action.Command.Dispose();
 
@@ -263,8 +265,9 @@ namespace Dotmim.Sync
 
                     if (command == null)
                         return (context, false);
+                    var scopeTableNames = scopeBuilder.GetParsedScopeInfoTableNames();
 
-                    var action = new ScopeInfoTableCreatingArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, command, runner.Connection, runner.Transaction);
+                    var action = new ScopeInfoTableCreatingArgs(context, scopeTableNames.NormalizedFullName, scopeType, command, runner.Connection, runner.Transaction);
                     await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
                     if (action.Cancel || action.Command == null)
@@ -274,7 +277,7 @@ namespace Dotmim.Sync
 
                     await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-                    await this.InterceptAsync(new ScopeInfoTableCreatedArgs(context, scopeBuilder.ScopeInfoTableName.ToString(), scopeType, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new ScopeInfoTableCreatedArgs(context, scopeTableNames.NormalizedFullName, scopeType, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     action.Command.Dispose();
 

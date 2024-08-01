@@ -5,9 +5,24 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Web.Client
 {
+    /// <summary>
+    /// Contains the logic to handle scope info on the server side.
+    /// </summary>
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
+        /// <summary>
+        /// Method not allowed from WebRemoteOrchestrator.
+        /// </summary>
+        public override Task<ScopeInfo> SaveScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null)
+            => throw new NotImplementedException();
 
+        /// <summary>
+        /// Method not allowed from WebRemoteOrchestrator.
+        /// </summary>
+        public override Task<bool> DeleteScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null)
+            => throw new NotImplementedException();
+
+        /// <inheritdoc />
         internal override async Task<(SyncContext Context, ScopeInfo ScopeInfo)> InternalLoadScopeInfoAsync(
             SyncContext context,
             DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
@@ -17,6 +32,7 @@ namespace Dotmim.Sync.Web.Client
             return (context, scopeInfo);
         }
 
+        /// <inheritdoc />
         internal override async Task<(SyncContext Context, ScopeInfo ServerScopeInfo, bool ShouldProvision)>
             InternalEnsureScopeInfoAsync(
             SyncContext context, SyncSetup setup, bool overwrite, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
@@ -59,11 +75,5 @@ namespace Dotmim.Sync.Web.Client
                 throw this.GetSyncError(context, ex);
             } // throw client error
         }
-
-        public override Task<ScopeInfo> SaveScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null)
-            => throw new NotImplementedException();
-
-        public override Task<bool> DeleteScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null)
-            => throw new NotImplementedException();
     }
 }

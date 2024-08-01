@@ -70,9 +70,6 @@ namespace Dotmim.Sync
                 if (string.IsNullOrEmpty(name))
                     throw new ArgumentNullException(nameof(name));
 
-                var parser = ParserName.Parse(name);
-                var objectName = parser.ObjectName;
-
                 // Create a tmp synctable to benefit the SyncTable.Equals() method
                 return this.InnerCollection.FirstOrDefault(st => string.Equals(st.Name, name, SyncGlobalization.DataSourceStringComparison));
             }

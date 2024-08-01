@@ -5,9 +5,13 @@ using System.Data;
 
 namespace Dotmim.Sync.Sqlite
 {
+    /// <summary>
+    /// Sqlite database metadata.
+    /// </summary>
     public class SqliteDbMetadata : DbMetadata
     {
 
+        /// <inheritdoc />
         public override DbType GetDbType(SyncColumn columnDefinition)
         {
             var typeName = columnDefinition.OriginalTypeName.ToLowerInvariant();
@@ -34,6 +38,7 @@ namespace Dotmim.Sync.Sqlite
             };
         }
 
+        /// <inheritdoc />
         public override object GetOwnerDbType(SyncColumn columnDefinition)
         {
             var typeName = columnDefinition.OriginalTypeName.ToLowerInvariant();
@@ -55,6 +60,9 @@ namespace Dotmim.Sync.Sqlite
             };
         }
 
+        /// <summary>
+        /// Gets the owner db type from a sync column.
+        /// </summary>
         public SqliteType GetOwnerDbTypeFromDbType(SyncColumn columnDefinition) => columnDefinition.GetDbType() switch
         {
             DbType.AnsiString or DbType.AnsiStringFixedLength or DbType.String or DbType.StringFixedLength or DbType.Xml or
@@ -66,8 +74,12 @@ namespace Dotmim.Sync.Sqlite
             _ => throw new Exception($"In Column {columnDefinition.ColumnName}, the type {columnDefinition.GetDbType()} is not supported"),
         };
 
+        /// <summary>
+        /// Gets a sqlite type from a sync column.
+        /// </summary>
         public SqliteType GetSqliteType(SyncColumn column) => (SqliteType)this.GetOwnerDbType(column);
 
+        /// <inheritdoc />
         public override Type GetType(SyncColumn columnDefinition)
         {
             var dbType = (SqliteType)this.GetOwnerDbType(columnDefinition);
@@ -82,21 +94,29 @@ namespace Dotmim.Sync.Sqlite
             };
         }
 
+        /// <inheritdoc />
         public override int GetMaxLength(SyncColumn columnDefinition)
             => columnDefinition.MaxLength > int.MaxValue ? int.MaxValue : Convert.ToInt32(columnDefinition.MaxLength);
 
+        /// <inheritdoc />
         public override (byte Precision, byte Scale) GetPrecisionAndScale(SyncColumn columnDefinition) => (0, 0);
 
+        /// <inheritdoc />
         public override byte GetPrecision(SyncColumn columnDefinition) => columnDefinition.Precision;
 
+        /// <inheritdoc />
         public override bool IsSupportingScale(SyncColumn columnDefinition) => this.GetSqliteType(columnDefinition) == SqliteType.Real;
 
+        /// <inheritdoc />
         public override bool IsNumericType(SyncColumn columnDefinition)
         {
             var sqliteType = this.GetSqliteType(columnDefinition);
             return sqliteType == SqliteType.Integer || sqliteType == SqliteType.Real;
         }
 
+        /// <summary>
+        /// Check if the column is a text type.
+        /// </summary>
         public bool IsTextType(SyncColumn columnDefinition)
         {
             var dbType = (DbType)columnDefinition.DbType;
@@ -110,6 +130,7 @@ namespace Dotmim.Sync.Sqlite
             };
         }
 
+        /// <inheritdoc />
         public override bool IsValid(SyncColumn columnDefinition)
         {
             var typeName = columnDefinition.OriginalTypeName.ToLowerInvariant();
@@ -129,6 +150,7 @@ namespace Dotmim.Sync.Sqlite
             };
         }
 
+        /// <inheritdoc />
         public override bool IsReadonly(SyncColumn columnDefinition) => false;
 
         // ----------------------------------------------------------------------------------

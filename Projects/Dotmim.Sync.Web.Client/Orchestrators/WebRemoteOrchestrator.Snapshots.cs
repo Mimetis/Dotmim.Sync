@@ -1,22 +1,19 @@
 ﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
 using System;
-using System.Collections.Generic;
 using System.Data.Common;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Web.Client
 {
+    /// <summary>
+    /// Contains the logic to handle snapshot on the server side.
+    /// </summary>
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
 
+        /// <inheritdoc />
         internal override async Task<(SyncContext Context, ServerSyncChanges ServerSyncChanges)>
           InternalGetSnapshotAsync(ScopeInfo sScopeInfo, SyncContext context, DbConnection connection = default, DbTransaction transaction = default,
             IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
@@ -43,8 +40,10 @@ namespace Dotmim.Sync.Web.Client
                 serverBatchInfo.RowsCount = summaryResponseContent.BatchInfo?.RowsCount ?? 0;
 
                 if (summaryResponseContent.BatchInfo?.BatchPartsInfo != null)
+                {
                     foreach (var bpi in summaryResponseContent.BatchInfo.BatchPartsInfo)
                         serverBatchInfo.BatchPartsInfo.Add(bpi);
+                }
 
                 // no snapshot
                 if ((serverBatchInfo.BatchPartsInfo == null || serverBatchInfo.BatchPartsInfo.Count <= 0) && serverBatchInfo.RowsCount <= 0)

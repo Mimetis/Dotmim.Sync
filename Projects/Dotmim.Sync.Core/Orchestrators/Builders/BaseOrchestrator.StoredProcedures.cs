@@ -49,7 +49,7 @@ namespace Dotmim.Sync
                     var hasBeenCreated = false;
 
                     // Get table builder
-                    var tableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(syncTable, scopeInfo).GetTableBuilder();
 
                     bool exists;
                     (context, exists) = await this.InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType,
@@ -119,7 +119,7 @@ namespace Dotmim.Sync
                 await using (runner.ConfigureAwait(false))
                 {
                     // Get table builder
-                    var tableBuilder = this.GetTableBuilder(syncTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(syncTable, scopeInfo).GetTableBuilder();
                     bool isCreated;
                     (context, isCreated) = await this.InternalCreateStoredProceduresAsync(scopeInfo, context, overwrite, tableBuilder,
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
@@ -172,7 +172,7 @@ namespace Dotmim.Sync
                 using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                     bool exists;
                     (context, exists) = await this.InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType,
@@ -227,7 +227,7 @@ namespace Dotmim.Sync
                 {
                     var hasBeenDropped = false;
 
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                     bool existsAndCanBeDeleted;
                     (context, existsAndCanBeDeleted) = await this.InternalExistsStoredProcedureAsync(scopeInfo, context, tableBuilder, storedProcedureType,
@@ -293,7 +293,7 @@ namespace Dotmim.Sync
                     var hasDroppedAtLeastOneStoredProcedure = false;
 
                     // using a fake SyncTable based on SetupTable, since we don't need columns
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                     // check bulk before
                     (context, hasDroppedAtLeastOneStoredProcedure) = await this.InternalDropStoredProceduresAsync(scopeInfo, context, tableBuilder,

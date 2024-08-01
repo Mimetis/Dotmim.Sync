@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.DatabaseStringParsers;
 using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
@@ -58,26 +58,19 @@ namespace Dotmim.Sync
         /// </summary>
         public SetupTable(string tableName, string schemaName = null)
         {
-            this.TableName = tableName ?? throw new ArgumentNullException(nameof(tableName));
+            Guard.ThrowIfNull(tableName);
+
+            var fullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
 
             // Potentially user can pass something like [SalesLT].[Product]
-            // or SalesLT.Product or Product. ParserName will handle it
-            var parserTableName = ParserName.Parse(this.TableName);
-            this.TableName = parserTableName.ObjectName;
+            // or SalesLT.Product or Product. TableParser will handle it
+            var tableParser = new TableParser(fullName);
 
-            // Check Schema
-            if (string.IsNullOrEmpty(schemaName))
-            {
-                schemaName = string.IsNullOrEmpty(parserTableName.SchemaName) ? null : parserTableName.SchemaName;
-            }
-            else
-            {
-                var parserSchemaName = ParserName.Parse(schemaName);
-                schemaName = parserSchemaName.ObjectName;
-            }
+            this.TableName = tableParser.TableName;
 
             // https://github.com/Mimetis/Dotmim.Sync/issues/621#issuecomment-968369322
-            this.SchemaName = string.IsNullOrEmpty(schemaName) ? string.Empty : schemaName;
+            this.SchemaName = string.IsNullOrEmpty(tableParser.SchemaName) ? string.Empty : tableParser.SchemaName;
+
             this.Columns = [];
         }
 
@@ -112,13 +105,8 @@ namespace Dotmim.Sync
                 return false;
 
             // checking properties
-            if (this.SyncDirection != otherInstance.SyncDirection)
-                return false;
-
-            if (!this.Columns.CompareWith(otherInstance.Columns, (c, oc) => string.Equals(c, oc, sc)))
-                return false;
-
-            return true;
+            return this.SyncDirection == otherInstance.SyncDirection
+                    && this.Columns.CompareWith(otherInstance.Columns, (c, oc) => string.Equals(c, oc, sc));
         }
 
         /// <inheritdoc cref="SyncNamedItem{T}.GetAllNamesProperties"/>

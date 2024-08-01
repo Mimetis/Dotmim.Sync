@@ -91,7 +91,7 @@ namespace Dotmim.Sync.PostgreSql
             return false;
         }
 
-        public override DbBuilder GetDatabaseBuilder() => new NpgsqlBuilder();
+        public override DbDatabaseBuilder GetDatabaseBuilder() => new NpgsqlDatabaseBuilder();
 
         public override string GetDatabaseName()
         {

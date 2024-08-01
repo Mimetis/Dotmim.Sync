@@ -1,21 +1,21 @@
-﻿using Dotmim.Sync.Batch;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Web.Client
 {
+    /// <summary>
+    /// Contains the forbidden logic to handle upgrade on the server side.
+    /// </summary>
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
+
+        /// <summary>
+        /// Not Allowed from WebRemoteOrchestrator.
+        /// </summary>
+        public override Task<bool> NeedsToUpgradeAsync(SyncContext context) => Task.FromResult(false);
+
         /// <summary>
         /// Not Allowed from WebRemoteOrchestrator.
         /// </summary>
@@ -23,10 +23,5 @@ namespace Dotmim.Sync.Web.Client
             SyncContext context, DbConnection connection = default, DbTransaction transaction = default,
             IProgress<ProgressArgs> progress = default, CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
-
-        /// <summary>
-        /// Not Allowed from WebRemoteOrchestrator.
-        /// </summary>
-        public override Task<bool> NeedsToUpgradeAsync(SyncContext context) => Task.FromResult(false);
     }
 }

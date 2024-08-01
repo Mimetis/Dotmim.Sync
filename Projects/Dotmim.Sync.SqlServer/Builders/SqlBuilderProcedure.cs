@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.DatabaseStringParsers;
 using Dotmim.Sync.SqlServer.Manager;
 using Microsoft.Data.SqlClient;
 using System;
@@ -19,17 +20,12 @@ namespace Dotmim.Sync.SqlServer.Builders
         private readonly SqlObjectNames sqlObjectNames;
         private readonly SqlDbMetadata sqlDbMetadata;
 
-        private ParserName tableName;
-        private ParserName trackingName;
-
         /// <inheritdoc cref="SqlBuilderProcedure" />
-        public SqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
+        public SqlBuilderProcedure(SyncTable tableDescription, SqlObjectNames sqlObjectNames, SqlDbMetadata sqlDbMetadata)
         {
             this.tableDescription = tableDescription;
-            this.tableName = tableName;
-            this.trackingName = trackingName;
-            this.sqlObjectNames = new SqlObjectNames(this.tableDescription, tableName, trackingName, setup, scopeName);
-            this.sqlDbMetadata = new SqlDbMetadata();
+            this.sqlObjectNames = sqlObjectNames;
+            this.sqlDbMetadata = sqlDbMetadata;
         }
 
         /// <summary>
@@ -40,9 +36,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
                 return Task.FromResult<DbCommand>(null);
 
-            var quotedProcedureName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
-
-            var procedureName = ParserName.Parse(quotedProcedureName).ToString();
+            var storedProcNormalizedName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
+            var storedProcParser = new ObjectParser(storedProcNormalizedName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
 
             var text = "IF EXISTS (SELECT * FROM sys.procedures p JOIN sys.schemas s ON s.schema_id = p.schema_id WHERE p.name = @procName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0";
 
@@ -57,12 +52,12 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var p = sqlCommand.CreateParameter();
             p.ParameterName = "@procName";
-            p.Value = procedureName;
+            p.Value = storedProcParser.ObjectName;
             sqlCommand.Parameters.Add(p);
 
             p = sqlCommand.CreateParameter();
             p.ParameterName = "@schemaName";
-            p.Value = SqlManagementUtils.GetUnquotedSqlSchemaName(ParserName.Parse(quotedProcedureName));
+            p.Value = SqlManagementUtils.GetUnquotedSqlSchemaName(storedProcParser);
             sqlCommand.Parameters.Add(p);
 
             return Task.FromResult(sqlCommand);
@@ -74,16 +69,11 @@ namespace Dotmim.Sync.SqlServer.Builders
         public Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.sqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
-            var text = $"DROP PROCEDURE {commandName};";
-
-            if (storedProcedureType == DbStoredProcedureType.BulkTableType)
-                text = $"DROP TYPE {commandName};";
+            var commandText = storedProcedureType == DbStoredProcedureType.BulkTableType ? $"DROP TYPE {commandName};" : $"DROP PROCEDURE {commandName};";
 
             var sqlCommand = connection.CreateCommand();
-
             sqlCommand.Transaction = transaction;
-
-            sqlCommand.CommandText = text;
+            sqlCommand.CommandText = commandText;
 
             return Task.FromResult(sqlCommand);
         }
@@ -135,9 +125,11 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// </summary>
         protected SqlParameter GetSqlParameter(SyncColumn column)
         {
+            var parameterParser = new ObjectParser(column.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+
             var sqlParameter = new SqlParameter
             {
-                ParameterName = $"@{ParserName.Parse(column).Unquoted().Normalized()}",
+                ParameterName = $"@{parameterParser.NormalizedShortName}",
             };
 
             // Get the good SqlDbType (even if we are not from Sql Server def)
@@ -268,8 +260,8 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             foreach (var column in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
-                var cc = ParserName.Parse(column).Quoted().ToString();
-                stringBuilder.Append($"{pkeyComma}[t].{cc}");
+                var columnParser = new ObjectParser(column.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.Append($"{pkeyComma}[t].{columnParser.QuotedShortName}");
                 pkeyComma = " ,";
             }
 
@@ -281,8 +273,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             pkeyComma = " ";
             foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var cc = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
-                stringBuilder.Append($"{pkeyComma}{cc}");
+                var primaryKeyColumnParser = new ObjectParser(primaryKeyColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.Append($"{pkeyComma}{primaryKeyColumnParser.QuotedShortName}");
                 pkeyComma = " ,";
             }
 
@@ -292,8 +284,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             pkeyComma = " ";
             foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var cc = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
-                stringBuilder.Append($"{pkeyComma}[t].{cc} = [i].{cc}");
+                var primaryKeyColumnParser = new ObjectParser(primaryKeyColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.Append($"{pkeyComma}[t].{primaryKeyColumnParser.QuotedShortName} = [i].{primaryKeyColumnParser.QuotedShortName}");
                 pkeyComma = " AND ";
             }
 
@@ -332,18 +324,21 @@ namespace Dotmim.Sync.SqlServer.Builders
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got deleted");
             stringBuilder.Append("declare @dms_changed TABLE (");
-            foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
+            foreach (var pkeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
+                var primaryKeyColumnParser = new ObjectParser(pkeyColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+
                 // Get the good SqlDbType (even if we are not from Sql Server def)
-                var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(c, this.tableDescription.OriginalProvider);
-                stringBuilder.Append($"{ParserName.Parse(c).Quoted()} {columnType}, ");
+                var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(pkeyColumn, this.tableDescription.OriginalProvider);
+                stringBuilder.Append($"{primaryKeyColumnParser.QuotedShortName} {columnType}, ");
             }
 
             stringBuilder.Append(" PRIMARY KEY (");
             for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
-                var cc = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"{cc}");
+                var primaryKeyColumnParser = new ObjectParser(this.tableDescription.PrimaryKeys[i], SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+
+                stringBuilder.Append($"{primaryKeyColumnParser.QuotedShortName}");
 
                 if (i < this.tableDescription.PrimaryKeys.Count - 1)
                     stringBuilder.Append(", ");
@@ -356,23 +351,24 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append("\tSELECT ");
             foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
-                var columnName = ParserName.Parse(c).Quoted().ToString();
-                stringBuilder.Append($"[p].{columnName}, ");
+                var columnParser = new ObjectParser(c.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.Append($"[p].{columnParser.QuotedShortName}, ");
             }
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id], [side].[timestamp] as [sync_timestamp], [side].[sync_row_is_tombstone] as [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM @changeTable [p]");
-            stringBuilder.Append($"\tLEFT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
+            stringBuilder.Append($"\tLEFT JOIN {this.sqlObjectNames.TrackingTableQuotedFullName} [side] ON ");
             stringBuilder.AppendLine($"\t{str7}");
             stringBuilder.AppendLine($"\t)");
 
-            stringBuilder.AppendLine($"DELETE {this.tableName.Schema().Quoted()}");
+            stringBuilder.AppendLine($"DELETE {this.sqlObjectNames.TableQuotedFullName}");
             stringBuilder.Append($"OUTPUT ");
             for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
             {
-                var cc = ParserName.Parse(this.tableDescription.PrimaryKeys[i]).Quoted().ToString();
-                stringBuilder.Append($"DELETED.{cc}");
+                var primaryKeyColumnParser = new ObjectParser(this.tableDescription.PrimaryKeys[i], SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+
+                stringBuilder.Append($"DELETED.{primaryKeyColumnParser.QuotedShortName}");
                 if (i < this.tableDescription.PrimaryKeys.Count - 1)
                     stringBuilder.Append(", ");
                 else
@@ -380,7 +376,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             }
 
             stringBuilder.AppendLine($"INTO @dms_changed ");
-            stringBuilder.AppendLine($"FROM {this.tableName.Quoted()} [base]");
+            stringBuilder.AppendLine($"FROM {this.sqlObjectNames.TableQuotedFullName} [base]");
             stringBuilder.AppendLine($"JOIN [changes] ON {str5}");
             stringBuilder.AppendLine("WHERE [changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR [changes].[sync_update_scope_id] = @sync_scope_id;");
             stringBuilder.AppendLine();
@@ -389,7 +385,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\tsync_row_is_tombstone = 1, ");
             stringBuilder.AppendLine("\tupdate_scope_id = @sync_scope_id,");
             stringBuilder.AppendLine("\tlast_change_datetime = GETUTCDATE()");
-            stringBuilder.AppendLine($"FROM {this.trackingName.Schema().Quoted()} [side]");
+            stringBuilder.AppendLine($"FROM {this.sqlObjectNames.TrackingTableQuotedFullName} [side]");
             stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
@@ -443,10 +439,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append("declare @dms_changed TABLE (");
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(c).Quoted().ToString();
+                var columnParser = new ObjectParser(c.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
                 var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(c, this.tableDescription.OriginalProvider);
 
-                stringBuilder.Append($"{columnName} {columnType}, ");
+                stringBuilder.Append($"{columnParser.QuotedShortName} {columnType}, ");
             }
 
             stringBuilder.Append(" PRIMARY KEY (");
@@ -454,8 +450,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             string pkeyComma = " ";
             foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
-                stringBuilder.Append($"{pkeyComma}{columnName}");
+                var primaryKeyColumnParser = new ObjectParser(primaryKeyColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.Append($"{pkeyComma}{primaryKeyColumnParser.QuotedShortName}");
                 pkeyComma = ", ";
             }
 
@@ -466,7 +462,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.tableName.Schema().Quoted()} ON;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.sqlObjectNames.TableQuotedFullName} ON;");
                 stringBuilder.AppendLine();
             }
 
@@ -474,27 +470,27 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append("\tSELECT ");
             foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
-                var columnName = ParserName.Parse(c).Quoted().ToString();
-                stringBuilder.Append($"[p].{columnName}, ");
+                var columnParser = new ObjectParser(c.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.Append($"[p].{columnParser.QuotedShortName}, ");
             }
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id], [side].[timestamp] as [sync_timestamp], [side].[sync_row_is_tombstone] as [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"\tFROM @changeTable [p]");
-            stringBuilder.AppendLine($"\tLEFT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
+            stringBuilder.AppendLine($"\tLEFT JOIN {this.sqlObjectNames.TrackingTableQuotedFullName} [side] ON ");
             stringBuilder.Append($"\t{str7}");
             stringBuilder.AppendLine($"\t)");
 
-            stringBuilder.AppendLine($"MERGE {this.tableName.Schema().Quoted()} AS [base]");
+            stringBuilder.AppendLine($"MERGE {this.sqlObjectNames.TableQuotedFullName} AS [base]");
             stringBuilder.AppendLine($"USING [changes] on {str5}");
             if (hasMutableColumns)
             {
                 stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR [changes].[sync_update_scope_id] = @sync_scope_id) THEN");
                 foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
                 {
-                    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                    stringBuilderArguments.Append(string.Concat(empty, columnName));
-                    stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName}"));
+                    var columnParser = new ObjectParser(mutableColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                    stringBuilderArguments.Append(string.Concat(empty, columnParser.QuotedShortName));
+                    stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnParser.QuotedShortName}"));
                     empty = ", ";
                 }
 
@@ -504,8 +500,9 @@ namespace Dotmim.Sync.SqlServer.Builders
                 string strSeparator = string.Empty;
                 foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false))
                 {
-                    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                    stringBuilder.AppendLine($"\t{strSeparator}{columnName} = [changes].{columnName}");
+                    var columnParser = new ObjectParser(mutableColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+
+                    stringBuilder.AppendLine($"\t{strSeparator}{columnParser.QuotedShortName} = [changes].{columnParser.QuotedShortName}");
                     strSeparator = ", ";
                 }
             }
@@ -518,10 +515,10 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
             {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                var columnParser = new ObjectParser(mutableColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
 
-                stringBuilderArguments.Append(string.Concat(empty, columnName));
-                stringBuilderParameters.Append(string.Concat(empty, $"[changes].{columnName}"));
+                stringBuilderArguments.Append(string.Concat(empty, columnParser.QuotedShortName));
+                stringBuilderParameters.Append(string.Concat(empty, $"[changes].{columnParser.QuotedShortName}"));
                 empty = ", ";
             }
 
@@ -535,8 +532,9 @@ namespace Dotmim.Sync.SqlServer.Builders
             pkeyComma = " ";
             foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
-                stringBuilder.Append($"{pkeyComma}INSERTED.{columnName}");
+                var columnParser = new ObjectParser(primaryKeyColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+
+                stringBuilder.Append($"{pkeyComma}INSERTED.{columnParser.QuotedShortName}");
                 pkeyComma = ", ";
             }
 
@@ -548,7 +546,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.tableName.Schema().Quoted()} ON;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.sqlObjectNames.TableQuotedFullName} ON;");
                 stringBuilder.AppendLine();
             }
 
@@ -557,7 +555,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t[update_scope_id] = @sync_scope_id,");
             stringBuilder.AppendLine("\t[sync_row_is_tombstone] = 0,");
             stringBuilder.AppendLine("\t[last_change_datetime] = GETUTCDATE()");
-            stringBuilder.AppendLine($"FROM {this.trackingName.Schema().Quoted()} [side]");
+            stringBuilder.AppendLine($"FROM {this.sqlObjectNames.TrackingTableQuotedFullName} [side]");
             stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
 
             // stringBuilder.AppendLine($"JOIN @changeTable [p] on {str7}");
@@ -590,9 +588,9 @@ namespace Dotmim.Sync.SqlServer.Builders
         /// </summary>
         protected virtual SqlCommand BuildResetCommand()
         {
-            var updTriggerName = this.sqlObjectNames.GetTriggerCommandName(DbTriggerType.Update);
-            var delTriggerName = this.sqlObjectNames.GetTriggerCommandName(DbTriggerType.Delete);
-            var insTriggerName = this.sqlObjectNames.GetTriggerCommandName(DbTriggerType.Insert);
+            var updTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.UpdateTrigger);
+            var delTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.DeleteTrigger);
+            var insTriggerName = this.sqlObjectNames.GetCommandName(DbCommandType.InsertTrigger);
 
             SqlCommand sqlCommand = new SqlCommand();
             SqlParameter sqlParameter2 = new SqlParameter("@sync_row_count", SqlDbType.Int)
@@ -605,16 +603,16 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"SET {sqlParameter2.ParameterName} = 0;");
             stringBuilder.AppendLine();
 
-            stringBuilder.AppendLine($"DISABLE TRIGGER {updTriggerName} ON {this.tableName.Schema().Quoted()};");
-            stringBuilder.AppendLine($"DISABLE TRIGGER {insTriggerName} ON {this.tableName.Schema().Quoted()};");
-            stringBuilder.AppendLine($"DISABLE TRIGGER {delTriggerName} ON {this.tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"DISABLE TRIGGER {updTriggerName} ON {this.sqlObjectNames.TableQuotedFullName};");
+            stringBuilder.AppendLine($"DISABLE TRIGGER {insTriggerName} ON {this.sqlObjectNames.TableQuotedFullName};");
+            stringBuilder.AppendLine($"DISABLE TRIGGER {delTriggerName} ON {this.sqlObjectNames.TableQuotedFullName};");
 
-            stringBuilder.AppendLine($"DELETE FROM {this.tableName.Schema().Quoted()};");
-            stringBuilder.AppendLine($"DELETE FROM {this.trackingName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"DELETE FROM {this.sqlObjectNames.TableQuotedFullName};");
+            stringBuilder.AppendLine($"DELETE FROM {this.sqlObjectNames.TrackingTableQuotedFullName};");
 
-            stringBuilder.AppendLine($"ENABLE TRIGGER {updTriggerName} ON {this.tableName.Schema().Quoted()};");
-            stringBuilder.AppendLine($"ENABLE TRIGGER {insTriggerName} ON {this.tableName.Schema().Quoted()};");
-            stringBuilder.AppendLine($"ENABLE TRIGGER {delTriggerName} ON {this.tableName.Schema().Quoted()};");
+            stringBuilder.AppendLine($"ENABLE TRIGGER {updTriggerName} ON {this.sqlObjectNames.TableQuotedFullName};");
+            stringBuilder.AppendLine($"ENABLE TRIGGER {insTriggerName} ON {this.sqlObjectNames.TableQuotedFullName};");
+            stringBuilder.AppendLine($"ENABLE TRIGGER {delTriggerName} ON {this.sqlObjectNames.TableQuotedFullName};");
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(string.Concat("SET ", sqlParameter2.ParameterName, " = @@ROWCOUNT;"));
@@ -655,11 +653,11 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             stringBuilder.AppendLine("-- use a temp table to store the list of PKs that successfully got updated/inserted");
             stringBuilder.Append("declare @dms_changed TABLE (");
-            foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
+            foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(c).Quoted().ToString();
-                var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(c, this.tableDescription.OriginalProvider);
-                stringBuilder.Append($"{columnName} {columnType}, ");
+                var columnParser = new ObjectParser(primaryKeyColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(primaryKeyColumn, this.tableDescription.OriginalProvider);
+                stringBuilder.Append($"{columnParser.QuotedShortName} {columnType}, ");
             }
 
             stringBuilder.Append(" PRIMARY KEY (");
@@ -667,26 +665,26 @@ namespace Dotmim.Sync.SqlServer.Builders
             var pkeyComma = " ";
             foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
-                stringBuilder.Append($"{pkeyComma}{columnName}");
+                var columnParser = new ObjectParser(primaryKeyColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.Append($"{pkeyComma}{columnParser.QuotedShortName}");
                 pkeyComma = ", ";
             }
 
             stringBuilder.AppendLine("));");
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"DELETE {this.tableName.Schema().Quoted()}");
+            stringBuilder.AppendLine($"DELETE {this.sqlObjectNames.TableQuotedFullName}");
             stringBuilder.Append($"OUTPUT ");
             string comma = string.Empty;
             foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
-                stringBuilder.Append($"{comma}DELETED.{columnName}");
+                var columnParser = new ObjectParser(primaryKeyColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.Append($"{comma}DELETED.{columnParser.QuotedShortName}");
                 comma = ", ";
             }
 
             stringBuilder.AppendLine($" INTO @dms_changed -- populates the temp table with successful deleted row");
-            stringBuilder.AppendLine($"FROM {this.tableName.Schema().Quoted()} [base]");
-            stringBuilder.Append($"LEFT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
+            stringBuilder.AppendLine($"FROM {this.sqlObjectNames.TableQuotedFullName} [base]");
+            stringBuilder.Append($"LEFT JOIN {this.sqlObjectNames.TrackingTableQuotedFullName} [side] ON ");
 
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.tableDescription.PrimaryKeys, "[base]", "[side]"));
 
@@ -702,7 +700,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t[update_scope_id] = @sync_scope_id,");
             stringBuilder.AppendLine("\t[sync_row_is_tombstone] = 1,");
             stringBuilder.AppendLine("\t[last_change_datetime] = GETUTCDATE()");
-            stringBuilder.AppendLine($"FROM {this.trackingName.Schema().Quoted()} [side]");
+            stringBuilder.AppendLine($"FROM {this.sqlObjectNames.TrackingTableQuotedFullName} [side]");
             stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
             stringBuilder.AppendLine();
 
@@ -735,16 +733,16 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine($"CREATE TYPE {commandName} AS TABLE (");
             string str = string.Empty;
 
-            foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
+            foreach (var column in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
-                var isPrimaryKey = this.tableDescription.IsPrimaryKey(c.ColumnName);
+                var isPrimaryKey = this.tableDescription.IsPrimaryKey(column.ColumnName);
+                var columnParser = new ObjectParser(column.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
 
-                var columnName = ParserName.Parse(c).Quoted().ToString();
                 var nullString = isPrimaryKey ? "NOT NULL" : "NULL";
 
-                var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(c, this.tableDescription.OriginalProvider);
+                var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.tableDescription.OriginalProvider);
 
-                stringBuilder.AppendLine($"{str}{columnName} {columnType} {nullString}");
+                stringBuilder.AppendLine($"{str}{columnParser.QuotedShortName} {columnType} {nullString}");
                 str = ", ";
             }
 
@@ -753,8 +751,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             str = string.Empty;
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(c).Quoted().ToString();
-                stringBuilder.Append($"{str}{columnName} ASC");
+                var columnParser = new ObjectParser(c.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.Append($"{str}{columnParser.QuotedShortName} ASC");
                 str = ", ";
             }
 
@@ -813,11 +811,11 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append("declare @dms_changed TABLE (");
             foreach (var c in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(c).Quoted().ToString();
+                var columnParser = new ObjectParser(c.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
 
                 var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(c, this.tableDescription.OriginalProvider);
 
-                stringBuilder.Append($"{columnName} {columnType}, ");
+                stringBuilder.Append($"{columnParser.QuotedShortName} {columnType}, ");
             }
 
             stringBuilder.Append(" PRIMARY KEY (");
@@ -825,8 +823,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             var pkeyComma = " ";
             foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
-                stringBuilder.Append($"{pkeyComma}{columnName}");
+                var columnParser = new ObjectParser(primaryKeyColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.Append($"{pkeyComma}{columnParser.QuotedShortName}");
                 pkeyComma = ", ";
             }
 
@@ -837,7 +835,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.tableName.Schema().Quoted()} ON;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.sqlObjectNames.TableQuotedFullName} ON;");
                 stringBuilder.AppendLine();
             }
 
@@ -845,8 +843,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.Append("\tSELECT ");
             foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
-                var columnName = ParserName.Parse(c).Quoted().ToString();
-                stringBuilder.Append($"[p].{columnName}, ");
+                var columnParser = new ObjectParser(c.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.Append($"[p].{columnParser.QuotedShortName}, ");
             }
 
             stringBuilder.AppendLine();
@@ -856,28 +854,27 @@ namespace Dotmim.Sync.SqlServer.Builders
             string comma = string.Empty;
             foreach (var c in this.tableDescription.Columns.Where(col => !col.IsReadOnly))
             {
-                var columnName = ParserName.Parse(c).Quoted().ToString();
-                var columnParameterName = ParserName.Parse(c).Unquoted().Normalized().ToString();
+                var columnParser = new ObjectParser(c.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
 
-                stringBuilder.Append($"{comma}@{columnParameterName} as {columnName}");
+                stringBuilder.Append($"{comma}@{columnParser.NormalizedShortName} as {columnParser.QuotedShortName}");
                 comma = ", ";
             }
 
             stringBuilder.AppendLine($") AS [p]");
-            stringBuilder.Append($"\tLEFT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
+            stringBuilder.Append($"\tLEFT JOIN {this.sqlObjectNames.TrackingTableQuotedFullName} [side] ON ");
             stringBuilder.AppendLine($"\t{str7}");
             stringBuilder.AppendLine($"\t)");
 
-            stringBuilder.AppendLine($"MERGE {this.tableName.Schema().Quoted()} AS [base]");
+            stringBuilder.AppendLine($"MERGE {this.sqlObjectNames.TableQuotedFullName} AS [base]");
             stringBuilder.AppendLine($"USING [changes] on {str5}");
             if (hasMutableColumns)
             {
                 stringBuilder.AppendLine("WHEN MATCHED AND ([changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR [changes].[sync_update_scope_id] = @sync_scope_id OR @sync_force_write = 1) THEN");
                 foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
                 {
-                    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                    stringBuilderArguments.Append(string.Concat(empty, columnName));
-                    stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnName}"));
+                    var columnParser = new ObjectParser(mutableColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                    stringBuilderArguments.Append(string.Concat(empty, columnParser.QuotedShortName));
+                    stringBuilderParameters.Append(string.Concat(empty, $"changes.{columnParser.QuotedShortName}"));
                     empty = ", ";
                 }
 
@@ -887,8 +884,8 @@ namespace Dotmim.Sync.SqlServer.Builders
                 string strSeparator = string.Empty;
                 foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false))
                 {
-                    var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                    stringBuilder.AppendLine($"\t{strSeparator}{columnName} = [changes].{columnName}");
+                    var columnParser = new ObjectParser(mutableColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                    stringBuilder.AppendLine($"\t{strSeparator}{columnParser.QuotedShortName} = [changes].{columnParser.QuotedShortName}");
                     strSeparator = ", ";
                 }
             }
@@ -901,10 +898,10 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
             {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                var columnParser = new ObjectParser(mutableColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
 
-                stringBuilderArguments.Append(string.Concat(empty, columnName));
-                stringBuilderParameters.Append(string.Concat(empty, $"[changes].{columnName}"));
+                stringBuilderArguments.Append(string.Concat(empty, columnParser.QuotedShortName));
+                stringBuilderParameters.Append(string.Concat(empty, $"[changes].{columnParser.QuotedShortName}"));
                 empty = ", ";
             }
 
@@ -919,8 +916,8 @@ namespace Dotmim.Sync.SqlServer.Builders
             pkeyComma = " ";
             foreach (var primaryKeyColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(primaryKeyColumn).Quoted().ToString();
-                stringBuilder.Append($"{pkeyComma}INSERTED.{columnName}");
+                var columnParser = new ObjectParser(primaryKeyColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.Append($"{pkeyComma}INSERTED.{columnParser.QuotedShortName}");
                 pkeyComma = ", ";
             }
 
@@ -932,7 +929,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             if (this.tableDescription.HasAutoIncrementColumns)
             {
                 stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.tableName.Schema().Quoted()} ON;");
+                stringBuilder.AppendLine($"SET IDENTITY_INSERT {this.sqlObjectNames.TableQuotedFullName} ON;");
                 stringBuilder.AppendLine();
             }
 
@@ -944,7 +941,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine("\t[update_scope_id] = @sync_scope_id,");
             stringBuilder.AppendLine("\t[sync_row_is_tombstone] = 0,");
             stringBuilder.AppendLine("\t[last_change_datetime] = GETUTCDATE()");
-            stringBuilder.AppendLine($"FROM {this.trackingName.Schema().Quoted()} [side]");
+            stringBuilder.AppendLine($"FROM {this.sqlObjectNames.TrackingTableQuotedFullName} [side]");
             stringBuilder.AppendLine($"JOIN @dms_changed [t] on {str6}");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"SET {sqlParameter4.ParameterName} = @@ROWCOUNT;");
@@ -985,10 +982,10 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (param.DbType.HasValue)
                 {
                     // Get column name and type
-                    var columnName = ParserName.Parse(param.Name).Unquoted().Normalized().ToString();
-                    var sqlDbType = this.sqlDbMetadata.GetOwnerDbTypeFromDbType(new SyncColumn(columnName) { DbType = (int)param.DbType });
+                    var parameterParser = new ObjectParser(param.Name, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                    var sqlDbType = this.sqlDbMetadata.GetOwnerDbTypeFromDbType(new SyncColumn(parameterParser.NormalizedShortName) { DbType = (int)param.DbType });
 
-                    var customParameterFilter = new SqlParameter($"@{columnName}", sqlDbType)
+                    var customParameterFilter = new SqlParameter($"@{parameterParser.NormalizedShortName}", sqlDbType)
                     {
                         Size = param.MaxLength,
                         IsNullable = param.AllowNull,
@@ -1007,7 +1004,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         throw new FilterParamColumnNotExistsException(param.Name, param.TableName);
 
                     // Get column name and type
-                    var columnName = ParserName.Parse(columnFilter).Unquoted().Normalized().ToString();
+                    var columnFilterParser = new ObjectParser(param.Name, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
 
                     // TODO : Find something better than string comparison for change tracking provider
                     var isSameProvider = tableFilter.OriginalProvider == SqlSyncProvider.ProviderType ||
@@ -1017,7 +1014,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                         this.sqlDbMetadata.GetSqlDbType(columnFilter) : this.sqlDbMetadata.GetOwnerDbTypeFromDbType(columnFilter);
 
                     // Add it as parameter
-                    var sqlParamFilter = new SqlParameter($"@{columnName}", sqlDbType)
+                    var sqlParamFilter = new SqlParameter($"@{columnFilterParser.NormalizedShortName}", sqlDbType)
                     {
                         Size = columnFilter.MaxLength,
                         IsNullable = param.AllowNull,
@@ -1061,25 +1058,25 @@ namespace Dotmim.Sync.SqlServer.Builders
                 }
 
                 var fullTableName = string.IsNullOrEmpty(filter.SchemaName) ? filter.TableName : $"{filter.SchemaName}.{filter.TableName}";
-                var filterTableName = ParserName.Parse(fullTableName).Quoted().Schema().ToString();
+                var filterTableName = new TableParser(fullTableName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).QuotedShortName;
 
                 var fullJoinTableName = string.IsNullOrEmpty(customJoin.TableSchemaName) ? customJoin.TableName : $"{customJoin.TableSchemaName}.{customJoin.TableName}";
-                var joinTableName = ParserName.Parse(fullJoinTableName).Quoted().Schema().ToString();
+                var joinTableName = new TableParser(fullJoinTableName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).QuotedShortName;
 
                 var fullLeftTableName = string.IsNullOrEmpty(customJoin.LeftTableSchemaName) ? customJoin.LeftTableName : $"{customJoin.LeftTableSchemaName}.{customJoin.LeftTableName}";
-                var leftTableName = ParserName.Parse(fullLeftTableName).Quoted().Schema().ToString();
+                var leftTableName = new TableParser(fullLeftTableName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).QuotedShortName;
 
                 if (string.Equals(filterTableName, leftTableName, SyncGlobalization.DataSourceStringComparison))
                     leftTableName = "[base]";
 
                 var fullRightTableName = string.IsNullOrEmpty(customJoin.RightTableSchemaName) ? customJoin.RightTableName : $"{customJoin.RightTableSchemaName}.{customJoin.RightTableName}";
-                var rightTableName = ParserName.Parse(fullRightTableName).Quoted().Schema().ToString();
+                var rightTableName = new TableParser(fullRightTableName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).QuotedShortName;
 
                 if (string.Equals(filterTableName, rightTableName, SyncGlobalization.DataSourceStringComparison))
                     rightTableName = "[base]";
 
-                var leftColumName = ParserName.Parse(customJoin.LeftColumnName).Quoted().ToString();
-                var rightColumName = ParserName.Parse(customJoin.RightColumnName).Quoted().ToString();
+                var leftColumName = new TableParser(customJoin.LeftColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).QuotedShortName;
+                var rightColumName = new TableParser(customJoin.RightColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).QuotedShortName;
 
                 stringBuilder.AppendLine($"{joinTableName} ON {leftTableName}.{leftColumName} = {rightTableName}.{rightColumName}");
             }
@@ -1117,14 +1114,14 @@ namespace Dotmim.Sync.SqlServer.Builders
                 if (columnFilter == null)
                     throw new FilterParamColumnNotExistsException(whereFilter.ColumnName, whereFilter.TableName);
 
-                var tableName = ParserName.Parse(tableFilter).Unquoted().ToString();
-                if (string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison))
-                    tableName = "[base]";
-                else
-                    tableName = ParserName.Parse(tableFilter).Quoted().Schema().ToString();
+                var tableFilterParser = new TableParser(tableFilter.GetFullName(), SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
 
-                var columnName = ParserName.Parse(columnFilter).Quoted().ToString();
-                var parameterName = ParserName.Parse(whereFilter.ParameterName).Unquoted().Normalized().ToString();
+                var tableName = string.Equals(tableFilterParser.TableName, filter.TableName, SyncGlobalization.DataSourceStringComparison)
+                    ? "[base]"
+                    : tableFilterParser.QuotedFullName;
+
+                var columnName = new ObjectParser(columnFilter.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).QuotedShortName;
+                var parameterName = new ObjectParser(whereFilter.ParameterName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).NormalizedShortName;
 
                 var param = filter.Parameters[parameterName];
 
@@ -1214,31 +1211,32 @@ namespace Dotmim.Sync.SqlServer.Builders
             // ----------------------------------
             foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
             {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                var columnParser = new ObjectParser(mutableColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+
                 var isPrimaryKey = this.tableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
                 if (isPrimaryKey)
-                    stringBuilder.AppendLine($"\t[side].{columnName}, ");
+                    stringBuilder.AppendLine($"\t[side].{columnParser.QuotedShortName}, ");
                 else
-                    stringBuilder.AppendLine($"\t[base].{columnName}, ");
+                    stringBuilder.AppendLine($"\t[base].{columnParser.QuotedShortName}, ");
             }
 
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone] as [sync_row_is_tombstone], ");
             stringBuilder.AppendLine($"\t[side].[update_scope_id] as [sync_update_scope_id]");
 
             // ----------------------------------
-            stringBuilder.AppendLine($"FROM {this.tableName.Schema().Quoted()} [base]");
+            stringBuilder.AppendLine($"FROM {this.sqlObjectNames.TableQuotedFullName} [base]");
 
             // ----------------------------------
             // Make Right Join
             // ----------------------------------
-            stringBuilder.Append($"RIGHT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
+            stringBuilder.Append($"RIGHT JOIN {this.sqlObjectNames.TrackingTableQuotedFullName} [side] ON ");
 
             string empty = string.Empty;
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.Append($"{empty}[base].{columnName} = [side].{columnName}");
+                var columnParser = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.Append($"{empty}[base].{columnParser.QuotedShortName} = [side].{columnParser.QuotedShortName}");
                 empty = " AND ";
             }
 
@@ -1334,24 +1332,24 @@ namespace Dotmim.Sync.SqlServer.Builders
             var comma = "  ";
             foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
             {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
-                stringBuilder.AppendLine($"\t{comma}[base].{columnName}");
+                var columnParser = new ObjectParser(mutableColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.AppendLine($"\t{comma}[base].{columnParser.QuotedShortName}");
                 comma = ", ";
             }
 
             stringBuilder.AppendLine($"\t, [side].[sync_row_is_tombstone] as [sync_row_is_tombstone]");
-            stringBuilder.AppendLine($"FROM {this.tableName.Schema().Quoted()} [base]");
+            stringBuilder.AppendLine($"FROM {this.sqlObjectNames.TableQuotedFullName} [base]");
 
             // ----------------------------------
             // Make Left Join
             // ----------------------------------
-            stringBuilder.Append($"LEFT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
+            stringBuilder.Append($"LEFT JOIN {this.sqlObjectNames.TrackingTableQuotedFullName} [side] ON ");
 
             string empty = string.Empty;
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.Append($"{empty}[base].{columnName} = [side].{columnName}");
+                var columnParser = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.Append($"{empty}[base].{columnParser.QuotedShortName} = [side].{columnParser.QuotedShortName}");
                 empty = " AND ";
             }
 
@@ -1390,30 +1388,30 @@ namespace Dotmim.Sync.SqlServer.Builders
             comma = "  ";
             foreach (var mutableColumn in this.tableDescription.GetMutableColumns(false, true))
             {
-                var columnName = ParserName.Parse(mutableColumn).Quoted().ToString();
+                var columnParser = new ObjectParser(mutableColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
                 var isPrimaryKey = this.tableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
                 if (isPrimaryKey)
-                    stringBuilder.AppendLine($"\t{comma}[side].{columnName}");
+                    stringBuilder.AppendLine($"\t{comma}[side].{columnParser.QuotedShortName}");
                 else
-                    stringBuilder.AppendLine($"\t{comma}[base].{columnName}");
+                    stringBuilder.AppendLine($"\t{comma}[base].{columnParser.QuotedShortName}");
 
                 comma = ", ";
             }
 
             stringBuilder.AppendLine($"\t, [side].[sync_row_is_tombstone] as [sync_row_is_tombstone]");
-            stringBuilder.AppendLine($"FROM {this.tableName.Schema().Quoted()} [base]");
+            stringBuilder.AppendLine($"FROM {this.sqlObjectNames.TableQuotedFullName} [base]");
 
             // ----------------------------------
             // Make Left Join
             // ----------------------------------
-            stringBuilder.Append($"RIGHT JOIN {this.trackingName.Schema().Quoted()} [side] ON ");
+            stringBuilder.Append($"RIGHT JOIN {this.sqlObjectNames.TrackingTableQuotedFullName} [side] ON ");
 
             empty = string.Empty;
             foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.Append($"{empty}[base].{columnName} = [side].{columnName}");
+                var columnParser = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.Append($"{empty}[base].{columnParser.QuotedShortName}  = [side]. {columnParser.QuotedShortName}");
                 empty = " AND ";
             }
 

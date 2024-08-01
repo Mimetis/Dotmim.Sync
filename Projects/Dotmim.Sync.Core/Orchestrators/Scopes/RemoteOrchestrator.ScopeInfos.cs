@@ -26,10 +26,10 @@ namespace Dotmim.Sync
         ///  var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync();
         ///  foreach (var schemaTable in scopeInfo.Schema.Tables)
         ///  {
-        ///    Console.WriteLine($"Table Name: {schemaTable.ColumnName}");
+        ///    Console.WriteLine($"Table Name: {schemaTable.ObjectName}");
         ///
         ///    foreach (var column in schemaTable.Columns)
-        ///          Console.WriteLine($"Column Name: {column.ColumnName}");
+        ///          Console.WriteLine($"Column Name: {column.ObjectName}");
         ///  }
         /// </code>
         /// </example>
@@ -69,10 +69,10 @@ namespace Dotmim.Sync
         ///  var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
         ///  foreach (var schemaTable in scopeInfo.Schema.Tables)
         ///  {
-        ///    Console.WriteLine($"Table Name: {schemaTable.ColumnName}");
+        ///    Console.WriteLine($"Table Name: {schemaTable.ObjectName}");
         ///
         ///    foreach (var column in schemaTable.Columns)
-        ///          Console.WriteLine($"Column Name: {column.ColumnName}");
+        ///          Console.WriteLine($"Column Name: {column.ObjectName}");
         ///  }
         /// </code>
         /// </example>

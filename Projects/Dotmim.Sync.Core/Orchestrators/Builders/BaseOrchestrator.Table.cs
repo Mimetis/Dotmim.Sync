@@ -50,7 +50,7 @@ namespace Dotmim.Sync
                     var hasBeenCreated = false;
 
                     // Get table builder
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                     bool schemaExists;
                     (context, schemaExists) = await this.InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
@@ -130,7 +130,7 @@ namespace Dotmim.Sync
                     {
                         foreach (var schemaTable in reverseSchemaTables)
                         {
-                            var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                            var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
                             bool exists;
                             (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder,
                                 runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
@@ -147,7 +147,7 @@ namespace Dotmim.Sync
                     foreach (var schemaTable in schemaTables)
                     {
                         // Get table builder
-                        var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                        var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                         bool schemaExists;
                         (context, schemaExists) = await this.InternalExistsSchemaAsync(scopeInfo, context, tableBuilder,
@@ -225,7 +225,7 @@ namespace Dotmim.Sync
                 using var runner = await this.GetConnectionAsync(context, SyncMode.NoTransaction, SyncStage.None).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
                     bool exists;
                     (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder,
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
@@ -278,7 +278,7 @@ namespace Dotmim.Sync
                     var hasBeenDropped = false;
 
                     // Get table builder
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                     bool exists;
                     (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder,
@@ -337,7 +337,7 @@ namespace Dotmim.Sync
                     foreach (var schemaTable in schemaTables.Reverse())
                     {
                         // Get table builder
-                        var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                        var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                         bool exists;
                         (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder,
@@ -362,110 +362,6 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Internal add column routine.
-        /// </summary>
-        internal async Task<(SyncContext Context, bool IsAdded)> InternalAddColumnAsync(ScopeInfo scopeInfo, SyncContext context, string addedColumnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
-        {
-            Guard.ThrowIfNull(scopeInfo);
-            try
-            {
-                if (this.Provider == null)
-                    throw new MissingProviderException(nameof(this.InternalAddColumnAsync));
-
-                if (tableBuilder.TableDescription.Columns.Count <= 0)
-                    throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
-
-                if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
-                    throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
-
-                using var command = await tableBuilder.GetAddColumnCommandAsync(addedColumnName, connection, transaction).ConfigureAwait(false);
-
-                if (command == null)
-                    return (context, false);
-
-                var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
-
-                var action = new ColumnCreatingArgs(context, addedColumnName, tableBuilder.TableDescription, tableName, command, connection, transaction);
-
-                await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
-
-                if (action.Cancel || action.Command == null)
-                    return (context, false);
-
-                await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-                await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-
-                await this.InterceptAsync(new ColumnCreatedArgs(context, addedColumnName, tableBuilder.TableDescription, tableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-                action.Command.Dispose();
-
-                return (context, true);
-            }
-            catch (Exception ex)
-            {
-                string message = null;
-
-                if (tableBuilder != null && tableBuilder.TableDescription != null)
-                    message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
-
-                if (!string.IsNullOrEmpty(addedColumnName))
-                    message += $"Column:{addedColumnName}.";
-
-                throw this.GetSyncError(context, ex, message);
-            }
-        }
-
-        /// <summary>
-        /// Internal add column routine.
-        /// </summary>
-        internal async Task<(SyncContext Context, bool IsDropped)> InternalDropColumnAsync(ScopeInfo scopeInfo, SyncContext context, string droppedColumnName, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
-        {
-            try
-            {
-                if (tableBuilder.TableDescription.Columns.Count <= 0)
-                    throw new MissingsColumnException(tableBuilder.TableDescription.GetFullName());
-
-                if (tableBuilder.TableDescription.PrimaryKeys.Count <= 0)
-                    throw new MissingPrimaryKeyException(tableBuilder.TableDescription.GetFullName());
-
-                using var command = await tableBuilder.GetDropColumnCommandAsync(droppedColumnName, connection, transaction).ConfigureAwait(false);
-
-                if (command == null)
-                    return (context, false);
-
-                var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
-
-                var action = await this.InterceptAsync(new ColumnDroppingArgs(context, droppedColumnName, tableBuilder.TableDescription, tableName, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-                if (action.Cancel || action.Command == null)
-                    return (context, false);
-
-                await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-                await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-
-                await this.InterceptAsync(new ColumnDroppedArgs(context, droppedColumnName, tableBuilder.TableDescription, tableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-
-                action.Command.Dispose();
-
-                return (context, true);
-            }
-            catch (Exception ex)
-            {
-                string message = null;
-
-                if (tableBuilder != null && tableBuilder.TableDescription != null)
-                    message += $"Table:{tableBuilder.TableDescription.GetFullName()}.";
-
-                if (!string.IsNullOrEmpty(droppedColumnName))
-                    message += $"Column:{droppedColumnName}.";
-
-                throw this.GetSyncError(context, ex, message);
-            }
-        }
-
-        /// <summary>
         /// Internal create table routine.
         /// </summary>
         internal async Task<(SyncContext Context, bool IsCreated)> InternalCreateTableAsync(ScopeInfo scopeInfo, SyncContext context, DbTableBuilder tableBuilder, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
@@ -483,9 +379,7 @@ namespace Dotmim.Sync
                 if (command == null)
                     return (context, false);
 
-                var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
-
-                var action = new TableCreatingArgs(context, tableBuilder.TableDescription, tableName, command, connection, transaction);
+                var action = new TableCreatingArgs(context, tableBuilder.TableDescription, tableBuilder.TableDescription.GetFullName(), command, connection, transaction);
 
                 await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
@@ -496,7 +390,7 @@ namespace Dotmim.Sync
 
                 await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-                await this.InterceptAsync(new TableCreatedArgs(context, tableBuilder.TableDescription, tableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new TableCreatedArgs(context, tableBuilder.TableDescription, tableBuilder.TableDescription.GetFullName(), connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 action.Command.Dispose();
 
@@ -565,9 +459,7 @@ namespace Dotmim.Sync
                 if (command == null)
                     return (context, false);
 
-                var (tableName, _) = this.Provider.GetParsers(tableBuilder.TableDescription, scopeInfo.Setup);
-
-                var action = await this.InterceptAsync(new TableDroppingArgs(context, tableBuilder.TableDescription, tableName, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                var action = await this.InterceptAsync(new TableDroppingArgs(context, tableBuilder.TableDescription, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 if (action.Cancel || action.Command == null)
                     return (context, false);
@@ -576,7 +468,7 @@ namespace Dotmim.Sync
 
                 await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-                await this.InterceptAsync(new TableDroppedArgs(context, tableBuilder.TableDescription, tableName, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new TableDroppedArgs(context, tableBuilder.TableDescription, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 action.Command.Dispose();
 

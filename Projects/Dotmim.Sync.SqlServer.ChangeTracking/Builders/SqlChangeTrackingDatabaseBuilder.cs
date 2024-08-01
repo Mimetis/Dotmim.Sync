@@ -1,13 +1,10 @@
 ﻿using Microsoft.Data.SqlClient;
-using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
-    public class SqlChangeTrackingBuilder : SqlBuilder
+    public class SqlChangeTrackingDatabaseBuilder : SqlDatabaseBuilder
     {
         public override async Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
         {

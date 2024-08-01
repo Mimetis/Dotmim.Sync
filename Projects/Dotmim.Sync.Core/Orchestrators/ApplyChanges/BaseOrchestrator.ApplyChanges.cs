@@ -193,7 +193,7 @@ namespace Dotmim.Sync
             var schemaChangesTable = CreateChangesTable(schemaTable, changesSet);
 
             // get executioning adapter
-            var syncAdapter = this.GetSyncAdapter(scopeInfo.Name, schemaChangesTable, scopeInfo.Setup);
+            var syncAdapter = this.GetSyncAdapter(schemaChangesTable, scopeInfo);
 
             TableChangesApplied tableChangesApplied = null;
 
@@ -503,8 +503,8 @@ namespace Dotmim.Sync
                     {
                         var sc = SyncGlobalization.DataSourceStringComparison;
 
-                        var sn = tca.SchemaName == null ? string.Empty : tca.SchemaName;
-                        var otherSn = schemaTable.SchemaName == null ? string.Empty : schemaTable.SchemaName;
+                        var sn = tca.SchemaName ?? string.Empty;
+                        var otherSn = schemaTable.SchemaName ?? string.Empty;
 
                         return tca.TableName.Equals(schemaTable.TableName, sc) &&
                                sn.Equals(otherSn, sc) &&
@@ -792,8 +792,8 @@ namespace Dotmim.Sync
                     {
                         var sc = SyncGlobalization.DataSourceStringComparison;
 
-                        var sn = tca.SchemaName == null ? string.Empty : tca.SchemaName;
-                        var otherSn = schemaTable.SchemaName == null ? string.Empty : schemaTable.SchemaName;
+                        var sn = tca.SchemaName ?? string.Empty;
+                        var otherSn = schemaTable.SchemaName ?? string.Empty;
 
                         return tca.TableName.Equals(schemaTable.TableName, sc) &&
                                 sn.Equals(otherSn, sc);

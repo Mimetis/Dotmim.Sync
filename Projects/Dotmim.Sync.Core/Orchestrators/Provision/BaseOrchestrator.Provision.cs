@@ -98,7 +98,7 @@ namespace Dotmim.Sync
 
                 foreach (var schemaTable in schemaTables)
                 {
-                    var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                    var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                     await this.InterceptAsync(new ProvisioningTableArgs(context, provision, scopeInfo.Schema, schemaTable, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
@@ -235,7 +235,7 @@ namespace Dotmim.Sync
                         foreach (var table in schemaTables.Reverse())
                         {
                             var exists = false;
-                            var tableBuilder = this.GetTableBuilder(table, scopeInfo);
+                            var tableBuilder = this.GetSyncAdapter(table, scopeInfo).GetTableBuilder();
 
                             (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
                             if (exists)
@@ -260,7 +260,7 @@ namespace Dotmim.Sync
 
                     foreach (var schemaTable in schemaTables)
                     {
-                        var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                        var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
                         await this.InterceptAsync(new DeprovisioningTableArgs(context, provision, schemaTable, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
@@ -311,7 +311,7 @@ namespace Dotmim.Sync
                     {
                         foreach (var schemaTable in schemaTables.Reverse())
                         {
-                            var tableBuilder = this.GetTableBuilder(schemaTable, scopeInfo);
+                            var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
                             bool exists;
                             (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, progress, cancellationToken).ConfigureAwait(false);
 
@@ -362,7 +362,7 @@ namespace Dotmim.Sync
                         foreach (var table in schemaTables.Reverse())
                         {
                             var exists = false;
-                            var tableBuilder = this.GetTableBuilder(table, scopeInfo);
+                            var tableBuilder = this.GetSyncAdapter(table, scopeInfo).GetTableBuilder();
 
                             (context, exists) = await this.InternalExistsTableAsync(scopeInfo, context, tableBuilder, runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
                             if (exists)

@@ -249,7 +249,7 @@ namespace Dotmim.Sync.PostgreSql
             //    var empty = string.Empty;
             //    foreach (var column in constraint.Keys)
             //    {
-            //        var childColumnName = ParserName.Parse(column.ColumnName, "\"").Quoted().ToString();
+            //        var childColumnName = ParserName.Parse(column.ObjectName, "\"").Quoted().ToString();
             //        strCommand.Append($"{empty} {childColumnName}");
             //        empty = ", ";
             //    }
@@ -259,7 +259,7 @@ namespace Dotmim.Sync.PostgreSql
             //    empty = string.Empty;
             //    foreach (var parentdColumn in constraint.ParentKeys)
             //    {
-            //        var parentColumnName = ParserName.Parse(parentdColumn.ColumnName, "\"").Quoted().ToString();
+            //        var parentColumnName = ParserName.Parse(parentdColumn.ObjectName, "\"").Quoted().ToString();
             //        strCommand.Append($"{empty} {parentColumnName}");
             //        empty = ", ";
             //    }
@@ -300,13 +300,13 @@ namespace Dotmim.Sync.PostgreSql
             // strCommand.AppendLine($"From pg_constraint ct ");
             // strCommand.AppendLine($"join pg_catalog.pg_class  cl on  cl.oid =  ct.conrelid");
             // strCommand.AppendLine($"join pg_catalog.pg_namespace nsp on nsp.oid = ct.connamespace");
-            // strCommand.AppendLine($"where relname = '{ColumnName.Unquoted()}' and ct.contype = 'f' and nspname='{schema}';");
+            // strCommand.AppendLine($"where relname = '{ObjectName.Unquoted()}' and ct.contype = 'f' and nspname='{schema}';");
             // strCommand.AppendLine($"BEGIN");
             // strCommand.AppendLine($"open cur_trg;");
             // strCommand.AppendLine($"loop");
             // strCommand.AppendLine($"fetch cur_trg into fkname;");
             // strCommand.AppendLine($"exit when not found;");
-            // strCommand.AppendLine($"Execute 'ALTER TABLE \"{schema}\".{ColumnName.Quoted()} DROP CONSTRAINT \"' || fkname || '\";';");
+            // strCommand.AppendLine($"Execute 'ALTER TABLE \"{schema}\".{ObjectName.Quoted()} DROP CONSTRAINT \"' || fkname || '\";';");
             // strCommand.AppendLine($"end loop;");
             // strCommand.AppendLine($"close cur_trg;");
             // strCommand.AppendLine($"END $$;");

@@ -20,7 +20,7 @@ namespace Dotmim.Sync.Builders
         /// <summary>
         /// Get a ParserString thanks to the key. If not available, create a new ParserString and return it.
         /// </summary>
-        /// <param name="key">key composed with leftQuote^rightQuote^input.</param>
+        /// <param name="key">key composed with leftQuotes^rightQuotes^input.</param>
         public static ParserString GetParserString(string key)
         {
             // Try to get the instance

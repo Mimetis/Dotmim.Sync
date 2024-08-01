@@ -14,7 +14,7 @@ namespace Dotmim.Sync.SqlServer
         private readonly ParserName trackingName;
 
         public SqlChangeTrackingSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName, bool useBulkOperations)
-            : base(tableDescription, tableName, trackingName, setup, scopeName, useBulkOperations)
+            : base(tableDescription, setup, scopeName, useBulkOperations)
         {
             this.tableName = tableName;
             this.trackingName = trackingName;
@@ -42,12 +42,7 @@ namespace Dotmim.Sync.SqlServer
                 return (null, false);
             }
 
-            if (commandType == DbCommandType.Reset)
-            {
-                return (this.CreateResetCommand(), false);
-            }
-
-            return base.GetCommand(context, commandType, filter);
+            return commandType == DbCommandType.Reset ? (this.CreateResetCommand(), false) : base.GetCommand(context, commandType, filter);
         }
 
         private SqlCommand BuildSelectInitializedChangesCommand()

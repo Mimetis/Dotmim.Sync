@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.DatabaseStringParsers;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -118,8 +118,9 @@ namespace Dotmim.Sync
             string sep = string.Empty;
             foreach (var parameterName in this.Parameters.Select(f => f.Name))
             {
-                var columnName = ParserName.Parse(parameterName).Unquoted().Normalized().ToString();
-                name += $"{columnName}{sep}";
+                var columnParser = new ObjectParser(parameterName);
+
+                name += $"{columnParser.NormalizedShortName}{sep}";
                 sep = "_";
             }
 
@@ -150,10 +151,7 @@ namespace Dotmim.Sync
             if (!this.Parameters.CompareWith(otherInstance.Parameters))
                 return false;
 
-            if (!this.Wheres.CompareWith(otherInstance.Wheres))
-                return false;
-
-            return true;
+            return this.Wheres.CompareWith(otherInstance.Wheres);
         }
 
         /// <summary>

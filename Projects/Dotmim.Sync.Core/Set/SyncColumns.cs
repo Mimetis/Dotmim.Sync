@@ -63,7 +63,7 @@ namespace Dotmim.Sync
         {
             get
             {
-                // InnerCollection.FirstOrDefault(c => string.Equals(c.ColumnName, columnName, SyncGlobalization.DataSourceStringComparison));
+                // InnerCollection.FirstOrDefault(c => string.Equals(c.ObjectName, objectName, SyncGlobalization.DataSourceStringComparison));
                 if (this.indexes.TryGetValue(columnName.ToUpperInvariant(), out var index))
                     return this.InnerCollection[index];
 

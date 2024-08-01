@@ -57,9 +57,11 @@ namespace Dotmim.Sync
             try
             {
                 // scope info table name (and tmp table name)
-                var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
-                var cScopeInfoTableName = $"{parsedName.Unquoted().Normalized()}";
-                var cScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
+                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                var parsedName = scopeBuilder.GetParsedScopeInfoTableNames().NormalizedFullName;
+
+                var cScopeInfoTableName = parsedName;
+                var cScopeInfoClientTableName = $"{parsedName}_client";
                 var tmpCScopeInfoTableName = $"tmp{cScopeInfoTableName}";
 
                 using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.Migrating, default, default, progress).ConfigureAwait(false);
@@ -376,10 +378,7 @@ namespace Dotmim.Sync
                     var scopeInfoClientschemaIsValid = await this.IsScopeInfoClientSchemaValidAsync(context, runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     // if columns are not the same, we need to upgrade
-                    if (!scopeInfoClientschemaIsValid)
-                        return true;
-
-                    return false;
+                    return !scopeInfoClientschemaIsValid;
                 }
             }
             catch (Exception ex)
@@ -449,9 +448,11 @@ namespace Dotmim.Sync
                 var dbBuilder = this.Provider.GetDatabaseBuilder();
 
                 // scope info client table name (and tmp table name)
-                var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
-                var cScopeInfoTableName = $"{parsedName.Unquoted().Normalized()}";
-                var cScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
+                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                var parsedName = scopeBuilder.GetParsedScopeInfoTableNames().NormalizedFullName;
+
+                var cScopeInfoTableName = parsedName;
+                var cScopeInfoClientTableName = $"{parsedName}_client";
 
                 // ----------------------------------------------------
                 // Step 1: Deprovision all and re provision
@@ -568,9 +569,11 @@ namespace Dotmim.Sync
                 Guid? scope_info_client_id = null; // this scope id will be unique and will determined by the first row read.
 
                 // scope info client table name (and tmp table name)
-                var parsedName = ParserName.Parse(this.Options.ScopeInfoTableName);
-                var cScopeInfoTableName = $"{parsedName.Unquoted().Normalized()}";
-                var cScopeInfoClientTableName = $"{parsedName.Unquoted().Normalized()}_client";
+                var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
+                var parsedName = scopeBuilder.GetParsedScopeInfoTableNames().NormalizedFullName;
+
+                var cScopeInfoTableName = parsedName;
+                var cScopeInfoClientTableName = $"{parsedName}_client";
 
                 // Create scope_info and scope_info_client for each pre version scope_info lines
                 foreach (var scopeInfoRow in oldScopeInfoTable.Rows)

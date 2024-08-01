@@ -5,9 +5,13 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Web.Client
 {
+    /// <summary>
+    /// Contains the logic to handle timestamp on the server side.
+    /// </summary>
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
 
+        /// <inheritdoc />
         internal override async Task<(SyncContext Context, long Timestamp)> InternalGetLocalTimestampAsync(
             SyncContext context,
             DbConnection connection, DbTransaction transaction,

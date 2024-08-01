@@ -8,8 +8,12 @@ using System.Threading.Tasks;
 namespace Dotmim.Sync
 {
 
+    /// <summary>
+    /// Http getting request event args.
+    /// </summary>
     public class HttpGettingClientChangesArgs : ProgressArgs
     {
+        /// <inheritdoc cref="HttpGettingClientChangesArgs"/>
         public HttpGettingClientChangesArgs(HttpMessageSendChangesRequest request, string host, SessionCache sessionCache)
             : base(request.SyncContext, null, null)
         {
@@ -18,27 +22,42 @@ namespace Dotmim.Sync
             this.SessionCache = sessionCache;
         }
 
+        /// <inheritdoc />
         public override string Source => this.Host;
-        public override string Message
-        {
-            get
-            {
-                if (this.Request.BatchCount == 0 && this.Request.BatchIndex == 0)
-                    return $"Getting All Changes. Rows:{this.Request.Changes.RowsCount()}";
-                else
-                    return $"Getting Batch Changes. ({this.Request.BatchIndex + 1}/{this.Request.BatchCount}). Rows:{this.Request.Changes.RowsCount()}";
-            }
-        }
 
+        /// <inheritdoc />
+        public override string Message => this.Request.BatchCount == 0 && this.Request.BatchIndex == 0
+                    ? $"Getting All Changes. Rows:{this.Request.Changes.RowsCount()}"
+                    : $"Getting Batch Changes. ({this.Request.BatchIndex + 1}/{this.Request.BatchCount}). Rows:{this.Request.Changes.RowsCount()}";
+
+        /// <summary>
+        /// Gets the intercepted request.
+        /// </summary>
         public HttpMessageSendChangesRequest Request { get; }
+
+        /// <summary>
+        /// Gets the host.
+        /// </summary>
         public string Host { get; }
+
+        /// <summary>
+        /// Gets the session cache.
+        /// </summary>
         public SessionCache SessionCache { get; }
+
+        /// <inheritdoc />
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
+
+        /// <inheritdoc />
         public override int EventId => HttpServerSyncEventsId.HttpGettingChanges.Id;
     }
 
+    /// <summary>
+    /// Http sending changes event args.
+    /// </summary>
     public class HttpSendingServerChangesArgs : ProgressArgs
     {
+        /// <inheritdoc cref="HttpSendingServerChangesArgs"/>
         public HttpSendingServerChangesArgs(HttpMessageSendChangesResponse response, string host, SessionCache sessionCache, bool isSnapshot)
             : base(response.SyncContext, null, null)
         {
@@ -48,66 +67,101 @@ namespace Dotmim.Sync
             this.IsSnapshot = isSnapshot;
         }
 
+        /// <summary>
+        /// Gets the intercepted response.
+        /// </summary>
         public HttpMessageSendChangesResponse Response { get; }
+
+        /// <summary>
+        /// Gets the host.
+        /// </summary>
         public string Host { get; }
+
+        /// <summary>
+        /// Gets the session cache.
+        /// </summary>
         public SessionCache SessionCache { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether the changes are a snapshot.
+        /// </summary>
         public bool IsSnapshot { get; }
+
+        /// <inheritdoc />
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
+
+        /// <inheritdoc />
         public override string Source => this.Host;
+
+        /// <inheritdoc />
         public override string Message
         {
             get
             {
                 var rowsCount = this.Response.Changes == null ? 0 : this.Response.Changes.RowsCount();
-                var changesString = IsSnapshot ? "Snapshot" : ""; 
+                var changesString = this.IsSnapshot ? "Snapshot" : string.Empty;
 
-                if (this.Response.BatchCount == 0 && this.Response.BatchIndex == 0)
-                    return $"Sending All {changesString} Changes. Rows:{rowsCount}";
-                else
-                    return $"Sending Batch {changesString} Changes. ({this.Response.BatchIndex + 1}/{this.Response.BatchCount}). Rows:{rowsCount}";
+                return this.Response.BatchCount == 0 && this.Response.BatchIndex == 0
+                    ? $"Sending All {changesString} Changes. Rows:{rowsCount}"
+                    : $"Sending Batch {changesString} Changes. ({this.Response.BatchIndex + 1}/{this.Response.BatchCount}). Rows:{rowsCount}";
             }
         }
 
+        /// <inheritdoc />
         public override int EventId => HttpServerSyncEventsId.HttpSendingChanges.Id;
     }
 
-
-    public static partial class HttpServerSyncEventsId
+    /// <summary>
+    /// Http sending response event args.
+    /// </summary>
+    public partial class HttpServerSyncEventsId
     {
-        public static EventId HttpSendingChanges => new EventId(30000, nameof(HttpSendingChanges));
-        public static EventId HttpGettingChanges => new EventId(30050, nameof(HttpGettingChanges));
+        /// <summary>
+        /// Gets the event id for HttpSendingResponseArgs.
+        /// </summary>
+        public static EventId HttpSendingChanges => new(30000, nameof(HttpSendingChanges));
+
+        /// <summary>
+        /// Gets the event id for HttpGettingRequestArgs.
+        /// </summary>
+        public static EventId HttpGettingChanges => new(30050, nameof(HttpGettingChanges));
     }
 
     /// <summary>
-    /// Partial Interceptors extensions 
+    /// Partial Interceptors extensions.
     /// </summary>
-    public static partial class HttpServerInterceptorsExtensions
+    public partial class HttpServerInterceptorsExtensions
     {
         /// <summary>
-        /// Intercept the provider when an http message is sent
+        /// Intercept the provider when an http message is sent.
         /// </summary>
-        public static Guid OnHttpSendingChanges(this WebServerAgent webServerAgent,
+        public static Guid OnHttpSendingChanges(
+            this WebServerAgent webServerAgent,
             Action<HttpSendingServerChangesArgs> action)
             => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
+
         /// <summary>
-        /// Intercept the provider when an http message is sent
+        /// Intercept the provider when an http message is sent.
         /// </summary>
-        public static Guid OnHttpSendingChanges(this WebServerAgent webServerAgent,
+        public static Guid OnHttpSendingChanges(
+            this WebServerAgent webServerAgent,
             Func<HttpSendingServerChangesArgs, Task> action)
             => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider when an http message is downloaded from remote side
+        /// Intercept the provider when an http message is downloaded from remote side.
         /// </summary>
-        public static Guid OnHttpGettingChanges(this WebServerAgent webServerAgent,
+        public static Guid OnHttpGettingChanges(
+            this WebServerAgent webServerAgent,
             Action<HttpGettingClientChangesArgs> action)
             => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
+
         /// <summary>
-        /// Intercept the provider when an http message is downloaded from remote side
+        /// Intercept the provider when an http message is downloaded from remote side.
         /// </summary>
-        public static Guid OnHttpGettingChanges(this WebServerAgent webServerAgent,
+        public static Guid OnHttpGettingChanges(
+            this WebServerAgent webServerAgent,
             Func<HttpGettingClientChangesArgs, Task> action)
             => webServerAgent.RemoteOrchestrator.AddInterceptor(action);
-
     }
 }

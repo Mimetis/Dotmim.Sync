@@ -1,5 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.SqlServer.Builders;
+using Dotmim.Sync.SqlServer.Manager;
 using System;
 using System.Data.Common;
 using System.Threading.Tasks;
@@ -12,12 +13,19 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         private SqlChangeTrackingBuilderProcedure sqlChangeTrackingBuilderProcedure;
         private SqlChangeTrackingBuilderTrigger sqlChangeTrackingBuilderTrigger;
 
+        public new SqlObjectNames SqlObjectNames { get; }
+
+        public new SqlDbMetadata SqlDbMetadata { get; }
+
         public SqlChangeTrackingTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
             : base(tableDescription, tableName, trackingTableName, setup, scopeName)
         {
+            this.SqlObjectNames = new SqlObjectNames(tableDescription, setup, scopeName);
+            this.SqlDbMetadata = new SqlDbMetadata();
+
             this.sqlChangeTrackingBuilderTrackingTable = new SqlChangeTrackingBuilderTrackingTable(this.TableDescription, this.TableName, this.TrackingTableName, this.Setup);
-            this.sqlChangeTrackingBuilderProcedure = new SqlChangeTrackingBuilderProcedure(this.TableDescription, this.TableName, this.TrackingTableName, this.Setup, scopeName);
-            this.sqlChangeTrackingBuilderTrigger = new SqlChangeTrackingBuilderTrigger(this.TableDescription, this.TableName, this.TrackingTableName, this.Setup, scopeName);
+            this.sqlChangeTrackingBuilderProcedure = new SqlChangeTrackingBuilderProcedure(this.TableDescription, this.Setup, this.SqlObjectNames, this.SqlDbMetadata);
+            this.sqlChangeTrackingBuilderTrigger = new SqlChangeTrackingBuilderTrigger(this.TableDescription, this.Setup, this.SqlObjectNames, this.SqlDbMetadata);
         }
 
         public override Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)

@@ -12,21 +12,15 @@ namespace Dotmim.Sync
     /// </summary>
     public abstract class DbSyncAdapter
     {
-
         /// <summary>
         /// Gets the table description.
         /// </summary>
         public SyncTable TableDescription { get; private set; }
 
         /// <summary>
-        /// Gets the setup used.
+        /// Gets the Scope Info.
         /// </summary>
-        public SyncSetup Setup { get; }
-
-        /// <summary>
-        /// Gets the scope name.
-        /// </summary>
-        public string ScopeName { get; }
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets or sets a value indicating whether for provider supporting it, set if we are using bulk operations or not.
@@ -39,16 +33,6 @@ namespace Dotmim.Sync
         public virtual string ParameterPrefix { get; } = "@";
 
         /// <summary>
-        /// Gets the escape character to use for quoted identifiers on left side.
-        /// </summary>
-        public virtual string QuotePrefix { get; } = "[";
-
-        /// <summary>
-        /// Gets the escape character to use for quoted identifiers on right side.
-        /// </summary>
-        public virtual string QuoteSuffix { get; } = "]";
-
-        /// <summary>
         /// Gets a value indicating whether gets or Sets a value that indicates if provider supports output parameters.
         /// </summary>
         public virtual bool SupportsOutputParameters { get; } = true;
@@ -57,15 +41,22 @@ namespace Dotmim.Sync
         /// Initializes a new instance of the <see cref="DbSyncAdapter"/> class.
         /// Create a Sync Adapter.
         /// </summary>
-        protected DbSyncAdapter(SyncTable tableDescription, SyncSetup setup, string scopeName, bool useBulkOperation = false)
+        protected DbSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo, bool useBulkOperation = false)
         {
             this.TableDescription = tableDescription;
-            this.Setup = setup;
-            this.ScopeName = scopeName;
+            this.ScopeInfo = scopeInfo;
             this.UseBulkOperations = useBulkOperation;
         }
 
-        // public abstract object GetProviderDbType(SyncColumn column, DbCommand command, DbConnection connection, DbTransaction transaction);
+        /// <summary>
+        /// Gets the quoted name and normalized name for a string.
+        /// </summary>
+        public abstract DbColumnNames GetParsedColumnNames(string name);
+
+        /// <summary>
+        /// Gets the table builder for the current adapter.
+        /// </summary>
+        public abstract DbTableBuilder GetTableBuilder();
 
         /// <summary>
         /// Gets a command from the current table in the adapter.
@@ -117,23 +108,14 @@ namespace Dotmim.Sync
         /// Get a parameter even if it's a @param or :param or param.
         /// </summary>
         internal static DbParameter InternalGetParameter(DbCommand command, string parameterName)
-        {
-            if (command == null || command.Parameters == null || command.Parameters.Count <= 0)
-                return null;
-
-            if (command.Parameters.Contains($"@{parameterName}"))
-                return command.Parameters[$"@{parameterName}"];
-
-            if (command.Parameters.Contains($":{parameterName}"))
-                return command.Parameters[$":{parameterName}"];
-
-            if (command.Parameters.Contains($"in_{parameterName}"))
-                return command.Parameters[$"in_{parameterName}"];
-
-            if (!command.Parameters.Contains(parameterName))
-                return null;
-
-            return command.Parameters[parameterName];
-        }
+            => command == null || command.Parameters == null || command.Parameters.Count <= 0
+                ? null
+                : command.Parameters.Contains($"@{parameterName}")
+                ? command.Parameters[$"@{parameterName}"]
+                : command.Parameters.Contains($":{parameterName}")
+                ? command.Parameters[$":{parameterName}"]
+                : command.Parameters.Contains($"in_{parameterName}")
+                ? command.Parameters[$"in_{parameterName}"]
+                : !command.Parameters.Contains(parameterName) ? null : command.Parameters[parameterName];
     }
 }

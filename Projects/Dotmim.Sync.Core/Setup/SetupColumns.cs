@@ -1,4 +1,4 @@
-﻿using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.DatabaseStringParsers;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -28,7 +28,7 @@ namespace Dotmim.Sync
         /// </summary>
         public void Add(string item)
         {
-            var parserColumnName = ParserName.Parse(item);
+            var parserColumnName = new ObjectParser(item);
             var columnNameNormalized = parserColumnName.ObjectName;
 
             if (this.InnerCollection.Any(c => string.Equals(c, item, SyncGlobalization.DataSourceStringComparison)))
