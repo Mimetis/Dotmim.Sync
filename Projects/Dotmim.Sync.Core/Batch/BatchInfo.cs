@@ -16,11 +16,7 @@ namespace Dotmim.Sync.Batch
     public class BatchInfo
     {
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="BatchInfo"/> class.
         /// <inheritdoc cref="BatchInfo"/>
-        /// By default, the batch directory is the user temp directory.
-        /// </summary>
         public BatchInfo()
         {
             this.BatchPartsInfo = [];

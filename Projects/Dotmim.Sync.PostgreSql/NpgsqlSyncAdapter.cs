@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.DatabaseStringParsers;
 using Dotmim.Sync.PostgreSql.Builders;
 using Npgsql;
 using NpgsqlTypes;
@@ -16,44 +17,32 @@ namespace Dotmim.Sync.PostgreSql
     /// </summary>
     public partial class NpgsqlSyncAdapter : DbSyncAdapter
     {
-        public const string TimestampValue = "(extract(epoch from now())*1000)";
-        internal const string InsertTriggerName = "{0}insert_trigger";
-        internal const string UpdateTriggerName = "{0}update_trigger";
-        internal const string DeleteTriggerName = "{0}delete_trigger";
-
-        internal const string SelectChangesProcName = @"{0}.""{1}{2}changes""";
-        internal const string SelectChangesProcNameWithFilters = @"{0}.""{1}{2}{3}changes""";
-
-        internal const string InitializeChangesProcName = @"{0}.""{1}{2}initialize""";
-        internal const string InitializeChangesProcNameWithFilters = @"{0}.""{1}{2}{3}initialize""";
-
-        internal const string SelectRowProcName = @"{0}.""{1}{2}selectrow""";
-
-        internal const string InsertProcName = @"{0}.""{1}{2}insert""";
-        internal const string UpdateProcName = @"{0}.""{1}{2}update""";
-        internal const string DeleteProcName = @"{0}.""{1}{2}delete""";
-
-        internal const string DeleteMetadataProcName = @"{0}.""{1}{2}deletemetadata""";
-
-        internal const string ResetMetadataProcName = @"{0}.""{1}{2}reset""";
         private bool legacyTimestampBehavior = true;
 
+        /// <summary>
+        /// Returns the timestamp value for PostgreSql.
+        /// </summary>
+        public const string TimestampValue = "(extract(epoch from now())*1000)";
+
+        /// <summary>
+        /// Gets the ,npgsql object names.
+        /// </summary>
+        public NpgsqlObjectNames NpgsqlObjectNames { get; }
+
+        /// <summary>
+        /// Gets the npgsql database metadata.
+        /// </summary>
         public NpgsqlDbMetadata NpgsqlDbMetadata { get; }
 
-        public ParserName TableName { get; }
-
-        public ParserName TrackingTableName { get; }
-
-        public override string QuotePrefix => "\"";
-
+        /// <inheritdoc />
         public override string ParameterPrefix => "@";
 
-        public NpgsqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName, bool useBulkOperations)
-            : base(tableDescription, setup, scopeName, useBulkOperations)
+        /// <inheritdoc cref="NpgsqlSyncAdapter"/>
+        public NpgsqlSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo, bool useBulkOperations)
+            : base(tableDescription, scopeInfo, useBulkOperations)
         {
             this.NpgsqlDbMetadata = new NpgsqlDbMetadata();
-            this.TableName = tableName;
-            this.TrackingTableName = trackingTableName;
+            this.NpgsqlObjectNames = new NpgsqlObjectNames(tableDescription, scopeInfo);
 
 #if NET6_0_OR_GREATER
             // Getting EnableLegacyTimestampBehavior behavior
@@ -64,6 +53,17 @@ namespace Dotmim.Sync.PostgreSql
 #endif
         }
 
+        /// <inheritdoc/>
+        public override DbColumnNames GetParsedColumnNames(string name)
+        {
+            var columnParser = new ObjectParser(name, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+            return new DbColumnNames(columnParser.QuotedShortName, columnParser.NormalizedShortName);
+        }
+
+        /// <inheritdoc/>
+        public override DbTableBuilder GetTableBuilder() => new NpgsqlTableBuilder(this.TableDescription, this.ScopeInfo);
+
+        /// <inheritdoc />
         public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType commandType, SyncFilter filter = null) => commandType switch
         {
             DbCommandType.SelectChanges => this.GetSelectChangesCommand(),
@@ -149,6 +149,7 @@ namespace Dotmim.Sync.PostgreSql
             return command;
         }
 
+        /// <inheritdoc />
         public override void AddCommandParameterValue(SyncContext context, DbParameter parameter, object value, DbCommand command, DbCommandType commandType)
         {
             var npgSqlParameter = (NpgsqlParameter)parameter;
@@ -193,18 +194,20 @@ namespace Dotmim.Sync.PostgreSql
         // ---------------------------------------------------
         // Reset Command
         // ---------------------------------------------------
+
+        /// <summary>
+        /// Returns a command to reset a table.
+        /// </summary>
         private (DbCommand Command, bool IsBatchCommand) GetResetCommand()
         {
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.TableName);
-
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"DO $$");
             stringBuilder.AppendLine($"");
             stringBuilder.AppendLine("BEGIN");
-            stringBuilder.AppendLine($"ALTER TABLE \"{schema}\".{this.TableName.Quoted()} DISABLE TRIGGER ALL;");
-            stringBuilder.AppendLine($"DELETE FROM \"{schema}\".{this.TableName.Quoted()};");
-            stringBuilder.AppendLine($"DELETE FROM \"{schema}\".{this.TrackingTableName.Quoted()};");
-            stringBuilder.AppendLine($"ALTER TABLE \"{schema}\".{this.TableName.Quoted()} ENABLE TRIGGER ALL;");
+            stringBuilder.AppendLine($"ALTER TABLE {this.NpgsqlObjectNames.TableQuotedFullName} DISABLE TRIGGER ALL;");
+            stringBuilder.AppendLine($"DELETE FROM {this.NpgsqlObjectNames.TableQuotedFullName};");
+            stringBuilder.AppendLine($"DELETE FROM {this.NpgsqlObjectNames.TrackingTableQuotedFullName};");
+            stringBuilder.AppendLine($"ALTER TABLE {this.NpgsqlObjectNames.TrackingTableQuotedFullName} ENABLE TRIGGER ALL;");
             stringBuilder.AppendLine("END $$;");
 
             var command = new NpgsqlCommand
@@ -220,61 +223,10 @@ namespace Dotmim.Sync.PostgreSql
         // ---------------------------------------------------
         private (DbCommand Command, bool IsBatchCommand) GetEnableConstraintCommand()
         {
-            // var constraints = this.TableDescription.GetRelations();
-
-            // if (constraints == null || !constraints.Any())
-            //    return (null, false);
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.TableName);
-
-            var strCommand = new StringBuilder();
-
-            // strCommand.AppendLine($"DO $$");
-            // strCommand.AppendLine($"BEGIN");
-
-            // foreach (var constraint in this.TableDescription.GetRelations())
-            // {
-            //    var parsedTableName = ParserName.Parse(constraint.GetTable());
-            //    var tableName = parsedTableName.Unquoted().ToString();
-            //    var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(parsedTableName);
-
-            // var parsedParentTableName = ParserName.Parse(constraint.GetParentTable());
-            //    var parentTableName = parsedParentTableName.Unquoted().ToString();
-            //    var parentSchemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(parsedParentTableName);
-            //    var relationName = constraint.RelationName;
-            //    strCommand.AppendLine();
-            //    strCommand.AppendLine($"IF NOT EXISTS (SELECT ct.conname FROM pg_constraint ct WHERE ct.conname = '{relationName}') THEN");
-            //    strCommand.AppendLine($"ALTER TABLE \"{schemaName}\".\"{tableName}\" ");
-            //    strCommand.AppendLine($"ADD CONSTRAINT \"{relationName}\" ");
-            //    strCommand.Append("FOREIGN KEY (");
-            //    var empty = string.Empty;
-            //    foreach (var column in constraint.Keys)
-            //    {
-            //        var childColumnName = ParserName.Parse(column.ObjectName, "\"").Quoted().ToString();
-            //        strCommand.Append($"{empty} {childColumnName}");
-            //        empty = ", ";
-            //    }
-            //    strCommand.AppendLine(" )");
-            //    strCommand.Append("REFERENCES ");
-            //    strCommand.Append($"\"{parentSchemaName}\".\"{parentTableName}\"").Append(" (");
-            //    empty = string.Empty;
-            //    foreach (var parentdColumn in constraint.ParentKeys)
-            //    {
-            //        var parentColumnName = ParserName.Parse(parentdColumn.ObjectName, "\"").Quoted().ToString();
-            //        strCommand.Append($"{empty} {parentColumnName}");
-            //        empty = ", ";
-            //    }
-            //    strCommand.AppendLine(" ) NOT VALID; "); // NOT VALID is important to avoid re scan of the table afterwards
-            //    strCommand.AppendLine("END IF;");
-
-            // }
-            // strCommand.AppendLine();
-            // strCommand.AppendLine($"END $$;");
-            strCommand.AppendLine($"ALTER TABLE \"{schema}\".{this.TableName.Quoted()}  ENABLE TRIGGER ALL;");
-
             var command = new NpgsqlCommand
             {
                 CommandType = CommandType.Text,
-                CommandText = strCommand.ToString(),
+                CommandText = $"ALTER TABLE {this.NpgsqlObjectNames.TableQuotedFullName} ENABLE TRIGGER ALL;",
             };
 
             return (command, false);
@@ -285,41 +237,17 @@ namespace Dotmim.Sync.PostgreSql
         // ---------------------------------------------------
         private (DbCommand Command, bool IsBatchCommand) GetDisableConstraintCommand()
         {
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.TableName);
-
-            // var constraints = this.TableDescription.GetRelations();
-
-            // if (constraints == null || !constraints.Any())
-            //    return (null, false);
-            var strCommand = new StringBuilder();
-
-            // strCommand.AppendLine($"DO $$");
-            // strCommand.AppendLine($"Declare fkname character varying(250);");
-            // strCommand.AppendLine($"Declare cur_trg cursor For ");
-            // strCommand.AppendLine($"Select ct.conname");
-            // strCommand.AppendLine($"From pg_constraint ct ");
-            // strCommand.AppendLine($"join pg_catalog.pg_class  cl on  cl.oid =  ct.conrelid");
-            // strCommand.AppendLine($"join pg_catalog.pg_namespace nsp on nsp.oid = ct.connamespace");
-            // strCommand.AppendLine($"where relname = '{ObjectName.Unquoted()}' and ct.contype = 'f' and nspname='{schema}';");
-            // strCommand.AppendLine($"BEGIN");
-            // strCommand.AppendLine($"open cur_trg;");
-            // strCommand.AppendLine($"loop");
-            // strCommand.AppendLine($"fetch cur_trg into fkname;");
-            // strCommand.AppendLine($"exit when not found;");
-            // strCommand.AppendLine($"Execute 'ALTER TABLE \"{schema}\".{ObjectName.Quoted()} DROP CONSTRAINT \"' || fkname || '\";';");
-            // strCommand.AppendLine($"end loop;");
-            // strCommand.AppendLine($"close cur_trg;");
-            // strCommand.AppendLine($"END $$;");
-            strCommand.AppendLine($"ALTER TABLE \"{schema}\".{this.TableName.Quoted()}  DISABLE TRIGGER ALL;");
-
             var command = new NpgsqlCommand
             {
                 CommandType = CommandType.Text,
-                CommandText = strCommand.ToString(),
+                CommandText = $"ALTER TABLE {this.NpgsqlObjectNames.TableQuotedFullName}  DISABLE TRIGGER ALL;",
             };
             return (command, false);
         }
 
+        /// <summary>
+        /// Not implemented for PostgreSql.
+        /// </summary>
         public override Task ExecuteBatchCommandAsync(SyncContext context, DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction)
             => throw new NotImplementedException();
     }

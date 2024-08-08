@@ -1,21 +1,11 @@
-﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Tests.Core;
+﻿using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
 using Microsoft.Data.SqlClient;
 using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
@@ -55,7 +45,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             localOrchestrator.OnTableCreating(ttca =>
             {
-                var addingID = Environment.NewLine + $"ALTER TABLE {ttca.TableName.Schema().Quoted()} ADD internal_id int identity(1,1)";
+                var addingID = Environment.NewLine + $"ALTER TABLE {ttca.TableFullName} ADD internal_id int identity(1,1)";
                 ttca.Command.CommandText += addingID;
                 onCreating = true;
             });
@@ -100,7 +90,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             table.PrimaryKeys.Add("ID");
 
             var schema = new SyncSet();
-            schema.Tables.Add(table);   
+            schema.Tables.Add(table);
 
             var scopeInfo = await localOrchestrator.GetScopeInfoAsync();
             scopeInfo.Setup = setup;

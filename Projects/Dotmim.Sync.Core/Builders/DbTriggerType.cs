@@ -2,7 +2,7 @@
 {
 
     /// <summary>
-    /// Trigger type enumeration.
+    /// Trigger type enumeration (Insert, Update, Delete).
     /// </summary>
     public enum DbTriggerType
     {

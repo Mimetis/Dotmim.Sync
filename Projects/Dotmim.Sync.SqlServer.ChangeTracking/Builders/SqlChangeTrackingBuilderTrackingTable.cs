@@ -1,5 +1,4 @@
-﻿using Dotmim.Sync.Builders;
-using System.Data.Common;
+﻿using System.Data.Common;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
@@ -74,11 +73,5 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             return Task.FromResult(command);
         }
-
-        /// <summary>
-        /// Get the command to rename the tracking table. (Not used anymore).
-        /// </summary>
-        public Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
-            => Task.FromResult<DbCommand>(null);
     }
 }

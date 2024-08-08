@@ -1,7 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Extensions;
-using Dotmim.Sync.Serialization;
 using Dotmim.Sync.SqlServer.Manager;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Fixtures;
@@ -1349,7 +1348,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 await connection.OpenAsync();
                 await using var transaction = connection.BeginTransaction();
 
-                var tablePricesListCategory = localOrchestrator.GetTableBuilder(clientScope.Schema.Tables["PricesListCategory"], clientScope);
+                var tablePricesListCategory = localOrchestrator.GetSyncAdapter(clientScope.Schema.Tables["PricesListCategory"], clientScope).GetTableBuilder();
                 Assert.NotNull(tablePricesListCategory);
 
                 var relations = (await tablePricesListCategory.GetRelationsAsync(connection, transaction)).ToList();
@@ -1360,7 +1359,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 Assert.Single(relations[0].Columns);
 
-                var tablePricesListDetail = localOrchestrator.GetTableBuilder(clientScope.Schema.Tables["PricesListDetail"], clientScope);
+                var tablePricesListDetail = localOrchestrator.GetSyncAdapter(clientScope.Schema.Tables["PricesListDetail"], clientScope).GetTableBuilder();
 
                 Assert.NotNull(tablePricesListDetail);
 
@@ -1372,7 +1371,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 Assert.Equal(2, relations2[0].Columns.Count);
 
-                var tableEmployeeAddress = localOrchestrator.GetTableBuilder(clientScope.Schema.Tables["EmployeeAddress"], clientScope);
+                var tableEmployeeAddress = localOrchestrator.GetSyncAdapter(clientScope.Schema.Tables["EmployeeAddress"], clientScope).GetTableBuilder();
                 Assert.NotNull(tableEmployeeAddress);
 
                 var relations3 = (await tableEmployeeAddress.GetRelationsAsync(connection, transaction)).ToArray();
@@ -1786,14 +1785,14 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             var writringRowsTables = new ConcurrentDictionary<string, int>();
             var readingRowsTables = new ConcurrentDictionary<string, int>();
-            
+
             var jsonSerializer = Serialization.SerializersFactory.JsonSerializerFactory.GetSerializer();
 
             var serializingRowsAction = new Func<SerializingRowArgs, Task>(async (args) =>
             {
                 // Assertion
                 writringRowsTables.AddOrUpdate(args.SchemaTable.GetFullName(), 1, (key, oldValue) => oldValue + 1);
-                
+
                 var strSet = await jsonSerializer.SerializeAsync(args.RowArray);
                 using var encryptor = myAes.CreateEncryptor(myAes.Key, myAes.IV);
                 await using var msEncrypt = new MemoryStream();

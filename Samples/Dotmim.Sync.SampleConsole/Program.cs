@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync;
+using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SampleConsole;
 using Dotmim.Sync.SqlServer;
@@ -54,7 +55,7 @@ internal class Program
         // clientProvider.UseBulkOperations = false;
         // var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         // var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        var setup = new SyncSetup("ProductCategory");
+        var setup = new SyncSetup(AllTables);
 
         var options = new SyncOptions();
 
@@ -79,18 +80,51 @@ internal class Program
         // await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
 
         // await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
-        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        //await CheckChanges(clientProvider, serverProvider, setup, options);
 
-        // await SyncWithReinitialiazeWithChangeTrackingAsync();
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
         // await CreateSnapshotAsync();
-        await CheckProvisionTime();
+        //await CheckProvisionTime();
     }
 
-    public static async Task CheckProvisionTime()
+    public static async Task CheckChanges(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
-        var setup = new SyncSetup("ProductCategory");
-        var remoteOrchestrator = new RemoteOrchestrator(new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ServerDbName)));
+        // Creating a remote orchestrator
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
+
+        // Getting all scope client to evaluate the changes
+        var scopeInfoClients = await remoteOrchestrator.GetAllScopeInfoClientsAsync();
+
+        // for each scope, get the changes
+        foreach (var scopeInfoClient in scopeInfoClients)
+        {
+            // First idea: Just get the estimated changes count, as the method is faster than getting all rows
+            var estimatedChanges = await remoteOrchestrator.GetEstimatedChangesCountAsync(scopeInfoClient);
+
+            Console.WriteLine($"Estimated tables changes count for scope {scopeInfoClient.Id} : {estimatedChanges.ServerChangesSelected.TableChangesSelected.Count} tables");
+            Console.WriteLine($"Estimated rows changes count for scope {scopeInfoClient.Id} : {estimatedChanges.ServerChangesSelected.TotalChangesSelected} rows");
+
+
+            // Second idea: Get all changes
+            // Get the batches changes serialized on disk
+            var changes = await remoteOrchestrator.GetChangesAsync(scopeInfoClient);
+
+            // load all the tables in memory
+            var tables = remoteOrchestrator.LoadTablesFromBatchInfo(changes.ServerBatchInfo);
+
+            // iterate
+            foreach (var table in tables.ToList())
+            {
+                Console.WriteLine($"Changes for table {table.GetFullName()}");
+
+                foreach (var row in table.Rows)
+                {
+                    Console.WriteLine($"Row {row}");
+                }
+            }
+
+        }
 
         await remoteOrchestrator.ProvisionAsync(setup).ConfigureAwait(false);
         //await remoteOrchestrator.DeprovisionAsync(setup).ConfigureAwait(false);
@@ -222,12 +256,20 @@ internal class Program
             Console.WriteLine("error on server for row " + args.ErrorRow);
             args.Resolution = ErrorResolution.ContinueOnError;
         });
+
+        agent.LocalOrchestrator.OnGetCommand(args =>
+        {
+            if (args.CommandType == DbCommandType.Reset && args.Context.ScopeName == "filteredScope")
+            {
+                args.Command.CommandText = BuildYourOwnCommandText(args.Table);
+            }
+        });
         do
         {
             try
             {
                 Console.ForegroundColor = ConsoleColor.Green;
-                var s = await agent.SynchronizeAsync(scopeName, setup, SyncType.Normal, default, progress);
+                var s = await agent.SynchronizeAsync(scopeName, setup, SyncType.Reinitialize, default, progress);
                 Console.WriteLine(s);
             }
             catch (SyncException e)

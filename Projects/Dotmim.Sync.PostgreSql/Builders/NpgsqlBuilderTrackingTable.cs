@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.DatabaseStringParsers;
 using Npgsql;
 using System.Data.Common;
 using System.Linq;
@@ -7,37 +8,51 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.PostgreSql.Builders
 {
+
+    /// <summary>
+    /// Represents a tracking table builder for PostgreSql.
+    /// </summary>
     public class NpgsqlBuilderTrackingTable
     {
-        private readonly NpgsqlDbMetadata dbMetadata;
-        private SyncSetup setup;
-        private SyncTable tableDescription;
-        private ParserName tableName;
-        private ParserName trackingName;
 
-        public NpgsqlBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
+        /// <summary>
+        /// Gets the table description.
+        /// </summary>
+        protected SyncTable TableDescription { get; }
+
+        /// <summary>
+        /// Gets the ,npgsql object names.
+        /// </summary>
+        protected NpgsqlObjectNames NpgsqlObjectNames { get; }
+
+        /// <summary>
+        /// Gets the npgsql database metadata.
+        /// </summary>
+        protected NpgsqlDbMetadata NpgsqlDbMetadata { get; }
+
+        /// <inheritdoc cref="NpgsqlBuilderTrackingTable"/>
+        public NpgsqlBuilderTrackingTable(SyncTable tableDescription, NpgsqlObjectNames npgsqlObjectNames, NpgsqlDbMetadata npgsqlDbMetadata)
         {
-            this.tableDescription = tableDescription;
-            this.tableName = tableName;
-            this.trackingName = trackingTableName;
-            this.setup = setup;
-            this.dbMetadata = new NpgsqlDbMetadata();
+            this.TableDescription = tableDescription;
+            this.NpgsqlObjectNames = npgsqlObjectNames;
+            this.NpgsqlDbMetadata = npgsqlDbMetadata;
         }
 
+        /// <summary>
+        /// Returns a command to create a tracking table.
+        /// </summary>
         public Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var trackingTableQuoted = ParserName.Parse(this.trackingName.ToString(), "\"").Quoted().ToString();
-            var trackingTableUnquoted = this.trackingName.Unquoted().ToString();
+
             var stringBuilder = new StringBuilder();
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.trackingName);
-            stringBuilder.AppendLine($"CREATE TABLE \"{schema}\".{trackingTableQuoted} (");
+            stringBuilder.AppendLine($"CREATE TABLE {this.NpgsqlObjectNames.TrackingTableQuotedFullName} (");
 
             // Adding the primary key
-            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var quotedColumnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
 
-                var columnType = this.dbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, this.tableDescription.OriginalProvider);
+                var columnType = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, this.TableDescription.OriginalProvider);
 
                 var nullableColumn = pkColumn.AllowDBNull ? "NULL" : "NOT NULL";
                 stringBuilder.AppendLine($"{quotedColumnName} {columnType} {nullableColumn}, ");
@@ -51,14 +66,14 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine(");");
 
             // Primary Keys
-            stringBuilder.Append($"ALTER TABLE \"{schema}\".{trackingTableQuoted} ADD CONSTRAINT PK_{trackingTableUnquoted} PRIMARY KEY (");
+            stringBuilder.Append($"ALTER TABLE {this.NpgsqlObjectNames.TrackingTableQuotedFullName} ADD CONSTRAINT PK_{this.NpgsqlObjectNames.TrackingTableNormalizedFullName} PRIMARY KEY (");
 
-            var primaryKeysColumns = this.tableDescription.GetPrimaryKeysColumns().ToList();
+            var primaryKeysColumns = this.TableDescription.GetPrimaryKeysColumns().ToList();
             for (int i = 0; i < primaryKeysColumns.Count; i++)
             {
                 var pkColumn = primaryKeysColumns[i];
-                var quotedColumnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
-                stringBuilder.Append(quotedColumnName);
+                var pkColumnParser = new ObjectParser(pkColumn.ColumnName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+                stringBuilder.Append(pkColumnParser.QuotedShortName);
 
                 if (i < primaryKeysColumns.Count - 1)
                     stringBuilder.Append(", ");
@@ -66,14 +81,14 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             stringBuilder.AppendLine(");");
 
-            stringBuilder.AppendLine($"CREATE INDEX {trackingTableUnquoted}_timestamp_index ON \"{schema}\".{trackingTableQuoted} (");
+            stringBuilder.AppendLine($"CREATE INDEX {this.NpgsqlObjectNames.TrackingTableNormalizedFullName}_timestamp_index ON {this.NpgsqlObjectNames.TrackingTableQuotedFullName} (");
             stringBuilder.AppendLine($"\t  \"timestamp\" ASC");
             stringBuilder.AppendLine($"\t, \"update_scope_id\" ASC");
             stringBuilder.AppendLine($"\t, \"sync_row_is_tombstone\" ASC");
-            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
-                stringBuilder.AppendLine($"\t,{columnName} ASC");
+                var pkColumnParser = new ObjectParser(pkColumn.ColumnName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+                stringBuilder.AppendLine($"\t,{pkColumnParser.QuotedShortName} ASC");
             }
 
             stringBuilder.Append(");");
@@ -82,53 +97,53 @@ namespace Dotmim.Sync.PostgreSql.Builders
             NpgsqlParameter sqlParameter = new NpgsqlParameter()
             {
                 ParameterName = "@tableName",
-                Value = trackingTableUnquoted,
+                Value = this.NpgsqlObjectNames.TrackingTableName,
             };
             command.Parameters.Add(sqlParameter);
 
             sqlParameter = new NpgsqlParameter()
             {
                 ParameterName = "@schemaName",
-                Value = schema,
+                Value = this.NpgsqlObjectNames.TrackingTableSchemaName,
             };
             command.Parameters.Add(sqlParameter);
 
             return Task.FromResult((DbCommand)command);
         }
 
+        /// <summary>
+        /// Returns a command to drop a tracking table.
+        /// </summary>
         public Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var trackingTableQuoted = ParserName.Parse(this.trackingName.ToString(), "\"").Quoted().ToString();
-            var trackingTableUnquoted = this.trackingName.Unquoted().ToString();
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.trackingName);
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"DROP TABLE \"{schema}\".{trackingTableQuoted};");
+            stringBuilder.AppendLine($"DROP TABLE {this.NpgsqlObjectNames.TrackingTableQuotedFullName};");
 
             var command = new NpgsqlCommand(stringBuilder.ToString(), (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
 
             NpgsqlParameter sqlParameter = new NpgsqlParameter()
             {
                 ParameterName = "@tableName",
-                Value = trackingTableUnquoted,
+                Value = this.NpgsqlObjectNames.TrackingTableName,
             };
             command.Parameters.Add(sqlParameter);
 
             sqlParameter = new NpgsqlParameter()
             {
                 ParameterName = "@schemaName",
-                Value = schema,
+                Value = this.NpgsqlObjectNames.TrackingTableSchemaName,
             };
             command.Parameters.Add(sqlParameter);
 
             return Task.FromResult((DbCommand)command);
         }
 
+        /// <summary>
+        /// Returns a command to check if a tracking table exists.
+        /// </summary>
         public Task<DbCommand> GetExistsTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var trackingTableUnquoted = this.trackingName.Unquoted().ToString();
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(this.trackingName);
-
             var command = connection.CreateCommand();
 
             command.Connection = connection;
@@ -137,17 +152,15 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tablename";
-            parameter.Value = trackingTableUnquoted;
+            parameter.Value = this.NpgsqlObjectNames.TrackingTableName;
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaname";
-            parameter.Value = schema;
+            parameter.Value = this.NpgsqlObjectNames.TrackingTableSchemaName;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);
         }
-
-        public Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction) => Task.FromResult((DbCommand)null);
     }
 }

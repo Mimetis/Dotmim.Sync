@@ -203,14 +203,6 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.TableDescription = tableDescription;
             this.ScopeInfo = scopeInfo;
 
-            this.SetDefaultNames();
-        }
-
-        /// <summary>
-        /// Set the default stored procedures names.
-        /// </summary>
-        private void SetDefaultNames()
-        {
             //-------------------------------------------------
             // set table names
             var tableParser = new TableParser(this.TableDescription.GetFullName(), LeftQuote, RightQuote);
