@@ -1,10 +1,11 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.DatabaseStringParsers;
+
 #if NET6_0 || NET8_0
 using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;
 #endif
-using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -21,9 +22,26 @@ namespace Dotmim.Sync.MySql.Builders
     /// </summary>
     public partial class MySqlObjectNames
     {
+
+        /// <summary>
+        /// Gets the prefix parameter for MySql.
+        /// </summary>
         public const string MYSQLPREFIXPARAMETER = "in_";
 
+        /// <summary>
+        /// Gets the timestamp value to use for a rowversion column.
+        /// </summary>
         public const string TimestampValue = "ROUND(UNIX_TIMESTAMP(CURRENT_TIMESTAMP(6)) * 10000)";
+
+        /// <summary>
+        /// Gets the left quote character.
+        /// </summary>
+        public const char LeftQuote = '`';
+
+        /// <summary>
+        /// Gets the right quote character.
+        /// </summary>
+        public const char RightQuote = '`';
 
         internal const string InsertTriggerName = "`{0}insert_trigger`";
         internal const string UpdateTriggerName = "`{0}update_trigger`";
@@ -50,136 +68,187 @@ namespace Dotmim.Sync.MySql.Builders
         internal const string DisableConstraintsText = "SET FOREIGN_KEY_CHECKS=0;";
         internal const string EnableConstraintsText = "SET FOREIGN_KEY_CHECKS=1;";
 
-        private Dictionary<DbStoredProcedureType, string> storedProceduresNames = [];
-        private Dictionary<DbTriggerType, string> triggersNames = [];
-        private Dictionary<DbCommandType, string> commandNames = [];
-
-        private ParserName tableName;
-        private ParserName trackingName;
-        private MySqlDbMetadata dbMetadata;
-
+        /// <summary>
+        /// Gets the table description.
+        /// </summary>
         public SyncTable TableDescription { get; }
 
-        public SyncSetup Setup { get; }
+        /// <summary>
+        /// Gets the scope info.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
-        public string ScopeName { get; }
+        /// <summary>
+        /// Gets the parsed tracking table name, wihtout any quotes characters.
+        /// </summary>
+        public string TrackingTableName { get; private set; }
 
-        public void AddCommandName(DbCommandType objectType, string name)
-        {
-            if (this.commandNames.ContainsKey(objectType))
-                throw new Exception("Yous can't add an objectType multiple times");
+        /// <summary>
+        /// Gets the parsed normalized tracking table full name.
+        /// </summary>
+        public string TrackingTableNormalizedFullName { get; private set; }
 
-            this.commandNames.Add(objectType, name);
-        }
+        /// <summary>
+        /// Gets the parsed normalized tracking table short name.
+        /// </summary>
+        public string TrackingTableNormalizedShortName { get; private set; }
 
-        public string GetCommandName(DbCommandType objectType, SyncFilter filter = null)
-        {
-            if (!this.commandNames.TryGetValue(objectType, out var commandName))
-                throw new NotSupportedException($"MySql provider does not support the command type {objectType}");
+        /// <summary>
+        /// Gets the parsed quoted tracking table full name.
+        /// </summary>
+        public string TrackingTableQuotedFullName { get; private set; }
 
-            // concat filter name
-            if (filter != null)
-                commandName = string.Format(commandName, filter.GetFilterName());
+        /// <summary>
+        /// Gets the parsed quoted tracking table short name.
+        /// </summary>
+        public string TrackingTableQuotedShortName { get; private set; }
 
-            return commandName;
-        }
+        /// <summary>
+        /// Gets the parsed tracking table schema name. if empty, "public" is returned.
+        /// </summary>
+        public string TrackingTableSchemaName { get; private set; }
 
-        public void AddStoredProcedureName(DbStoredProcedureType objectType, string name)
-        {
-            if (this.storedProceduresNames.ContainsKey(objectType))
-                throw new Exception("Yous can't add an objectType multiple times");
+        /// <summary>
+        /// Gets the parsed table name, without any quotes characters.
+        /// </summary>
+        public string TableName { get; private set; }
 
-            this.storedProceduresNames.Add(objectType, name);
-        }
+        /// <summary>
+        /// Gets the parsed normalized table full name (with schema, if any).
+        /// </summary>
+        public string TableNormalizedFullName { get; private set; }
 
-        public string GetStoredProcedureCommandName(DbStoredProcedureType storedProcedureType, SyncFilter filter = null)
-        {
-            if (!this.storedProceduresNames.TryGetValue(storedProcedureType, out var commandName))
-                throw new Exception("Yous should provide a value for all DbCommandName");
+        /// <summary>
+        /// Gets the parsed normalized table short name (without schema, if any).
+        /// </summary>
+        public string TableNormalizedShortName { get; private set; }
 
-            // concat filter name
-            if (filter != null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
-                commandName = string.Format(commandName, filter.GetFilterName());
+        /// <summary>
+        /// Gets the parsed quoted table full name (with schema, if any).
+        /// </summary>
+        public string TableQuotedFullName { get; private set; }
 
-            return commandName;
-        }
+        /// <summary>
+        /// Gets the parsed quoted table short name (without schema, if any).
+        /// </summary>
+        public string TableQuotedShortName { get; private set; }
 
-        public void AddTriggerName(DbTriggerType objectType, string name)
-        {
-            if (this.triggersNames.ContainsKey(objectType))
-                throw new Exception("Yous can't add an objectType multiple times");
+        /// <summary>
+        /// Gets the parsed table schema name. if empty, "public" is returned.
+        /// </summary>
+        public string TableSchemaName { get; private set; }
 
-            this.triggersNames.Add(objectType, name);
-        }
-
-        public string GetTriggerCommandName(DbTriggerType objectType, SyncFilter filter = null)
-        {
-            if (!this.triggersNames.TryGetValue(objectType, out var commandName))
-                throw new Exception("Yous should provide a value for all DbCommandName");
-
-            // concat filter name
-            if (filter != null)
-                commandName = string.Format(commandName, filter.GetFilterName());
-
-            return commandName;
-        }
-
-        public MySqlObjectNames(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
+        /// <inheritdoc cref="MySqlObjectNames"/>
+        public MySqlObjectNames(SyncTable tableDescription, ScopeInfo scopeInfo)
         {
             this.TableDescription = tableDescription;
-            this.Setup = setup;
-            this.ScopeName = scopeName;
-            this.tableName = tableName;
-            this.trackingName = trackingName;
-            this.dbMetadata = new MySqlDbMetadata();
-            this.SetDefaultNames();
+            this.ScopeInfo = scopeInfo;
+
+            //-------------------------------------------------
+            // set table names
+            var tableParser = new TableParser(this.TableDescription.GetFullName(), LeftQuote, RightQuote);
+
+            this.TableName = tableParser.TableName;
+            this.TableNormalizedFullName = tableParser.NormalizedFullName;
+            this.TableNormalizedShortName = tableParser.NormalizedShortName;
+            this.TableQuotedFullName = tableParser.QuotedFullName;
+            this.TableQuotedShortName = tableParser.QuotedShortName;
+            this.TableSchemaName = tableParser.SchemaName;
+
+            //-------------------------------------------------
+            // define tracking table name with prefix and suffix.
+            // if no pref / suf, use default value
+            var trakingTableNameString = string.IsNullOrEmpty(this.ScopeInfo.Setup?.TrackingTablesPrefix) && string.IsNullOrEmpty(this.ScopeInfo.Setup?.TrackingTablesSuffix)
+                ? $"{this.TableDescription.TableName}_tracking"
+                : $"{this.ScopeInfo.Setup?.TrackingTablesPrefix}{this.TableDescription.TableName}{this.ScopeInfo.Setup?.TrackingTablesSuffix}";
+
+            if (!string.IsNullOrEmpty(this.TableDescription.SchemaName))
+                trakingTableNameString = $"{this.TableDescription.SchemaName}.{trakingTableNameString}";
+
+            // Parse
+            var trackingTableParser = new TableParser(trakingTableNameString, LeftQuote, RightQuote);
+
+            // set the tracking table names
+            this.TrackingTableName = trackingTableParser.TableName;
+            this.TrackingTableNormalizedFullName = trackingTableParser.NormalizedFullName;
+            this.TrackingTableNormalizedShortName = trackingTableParser.NormalizedShortName;
+            this.TrackingTableQuotedFullName = trackingTableParser.QuotedFullName;
+            this.TrackingTableQuotedShortName = trackingTableParser.QuotedShortName;
+            this.TrackingTableSchemaName = trackingTableParser.SchemaName;
         }
 
         /// <summary>
-        /// Set the default stored procedures names.
+        /// Returns the stored procedure name for the given stored procedure type.
         /// </summary>
-        private void SetDefaultNames()
+        public string GetStoredProcedureCommandName(DbStoredProcedureType storedProcedureType, SyncFilter filter = null)
         {
-            var spPref = this.Setup.StoredProceduresPrefix != null ? this.Setup.StoredProceduresPrefix : string.Empty;
-            var spSuf = this.Setup.StoredProceduresSuffix != null ? this.Setup.StoredProceduresSuffix : string.Empty;
-            var trigPref = this.Setup.TriggersPrefix != null ? this.Setup.TriggersPrefix : string.Empty;
-            var trigSuf = this.Setup.TriggersSuffix != null ? this.Setup.TriggersSuffix : string.Empty;
+            var scopeNameWithoutDefaultScope = this.ScopeInfo.Name == SyncOptions.DefaultScopeName ? string.Empty : $"{this.ScopeInfo.Name}_";
+            var storedProcedureNormalizedName = $"{this.ScopeInfo.Setup?.StoredProceduresPrefix}{this.TableNormalizedFullName}{this.ScopeInfo.Setup?.StoredProceduresSuffix}_";
 
-            var scopeNameWithoutDefaultScope = this.ScopeName == SyncOptions.DefaultScopeName ? string.Empty : $"{this.ScopeName}_";
+            return storedProcedureType switch
+            {
+                DbStoredProcedureType.SelectChanges => string.Format(SelectChangesProcName, storedProcedureNormalizedName, scopeNameWithoutDefaultScope),
+                DbStoredProcedureType.SelectChangesWithFilters => string.Format(SelectChangesProcNameWithFilters, storedProcedureNormalizedName, scopeNameWithoutDefaultScope, filter.GetFilterName()),
+                DbStoredProcedureType.SelectInitializedChanges => string.Format(InitializeChangesProcName, storedProcedureNormalizedName, scopeNameWithoutDefaultScope),
+                DbStoredProcedureType.SelectInitializedChangesWithFilters => string.Format(InitializeChangesProcNameWithFilters, storedProcedureNormalizedName, scopeNameWithoutDefaultScope, filter.GetFilterName()),
+                DbStoredProcedureType.SelectRow => string.Format(SelectRowProcName, storedProcedureNormalizedName, scopeNameWithoutDefaultScope),
+                DbStoredProcedureType.UpdateRow => string.Format(UpdateProcName, storedProcedureNormalizedName, scopeNameWithoutDefaultScope),
+                DbStoredProcedureType.DeleteRow => string.Format(DeleteProcName, storedProcedureNormalizedName, scopeNameWithoutDefaultScope),
+                _ => null,
+            };
+        }
 
-            var storedProcedureName = $"{spPref}{this.tableName.Unquoted().Normalized()}{spSuf}_";
+        /// <summary>
+        /// Returns the trigger name for the given trigger type.
+        /// </summary>
+        public string GetTriggerCommandName(DbTriggerType objectType, SyncFilter filter = null)
+        {
+            var triggerNormalizedName = $"{this.ScopeInfo.Setup?.TriggersPrefix}{this.TableNormalizedFullName}{this.ScopeInfo.Setup?.TriggersSuffix}_";
 
-            var triggerName = $"{trigPref}{this.tableName.Unquoted().Normalized()}{trigSuf}_";
-            this.AddTriggerName(DbTriggerType.Insert, string.Format(InsertTriggerName, triggerName));
-            this.AddTriggerName(DbTriggerType.Update, string.Format(UpdateTriggerName, triggerName));
-            this.AddTriggerName(DbTriggerType.Delete, string.Format(DeleteTriggerName, triggerName));
+            return objectType switch
+            {
+                DbTriggerType.Update => string.Format(UpdateTriggerName, triggerNormalizedName),
+                DbTriggerType.Insert => string.Format(InsertTriggerName, triggerNormalizedName),
+                DbTriggerType.Delete => string.Format(DeleteTriggerName, triggerNormalizedName),
+                _ => null,
+            };
+        }
 
-            this.AddStoredProcedureName(DbStoredProcedureType.SelectChanges, string.Format(SelectChangesProcName, storedProcedureName, scopeNameWithoutDefaultScope));
-            this.AddStoredProcedureName(DbStoredProcedureType.SelectChangesWithFilters, string.Format(SelectChangesProcNameWithFilters, storedProcedureName, scopeNameWithoutDefaultScope, "{0}_"));
+        /// <summary>
+        /// Get a command string from the command type.
+        /// </summary>
+        public string GetCommandName(DbCommandType commandType, SyncFilter filter = null)
+        {
+            var scopeNameWithoutDefaultScope = this.ScopeInfo.Name == SyncOptions.DefaultScopeName ? string.Empty : $"{this.ScopeInfo.Name}_";
 
-            this.AddStoredProcedureName(DbStoredProcedureType.SelectInitializedChanges, string.Format(InitializeChangesProcName, storedProcedureName, scopeNameWithoutDefaultScope));
-            this.AddStoredProcedureName(DbStoredProcedureType.SelectInitializedChangesWithFilters, string.Format(InitializeChangesProcNameWithFilters, storedProcedureName, scopeNameWithoutDefaultScope, "{0}_"));
+            //-------------------------------------------------
+            // Stored procedures & Triggers
+            var storedProcedureNormalizedName = $"{this.ScopeInfo.Setup?.StoredProceduresPrefix}{this.TableNormalizedFullName}{this.ScopeInfo.Setup?.StoredProceduresSuffix}_";
+            var triggerNormalizedName = $"{this.ScopeInfo.Setup?.TriggersPrefix}{this.TableNormalizedFullName}{this.ScopeInfo.Setup?.TriggersSuffix}_";
 
-            this.AddStoredProcedureName(DbStoredProcedureType.SelectRow, string.Format(SelectRowProcName, storedProcedureName, scopeNameWithoutDefaultScope));
-            this.AddStoredProcedureName(DbStoredProcedureType.UpdateRow, string.Format(UpdateProcName, storedProcedureName, scopeNameWithoutDefaultScope));
-            this.AddStoredProcedureName(DbStoredProcedureType.DeleteRow, string.Format(DeleteProcName, storedProcedureName, scopeNameWithoutDefaultScope));
-            this.AddCommandName(DbCommandType.DeleteMetadata, string.Format(DeleteMetadataText, this.trackingName.Quoted().ToString()));
-            this.AddStoredProcedureName(DbStoredProcedureType.Reset, string.Format(ResetProcName, storedProcedureName, scopeNameWithoutDefaultScope));
-
-            this.AddCommandName(DbCommandType.DisableConstraints, DisableConstraintsText);
-            this.AddCommandName(DbCommandType.EnableConstraints, EnableConstraintsText);
-
-            this.AddCommandName(DbCommandType.UpdateUntrackedRows, this.CreateUpdateUntrackedRowsCommand());
-            this.AddCommandName(DbCommandType.UpdateMetadata, this.CreateUpdateMetadataCommand());
-            this.AddCommandName(DbCommandType.SelectMetadata, this.CreateSelectMetadataCommand());
-            this.AddCommandName(DbCommandType.Reset, this.CreateResetCommand());
-            this.AddCommandName(DbCommandType.SelectRow, this.CreateSelectRowCommand());
-            this.AddCommandName(DbCommandType.DeleteRow, this.CreateDeleteCommand());
-            this.AddCommandName(DbCommandType.UpdateRow, this.CreateUpdateCommand());
-            this.AddCommandName(DbCommandType.SelectChanges, this.CreateSelectIncrementalChangesCommand());
-            this.AddCommandName(DbCommandType.SelectChangesWithFilters, this.CreateSelectIncrementalChangesCommand());
-            this.AddCommandName(DbCommandType.SelectInitializedChanges, this.CreateSelectInitializedChangesCommand());
-            this.AddCommandName(DbCommandType.SelectInitializedChangesWithFilters, this.CreateSelectInitializedChangesCommand());
+            return commandType switch
+            {
+                DbCommandType.SelectChanges => string.Format(SelectChangesProcName, storedProcedureNormalizedName, scopeNameWithoutDefaultScope),
+                DbCommandType.SelectInitializedChanges => string.Format(InitializeChangesProcName, storedProcedureNormalizedName, scopeNameWithoutDefaultScope),
+                DbCommandType.SelectInitializedChangesWithFilters => string.Format(InitializeChangesProcNameWithFilters, storedProcedureNormalizedName, scopeNameWithoutDefaultScope, filter.GetFilterName()),
+                DbCommandType.SelectChangesWithFilters => string.Format(SelectChangesProcNameWithFilters, storedProcedureNormalizedName, scopeNameWithoutDefaultScope, filter.GetFilterName()),
+                DbCommandType.SelectRow => this.CreateSelectRowCommand(),
+                DbCommandType.UpdateRow or DbCommandType.InsertRow => string.Format(UpdateProcName, storedProcedureNormalizedName, scopeNameWithoutDefaultScope),
+                DbCommandType.DeleteRow => string.Format(DeleteProcName, storedProcedureNormalizedName, scopeNameWithoutDefaultScope),
+                DbCommandType.DisableConstraints => DisableConstraintsText,
+                DbCommandType.EnableConstraints => EnableConstraintsText,
+                DbCommandType.DeleteMetadata => string.Format(DeleteMetadataText, this.TrackingTableQuotedFullName),
+                DbCommandType.UpdateMetadata => this.CreateUpdateMetadataCommand(),
+                DbCommandType.SelectMetadata => this.CreateSelectMetadataCommand(),
+                DbCommandType.InsertTrigger => string.Format(InsertTriggerName, triggerNormalizedName),
+                DbCommandType.UpdateTrigger => string.Format(UpdateTriggerName, triggerNormalizedName),
+                DbCommandType.DeleteTrigger => string.Format(DeleteTriggerName, triggerNormalizedName),
+                DbCommandType.UpdateRows or DbCommandType.InsertRows => string.Format(UpdateProcName, storedProcedureNormalizedName, scopeNameWithoutDefaultScope),
+                DbCommandType.DeleteRows => string.Format(DeleteProcName, storedProcedureNormalizedName, scopeNameWithoutDefaultScope),
+                DbCommandType.UpdateUntrackedRows => this.CreateUpdateUntrackedRowsCommand(),
+                DbCommandType.Reset => this.CreateResetCommand(),
+                _ => null,
+            };
         }
 
         internal MySqlParameter GetMySqlParameter(SyncColumn column)
@@ -193,7 +262,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             // Get the good SqlDbType (even if we are not from Sql Server def)
             var mySqlDbType = this.TableDescription.OriginalProvider == originalProvider ?
-                this.dbMetadata.GetMySqlDbType(column) : this.dbMetadata.GetOwnerDbTypeFromDbType(column);
+                this.MySqlDbMetadata.GetMySqlDbType(column) : this.dbMetadata.GetOwnerDbTypeFromDbType(column);
 
             var sqlParameter = new MySqlParameter
             {
@@ -213,17 +282,9 @@ namespace Dotmim.Sync.MySql.Builders
                 if (scale > 0)
                     sqlParameter.Scale = scale;
             }
-            else if (column.MaxLength > 0)
-            {
-                sqlParameter.Size = column.MaxLength;
-            }
-            else if (sqlParameter.DbType == DbType.Guid)
-            {
-                sqlParameter.Size = 36;
-            }
             else
             {
-                sqlParameter.Size = -1;
+                sqlParameter.Size = column.MaxLength > 0 ? column.MaxLength : sqlParameter.DbType == DbType.Guid ? 36 : -1;
             }
 
             return sqlParameter;

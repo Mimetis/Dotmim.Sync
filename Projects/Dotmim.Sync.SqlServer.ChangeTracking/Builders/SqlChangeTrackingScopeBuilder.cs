@@ -31,7 +31,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                     FROM sys.tables T 
                     WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
 
-                    MERGE [{this.TableNames.NormalizedFullName}] AS [base] 
+                    MERGE [{this.ScopeInfoTableNames.NormalizedFullName}] AS [base] 
                     USING (
                                SELECT  @sync_scope_name AS sync_scope_name,  
 	                                   @sync_scope_schema AS sync_scope_schema,  

@@ -13,22 +13,35 @@ namespace Dotmim.Sync.PostgreSql.Scope
     {
 
         /// <summary>
-        /// Gets the table names.
+        /// Gets the scope info table names.
         /// </summary>
-        protected DbTableNames TableNames { get; }
+        protected DbTableNames ScopeInfoTableNames { get; }
+
+        /// <summary>
+        /// Gets the scope info client table names.
+        /// </summary>
+        protected DbTableNames ScopeInfoClientTableNames { get; }
 
         /// <inheritdoc cref="NpgsqlScopeBuilder"/>
         public NpgsqlScopeBuilder(string scopeInfoTableName)
             : base(scopeInfoTableName)
         {
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(scopeInfoTableName);
             var tableParser = new TableParser(scopeInfoTableName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
 
-            var fullTableName = $"\"{schema}\".\"{tableParser.TableName}\"";
+            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableParser);
 
-            tableParser = new TableParser(fullTableName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+            var scopeInfoFullTableName = $"\"{schema}\".\"{tableParser.TableName}\"";
+            var scopeInfoClientFullTableName = $"\"{schema}\".\"{tableParser.TableName}_client\"";
 
-            this.TableNames = new DbTableNames(NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote,
+            tableParser = new TableParser(scopeInfoFullTableName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+
+            this.ScopeInfoTableNames = new DbTableNames(NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote,
+                tableParser.TableName, tableParser.NormalizedFullName, tableParser.NormalizedShortName,
+                tableParser.QuotedFullName, tableParser.QuotedShortName, tableParser.SchemaName);
+
+            tableParser = new TableParser(scopeInfoClientFullTableName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+
+            this.ScopeInfoClientTableNames = new DbTableNames(NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote,
                 tableParser.TableName, tableParser.NormalizedFullName, tableParser.NormalizedShortName,
                 tableParser.QuotedFullName, tableParser.QuotedShortName, tableParser.SchemaName);
         }
@@ -36,9 +49,6 @@ namespace Dotmim.Sync.PostgreSql.Scope
         /// <inheritdoc/>
         public override DbCommand GetAllScopeInfoClientsCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.TableNames.NormalizedName}_client";
-            var fulltableNameQuoted = $"\"{this.TableNames.SchemaName}\".\"{tableName}\"";
-
             var commandText =
                 $@"SELECT  sync_scope_id
                          , sync_scope_name
@@ -50,7 +60,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
                          , scope_last_sync
                          , sync_scope_errors
                          , sync_scope_properties
-                    FROM  {fulltableNameQuoted}";
+                    FROM  {this.ScopeInfoClientTableNames.QuotedFullName}";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -69,7 +79,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
                           sync_scope_version,
                           sync_scope_last_clean_timestamp,
                           sync_scope_properties
-                    FROM  {this.TableNames.QuotedFullName}";
+                    FROM  {this.ScopeInfoTableNames.QuotedFullName}";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -81,11 +91,9 @@ namespace Dotmim.Sync.PostgreSql.Scope
         /// <inheritdoc/>
         public override DbCommand GetCreateScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.TableNames.NormalizedName}_client";
-            var fulltableNameQuoted = $"\"{this.TableNames.SchemaName}\".\"{tableName}\"";
             var commandText =
                 $@"
-                    CREATE TABLE {fulltableNameQuoted}
+                    CREATE TABLE {this.ScopeInfoClientTableNames.QuotedFullName}
                     (
                         sync_scope_id uuid NOT NULL,
                         sync_scope_name character varying(100) NOT NULL,
@@ -97,7 +105,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
                         scope_last_sync timestamp with time zone,
                         sync_scope_errors character varying,
                         sync_scope_properties character varying,
-                        CONSTRAINT PKey_{this.TableNames.NormalizedFullName}_client PRIMARY KEY (sync_scope_id, sync_scope_name, sync_scope_hash)
+                        CONSTRAINT PKey_{this.ScopeInfoClientTableNames.NormalizedFullName} PRIMARY KEY (sync_scope_id, sync_scope_name, sync_scope_hash)
                     );";
 
             var command = connection.CreateCommand();
@@ -110,14 +118,14 @@ namespace Dotmim.Sync.PostgreSql.Scope
         public override DbCommand GetCreateScopeInfoTableCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText =
-                $@"CREATE TABLE {this.TableNames.QuotedFullName} (
+                $@"CREATE TABLE {this.ScopeInfoTableNames.QuotedFullName} (
                     sync_scope_name varchar(100) NOT NULL,
                     sync_scope_schema varchar NULL,
                     sync_scope_setup varchar NULL,
                     sync_scope_version varchar(10) NULL,
                     sync_scope_last_clean_timestamp bigint NULL,
                     sync_scope_properties varchar NULL,
-                    CONSTRAINT PKey_{this.TableNames.NormalizedFullName}_server 
+                    CONSTRAINT PKey_{this.ScopeInfoTableNames.NormalizedFullName} 
                     PRIMARY KEY (sync_scope_name)
                     )";
 
@@ -130,11 +138,9 @@ namespace Dotmim.Sync.PostgreSql.Scope
         /// <inheritdoc/>
         public override DbCommand GetDeleteScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.TableNames.NormalizedName}_client";
-            var fulltableNameQuoted = $"\"{this.TableNames.SchemaName}\".\"{tableName}\"";
 
             var commandText =
-                $@"DELETE FROM {fulltableNameQuoted}
+                $@"DELETE FROM {this.ScopeInfoClientTableNames.QuotedFullName}
                    WHERE sync_scope_name = @sync_scope_name and sync_scope_id = @sync_scope_id and sync_scope_hash = @sync_scope_hash";
 
             var command = connection.CreateCommand();
@@ -165,7 +171,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
         /// <inheritdoc/>
         public override DbCommand GetDeleteScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
-            var commandText = $@"DELETE FROM {this.TableNames.QuotedFullName} WHERE sync_scope_name = @sync_scope_name";
+            var commandText = $@"DELETE FROM {this.ScopeInfoTableNames.QuotedFullName} WHERE sync_scope_name = @sync_scope_name";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -184,12 +190,10 @@ namespace Dotmim.Sync.PostgreSql.Scope
         /// <inheritdoc/>
         public override DbCommand GetDropScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.TableNames.NormalizedName}_client";
-            var fulltableNameQuoted = $"\"{this.TableNames.SchemaName}\".\"{tableName}\"";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = $"DROP Table {fulltableNameQuoted}";
+            command.CommandText = $"DROP Table {this.ScopeInfoClientTableNames.QuotedFullName}";
             return command;
         }
 
@@ -198,19 +202,17 @@ namespace Dotmim.Sync.PostgreSql.Scope
         {
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = $"DROP Table {this.TableNames.QuotedFullName}";
+            command.CommandText = $"DROP Table {this.ScopeInfoTableNames.QuotedFullName}";
             return command;
         }
 
         /// <inheritdoc/>
         public override DbCommand GetExistsScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.TableNames.NormalizedName}_client";
-            var fulltableNameQuoted = $"\"{this.TableNames.SchemaName}\".\"{tableName}\"";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = $@"Select count(*) from {fulltableNameQuoted} 
+            command.CommandText = $@"Select count(*) from {this.ScopeInfoClientTableNames.QuotedFullName} 
                                      where sync_scope_id = @sync_scope_id 
                                      and sync_scope_name = @sync_scope_name
                                      and sync_scope_hash = @sync_scope_hash;";
@@ -239,7 +241,6 @@ namespace Dotmim.Sync.PostgreSql.Scope
         /// <inheritdoc/>
         public override DbCommand GetExistsScopeInfoClientTableCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.TableNames.NormalizedName}_client";
 
             var command = connection.CreateCommand();
             command.Transaction = transaction;
@@ -249,12 +250,12 @@ namespace Dotmim.Sync.PostgreSql.Scope
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = tableName;
+            parameter.Value = this.ScopeInfoClientTableNames.Name;
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaName";
-            parameter.Value = this.TableNames.SchemaName;
+            parameter.Value = this.ScopeInfoClientTableNames.SchemaName;
             command.Parameters.Add(parameter);
             return command;
         }
@@ -264,7 +265,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
         {
             var command = connection.CreateCommand();
             command.Transaction = transaction;
-            command.CommandText = $@"Select count(*) from {this.TableNames.QuotedFullName} where sync_scope_name = @sync_scope_name;";
+            command.CommandText = $@"Select count(*) from {this.ScopeInfoTableNames.QuotedFullName} where sync_scope_name = @sync_scope_name;";
 
             var p1 = command.CreateParameter();
             p1.ParameterName = "@sync_scope_name";
@@ -287,12 +288,12 @@ namespace Dotmim.Sync.PostgreSql.Scope
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = this.TableNames.NormalizedName;
+            parameter.Value = this.ScopeInfoTableNames.Name;
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaName";
-            parameter.Value = this.TableNames.SchemaName;
+            parameter.Value = this.ScopeInfoTableNames.SchemaName;
             command.Parameters.Add(parameter);
 
             return command;
@@ -324,16 +325,13 @@ namespace Dotmim.Sync.PostgreSql.Scope
         }
 
         /// <inheritdoc/>
-        public override DbTableNames GetParsedScopeInfoTableNames() => throw new System.NotImplementedException();
+        public override DbTableNames GetParsedScopeInfoTableNames() => this.ScopeInfoTableNames;
 
         /// <inheritdoc/>
         public override DbCommand GetScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.TableNames.NormalizedName}_client";
-            var fulltableNameQuoted = $"\"{this.TableNames.SchemaName}\".\"{tableName}\"";
-
             var commandText =
-                $@"SELECT    sync_scope_id
+               $@"SELECT    sync_scope_id
                            , sync_scope_name
                            , sync_scope_hash
                            , sync_scope_parameters
@@ -343,7 +341,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
                            , scope_last_sync
                            , sync_scope_errors
                            , sync_scope_properties
-                    FROM  {fulltableNameQuoted}
+                    FROM  {this.ScopeInfoClientTableNames.QuotedFullName}
                     WHERE sync_scope_name = @sync_scope_name 
                     and sync_scope_id = @sync_scope_id::uuid
                     and sync_scope_hash = @sync_scope_hash";
@@ -383,7 +381,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
                           sync_scope_version,
                           sync_scope_last_clean_timestamp,
                           sync_scope_properties
-                    FROM  {this.TableNames.QuotedFullName}
+                    FROM  {this.ScopeInfoTableNames.QuotedFullName}
                     WHERE sync_scope_name = @sync_scope_name";
 
             var command = connection.CreateCommand();
@@ -402,8 +400,6 @@ namespace Dotmim.Sync.PostgreSql.Scope
         /// <inheritdoc/>
         public override DbCommand GetUpdateScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {
-            var tableName = $"{this.TableNames.NormalizedName}_client";
-            var fulltableNameQuoted = $"\"{this.TableNames.SchemaName}\".\"{tableName}\"";
 
             var commandText = $@"
                                 with changes as (
@@ -418,7 +414,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
                                                 @sync_scope_errors AS sync_scope_errors,
                                                 @sync_scope_properties AS sync_scope_properties
                                                  )
-                                insert into  {fulltableNameQuoted} (sync_scope_name, sync_scope_id, sync_scope_hash, sync_scope_parameters, scope_last_sync_timestamp,  scope_last_server_sync_timestamp, scope_last_sync, scope_last_sync_duration, sync_scope_errors, sync_scope_properties)
+                                insert into  {this.ScopeInfoClientTableNames.QuotedFullName} (sync_scope_name, sync_scope_id, sync_scope_hash, sync_scope_parameters, scope_last_sync_timestamp,  scope_last_server_sync_timestamp, scope_last_sync, scope_last_sync_duration, sync_scope_errors, sync_scope_properties)
                                                   SELECT sync_scope_name, sync_scope_id, sync_scope_hash, sync_scope_parameters, scope_last_sync_timestamp,  scope_last_server_sync_timestamp, scope_last_sync, scope_last_sync_duration, sync_scope_errors, sync_scope_properties from changes
                                 on conflict (sync_scope_id,sync_scope_name,sync_scope_hash)								
                                 DO UPDATE SET 
@@ -507,7 +503,7 @@ namespace Dotmim.Sync.PostgreSql.Scope
                                                     @sync_scope_last_clean_timestamp AS sync_scope_last_clean_timestamp,
                                                     @sync_scope_properties as sync_scope_properties
                                                  )
-                                insert into  {this.TableNames.QuotedFullName} (sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, sync_scope_last_clean_timestamp, sync_scope_properties)
+                                insert into  {this.ScopeInfoTableNames.QuotedFullName} (sync_scope_name, sync_scope_schema, sync_scope_setup, sync_scope_version, sync_scope_last_clean_timestamp, sync_scope_properties)
                                                   SELECT sync_scope_name,sync_scope_schema,sync_scope_setup,sync_scope_version,sync_scope_last_clean_timestamp,sync_scope_properties from changes
                                 on conflict (sync_scope_name)								
                                 DO UPDATE SET 

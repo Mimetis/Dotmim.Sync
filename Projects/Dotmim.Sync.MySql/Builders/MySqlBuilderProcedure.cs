@@ -2,8 +2,8 @@
 using System;
 using System.Data;
 using System.Data.Common;
-using System.Linq;
 using System.Text;
+
 #if NET6_0 || NET8_0
 using MySqlConnector;
 #elif NETSTANDARD
@@ -18,83 +18,45 @@ namespace Dotmim.Sync.MariaDB.Builders
 namespace Dotmim.Sync.MySql.Builders
 #endif
 {
+
+    /// <summary>
+    /// MySqlBuilderProcedure is an object used to create Metadatas for MySql stored procedures.
+    /// </summary>
     public class MySqlBuilderProcedure
     {
-        private ParserName tableName;
-        private ParserName trackingName;
-        private SyncTable tableDescription;
-        private SyncSetup setup;
-        private MySqlObjectNames objectNames;
-        private MySqlDbMetadata dbMetadata;
-        public const string MYSQLPREFIXPARAMETER = "in_";
 
-        public MySqlBuilderProcedure(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
+        /// <summary>
+        /// Gets the table description.
+        /// </summary>
+        protected SyncTable TableDescription { get; }
+
+        /// <summary>
+        /// Gets the sql object names.
+        /// </summary>
+        protected MySqlObjectNames MySqlObjectNames { get; }
+
+        /// <summary>
+        /// Gets the sql database metadata.
+        /// </summary>
+        protected MySqlDbMetadata MySqlDbMetadata { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MySqlBuilderProcedure"/> class.
+        /// </summary>
+        /// <param name="tableDescription"></param>
+        /// <param name="mysqlObjectNames"></param>
+        /// <param name="mysqlDbMetadata"></param>
+        public MySqlBuilderProcedure(SyncTable tableDescription, MySqlObjectNames mysqlObjectNames, MySqlDbMetadata mysqlDbMetadata)
         {
-            this.tableDescription = tableDescription;
-            this.setup = setup;
-            this.tableName = tableName;
-            this.trackingName = trackingName;
-            this.objectNames = new MySqlObjectNames(this.tableDescription, tableName, trackingName, this.setup, scopeName);
-            this.dbMetadata = new MySqlDbMetadata();
+            this.TableDescription = tableDescription;
+            this.MySqlObjectNames = mysqlObjectNames;
+            this.MySqlDbMetadata = mysqlDbMetadata;
         }
 
         private void AddPkColumnParametersToCommand(MySqlCommand sqlCommand)
         {
-            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
                 sqlCommand.Parameters.Add(this.GetMySqlParameter(pkColumn));
-        }
-
-        private void AddColumnParametersToCommand(MySqlCommand sqlCommand)
-        {
-            foreach (var column in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
-                sqlCommand.Parameters.Add(this.GetMySqlParameter(column));
-        }
-
-        internal MySqlParameter GetMySqlParameter(SyncColumn column)
-        {
-#if MARIADB
-            var originalProvider = MariaDBSyncProvider.ProviderType;
-#elif MYSQL
-            var originalProvider = MySqlSyncProvider.ProviderType;
-#endif
-            var parameterName = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
-
-            // Get the good SqlDbType (even if we are not from Sql Server def)
-            var mySqlDbType = this.tableDescription.OriginalProvider == originalProvider ?
-                this.dbMetadata.GetMySqlDbType(column) : this.dbMetadata.GetOwnerDbTypeFromDbType(column);
-
-            var sqlParameter = new MySqlParameter
-            {
-                ParameterName = $"{MYSQLPREFIXPARAMETER}{parameterName}",
-                DbType = column.GetDbType(),
-                IsNullable = column.AllowDBNull,
-                MySqlDbType = mySqlDbType,
-                SourceColumn = string.IsNullOrEmpty(column.ExtraProperty1) ? null : column.ExtraProperty1,
-            };
-
-            (byte precision, byte scale) = this.dbMetadata.GetCompatibleColumnPrecisionAndScale(column, this.tableDescription.OriginalProvider);
-
-            if ((sqlParameter.DbType == DbType.Decimal || sqlParameter.DbType == DbType.Double
-                 || sqlParameter.DbType == DbType.Single || sqlParameter.DbType == DbType.VarNumeric) && precision > 0)
-            {
-                sqlParameter.Precision = precision;
-                if (scale > 0)
-                    sqlParameter.Scale = scale;
-            }
-            else if (column.MaxLength > 0)
-            {
-                sqlParameter.Size = column.MaxLength;
-            }
-            else if (sqlParameter.DbType == DbType.Guid)
-            {
-                sqlParameter.Size = 36;
-            }
-            else
-            {
-                sqlParameter.Size = -1;
-            }
-
-            return sqlParameter;
         }
 
         /// <summary>
@@ -181,14 +143,18 @@ namespace Dotmim.Sync.MySql.Builders
             return command;
         }
 
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="storedProcedureType"></param>
+        /// <param name="filter"></param>
+        /// <param name="connection"></param>
+        /// <param name="transaction"></param>
+        /// <returns>A <see cref="Task{TResult}"/> representing the result of the asynchronous operation.</returns>
         public Task<DbCommand> GetCreateStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             var command = storedProcedureType switch
             {
-                DbStoredProcedureType.SelectChanges => this.CreateSelectIncrementalChangesCommand(connection, transaction),
-                DbStoredProcedureType.SelectChangesWithFilters => this.CreateSelectIncrementalChangesWithFilterCommand(filter, connection, transaction),
-                DbStoredProcedureType.SelectInitializedChanges => this.CreateSelectInitializedChangesCommand(connection, transaction),
-                DbStoredProcedureType.SelectInitializedChangesWithFilters => this.CreateSelectInitializedChangesWithFilterCommand(filter, connection, transaction),
                 DbStoredProcedureType.SelectRow => this.CreateSelectRowCommand(connection, transaction),
                 DbStoredProcedureType.UpdateRow => this.CreateUpdateCommand(connection, transaction),
                 DbStoredProcedureType.DeleteRow => this.CreateDeleteCommand(connection, transaction),
@@ -199,6 +165,14 @@ namespace Dotmim.Sync.MySql.Builders
             return Task.FromResult(command);
         }
 
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="storedProcedureType"></param>
+        /// <param name="filter"></param>
+        /// <param name="connection"></param>
+        /// <param name="transaction"></param>
+        /// <returns>A <see cref="Task{TResult}"/> representing the result of the asynchronous operation.</returns>
         public Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
@@ -232,6 +206,14 @@ namespace Dotmim.Sync.MySql.Builders
             return Task.FromResult(command);
         }
 
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="storedProcedureType"></param>
+        /// <param name="filter"></param>
+        /// <param name="connection"></param>
+        /// <param name="transaction"></param>
+        /// <returns>A <see cref="Task{TResult}"/> representing the result of the asynchronous operation.</returns>
         public Task<DbCommand> GetDropStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
@@ -326,140 +308,6 @@ namespace Dotmim.Sync.MySql.Builders
         public DbCommand CreateDeleteMetadataCommand(DbConnection connection, DbTransaction transaction) => null;
 
         public DbCommand CreateSelectRowCommand(DbConnection connection, DbTransaction transaction) => null;
-
-        //------------------------------------------------------------------
-        // Update command
-        //------------------------------------------------------------------
-        private MySqlCommand BuildUpdateCommand(bool hasMutableColumns)
-        {
-            var sqlCommand = new MySqlCommand();
-
-            var stringBuilder = new StringBuilder();
-            this.AddColumnParametersToCommand(sqlCommand);
-
-            var sqlParameter = new MySqlParameter();
-            sqlParameter.ParameterName = "sync_scope_id";
-            sqlParameter.MySqlDbType = MySqlDbType.Guid;
-            sqlParameter.Size = 36;
-            sqlCommand.Parameters.Add(sqlParameter);
-
-            sqlParameter = new MySqlParameter();
-            sqlParameter.ParameterName = "sync_force_write";
-            sqlParameter.MySqlDbType = MySqlDbType.Int32;
-            sqlCommand.Parameters.Add(sqlParameter);
-
-            sqlParameter = new MySqlParameter();
-            sqlParameter.ParameterName = "sync_min_timestamp";
-            sqlParameter.MySqlDbType = MySqlDbType.Int64;
-            sqlCommand.Parameters.Add(sqlParameter);
-
-            sqlParameter = new MySqlParameter();
-            sqlParameter.ParameterName = "sync_row_count";
-            sqlParameter.MySqlDbType = MySqlDbType.Int32;
-            sqlParameter.Direction = ParameterDirection.Output;
-            sqlCommand.Parameters.Add(sqlParameter);
-
-            var listColumnsTmp = new StringBuilder();
-            var listColumnsTmp2 = new StringBuilder();
-            var listColumnsTmp3 = new StringBuilder();
-
-            var and = string.Empty;
-            foreach (var column in this.tableDescription.GetPrimaryKeysColumns())
-            {
-                var param = this.GetMySqlParameter(column);
-                param.ParameterName = $"t_{param.ParameterName}";
-                var declar = this.CreateParameterDeclaration(param);
-                var columnNameQuoted = ParserName.Parse(column, "`").Quoted().ToString();
-
-                var parameterNameQuoted = ParserName.Parse(param.ParameterName, "`").Quoted().ToString();
-
-                // Primary keys column name, with quote
-                listColumnsTmp.Append($"{columnNameQuoted}, ");
-
-                // param name without type
-                listColumnsTmp2.Append($"{parameterNameQuoted}, ");
-
-                // param name with type
-                stringBuilder.AppendLine($"DECLARE {declar};");
-
-                // Param equal IS NULL
-                listColumnsTmp3.Append($"{and}{parameterNameQuoted} IS NULL");
-
-                and = " AND ";
-            }
-
-            stringBuilder.AppendLine("DECLARE ts BIGINT;");
-            stringBuilder.AppendLine("DECLARE t_update_scope_id VARCHAR(36);");
-            stringBuilder.AppendLine($"SELECT {listColumnsTmp}");
-            stringBuilder.AppendLine($"`timestamp`, `update_scope_id` FROM {this.trackingName.Quoted()} ");
-            stringBuilder.AppendLine($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), this.trackingName.Quoted().ToString())} LIMIT 1 ");
-            stringBuilder.AppendLine($"INTO {listColumnsTmp2} ts, t_update_scope_id;");
-            stringBuilder.AppendLine();
-
-            if (hasMutableColumns)
-            {
-                stringBuilder.AppendLine($"UPDATE {this.tableName.Quoted()}");
-                stringBuilder.Append($"SET {MySqlManagementUtils.CommaSeparatedUpdateFromParameters(this.tableDescription)}");
-                stringBuilder.Append($"WHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), string.Empty)}");
-                stringBuilder.AppendLine($" AND (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id  = sync_scope_id OR sync_force_write = 1);");
-                stringBuilder.AppendLine();
-                stringBuilder.AppendLine($"SELECT ROW_COUNT() INTO sync_row_count;"); // [AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
-                stringBuilder.AppendLine($"IF (sync_row_count = 0) THEN");
-            }
-
-            string empty = string.Empty;
-            var stringBuilderArguments = new StringBuilder();
-            var stringBuilderParameters = new StringBuilder();
-            foreach (var mutableColumn in this.tableDescription.Columns.Where(c => !c.IsReadOnly))
-            {
-                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
-                var parameterName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
-
-                var paramQuotedColumn = ParserName.Parse($"{MYSQLPREFIXPARAMETER}{mutableColumn.ColumnName}", "`");
-
-                stringBuilderArguments.Append(string.Concat(empty, columnName));
-                stringBuilderParameters.Append(string.Concat(empty, paramQuotedColumn.Quoted().Normalized().ToString()));
-                empty = ", ";
-            }
-
-            // If we don't have any mutable column, we can't update, and the Insert
-            // will fail if we don't ignore the insert (on Reinitialize for example)
-            var ignoreKeyWord = hasMutableColumns ? string.Empty : "IGNORE";
-            stringBuilder.AppendLine($"\tINSERT {ignoreKeyWord} INTO {this.tableName.Quoted()}");
-            stringBuilder.AppendLine($"\t({stringBuilderArguments})");
-            stringBuilder.AppendLine($"\tSELECT * FROM ( SELECT {stringBuilderParameters}) as TMP ");
-            stringBuilder.AppendLine($"\tWHERE ( {listColumnsTmp3} )");
-            stringBuilder.AppendLine($"\tOR (ts <= sync_min_timestamp OR ts IS NULL OR t_update_scope_id = sync_scope_id OR sync_force_write = 1)");
-            stringBuilder.AppendLine($"\tLIMIT 1;");
-            stringBuilder.AppendLine($"");
-            stringBuilder.AppendLine($"SELECT ROW_COUNT() INTO sync_row_count;"); // [AB] LIMIT 1 removed to be compatible with MariaDB 10.3.x
-            stringBuilder.AppendLine($"");
-
-            if (hasMutableColumns)
-                stringBuilder.AppendLine("END IF;");
-
-            stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"IF (sync_row_count > 0) THEN");
-            stringBuilder.AppendLine($"\tUPDATE {this.trackingName.Quoted()}");
-            stringBuilder.AppendLine($"\tSET `update_scope_id` = sync_scope_id, ");
-            stringBuilder.AppendLine($"\t\t `sync_row_is_tombstone` = 0, ");
-            stringBuilder.AppendLine($"\t\t `timestamp` = {MySqlObjectNames.TimestampValue}, ");
-            stringBuilder.AppendLine($"\t\t `last_change_datetime` = now() ");
-            stringBuilder.AppendLine($"\tWHERE {MySqlManagementUtils.WhereColumnAndParameters(this.tableDescription.GetPrimaryKeysColumns(), string.Empty)};");
-            stringBuilder.AppendLine($"END IF;");
-
-            sqlCommand.CommandText = stringBuilder.ToString();
-            return sqlCommand;
-        }
-
-        public DbCommand CreateUpdateCommand(DbConnection connection, DbTransaction transaction)
-        {
-            // Check if we have mutables columns
-            var hasMutableColumns = this.tableDescription.GetMutableColumns(false).Any();
-
-            var commandName = this.objectNames.GetStoredProcedureCommandName(DbStoredProcedureType.UpdateRow);
-            return this.CreateProcedureCommand(this.BuildUpdateCommand, commandName, hasMutableColumns, connection, transaction);
-        }
 
         //------------------------------------------------------------------
         // Select changes command
@@ -605,10 +453,9 @@ namespace Dotmim.Sync.MySql.Builders
                     throw new FilterParamColumnNotExistsException(whereFilter.ColumnName, whereFilter.TableName);
 
                 var tableName = ParserName.Parse(tableFilter, "`").Unquoted().ToString();
-                if (string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison))
-                    tableName = "`base`";
-                else
-                    tableName = ParserName.Parse(tableFilter, "`").Quoted().ToString();
+                tableName = string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison)
+                    ? "`base`"
+                    : ParserName.Parse(tableFilter, "`").Quoted().ToString();
 
                 var columnName = ParserName.Parse(columnFilter, "`").Quoted().ToString();
                 var parameterName = ParserName.Parse(whereFilter.ParameterName, "`").Unquoted().Normalized().ToString();
@@ -678,16 +525,5 @@ namespace Dotmim.Sync.MySql.Builders
 
             return stringBuilder.ToString();
         }
-
-        public DbCommand CreateSelectIncrementalChangesCommand(DbConnection connection, DbTransaction transaction) => null;
-
-        public DbCommand CreateSelectIncrementalChangesWithFilterCommand(SyncFilter filter, DbConnection connection, DbTransaction transaction) => null;
-
-        //------------------------------------------------------------------
-        // Select changes command
-        //------------------------------------------------------------------
-        public DbCommand CreateSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction) => null;
-
-        public DbCommand CreateSelectInitializedChangesWithFilterCommand(SyncFilter filter, DbConnection connection, DbTransaction transaction) => null;
     }
 }

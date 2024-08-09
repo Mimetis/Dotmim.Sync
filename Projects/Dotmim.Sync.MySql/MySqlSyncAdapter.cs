@@ -4,10 +4,14 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 #if NET6_0 || NET8_0
+using Dotmim.Sync.DatabaseStringParsers;
 using MySqlConnector;
 using System.Reflection.Metadata;
+
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;
+using Dotmim.Sync.DatabaseStringParsers;
+
 #endif
 #if MARIADB
 using Dotmim.Sync.MariaDB.Builders;
@@ -23,17 +27,17 @@ namespace Dotmim.Sync.MySql
 #endif
 {
 
-    public class MySqlSyncAdapter : DbSyncAdapter
+    public partial class MySqlSyncAdapter : DbSyncAdapter
     {
         public MySqlObjectNames MySqlObjectNames { get; }
 
         public MySqlDbMetadata MySqlDbMetadata { get; }
 
-        public MySqlSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup, string scopeName)
-            : base(tableDescription, setup, scopeName)
+        public MySqlSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo)
+            : base(tableDescription, scopeInfo)
         {
             this.MySqlDbMetadata = new MySqlDbMetadata();
-            this.MySqlObjectNames = new MySqlObjectNames(this.TableDescription, tableName, trackingName, this.Setup, scopeName);
+            this.MySqlObjectNames = new MySqlObjectNames(this.TableDescription, scopeInfo);
         }
 
         public override DbCommand EnsureCommandParameters(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
@@ -100,17 +104,13 @@ namespace Dotmim.Sync.MySql
 
         public override string ParameterPrefix => "in_";
 
-        public override string QuotePrefix => "`";
-
-        public override string QuoteSuffix => "`";
-
         public override bool SupportsOutputParameters => true;
 
-        public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType nameType, SyncFilter filter = null)
+        public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType commandType, SyncFilter filter = null)
         {
             var command = new MySqlCommand();
             var isBatch = false;
-            switch (nameType)
+            switch (commandType)
             {
                 case DbCommandType.SelectChanges:
                     command.CommandType = CommandType.Text;
@@ -195,7 +195,7 @@ namespace Dotmim.Sync.MySql
                 case DbCommandType.PreDeleteRow:
                     return (default, false);
                 default:
-                    throw new NotImplementedException($"This command type {nameType} is not implemented");
+                    throw new NotImplementedException($"This command type {commandType} is not implemented");
             }
 
             return (command, isBatch);
@@ -203,5 +203,49 @@ namespace Dotmim.Sync.MySql
 
         public override Task ExecuteBatchCommandAsync(SyncContext context, DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
             => throw new NotImplementedException();
+
+        public override DbColumnNames GetParsedColumnNames(string name) => throw new NotImplementedException();
+
+        public override DbTableBuilder GetTableBuilder() => throw new NotImplementedException();
+
+        internal MySqlParameter GetMySqlParameter(SyncColumn column)
+        {
+#if MARIADB
+            var originalProvider = MariaDBSyncProvider.ProviderType;
+#elif MYSQL
+            var originalProvider = MySqlSyncProvider.ProviderType;
+#endif
+            var columParser = new ObjectParser(column.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+            var parameterName = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
+
+            // Get the good SqlDbType (even if we are not from Sql Server def)
+            var mySqlDbType = this.TableDescription.OriginalProvider == originalProvider ?
+                this.MySqlDbMetadata.GetMySqlDbType(column) : this.MySqlDbMetadata.GetOwnerDbTypeFromDbType(column);
+
+            var sqlParameter = new MySqlParameter
+            {
+                ParameterName = $"{MYSQLPREFIXPARAMETER}{parameterName}",
+                DbType = column.GetDbType(),
+                IsNullable = column.AllowDBNull,
+                MySqlDbType = mySqlDbType,
+                SourceColumn = string.IsNullOrEmpty(column.ExtraProperty1) ? null : column.ExtraProperty1,
+            };
+
+            (byte precision, byte scale) = this.MySqlDbMetadata.GetCompatibleColumnPrecisionAndScale(column, this.TableDescription.OriginalProvider);
+
+            if ((sqlParameter.DbType == DbType.Decimal || sqlParameter.DbType == DbType.Double
+                 || sqlParameter.DbType == DbType.Single || sqlParameter.DbType == DbType.VarNumeric) && precision > 0)
+            {
+                sqlParameter.Precision = precision;
+                if (scale > 0)
+                    sqlParameter.Scale = scale;
+            }
+            else
+            {
+                sqlParameter.Size = column.MaxLength > 0 ? column.MaxLength : sqlParameter.DbType == DbType.Guid ? 36 : -1;
+            }
+
+            return sqlParameter;
+        }
     }
 }

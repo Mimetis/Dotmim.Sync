@@ -1,17 +1,9 @@
-﻿using Dotmim.Sync.Builders;
-using System.Linq;
+﻿using System.Linq;
 using System.Text;
 
-#if MARIADB
-namespace Dotmim.Sync.MariaDB.Builders
-#elif MYSQL
-namespace Dotmim.Sync.MySql.Builders
-#endif
+namespace Dotmim.Sync.MySql
 {
-    /// <summary>
-    /// My Sql Object Names.
-    /// </summary>
-    public partial class MySqlObjectNames
+    public partial class MySqlSyncAdapter
     {
         //------------------------------------------------------------------
         // Select changes command
@@ -101,10 +93,9 @@ namespace Dotmim.Sync.MySql.Builders
                     throw new FilterParamColumnNotExistsException(whereFilter.ColumnName, whereFilter.TableName);
 
                 var tableName = ParserName.Parse(tableFilter, "`").Unquoted().ToString();
-                if (string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison))
-                    tableName = "`base`";
-                else
-                    tableName = ParserName.Parse(tableFilter, "`").Quoted().ToString();
+                tableName = string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison)
+                    ? "`base`"
+                    : ParserName.Parse(tableFilter, "`").Quoted().ToString();
 
                 var columnName = ParserName.Parse(columnFilter, "`").Quoted().ToString();
                 var parameterName = ParserName.Parse(whereFilter.ParameterName, "`").Unquoted().Normalized().ToString();
