@@ -1,4 +1,6 @@
 using Dotmim.Sync.Builders;
+using Dotmim.Sync.DatabaseStringParsers;
+
 #if MARIADB
 using Dotmim.Sync.MariaDB.Builders;
 #elif MYSQL
@@ -23,9 +25,16 @@ namespace Dotmim.Sync.MariaDB
 namespace Dotmim.Sync.MySql
 #endif
 {
+
+    /// <summary>
+    /// MySql Management utils.
+    /// </summary>
     public static class MySqlManagementUtils
     {
 
+        /// <summary>
+        /// check a schema and version. health check.
+        /// </summary>
         public static async Task<(string DatabaseName, string EngineVersion)> GetHelloAsync(MySqlConnection connection, MySqlTransaction transaction)
         {
             string dbName = null;
@@ -109,13 +118,14 @@ namespace Dotmim.Sync.MySql
             return syncSetup;
         }
 
+        /// <summary>
+        /// Get all rows from a table.
+        /// </summary>
         public static async Task<SyncTable> GetTableAsync(string tableName, MySqlConnection connection, MySqlTransaction transaction)
         {
+            var syncTable = new SyncTable(tableName);
 
-            var tableNameParser = ParserName.Parse(tableName, "`");
-            var syncTable = new SyncTable(tableNameParser.Unquoted().ToString());
-
-            string commandText = $"select * from {tableNameParser.Quoted()}";
+            string commandText = $"select * from {tableName}";
 
             using var sqlCommand = new MySqlCommand(commandText, connection);
 
@@ -135,12 +145,12 @@ namespace Dotmim.Sync.MySql
             return syncTable;
         }
 
+        /// <summary>
+        /// Rename a table.
+        /// </summary>
         public static async Task RenameTableAsync(string tableName, string newTableName, MySqlConnection connection, MySqlTransaction transaction)
         {
-            var pTableName = ParserName.Parse(tableName, "`").Unquoted().ToString();
-            var pNewTableName = ParserName.Parse(newTableName, "`").Unquoted().ToString();
-
-            var commandText = $"RENAME TABLE {pTableName} TO {pNewTableName};";
+            var commandText = $"RENAME TABLE {tableName} TO {tableName};";
 
             using var sqlCommand = new MySqlCommand(commandText, connection);
 
@@ -157,40 +167,17 @@ namespace Dotmim.Sync.MySql
                 await connection.CloseAsync().ConfigureAwait(false);
         }
 
-        public static async Task<SyncTable> GetTableDefinitionAsync(string tableName, MySqlConnection connection, MySqlTransaction transaction)
-        {
-            string commandColumn = "select * from information_schema.TABLES where table_schema = schema() and table_name = @tableName limit 1;";
-
-            var tableNameParser = ParserName.Parse(tableName, "`");
-            var syncTable = new SyncTable(tableNameParser.Unquoted().ToString());
-            using var sqlCommand = new MySqlCommand(commandColumn, connection);
-            sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
-
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            if (!alreadyOpened)
-                await connection.OpenAsync().ConfigureAwait(false);
-
-            sqlCommand.Transaction = transaction;
-
-            using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
-                syncTable.Load(reader);
-
-            if (!alreadyOpened)
-                await connection.CloseAsync().ConfigureAwait(false);
-
-            return syncTable;
-        }
-
+        /// <summary>
+        /// Get columns for a table.
+        /// </summary>
         public static async Task<SyncTable> GetColumnsForTableAsync(string tableName, MySqlConnection connection, MySqlTransaction transaction)
         {
             string commandColumn = "select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName";
 
-            var tableNameParser = ParserName.Parse(tableName, "`");
-            var syncTable = new SyncTable(tableNameParser.Unquoted().ToString());
+            var syncTable = new SyncTable(tableName);
             using (var sqlCommand = new MySqlCommand(commandColumn, connection))
             {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
+                sqlCommand.Parameters.AddWithValue("@tableName", tableName);
 
                 bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -211,88 +198,16 @@ namespace Dotmim.Sync.MySql
             return syncTable;
         }
 
-        public static async Task<SyncTable> GetPrimaryKeysForTableAsync(MySqlConnection connection, MySqlTransaction transaction, string tableName)
-        {
-            var commandColumn = @"select * from information_schema.COLUMNS where table_schema = schema() and table_name = @tableName and column_key='PRI'";
-
-            var tableNameParser = ParserName.Parse(tableName, "`");
-            var syncTable = new SyncTable(tableNameParser.Unquoted().ToString());
-            using (var sqlCommand = new MySqlCommand(commandColumn, connection))
-            {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
-
-                bool alreadyOpened = connection.State == ConnectionState.Open;
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                sqlCommand.Transaction = transaction;
-
-                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
-                {
-                    syncTable.Load(reader);
-                }
-
-                if (!alreadyOpened)
-                    await connection.CloseAsync().ConfigureAwait(false);
-            }
-
-            return syncTable;
-        }
-
-        public static async Task<SyncTable> GetRelationsForTableAsync(MySqlConnection connection, MySqlTransaction transaction, string tableName)
-        {
-            var commandRelations = @"
-            SELECT
-              ke.CONSTRAINT_NAME as ForeignKey,
-              ke.POSITION_IN_UNIQUE_CONSTRAINT as ForeignKeyOrder,
-              ke.referenced_table_name as ReferenceTableName,
-              ke.REFERENCED_COLUMN_NAME as ReferenceColumnName,
-              ke.table_name TableName,
-              ke.COLUMN_NAME ColumnName
-            FROM
-              information_schema.KEY_COLUMN_USAGE ke
-            WHERE
-              ke.referenced_table_name IS NOT NULL
-              and ke.table_schema = schema()
-              AND ke.table_name = @tableName
-            ORDER BY
-              ke.referenced_table_name;";
-
-            var tableNameParser = ParserName.Parse(tableName, "`");
-
-            var syncTable = new SyncTable(tableNameParser.Unquoted().ToString());
-            using (var sqlCommand = new MySqlCommand(commandRelations, connection))
-            {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
-
-                bool alreadyOpened = connection.State == ConnectionState.Open;
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                sqlCommand.Transaction = transaction;
-
-                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
-                {
-                    syncTable.Load(reader);
-                }
-
-                if (!alreadyOpened)
-                    await connection.CloseAsync().ConfigureAwait(false);
-            }
-
-            return syncTable;
-        }
-
+        /// <summary>
+        /// Drop a table if exists.
+        /// </summary>
         public static async Task DropTableIfExistsAsync(string tableName, MySqlConnection connection, MySqlTransaction transaction)
         {
-            var tableNameParser = ParserName.Parse(tableName, "`");
 
             using var dbCommand = connection.CreateCommand();
             dbCommand.CommandText = $"select * from information_schema.TABLES where table_schema = schema() and table_name = @tableName";
 
-            dbCommand.Parameters.AddWithValue("@tableName", tableNameParser.Unquoted().ToString());
+            dbCommand.Parameters.AddWithValue("@tableName", tableName);
 
             bool alreadyOpened = connection.State == ConnectionState.Open;
 
@@ -307,29 +222,12 @@ namespace Dotmim.Sync.MySql
                 await connection.CloseAsync().ConfigureAwait(false);
         }
 
-        public static async Task DropTriggerIfExistsAsync(MySqlConnection connection, MySqlTransaction transaction, string quotedTriggerName)
-        {
-            var triggerName = ParserName.Parse(quotedTriggerName, "`");
-
-            using DbCommand dbCommand = connection.CreateCommand();
-            bool alreadyOpened = connection.State == ConnectionState.Open;
-
-            if (!alreadyOpened)
-                await connection.OpenAsync().ConfigureAwait(false);
-
-            dbCommand.CommandText = $"drop trigger {triggerName.Unquoted()}";
-            dbCommand.Transaction = transaction;
-
-            await dbCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
-
-            if (!alreadyOpened)
-                await connection.CloseAsync().ConfigureAwait(false);
-        }
-
+        /// <summary>
+        /// Check if a table exists.
+        /// </summary>
         public static async Task<bool> TableExistsAsync(string tableName, MySqlConnection connection, MySqlTransaction transaction)
         {
             bool tableExist;
-            var tableNameParser = ParserName.Parse(tableName, "`");
 
             using DbCommand dbCommand = connection.CreateCommand();
 
@@ -345,7 +243,7 @@ namespace Dotmim.Sync.MySql
             var sqlParameter = new MySqlParameter()
             {
                 ParameterName = "@tableName",
-                Value = tableNameParser.Unquoted().ToString(),
+                Value = tableName,
             };
 
             dbCommand.Parameters.Add(sqlParameter);
@@ -358,63 +256,9 @@ namespace Dotmim.Sync.MySql
             return tableExist;
         }
 
-        public static async Task<bool> TriggerExistsAsync(MySqlConnection connection, MySqlTransaction transaction, string quotedTriggerName)
-        {
-            bool triggerExist;
-            var triggerName = ParserName.Parse(quotedTriggerName, "`");
-
-            using (var dbCommand = connection.CreateCommand())
-            {
-                dbCommand.CommandText = "select count(*) from information_schema.TRIGGERS where trigger_name = @triggerName AND trigger_schema = schema()";
-
-                dbCommand.Parameters.AddWithValue("@triggerName", triggerName.Unquoted().ToString());
-
-                bool alreadyOpened = connection.State == ConnectionState.Open;
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                dbCommand.Transaction = transaction;
-
-                triggerExist = ((long)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0L;
-
-                if (!alreadyOpened)
-                    await connection.CloseAsync().ConfigureAwait(false);
-            }
-
-            return triggerExist;
-        }
-
-        public static async Task<bool> ProcedureExistsAsync(MySqlConnection connection, MySqlTransaction transaction, string commandName)
-        {
-            bool procExist;
-            var commandNameString = ParserName.Parse(commandName, "`");
-
-            using (var dbCommand = connection.CreateCommand())
-            {
-                dbCommand.CommandText = @"select count(*) from information_schema.ROUTINES
-                                        where ROUTINE_TYPE = 'PROCEDURE'
-                                        and ROUTINE_SCHEMA = schema()
-                                        and ROUTINE_NAME = @procName";
-
-                dbCommand.Parameters.AddWithValue("@procName", commandNameString.Unquoted().ToString());
-
-                bool alreadyOpened = connection.State == ConnectionState.Open;
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                dbCommand.Transaction = transaction;
-
-                procExist = ((long)await dbCommand.ExecuteScalarAsync().ConfigureAwait(false)) != 0L;
-
-                if (!alreadyOpened)
-                    await connection.CloseAsync().ConfigureAwait(false);
-            }
-
-            return procExist;
-        }
-
+        /// <summary>
+        /// Join two tables on clause.
+        /// </summary>
         public static string JoinTwoTablesOnClause(IEnumerable<SyncColumn> pkeys, string leftName, string rightName)
         {
             var stringBuilder = new StringBuilder();
@@ -424,14 +268,14 @@ namespace Dotmim.Sync.MySql
             string str = string.Empty;
             foreach (var column in pkeys)
             {
-                var quotedColumn = ParserName.Parse(column, "`");
+                var quotedColumnParser = new ObjectParser(column.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
 
                 stringBuilder.Append(str);
                 stringBuilder.Append(strLeftName);
-                stringBuilder.Append(quotedColumn.Quoted().ToString());
+                stringBuilder.Append(quotedColumnParser.QuotedShortName);
                 stringBuilder.Append(" = ");
                 stringBuilder.Append(strRightName);
-                stringBuilder.Append(quotedColumn.Quoted().ToString());
+                stringBuilder.Append(quotedColumnParser.QuotedShortName);
 
                 str = " AND ";
             }
@@ -439,27 +283,9 @@ namespace Dotmim.Sync.MySql
             return stringBuilder.ToString();
         }
 
-        public static string ColumnsAndParameters(IEnumerable<SyncColumn> pkeys, string fromPrefix)
-        {
-            var prefix_parameter = MySqlBuilderProcedure.MYSQLPREFIXPARAMETER;
-            var stringBuilder = new StringBuilder();
-            string strFromPrefix = string.IsNullOrEmpty(fromPrefix) ? string.Empty : string.Concat(fromPrefix, ".");
-            string str1 = string.Empty;
-            foreach (var pkey in pkeys)
-            {
-                var quotedColumn = ParserName.Parse(pkey, "`");
-
-                stringBuilder.Append(str1);
-                stringBuilder.Append(strFromPrefix);
-                stringBuilder.Append(quotedColumn.Quoted().ToString());
-                stringBuilder.Append(" = ");
-                stringBuilder.Append($"{prefix_parameter}{quotedColumn.Unquoted().Normalized()}");
-                str1 = " AND ";
-            }
-
-            return stringBuilder.ToString();
-        }
-
+        /// <summary>
+        /// Where clause for columns.
+        /// </summary>
         public static string WhereColumnAndParameters(IEnumerable<SyncColumn> primaryKeys, string fromPrefix, string mysqlPrefix = MySqlBuilderProcedure.MYSQLPREFIXPARAMETER)
         {
             StringBuilder stringBuilder = new StringBuilder();
@@ -467,20 +293,23 @@ namespace Dotmim.Sync.MySql
             string str1 = string.Empty;
             foreach (var column in primaryKeys)
             {
-                var quotedColumn = ParserName.Parse(column, "`");
-                var paramQuotedColumn = ParserName.Parse($"{mysqlPrefix}{column.ColumnName}", "`");
+                var quotedColumnParser = new ObjectParser(column.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+                var paramQuotedColumnParser = new ObjectParser($"{mysqlPrefix}{column.ColumnName}", MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
 
                 stringBuilder.Append(str1);
                 stringBuilder.Append(strFromPrefix);
-                stringBuilder.Append(quotedColumn.Quoted().ToString());
+                stringBuilder.Append(quotedColumnParser.QuotedShortName);
                 stringBuilder.Append(" = ");
-                stringBuilder.Append($"{paramQuotedColumn.Quoted()}");
+                stringBuilder.Append($"{paramQuotedColumnParser.QuotedShortName}");
                 str1 = " AND ";
             }
 
             return stringBuilder.ToString();
         }
 
+        /// <summary>
+        /// Comma separated columns.
+        /// </summary>
         public static string CommaSeparatedUpdateFromParameters(SyncTable table, string fromPrefix = "", string mysqlPrefix = MySqlBuilderProcedure.MYSQLPREFIXPARAMETER)
         {
             var stringBuilder = new StringBuilder();
@@ -488,9 +317,9 @@ namespace Dotmim.Sync.MySql
             string strSeparator = string.Empty;
             foreach (var mutableColumn in table.GetMutableColumns())
             {
-                var quotedColumn = ParserName.Parse(mutableColumn.ColumnName, "`");
-                var argQuotedColumn = ParserName.Parse($"{mysqlPrefix}{mutableColumn.ColumnName}", "`");
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumn.Quoted()} = {argQuotedColumn.Quoted().Normalized()}");
+                var quotedColumnParser = new ObjectParser(mutableColumn.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+                var paramQuotedColumnParser = new ObjectParser($"{mysqlPrefix}{mutableColumn.ColumnName}", MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumnParser.QuotedShortName} = {quotedColumnParser.NormalizedShortName}");
                 strSeparator = ", ";
             }
 

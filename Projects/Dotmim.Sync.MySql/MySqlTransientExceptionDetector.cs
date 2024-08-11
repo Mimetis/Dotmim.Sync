@@ -16,7 +16,7 @@ namespace Dotmim.Sync.MySql
     public static class MySqlTransientExceptionDetector
     {
         /// <summary>
-        ///     Detects the exceptions caused by SQL Server transient failures.
+        ///     Detects the exceptions caused by MySQL transient failures.
         /// </summary>
         public static bool ShouldRetryOn(MySqlException mysqlException)
         {

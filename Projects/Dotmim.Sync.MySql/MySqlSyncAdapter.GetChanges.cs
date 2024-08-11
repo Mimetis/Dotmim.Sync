@@ -1,7 +1,17 @@
-﻿using System.Linq;
+﻿using Dotmim.Sync.DatabaseStringParsers;
+#if MARIADB
+using Dotmim.Sync.MariaDB.Builders;
+#elif MYSQL
+using Dotmim.Sync.MySql.Builders;
+# endif
+using System.Linq;
 using System.Text;
 
+#if MARIADB
+namespace Dotmim.Sync.MariaDB
+#elif MYSQL
 namespace Dotmim.Sync.MySql
+#endif
 {
     public partial class MySqlSyncAdapter
     {
@@ -41,22 +51,24 @@ namespace Dotmim.Sync.MySql
                         break;
                 }
 
-                var filterTableName = ParserName.Parse(filter.TableName, "`").Quoted().ToString();
+                var filterTableParser = new TableParser(filter.TableName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
 
-                var joinTableName = ParserName.Parse(customJoin.TableName, "`").Quoted().ToString();
+                var joinTableParser = new TableParser(customJoin.TableName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
 
-                var leftTableName = ParserName.Parse(customJoin.LeftTableName, "`").Quoted().ToString();
-                if (string.Equals(filterTableName, leftTableName, SyncGlobalization.DataSourceStringComparison))
+                var leftTableParser = new TableParser(customJoin.LeftTableName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+                var leftTableName = leftTableParser.QuotedShortName;
+                if (string.Equals(filterTableParser.QuotedShortName, leftTableName, SyncGlobalization.DataSourceStringComparison))
                     leftTableName = "`base`";
 
-                var rightTableName = ParserName.Parse(customJoin.RightTableName, "`").Quoted().ToString();
-                if (string.Equals(filterTableName, rightTableName, SyncGlobalization.DataSourceStringComparison))
+                var rightTableParser = new TableParser(customJoin.RightTableName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+                var rightTableName = rightTableParser.QuotedShortName;
+                if (string.Equals(filterTableParser.QuotedShortName, rightTableName, SyncGlobalization.DataSourceStringComparison))
                     rightTableName = "`base`";
 
-                var leftColumName = ParserName.Parse(customJoin.LeftColumnName, "`").Quoted().ToString();
-                var rightColumName = ParserName.Parse(customJoin.RightColumnName, "`").Quoted().ToString();
+                var leftColumnParser = new ObjectParser(customJoin.LeftColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+                var rightColumnParser = new ObjectParser(customJoin.RightColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
 
-                stringBuilder.AppendLine($"{joinTableName} ON {leftTableName}.{leftColumName} = {rightTableName}.{rightColumName}");
+                stringBuilder.AppendLine($"{joinTableParser.QuotedShortName} ON {leftTableName}.{leftColumnParser.QuotedShortName} = {rightTableName}.{rightColumnParser.QuotedShortName}");
             }
 
             return stringBuilder.ToString();
@@ -92,23 +104,22 @@ namespace Dotmim.Sync.MySql
                 if (columnFilter == null)
                     throw new FilterParamColumnNotExistsException(whereFilter.ColumnName, whereFilter.TableName);
 
-                var tableName = ParserName.Parse(tableFilter, "`").Unquoted().ToString();
-                tableName = string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison)
+                var tableFilterParser = new TableParser(tableFilter.TableName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+                var tableName = string.Equals(tableFilterParser.TableName, filter.TableName, SyncGlobalization.DataSourceStringComparison)
                     ? "`base`"
-                    : ParserName.Parse(tableFilter, "`").Quoted().ToString();
+                    : tableFilterParser.QuotedShortName;
 
-                var columnName = ParserName.Parse(columnFilter, "`").Quoted().ToString();
-                var parameterName = ParserName.Parse(whereFilter.ParameterName, "`").Unquoted().Normalized().ToString();
-
-                var param = filter.Parameters[parameterName];
+                var columnParser = new ObjectParser(columnFilter.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+                var parameterParser = new ObjectParser(whereFilter.ParameterName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+                var param = filter.Parameters[parameterParser.NormalizedShortName];
 
                 if (param == null)
-                    throw new FilterParamColumnNotExistsException(columnName, whereFilter.TableName);
+                    throw new FilterParamColumnNotExistsException(columnParser.QuotedShortName, whereFilter.TableName);
 
-                stringBuilder.Append($"{and2}({tableName}.{columnName} = @{parameterName}");
+                stringBuilder.Append($"{and2}({tableName}.{columnParser.QuotedShortName} = @{parameterParser.NormalizedShortName}");
 
                 if (param.AllowNull)
-                    stringBuilder.Append($" OR @{parameterName} IS NULL");
+                    stringBuilder.Append($" OR @{parameterParser.NormalizedShortName} IS NULL");
 
                 stringBuilder.Append($")");
 
@@ -160,6 +171,9 @@ namespace Dotmim.Sync.MySql
             return stringBuilder.ToString();
         }
 
+        /// <summary>
+        /// Return the correct command to get changes from the datasource.
+        /// </summary>
         public string CreateSelectIncrementalChangesCommand(SyncFilter filter = null)
         {
             var stringBuilder = new StringBuilder(filter == null ? "SELECT" : "SELECT DISTINCT");
@@ -169,30 +183,30 @@ namespace Dotmim.Sync.MySql
             // ----------------------------------
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
             {
-                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+                var columnParser = new ObjectParser(mutableColumn.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
 
                 var isPrimaryKey = this.TableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
                 if (isPrimaryKey)
-                    stringBuilder.AppendLine($"\t`side`.{columnName}, ");
+                    stringBuilder.AppendLine($"\t`side`.{columnParser.QuotedShortName}, ");
                 else
-                    stringBuilder.AppendLine($"\t`base`.{columnName}, ");
+                    stringBuilder.AppendLine($"\t`base`.{columnParser.QuotedShortName}, ");
             }
 
             stringBuilder.AppendLine($"\t`side`.`sync_row_is_tombstone`, ");
             stringBuilder.AppendLine($"\t`side`.`update_scope_id` as `sync_update_scope_id` ");
-            stringBuilder.AppendLine($"FROM {this.tableName.Quoted()} `base`");
+            stringBuilder.AppendLine($"FROM {this.MySqlObjectNames.TableQuotedShortName} `base`");
 
             // ----------------------------------
             // Make Right Join
             // ----------------------------------
-            stringBuilder.Append($"RIGHT JOIN {this.trackingName.Quoted()} `side` ON ");
+            stringBuilder.Append($"RIGHT JOIN {this.MySqlObjectNames.TrackingTableQuotedShortName} `side` ON ");
 
             string empty = string.Empty;
             foreach (var pkColumn in this.TableDescription.PrimaryKeys)
             {
-                var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
-                stringBuilder.Append($"{empty}`base`.{pkColumnName} = `side`.{pkColumnName}");
+                var columnParser = new ObjectParser(pkColumn, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+                stringBuilder.Append($"{empty}`base`.{columnParser.QuotedShortName} = `side`.{columnParser.QuotedShortName}");
                 empty = " AND ";
             }
 
@@ -231,9 +245,9 @@ namespace Dotmim.Sync.MySql
             return stringBuilder.ToString();
         }
 
-        //------------------------------------------------------------------
-        // Select initial changes command
-        //------------------------------------------------------------------
+        /// <summary>
+        /// Returns a command text to get the initial changes.
+        /// </summary>
         public string CreateSelectInitializedChangesCommand(SyncFilter filter = null)
         {
             var stringBuilder = new StringBuilder();
@@ -247,23 +261,24 @@ namespace Dotmim.Sync.MySql
             var comma = "  ";
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
             {
-                stringBuilder.AppendLine($"\t{comma}`base`.{ParserName.Parse(mutableColumn, "`").Quoted()}");
+                var columnParser = new ObjectParser(mutableColumn.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+                stringBuilder.AppendLine($"\t{comma}`base`.{columnParser.QuotedShortName}");
                 comma = ", ";
             }
 
             stringBuilder.AppendLine($"\t, `side`.`sync_row_is_tombstone` as `sync_row_is_tombstone`");
-            stringBuilder.AppendLine($"FROM {this.tableName.Quoted()} `base`");
+            stringBuilder.AppendLine($"FROM {this.MySqlObjectNames.TableQuotedShortName} `base`");
 
             // ----------------------------------
             // Make Left Join
             // ----------------------------------
-            stringBuilder.Append($"LEFT JOIN {this.trackingName.Quoted()} `side` ON ");
+            stringBuilder.Append($"LEFT JOIN {this.MySqlObjectNames.TrackingTableQuotedShortName} `side` ON ");
 
             string empty = string.Empty;
             foreach (var pkColumn in this.TableDescription.PrimaryKeys)
             {
-                var pkColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
-                stringBuilder.Append($"{empty}`base`.{pkColumnName} = `side`.{pkColumnName}");
+                var columnParser = new ObjectParser(pkColumn, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+                stringBuilder.Append($"{empty}`base`.{columnParser.QuotedShortName} = `side`.{columnParser.QuotedShortName}");
                 empty = " AND ";
             }
 
@@ -302,36 +317,86 @@ namespace Dotmim.Sync.MySql
             comma = "  ";
             foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
             {
-                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+                var columnParser = new ObjectParser(mutableColumn.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+
                 var isPrimaryKey = this.TableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
 
                 if (isPrimaryKey)
-                    stringBuilder.AppendLine($"\t{comma}`side`.{columnName}");
+                    stringBuilder.AppendLine($"\t{comma}`side`.{columnParser.QuotedShortName}");
                 else
-                    stringBuilder.AppendLine($"\t{comma}`base`.{columnName}");
+                    stringBuilder.AppendLine($"\t{comma}`base`.{columnParser.QuotedShortName}");
 
                 comma = ", ";
             }
 
             stringBuilder.AppendLine($"\t, `side`.`sync_row_is_tombstone` as `sync_row_is_tombstone`");
-            stringBuilder.AppendLine($"FROM {this.tableName.Quoted()} `base`");
+            stringBuilder.AppendLine($"FROM {this.MySqlObjectNames.TableQuotedShortName} `base`");
 
             // ----------------------------------
             // Make Left Join
             // ----------------------------------
-            stringBuilder.Append($"RIGHT JOIN {this.trackingName.Quoted()} `side` ON ");
+            stringBuilder.Append($"RIGHT JOIN {this.MySqlObjectNames.TrackingTableQuotedShortName} `side` ON ");
 
             empty = string.Empty;
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
-                stringBuilder.Append($"{empty}`base`.{columnName} = `side`.{columnName}");
+                var columnParser = new ObjectParser(pkColumn.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+                stringBuilder.Append($"{empty}`base`.{columnParser.QuotedShortName} = `side`.{columnParser.QuotedShortName}");
                 empty = " AND ";
             }
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("WHERE (`side`.`timestamp` > @sync_min_timestamp AND `side`.`sync_row_is_tombstone` = 1);");
 
+            return stringBuilder.ToString();
+        }
+
+        /// <summary>
+        /// Returns a command text to select a row.
+        /// </summary>
+        public string CreateSelectRowCommand()
+        {
+
+            StringBuilder stringBuilder = new StringBuilder("SELECT ");
+            stringBuilder.AppendLine();
+            StringBuilder stringBuilder1 = new StringBuilder();
+            string empty = string.Empty;
+            foreach (var pkColumn in this.TableDescription.PrimaryKeys)
+            {
+                var columnParser = new ObjectParser(pkColumn, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+                stringBuilder1.Append($"{empty}`side`.{columnParser.QuotedShortName} = @{columnParser.NormalizedShortName}");
+                empty = " AND ";
+            }
+
+            foreach (var mutableColumn in this.TableDescription.GetMutableColumns(false, true))
+            {
+                var columnParser = new ObjectParser(mutableColumn.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+
+                var isPrimaryKey = this.TableDescription.PrimaryKeys.Any(pkey => mutableColumn.ColumnName.Equals(pkey, SyncGlobalization.DataSourceStringComparison));
+
+                if (isPrimaryKey)
+                    stringBuilder.AppendLine($"\t`side`.{columnParser.QuotedShortName}, ");
+                else
+                    stringBuilder.AppendLine($"\t`base`.{columnParser.QuotedShortName}, ");
+            }
+
+            stringBuilder.AppendLine("\t`side`.`sync_row_is_tombstone`, ");
+            stringBuilder.AppendLine("\t`side`.`update_scope_id` as `sync_update_scope_id`");
+            stringBuilder.AppendLine($"FROM {this.MySqlObjectNames.TableQuotedShortName} `base`");
+            stringBuilder.AppendLine($"RIGHT JOIN {this.MySqlObjectNames.TrackingTableQuotedShortName} `side` ON");
+
+            string str = string.Empty;
+            foreach (var pkColumn in this.TableDescription.PrimaryKeys)
+            {
+                var columnParser = new ObjectParser(pkColumn, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+                stringBuilder.Append($"{str}`base`.{columnParser.QuotedShortName} = `side`.{columnParser.QuotedShortName}");
+                str = " AND ";
+            }
+
+            stringBuilder.AppendLine();
+            stringBuilder.Append("WHERE ");
+            stringBuilder.Append(stringBuilder1);
+            stringBuilder.Append(";");
             return stringBuilder.ToString();
         }
     }

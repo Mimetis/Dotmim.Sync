@@ -37,19 +37,20 @@
 		<DefineConstants>TRACE;MARIADB</DefineConstants>
 	</PropertyGroup>
 	<ItemGroup>
-		<Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlBuilder.cs" Link="Builders\MySqlBuilder.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlBuilderProcedure.cs" Link="Builders\MySqlBuilderProcedure.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlBuilderTable.cs" Link="Builders\MySqlBuilderTable.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlBuilderTrackingTable.cs" Link="Builders\MySqlBuilderTrackingTable.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlBuilderTrigger.cs" Link="Builders\MySqlBuilderTrigger.cs" />
+		<Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlDatabaseBuilder.cs" Link="Builders\MySqlDatabaseBuilder.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlDbMetadata.cs" Link="Builders\MySqlDbMetadata.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlObjectNames.cs" Link="Builders\MySqlObjectNames.cs" />
-		<Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlObjectNames.GetChanges.cs" Link="Builders\MySqlObjectNames.GetChanges.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlScopeInfoBuilder.cs" Link="Builders\MySqlScopeInfoBuilder.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlTableBuilder.cs" Link="Builders\MySqlTableBuilder.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\MySqlExtensionsMethods.cs" Link="MySqlExtensionsMethods.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\MySqlManagementUtils.cs" Link="MySqlManagementUtils.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\MySqlSyncAdapter.cs" Link="MySqlSyncAdapter.cs" />
+		<Compile Include="..\Dotmim.Sync.MySql\MySqlSyncAdapter.GetChanges.cs" Link="MySqlSyncAdapter.GetChanges.cs" />
+		<Compile Include="..\Dotmim.Sync.MySql\MySqlSyncAdapter.Metadata.cs" Link="MySqlSyncAdapter.Metadata.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\MySqlTokenizer.cs" Link="MySqlTokenizer.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\MySqlTransientExceptionDetector.cs" Link="MySqlTransientExceptionDetector.cs" />
 	</ItemGroup>

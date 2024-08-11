@@ -8,7 +8,6 @@ using System.Collections.Generic;
 #if MARIADB
 using Dotmim.Sync.MariaDB.Builders;
 #elif MYSQL
-using Dotmim.Sync.MySql.Builders;
 #endif
 
 using System.Globalization;
@@ -20,8 +19,14 @@ namespace Dotmim.Sync.MariaDB
 namespace Dotmim.Sync.MySql
 #endif
 {
+    /// <summary>
+    /// MySql Extensions Methods.
+    /// </summary>
     public static class MySqlExtensionsMethods
     {
+        /// <summary>
+        /// Not yet implemented.
+        /// </summary>
         public static MySqlParameter[] DeriveParameters(
             this MySqlConnection connection,
             MySqlCommand cmd, bool includeReturnValueParameter = false,

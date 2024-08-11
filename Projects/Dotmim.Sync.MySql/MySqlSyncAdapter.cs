@@ -27,12 +27,30 @@ namespace Dotmim.Sync.MySql
 #endif
 {
 
+    /// <summary>
+    /// Represents a MySql Sync Adapter.
+    /// </summary>
     public partial class MySqlSyncAdapter : DbSyncAdapter
     {
+        /// <summary>
+        /// Gets the MySqlObjectNames.
+        /// </summary>
         public MySqlObjectNames MySqlObjectNames { get; }
 
+        /// <summary>
+        /// Gets the MySqlDbMetadata.
+        /// </summary>
         public MySqlDbMetadata MySqlDbMetadata { get; }
 
+        /// <summary>
+        /// Gets the MySqlPrefixParameter.
+        /// </summary>
+        public override string ParameterPrefix => "in_";
+
+        /// <inheritdoc />
+        public override bool SupportsOutputParameters => true;
+
+        /// <inheritdoc cref="MySqlSyncAdapter" />
         public MySqlSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo)
             : base(tableDescription, scopeInfo)
         {
@@ -40,6 +58,7 @@ namespace Dotmim.Sync.MySql
             this.MySqlObjectNames = new MySqlObjectNames(this.TableDescription, scopeInfo);
         }
 
+        /// <inheritdoc />
         public override DbCommand EnsureCommandParameters(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
             if (commandType == DbCommandType.UpdateRow || commandType == DbCommandType.UpdateRows ||
@@ -97,40 +116,32 @@ namespace Dotmim.Sync.MySql
             return command;
         }
 
+        /// <inheritdoc />
         public override DbCommand EnsureCommandParametersValues(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
-        {
-            return command;
-        }
+            => command;
 
-        public override string ParameterPrefix => "in_";
-
-        public override bool SupportsOutputParameters => true;
-
+        /// <inheritdoc />
         public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType commandType, SyncFilter filter = null)
         {
+#pragma warning disable CA2000 // Dispose objects before losing scope
             var command = new MySqlCommand();
+#pragma warning restore CA2000 // Dispose objects before losing scope
             var isBatch = false;
             switch (commandType)
             {
                 case DbCommandType.SelectChanges:
-                    command.CommandType = CommandType.Text;
-                    command.CommandText = this.MySqlObjectNames.CreateSelectIncrementalChangesCommand(filter);
-                    break;
-                case DbCommandType.SelectInitializedChanges:
-                    command.CommandType = CommandType.Text;
-                    command.CommandText = this.MySqlObjectNames.CreateSelectInitializedChangesCommand(filter);
-                    break;
-                case DbCommandType.SelectInitializedChangesWithFilters:
-                    command.CommandType = CommandType.Text;
-                    command.CommandText = this.MySqlObjectNames.CreateSelectInitializedChangesCommand(filter);
-                    break;
                 case DbCommandType.SelectChangesWithFilters:
                     command.CommandType = CommandType.Text;
-                    command.CommandText = this.MySqlObjectNames.CreateSelectIncrementalChangesCommand(filter);
+                    command.CommandText = this.CreateSelectIncrementalChangesCommand(filter);
+                    break;
+                case DbCommandType.SelectInitializedChanges:
+                case DbCommandType.SelectInitializedChangesWithFilters:
+                    command.CommandType = CommandType.Text;
+                    command.CommandText = this.CreateSelectInitializedChangesCommand(filter);
                     break;
                 case DbCommandType.SelectRow:
                     command.CommandType = CommandType.Text;
-                    command.CommandText = this.MySqlObjectNames.CreateSelectRowCommand();
+                    command.CommandText = this.CreateSelectRowCommand();
                     break;
                 case DbCommandType.UpdateRow:
                 case DbCommandType.InsertRow:
@@ -146,25 +157,19 @@ namespace Dotmim.Sync.MySql
                     break;
                 case DbCommandType.DisableConstraints:
                     command.CommandType = CommandType.Text;
-                    command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.DisableConstraints, filter);
+                    command.CommandText = MySqlObjectNames.DisableConstraintsText;
                     break;
                 case DbCommandType.EnableConstraints:
                     command.CommandType = CommandType.Text;
-                    command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.EnableConstraints, filter);
+                    command.CommandText = MySqlObjectNames.EnableConstraintsText;
                     break;
                 case DbCommandType.DeleteMetadata:
                     command.CommandType = CommandType.Text;
-                    command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.DeleteMetadata, filter);
+                    command.CommandText = string.Format(MySqlObjectNames.DeleteMetadataText, this.MySqlObjectNames.TrackingTableQuotedFullName);
                     break;
                 case DbCommandType.UpdateMetadata:
-                    // command.CommandType = CommandType.Text;
-                    // command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.UpdateMetadata, filter);
-                    // break;
                     return (default, false);
                 case DbCommandType.SelectMetadata:
-                    // command.CommandType = CommandType.Text;
-                    // command.CommandText = this.MySqlObjectNames.GetCommandName(DbCommandType.SelectMetadata, filter);
-                    // break;
                     return (default, false);
                 case DbCommandType.InsertTrigger:
                     command.CommandType = CommandType.Text;
@@ -180,11 +185,11 @@ namespace Dotmim.Sync.MySql
                     break;
                 case DbCommandType.UpdateUntrackedRows:
                     command.CommandType = CommandType.Text;
-                    command.CommandText = this.MySqlObjectNames.CreateUpdateUntrackedRowsCommand();
+                    command.CommandText = this.CreateUpdateUntrackedRowsCommand();
                     break;
                 case DbCommandType.Reset:
                     command.CommandType = CommandType.Text;
-                    command.CommandText = this.MySqlObjectNames.CreateResetCommand();
+                    command.CommandText = this.CreateResetCommand();
                     break;
                 case DbCommandType.BulkTableType:
                 case DbCommandType.PreUpdateRows:
@@ -201,51 +206,16 @@ namespace Dotmim.Sync.MySql
             return (command, isBatch);
         }
 
+        /// <summary>
+        /// Not supported by MySQL.
+        /// </summary>
         public override Task ExecuteBatchCommandAsync(SyncContext context, DbCommand cmd, Guid senderScopeId, IEnumerable<SyncRow> arrayItems, SyncTable schemaChangesTable, SyncTable failedRows, long? lastTimestamp, DbConnection connection, DbTransaction transaction = null)
             => throw new NotImplementedException();
 
+        /// <inheritdoc />
         public override DbColumnNames GetParsedColumnNames(string name) => throw new NotImplementedException();
 
-        public override DbTableBuilder GetTableBuilder() => throw new NotImplementedException();
-
-        internal MySqlParameter GetMySqlParameter(SyncColumn column)
-        {
-#if MARIADB
-            var originalProvider = MariaDBSyncProvider.ProviderType;
-#elif MYSQL
-            var originalProvider = MySqlSyncProvider.ProviderType;
-#endif
-            var columParser = new ObjectParser(column.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
-            var parameterName = ParserName.Parse(column, "`").Unquoted().Normalized().ToString();
-
-            // Get the good SqlDbType (even if we are not from Sql Server def)
-            var mySqlDbType = this.TableDescription.OriginalProvider == originalProvider ?
-                this.MySqlDbMetadata.GetMySqlDbType(column) : this.MySqlDbMetadata.GetOwnerDbTypeFromDbType(column);
-
-            var sqlParameter = new MySqlParameter
-            {
-                ParameterName = $"{MYSQLPREFIXPARAMETER}{parameterName}",
-                DbType = column.GetDbType(),
-                IsNullable = column.AllowDBNull,
-                MySqlDbType = mySqlDbType,
-                SourceColumn = string.IsNullOrEmpty(column.ExtraProperty1) ? null : column.ExtraProperty1,
-            };
-
-            (byte precision, byte scale) = this.MySqlDbMetadata.GetCompatibleColumnPrecisionAndScale(column, this.TableDescription.OriginalProvider);
-
-            if ((sqlParameter.DbType == DbType.Decimal || sqlParameter.DbType == DbType.Double
-                 || sqlParameter.DbType == DbType.Single || sqlParameter.DbType == DbType.VarNumeric) && precision > 0)
-            {
-                sqlParameter.Precision = precision;
-                if (scale > 0)
-                    sqlParameter.Scale = scale;
-            }
-            else
-            {
-                sqlParameter.Size = column.MaxLength > 0 ? column.MaxLength : sqlParameter.DbType == DbType.Guid ? 36 : -1;
-            }
-
-            return sqlParameter;
-        }
+        /// <inheritdoc />
+        public override DbTableBuilder GetTableBuilder() => new MySqlTableBuilder(this.TableDescription, this.ScopeInfo);
     }
 }

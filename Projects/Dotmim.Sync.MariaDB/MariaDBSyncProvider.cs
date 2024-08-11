@@ -19,17 +19,24 @@ using System;
 
 namespace Dotmim.Sync.MariaDB
 {
+
+    /// <summary>
+    /// MariaDB Sync Provider.
+    /// </summary>
     public class MariaDBSyncProvider : CoreProvider
     {
+        private static string shortProviderType;
         private static string providerType;
         private DbMetadata dbMetadata;
         private MySqlConnectionStringBuilder builder;
 
+        /// <inheritdoc cref="MariaDBSyncProvider"/>
         public MariaDBSyncProvider()
             : base()
         {
         }
 
+        /// <inheritdoc />
         public override string ConnectionString
         {
             get => this.builder == null || string.IsNullOrEmpty(this.builder.ConnectionString) ? null : this.builder.ConnectionString;
@@ -43,9 +50,11 @@ namespace Dotmim.Sync.MariaDB
             }
         }
 
+        /// <inheritdoc cref="MariaDBSyncProvider" />
         public MariaDBSyncProvider(string connectionString)
             : base() => this.ConnectionString = connectionString;
 
+        /// <inheritdoc cref="MariaDBSyncProvider"/>
         public MariaDBSyncProvider(MySqlConnectionStringBuilder builder)
             : base()
         {
@@ -58,8 +67,12 @@ namespace Dotmim.Sync.MariaDB
             this.builder.UseAffectedRows = false;
         }
 
+        /// <inheritdoc />
         public override string GetProviderTypeName() => ProviderType;
 
+        /// <summary>
+        /// Gets the provider type.
+        /// </summary>
         public static string ProviderType
         {
             get
@@ -74,12 +87,15 @@ namespace Dotmim.Sync.MariaDB
             }
         }
 
+        /// <inheritdoc />
         public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnTableLevel;
 
-        private static string shortProviderType;
-
+        /// <inheritdoc />
         public override string GetShortProviderTypeName() => ShortProviderType;
 
+        /// <summary>
+        /// Gets the short name of the provider.
+        /// </summary>
         public static string ShortProviderType
         {
             get
@@ -99,12 +115,7 @@ namespace Dotmim.Sync.MariaDB
         /// </summary>
         public override bool CanBeServerProvider => true;
 
-        /// <summary>
-        /// Gets or Sets the MySql Metadata object, provided to validate the MySql Columns issued from MySql.
-        /// </summary>
-        /// <summary>
-        /// Gets or sets the Metadata object which parse Sql server types.
-        /// </summary>
+        /// <inheritdoc />
         public override DbMetadata GetMetadata()
         {
             this.dbMetadata ??= new MySqlDbMetadata();
@@ -112,6 +123,7 @@ namespace Dotmim.Sync.MariaDB
             return this.dbMetadata;
         }
 
+        /// <inheritdoc />
         public override string GetDatabaseName()
         {
             if (this.builder != null && !string.IsNullOrEmpty(this.builder.Database))
@@ -120,6 +132,7 @@ namespace Dotmim.Sync.MariaDB
             return string.Empty;
         }
 
+        /// <inheritdoc />
         public override void EnsureSyncException(SyncException syncException)
         {
             if (this.builder != null && !string.IsNullOrEmpty(this.builder.ConnectionString))
@@ -136,6 +149,7 @@ namespace Dotmim.Sync.MariaDB
             return;
         }
 
+        /// <inheritdoc />
         public override bool ShouldRetryOn(Exception exception)
         {
             Exception ex = exception;
@@ -150,35 +164,17 @@ namespace Dotmim.Sync.MariaDB
             return false;
         }
 
+        /// <inheritdoc />
         public override DbConnection CreateConnection() => new MySqlConnection(this.ConnectionString);
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-            => new MySqlTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
+        /// <inheritdoc />
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo)
+            => new MySqlSyncAdapter(tableDescription, scopeInfo);
 
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-            => new MySqlSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
-
+        /// <inheritdoc />
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new MySqlScopeInfoBuilder(scopeInfoTableName);
 
-        public override DbDatabaseBuilder GetDatabaseBuilder() => new MySqlBuilder();
-
-        public override (ParserName TableName, ParserName TrackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
-        {
-            string tableAndPrefixName = tableDescription.TableName;
-
-            var originalTableName = ParserName.Parse(tableDescription, "`");
-
-            var pref = setup.TrackingTablesPrefix != null ? setup.TrackingTablesPrefix : string.Empty;
-            var suf = setup.TrackingTablesSuffix != null ? setup.TrackingTablesSuffix : string.Empty;
-
-            // be sure, at least, we have a suffix if we have empty values.
-            // othewise, we have the same name for both table and tracking table
-            if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
-                suf = "_tracking";
-
-            var trackingTableName = ParserName.Parse($"{pref}{tableAndPrefixName}{suf}", "`");
-
-            return (originalTableName, trackingTableName);
-        }
+        /// <inheritdoc />
+        public override DbDatabaseBuilder GetDatabaseBuilder() => new MySqlDatabaseBuilder();
     }
 }

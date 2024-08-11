@@ -73,13 +73,13 @@
 //            {
 //                case DbCommandType.UpdateRow:
 //                case DbCommandType.UpdateRows:
-//                    return (CreateUpdateCommand(), false);
+//                    return (CreateUpdateStoredProcedureCommand(), false);
 //                case DbCommandType.InsertRow:
 //                case DbCommandType.InsertRows:
 //                    return (CreateInsertRowCommand(), false);
 //                case DbCommandType.DeleteRow:
 //                case DbCommandType.DeleteRows:
-//                    return (CreateDeleteCommand(), false);
+//                    return (CreateDeleteStoredProcedureCommand(), false);
 //                case DbCommandType.DisableConstraints:
 //                    command.CommandType = CommandType.Text;
 //                    command.CommandText = this.sqliteObjectNames.GetCommandName(DbCommandType.DisableConstraints, filter);
@@ -128,7 +128,7 @@
 //        /// <summary>
 //        /// Gets the delete row command without adding rows in tracking table
 //        /// </summary>
-//        private DbCommand CreateDeleteCommand()
+//        private DbCommand CreateDeleteStoredProcedureCommand()
 //        {
 //            var stringBuilder = new StringBuilder();
 //            stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted()} ");
@@ -139,7 +139,7 @@
 //        /// <summary>
 //        /// Gets the update row command without adding rows in tracking table, or compare timestamp
 //        /// </summary>
-//        private DbCommand CreateUpdateCommand()
+//        private DbCommand CreateUpdateStoredProcedureCommand()
 //        {
 //            var stringBuilder = new StringBuilder();
 
