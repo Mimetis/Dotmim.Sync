@@ -51,10 +51,10 @@ namespace Dotmim.Sync.SqlServer.Builders
             this.trackingTableNames = new DbTableNames(
                 SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote,
                 this.SqlObjectNames.TrackingTableName,
-                this.SqlObjectNames.TrackingTableNormalizedShortName,
                 this.SqlObjectNames.TrackingTableNormalizedFullName,
-                this.SqlObjectNames.TrackingTableQuotedShortName,
+                this.SqlObjectNames.TrackingTableNormalizedShortName,
                 this.SqlObjectNames.TrackingTableQuotedFullName,
+                this.SqlObjectNames.TrackingTableQuotedShortName,
                 this.SqlObjectNames.TrackingTableSchemaName);
 
             this.SqlDbMetadata = new SqlDbMetadata();

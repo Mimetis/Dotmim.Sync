@@ -50,13 +50,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
         /// </summary>
         public static NpgsqlDbType GetOwnerDbTypeFromDbType(SyncColumn column)
         {
-#if NET6_0_OR_GREATER
-            // Getting EnableLegacyTimestampBehavior behavior
-            var legacyTimestampBehavior = false;
-            AppContext.TryGetSwitch("Npgsql.EnableLegacyTimestampBehavior", out legacyTimestampBehavior);
-#else
-            var legacyTimestampBehavior = true;
-#endif
+//#if NET6_0_OR_GREATER
+//            // Getting EnableLegacyTimestampBehavior behavior
+//            var legacyTimestampBehavior = false;
+//            AppContext.TryGetSwitch("Npgsql.EnableLegacyTimestampBehavior", out legacyTimestampBehavior);
+//#else
+//            var legacyTimestampBehavior = true;
+//#endif
             var npgsqlDbType = column.GetDbType() switch
             {
                 DbType.AnsiStringFixedLength or DbType.AnsiString or DbType.String or DbType.StringFixedLength => NpgsqlDbType.Varchar,
@@ -67,7 +67,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 DbType.Date => NpgsqlDbType.Date,
                 DbType.Time => NpgsqlDbType.Time,
                 DbType.DateTime2 => NpgsqlDbType.Timestamp,
-                DbType.DateTime => legacyTimestampBehavior ? NpgsqlDbType.Timestamp : NpgsqlDbType.TimestampTz,
+                DbType.DateTime => NpgsqlDbType.TimestampTz,
                 DbType.DateTimeOffset => NpgsqlDbType.TimestampTz,
                 DbType.Single => NpgsqlDbType.Real,
                 DbType.Decimal or DbType.VarNumeric => NpgsqlDbType.Numeric,

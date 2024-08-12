@@ -83,7 +83,7 @@ namespace Dotmim.Sync.MySql.Builders
         {
 
             var scopeNameWithoutDefaultScope = this.ScopeInfo.Name == SyncOptions.DefaultScopeName ? string.Empty : $"{this.ScopeInfo.Name}_";
-            var storedProcedureNormalizedName = $"{this.ScopeInfo.Setup?.StoredProceduresPrefix}{this.MySqlObjectNames.TableNormalizedFullName}{this.ScopeInfo.Setup?.StoredProceduresSuffix}_";
+            var storedProcedureNormalizedName = $"{this.ScopeInfo.Setup?.StoredProceduresPrefix}{this.MySqlObjectNames.TableNormalizedShortName}{this.ScopeInfo.Setup?.StoredProceduresSuffix}_";
             var storedProcedureName = string.Format(MySqlObjectNames.UpdateProcName, storedProcedureNormalizedName, scopeNameWithoutDefaultScope);
 
             // Check if we have mutables columns
@@ -240,7 +240,7 @@ namespace Dotmim.Sync.MySql.Builders
         {
 
             var scopeNameWithoutDefaultScope = this.ScopeInfo.Name == SyncOptions.DefaultScopeName ? string.Empty : $"{this.ScopeInfo.Name}_";
-            var storedProcedureNormalizedName = $"{this.ScopeInfo.Setup?.StoredProceduresPrefix}{this.MySqlObjectNames.TableNormalizedFullName}{this.ScopeInfo.Setup?.StoredProceduresSuffix}_";
+            var storedProcedureNormalizedName = $"{this.ScopeInfo.Setup?.StoredProceduresPrefix}{this.MySqlObjectNames.TableNormalizedShortName}{this.ScopeInfo.Setup?.StoredProceduresSuffix}_";
             var storedProcedureName = string.Format(MySqlObjectNames.DeleteProcName, storedProcedureNormalizedName, scopeNameWithoutDefaultScope);
 
             var lstParameters = new List<MySqlParameter>();

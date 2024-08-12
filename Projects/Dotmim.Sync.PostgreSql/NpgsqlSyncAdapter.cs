@@ -17,7 +17,7 @@ namespace Dotmim.Sync.PostgreSql
     /// </summary>
     public partial class NpgsqlSyncAdapter : DbSyncAdapter
     {
-        private bool legacyTimestampBehavior = true;
+        //private bool legacyTimestampBehavior = true;
 
         /// <summary>
         /// Returns the timestamp value for PostgreSql.
@@ -44,13 +44,13 @@ namespace Dotmim.Sync.PostgreSql
             this.NpgsqlDbMetadata = new NpgsqlDbMetadata();
             this.NpgsqlObjectNames = new NpgsqlObjectNames(tableDescription, scopeInfo);
 
-#if NET6_0_OR_GREATER
-            // Getting EnableLegacyTimestampBehavior behavior
-            this.legacyTimestampBehavior = false;
-            AppContext.TryGetSwitch("Npgsql.EnableLegacyTimestampBehavior", out this.legacyTimestampBehavior);
-#else
-            this.legacyTimestampBehavior = true;
-#endif
+            //#if NET6_0_OR_GREATER
+            //            // Getting EnableLegacyTimestampBehavior behavior
+            //            this.legacyTimestampBehavior = false;
+            //            AppContext.TryGetSwitch("Npgsql.EnableLegacyTimestampBehavior", out this.legacyTimestampBehavior);
+            //#else
+            //            this.legacyTimestampBehavior = true;
+            //#endif
         }
 
         /// <inheritdoc/>
@@ -71,7 +71,8 @@ namespace Dotmim.Sync.PostgreSql
             DbCommandType.SelectInitializedChangesWithFilters => this.GetSelectInitializedChangesCommand(filter),
             DbCommandType.SelectChangesWithFilters => this.GetSelectChangesCommand(filter),
             DbCommandType.SelectRow => this.GetSelectRowCommand(),
-            DbCommandType.UpdateRow or DbCommandType.InsertRow or DbCommandType.UpdateRows or DbCommandType.InsertRows => this.GetUpdateRowCommand(),
+            DbCommandType.UpdateRow or DbCommandType.InsertRow or DbCommandType.UpdateRows or DbCommandType.InsertRows 
+            => this.GetUpdateRowCommand(),
             DbCommandType.DeleteRow or DbCommandType.DeleteRows => this.GetDeleteRowCommand(),
             DbCommandType.DisableConstraints => this.GetDisableConstraintCommand(),
             DbCommandType.EnableConstraints => this.GetEnableConstraintCommand(),
@@ -163,28 +164,23 @@ namespace Dotmim.Sync.PostgreSql
             // Depending on framework and switch legacy, specify the kind of datetime used
             if (npgSqlParameter.NpgsqlDbType == NpgsqlDbType.TimestampTz)
             {
-                if (value is DateTime dateTime)
+                npgSqlParameter.Value = value switch
                 {
-                    npgSqlParameter.Value = this.legacyTimestampBehavior ? dateTime : DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
-                }
-                else if (value is DateTimeOffset dateTimeOffset)
-                {
-                    npgSqlParameter.Value = dateTimeOffset.UtcDateTime;
-                }
-                else
-                {
-                    var dt = SyncTypeConverter.TryConvertTo<DateTime>(value);
-                    npgSqlParameter.Value = this.legacyTimestampBehavior ? dt : DateTime.SpecifyKind(dt, DateTimeKind.Utc);
-                }
-
+                    DateTime dateTime => DateTime.SpecifyKind(dateTime, DateTimeKind.Utc),
+                    DateTimeOffset dateTimeOffset => dateTimeOffset.UtcDateTime,
+                    _ => DateTime.SpecifyKind(SyncTypeConverter.TryConvertTo<DateTime>(value), DateTimeKind.Utc),
+                };
                 return;
             }
 
             if (npgSqlParameter.NpgsqlDbType == NpgsqlDbType.Timestamp)
             {
-                if (value is DateTime dateTime)
-                    npgSqlParameter.Value = dateTime;
-                npgSqlParameter.Value = value is DateTimeOffset dateTimeOffset ? dateTimeOffset.DateTime : (object)SyncTypeConverter.TryConvertTo<DateTime>(value);
+                npgSqlParameter.Value = value switch
+                {
+                    DateTime dateTime => dateTime,
+                    DateTimeOffset dateTimeOffset => dateTimeOffset.DateTime,
+                    _ => SyncTypeConverter.TryConvertTo<DateTime>(value),
+                };
                 return;
             }
 

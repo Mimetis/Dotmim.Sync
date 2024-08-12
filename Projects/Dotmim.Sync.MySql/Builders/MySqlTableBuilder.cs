@@ -54,10 +54,10 @@ namespace Dotmim.Sync.MySql.Builders
             this.trackingTableNames = new DbTableNames(
                 MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote,
                 this.MySqlObjectNames.TrackingTableName,
-                this.MySqlObjectNames.TrackingTableNormalizedShortName,
                 this.MySqlObjectNames.TrackingTableNormalizedFullName,
-                this.MySqlObjectNames.TrackingTableQuotedShortName,
+                this.MySqlObjectNames.TrackingTableNormalizedShortName,
                 this.MySqlObjectNames.TrackingTableQuotedFullName,
+                this.MySqlObjectNames.TrackingTableQuotedShortName,
                 this.MySqlObjectNames.TrackingTableSchemaName);
 
             this.MySqlDbMetadata = new MySqlDbMetadata();

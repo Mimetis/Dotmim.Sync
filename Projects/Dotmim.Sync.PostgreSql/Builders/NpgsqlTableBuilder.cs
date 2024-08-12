@@ -60,10 +60,10 @@ namespace Dotmim.Sync.PostgreSql.Builders
             this.trackingTableNames = new DbTableNames(
                 NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote,
                 this.NpgsqlObjectNames.TrackingTableName,
-                this.NpgsqlObjectNames.TrackingTableNormalizedShortName,
                 this.NpgsqlObjectNames.TrackingTableNormalizedFullName,
-                this.NpgsqlObjectNames.TrackingTableQuotedShortName,
+                this.NpgsqlObjectNames.TrackingTableNormalizedShortName,
                 this.NpgsqlObjectNames.TrackingTableQuotedFullName,
+                this.NpgsqlObjectNames.TrackingTableQuotedShortName,
                 this.NpgsqlObjectNames.TrackingTableSchemaName);
 
             this.BuilderTable = new NpgsqlBuilderTable(tableDescription, this.NpgsqlObjectNames, this.NpgsqlDbMetadata);

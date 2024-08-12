@@ -50,10 +50,10 @@ namespace Dotmim.Sync.Sqlite
             this.trackingTableNames = new DbTableNames(
                 SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote,
                 this.SqliteObjectNames.TrackingTableName,
-                this.SqliteObjectNames.TrackingTableNormalizedShortName,
                 this.SqliteObjectNames.TrackingTableNormalizedFullName,
-                this.SqliteObjectNames.TrackingTableQuotedShortName,
+                this.SqliteObjectNames.TrackingTableNormalizedShortName,
                 this.SqliteObjectNames.TrackingTableQuotedFullName,
+                this.SqliteObjectNames.TrackingTableQuotedShortName,
                 this.SqliteObjectNames.TrackingTableSchemaName);
 
             this.SqliteDbMetadata = new SqliteDbMetadata();

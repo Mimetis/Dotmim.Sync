@@ -183,7 +183,7 @@ namespace Dotmim.Sync.MySql.Builders
         public string GetStoredProcedureCommandName(DbStoredProcedureType storedProcedureType, SyncFilter filter = null)
         {
             var scopeNameWithoutDefaultScope = this.ScopeInfo.Name == SyncOptions.DefaultScopeName ? string.Empty : $"{this.ScopeInfo.Name}_";
-            var storedProcedureNormalizedName = $"{this.ScopeInfo.Setup?.StoredProceduresPrefix}{this.TableNormalizedFullName}{this.ScopeInfo.Setup?.StoredProceduresSuffix}_";
+            var storedProcedureNormalizedName = $"{this.ScopeInfo.Setup?.StoredProceduresPrefix}{this.TableNormalizedShortName}{this.ScopeInfo.Setup?.StoredProceduresSuffix}_";
 
             return storedProcedureType switch
             {
@@ -198,7 +198,7 @@ namespace Dotmim.Sync.MySql.Builders
         /// </summary>
         public string GetTriggerCommandName(DbTriggerType objectType, SyncFilter filter = null)
         {
-            var triggerNormalizedName = $"{this.ScopeInfo.Setup?.TriggersPrefix}{this.TableNormalizedFullName}{this.ScopeInfo.Setup?.TriggersSuffix}_";
+            var triggerNormalizedName = $"{this.ScopeInfo.Setup?.TriggersPrefix}{this.TableNormalizedShortName}{this.ScopeInfo.Setup?.TriggersSuffix}_";
 
             return objectType switch
             {

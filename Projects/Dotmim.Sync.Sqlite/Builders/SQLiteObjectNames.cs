@@ -107,7 +107,7 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         public string GetCommandName(DbCommandType commandType, SyncFilter filter = null)
         {
-            var triggerNormalizedName = $"{this.ScopeInfo.Setup?.TriggersPrefix}{this.TableNormalizedFullName}{this.ScopeInfo.Setup?.TriggersSuffix}_";
+            var triggerNormalizedName = $"{this.ScopeInfo.Setup?.TriggersPrefix}{this.TableNormalizedShortName}{this.ScopeInfo.Setup?.TriggersSuffix}_";
 
             return commandType switch
             {
@@ -136,7 +136,7 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         public string GetTriggerCommandName(DbTriggerType objectType)
         {
-            var triggerNormalizedName = $"{this.ScopeInfo.Setup?.TriggersPrefix}{this.TableNormalizedFullName}{this.ScopeInfo.Setup?.TriggersSuffix}_";
+            var triggerNormalizedName = $"{this.ScopeInfo.Setup?.TriggersPrefix}{this.TableNormalizedShortName}{this.ScopeInfo.Setup?.TriggersSuffix}_";
 
             return objectType switch
             {

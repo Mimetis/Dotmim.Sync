@@ -9,9 +9,11 @@ using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NLog.Web;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -83,10 +85,118 @@ internal class Program
         // await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
         //await CheckChanges(clientProvider, serverProvider, setup, options);
 
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
-        // await CreateSnapshotAsync();
+        await ScenarioAsync();
         //await CheckProvisionTime();
+    }
+
+    public static async Task ScenarioAsync()
+    {
+        var serverProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString("AdvData"));
+        var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+
+        //AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", false);
+
+        // reset
+        await DropAllAsync(serverProvider);
+
+        var setup = new SyncSetup("dataengine.trackplot_cog");
+        var options = new SyncOptions();
+
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  " +
+            $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
+
+        // Initial rows on server side
+        await AddTrackPlotAsync(serverProvider, 12, "server 01");
+        await AddTrackPlotAsync(serverProvider, 23, "server 01");
+        await AddTrackPlotAsync(serverProvider, 34, "server 01");
+
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        var syncResult = await agent.SynchronizeAsync(setup, progress);
+        Console.WriteLine(syncResult);
+
+        await AddTrackPlotAsync(clientProvider, 12, "client 10");
+
+        syncResult = await agent.SynchronizeAsync(setup, progress);
+        Console.WriteLine(syncResult);
+
+
+    }
+
+    internal static async Task DropAllAsync(CoreProvider provider)
+    {
+        var remoteOrchestrator = new RemoteOrchestrator(provider);
+        await remoteOrchestrator.DropAllAsync();
+
+        var connection = provider.CreateConnection();
+
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = "Delete from dataengine.trackplot_cog";
+        command.Connection = connection;
+
+        await command.ExecuteNonQueryAsync();
+
+        connection.Close();
+
+    }
+
+    internal static async Task AddTrackPlotAsync(CoreProvider provider, int id, string name = default)
+    {
+        string commandText;
+        if (provider.GetShortProviderTypeName().ToLower() == "sqlitesyncprovider")
+            commandText = $"Insert into trackplot_cog (id, timestamp, name, lat, long) " +
+                                 $"Values (@id, @timestamp, @name, @lat, @long)";
+        else
+            commandText = $"Insert into dataengine.trackplot_cog (id, timestamp, name, lat, long) " +
+                                 $"Values (@id, @timestamp, @name, @lat, @long)";
+
+        var connection = provider.CreateConnection();
+
+        connection.Open();
+
+        var command = connection.CreateCommand();
+        command.CommandText = commandText;
+        command.Connection = connection;
+
+        var p = command.CreateParameter();
+        p.DbType = DbType.Int32;
+        p.ParameterName = "@id";
+        p.Value = id;
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.DbType = DbType.DateTime;
+        p.ParameterName = "@timestamp";
+        p.Value = DateTime.UtcNow;
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.DbType = DbType.String;
+        p.ParameterName = "@name";
+        p.Value = string.IsNullOrEmpty(name) ? Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ' ' + Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() : name;
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.DbType = DbType.Double;
+        p.ParameterName = "@lat";
+        p.Value = 1.0;
+        command.Parameters.Add(p);
+
+        p = command.CreateParameter();
+        p.DbType = DbType.Double;
+        p.ParameterName = "@long";
+        p.Value = 1.0;
+        command.Parameters.Add(p);
+
+        await command.ExecuteNonQueryAsync();
+
+        connection.Close();
     }
 
     public static async Task CheckChanges(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
