@@ -319,7 +319,7 @@ namespace Dotmim.Sync.MySql
             {
                 var quotedColumnParser = new ObjectParser(mutableColumn.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
                 var paramQuotedColumnParser = new ObjectParser($"{mysqlPrefix}{mutableColumn.ColumnName}", MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
-                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumnParser.QuotedShortName} = {quotedColumnParser.NormalizedShortName}");
+                stringBuilder.AppendLine($"{strSeparator} {strFromPrefix}{quotedColumnParser.QuotedShortName} = {MySqlObjectNames.LeftQuote}{paramQuotedColumnParser.NormalizedShortName}{MySqlObjectNames.RightQuote}");
                 strSeparator = ", ";
             }
 

@@ -91,7 +91,7 @@ namespace Dotmim.Sync.PostgreSql
             var stringBuilderParameters = new StringBuilder();
             var empty = string.Empty;
 
-            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION pg_temp.{procNameParser.QuotedFullName} (");
+            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION pg_temp.{procNameParser.NormalizedFullName} (");
 
             foreach (var column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
@@ -218,13 +218,12 @@ namespace Dotmim.Sync.PostgreSql
             var scopeNameWithoutDefaultScope = this.ScopeInfo.Name == SyncOptions.DefaultScopeName ? string.Empty : $"{this.ScopeInfo.Name}_";
             var procName = string.Format(NpgsqlObjectNames.DeleteProcName, this.NpgsqlObjectNames.TableSchemaName, storedProcedureName, scopeNameWithoutDefaultScope);
             var procParser = new TableParser(procName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
-            var procNameQuoted = procParser.QuotedFullName;
 
             var fullTableName = this.NpgsqlObjectNames.TableQuotedFullName;
             var sqlCommand = new NpgsqlCommand();
             var stringBuilder = new StringBuilder();
 
-            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION pg_temp.{procNameQuoted}(");
+            stringBuilder.AppendLine($"CREATE OR REPLACE FUNCTION pg_temp.{procParser.NormalizedFullName}(");
 
             foreach (var column in this.TableDescription.GetPrimaryKeysColumns())
             {
@@ -298,7 +297,7 @@ namespace Dotmim.Sync.PostgreSql
             var procNameParser = new TableParser(procName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
 
             var strCommandText = new StringBuilder();
-            strCommandText.Append($"SELECT * FROM pg_temp.{procNameParser.QuotedFullName}(");
+            strCommandText.Append($"SELECT * FROM pg_temp.{procNameParser.NormalizedFullName}(");
 
             foreach (var column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
@@ -328,7 +327,7 @@ namespace Dotmim.Sync.PostgreSql
             var procNameParser = new TableParser(procName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
 
             var strCommandText = new StringBuilder();
-            strCommandText.Append($"SELECT * FROM pg_temp.{procNameParser.QuotedFullName}(");
+            strCommandText.Append($"SELECT * FROM pg_temp.{procNameParser.NormalizedFullName}(");
 
             foreach (var column in this.TableDescription.GetPrimaryKeysColumns())
             {

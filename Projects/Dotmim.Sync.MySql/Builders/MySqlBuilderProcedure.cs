@@ -121,30 +121,6 @@ namespace Dotmim.Sync.MySql.Builders
             var listColumnsTmp2 = new StringBuilder();
             var listColumnsTmp3 = new StringBuilder();
 
-            var and = string.Empty;
-            foreach (var column in this.TableDescription.GetPrimaryKeysColumns())
-            {
-                var param = this.GetMySqlParameter(column);
-                param.ParameterName = $"t_{param.ParameterName}";
-                var declar = this.CreateParameterDeclaration(param);
-                var columnNameQuoted = ParserName.Parse(column, "`").Quoted().ToString();
-
-                var parameterNameQuoted = ParserName.Parse(param.ParameterName, "`").Quoted().ToString();
-
-                // Primary keys column name, with quote
-                listQuotedPrimaryKeys.Append($"{columnNameQuoted}, ");
-
-                // param name without type
-                listColumnsTmp2.Append($"{parameterNameQuoted}, ");
-
-                // param name with type
-                stringBuilder.AppendLine($"DECLARE {declar};");
-
-                // Param equal IS NULL
-                listColumnsTmp3.Append($"{and}{parameterNameQuoted} IS NULL");
-
-                and = " AND ";
-            }
 
             stringBuilder.Append("CREATE PROCEDURE ");
             stringBuilder.Append(storedProcedureName);
@@ -159,6 +135,34 @@ namespace Dotmim.Sync.MySql.Builders
             }
 
             stringBuilder.Append("\n)\nBEGIN\n");
+
+
+            var and = string.Empty;
+            foreach (var column in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var param = this.GetMySqlParameter(column);
+                param.ParameterName = $"t_{param.ParameterName}";
+
+                var declar = this.CreateParameterDeclaration(param);
+
+                var columnParser = new ObjectParser(column.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+
+                var parameterNameQuoted = ParserName.Parse(param.ParameterName, "`").Quoted().ToString();
+
+                // Primary keys column name, with quote
+                listQuotedPrimaryKeys.Append($"{columnParser.QuotedShortName}, ");
+
+                // param name without type
+                listColumnsTmp2.Append($"{parameterNameQuoted}, ");
+
+                // param name with type
+                stringBuilder.AppendLine($"DECLARE {declar};");
+
+                // Param equal IS NULL
+                listColumnsTmp3.Append($"{and}{parameterNameQuoted} IS NULL");
+
+                and = " AND ";
+            }
 
             stringBuilder.AppendLine("DECLARE ts BIGINT;");
             stringBuilder.AppendLine("DECLARE t_update_scope_id VARCHAR(36);");
@@ -271,7 +275,15 @@ namespace Dotmim.Sync.MySql.Builders
             stringBuilder.Append(storedProcedureName);
             stringBuilder.Append(" (");
             stringBuilder.AppendLine();
+            string str = "\n\t";
 
+            foreach (MySqlParameter parameter in lstParameters)
+            {
+                stringBuilder.Append(string.Concat(str, this.CreateParameterDeclaration(parameter)));
+                str = ",\n\t";
+            }
+
+            stringBuilder.Append("\n)\nBEGIN\n");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine("DECLARE ts BIGINT;");
             stringBuilder.AppendLine("DECLARE t_update_scope_id VARCHAR(36);");
@@ -309,16 +321,12 @@ namespace Dotmim.Sync.MySql.Builders
         public Task<DbCommand> GetExistsStoredProcedureCommandAsync(DbStoredProcedureType storedProcedureType, SyncFilter filter, DbConnection connection, DbTransaction transaction)
         {
             if (filter == null && (storedProcedureType == DbStoredProcedureType.SelectChangesWithFilters || storedProcedureType == DbStoredProcedureType.SelectInitializedChangesWithFilters))
-                return null;
-
-            if (storedProcedureType == DbStoredProcedureType.BulkDeleteRows ||
-                storedProcedureType == DbStoredProcedureType.BulkUpdateRows || storedProcedureType == DbStoredProcedureType.BulkTableType)
-                return null;
+                return Task.FromResult<DbCommand>(null);
 
             var quotedProcedureName = this.MySqlObjectNames.GetStoredProcedureCommandName(storedProcedureType, filter);
 
             if (string.IsNullOrEmpty(quotedProcedureName))
-                return null;
+                return Task.FromResult<DbCommand>(null);
 
             var procedureFilter = new ObjectParser(quotedProcedureName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
 
@@ -432,9 +440,9 @@ namespace Dotmim.Sync.MySql.Builders
             if (param.Direction == ParameterDirection.Output || param.Direction == ParameterDirection.InputOutput)
                 output = "OUT ";
 
-            var parameterName = ParserName.Parse(param.ParameterName, "`").Quoted().ToString();
+            var parameterParser = new ObjectParser(param.ParameterName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
 
-            stringBuilder3.Append($"{output}{parameterName} {columnDeclarationString} {isNull} {defaultValue}");
+            stringBuilder3.Append($"{output}{parameterParser.QuotedShortName} {columnDeclarationString} {isNull} {defaultValue}");
 
             return stringBuilder3.ToString();
         }
