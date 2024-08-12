@@ -218,7 +218,7 @@ namespace Dotmim.Sync.SqlServer.Scope
                            , [scope_last_sync]
                            , [sync_scope_errors]
                            , [sync_scope_properties]
-                    FROM  {this.ScopeInfoTableNames.QuotedFullName}
+                    FROM  {this.ScopeInfoClientTableNames.QuotedFullName}
                     WHERE [sync_scope_name] = @sync_scope_name and [sync_scope_id] = @sync_scope_id and [sync_scope_hash] = @sync_scope_hash";
 
             var command = connection.CreateCommand();

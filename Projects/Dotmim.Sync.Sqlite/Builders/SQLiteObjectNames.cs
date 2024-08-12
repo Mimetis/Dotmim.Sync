@@ -348,7 +348,7 @@ namespace Dotmim.Sync.Sqlite
 
             var primaryKeys = string.Join(
                 ",",
-                this.TableDescription.PrimaryKeys.Select(name => new ObjectParser(name).QuotedShortName));
+                this.TableDescription.PrimaryKeys.Select(name => new ObjectParser(name, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote).QuotedShortName));
 
             // add CTE
             stringBuilder.AppendLine($"WITH CHANGESET as (SELECT {stringBuilderParameters} ");

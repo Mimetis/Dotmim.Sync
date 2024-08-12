@@ -56,7 +56,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var stringBuilder = new StringBuilder($"alter table if exists {this.NpgsqlObjectNames.TableQuotedFullName}");
 
             var column = this.TableDescription.Columns[columnName];
-            var columnParser = new ObjectParser(column.ColumnName);
+            var columnParser = new ObjectParser(column.ColumnName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
             var columnNameString = columnParser.QuotedShortName;
             var columnType = this.NpgsqlDbMetadata.GetNpgsqlDbType(column);
 
@@ -364,7 +364,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine();
             foreach (var column in this.TableDescription.Columns)
             {
-                var columnParser = new ObjectParser(column.ColumnName);
+                var columnParser = new ObjectParser(column.ColumnName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
 
                 var columnType = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.TableDescription.OriginalProvider);
 
@@ -401,7 +401,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             for (int i = 0; i < this.TableDescription.PrimaryKeys.Count; i++)
             {
                 var pkColumn = this.TableDescription.PrimaryKeys[i];
-                var pkColumnParser = new ObjectParser(pkColumn);
+                var pkColumnParser = new ObjectParser(pkColumn, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
                 stringBuilder.Append(pkColumnParser.QuotedShortName);
 
                 if (i < this.TableDescription.PrimaryKeys.Count - 1)
