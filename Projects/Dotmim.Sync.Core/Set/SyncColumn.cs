@@ -230,7 +230,7 @@ namespace Dotmim.Sync
         public void SetType(Type type)
         {
             this.DataType = type == null ? "-1" : GetAssemblyQualifiedName(type);
-            //this.DbType = (int)this.CoerceDbType();
+            this.DbType = (int)this.CoerceDbType();
         }
 
         /// <summary>
@@ -312,6 +312,9 @@ namespace Dotmim.Sync
 
             if (this.DataType == "12")
                 return System.Data.DbType.Binary;
+
+            if (this.DataType == "13" && this.DbType == 26)
+                return System.Data.DbType.DateTime2;
 
             if (this.DataType == "13")
                 return System.Data.DbType.DateTime;
