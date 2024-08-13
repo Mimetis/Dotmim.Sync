@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.DatabaseStringParsers;
 using Microsoft.Data.SqlClient;
 using System.Data.Common;
 using System.Threading.Tasks;
@@ -34,18 +35,32 @@ namespace Dotmim.Sync.SqlServer.Builders
 
         /// <inheritdoc />
         public override Task<SyncTable> GetTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-            => SqlManagementUtils.GetTableAsync(tableName, schemaName, connection as SqlConnection, transaction as SqlTransaction);
+        {
+            var tableParser = new TableParser($"{tableName}.{schemaName}", SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+            return SqlManagementUtils.GetTableAsync(tableParser.TableName, tableParser.SchemaName, connection as SqlConnection, transaction as SqlTransaction);
+        }
 
         /// <inheritdoc />
         public override Task<bool> ExistsTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-            => SqlManagementUtils.TableExistsAsync(tableName, schemaName, connection as SqlConnection, transaction as SqlTransaction);
+        {
+            var tableParser = new TableParser($"{tableName}.{schemaName}", SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+            return SqlManagementUtils.TableExistsAsync(tableParser.TableName, tableParser.SchemaName, connection as SqlConnection, transaction as SqlTransaction);
+        }
 
         /// <inheritdoc />
         public override Task DropsTableIfExistsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-             => SqlManagementUtils.DropTableIfExistsAsync(tableName, schemaName, connection as SqlConnection, transaction as SqlTransaction);
+        {
+            var tableParser = new TableParser($"{tableName}.{schemaName}", SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+            return SqlManagementUtils.DropTableIfExistsAsync(tableParser.TableName, tableParser.SchemaName, connection as SqlConnection, transaction as SqlTransaction);
+        }
 
         /// <inheritdoc />
         public override Task RenameTableAsync(string tableName, string schemaName, string newTableName, string newSchemaName, DbConnection connection, DbTransaction transaction = null)
-             => SqlManagementUtils.RenameTableAsync(tableName, schemaName, newTableName, newSchemaName, connection as SqlConnection, transaction as SqlTransaction);
+        {
+            var tableParser = new TableParser($"{tableName}.{schemaName}", SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+            var newTableParser = new TableParser($"{newTableName}.{newSchemaName}", SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+            return SqlManagementUtils.RenameTableAsync(tableParser.TableName, tableParser.SchemaName, 
+                newTableParser.TableName, newTableParser.SchemaName, connection as SqlConnection, transaction as SqlTransaction);
+        }
     }
 }

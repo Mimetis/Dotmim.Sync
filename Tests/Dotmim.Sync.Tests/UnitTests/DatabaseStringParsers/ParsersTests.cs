@@ -232,5 +232,18 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal("[Attribute With Space]", columnParser.QuotedShortName);
             Assert.Equal("Attribute_With_Space", columnParser.NormalizedShortName);
         }
+
+        [Fact]
+        public void TableParser_Parse_TableName_WithADot_WithoutSchema()
+        {
+            var tableParser = new TableParser("Customer.", '[', ']');
+
+            Assert.Equal("Customer", tableParser.TableName);
+            Assert.Equal("", tableParser.SchemaName);
+            Assert.Equal("[Customer]", tableParser.QuotedShortName);
+            Assert.Equal("[Customer]", tableParser.QuotedFullName);
+            Assert.Equal("Customer", tableParser.NormalizedShortName);
+            Assert.Equal("Customer", tableParser.NormalizedFullName);
+        }
     }
 }

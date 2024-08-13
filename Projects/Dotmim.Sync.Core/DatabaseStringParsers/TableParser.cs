@@ -128,8 +128,12 @@ namespace Dotmim.Sync.DatabaseStringParsers
                 if (this.tableName.Contains(" ".AsSpan(), SyncGlobalization.DataSourceStringComparison))
 #endif
                 {
-                    var tableNameReplaced = Replace(this.tableName, ' ', '_');
+#if NET8_0_OR_GREATER
+                    var tableNameReplaced = TableParser.Replace(this.tableName, ' ', '_');
                     tableNameString = tableNameReplaced.ToString();
+#else
+                    tableNameString = this.tableName.ToString().Replace(' ', '_');
+#endif
                 }
                 else
                 {
@@ -154,8 +158,12 @@ namespace Dotmim.Sync.DatabaseStringParsers
                 if (this.tableName.Contains(" ".AsSpan(), SyncGlobalization.DataSourceStringComparison))
 #endif
                 {
-                    var tableNameReplaced = Replace(this.tableName, ' ', '_');
+#if NET8_0_OR_GREATER
+                    var tableNameReplaced = TableParser.Replace(this.tableName, ' ', '_');
                     tableNameString = tableNameReplaced.ToString();
+#else
+                    tableNameString = this.tableName.ToString().Replace(' ', '_');
+#endif
                 }
                 else
                 {

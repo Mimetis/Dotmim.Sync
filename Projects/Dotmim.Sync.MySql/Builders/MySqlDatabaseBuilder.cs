@@ -1,4 +1,6 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.DatabaseStringParsers;
+
 #if NETCOREAPP
 using MySqlConnector;
 #elif NETSTANDARD
@@ -36,18 +38,32 @@ namespace Dotmim.Sync.MySql.Builders
 
         /// <inheritdoc/>
         public override Task<SyncTable> GetTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-              => MySqlManagementUtils.GetTableAsync(tableName, connection as MySqlConnection, transaction as MySqlTransaction);
+        {
+            var tableParser = new TableParser(tableName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+            return MySqlManagementUtils.GetTableAsync(tableParser.TableName, connection as MySqlConnection, transaction as MySqlTransaction);
+        }
 
         /// <inheritdoc/>
         public override Task<bool> ExistsTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-             => MySqlManagementUtils.TableExistsAsync(tableName, connection as MySqlConnection, transaction as MySqlTransaction);
+        {
+            var tableParser = new TableParser(tableName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+            return MySqlManagementUtils.TableExistsAsync(tableParser.TableName, connection as MySqlConnection, transaction as MySqlTransaction);
+        }
 
         /// <inheritdoc/>
         public override Task DropsTableIfExistsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-             => MySqlManagementUtils.DropTableIfExistsAsync(tableName, connection as MySqlConnection, transaction as MySqlTransaction);
+        {
+            var tableParser = new TableParser(tableName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+            return MySqlManagementUtils.DropTableIfExistsAsync(tableParser.TableName, connection as MySqlConnection, transaction as MySqlTransaction);
+        }
 
         /// <inheritdoc/>
         public override Task RenameTableAsync(string tableName, string schemaName, string newTableName, string newSchemaName, DbConnection connection, DbTransaction transaction = null)
-             => MySqlManagementUtils.RenameTableAsync(tableName, newTableName, connection as MySqlConnection, transaction as MySqlTransaction);
+        {
+            var tableParser = new TableParser(tableName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+            var newTableParser = new TableParser(newTableName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+
+            return MySqlManagementUtils.RenameTableAsync(tableParser.TableName, newTableParser.TableName, connection as MySqlConnection, transaction as MySqlTransaction);
+        }
     }
 }

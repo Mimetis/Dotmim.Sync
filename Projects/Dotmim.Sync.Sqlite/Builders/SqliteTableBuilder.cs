@@ -244,8 +244,6 @@ namespace Dotmim.Sync.Sqlite
         /// <inheritdoc />
         public override Task<DbCommand> GetExistsTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var tbl = this.tableNames.Name;
-
             var command = connection.CreateCommand();
 
             command.Connection = connection;
@@ -254,7 +252,7 @@ namespace Dotmim.Sync.Sqlite
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = tbl;
+            parameter.Value = this.tableNames.Name;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);
@@ -335,6 +333,8 @@ namespace Dotmim.Sync.Sqlite
         {
             var triggerName = this.SqliteObjectNames.GetTriggerCommandName(triggerType);
 
+            var triggerParser = new ObjectParser(triggerName, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote);
+
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
@@ -342,7 +342,7 @@ namespace Dotmim.Sync.Sqlite
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@triggerName";
-            parameter.Value = triggerName;
+            parameter.Value = triggerParser.ObjectName;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);
@@ -630,6 +630,8 @@ namespace Dotmim.Sync.Sqlite
         /// <inheritdoc />
         public override Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
+            var columnParser = new ObjectParser(columnName, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote);
+
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
@@ -637,7 +639,7 @@ namespace Dotmim.Sync.Sqlite
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@columnName";
-            parameter.Value = columnName;
+            parameter.Value = columnParser.ObjectName;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);

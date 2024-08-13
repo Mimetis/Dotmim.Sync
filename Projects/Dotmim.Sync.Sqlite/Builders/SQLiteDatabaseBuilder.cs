@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.DatabaseStringParsers;
 using Microsoft.Data.Sqlite;
 using System;
 using System.Data.Common;
@@ -30,18 +31,31 @@ namespace Dotmim.Sync.Sqlite.Builders
 
         /// <inheritdoc />
         public override Task<SyncTable> GetTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-            => SqliteManagementUtils.GetTableAsync(tableName, connection as SqliteConnection, transaction as SqliteTransaction);
+        {
+            var tableParser = new TableParser(tableName, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote);
+            return SqliteManagementUtils.GetTableAsync(tableParser.TableName, connection as SqliteConnection, transaction as SqliteTransaction);
+        }
 
         /// <inheritdoc />
         public override Task<bool> ExistsTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-             => SqliteManagementUtils.TableExistsAsync(tableName, connection as SqliteConnection, transaction as SqliteTransaction);
+        {
+            var tableParser = new TableParser(tableName, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote);
+            return SqliteManagementUtils.TableExistsAsync(tableParser.TableName, connection as SqliteConnection, transaction as SqliteTransaction);
+        }
 
         /// <inheritdoc />
         public override Task DropsTableIfExistsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-             => SqliteManagementUtils.DropTableIfExistsAsync(tableName, connection as SqliteConnection, transaction as SqliteTransaction);
+        {
+            var tableParser = new TableParser(tableName, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote);
+            return SqliteManagementUtils.DropTableIfExistsAsync(tableParser.TableName, connection as SqliteConnection, transaction as SqliteTransaction);
+        }
 
         /// <inheritdoc />
         public override Task RenameTableAsync(string tableName, string schemaName, string newTableName, string newSchemaName, DbConnection connection, DbTransaction transaction = null)
-             => SqliteManagementUtils.RenameTableAsync(tableName, newTableName, connection as SqliteConnection, transaction as SqliteTransaction);
+        {
+            var tableParser = new TableParser(tableName, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote);
+            var newTableParser = new TableParser(newTableName, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote);
+            return SqliteManagementUtils.RenameTableAsync(tableParser.TableName, newTableParser.TableName, connection as SqliteConnection, transaction as SqliteTransaction);
+        }
     }
 }

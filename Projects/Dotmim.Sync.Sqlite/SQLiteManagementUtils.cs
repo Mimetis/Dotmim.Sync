@@ -62,41 +62,6 @@ namespace Dotmim.Sync.Sqlite
         }
 
         /// <summary>
-        /// Get the table definition.
-        /// </summary>
-        public static async Task<SyncTable> GetTableDefinitionAsync(string tableName, SqliteConnection connection, SqliteTransaction transaction)
-        {
-            string command = "select * from sqlite_master where name = @tableName limit 1";
-
-            var syncTable = new SyncTable(tableName);
-            using (var sqlCommand = new SqliteCommand(command, connection))
-            {
-                sqlCommand.Parameters.AddWithValue("@tableName", tableName);
-
-                bool alreadyOpened = connection.State == ConnectionState.Open;
-
-                if (!alreadyOpened)
-                    await connection.OpenAsync().ConfigureAwait(false);
-
-                sqlCommand.Transaction = transaction;
-
-                using (var reader = await sqlCommand.ExecuteReaderAsync().ConfigureAwait(false))
-                {
-                    syncTable.Load(reader);
-                }
-
-                if (!alreadyOpened)
-#if NET6_0_OR_GREATER
-                    await connection.CloseAsync().ConfigureAwait(false);
-#else
-                    connection.Close();
-#endif
-            }
-
-            return syncTable;
-        }
-
-        /// <summary>
         /// Get all rows from a table.
         /// </summary>
         public static async Task<SyncTable> GetTableAsync(string quotedTableName, SqliteConnection connection, SqliteTransaction transaction)

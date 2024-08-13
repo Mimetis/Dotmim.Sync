@@ -70,7 +70,7 @@ namespace Dotmim.Sync.DatabaseStringParsers
                     reachEndOfOneObject = true;
 
                     // if we are at the end of the input and the current character is not a right quote, we can add it to the current object
-                    if (!this.rightQuotes.Contains(this.input[this.dataPos]))
+                    if (!this.rightQuotes.Contains(this.input[this.dataPos]) && this.input[this.dataPos] != '.' && this.input[this.dataPos] != ' ')
                         dataLen++;
 
                     // we have reached the end of the current object. We can move 1 forward to get the next object

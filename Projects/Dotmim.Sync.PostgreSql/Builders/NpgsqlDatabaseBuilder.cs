@@ -1,4 +1,5 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.DatabaseStringParsers;
 using Npgsql;
 using System.Data.Common;
 using System.Threading.Tasks;
@@ -14,7 +15,11 @@ namespace Dotmim.Sync.PostgreSql.Builders
         /// Drops a table if exists.
         /// </summary>
         public override Task DropsTableIfExistsAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-            => NpgsqlManagementUtils.DropTableIfExistsAsync(connection as NpgsqlConnection, transaction as NpgsqlTransaction, tableName, schemaName);
+        {
+            var tableParser = new TableParser($"{tableName}.{schemaName}", NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+            return NpgsqlManagementUtils.DropTableIfExistsAsync(connection as NpgsqlConnection, transaction as NpgsqlTransaction,
+                tableParser.TableName, tableParser.SchemaName);
+        }
 
         /// <summary>
         /// Ensure the database exists and is ready for sync.
@@ -40,7 +45,11 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         /// <inheritdoc/>
         public override Task<bool> ExistsTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-            => NpgsqlManagementUtils.TableExistsAsync(connection as NpgsqlConnection, transaction as NpgsqlTransaction, tableName, schemaName);
+        {
+            var tableParser = new TableParser($"{tableName}.{schemaName}", NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+            return NpgsqlManagementUtils.TableExistsAsync(connection as NpgsqlConnection, transaction as NpgsqlTransaction,
+                tableParser.TableName, tableParser.SchemaName);
+        }
 
         /// <inheritdoc/>
         public override Task<SyncSetup> GetAllTablesAsync(DbConnection connection, DbTransaction transaction = null)
@@ -52,10 +61,20 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         /// <inheritdoc/>
         public override Task<SyncTable> GetTableAsync(string tableName, string schemaName, DbConnection connection, DbTransaction transaction = null)
-            => NpgsqlManagementUtils.GetTableAsync(connection as NpgsqlConnection, transaction as NpgsqlTransaction, tableName, schemaName);
+        {
+            var tableParser = new TableParser($"{tableName}.{schemaName}", NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+            return NpgsqlManagementUtils.GetTableAsync(connection as NpgsqlConnection, transaction as NpgsqlTransaction,
+                tableParser.TableName, tableParser.SchemaName);
+        }
 
         /// <inheritdoc/>
         public override Task RenameTableAsync(string tableName, string schemaName, string newTableName, string newSchemaName, DbConnection connection, DbTransaction transaction = null)
-                            => NpgsqlManagementUtils.RenameTableAsync(tableName, schemaName, newTableName, newSchemaName, connection as NpgsqlConnection, transaction as NpgsqlTransaction);
+        {
+            var tableParser = new TableParser($"{tableName}.{schemaName}", NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+            var newTableParser = new TableParser($"{newTableName}.{newSchemaName}", NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+
+            return NpgsqlManagementUtils.RenameTableAsync(tableParser.TableName, tableParser.SchemaName,
+                newTableParser.TableName, newTableParser.SchemaName, connection as NpgsqlConnection, transaction as NpgsqlTransaction);
+        }
     }
 }
