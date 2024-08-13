@@ -153,6 +153,17 @@ namespace Dotmim.Sync.SqlServer.Builders
                         rowValue = SyncTypeConverter.TryConvertTo<bool>(rowValue);
                         break;
                     case SqlDbType.Date:
+#if NET6_0_OR_GREATER
+                        rowValue = SyncTypeConverter.TryConvertTo<DateOnly>(rowValue);
+
+                        if (rowValue < DateOnly.FromDateTime(sqlDateMin))
+                            rowValue = DateOnly.FromDateTime(sqlDateMin);
+
+                        // Even if sqlmetadata is Date (and it's a perfect match for DateOnly)
+                        // We still need to convert it to DateTime, since SqlDataRecord doesn't support DateOnly
+                        rowValue = ((DateOnly)rowValue).ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);
+                        break;
+#endif
                     case SqlDbType.DateTime:
                     case SqlDbType.DateTime2:
                     case SqlDbType.SmallDateTime:

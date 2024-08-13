@@ -43,10 +43,10 @@ internal class Program
     private static async Task Main(string[] args)
     {
 
-        // var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ServerDbName));
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ServerDbName));
 
         // var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
-        var serverProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString("data"));
+        // var serverProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString("data"));
         // var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         // var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
@@ -58,7 +58,7 @@ internal class Program
         // clientProvider.UseBulkOperations = false;
         // var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         // var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        var setup = new SyncSetup("dataengine.trackplot_cog");
+        var setup = new SyncSetup("Customer");
 
         var options = new SyncOptions();
 
@@ -85,9 +85,9 @@ internal class Program
         // await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
         //await CheckChanges(clientProvider, serverProvider, setup, options);
 
-        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
-        await ScenarioAsync();
+        //await ScenarioAsync();
         //await CheckProvisionTime();
     }
 

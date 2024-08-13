@@ -158,7 +158,11 @@ namespace Dotmim.Sync.SqlServer.Manager
             SqlDbType.Binary => Type.GetType("System.Byte[]"),
             SqlDbType.Bit => Type.GetType("System.Boolean"),
             SqlDbType.Char => Type.GetType("System.String"),
+#if NET6_0_OR_GREATER
+            SqlDbType.Date => Type.GetType("System.DateOnly"),
+#else
             SqlDbType.Date => Type.GetType("System.DateTime"),
+#endif
             SqlDbType.DateTime => Type.GetType("System.DateTime"),
             SqlDbType.DateTime2 => Type.GetType("System.DateTime"),
             SqlDbType.DateTimeOffset => Type.GetType("System.DateTimeOffset"),

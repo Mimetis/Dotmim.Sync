@@ -88,8 +88,12 @@ namespace Dotmim.Sync.DatabaseStringParsers
                 if (this.objectName.Contains(" ".AsSpan(), SyncGlobalization.DataSourceStringComparison))
 #endif
                 {
+#if NET8_0_OR_GREATER
                     var tableNameReplaced = TableParser.Replace(this.objectName, ' ', '_');
                     tableNameString = tableNameReplaced.ToString();
+#else
+                    tableNameString = this.objectName.ToString().Replace(' ', '_');
+#endif
                 }
                 else
                 {

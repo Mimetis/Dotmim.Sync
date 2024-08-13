@@ -581,13 +581,13 @@ namespace Dotmim.Sync.Sqlite
                 if (columnFilter == null)
                     throw new FilterParamColumnNotExistsException(whereFilter.ColumnName, whereFilter.TableName);
 
-                var tableName = new TableParser(tableFilter.TableName, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote).QuotedShortName;
+                var tableName = new TableParser(tableFilter.TableName, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote).TableName;
                 tableName = string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison)
                     ? "[base]"
                     : tableName;
 
-                var columnName = new ObjectParser(columnFilter.ColumnName).QuotedShortName;
-                var parameterName = new ObjectParser(whereFilter.ParameterName).QuotedShortName;
+                var columnName = new ObjectParser(columnFilter.ColumnName, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote).QuotedShortName;
+                var parameterName = new ObjectParser(whereFilter.ParameterName, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote).NormalizedShortName;
 
                 var param = filter.Parameters[parameterName];
 
@@ -707,7 +707,7 @@ namespace Dotmim.Sync.Sqlite
                 // Where filters and Custom Where string
                 // ----------------------------------
                 if (filter != null)
-                {
+                 {
                     var createFilterWhereSide = this.CreateFilterWhereSide(filter, true);
                     stringBuilder.Append(createFilterWhereSide);
 

@@ -222,6 +222,15 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Empty(columnParser.OwnerName);
         }
 
+        [Fact]
+        public void ColumnParser_Parse_WhiteSpaces_ShouldWork()
+        {
+            var columnParser = new ObjectParser("Attribute With Space", '[', ']');
 
+            Assert.Equal("Attribute With Space", columnParser.ObjectName);
+            Assert.Equal("", columnParser.OwnerName);
+            Assert.Equal("[Attribute With Space]", columnParser.QuotedShortName);
+            Assert.Equal("Attribute_With_Space", columnParser.NormalizedShortName);
+        }
     }
 }

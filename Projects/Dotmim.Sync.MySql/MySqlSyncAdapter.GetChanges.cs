@@ -13,6 +13,9 @@ namespace Dotmim.Sync.MariaDB
 namespace Dotmim.Sync.MySql
 #endif
 {
+    /// <summary>
+    /// Represents a MySql Sync Adapter.
+    /// </summary>
     public partial class MySqlSyncAdapter
     {
         //------------------------------------------------------------------
