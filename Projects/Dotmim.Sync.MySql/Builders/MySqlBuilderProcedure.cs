@@ -245,8 +245,8 @@ namespace Dotmim.Sync.MySql.Builders
 
             var lstParameters = new List<MySqlParameter>();
 
-            foreach (var column in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
-                lstParameters.Add(this.GetMySqlParameter(column));
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
+                lstParameters.Add(this.GetMySqlParameter(pkColumn));
 
             var sqlParameter1 = new MySqlParameter();
             sqlParameter1.ParameterName = "sync_scope_id";

@@ -143,30 +143,11 @@ namespace Dotmim.Sync.Web.Client
         /// <summary>
         /// Read the content from a response message.
         /// </summary>
-        public static async Task<string> ReadContentFromResponseAsync(HttpResponseMessage response)
+        public static Task<string> ReadContentFromResponseAsync(HttpResponseMessage response)
         {
-            var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-
-            if (contentStream.CanSeek)
-            {
-                // If the stream is seekable, just read it directly
-                contentStream.Position = 0;
-                using var sr = new StreamReader(contentStream);
-                var content = await sr.ReadToEndAsync().ConfigureAwait(false);
-                return content;
-            }
-            else
-            {
-                // Clone the response content stream
-                using var clonedStream = new MemoryStream();
-                await contentStream.CopyToAsync(clonedStream).ConfigureAwait(false);
-                clonedStream.Position = 0;
-
-                // Read from the cloned stream
-                using var sr = new StreamReader(clonedStream);
-                var streamContent = await sr.ReadToEndAsync().ConfigureAwait(false);
-                return streamContent;
-            }
+            if (response.Content == null)
+                return null;
+            return response.Content.ReadAsStringAsync();
         }
 
         /// <summary>
@@ -242,16 +223,15 @@ namespace Dotmim.Sync.Web.Client
                 var exrror = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
 
                 if (string.IsNullOrWhiteSpace(exrror))
-                {
                     throw new HttpSyncWebException(e.Message);
-                }
-
-                throw new HttpSyncWebException(exrror);
+                else
+                    throw new HttpSyncWebException(exrror);
             }
             finally
             {
 #if NET6_0_OR_GREATER
-                await streamResponse.DisposeAsync().ConfigureAwait(false);
+                if (streamResponse != null)
+                    await streamResponse.DisposeAsync().ConfigureAwait(false);
 #else
                 streamResponse?.Dispose();
 #endif
@@ -298,11 +278,9 @@ namespace Dotmim.Sync.Web.Client
                 var exrror = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
 
                 if (string.IsNullOrWhiteSpace(exrror))
-                {
                     throw new HttpSyncWebException(e.Message);
-                }
-
-                throw new HttpSyncWebException(exrror);
+                else
+                    throw new HttpSyncWebException(exrror);
             }
         }
 
@@ -330,68 +308,57 @@ namespace Dotmim.Sync.Web.Client
             return httpMessageContent;
         }
 
-        // Method to create HttpResponseFailureArgs instance based on the provided HttpResponseMessage
-        private static async Task<HttpResponseFailureArgs> CreateFailureArgs(HttpResponseMessage response)
-        {
-            // Extract necessary details from the HttpResponseMessage
-            int statusCode = (int)response.StatusCode;
-            string reasonPhrase = response.ReasonPhrase;
-            string content = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
-            var headers = response.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value));
-            Uri requestUri = response.RequestMessage.RequestUri;
-
-            // Create and return a new instance of HttpResponseFailureArgs
-            return new HttpResponseFailureArgs(statusCode, reasonPhrase, content, headers, requestUri);
-        }
-
         /// <summary>
         /// Handle a request error.
         /// </summary>
-        private static async Task HandleSyncError(HttpResponseMessage response)
+        private async Task HandleSyncErrorAsync(HttpResponseMessage response)
         {
             try
             {
+                // read the content as exception from the response
+                var exceptionString = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
+
+                if (string.IsNullOrEmpty(exceptionString))
+                    exceptionString = response.ReasonPhrase;
+
+                // Invoke response failure Interceptors to handle the failed response
+                await this.InvokeResponseFailureInterceptors(response, exceptionString).ConfigureAwait(false);
+
                 HttpSyncWebException syncException = null;
 
                 if (!TryGetHeaderValue(response.Headers, "dotmim-sync-error", out string syncErrorTypeName))
                 {
-                    var exceptionString = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-
-                    if (string.IsNullOrEmpty(exceptionString))
-                        exceptionString = response.ReasonPhrase;
-
                     syncException = new HttpSyncWebException(exceptionString);
                 }
                 else
                 {
-                    using var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                    // Error are always json formatted
+                    var webSyncErrorSerializer = new JsonObjectSerializer();
 
-                    if (streamResponse.CanRead)
+                    WebSyncException webError = null;
+                    try
                     {
-                        // Error are always json formatted
-                        var webSyncErrorSerializer = new JsonObjectSerializer();
-                        var webError = await webSyncErrorSerializer.DeserializeAsync<WebSyncException>(streamResponse).ConfigureAwait(false);
+                        webError = webSyncErrorSerializer.Deserialize<WebSyncException>(exceptionString);
+                    }
+                    catch (Exception)
+                    {
+                    }
 
-                        if (webError != null)
+                    if (webError != null)
+                    {
+                        var exceptionMessageString = webError.Message;
+
+                        if (string.IsNullOrEmpty(exceptionMessageString))
+                            exceptionMessageString = response.ReasonPhrase;
+
+                        syncException = new HttpSyncWebException(exceptionMessageString)
                         {
-                            var exceptionString = webError.Message;
-
-                            if (string.IsNullOrEmpty(exceptionString))
-                                exceptionString = response.ReasonPhrase;
-
-                            syncException = new HttpSyncWebException(exceptionString)
-                            {
-                                DataSource = webError.DataSource,
-                                InitialCatalog = webError.InitialCatalog,
-                                Number = webError.Number,
-                                SyncStage = webError.SyncStage,
-                                TypeName = webError.TypeName,
-                            };
-                        }
-                        else
-                        {
-                            syncException = new HttpSyncWebException(response.ReasonPhrase);
-                        }
+                            DataSource = webError.DataSource,
+                            InitialCatalog = webError.InitialCatalog,
+                            Number = webError.Number,
+                            SyncStage = webError.SyncStage,
+                            TypeName = webError.TypeName,
+                        };
                     }
                     else
                     {
@@ -568,12 +535,8 @@ namespace Dotmim.Sync.Web.Client
             // get response from server
             if (!response.IsSuccessStatusCode)
             {
-                // Invoke response failure Interceptors to handle the failed response
-                await this.InvokeResponseFailureInterceptors(response).ConfigureAwait(false);
-
-                // If response content is available, handle the synchronization error
-                if (response.Content != null)
-                    await HandleSyncError(response).ConfigureAwait(false);
+                // handle the synchronization error
+                await this.HandleSyncErrorAsync(response).ConfigureAwait(false);
             }
 
             return response;
@@ -584,22 +547,27 @@ namespace Dotmim.Sync.Web.Client
         /// This method triggers interception logic to process and respond to failed HTTP responses,
         /// allowing for centralized error handling and customization.
         /// </summary>
-        /// <param name="response">The HttpResponseMessage representing the failed HTTP response.</param>
-        /// <returns>A task representing the asynchronous operation.</returns>
         /// <remarks>
         /// Response failure Interceptors provide a mechanism for executing custom logic
         /// when an HTTP response indicates failure (non-success status codes).
         /// Interceptors may include logging, error handling, retry logic, or other actions
         /// to be taken upon encountering failed responses from API calls.
         /// </remarks>
-        private async Task InvokeResponseFailureInterceptors(HttpResponseMessage response)
+        private async Task InvokeResponseFailureInterceptors(HttpResponseMessage response, string exceptionString)
         {
             // Check if there are any Interceptors registered for HttpResponseFailureArgs
             if (!this.HasInterceptors<HttpResponseFailureArgs>())
                 return; // No Interceptors registered, so return early
 
+            // Extract necessary details from the HttpResponseMessage
+            int statusCode = (int)response.StatusCode;
+            string reasonPhrase = response.ReasonPhrase;
+            var headers = response.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value));
+            Uri requestUri = response.RequestMessage.RequestUri;
+
+            // Create and return a new instance of HttpResponseFailureArgs
             // Construct HttpResponseFailureArgs instance with details of the failed response
-            var failureArgs = await CreateFailureArgs(response).ConfigureAwait(false);
+            var failureArgs = new HttpResponseFailureArgs(statusCode, reasonPhrase, exceptionString, headers, requestUri);
 
             // Invoke Interceptors asynchronously, allowing custom logic to be executed
             await this.InterceptAsync(failureArgs).ConfigureAwait(false);
