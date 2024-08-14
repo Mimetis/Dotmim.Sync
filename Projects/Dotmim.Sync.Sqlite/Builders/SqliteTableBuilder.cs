@@ -332,7 +332,6 @@ namespace Dotmim.Sync.Sqlite
         public override Task<DbCommand> GetExistsTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
             var triggerName = this.SqliteObjectNames.GetTriggerCommandName(triggerType);
-
             var triggerParser = new ObjectParser(triggerName, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote);
 
             var command = connection.CreateCommand();

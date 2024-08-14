@@ -26,6 +26,11 @@ namespace Dotmim.Sync.Builders
         public abstract DbTableNames GetParsedScopeInfoTableNames();
 
         /// <summary>
+        /// Gets the parsed name of the table.
+        /// </summary>
+        public abstract DbTableNames GetParsedScopeInfoClientTableNames();
+
+        /// <summary>
         /// Returns a command to check if the scope_info table exists.
         /// </summary>
         public abstract DbCommand GetExistsScopeInfoTableCommand(DbConnection connection, DbTransaction transaction);

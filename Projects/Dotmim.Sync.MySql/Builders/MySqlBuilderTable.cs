@@ -282,10 +282,11 @@ namespace Dotmim.Sync.MySql.Builders
         public Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
+            var columnParser = new ObjectParser(columnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
 
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"ALTER TABLE {this.MySqlObjectNames.TableQuotedShortName} DROP COLUMN {columnName};";
+            command.CommandText = $"ALTER TABLE {this.MySqlObjectNames.TableQuotedShortName} DROP COLUMN {columnParser.QuotedShortName};";
 
             return Task.FromResult(command);
         }
@@ -296,6 +297,7 @@ namespace Dotmim.Sync.MySql.Builders
         public Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
+            var columnParser = new ObjectParser(columnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
 
             command.Connection = connection;
             command.Transaction = transaction;
@@ -308,7 +310,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@columnName";
-            parameter.Value = columnName;
+            parameter.Value = columnParser.ObjectName;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);

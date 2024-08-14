@@ -54,6 +54,9 @@ namespace Dotmim.Sync.MySql.Builders
         public override DbTableNames GetParsedScopeInfoTableNames() => this.ScopeInfoTableNames;
 
         /// <inheritdoc />
+        public override DbTableNames GetParsedScopeInfoClientTableNames() => this.ScopeInfoClientTableNames;
+
+        /// <inheritdoc />
         public override DbCommand GetLocalTimestampCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText = $"Select {MySqlObjectNames.TimestampValue}";

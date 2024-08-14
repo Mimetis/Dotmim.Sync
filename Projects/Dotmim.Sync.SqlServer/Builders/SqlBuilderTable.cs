@@ -225,10 +225,11 @@ namespace Dotmim.Sync.SqlServer.Builders
         public Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
+            var columnParser = new ObjectParser(columnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
 
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"ALTER TABLE {this.SqlObjectNames.TableQuotedFullName} WITH NOCHECK DROP COLUMN {columnName};";
+            command.CommandText = $"ALTER TABLE {this.SqlObjectNames.TableQuotedFullName} WITH NOCHECK DROP COLUMN {columnParser.QuotedShortName};";
 
             return Task.FromResult(command);
         }
@@ -239,6 +240,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         public Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
+            var columnParser = new ObjectParser(columnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
 
             command.Connection = connection;
             command.Transaction = transaction;
@@ -260,7 +262,7 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@columnName";
-            parameter.Value = columnName;
+            parameter.Value = columnParser.ObjectName;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);

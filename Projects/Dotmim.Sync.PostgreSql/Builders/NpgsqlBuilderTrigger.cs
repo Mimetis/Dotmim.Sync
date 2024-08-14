@@ -44,6 +44,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
         {
 
             var commandTriggerName = this.NpgsqlObjectNames.GetTriggerName(triggerType);
+            var commandTriggerParser = new ObjectParser(commandTriggerName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
 
             var commandText = $"select exists(select * from information_schema.triggers where trigger_schema = @schemaname and trigger_name = @triggername )";
 
@@ -55,7 +56,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             var p1 = command.CreateParameter();
             p1.ParameterName = "@triggername";
-            p1.Value = commandTriggerName;
+            p1.Value = commandTriggerParser.ObjectName.ToLowerInvariant();
             command.Parameters.Add(p1);
 
             var p2 = command.CreateParameter();
@@ -75,7 +76,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             var commandTriggerName = this.NpgsqlObjectNames.GetTriggerName(triggerType);
 
             var function = $"\"{this.NpgsqlObjectNames.TableSchemaName}\".{commandTriggerName.ToLowerInvariant()}_function()";
-            var commandText = $"drop trigger if exists {commandTriggerName} on {this.NpgsqlObjectNames.TableQuotedFullName};" +
+            var commandText = $"drop trigger if exists {commandTriggerName.ToLowerInvariant()} on {this.NpgsqlObjectNames.TableQuotedFullName};" +
                               $"drop function if exists {function};";
 
             var command = connection.CreateCommand();
@@ -153,7 +154,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine($"return NEW;");
             stringBuilder.AppendLine($"END;");
             stringBuilder.AppendLine($"$new$;");
-            stringBuilder.AppendLine($"CREATE OR REPLACE TRIGGER {commandTriggerName}");
+            stringBuilder.AppendLine($"CREATE OR REPLACE TRIGGER {commandTriggerName.ToLowerInvariant()}");
             stringBuilder.AppendLine($"AFTER {triggerFor} ON {this.NpgsqlObjectNames.TableQuotedFullName}");
             stringBuilder.AppendLine($"FOR EACH ROW EXECUTE FUNCTION \"{this.NpgsqlObjectNames.TableSchemaName}\".{commandTriggerName.ToLowerInvariant()}_function()");
 
@@ -199,7 +200,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
             stringBuilder.AppendLine($"return OLD;");
             stringBuilder.AppendLine($"END;");
             stringBuilder.AppendLine($"$new$;");
-            stringBuilder.AppendLine($"CREATE OR REPLACE TRIGGER {commandTriggerName}");
+            stringBuilder.AppendLine($"CREATE OR REPLACE TRIGGER {commandTriggerName.ToLowerInvariant()}");
             stringBuilder.AppendLine($"AFTER DELETE ON {this.NpgsqlObjectNames.TableQuotedFullName}");
             stringBuilder.AppendLine($"FOR EACH ROW EXECUTE FUNCTION \"{this.NpgsqlObjectNames.TableSchemaName}\".{commandTriggerName.ToLowerInvariant()}_function()");
             return stringBuilder.ToString();

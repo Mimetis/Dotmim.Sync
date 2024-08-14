@@ -327,6 +327,9 @@ namespace Dotmim.Sync.PostgreSql.Scope
         /// <inheritdoc/>
         public override DbTableNames GetParsedScopeInfoTableNames() => this.ScopeInfoTableNames;
 
+        /// <inheritdoc />
+        public override DbTableNames GetParsedScopeInfoClientTableNames() => this.ScopeInfoClientTableNames;
+
         /// <inheritdoc/>
         public override DbCommand GetScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
         {

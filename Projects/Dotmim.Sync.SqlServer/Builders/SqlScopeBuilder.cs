@@ -50,6 +50,9 @@ namespace Dotmim.Sync.SqlServer.Scope
         public override DbTableNames GetParsedScopeInfoTableNames() => this.ScopeInfoTableNames;
 
         /// <inheritdoc />
+        public override DbTableNames GetParsedScopeInfoClientTableNames() => this.ScopeInfoClientTableNames;
+
+        /// <inheritdoc />
         public override DbCommand GetLocalTimestampCommand(DbConnection connection, DbTransaction transaction)
         {
             // UPDATE Nov 2019 : We don't use min_active_rowversion anymore, since we are in a transaction

@@ -100,6 +100,13 @@ jobs:
 
   - template: azure-pipelines-template.yml
     parameters:
+      displayName: "PostgreSQL TCP Filter Tests .net 8.0"
+      dotnetfx: "net8.0"
+      filter: "Dotmim.Sync.Tests.PostgresTcpFilterTests"
+      docker: "postgres"
+
+  - template: azure-pipelines-template.yml
+    parameters:
       displayName: "MySQL Tcp .net core 3.1"
       dotnetfx: "netcoreapp3.1"
       filter: "Dotmim.Sync.Tests.MySqlTcp"
@@ -121,9 +128,9 @@ jobs:
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "MySQL Conflicts .net 8.0"
+      displayName: "MySQL TCP Filter Tests .net 8.0"
       dotnetfx: "net8.0"
-      filter: "Dotmim.Sync.Tests.MySqlConflictTests"
+      filter: "Dotmim.Sync.Tests.MySqlTcpFilterTests"
       docker: "mysql"
 
   - template: azure-pipelines-template.yml

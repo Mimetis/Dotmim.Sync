@@ -160,10 +160,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
         /// </summary>
         public Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
+            var columnParser = new ObjectParser(columnName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"alter table if exists {this.NpgsqlObjectNames.TableQuotedFullName} drop column {columnName};";
+            command.CommandText = $"alter table if exists {this.NpgsqlObjectNames.TableQuotedFullName} drop column {columnParser.QuotedShortName};";
 
             return Task.FromResult(command);
         }
@@ -187,6 +189,8 @@ namespace Dotmim.Sync.PostgreSql.Builders
         public Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
 
+            var columnParser = new ObjectParser(columnName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
@@ -207,7 +211,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@columnname";
-            parameter.Value = columnName;
+            parameter.Value = columnParser.ObjectName;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);
@@ -328,27 +332,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
             }
 
             return [.. relations.OrderBy(t => t.ForeignKey)];
-        }
-
-        /// <summary>
-        /// Ensure the relation name is correct to be created in MySql.
-        /// </summary>
-        public string NormalizeRelationName(string relation)
-        {
-            if (this.createdRelationNames.TryGetValue(relation, out var name))
-                return name;
-
-            name = relation;
-
-            if (relation.Length > 128)
-                name = $"{relation.Substring(0, 110)}_{GetRandomString()}";
-
-            // MySql could have a special character in its relation names
-            name = name.Replace("~", string.Empty, SyncGlobalization.DataSourceStringComparison).Replace("#", string.Empty, SyncGlobalization.DataSourceStringComparison);
-
-            this.createdRelationNames.Add(relation, name);
-
-            return name;
         }
 
         private static string GetRandomString() => Path.GetRandomFileName().Replace(".", string.Empty, SyncGlobalization.DataSourceStringComparison).ToLowerInvariant();

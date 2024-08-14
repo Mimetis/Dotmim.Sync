@@ -273,6 +273,7 @@ namespace Dotmim.Sync.MySql.Builders
         {
 
             var triggerNameString = this.MySqlObjectNames.GetTriggerCommandName(triggerType);
+            var triggerParser = new ObjectParser(triggerNameString, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -281,7 +282,7 @@ namespace Dotmim.Sync.MySql.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@triggerName";
-            parameter.Value = triggerNameString;
+            parameter.Value = triggerParser.ObjectName;
 
             command.Parameters.Add(parameter);
 
@@ -304,7 +305,6 @@ namespace Dotmim.Sync.MySql.Builders
         /// </summary>
         public Task<DbCommand> GetDropTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
         {
-
             var triggerNameString = this.MySqlObjectNames.GetTriggerCommandName(triggerType);
 
             var command = connection.CreateCommand();
