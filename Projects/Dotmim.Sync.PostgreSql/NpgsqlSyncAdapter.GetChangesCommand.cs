@@ -332,7 +332,7 @@ namespace Dotmim.Sync.PostgreSql
                 if (columnFilter == null)
                     throw new FilterParamColumnNotExistsException(whereFilter.ColumnName, whereFilter.TableName);
 
-                var tableParser = new TableParser(tableFilter.GetFullName());
+                var tableParser = new TableParser(tableFilter.GetFullName(), NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
                 var tableName = tableParser.TableName;
                 tableName = string.Equals(tableName, filter.TableName, SyncGlobalization.DataSourceStringComparison)
                     ? "\"base\""
