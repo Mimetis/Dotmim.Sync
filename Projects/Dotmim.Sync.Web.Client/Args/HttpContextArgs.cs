@@ -227,7 +227,7 @@ namespace Dotmim.Sync
         /// <inheritdoc cref="OnHttpResponseFailure(WebRemoteOrchestrator, Action{HttpResponseFailureArgs})"/>
         public static Guid OnHttpResponseFailure(
             this WebRemoteOrchestrator orchestrator,
-            Func<HttpGettingResponseMessageArgs, Task> action)
+            Func<HttpResponseFailureArgs, Task> action)
             => orchestrator.AddInterceptor(action);
     }
 }
