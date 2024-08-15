@@ -28,21 +28,25 @@ namespace Dotmim.Sync.SqlServer
         /// </summary>
         public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType commandType, SyncFilter filter)
         {
-            if (commandType == DbCommandType.UpdateMetadata)
+            return commandType switch
             {
-                var c = new SqlCommand("Set @sync_row_count = 1;");
-                c.Parameters.Add("@sync_row_count", SqlDbType.Int);
-                return (c, false);
-            }
-
-            return commandType == DbCommandType.SelectRow
-                ? (this.BuildSelectInitializedChangesCommand(), false)
-                : commandType == DbCommandType.DeleteMetadata
-                ? (null, false)
-                : commandType == DbCommandType.Reset ? (this.CreateResetCommand(), false) : base.GetCommand(context, commandType, filter);
+                DbCommandType.UpdateMetadata => (this.BuildUpdateMetadataCommand(), false),
+                DbCommandType.SelectRow => (this.BuildSelectRowCommand(), false),
+                DbCommandType.DeleteMetadata => (null, false),
+                DbCommandType.Reset => (this.CreateResetCommand(), false),
+                DbCommandType.UpdateUntrackedRows => (this.BuildUpdateUntrackedRowsCommand(), false),
+                _ => base.GetCommand(context, commandType, filter),
+            };
         }
 
-        private SqlCommand BuildSelectInitializedChangesCommand()
+        private SqlCommand BuildUpdateMetadataCommand()
+        {
+            var c = new SqlCommand("Set @sync_row_count = 1;");
+            c.Parameters.Add("@sync_row_count", SqlDbType.Int);
+            return c;
+        }
+
+        private SqlCommand BuildSelectRowCommand()
         {
             var sqlCommand = new SqlCommand();
             var stringBuilder1 = new StringBuilder();
@@ -109,6 +113,65 @@ namespace Dotmim.Sync.SqlServer
             stringBuilder.AppendLine($"DELETE FROM {this.SqlObjectNames.TableQuotedFullName};");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(string.Concat("SET @sync_row_count = @@ROWCOUNT;"));
+
+            return new SqlCommand(stringBuilder.ToString());
+        }
+
+        private SqlCommand BuildUpdateUntrackedRowsCommand()
+        {
+
+            var mutablesColumns = this.TableDescription.GetMutableColumns(false, false).ToList();
+
+            if (mutablesColumns.Count <= 0)
+                return null;
+
+            // Get a mutable column
+            var mutableColumn = mutablesColumns[0];
+            var mutableColumnParser = new ObjectParser(mutableColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+
+            var stringBuilder = new StringBuilder();
+            string comma = string.Empty;
+            stringBuilder.AppendLine($";WITH [side] AS (");
+            stringBuilder.AppendLine($"SELECT ");
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnParser = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.AppendLine($"\t{comma}[base].{columnParser.QuotedShortName} AS {columnParser.QuotedShortName} ");
+                comma = ",";
+            }
+
+            stringBuilder.AppendLine($"FROM {this.SqlObjectNames.TableQuotedFullName} as [base]");
+            stringBuilder.AppendLine($"LEFT JOIN CHANGETABLE(CHANGES {this.SqlObjectNames.TableQuotedFullName}, NULL) as CT ON ");
+            comma = string.Empty;
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnParser = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.AppendLine($"\t{comma} [base].{columnParser.QuotedShortName} = [CT].{columnParser.QuotedShortName} ");
+                comma = "AND";
+            }
+
+            stringBuilder.AppendLine($"WHERE (");
+            comma = string.Empty;
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnParser = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.AppendLine($"\t{comma} [CT].{columnParser.QuotedShortName} IS NULL ");
+                comma = "AND";
+            }
+
+            stringBuilder.AppendLine($") OR (CT.[SYS_CHANGE_VERSION] < (SELECT min(scope_last_sync_timestamp) from dbo.scope_info_client)))");
+            stringBuilder.AppendLine($"UPDATE [base] SET [base].{mutableColumnParser.QuotedShortName} = [base].{mutableColumnParser.QuotedShortName}");
+            stringBuilder.AppendLine($"FROM {this.SqlObjectNames.TableQuotedFullName} as [base]");
+            stringBuilder.AppendLine($"JOIN [side] ON");
+            comma = string.Empty;
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
+            {
+                var columnParser = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.AppendLine($"\t{comma} [base].{columnParser.QuotedShortName} = [side].{columnParser.QuotedShortName} ");
+                comma = "AND";
+            }
+
+            var r = stringBuilder.ToString();
 
             return new SqlCommand(stringBuilder.ToString());
         }
