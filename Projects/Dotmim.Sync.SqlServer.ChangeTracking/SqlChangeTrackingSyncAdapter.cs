@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.DatabaseStringParsers;
 using Dotmim.Sync.SqlServer.Builders;
+using Dotmim.Sync.SqlServer.ChangeTracking.Builders;
 using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Data.Common;
@@ -18,6 +19,9 @@ namespace Dotmim.Sync.SqlServer
             : base(tableDescription, scopeInfo, useBulkOperations)
         {
         }
+
+        /// <inheritdoc />
+        public override DbTableBuilder GetTableBuilder() => new SqlChangeTrackingTableBuilder(this.TableDescription, this.ScopeInfo);
 
         /// <summary>
         /// Overriding adapter since the update metadata is not a stored proc that we can override.
@@ -45,12 +49,12 @@ namespace Dotmim.Sync.SqlServer
 
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine(";WITH ");
-            stringBuilder.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedFullName} AS (");
+            stringBuilder.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedShortName} AS (");
             stringBuilder.Append("\tSELECT ");
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnParser = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
-                stringBuilder.Append($"[CT].{columnParser.QuotedShortName}, ");
+                stringBuilder.Append($"[CT].{columnParser.QuotedShortName} as {columnParser.QuotedShortName}, ");
             }
 
             stringBuilder.AppendLine();
@@ -76,7 +80,7 @@ namespace Dotmim.Sync.SqlServer
             stringBuilder.AppendLine($"\t[side].[sync_row_is_tombstone] as [sync_row_is_tombstone], ");
             stringBuilder.AppendLine($"\t[side].[sync_update_scope_id] as [sync_update_scope_id] ");
             stringBuilder.AppendLine($"FROM {this.SqlObjectNames.TableQuotedFullName} [base]");
-            stringBuilder.Append($"RIGHT JOIN {this.SqlObjectNames.TrackingTableQuotedFullName} [side] ");
+            stringBuilder.Append($"RIGHT JOIN {this.SqlObjectNames.TrackingTableQuotedShortName} [side] ");
             stringBuilder.Append("ON ");
 
             string empty = string.Empty;

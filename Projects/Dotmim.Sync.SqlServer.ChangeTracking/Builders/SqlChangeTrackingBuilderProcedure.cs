@@ -24,7 +24,6 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         /// <inheritdoc />
         protected override SqlCommand BuildBulkDeleteCommand()
         {
-
             var sqlCommand = new SqlCommand();
 
             var sqlParameter = new SqlParameter("@sync_min_timestamp", SqlDbType.BigInt);
@@ -76,7 +75,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($";WITH ");
             stringBuilder.AppendLine($"  CHANGE_TRACKING_CONTEXT(@var_sync_scope_id),");
-            stringBuilder.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedFullName} AS (");
+            stringBuilder.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedShortName} AS (");
             stringBuilder.Append($"\tSELECT ");
             foreach (var c in this.TableDescription.GetPrimaryKeysColumns())
             {
@@ -105,8 +104,8 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             stringBuilder.AppendLine();
             stringBuilder.AppendLine($"INTO @dms_changed ");
-            stringBuilder.AppendLine($"FROM {this.SqlObjectNames.TrackingTableQuotedFullName} [base]");
-            stringBuilder.AppendLine($"JOIN {this.SqlObjectNames.TrackingTableQuotedFullName} [changes] ON {str5}");
+            stringBuilder.AppendLine($"FROM {this.SqlObjectNames.TableQuotedFullName} [base]");
+            stringBuilder.AppendLine($"JOIN {this.SqlObjectNames.TrackingTableQuotedShortName} [changes] ON {str5}");
             stringBuilder.AppendLine("WHERE [changes].[sync_timestamp] <= @sync_min_timestamp OR [changes].[sync_timestamp] IS NULL OR [changes].[sync_update_scope_id] = @sync_scope_id OR @sync_force_write = 1;");
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
@@ -182,7 +181,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine();
             stringBuilder.AppendLine(";WITH ");
             stringBuilder.AppendLine("  CHANGE_TRACKING_CONTEXT(@var_sync_scope_id),");
-            stringBuilder.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedFullName} AS (");
+            stringBuilder.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedShortName} AS (");
             stringBuilder.Append("\tSELECT ");
             foreach (var c in this.TableDescription.Columns.Where(col => !col.IsReadOnly))
             {
@@ -203,7 +202,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine($"\tLEFT JOIN CHANGETABLE(CHANGES {this.SqlObjectNames.TableQuotedFullName}, @sync_min_timestamp) AS [CT] ON {str4}");
             stringBuilder.AppendLine("\t)");
             stringBuilder.AppendLine($"MERGE {this.SqlObjectNames.TableQuotedFullName} AS [base]");
-            stringBuilder.AppendLine($"USING {this.SqlObjectNames.TrackingTableQuotedFullName} as [changes] ON {str5}");
+            stringBuilder.AppendLine($"USING {this.SqlObjectNames.TrackingTableQuotedShortName} as [changes] ON {str5}");
 
             if (hasMutableColumns)
             {
@@ -301,7 +300,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             stringBuilder.AppendLine(";WITH ");
             stringBuilder.AppendLine("  CHANGE_TRACKING_CONTEXT(@var_sync_scope_id),");
-            stringBuilder.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedFullName} AS (");
+            stringBuilder.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedShortName} AS (");
             stringBuilder.Append("\tSELECT ");
             foreach (var c in this.TableDescription.GetPrimaryKeysColumns())
             {
@@ -328,7 +327,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine("\t)");
             stringBuilder.AppendLine($"DELETE {this.SqlObjectNames.TableQuotedFullName}");
             stringBuilder.AppendLine($"FROM {this.SqlObjectNames.TableQuotedFullName} [base]");
-            stringBuilder.Append($"JOIN {this.SqlObjectNames.TrackingTableQuotedFullName} [side] ON ");
+            stringBuilder.Append($"JOIN {this.SqlObjectNames.TrackingTableQuotedShortName} [side] ON ");
 
             stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(this.TableDescription.PrimaryKeys, "[base]", "[side]"));
 
@@ -389,7 +388,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             stringBuilder.AppendLine(";WITH ");
             stringBuilder.AppendLine("  CHANGE_TRACKING_CONTEXT(@var_sync_scope_id),");
-            stringBuilder.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedFullName} AS (");
+            stringBuilder.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedShortName} AS (");
             stringBuilder.Append("\tSELECT ");
             foreach (var c in this.TableDescription.Columns.Where(col => !col.IsReadOnly))
             {
@@ -422,7 +421,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine("\t)");
 
             stringBuilder.AppendLine($"MERGE {this.SqlObjectNames.TableQuotedFullName} AS [base]");
-            stringBuilder.AppendLine($"USING {this.SqlObjectNames.TrackingTableQuotedFullName} as [changes] ON {str5}");
+            stringBuilder.AppendLine($"USING {this.SqlObjectNames.TrackingTableQuotedShortName} as [changes] ON {str5}");
 
             if (hasMutableColumns)
             {
@@ -497,7 +496,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             var stringBuilder = new StringBuilder(string.Empty);
             stringBuilder.AppendLine(";WITH ");
-            stringBuilder.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedFullName} AS (");
+            stringBuilder.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedShortName} AS (");
             stringBuilder.Append("\tSELECT ");
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
@@ -528,7 +527,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             stringBuilder.AppendLine($"\t, [side].[sync_row_is_tombstone] as [sync_row_is_tombstone]");
             stringBuilder.AppendLine($"FROM {this.SqlObjectNames.TableQuotedFullName} [base]");
-            stringBuilder.Append($"LEFT JOIN {this.SqlObjectNames.TrackingTableQuotedFullName} [side] ");
+            stringBuilder.Append($"LEFT JOIN {this.SqlObjectNames.TrackingTableQuotedShortName} [side] ");
             stringBuilder.Append("ON ");
 
             string empty = string.Empty;
@@ -599,7 +598,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             // ----------------------------------
             // Make Left Join
             // ----------------------------------
-            stringBuilder.Append($"RIGHT JOIN {this.SqlObjectNames.TrackingTableQuotedFullName} [side] ON ");
+            stringBuilder.Append($"RIGHT JOIN {this.SqlObjectNames.TrackingTableQuotedShortName} [side] ON ");
 
             empty = string.Empty;
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
@@ -634,7 +633,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             var stringBuilder = new StringBuilder(string.Empty);
             stringBuilder.AppendLine(";WITH ");
-            stringBuilder.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedFullName} AS (");
+            stringBuilder.AppendLine($"  {this.SqlObjectNames.TrackingTableQuotedShortName} AS (");
             stringBuilder.Append("\tSELECT ");
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
@@ -671,7 +670,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             stringBuilder.AppendLine("\t[side].[sync_row_is_tombstone],");
             stringBuilder.AppendLine("\t[side].[sync_update_scope_id]");
             stringBuilder.AppendLine($"FROM {this.SqlObjectNames.TableQuotedFullName} [base]");
-            stringBuilder.Append($"RIGHT JOIN {this.SqlObjectNames.TrackingTableQuotedFullName} [side]");
+            stringBuilder.Append($"RIGHT JOIN {this.SqlObjectNames.TrackingTableQuotedShortName} [side]");
             stringBuilder.Append("ON ");
 
             string empty = string.Empty;
