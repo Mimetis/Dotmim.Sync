@@ -249,7 +249,11 @@ namespace Dotmim.Sync.Tests
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlClientRandomDatabaseName, true);
+
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(sqlClientRandomDatabaseName);
+            var provider = new SqlSyncChangeTrackingProvider(cstring);
+            provider.UseFallbackSchema(true);
+
         }
 
         public override CoreProvider GetServerProvider()
