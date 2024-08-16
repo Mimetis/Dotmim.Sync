@@ -50,13 +50,7 @@ namespace Dotmim.Sync.PostgreSql.Builders
         /// </summary>
         public static NpgsqlDbType GetOwnerDbTypeFromDbType(SyncColumn column)
         {
-//#if NET6_0_OR_GREATER
-//            // Getting EnableLegacyTimestampBehavior behavior
-//            var legacyTimestampBehavior = false;
-//            AppContext.TryGetSwitch("Npgsql.EnableLegacyTimestampBehavior", out legacyTimestampBehavior);
-//#else
-//            var legacyTimestampBehavior = true;
-//#endif
+
             var npgsqlDbType = column.GetDbType() switch
             {
                 DbType.AnsiStringFixedLength or DbType.AnsiString or DbType.String or DbType.StringFixedLength => NpgsqlDbType.Varchar,
@@ -288,11 +282,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
         /// <inheritdoc/>
         public override (byte Precision, byte Scale) GetPrecisionAndScale(SyncColumn columnDefinition)
-        {
-            return columnDefinition.DbType == (int)DbType.Single && columnDefinition.Precision == 0 && columnDefinition.Scale == 0
+            => columnDefinition.DbType == (int)DbType.Single && columnDefinition.Precision == 0 && columnDefinition.Scale == 0
                 ? ((byte Precision, byte Scale))(PRECISIONMAX, 8)
                 : CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
-        }
 
         /// <inheritdoc/>
         public override Type GetType(SyncColumn columnDefinition) => this.GetNpgsqlDbType(columnDefinition) switch

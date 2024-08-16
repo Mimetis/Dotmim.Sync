@@ -1,5 +1,4 @@
-﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.DatabaseStringParsers;
+﻿using Dotmim.Sync.DatabaseStringParsers;
 using Npgsql;
 using System.Data.Common;
 using System.Linq;
@@ -50,12 +49,12 @@ namespace Dotmim.Sync.PostgreSql.Builders
             // Adding the primary key
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
-                var quotedColumnName = ParserName.Parse(pkColumn, "\"").Quoted().ToString();
+                var columnParser = new ObjectParser(pkColumn.ColumnName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
 
                 var columnType = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, this.TableDescription.OriginalProvider);
 
                 var nullableColumn = pkColumn.AllowDBNull ? "NULL" : "NOT NULL";
-                stringBuilder.AppendLine($"{quotedColumnName} {columnType} {nullableColumn}, ");
+                stringBuilder.AppendLine($"{columnParser.QuotedShortName} {columnType} {nullableColumn}, ");
             }
 
             // adding the tracking columns

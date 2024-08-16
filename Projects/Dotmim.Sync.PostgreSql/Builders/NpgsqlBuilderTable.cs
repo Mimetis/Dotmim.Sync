@@ -17,9 +17,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
     /// </summary>
     public class NpgsqlBuilderTable
     {
-
-        private Dictionary<string, string> createdRelationNames = [];
-
         /// <summary>
         /// Gets the table description.
         /// </summary>
@@ -333,8 +330,6 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             return [.. relations.OrderBy(t => t.ForeignKey)];
         }
-
-        private static string GetRandomString() => Path.GetRandomFileName().Replace(".", string.Empty, SyncGlobalization.DataSourceStringComparison).ToLowerInvariant();
 
         /// <summary>
         /// Returns a command to create a table if it does not exist.

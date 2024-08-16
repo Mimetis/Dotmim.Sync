@@ -423,11 +423,6 @@ namespace Dotmim.Sync.PostgreSql
         /// <summary>
         /// Gets the quoted table schema. if empty, return public.
         /// </summary>
-        public static string GetUnquotedSqlSchemaName(ParserName parser) => string.IsNullOrEmpty(parser.SchemaName) ? "public" : parser.SchemaName;
-
-        /// <summary>
-        /// Gets the quoted table schema. if empty, return public.
-        /// </summary>
         public static string GetUnquotedSqlSchemaName(string schema) => string.IsNullOrEmpty(schema) ? "public" : schema;
 
         /// <summary>

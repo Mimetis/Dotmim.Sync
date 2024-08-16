@@ -26,18 +26,15 @@ namespace Dotmim.Sync.SqlServer
         /// <summary>
         /// Overriding adapter since the update metadata is not a stored proc that we can override.
         /// </summary>
-        public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType commandType, SyncFilter filter)
+        public override (DbCommand, bool) GetCommand(SyncContext context, DbCommandType commandType, SyncFilter filter) => commandType switch
         {
-            return commandType switch
-            {
-                DbCommandType.UpdateMetadata => (this.BuildUpdateMetadataCommand(), false),
-                DbCommandType.SelectRow => (this.BuildSelectRowCommand(), false),
-                DbCommandType.DeleteMetadata => (null, false),
-                DbCommandType.Reset => (this.CreateResetCommand(), false),
-                DbCommandType.UpdateUntrackedRows => (this.BuildUpdateUntrackedRowsCommand(), false),
-                _ => base.GetCommand(context, commandType, filter),
-            };
-        }
+            DbCommandType.UpdateMetadata => (this.BuildUpdateMetadataCommand(), false),
+            DbCommandType.SelectRow => (this.BuildSelectRowCommand(), false),
+            DbCommandType.DeleteMetadata => (null, false),
+            DbCommandType.Reset => (this.CreateResetCommand(), false),
+            DbCommandType.UpdateUntrackedRows => (this.BuildUpdateUntrackedRowsCommand(), false),
+            _ => base.GetCommand(context, commandType, filter),
+        };
 
         private SqlCommand BuildUpdateMetadataCommand()
         {
@@ -170,8 +167,6 @@ namespace Dotmim.Sync.SqlServer
                 stringBuilder.AppendLine($"\t{comma} [base].{columnParser.QuotedShortName} = [side].{columnParser.QuotedShortName} ");
                 comma = "AND";
             }
-
-            var r = stringBuilder.ToString();
 
             return new SqlCommand(stringBuilder.ToString());
         }

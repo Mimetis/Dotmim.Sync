@@ -17,7 +17,7 @@ namespace Dotmim.Sync.PostgreSql
     /// </summary>
     public partial class NpgsqlSyncAdapter : DbSyncAdapter
     {
-        //private bool legacyTimestampBehavior = true;
+        // private bool legacyTimestampBehavior = true;
 
         /// <summary>
         /// Returns the timestamp value for PostgreSql.
@@ -44,13 +44,13 @@ namespace Dotmim.Sync.PostgreSql
             this.NpgsqlDbMetadata = new NpgsqlDbMetadata();
             this.NpgsqlObjectNames = new NpgsqlObjectNames(tableDescription, scopeInfo);
 
-            //#if NET6_0_OR_GREATER
+            // #if NET6_0_OR_GREATER
             //            // Getting EnableLegacyTimestampBehavior behavior
             //            this.legacyTimestampBehavior = false;
             //            AppContext.TryGetSwitch("Npgsql.EnableLegacyTimestampBehavior", out this.legacyTimestampBehavior);
-            //#else
+            // #else
             //            this.legacyTimestampBehavior = true;
-            //#endif
+            // #endif
         }
 
         /// <inheritdoc/>
@@ -71,7 +71,7 @@ namespace Dotmim.Sync.PostgreSql
             DbCommandType.SelectInitializedChangesWithFilters => this.GetSelectInitializedChangesCommand(filter),
             DbCommandType.SelectChangesWithFilters => this.GetSelectChangesCommand(filter),
             DbCommandType.SelectRow => this.GetSelectRowCommand(),
-            DbCommandType.UpdateRow or DbCommandType.InsertRow or DbCommandType.UpdateRows or DbCommandType.InsertRows 
+            DbCommandType.UpdateRow or DbCommandType.InsertRow or DbCommandType.UpdateRows or DbCommandType.InsertRows
             => this.GetUpdateRowCommand(),
             DbCommandType.DeleteRow or DbCommandType.DeleteRows => this.GetDeleteRowCommand(),
             DbCommandType.DisableConstraints => this.GetDisableConstraintCommand(),
@@ -114,8 +114,8 @@ namespace Dotmim.Sync.PostgreSql
             {
                 foreach (var column in this.TableDescription.GetPrimaryKeysColumns())
                 {
-                    var unquotedColumn = ParserName.Parse(column).Normalized().Unquoted().ToString();
-                    var parameter = this.GetParameter(context, command, unquotedColumn);
+                    var columnParser = new ObjectParser(column.ColumnName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+                    var parameter = this.GetParameter(context, command, columnParser.ObjectName);
                     if (parameter != null)
                         command.Parameters.Remove(parameter);
                 }

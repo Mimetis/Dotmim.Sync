@@ -9,8 +9,8 @@ using MySqlConnector;
 using System.Reflection.Metadata;
 
 #elif NETSTANDARD
-using MySql.Data.MySqlClient;
 using Dotmim.Sync.DatabaseStringParsers;
+using MySql.Data.MySqlClient;
 
 #endif
 #if MARIADB
@@ -108,7 +108,11 @@ namespace Dotmim.Sync.MySql
                     if (p.ParameterName.StartsWith("in_"))
                         p.ParameterName = p.ParameterName.Replace("in_", string.Empty);
 
+#if NET6_0_OR_GREATER
+                    if (!p.ParameterName.StartsWith('@'))
+#else
                     if (!p.ParameterName.StartsWith("@"))
+#endif
                         p.ParameterName = $"@{p.ParameterName}";
                 }
             }

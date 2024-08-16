@@ -39,7 +39,7 @@ namespace Dotmim.Sync
         /// Add this method as it's not supported by .NET Standard 2.0.
         /// </summary>
         public static bool Contains(this string str, string value, StringComparison comparisonType)
-            => str.IndexOf(value) >= 0;
+            => str.IndexOf(value, SyncGlobalization.DataSourceStringComparison) >= 0;
 
         /// <summary>
         /// Add this method as it's not supported by .NET Standard 2.0.

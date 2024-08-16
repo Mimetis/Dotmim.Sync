@@ -121,7 +121,6 @@ namespace Dotmim.Sync.MySql.Builders
             var listColumnsTmp2 = new StringBuilder();
             var listColumnsTmp3 = new StringBuilder();
 
-
             stringBuilder.Append("CREATE PROCEDURE ");
             stringBuilder.Append(storedProcedureName);
             stringBuilder.Append(" (");
@@ -136,7 +135,6 @@ namespace Dotmim.Sync.MySql.Builders
 
             stringBuilder.Append("\n)\nBEGIN\n");
 
-
             var and = string.Empty;
             foreach (var column in this.TableDescription.GetPrimaryKeysColumns())
             {
@@ -146,20 +144,19 @@ namespace Dotmim.Sync.MySql.Builders
                 var declar = this.CreateParameterDeclaration(param);
 
                 var columnParser = new ObjectParser(column.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
-
-                var parameterNameQuoted = ParserName.Parse(param.ParameterName, "`").Quoted().ToString();
+                var parameterNameParser = new ObjectParser(param.ParameterName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
 
                 // Primary keys column name, with quote
                 listQuotedPrimaryKeys.Append($"{columnParser.QuotedShortName}, ");
 
                 // param name without type
-                listColumnsTmp2.Append($"{parameterNameQuoted}, ");
+                listColumnsTmp2.Append($"{parameterNameParser.QuotedShortName}, ");
 
                 // param name with type
                 stringBuilder.AppendLine($"DECLARE {declar};");
 
                 // Param equal IS NULL
-                listColumnsTmp3.Append($"{and}{parameterNameQuoted} IS NULL");
+                listColumnsTmp3.Append($"{and}{parameterNameParser.QuotedShortName} IS NULL");
 
                 and = " AND ";
             }
@@ -188,13 +185,12 @@ namespace Dotmim.Sync.MySql.Builders
             var stringBuilderParameters = new StringBuilder();
             foreach (var mutableColumn in this.TableDescription.Columns.Where(c => !c.IsReadOnly))
             {
-                var columnName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
-                var parameterName = ParserName.Parse(mutableColumn, "`").Quoted().ToString();
+                var columnParser = new ObjectParser(mutableColumn.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
 
-                var paramQuotedColumn = ParserName.Parse($"{MYSQLPREFIXPARAMETER}{mutableColumn.ColumnName}", "`");
+                var paramColumnParser = new ObjectParser($"{MYSQLPREFIXPARAMETER}{mutableColumn.ColumnName}", MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
 
-                stringBuilderArguments.Append(string.Concat(empty, columnName));
-                stringBuilderParameters.Append(string.Concat(empty, paramQuotedColumn.Quoted().Normalized().ToString()));
+                stringBuilderArguments.Append(string.Concat(empty, columnParser.QuotedShortName));
+                stringBuilderParameters.Append(string.Concat(empty, $"{MySqlObjectNames.LeftQuote}{paramColumnParser.NormalizedShortName}{MySqlObjectNames.RightQuote}"));
                 empty = ", ";
             }
 

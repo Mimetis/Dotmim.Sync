@@ -46,7 +46,6 @@
 		<Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlObjectNames.cs" Link="Builders\MySqlObjectNames.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlScopeInfoBuilder.cs" Link="Builders\MySqlScopeInfoBuilder.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\Builders\MySqlTableBuilder.cs" Link="Builders\MySqlTableBuilder.cs" />
-		<Compile Include="..\Dotmim.Sync.MySql\MySqlExtensionsMethods.cs" Link="MySqlExtensionsMethods.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\MySqlManagementUtils.cs" Link="MySqlManagementUtils.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\MySqlSyncAdapter.cs" Link="MySqlSyncAdapter.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\MySqlSyncAdapter.GetChanges.cs" Link="MySqlSyncAdapter.GetChanges.cs" />

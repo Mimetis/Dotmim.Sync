@@ -59,7 +59,7 @@ namespace Dotmim.Sync.SqlServer.Builders
         {
             var tableParser = new TableParser($"{tableName}.{schemaName}", SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
             var newTableParser = new TableParser($"{newTableName}.{newSchemaName}", SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
-            return SqlManagementUtils.RenameTableAsync(tableParser.TableName, tableParser.SchemaName, 
+            return SqlManagementUtils.RenameTableAsync(tableParser.TableName, tableParser.SchemaName,
                 newTableParser.TableName, newTableParser.SchemaName, connection as SqlConnection, transaction as SqlTransaction);
         }
     }
