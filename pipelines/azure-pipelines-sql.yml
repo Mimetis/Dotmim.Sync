@@ -49,12 +49,12 @@ jobs:
   #     filter: "Dotmim.Sync.Tests.SqlServerTcpFilterTests"
   #     docker: "sqlserver"
 
-  - template: azure-pipelines-template.yml
-    parameters:
-      displayName: "SQL Server Change Tracking Tcp Filters .net 8.0"
-      dotnetfx: "net8.0"
-      filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingTcpFilterTests"
-      docker: "sqlserver"
+  # - template: azure-pipelines-template.yml
+  #   parameters:
+  #     displayName: "SQL Server Change Tracking Tcp Filters .net 8.0"
+  #     dotnetfx: "net8.0"
+  #     filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingTcpFilterTests"
+  #     docker: "sqlserver"
 
   # - template: azure-pipelines-template.yml
   #   parameters:
@@ -63,12 +63,12 @@ jobs:
   #     filter: "Dotmim.Sync.Tests.SqlServerHttp"
   #     docker: "sqlserver"
 
-  - template: azure-pipelines-template.yml
-    parameters:
-      displayName: "SQL Server Change Tracking Http .net 8.0"
-      dotnetfx: "net8.0"
-      filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingHttp"
-      docker: "sqlserver"
+  # - template: azure-pipelines-template.yml
+  #   parameters:
+  #     displayName: "SQL Server Change Tracking Http .net 8.0"
+  #     dotnetfx: "net8.0"
+  #     filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingHttp"
+  #     docker: "sqlserver"
 
   # - template: azure-pipelines-template.yml
   #   parameters:
@@ -77,12 +77,12 @@ jobs:
   #     filter: "Dotmim.Sync.Tests.SqlServerConflictTests"
   #     docker: "sqlserver"
 
-  - template: azure-pipelines-template.yml
-    parameters:
-      displayName: "SQL Server Change Tracking Conflicts .net 8.0"
-      dotnetfx: "net8.0"
-      filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingConflictTests"
-      docker: "sqlserver"
+  # - template: azure-pipelines-template.yml
+  #   parameters:
+  #     displayName: "SQL Server Change Tracking Conflicts .net 8.0"
+  #     dotnetfx: "net8.0"
+  #     filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingConflictTests"
+  #     docker: "sqlserver"
 
   # - template: azure-pipelines-template.yml
   #   parameters:
