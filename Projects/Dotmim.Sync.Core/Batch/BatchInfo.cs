@@ -28,7 +28,6 @@ namespace Dotmim.Sync.Batch
         public BatchInfo(string rootDirectory, string directoryName = null, string info = null)
             : this()
         {
-            // We need to create a change table set, containing table with columns not readonly
             this.DirectoryRoot = rootDirectory;
 
             var randomName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss", CultureInfo.InvariantCulture), Path.GetRandomFileName().Replace(".", string.Empty, SyncGlobalization.DataSourceStringComparison));

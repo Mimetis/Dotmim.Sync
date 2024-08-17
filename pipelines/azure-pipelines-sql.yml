@@ -38,7 +38,7 @@ jobs:
     parameters:
       displayName: "SQL Server Change Tracking Tcp .net 8.0"
       dotnetfx: "net8.0"
-      filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingTcp"
+      filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingTcpTests"
       docker: "sqlserver"
 
       
