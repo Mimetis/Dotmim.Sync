@@ -22,7 +22,7 @@ using Dotmim.Sync.Tests.Core;
 
 namespace Dotmim.Sync.Tests.Misc
 {
-    public abstract class DatabaseTest : IDisposable
+    public abstract class DatabaseTest : IDisposable, IAsyncLifetime
     {
         private Stopwatch preWorkStopwatch;
         private Stopwatch postWorkStopwatch;
@@ -137,7 +137,7 @@ namespace Dotmim.Sync.Tests.Misc
         public virtual DatabaseServerFixture Fixture { get; }
         public virtual ITestOutputHelper Output { get; }
         public virtual XunitTest Test { get; }
-        public virtual Stopwatch Stopwatch { get; }
+        public virtual Stopwatch Stopwatch { get; private set; }
 
         /// <summary>
         /// Gets or Sets the Kestrel server used to server http queries
@@ -160,19 +160,25 @@ namespace Dotmim.Sync.Tests.Misc
 
             // Create a kestrel server
             this.Kestrel = new KestrelTestServer(this.UseFiddler);
+        }
 
+        public async Task InitializeAsync()
+        {
             preWorkStopwatch = Stopwatch.StartNew();
 
             SqlConnection.ClearAllPools();
             MySqlConnection.ClearAllPools();
             NpgsqlConnection.ClearAllPools();
 
-            CreateDatabases();
+            await CreateDatabasesAsync();
 
             preWorkStopwatch.Stop();
 
             this.Stopwatch = Stopwatch.StartNew();
+
         }
+        public Task DisposeAsync() => throw new NotImplementedException();
+
 
         private void ResetClientsTables()
         {
@@ -186,21 +192,23 @@ namespace Dotmim.Sync.Tests.Misc
             }
         }
 
-        private void CreateDatabases()
+        private async Task CreateDatabasesAsync()
         {
             var (serverProviderType, serverDatabaseName) = HelperDatabase.GetDatabaseType(GetServerProvider());
 
             new AdventureWorksContext(GetServerProvider(), true).Database.EnsureCreated();
 
             if (serverProviderType == ProviderType.Sql)
-                HelperDatabase.ActivateChangeTracking(serverDatabaseName).GetAwaiter().GetResult();
+                await HelperDatabase.ActivateChangeTracking(serverDatabaseName);
 
             foreach (var clientProvider in GetClientProviders())
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
+
                 new AdventureWorksContext(clientProvider).Database.EnsureCreated();
+
                 if (clientProviderType == ProviderType.Sql)
-                    HelperDatabase.ActivateChangeTracking(clientDatabaseName).GetAwaiter().GetResult();
+                    await HelperDatabase.ActivateChangeTracking(clientDatabaseName);
             }
         }
 
