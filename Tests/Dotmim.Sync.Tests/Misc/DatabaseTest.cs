@@ -177,20 +177,20 @@ namespace Dotmim.Sync.Tests.Misc
             this.Stopwatch = Stopwatch.StartNew();
 
         }
-        public Task DisposeAsync() => throw new NotImplementedException();
+        public Task DisposeAsync() => Task.CompletedTask;
 
 
-        private void ResetClientsTables()
-        {
-            // Drop DMS metadatas and truncate clients tables
-            foreach (var clientProvider in GetClientProviders())
-            {
-                // drop all DMS tracking tables & metadatas
-                clientProvider.DropAllTablesAsync(false).GetAwaiter().GetResult();
-                // truncate all tables
-                clientProvider.EmptyAllTablesAsync().GetAwaiter().GetResult();
-            }
-        }
+        //private void ResetClientsTables()
+        //{
+        //    // Drop DMS metadatas and truncate clients tables
+        //    foreach (var clientProvider in GetClientProviders())
+        //    {
+        //        // drop all DMS tracking tables & metadatas
+        //        clientProvider.DropAllTablesAsync(false).GetAwaiter().GetResult();
+        //        // truncate all tables
+        //        clientProvider.EmptyAllTablesAsync().GetAwaiter().GetResult();
+        //    }
+        //}
 
         private async Task CreateDatabasesAsync()
         {
