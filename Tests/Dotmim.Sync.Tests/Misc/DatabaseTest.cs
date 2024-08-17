@@ -195,17 +195,20 @@ namespace Dotmim.Sync.Tests.Misc
         private async Task CreateDatabasesAsync()
         {
             var (serverProviderType, serverDatabaseName) = HelperDatabase.GetDatabaseType(GetServerProvider());
+            var serverProvider = GetServerProvider();
+            using (var ctx = new AdventureWorksContext(serverProvider, true))
+            {
+                await ctx.Database.EnsureCreatedAsync();
 
-            new AdventureWorksContext(GetServerProvider(), true).Database.EnsureCreated();
-
-            if (serverProviderType == ProviderType.Sql)
-                await HelperDatabase.ActivateChangeTracking(serverDatabaseName);
+                if (serverProviderType == ProviderType.Sql)
+                    await HelperDatabase.ActivateChangeTracking(serverDatabaseName);
+            }
 
             foreach (var clientProvider in GetClientProviders())
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
-
-                new AdventureWorksContext(clientProvider).Database.EnsureCreated();
+                using var cliCtx = new AdventureWorksContext(clientProvider);
+                await cliCtx.Database.EnsureCreatedAsync();
 
                 if (clientProviderType == ProviderType.Sql)
                     await HelperDatabase.ActivateChangeTracking(clientDatabaseName);
