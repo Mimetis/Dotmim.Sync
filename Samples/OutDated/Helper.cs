@@ -1,13 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace OutDated
 {
-    public class Helper
+    public static class Helper
     {
 
         public static async Task SimulateOutDateScenarioAsync(DbConnection c, long timestampLimit)
@@ -22,8 +20,8 @@ namespace OutDated
                 p.ParameterName = "@timestampLimit";
                 command.Parameters.Add(p);
 
-                await c.OpenAsync();
-                await command.ExecuteNonQueryAsync();
+                await c.OpenAsync().ConfigureAwait(false);
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 c.Close();
             }
         }
@@ -39,8 +37,8 @@ namespace OutDated
                 p.ParameterName = "@Name";
                 command.Parameters.Add(p);
 
-                await c.OpenAsync();
-                var id = await command.ExecuteScalarAsync();
+                await c.OpenAsync().ConfigureAwait(false);
+                var id = await command.ExecuteScalarAsync().ConfigureAwait(false);
                 c.Close();
 
                 return Convert.ToInt32(id);
@@ -64,13 +62,14 @@ namespace OutDated
                 p.ParameterName = "@lastName";
                 command.Parameters.Add(p);
 
-                await c.OpenAsync();
-                var id = await command.ExecuteScalarAsync();
+                await c.OpenAsync().ConfigureAwait(false);
+                var id = await command.ExecuteScalarAsync().ConfigureAwait(false);
                 c.Close();
 
                 return Convert.ToInt32(id);
             }
         }
+
         public static async Task UpdateOneProductCategoryAsync(DbConnection c, int productCategoryId, string updatedName)
         {
             using (var command = c.CreateCommand())
@@ -88,11 +87,10 @@ namespace OutDated
                 p.ParameterName = "@Id";
                 command.Parameters.Add(p);
 
-                await c.OpenAsync();
-                await command.ExecuteNonQueryAsync();
+                await c.OpenAsync().ConfigureAwait(false);
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 c.Close();
             }
         }
-
     }
 }

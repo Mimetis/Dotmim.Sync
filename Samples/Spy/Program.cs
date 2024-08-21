@@ -1,5 +1,4 @@
 ﻿using Dotmim.Sync;
-using Dotmim.Sync.Batch;
 using Dotmim.Sync.SqlServer;
 using System;
 using System.IO;
@@ -9,44 +8,44 @@ using System.Threading.Tasks;
 namespace Spy
 {
 
-    class Program
+    internal class Program
     {
         private static string serverConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=AdventureWorks;Integrated Security=true;";
         private static string clientConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=Client;Integrated Security=true;";
 
-        static async Task Main(string[] args)
+        private static async Task Main(string[] args)
         {
-            await SpyWhenSyncAsync();
+            await SpyWhenSyncAsync().ConfigureAwait(false);
         }
-
-
-
 
         private static async Task SpyWhenSyncAsync()
         {
-            // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
-
+            // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql
             var serverProvider = new SqlSyncProvider(serverConnectionString);
             var clientProvider = new SqlSyncProvider(clientConnectionString);
-            var tables = new string[] {"ProductCategory", "ProductModel", "Product",
-            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+            var tables = new string[]
+            {
+                "ProductCategory", "ProductModel", "Product",
+                "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail",
+            };
 
             // Creating an agent that will handle all the process
             var agent = new SyncAgent(clientProvider, serverProvider);
 
             // First sync to initialize everything
-            var s1 = await agent.SynchronizeAsync(tables);
+            var s1 = await agent.SynchronizeAsync(tables).ConfigureAwait(false);
+
             // Write results
             Console.WriteLine(s1);
 
             // Make some changes on the server side
             var sc = serverProvider.CreateConnection();
-            await Helper.InsertOneCustomerAsync(sc, "John", "Doe");
-            await Helper.InsertOneProductCategoryAsync(sc, Guid.NewGuid(), "Shoes 2020" + Path.GetRandomFileName());
-            await Helper.DeleteOneSalesDetailOrderAsync(sc, 113141);
-            await Helper.DeleteOneSalesDetailOrderAsync(sc, 113142);
-            await Helper.DeleteOneSalesDetailOrderAsync(sc, 113143);
-            await Helper.DeleteOneSalesDetailOrderAsync(sc, 113144);
+            await Helper.InsertOneCustomerAsync(sc, "John", "Doe").ConfigureAwait(false);
+            await Helper.InsertOneProductCategoryAsync(sc, Guid.NewGuid(), "Shoes 2020" + Path.GetRandomFileName()).ConfigureAwait(false);
+            await Helper.DeleteOneSalesDetailOrderAsync(sc, 113141).ConfigureAwait(false);
+            await Helper.DeleteOneSalesDetailOrderAsync(sc, 113142).ConfigureAwait(false);
+            await Helper.DeleteOneSalesDetailOrderAsync(sc, 113143).ConfigureAwait(false);
+            await Helper.DeleteOneSalesDetailOrderAsync(sc, 113144).ConfigureAwait(false);
 
             // Get local orchestrator to get some info during sync
             var localOrchestrator = agent.LocalOrchestrator;
@@ -56,17 +55,15 @@ namespace Spy
             {
                 Console.WriteLine($"Getting changes from local database:");
                 Console.WriteLine($"Batch directory: {args.BatchDirectory}. Batch size: {args.BatchSize}. Is first sync: {args.IsNew}");
-                Console.WriteLine($"From: {args.FromTimestamp}. To: {args.ToTimestamp}.");
+                Console.WriteLine($"From: {args.FromTimestamp}.");
                 Console.WriteLine($"--------------------------------------------");
             });
-
 
             remoteOrchestrator.OnTableChangesSelecting(args =>
             {
                 Console.WriteLine($"Getting changes from local database for table:{args.SchemaTable.GetFullName()}");
                 Console.WriteLine($"{args.Command.CommandText}");
                 Console.WriteLine($"--------------------------------------------");
-
             });
 
             remoteOrchestrator.OnRowsChangesSelected(args =>
@@ -76,19 +73,17 @@ namespace Spy
                 Console.WriteLine($"--------------------------------------------");
             });
 
-
             remoteOrchestrator.OnTableChangesSelected(args =>
             {
                 Console.WriteLine($"Table: {args.SchemaTable.GetFullName()} read. Rows count:{args.BatchInfo.RowsCount}.");
                 Console.WriteLine($"Directory: {args.BatchInfo.DirectoryName}. Number of files: {args.BatchPartInfos?.Count()} ");
                 Console.WriteLine($"Changes: {args.TableChangesSelected.TotalChanges} ({args.TableChangesSelected.Upserts}/{args.TableChangesSelected.Deletes})");
                 Console.WriteLine($"--------------------------------------------");
-
             });
 
             remoteOrchestrator.OnDatabaseChangesSelected(args =>
             {
-                Console.WriteLine($"Directory: {args.BatchInfo.DirectoryName}. Number of files: {args.BatchInfo.BatchPartsInfo?.Count()} ");
+                Console.WriteLine($"Directory: {args.BatchInfo.DirectoryName}. Number of files: {args.BatchInfo.BatchPartsInfo?.Count} ");
                 Console.WriteLine($"Total: {args.ChangesSelected.TotalChangesSelected} " +
                                   $"({args.ChangesSelected.TotalChangesSelectedUpdates}/{args.ChangesSelected.TotalChangesSelectedDeletes})");
                 foreach (var table in args.ChangesSelected.TableChangesSelected)
@@ -96,12 +91,11 @@ namespace Spy
                 Console.WriteLine($"--------------------------------------------");
             });
 
-
             // Just before applying something locally, at the database level
             localOrchestrator.OnDatabaseChangesApplying(args =>
             {
                 Console.WriteLine($"Directory: {args.ApplyChanges.Changes.DirectoryName}. " +
-                    $"Number of files: {args.ApplyChanges.Changes.BatchPartsInfo?.Count()} ");
+                    $"Number of files: {args.ApplyChanges.Changes.BatchPartsInfo?.Count} ");
 
                 Console.WriteLine($"Total: {args.ApplyChanges.Changes.RowsCount} ");
                 Console.WriteLine($"--------------------------------------------");
@@ -124,10 +118,8 @@ namespace Spy
                         foreach (var row in syncTable.Rows)
                             Console.WriteLine(row);
                     }
-
                 }
             });
-
 
             localOrchestrator.OnRowsChangesApplying(args =>
             {
@@ -139,13 +131,11 @@ namespace Spy
                 Console.WriteLine();
             });
 
-
             // Once changes are applied
             localOrchestrator.OnTableChangesApplied(args =>
             {
                 Console.WriteLine($"- Applied [{args.TableChangesApplied.State}] to table [{args.TableChangesApplied.TableName}]: Applied:{args.TableChangesApplied.Applied}. Failed:{args.TableChangesApplied.Failed}. Conflicts:{args.TableChangesApplied.ResolvedConflicts}. ");
             });
-
 
             // Just before applying something locally, at the database level
             localOrchestrator.OnDatabaseChangesApplied(args =>
@@ -158,12 +148,10 @@ namespace Spy
             });
 
             // Launch the sync process
-            var s2 = await agent.SynchronizeAsync();
+            var s2 = await agent.SynchronizeAsync().ConfigureAwait(false);
+
             // Write results
             Console.WriteLine(s2);
-
         }
-
     }
-
 }

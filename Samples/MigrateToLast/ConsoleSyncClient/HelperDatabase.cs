@@ -3,11 +3,8 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using MySqlConnector;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace WebSyncClient
@@ -17,12 +14,12 @@ namespace WebSyncClient
 
         public static string GetRandomName(string pref = default)
         {
-            var str1 = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+            var str1 = Path.GetRandomFileName().Replace(".", string.Empty).ToLowerInvariant();
             return $"{pref}{str1}";
         }
 
         /// <summary>
-        /// Get the Sqlite file path (ie: /Dir/mydatabase.db)
+        /// Get the Sqlite file path (ie: /Dir/mydatabase.db).
         /// </summary>
         public static string GetSqliteFilePath(string dbName)
         {
@@ -32,11 +29,10 @@ namespace WebSyncClient
                 dbName = $"{dbName}.db";
 
             return Path.Combine(Directory.GetCurrentDirectory(), dbName);
-
         }
 
         /// <summary>
-        /// Gets the connection string used to open a sqlite database
+        /// Gets the connection string used to open a sqlite database.
         /// </summary>
         public static string GetSqliteDatabaseConnectionString(string dbName)
         {
@@ -46,11 +42,11 @@ namespace WebSyncClient
         }
 
         /// <summary>
-        /// Get connection string, depending on providerType (and will call the good get connectionstring method)
+        /// Get connection string, depending on providerType (and will call the good get connectionstring method).
         /// </summary>
         public static string GetConnectionString(this IConfiguration configuration, ProviderType providerType, string dbName)
         {
-            string con = "";
+            string con = string.Empty;
             switch (providerType)
             {
                 case ProviderType.Sql:
@@ -67,13 +63,12 @@ namespace WebSyncClient
                     break;
             }
 
-            // default 
+            // default
             return con;
         }
 
-
         /// <summary>
-        /// Drop a database, depending the Provider type
+        /// Drop a database, depending the Provider type.
         /// </summary>
         [DebuggerStepThrough]
         public static void DropDatabase(this IConfiguration configuration, ProviderType providerType, string dbName)
@@ -96,15 +91,16 @@ namespace WebSyncClient
                         break;
                 }
             }
-            catch (Exception) { }
+            catch (Exception)
+            {
+            }
             finally
             {
-
             }
         }
 
         /// <summary>
-        /// Drop a mysql database
+        /// Drop a mysql database.
         /// </summary>
         private static void DropMySqlDatabase(string connectionString, string dbName)
         {
@@ -117,9 +113,8 @@ namespace WebSyncClient
             sysConnection.Close();
         }
 
-
         /// <summary>
-        /// Drop a MariaDB database
+        /// Drop a MariaDB database.
         /// </summary>
         private static void DropMariaDBDatabase(string connectionString, string dbName)
         {
@@ -133,7 +128,7 @@ namespace WebSyncClient
         }
 
         /// <summary>
-        /// Drop a sqlite database
+        /// Drop a sqlite database.
         /// </summary>
         [DebuggerStepThrough]
         private static void DropSqliteDatabase(string dbName)
@@ -148,18 +143,18 @@ namespace WebSyncClient
 
                 if (File.Exists(filePath))
                     File.Delete(filePath);
-
             }
             catch (Exception)
             {
                 Debug.WriteLine($"Sqlite file seems loked. ({filePath})");
             }
-            finally { }
-
+            finally
+            {
+            }
         }
 
         /// <summary>
-        /// Delete a database
+        /// Delete a database.
         /// </summary>
         private static void DropSqlDatabase(string connectionString, string dbName)
         {
@@ -172,7 +167,6 @@ namespace WebSyncClient
                     cmdDb.ExecuteNonQuery();
 
                 masterConnection.Close();
-
             }
             catch (Exception ex)
             {
@@ -180,7 +174,6 @@ namespace WebSyncClient
                 throw;
             }
         }
-
 
         public static Task ExecuteScriptAsync(IConfiguration configuration, ProviderType providerType, string dbName, string script)
         {
@@ -205,49 +198,54 @@ namespace WebSyncClient
             connection.Open();
 
             using (var cmdDb = new MySqlCommand(script, connection))
-                await cmdDb.ExecuteNonQueryAsync();
+                await cmdDb.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             connection.Close();
         }
+
         private static async Task ExecuteMySqlScriptAsync(string connectionString, string script)
         {
             using var connection = new MySqlConnection(connectionString);
             connection.Open();
 
             using (var cmdDb = new MySqlCommand(script, connection))
-                await cmdDb.ExecuteNonQueryAsync();
+                await cmdDb.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             connection.Close();
         }
+
         private static async Task ExecuteSqlScriptAsync(string connectionString, string script)
         {
             using var connection = new SqlConnection(connectionString);
             connection.Open();
 
-            //split the script on "GO" commands
+            // split the script on "GO" commands
             string[] splitter = new string[] { "\r\nGO\r\n" };
             string[] commandTexts = script.Split(splitter, StringSplitOptions.RemoveEmptyEntries);
 
             foreach (string commandText in commandTexts)
             {
                 using var cmdDb = new SqlCommand(commandText, connection);
-                await cmdDb.ExecuteNonQueryAsync();
+                await cmdDb.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
+
             connection.Close();
         }
+
         public static async Task ExecuteSqliteScriptAsync(string dbName, string script)
         {
             using var connection = new SqliteConnection(GetSqliteDatabaseConnectionString(dbName));
             connection.Open();
             using (var cmdDb = new SqliteCommand(script, connection))
             {
-                await cmdDb.ExecuteNonQueryAsync();
+                await cmdDb.ExecuteNonQueryAsync().ConfigureAwait(false);
             }
+
             connection.Close();
         }
 
         /// <summary>
-        /// Gets the drop sql database script
+        /// Gets the drop sql database script.
         /// </summary>
         public static string GetSqlDropDatabaseScript(string dbName)
         {
@@ -257,7 +255,6 @@ namespace WebSyncClient
 	            drop database {dbName};
             end";
         }
-
     }
 
     [Flags]
@@ -267,6 +264,5 @@ namespace WebSyncClient
         MySql = 0x2,
         Sqlite = 0x40,
         MariaDB = 0x80,
-
     }
 }

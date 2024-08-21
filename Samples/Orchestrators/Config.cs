@@ -1,8 +1,6 @@
 ﻿using Dotmim.Sync;
 using Dotmim.Sync.Enumerations;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Orchestrators
 {
@@ -13,27 +11,27 @@ namespace Orchestrators
         private static SyncSetup setup = new SyncSetup("ProductCategory", "ProductModel", "Product", "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail");
 
         /// <summary>
-        /// Get Setup, containing tables
+        /// Get Setup, containing tables.
         /// </summary>
         public static SyncSetup GetSetup() => setup;
 
         /// <summary>
-        /// Get Options
+        /// Get Options.
         /// </summary>
         public static SyncOptions GetClientOptions() => syncOptions;
 
         /// <summary>
-        /// Get sync provision 
+        /// Get sync provision.
         /// </summary>
         public static SyncProvision GetClientProvision() => SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient | SyncProvision.StoredProcedures | SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.Triggers;
 
         /// <summary>
-        /// Get sync provision 
+        /// Get sync provision.
         /// </summary>
         public static SyncProvision GetServerProvision() => SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient | SyncProvision.StoredProcedures | SyncProvision.Table | SyncProvision.TrackingTable | SyncProvision.Triggers;
 
         /// <summary>
-        /// Get a synchronous progress object
+        /// Get a synchronous progress object.
         /// </summary>
         public static SynchronousProgress<ProgressArgs> GetProgress() => new SynchronousProgress<ProgressArgs>(s =>
         {

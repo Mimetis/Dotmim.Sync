@@ -1,4 +1,3 @@
-using System;
 using Dotmim.Sync;
 using Dotmim.Sync.SqlServer;
 using Microsoft.AspNetCore.Builder;
@@ -6,6 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System;
 
 namespace BatchsizeServer
 {
@@ -13,7 +13,7 @@ namespace BatchsizeServer
     {
         public Startup(IConfiguration configuration)
         {
-            Configuration = configuration;
+            this.Configuration = configuration;
         }
 
         public IConfiguration Configuration { get; }
@@ -25,20 +25,23 @@ namespace BatchsizeServer
             services.AddDistributedMemoryCache();
             services.AddSession(options => options.IdleTimeout = TimeSpan.FromMinutes(30));
 
-            var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
+            var connectionString = this.Configuration.GetSection("ConnectionStrings")["SqlConnection"];
 
             // Creating a setup instance
-            var tables = new string[] {"ProductCategory", "ProductModel", "Product",
-            "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+            var tables = new string[]
+            {
+                "ProductCategory", "ProductModel", "Product",
+                "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail",
+            };
 
             var setup = new SyncSetup(tables)
             {
                 StoredProceduresPrefix = "s",
-                StoredProceduresSuffix = "",
+                StoredProceduresSuffix = string.Empty,
                 TrackingTablesPrefix = "t",
-                TrackingTablesSuffix = "",
-                TriggersPrefix = "",
-                TriggersSuffix = "t"
+                TrackingTablesSuffix = string.Empty,
+                TriggersPrefix = string.Empty,
+                TriggersSuffix = "t",
             };
 
             var provider = new SqlSyncProvider(connectionString);

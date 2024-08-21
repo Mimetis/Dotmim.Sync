@@ -6,17 +6,18 @@ using System.Threading.Tasks;
 
 namespace Conflict
 {
-    class Program
+    internal class Program
     {
 
         private static string serverConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=AdventureWorks;Integrated Security=true;";
         private static string clientConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=Client;Integrated Security=true;";
+        internal static readonly string[] columnsName = new string[] { "CustomerID", "FirstName", "LastName" };
 
-        static async Task Main() => await ConflictAsync();
+        private static async Task Main() => await ConflictAsync().ConfigureAwait(false);
 
         private static async Task ConflictAsync()
         {
-            // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
+            // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql
 
             // Create 2 Sql Sync providers
             var serverProvider = new SqlSyncProvider(serverConnectionString);
@@ -25,18 +26,18 @@ namespace Conflict
             var clientProvider = new SqlSyncProvider(clientConnectionString);
 
             // Tables involved in the sync process:
-            var tables = new string[] {"Customer" };
+            var tables = new string[] { "Customer" };
 
             var setup = new SyncSetup(tables);
-            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "FirstName", "LastName" });
+            setup.Tables["Customer"].Columns.AddRange(columnsName);
 
             // Creating an agent that will handle all the process
             var agent = new SyncAgent(clientProvider, serverProvider);
 
             Console.WriteLine("- Initialize the databases with initial data");
-            // Make a first sync to have everything in place
-            Console.WriteLine(await agent.SynchronizeAsync(setup));
 
+            // Make a first sync to have everything in place
+            Console.WriteLine(await agent.SynchronizeAsync(setup).ConfigureAwait(false));
 
             do
             {
@@ -49,15 +50,15 @@ namespace Conflict
 
                     // Insert a value on client
                     await Helper.InsertOneConflictCustomerAsync(
-                        clientProvider.CreateConnection(), id, "John", "Clientdoe");
+                        clientProvider.CreateConnection(), id, "John", "Clientdoe").ConfigureAwait(false);
 
                     // Insert a value on server with same key, to generate a conflict
                     await Helper.InsertOneConflictCustomerAsync(
-                        serverProvider.CreateConnection(), id, "John", "Serverdoe");
+                        serverProvider.CreateConnection(), id, "John", "Serverdoe").ConfigureAwait(false);
 
                     agent.OnApplyChangesConflictOccured(async acfa =>
                     {
-                        var conflict = await acfa.GetSyncConflictAsync();
+                        var conflict = await acfa.GetSyncConflictAsync().ConfigureAwait(false);
 
                         Console.WriteLine("______________________________");
                         Console.WriteLine("Handling conflict:");
@@ -70,9 +71,13 @@ namespace Conflict
                         var choose = Console.ReadLine();
 
                         if (choose == "1")
+                        {
                             acfa.Resolution = ConflictResolution.ServerWins;
+                        }
                         else if (choose == "2")
+                        {
                             acfa.Resolution = ConflictResolution.ClientWins;
+                        }
                         else
                         {
                             acfa.Resolution = ConflictResolution.MergeRow;
@@ -81,27 +86,25 @@ namespace Conflict
                     });
 
                     Console.WriteLine("- Launch synchronization");
-                    var res = await agent.SynchronizeAsync();
+                    var res = await agent.SynchronizeAsync().ConfigureAwait(false);
                     Console.WriteLine(res);
 
-                    var clientRow = await Helper.GetCustomerAsync(clientProvider.CreateConnection(), id);
+                    var clientRow = await Helper.GetCustomerAsync(clientProvider.CreateConnection(), id).ConfigureAwait(false);
                     Console.WriteLine("Client row:");
                     Console.WriteLine(clientRow);
 
-                    var serverRow = await Helper.GetCustomerAsync(serverProvider.CreateConnection(), id);
+                    var serverRow = await Helper.GetCustomerAsync(serverProvider.CreateConnection(), id).ConfigureAwait(false);
                     Console.WriteLine("Server row:");
                     Console.WriteLine(serverRow);
-
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine(ex.Message);
                 }
-
-            } while (Console.ReadKey().Key != ConsoleKey.Escape);
+            }
+            while (Console.ReadKey().Key != ConsoleKey.Escape);
 
             Console.WriteLine("End");
         }
-
     }
 }

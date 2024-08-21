@@ -1,16 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Diagnostics;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace AlreadyExstingDatabases
 {
-    public class Helper
+    public static class Helper
     {
-
 
         public static async Task CreateSqlServerServiceTicketsTableAsync(DbConnection c)
         {
@@ -30,11 +27,10 @@ namespace AlreadyExstingDatabases
             cmd.Connection = c;
             cmd.CommandType = CommandType.Text;
 
-            await c.OpenAsync();
-            await cmd.ExecuteNonQueryAsync();
-            await c.CloseAsync();
+            await c.OpenAsync().ConfigureAwait(false);
+            await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+            await c.CloseAsync().ConfigureAwait(false);
         }
-
 
         public static async Task CreateSqliteServiceTicketsTableAsync(DbConnection c)
         {
@@ -51,18 +47,18 @@ namespace AlreadyExstingDatabases
             cmd.Connection = c;
             cmd.CommandType = CommandType.Text;
 
-            await c.OpenAsync();
-            await cmd.ExecuteNonQueryAsync();
-            await c.CloseAsync();
+            await c.OpenAsync().ConfigureAwait(false);
+            await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+            await c.CloseAsync().ConfigureAwait(false);
         }
 
         public static async Task AddRowsAsync(DbConnection connection)
         {
-            
+
             var command = connection.CreateCommand();
             command.CommandText = $@"INSERT INTO [ServiceTickets] ([ServiceTicketID], [Title], [StatusValue], [Opened]) 
                                 VALUES (@ServiceTicketID, @Title, @StatusValue, @Opened)";
-            
+
             var parameter = command.CreateParameter();
             parameter.DbType = DbType.Guid;
             parameter.ParameterName = "@ServiceTicketID";
@@ -89,9 +85,9 @@ namespace AlreadyExstingDatabases
 
             try
             {
-                await connection.OpenAsync();
-                await command.ExecuteNonQueryAsync();
-                await connection.CloseAsync();
+                await connection.OpenAsync().ConfigureAwait(false);
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                await connection.CloseAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -104,6 +100,7 @@ namespace AlreadyExstingDatabases
                     connection.Close();
             }
         }
+
         public static async Task DropRowsAsync(DbConnection connection)
         {
 
@@ -112,9 +109,9 @@ namespace AlreadyExstingDatabases
 
             try
             {
-                await connection.OpenAsync();
-                await command.ExecuteNonQueryAsync();
-                await connection.CloseAsync();
+                await connection.OpenAsync().ConfigureAwait(false);
+                await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                await connection.CloseAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -127,7 +124,5 @@ namespace AlreadyExstingDatabases
                     connection.Close();
             }
         }
-
-
     }
 }

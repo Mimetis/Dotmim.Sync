@@ -13,17 +13,17 @@ using System.Threading.Tasks;
 
 namespace HelloWebSyncClient
 {
-    class Program
+    internal class Program
     {
         private static string clientConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=Client;Integrated Security=true;";
 
-        static async Task Main()
+        private static async Task Main()
         {
             try
             {
                 Console.WriteLine("Be sure the web api has started. Then click enter..");
                 Console.ReadLine();
-                await SynchronizeAsync();
+                await SynchronizeAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -33,7 +33,7 @@ namespace HelloWebSyncClient
 
         private static async Task SynchronizeAsync()
         {
-            // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
+            // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql
 
             // Getting a JWT token
             // This sample is NOT SECURE at all
@@ -56,11 +56,12 @@ namespace HelloWebSyncClient
             do
             {
                 // Launch the sync process
-                var s1 = await agent.SynchronizeAsync(parameters);
+                var s1 = await agent.SynchronizeAsync(parameters).ConfigureAwait(false);
+
                 // Write results
                 Console.WriteLine(s1);
-
-            } while (Console.ReadKey().Key != ConsoleKey.Escape);
+            }
+            while (Console.ReadKey().Key != ConsoleKey.Escape);
 
             Console.WriteLine("End");
         }
@@ -74,7 +75,7 @@ namespace HelloWebSyncClient
                 new Claim(JwtRegisteredClaimNames.Sub, "Dotmim.Sync"),
                 new Claim(JwtRegisteredClaimNames.Email, email),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim(ClaimTypes.NameIdentifier, userid)
+                new Claim(ClaimTypes.NameIdentifier, userid),
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("SOME_RANDOM_KEY_DO_NOT_SHARE_YOUR_KEY"));
@@ -87,8 +88,7 @@ namespace HelloWebSyncClient
                 "Dotmim.Sync.Bearer",
                 claims,
                 expires: expires,
-                signingCredentials: creds
-            );
+                signingCredentials: creds);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }

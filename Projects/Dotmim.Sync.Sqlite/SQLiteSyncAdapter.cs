@@ -14,18 +14,22 @@ namespace Dotmim.Sync.Sqlite
     /// </summary>
     public class SqliteSyncAdapter : DbSyncAdapter
     {
-        private SqliteObjectNames sqliteObjectNames;
         private bool disableSqlFiltersGeneration;
 
         /// <inheritdoc />
         public override bool SupportsOutputParameters => false;
+
+        /// <summary>
+        /// Gets or sets the SqliteObjectNames.
+        /// </summary>
+        public SqliteObjectNames SqliteObjectNames { get; set; }
 
         /// <inheritdoc cref="SqliteSyncAdapter"/>
         public SqliteSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo, bool disableSqlFiltersGeneration)
             : base(tableDescription, scopeInfo)
         {
 
-            this.sqliteObjectNames = new SqliteObjectNames(this.TableDescription, scopeInfo, disableSqlFiltersGeneration);
+            this.SqliteObjectNames = new SqliteObjectNames(this.TableDescription, scopeInfo, disableSqlFiltersGeneration);
             this.disableSqlFiltersGeneration = disableSqlFiltersGeneration;
         }
 
@@ -44,7 +48,7 @@ namespace Dotmim.Sync.Sqlite
         {
             var command = new SqliteCommand();
             string text;
-            text = this.sqliteObjectNames.GetCommandName(commandType, filter);
+            text = this.SqliteObjectNames.GetCommandName(commandType, filter);
 
             // on Sqlite, everything is text :)
             command.CommandType = CommandType.Text;

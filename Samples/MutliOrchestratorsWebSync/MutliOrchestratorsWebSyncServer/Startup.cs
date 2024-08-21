@@ -1,27 +1,18 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using Dotmim.Sync;
-using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.MySql;
 using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
+using System;
 
 namespace MutliOrchestratorsWebSyncServer
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration) => Configuration = configuration;
+        public Startup(IConfiguration configuration) => this.Configuration = configuration;
 
         public IConfiguration Configuration { get; }
 
@@ -34,8 +25,8 @@ namespace MutliOrchestratorsWebSyncServer
             services.AddSession(options => options.IdleTimeout = TimeSpan.FromMinutes(30));
 
             // [Required]: Get a connection string to your server data source
-            var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
-            var mysqlConnectionString = Configuration.GetSection("ConnectionStrings")["MySqlConnection"];
+            var connectionString = this.Configuration.GetSection("ConnectionStrings")["SqlConnection"];
+            var mysqlConnectionString = this.Configuration.GetSection("ConnectionStrings")["MySqlConnection"];
 
             var options = new SyncOptions { };
 
