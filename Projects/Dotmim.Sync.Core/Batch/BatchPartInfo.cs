@@ -64,7 +64,6 @@ namespace Dotmim.Sync.Batch
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BatchPartInfo"/> class.
-        /// ctor for serialization purpose.
         /// </summary>
         public BatchPartInfo(string fileName, string tableName, string schemaName, SyncRowState state, int rowsCount = 0, int index = 0)
         {
@@ -77,7 +76,7 @@ namespace Dotmim.Sync.Batch
         }
 
         /// <summary>
-        /// Return batch part table name.
+        /// Return batch part table name + rows count.
         /// </summary>
         public override string ToString()
         {

@@ -126,13 +126,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Get a snapshot root directory name and folder directory name.
         /// </summary>
-        public virtual Task<(string DirectoryRoot, string DirectoryName)> GetSnapshotDirectoryAsync(SyncParameters syncParameters = null, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
+        public virtual ValueTask<(string DirectoryRoot, string DirectoryName)> GetSnapshotDirectoryAsync(SyncParameters syncParameters = null, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
             => this.GetSnapshotDirectoryAsync(SyncOptions.DefaultScopeName, syncParameters, progress, cancellationToken);
 
         /// <summary>
         /// Get a snapshot root directory name and folder directory name.
         /// </summary>
-        public virtual Task<(string DirectoryRoot, string DirectoryName)> GetSnapshotDirectoryAsync(string scopeName, SyncParameters syncParameters = null, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
+        public virtual ValueTask<(string DirectoryRoot, string DirectoryName)> GetSnapshotDirectoryAsync(string scopeName, SyncParameters syncParameters = null, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
             => this.InternalGetSnapshotDirectoryPathAsync(scopeName, syncParameters, progress, cancellationToken);
 
         /// <summary>
@@ -157,7 +157,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Try to proc a On[Method].
         /// </summary>
-        internal async Task<T> InterceptAsync<T>(T args, IProgress<ProgressArgs> progress = default, CancellationToken cancellationToken = default)
+        internal async ValueTask<T> InterceptAsync<T>(T args, IProgress<ProgressArgs> progress = default, CancellationToken cancellationToken = default)
             where T : ProgressArgs
         {
             if (this.Interceptors == null)
@@ -231,7 +231,7 @@ namespace Dotmim.Sync
 
             // Make an interceptor when retrying to connect
             var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
-                this.InterceptAsync(new ReConnectArgs(context, connection, ex, cpt, ts), progress, cancellationToken));
+                this.InterceptAsync(new ReConnectArgs(context, connection, ex, cpt, ts), progress, cancellationToken).AsTask());
 
             // Defining my retry policy
             var policy = SyncPolicy.WaitAndRetry(
@@ -286,7 +286,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Check if the orchestrator database is outdated.
         /// </summary>
-        internal virtual async Task<(SyncContext Context, bool IsOutDated)> InternalIsOutDatedAsync(SyncContext context, ScopeInfoClient cScopeInfoClient, ScopeInfo sScopeInfo, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
+        internal virtual async ValueTask<(SyncContext Context, bool IsOutDated)> InternalIsOutDatedAsync(SyncContext context, ScopeInfoClient cScopeInfoClient, ScopeInfo sScopeInfo, IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
             var isOutdated = false;
 
@@ -344,13 +344,13 @@ namespace Dotmim.Sync
         /// <summary>
         /// Internal routine to get the snapshot root directory and batch directory name.
         /// </summary>
-        internal virtual Task<(string DirectoryRoot, string DirectoryName)>
+        internal virtual ValueTask<(string DirectoryRoot, string DirectoryName)>
             InternalGetSnapshotDirectoryPathAsync(string scopeName, SyncParameters parameters = null,
                              IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
 
             if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory))
-                return Task.FromResult<(string, string)>((default, default));
+                return new ValueTask<(string DirectoryRoot, string DirectoryName)>((default, default));
 
             // cleansing scope name
             var directoryScopeName = new string(scopeName.Where(char.IsLetterOrDigit).ToArray());
@@ -381,7 +381,7 @@ namespace Dotmim.Sync
             var directoryName = sb.ToString();
             directoryName = string.IsNullOrEmpty(directoryName) ? "ALL" : directoryName;
 
-            return Task.FromResult((directoryFullPath, directoryName));
+            return new ValueTask<(string DirectoryRoot, string DirectoryName)>((directoryFullPath, directoryName));
         }
 
         /// <summary>

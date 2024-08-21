@@ -45,13 +45,11 @@ namespace Dotmim.Sync
         /// </summary>
         [DebuggerStepThrough]
         public void Set(Action<T> run)
-        {
-            this.wrapperAsync = run != null ? (t =>
-            {
-                run(t);
-                return Task.CompletedTask;
-            }) : empty;
-        }
+            => this.wrapperAsync = run != null ? (t =>
+                {
+                    run(t);
+                    return Task.CompletedTask;
+                }) : empty;
 
         /// <summary>
         /// Run the Action or Func as the Interceptor.

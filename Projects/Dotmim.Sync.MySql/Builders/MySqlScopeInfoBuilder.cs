@@ -33,7 +33,6 @@ namespace Dotmim.Sync.MySql.Builders
 
         /// <inheritdoc cref="MySqlScopeInfoBuilder"/>
         public MySqlScopeInfoBuilder(string scopeInfoTableName)
-            : base(scopeInfoTableName)
         {
 
             var tableParser = new TableParser(scopeInfoTableName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);

@@ -13,12 +13,6 @@ namespace Dotmim.Sync.Builders
 
         // Internal commands cache
         private ConcurrentDictionary<string, Lazy<SyncPreparedCommand>> commands = new();
-        private string scopeInfoTableName;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="DbScopeBuilder"/> class.
-        /// </summary>
-        protected DbScopeBuilder(string scopeInfoTableName) => this.scopeInfoTableName = scopeInfoTableName;
 
         /// <summary>
         /// Gets the parsed name of the table.

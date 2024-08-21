@@ -340,8 +340,8 @@
       },
       "System.Text.Json": {
         "type": "Transitive",
-        "resolved": "8.0.3",
-        "contentHash": "hpagS9joOwv6efWfrMmV9MjQXpiXZH72PgN067Ysfr6AWMSD1/1hEcvh/U5mUpPLezEWsOJSuVrmqDIVD958iA==",
+        "resolved": "8.0.4",
+        "contentHash": "bAkhgDJ88XTsqczoxEMliSrpijKZHhbJQldhAmObj/RbrN3sU5dcokuXmWJWsdQAhiMJ9bTayWsL1C9fbbCRhw==",
         "dependencies": {
           "System.Text.Encodings.Web": "8.0.0"
         }
@@ -355,7 +355,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Logging": "[8.0.0, )",
-          "System.Text.Json": "[8.0.3, )"
+          "System.Text.Json": "[8.0.4, )"
         }
       },
       "dotmim.sync.mysql": {
@@ -390,7 +390,7 @@
         "type": "Project",
         "dependencies": {
           "Dotmim.Sync.Web.Client": "[1.1.0, )",
-          "System.Text.Json": "[8.0.3, )"
+          "System.Text.Json": "[8.0.4, )"
         }
       }
     }

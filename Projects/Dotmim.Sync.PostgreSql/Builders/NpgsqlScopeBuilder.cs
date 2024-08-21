@@ -24,7 +24,6 @@ namespace Dotmim.Sync.PostgreSql.Scope
 
         /// <inheritdoc cref="NpgsqlScopeBuilder"/>
         public NpgsqlScopeBuilder(string scopeInfoTableName)
-            : base(scopeInfoTableName)
         {
             var tableParser = new TableParser(scopeInfoTableName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
 

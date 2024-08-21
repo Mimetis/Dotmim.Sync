@@ -1,61 +1,68 @@
 ﻿using Dotmim.Sync;
 using Dotmim.Sync.Builders;
-using Dotmim.Sync.Manager;
 using Dotmim.Sync.Sqlite;
-using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.SqlServer.Builders;
-using Dotmim.Sync.SqlServer.Manager;
-using Microsoft.Data.SqlClient;
 using Microsoft.Data.Sqlite;
-using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace CustomProvider
 {
+    public class SqliteSyncDownloadOnlyProvider2 : SqliteSyncProvider
+    {
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo)
+            => base.GetSyncAdapter(tableDescription, scopeInfo);
+    }
+
+    public class SqliteSyncDownloadOnlyAdapter : SqliteSyncAdapter
+    {
+    }
+
     public class SqliteSyncDownloadOnlyProvider : SqliteSyncProvider
     {
         public SqliteSyncDownloadOnlyProvider() { }
-        public SqliteSyncDownloadOnlyProvider(string connectionString) : base(connectionString) { }
-        public SqliteSyncDownloadOnlyProvider(SqliteConnectionStringBuilder builder) : base(builder) { }
 
+        public SqliteSyncDownloadOnlyProvider(string connectionString)
+            : base(connectionString) { }
+
+        public SqliteSyncDownloadOnlyProvider(SqliteConnectionStringBuilder builder)
+            : base(builder) { }
 
         public override string GetShortProviderTypeName() => typeof(SqliteSyncDownloadOnlyProvider).Name;
 
         /// <summary>
-        /// Get a specific adapter for a readonly sqlite database
+        /// Get a specific adapter for a readonly sqlite database.
         /// </summary>
         public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
             => new SqliteDownloadOnlySyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName);
 
-
         /// <summary>
-        /// Removing tracking tables & triggers since they are not needed here
+        /// Removing tracking tables & triggers since they are not needed here.
         /// </summary>
         public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
             => new SqliteDownloadOnlyTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
     }
 
-
     /// <summary>
-    /// Sqlite table builder without tracking tables and triggers
+    /// Sqlite table builder without tracking tables and triggers.
     /// </summary>
     public class SqliteDownloadOnlyTableBuilder : SqliteTableBuilder
     {
-        public SqliteDownloadOnlyTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-            : base(tableDescription, tableName, trackingTableName, setup, scopeName) { }
+        public SqliteDownloadOnlyTableBuilder(SyncTable tableDescription, ScopeInfo scopeInfo, bool disableSqlFiltersGeneration)
+            : base(tableDescription, scopeInfo, disableSqlFiltersGeneration)
+        {
+        }
+
         public override Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
             => Task.FromResult<DbCommand>(null);
+
         public override Task<DbCommand> GetCreateTriggerCommandAsync(DbTriggerType triggerType, DbConnection connection, DbTransaction transaction)
             => Task.FromResult<DbCommand>(null);
     }
 
     /// <summary>
-    /// On the adapter, change the update / delete sqlite command text. Return null for everything related to upload stuff
+    /// On the adapter, change the update / delete sqlite command text. Return null for everything related to upload stuff.
     /// </summary>
     public class SqliteDownloadOnlySyncAdapter : SqliteSyncAdapter
     {
@@ -69,25 +76,23 @@ namespace CustomProvider
             this.tableName = tableName;
         }
 
-
-
         /// <summary>
-        /// return null for all no used commands
+        /// return null for all no used commands.
         /// </summary>
-        public  (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
+        public (DbCommand, bool) GetCommand(DbCommandType nameType, SyncFilter filter)
         {
             var command = new SqliteCommand();
             switch (nameType)
             {
                 case DbCommandType.UpdateRow:
                 case DbCommandType.UpdateRows:
-                    return (CreateUpdateCommand(), false);
+                    return (this.CreateUpdateCommand(), false);
                 case DbCommandType.InsertRow:
                 case DbCommandType.InsertRows:
-                    return (CreateInsertRowCommand(), false);
+                    return (this.CreateInsertRowCommand(), false);
                 case DbCommandType.DeleteRow:
                 case DbCommandType.DeleteRows:
-                    return (CreateDeleteCommand(), false);
+                    return (this.CreateDeleteCommand(), false);
                 case DbCommandType.DisableConstraints:
                     command.CommandType = CommandType.Text;
                     command.CommandText = this.sqliteObjectNames.GetCommandName(DbCommandType.DisableConstraints, filter);
@@ -97,7 +102,7 @@ namespace CustomProvider
                     command.CommandText = this.sqliteObjectNames.GetCommandName(DbCommandType.EnableConstraints, filter);
                     break;
                 case DbCommandType.Reset:
-                    return (CreateResetCommand(), false);
+                    return (this.CreateResetCommand(), false);
                 default:
                     return (default, default);
             }
@@ -106,7 +111,7 @@ namespace CustomProvider
         }
 
         /// <summary>
-        /// Gets the init row command without adding rows in tracking table
+        /// Gets the init row command without adding rows in tracking table.
         /// </summary>
         private DbCommand CreateInsertRowCommand()
         {
@@ -125,27 +130,26 @@ namespace CustomProvider
                 empty = ", ";
             }
 
-            stringBuilder.AppendLine($"INSERT OR IGNORE INTO {tableName.Quoted()} ({columnToInserts})");
+            stringBuilder.AppendLine($"INSERT OR IGNORE INTO {this.tableName.Quoted()} ({columnToInserts})");
             stringBuilder.AppendLine($"VALUES ({valuesToInserts});");
 
             var cmdtext = stringBuilder.ToString();
             return new SqliteCommand(cmdtext);
-
         }
 
         /// <summary>
-        /// Gets the delete row command without adding rows in tracking table
+        /// Gets the delete row command without adding rows in tracking table.
         /// </summary>
         private DbCommand CreateDeleteCommand()
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted()} ");
-            stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, "")};");
+            stringBuilder.AppendLine($"DELETE FROM {this.tableName.Quoted()} ");
+            stringBuilder.AppendLine($"WHERE {SqliteManagementUtils.WhereColumnAndParameters(this.TableDescription.PrimaryKeys, string.Empty)};");
             return new SqliteCommand(stringBuilder.ToString());
         }
 
         /// <summary>
-        /// Gets the update row command without adding rows in tracking table, or compare timestamp
+        /// Gets the update row command without adding rows in tracking table, or compare timestamp.
         /// </summary>
         private DbCommand CreateUpdateCommand()
         {
@@ -164,7 +168,7 @@ namespace CustomProvider
                 empty = ", ";
             }
 
-            stringBuilder.AppendLine($"INSERT OR REPLACE INTO {tableName.Quoted()} ({columnToInserts})");
+            stringBuilder.AppendLine($"INSERT OR REPLACE INTO {this.tableName.Quoted()} ({columnToInserts})");
             stringBuilder.AppendLine($"VALUES ({valuesToInserts});");
 
             var cmdtext = stringBuilder.ToString();
@@ -172,17 +176,14 @@ namespace CustomProvider
         }
 
         /// <summary>
-        /// Gets the reset command without reseting the tracking table 
+        /// Gets the reset command without reseting the tracking table.
         /// </summary>
         private DbCommand CreateResetCommand()
         {
             var stringBuilder = new StringBuilder();
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"DELETE FROM {tableName.Quoted()};");
+            stringBuilder.AppendLine($"DELETE FROM {this.tableName.Quoted()};");
             return new SqliteCommand(stringBuilder.ToString());
         }
     }
-
-
 }
-

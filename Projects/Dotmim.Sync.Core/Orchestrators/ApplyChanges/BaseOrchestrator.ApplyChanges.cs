@@ -248,7 +248,7 @@ namespace Dotmim.Sync
                 // If we have a transient error happening, and we are rerunning the tranaction,
                 // raising an interceptor
                 var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
-                    this.InterceptAsync(new TransientErrorOccuredArgs(context, connection, ex, cpt, ts), progress, cancellationToken));
+                    this.InterceptAsync(new TransientErrorOccuredArgs(context, connection, ex, cpt, ts), progress, cancellationToken).AsTask());
 
                 // Defining my retry policy
                 SyncPolicy retryPolicy = this.Options.TransactionMode != TransactionMode.AllOrNothing

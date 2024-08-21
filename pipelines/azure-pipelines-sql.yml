@@ -40,7 +40,6 @@ jobs:
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.SqlServerChangeTrackingTcpTests"
       docker: "sqlserver"
-
       
   - template: azure-pipelines-template.yml
     parameters:

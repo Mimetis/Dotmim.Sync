@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Caching.Memory;
 using Dotmim.Sync;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FilterWebSyncServer.Controllers
 {

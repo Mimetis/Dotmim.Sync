@@ -9,11 +9,8 @@ namespace Dotmim.Sync
     /// Sync agent. It's the sync orchestrator
     /// Knows both the Sync Server provider and the Sync Client provider.
     /// </summary>
-    public partial class SyncAgent : IDisposable
+    public partial class SyncAgent
     {
-        // ---------------------------------------------
-        // null
-        // ---------------------------------------------
 
         /// <summary>
         /// Launch a Synchronization based on scope DefaultScope.

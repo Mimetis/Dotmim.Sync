@@ -37,6 +37,7 @@ namespace Dotmim.Sync.Batch
 
         /// <summary>
         /// generate a batch file name.
+        /// The index string is always a 4 digits string, using "0" as placeholder ("0001", "0012" ...) You can't exceed 9999 batch parts.
         /// </summary>
         public static string GenerateNewFileName(string batchIndex, string tableName, string extension, string info)
         {
@@ -99,7 +100,7 @@ namespace Dotmim.Sync.Batch
         public string GetDirectoryFullPath() => Path.Combine(this.DirectoryRoot, this.DirectoryName);
 
         /// <summary>
-        /// Check if this batchinfo has some data.
+        /// Check if this batchinfo has some data by summing all batch parts rows count.
         /// </summary>
         public bool HasData()
         {
@@ -141,7 +142,7 @@ namespace Dotmim.Sync.Batch
         }
 
         /// <summary>
-        /// Check if this batchinfo has some data.
+        /// Check if this batchinfo has some data for a defined table.
         /// </summary>
         public bool HasData(string tableName, string schemaName)
         {

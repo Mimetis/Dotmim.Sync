@@ -12,7 +12,7 @@ namespace Dotmim.Sync
     /// Sync agent. It's the sync orchestrator
     /// Knows both the Sync Server provider and the Sync Client provider.
     /// </summary>
-    public partial class SyncAgent : IDisposable
+    public partial class SyncAgent
     {
         private readonly SemaphoreSlim writerLock = new(1, 1);
         private bool syncInProgress;
@@ -468,32 +468,6 @@ namespace Dotmim.Sync
 
             return base.ToString();
         }
-
-        // --------------------------------------------------------------------
-        // Dispose
-        // --------------------------------------------------------------------
-
-        /// <summary>
-        /// Releases all resources used by the current instance of the <see cref="SyncAgent"/> class.
-        /// </summary>
-        public void Dispose()
-        {
-            this.Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        /// <summary>
-        /// Releases the unmanaged resources used.
-        /// </summary>
-        protected virtual void Dispose(bool cleanup)
-        {
-            if (cleanup)
-            {
-                this.writerLock?.Dispose();
-            }
-        }
-
-        // -------------------------------------------------------------
 
         /// <summary>
         /// Ensure Options and Setup instances are the same on local orchestrator and remote orchestrator.

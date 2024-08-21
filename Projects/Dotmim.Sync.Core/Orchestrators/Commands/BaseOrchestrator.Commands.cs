@@ -18,7 +18,7 @@ namespace Dotmim.Sync
         private static ConcurrentDictionary<string, Lazy<SyncPreparedCommand>> preparedCommands = new();
 
         /// <summary>
-        /// Create a change table with scope columns and tombstone column.
+        /// Create a change table that contains only primary keys and mutable columns.
         /// </summary>
         public static SyncTable CreateChangesTable(SyncTable syncTable, SyncSet owner = null)
         {
@@ -29,8 +29,6 @@ namespace Dotmim.Sync
             var changesTable = new SyncTable(syncTable.TableName, syncTable.SchemaName)
             {
                 OriginalProvider = syncTable.OriginalProvider,
-
-                // SyncDirection = syncTable.SyncDirection
             };
 
             // Adding primary keys
@@ -44,9 +42,7 @@ namespace Dotmim.Sync
                 changesTable.Columns.Add(c.Clone());
 
             if (owner != null)
-            {
                 owner.Tables.Add(changesTable);
-            }
 
             return changesTable;
         }
@@ -60,7 +56,7 @@ namespace Dotmim.Sync
         /// Get the command from provider, check connection is opened, affect connection and transaction
         /// Prepare the command parameters and add scope parameters.
         /// </summary>
-        internal async Task<(DbCommand Command, bool IsBatch)> InternalGetCommandAsync(ScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, DbCommandType commandType,
+        internal async ValueTask<(DbCommand Command, bool IsBatch)> InternalGetCommandAsync(ScopeInfo scopeInfo, SyncContext context, DbSyncAdapter syncAdapter, DbCommandType commandType,
             DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             SyncFilter filter = null;
@@ -87,16 +83,24 @@ namespace Dotmim.Sync
                 command = commandType switch
                 {
                     DbCommandType.None => command,
-                    DbCommandType.SelectChanges or DbCommandType.SelectChangesWithFilters => InternalSetSelectChangesParameters(command, syncAdapter, filter),
-                    DbCommandType.SelectInitializedChanges or DbCommandType.SelectInitializedChangesWithFilters => InternalSetSelectInitializeChangesParameters(command, syncAdapter, filter),
-                    DbCommandType.SelectRow => InternalSetSelectRowParameters(command, syncAdapter),
+                    DbCommandType.SelectChanges or DbCommandType.SelectChangesWithFilters
+                        => InternalSetSelectChangesParameters(command, syncAdapter, filter),
+                    DbCommandType.SelectInitializedChanges or DbCommandType.SelectInitializedChangesWithFilters
+                        => InternalSetSelectInitializeChangesParameters(command, syncAdapter, filter),
+                    DbCommandType.SelectRow
+                        => InternalSetSelectRowParameters(command, syncAdapter),
                     DbCommandType.UpdateRow or DbCommandType.UpdateRows or DbCommandType.InsertRow or DbCommandType.InsertRows
                         => InternalSetUpsertsParameters(command, syncAdapter),
-                    DbCommandType.DeleteRow or DbCommandType.DeleteRows => InternalSetDeleteRowParameters(command, syncAdapter),
-                    DbCommandType.DeleteMetadata => InternalSetDeleteMetadataParameters(command, syncAdapter),
-                    DbCommandType.UpdateMetadata => InternalSetUpdateMetadataParameters(command, syncAdapter),
-                    DbCommandType.SelectMetadata => InternalSetSelectMetadataParameters(command, syncAdapter),
-                    DbCommandType.Reset => InternalSetResetParameters(command, syncAdapter),
+                    DbCommandType.DeleteRow or DbCommandType.DeleteRows
+                        => InternalSetDeleteRowParameters(command, syncAdapter),
+                    DbCommandType.DeleteMetadata
+                        => InternalSetDeleteMetadataParameters(command, syncAdapter),
+                    DbCommandType.UpdateMetadata
+                        => InternalSetUpdateMetadataParameters(command, syncAdapter),
+                    DbCommandType.SelectMetadata
+                        => InternalSetSelectMetadataParameters(command, syncAdapter),
+                    DbCommandType.Reset
+                        => InternalSetResetParameters(command, syncAdapter),
                     _ => command,
                 };
             }

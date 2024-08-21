@@ -24,7 +24,6 @@ namespace Dotmim.Sync.Sqlite
 
         /// <inheritdoc cref="SqliteScopeBuilder" />
         public SqliteScopeBuilder(string scopeInfoTableName)
-            : base(scopeInfoTableName)
         {
             var tableParser = new TableParser(scopeInfoTableName, SqliteObjectNames.LeftQuote, SqliteObjectNames.RightQuote);
 

@@ -23,7 +23,6 @@ namespace Dotmim.Sync.SqlServer.Scope
 
         /// <inheritdoc cref="SqlScopeBuilder"/>
         public SqlScopeBuilder(string scopeInfoTableName)
-            : base(scopeInfoTableName)
         {
 
             var tableParser = new TableParser(scopeInfoTableName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
