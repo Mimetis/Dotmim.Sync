@@ -1,22 +1,15 @@
-﻿using Dotmim.Sync;
-using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Web.Client;
-using McMaster.Extensions.CommandLineUtils;
+﻿using McMaster.Extensions.CommandLineUtils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
-using System.IO;
-using System.Net.Http;
-using System.Threading.Tasks;
 
 namespace WebSyncClient
 {
-    class Program
+    internal class Program
     {
-        private static string clientConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=Client;Integrated Security=true;";
-        // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
 
-        static void Main(string[] args)
+        // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql
+        private static void Main(string[] args)
         {
 
             var configuration = new ConfigurationBuilder()
@@ -38,7 +31,6 @@ namespace WebSyncClient
             app.Conventions.UseDefaultConventions()
                            .UseConstructorInjection(servicesProvider);
 
-
             app.ShowHelp();
 
             do
@@ -57,7 +49,6 @@ namespace WebSyncClient
                         var debugArgsArray = debugArgs.Split(" ");
                         app.Execute(debugArgsArray);
                     }
-
                 }
                 catch (Exception e)
                 {
@@ -66,10 +57,8 @@ namespace WebSyncClient
 
                 Console.WriteLine();
                 Console.WriteLine("Hit 'Esc' to end or another key to restart");
-
-            } while (true);
-
+            }
+            while (true);
         }
-    
     }
 }

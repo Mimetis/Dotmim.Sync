@@ -2,43 +2,39 @@
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
 using System;
-using System.Data;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Interceptors
 {
-    class Program
+    internal class Program
     {
         private static string serverConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=AdventureWorks;Integrated Security=true;";
         private static string clientConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=Client;Integrated Security=true;";
 
-        static async Task Main(string[] args)
+        private static async Task Main(string[] args)
         {
-            await PreventDeletionAsync();
+            await PreventDeletionAsync().ConfigureAwait(false);
         }
-
 
         private static async Task PreventDeletionAsync()
         {
-            // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
-
+            // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql
             var serverProvider = new SqlSyncProvider(serverConnectionString);
             var clientProvider = new SqlSyncProvider(clientConnectionString);
 
             // Tables involved in the sync process:
-            var tables = new string[] {"Product" };
+            var tables = new string[] { "Product" };
 
             // Creating an agent that will handle all the process
             var agent = new SyncAgent(clientProvider, serverProvider);
 
             // First sync to have some rows on client
-            var s1 = await agent.SynchronizeAsync(tables);
+            var s1 = await agent.SynchronizeAsync(tables).ConfigureAwait(false);
+
             // Write results
             Console.WriteLine(s1);
 
-           
             // do not delete product row. it's your choice !
             agent.LocalOrchestrator.OnTableChangesApplying(args =>
             {
@@ -58,15 +54,16 @@ namespace Interceptors
             c.Close();
 
             // Second sync
-            s1 = await agent.SynchronizeAsync();
+            s1 = await agent.SynchronizeAsync().ConfigureAwait(false);
+
             // Write results
             Console.WriteLine(s1);
 
             // Third sync
-            s1 = await agent.SynchronizeAsync();
+            s1 = await agent.SynchronizeAsync().ConfigureAwait(false);
+
             // Write results
             Console.WriteLine(s1);
-
         }
     }
 }

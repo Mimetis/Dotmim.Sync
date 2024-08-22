@@ -1,19 +1,20 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Globalization;
-using System.Linq;
-using System.Text.Json;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Sync Type Converter: Convert a value to another type.
+    /// </summary>
     public static class SyncTypeConverter
     {
+        /// <summary>
+        /// Try to convert a value to another type.
+        /// </summary>
         public static T TryConvertTo<T>(dynamic value, CultureInfo provider = default)
         {
-            value = TryConvertJsonElement(value);
-
             if (value == null)
                 return default;
 
@@ -28,17 +29,45 @@ namespace Dotmim.Sync
             var typeConverter = TypeDescriptor.GetConverter(typeOfT);
 
             if (typeOfT == typeof(short))
-                return Convert.ToInt16(value);
+            {
+                return Convert.ToInt16(value, provider);
+            }
             else if (typeOfT == typeof(int))
+            {
                 return Convert.ToInt32(value);
+            }
             else if (typeOfT == typeof(long))
+            {
                 return Convert.ToInt64(value);
+            }
             else if (typeOfT == typeof(ushort))
+            {
                 return Convert.ToUInt16(value);
+            }
             else if (typeOfT == typeof(uint))
+            {
                 return Convert.ToUInt32(value);
+            }
             else if (typeOfT == typeof(ulong))
+            {
                 return Convert.ToUInt64(value);
+            }
+#if NET6_0_OR_GREATER
+            else if (typeOfT == typeof(DateOnly))
+            {
+                if (value is DateTimeOffset dateTimeOffset)
+                    return (T)Convert.ChangeType(DateOnly.FromDateTime(dateTimeOffset.DateTime), typeOfT, provider);
+
+                string valueStr = value.ToString(); // IOS bug ????
+                if (DateOnly.TryParse(valueStr, provider, DateTimeStyles.None, out DateOnly dateOnly))
+                    return (T)Convert.ChangeType(dateOnly, typeOfT, provider);
+                else if (typeOfU == typeof(long))
+                    return (T)Convert.ChangeType(DateOnly.FromDateTime(new DateTime(value)), typeOfT, provider);
+                else
+                    return (T)Convert.ChangeType(DateOnly.FromDateTime(Convert.ToDateTime(value)), typeOfT, provider);
+            }
+
+#endif
             else if (typeOfT == typeof(DateTime))
             {
                 if (value is DateTimeOffset dateTimeOffset)
@@ -64,9 +93,13 @@ namespace Dotmim.Sync
                     return Convert.ToDateTime(value);
             }
             else if (typeOfT == typeof(string))
+            {
                 return value.ToString();
+            }
             else if (typeOfT == typeof(byte))
+            {
                 return Convert.ToByte(value);
+            }
             else if (typeOfT == typeof(bool))
             {
                 if (bool.TryParse(value.ToString(), out bool v))
@@ -89,19 +122,29 @@ namespace Dotmim.Sync
                     return (T)Convert.ChangeType(new Guid(value.ToString()), typeOfT, provider);
             }
             else if (typeOfT == typeof(char))
+            {
                 return Convert.ToChar(value);
+            }
             else if (typeOfT == typeof(decimal))
+            {
                 return Convert.ToDecimal(value, provider);
+            }
             else if (typeOfT == typeof(double))
+            {
                 return Convert.ToDouble(value, provider.NumberFormat);
+            }
             else if (typeOfT == typeof(float))
+            {
                 return Convert.ToSingle(value, provider.NumberFormat);
+            }
             else if (typeOfT == typeof(sbyte))
+            {
                 return Convert.ToSByte(value);
+            }
             else if (typeOfT == typeof(TimeSpan))
             {
-                if (typeOfU == typeof(Int16) || typeOfU == typeof(Int32) || typeOfU == typeof(Int64)
-                   || typeOfU == typeof(UInt16) || typeOfU == typeof(UInt32) || typeOfU == typeof(UInt64))
+                if (typeOfU == typeof(short) || typeOfU == typeof(int) || typeOfU == typeof(long)
+                   || typeOfU == typeof(ushort) || typeOfU == typeof(uint) || typeOfU == typeof(ulong))
                     return (T)Convert.ChangeType(TimeSpan.FromTicks(value), typeOfT, provider);
                 if (TimeSpan.TryParse(value.ToString(), provider, out TimeSpan q))
                     return (T)Convert.ChangeType(q, typeOfT, provider);
@@ -114,49 +157,22 @@ namespace Dotmim.Sync
                     return (T)Convert.ChangeType(BitConverter.GetBytes((dynamic)value), typeOfT, provider);
             }
             else if (typeConverter.CanConvertFrom(typeOfT))
+            {
                 return (T)Convert.ChangeType(typeConverter.ConvertFrom(value), typeOfT, provider);
+            }
             else
+            {
                 throw new FormatTypeException(typeOfT);
+            }
 
             return default;
         }
 
-        // TODO : REMOVE THIS ONE
-        private static object TryConvertJsonElement(object value)
-        {
-            if (value is JsonElement jsonElement)
-            {
-                switch (jsonElement.ValueKind)
-                {
-                    case JsonValueKind.String:
-                        return jsonElement.GetString();
-                    case JsonValueKind.Number:
-                        return jsonElement.GetDouble();
-                    case JsonValueKind.True:
-                    case JsonValueKind.False:
-                        return jsonElement.GetBoolean();
-                    case JsonValueKind.Array:
-                        return jsonElement.EnumerateArray().Select(e => TryConvertJsonElement(e)).ToList();
-                    case JsonValueKind.Object:
-                        var dictionary = new Dictionary<string, object>();
-                        foreach (var property in jsonElement.EnumerateObject())
-                        {
-                            dictionary[property.Name] = TryConvertJsonElement(property.Value);
-                        }
-                        return dictionary;
-                    case JsonValueKind.Null:
-                        return null;
-                    default:
-                        throw new NotSupportedException($"Unsupported JsonValueKind: {jsonElement.ValueKind}");
-                }
-            }
-
-            return value;
-        }
-
+        /// <summary>
+        /// Try to convert a value to another type.
+        /// </summary>
         public static object TryConvertTo(object value, Type typeOfT, CultureInfo provider = default)
         {
-            value = TryConvertJsonElement(value);
 
             var typeConverter = TypeDescriptor.GetConverter(typeOfT);
 
@@ -174,6 +190,10 @@ namespace Dotmim.Sync
                 return TryConvertTo<ulong>(value, provider);
             else if (typeOfT == typeof(DateTime))
                 return TryConvertTo<DateTime>(value, provider);
+#if NET6_0_OR_GREATER
+            else if (typeOfT == typeof(DateOnly))
+                return TryConvertTo<DateOnly>(value, provider);
+#endif
             else if (typeOfT == typeof(DateTimeOffset))
                 return TryConvertTo<DateTimeOffset>(value, provider);
             else if (typeOfT == typeof(string))
@@ -200,13 +220,15 @@ namespace Dotmim.Sync
                 return TryConvertTo<byte[]>(value, provider);
             else if (typeConverter.CanConvertFrom(typeOfT))
                 return Convert.ChangeType(typeConverter.ConvertFrom(value), typeOfT, provider);
-            else if (typeOfT == typeof(Object))
+            else if (typeOfT == typeof(object))
                 return value;
             else
                 throw new FormatTypeException(typeOfT);
-
         }
 
+        /// <summary>
+        /// Try to convert a value from DbType to another type.
+        /// </summary>
         public static object TryConvertFromDbType(object value, DbType typeOfT, CultureInfo provider = default)
         {
             if (typeOfT == DbType.AnsiString || typeOfT == DbType.String
@@ -221,7 +243,13 @@ namespace Dotmim.Sync
                 return TryConvertTo<byte>(value, provider);
             else if (typeOfT == DbType.Currency || typeOfT == DbType.Decimal)
                 return TryConvertTo<decimal>(value, provider);
-            else if (typeOfT == DbType.Date || typeOfT == DbType.DateTime || typeOfT == DbType.DateTime2)
+            else if (typeOfT == DbType.Date)
+#if NET6_0_OR_GREATER
+                return TryConvertTo<DateOnly>(value, provider);
+#else
+                return TryConvertTo<DateTime>(value, provider);
+#endif
+            else if (typeOfT == DbType.DateTime || typeOfT == DbType.DateTime2)
                 return TryConvertTo<DateTime>(value, provider);
             else if (typeOfT == DbType.DateTimeOffset)
                 return TryConvertTo<DateTimeOffset>(value, provider);

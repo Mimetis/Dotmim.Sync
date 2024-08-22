@@ -1,43 +1,45 @@
-﻿using Dotmim.Sync.Builders;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Sync filters where side collection.
+    /// </summary>
     [CollectionDataContract(Name = "filterswhereside", ItemName = "whereside"), Serializable]
     public class SyncFilterWhereSideItems : ICollection<SyncFilterWhereSideItem>, IList<SyncFilterWhereSideItem>
     {
         /// <summary>
-        /// Exposing the InnerCollection for serialization purpose
+        /// Gets or sets exposing the InnerCollection for serialization purpose.
         /// </summary>
         [DataMember(Name = "c", IsRequired = true, Order = 1)]
-        public Collection<SyncFilterWhereSideItem> InnerCollection { get; set; } = new Collection<SyncFilterWhereSideItem>();
+        public Collection<SyncFilterWhereSideItem> InnerCollection { get; set; } = [];
 
         /// <summary>
-        /// Filter's schema
+        /// Gets filter's schema.
         /// </summary>
         [IgnoreDataMember]
         public SyncSet Schema { get; internal set; }
 
         /// <summary>
-        /// Create a default collection for Serializers
+        /// Initializes a new instance of the <see cref="SyncFilterWhereSideItems"/> class.
+        /// Create a default collection for SerializersFactory.
         /// </summary>
         public SyncFilterWhereSideItems()
         {
         }
 
         /// <summary>
-        /// Create a new collection of tables for a SyncSchema
+        /// Initializes a new instance of the <see cref="SyncFilterWhereSideItems"/> class.
+        /// Create a new collection of tables for a SyncSchema.
         /// </summary>
         public SyncFilterWhereSideItems(SyncSet schema) => this.Schema = schema;
 
         /// <summary>
-        /// Since we don't serializer the reference to the schema, this method will reaffect the correct schema
+        /// Since we don't serializer the reference to the schema, this method will reaffect the correct schema.
         /// </summary>
         public void EnsureFilters(SyncSet schema)
         {
@@ -48,33 +50,77 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Add a new filter 
+        /// Add a new filter.
         /// </summary>
         public void Add(SyncFilterWhereSideItem item)
         {
-            item.Schema = Schema;
-            InnerCollection.Add(item);
+            item.Schema = this.Schema;
+            this.InnerCollection.Add(item);
         }
 
+        /// <summary>
+        /// Clear.
+        /// </summary>
+        public void Clear() => this.InnerCollection.Clear();
 
         /// <summary>
-        /// Clear
+        /// Gets get the count of filters.
         /// </summary>
-        public void Clear() => InnerCollection.Clear();
+        public int Count => this.InnerCollection.Count;
 
-        public SyncFilterWhereSideItem this[int index] => InnerCollection[index];
-        public int Count => InnerCollection.Count;
+        /// <summary>
+        /// Gets a value indicating whether the collection is read-only.
+        /// </summary>
         public bool IsReadOnly => false;
-        SyncFilterWhereSideItem IList<SyncFilterWhereSideItem>.this[int index] { get => InnerCollection[index]; set => InnerCollection[index] = value; }
-        public void Insert(int index, SyncFilterWhereSideItem item) => InnerCollection.Insert(index, item);
-        public bool Remove(SyncFilterWhereSideItem item) => InnerCollection.Remove(item);
-        public bool Contains(SyncFilterWhereSideItem item) => InnerCollection.Contains(item);
-        public void CopyTo(SyncFilterWhereSideItem[] array, int arrayIndex) => InnerCollection.CopyTo(array, arrayIndex);
-        public int IndexOf(SyncFilterWhereSideItem item) => InnerCollection.IndexOf(item);
-        public void RemoveAt(int index) => InnerCollection.RemoveAt(index);
-        IEnumerator IEnumerable.GetEnumerator() => InnerCollection.GetEnumerator();
-        public IEnumerator<SyncFilterWhereSideItem> GetEnumerator() => InnerCollection.GetEnumerator();
+
+        /// <summary>
+        /// Get a table by its index.
+        /// </summary>
+        public SyncFilterWhereSideItem this[int index] { get => this.InnerCollection[index]; set => this.InnerCollection[index] = value; }
+
+        /// <summary>
+        /// Insert a new filter at the specified index.
+        /// </summary>
+        public void Insert(int index, SyncFilterWhereSideItem item) => this.InnerCollection.Insert(index, item);
+
+        /// <summary>
+        /// Remove a filter from the collection.
+        /// </summary>
+        public bool Remove(SyncFilterWhereSideItem item) => this.InnerCollection.Remove(item);
+
+        /// <summary>
+        /// Check if the collection contains a filter.
+        /// </summary>
+        public bool Contains(SyncFilterWhereSideItem item) => this.InnerCollection.Contains(item);
+
+        /// <summary>
+        /// Copy the collection to an array.
+        /// </summary>
+        public void CopyTo(SyncFilterWhereSideItem[] array, int arrayIndex) => this.InnerCollection.CopyTo(array, arrayIndex);
+
+        /// <summary>
+        /// Get the index of a filter.
+        /// </summary>
+        public int IndexOf(SyncFilterWhereSideItem item) => this.InnerCollection.IndexOf(item);
+
+        /// <summary>
+        /// Remove a filter at the specified index.
+        /// </summary>
+        public void RemoveAt(int index) => this.InnerCollection.RemoveAt(index);
+
+        /// <summary>
+        /// Gets the enumerator.
+        /// </summary>
+        IEnumerator IEnumerable.GetEnumerator() => this.InnerCollection.GetEnumerator();
+
+        /// <summary>
+        /// Gets the enumerator.
+        /// </summary>
+        public IEnumerator<SyncFilterWhereSideItem> GetEnumerator() => this.InnerCollection.GetEnumerator();
+
+        /// <summary>
+        /// Returns a string that represents the current object.
+        /// </summary>
         public override string ToString() => this.InnerCollection.Count.ToString();
     }
-
 }

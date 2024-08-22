@@ -1,13 +1,9 @@
-﻿using System;
+﻿using Dotmim.Sync.Web.Server;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Dotmim.Sync.Web.Client;
-using Dotmim.Sync.Web.Server;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Caching.Memory;
-using Dotmim.Sync;
 
 namespace WebSyncServerLast.Controllers
 {
@@ -22,25 +18,23 @@ namespace WebSyncServerLast.Controllers
             => this.webServerAgents = webServerAgents;
 
         /// <summary>
-        /// This POST handler is mandatory to handle all the sync process
+        /// This POST handler is mandatory to handle all the sync process.
         /// </summary>
-        /// <returns></returns>
         [HttpPost]
         public async Task Post()
         {
-            var identifier = HttpContext.GetIdentifier();
+            var identifier = this.HttpContext.GetIdentifier();
 
-            var webserverAgent = webServerAgents.FirstOrDefault(c => c.Identifier == identifier);
+            var webserverAgent = this.webServerAgents.FirstOrDefault(c => c.Identifier == identifier);
 
-            await webserverAgent.HandleRequestAsync(HttpContext).ConfigureAwait(false);
+            await webserverAgent.HandleRequestAsync(this.HttpContext).ConfigureAwait(false);
         }
 
         /// <summary>
         /// This GET handler is optional. It allows you to see the configuration hosted on the server
-        /// The configuration is shown only if Environmenent == Development
+        /// The configuration is shown only if Environmenent == Development.
         /// </summary>
         [HttpGet]
         public Task Get() => this.HttpContext.WriteHelloAsync(this.webServerAgents);
-
     }
 }

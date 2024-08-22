@@ -2,12 +2,10 @@
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Serialization;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Xunit;
@@ -20,6 +18,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         // Current test running
         private ITest test;
         private Stopwatch stopwatch;
+
         public ITestOutputHelper Output { get; }
 
         public BatchInfosTests(ITestOutputHelper output)
@@ -37,7 +36,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         {
             this.stopwatch.Stop();
 
-            var str = $"{test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
+            var str = $"{this.test.TestCase.DisplayName} : {this.stopwatch.Elapsed.Minutes}:{this.stopwatch.Elapsed.Seconds}.{this.stopwatch.Elapsed.Milliseconds}";
             Console.WriteLine(str);
             Debug.WriteLine(str);
         }
@@ -74,18 +73,18 @@ namespace Dotmim.Sync.Tests.UnitTests
                 tCustomerRow["Name"] = "John Snow";
                 tCustomerRow["Column_Int16"] = (short)11;
                 tCustomerRow["Column_Int32"] = 222;
-                tCustomerRow["Column_Int64"] = (long)3333;
+                tCustomerRow["Column_Int64"] = 3333L;
                 tCustomerRow["Column_UInt16"] = (ushort)11;
-                tCustomerRow["Column_UInt32"] = (uint)222;
-                tCustomerRow["Column_UInt64"] = (ulong)3333;
+                tCustomerRow["Column_UInt32"] = 222U;
+                tCustomerRow["Column_UInt64"] = 3333UL;
                 tCustomerRow["Column_DateTime"] = DateTime.Now;
                 tCustomerRow["Column_DateTimeOffset"] = DateTimeOffset.Now;
                 tCustomerRow["Column_Byte"] = (byte)255;
                 tCustomerRow["Column_Boolean"] = true;
                 tCustomerRow["Column_Char"] = 'B';
-                tCustomerRow["Column_Decimal"] = (decimal)10.12;
+                tCustomerRow["Column_Decimal"] = 10.12M;
                 tCustomerRow["Column_Double"] = 10.12;
-                tCustomerRow["Column_Float"] = (float)10.12;
+                tCustomerRow["Column_Float"] = 10.12F;
                 tCustomerRow["Column_SByte"] = (sbyte)12;
                 tCustomerRow["Column_TimeSpan"] = TimeSpan.FromSeconds(10);
                 tCustomerRow["Column_ByteArray"] = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
@@ -98,13 +97,13 @@ namespace Dotmim.Sync.Tests.UnitTests
             return tCustomer;
         }
 
-        private async Task<(BatchInfo, SyncTable)> GenerateBatchInfoAsync(int rowsCount = 1, SyncRowState syncRowState = SyncRowState.None)
+        private static async Task<(BatchInfo BatchInfo, SyncTable SyncTable)> GenerateBatchInfoAsync(int rowsCount = 1, SyncRowState syncRowState = SyncRowState.None)
         {
             var tCustomer = GetSimpleSyncTable(rowsCount);
             var batchInfo = new BatchInfo();
 
             // get a new filename and filepath
-            var (filePath, fileName) = batchInfo.GetNewBatchPartInfoPath(tCustomer, 1, "json", "");
+            var (filePath, fileName) = batchInfo.GetNewBatchPartInfoPath(tCustomer, 1, "json", string.Empty);
 
             // create a new part for this batch info
             var batchPartInfo = new BatchPartInfo(fileName, tCustomer.TableName, tCustomer.SchemaName,
@@ -130,7 +129,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         public async Task CreateBatchInfo()
         {
             var (bi, st) = await GenerateBatchInfoAsync(0, SyncRowState.None);
-            var filePath = bi.GetBatchPartInfoPath(bi.BatchPartsInfo[0]);
+            var filePath = bi.GetBatchPartInfoFullPath(bi.BatchPartsInfo[0]);
 
             var fileInfo = new FileInfo(filePath);
 
@@ -207,13 +206,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal("12", columns[18].GetProperty("t").GetString());
         }
 
-
         [Fact]
         public async Task ReadSyncTableFromBatchInfo()
         {
             var (bi, st) = await GenerateBatchInfoAsync(10, SyncRowState.ApplyModifiedFailed);
 
-            var filePath = bi.GetBatchPartInfoPath(bi.BatchPartsInfo[0]);
+            var filePath = bi.GetBatchPartInfoFullPath(bi.BatchPartsInfo[0]);
 
             var (schemaTable, rowsCount, state) =
                 LocalJsonSerializer.GetSchemaTableFromFile(filePath);
@@ -229,19 +227,16 @@ namespace Dotmim.Sync.Tests.UnitTests
         {
             var (bi, st) = await GenerateBatchInfoAsync(100000, SyncRowState.ApplyModifiedFailed);
 
-            var filePath = bi.GetBatchPartInfoPath(bi.BatchPartsInfo[0]);
+            var filePath = bi.GetBatchPartInfoFullPath(bi.BatchPartsInfo[0]);
 
             var (schemaTable, rowsCount, state) =
               LocalJsonSerializer.GetSchemaTableFromFile(filePath);
-
 
             var localSerializer = new LocalJsonSerializer();
 
             var rows = localSerializer.GetRowsFromFile(filePath, st).ToList();
 
             Assert.Equal(st.Rows.Count, rows.Count);
-
-
         }
 
         [Fact]
@@ -264,13 +259,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(rowsNumberToGenerate, res.Rows.Count);
         }
 
-
         [Fact]
         public async Task ReadSyncRowsFromBatchInfo()
         {
             var (bi, st) = await GenerateBatchInfoAsync(10);
 
-            var filePath = bi.GetBatchPartInfoPath(bi.BatchPartsInfo[0]);
+            var filePath = bi.GetBatchPartInfoFullPath(bi.BatchPartsInfo[0]);
 
             using var localSerializer = new LocalJsonSerializer();
 
@@ -296,7 +290,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         {
             var (bi, st) = await GenerateBatchInfoAsync(0, SyncRowState.Modified);
 
-            var filePath = bi.GetBatchPartInfoPath(bi.BatchPartsInfo[0]);
+            var filePath = bi.GetBatchPartInfoFullPath(bi.BatchPartsInfo[0]);
 
             var (schemaTable, rowsCount, state) =
                 LocalJsonSerializer.GetSchemaTableFromFile(filePath);
@@ -306,6 +300,5 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, rowsCount);
             Assert.Equal(SyncRowState.Modified, state);
         }
-
     }
 }

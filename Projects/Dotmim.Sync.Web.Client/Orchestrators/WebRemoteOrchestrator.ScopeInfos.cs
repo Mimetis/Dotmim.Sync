@@ -1,32 +1,41 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
-using Dotmim.Sync.Batch;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
 
 namespace Dotmim.Sync.Web.Client
 {
+    /// <summary>
+    /// Contains the logic to handle scope info on the server side.
+    /// </summary>
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
+        /// <summary>
+        /// Method not allowed from WebRemoteOrchestrator.
+        /// </summary>
+        public override Task<ScopeInfo> SaveScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null)
+            => throw new NotImplementedException();
 
-        internal override async Task<(SyncContext context, ScopeInfo scopeInfo)> InternalLoadScopeInfoAsync(SyncContext context, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+        /// <summary>
+        /// Method not allowed from WebRemoteOrchestrator.
+        /// </summary>
+        public override Task<bool> DeleteScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null)
+            => throw new NotImplementedException();
+
+        /// <inheritdoc />
+        internal override async Task<(SyncContext Context, ScopeInfo ScopeInfo)> InternalLoadScopeInfoAsync(
+            SyncContext context,
+            DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
             ScopeInfo scopeInfo;
-            (context, scopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, default, false, connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+            (context, scopeInfo, _) = await this.InternalEnsureScopeInfoAsync(context, default, false, connection, transaction, progress, cancellationToken).ConfigureAwait(false);
             return (context, scopeInfo);
         }
 
-        internal override async Task<(SyncContext context, ScopeInfo serverScopeInfo, bool shouldProvision)>
+        /// <inheritdoc />
+        internal override async Task<(SyncContext Context, ScopeInfo ServerScopeInfo, bool ShouldProvision)>
             InternalEnsureScopeInfoAsync(
-            SyncContext context, SyncSetup setup, bool overwrite, DbConnection connection, DbTransaction transaction, CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+            SyncContext context, SyncSetup setup, bool overwrite, DbConnection connection, DbTransaction transaction, IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
 
             try
@@ -39,8 +48,8 @@ namespace Dotmim.Sync.Web.Client
                 await this.InterceptAsync(new HttpGettingScopeRequestArgs(context, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                 // No batch size submitted here, because the schema will be generated in memory and send back to the user.
-                var ensureScopesResponse = await this.ProcessRequestAsync<HttpMessageEnsureScopesResponse>
-                    (context, httpMessage, HttpStep.EnsureScopes, 0, cancellationToken, progress).ConfigureAwait(false);
+                var ensureScopesResponse = await this.ProcessRequestAsync<HttpMessageEnsureScopesResponse>(
+                    context, httpMessage, HttpStep.EnsureScopes, 0, progress, cancellationToken).ConfigureAwait(false);
 
                 if (ensureScopesResponse == null)
                     throw new ArgumentException("Http Message content for Ensure scope can't be null");
@@ -57,17 +66,14 @@ namespace Dotmim.Sync.Web.Client
                 // Return scopes and new shema
                 return (context, ensureScopesResponse.ServerScopeInfo, false);
             }
-            catch (HttpSyncWebException) { throw; } // throw server error
-            catch (Exception ex) { throw GetSyncError(context, ex); } // throw client error
-
+            catch (HttpSyncWebException)
+            {
+                throw;
+            } // throw server error
+            catch (Exception ex)
+            {
+                throw this.GetSyncError(context, ex);
+            } // throw client error
         }
-
-        public override Task<ScopeInfo> SaveScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null)
-            => throw new NotImplementedException();
-
-        public override Task<bool> DeleteScopeInfoAsync(ScopeInfo scopeInfo, DbConnection connection = null, DbTransaction transaction = null)
-            => throw new NotImplementedException();
-
-
     }
 }

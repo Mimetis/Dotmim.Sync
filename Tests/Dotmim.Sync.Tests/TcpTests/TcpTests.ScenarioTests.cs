@@ -34,12 +34,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
             var providers = this.GetClientProviders();
-            SqliteSyncProvider clientProvider = (SqliteSyncProvider)providers.FirstOrDefault();
+            providers.FirstOrDefault();
+            SqliteSyncProvider clientProvider = (SqliteSyncProvider)providers.FirstOrDefault(p => p.GetShortProviderTypeName() == "SqliteSyncProvider");
 
             if (clientProvider == null)
-            {
                 return;
-            }
 
             clientProvider.DisableSqlFiltersGeneration = true;
 
@@ -79,8 +78,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
             var providers = this.GetClientProviders();
-
-            SqliteSyncProvider clientProvider = (SqliteSyncProvider)providers.FirstOrDefault();
+            SqliteSyncProvider clientProvider = (SqliteSyncProvider)providers.FirstOrDefault(p => p.GetShortProviderTypeName() == "SqliteSyncProvider");
 
             if (clientProvider == null)
             {
@@ -842,7 +840,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         /// Manipulate the client scope as it should be marked as not new (and set the correct timestamps)
         /// Then trying to sync.
         /// </summary>
-        /// <returns>A <see cref="Task"/> representing the asynchronous unit test.</returns>
+        
         [Fact]
         public virtual async Task StartingWithARestoredBackupOnClientWithData()
         {

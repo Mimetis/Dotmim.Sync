@@ -1,12 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Dotmim.Sync.Builders
+﻿namespace Dotmim.Sync.Builders
 {
+
+    /// <summary>
+    /// Scope type enumeration.
+    /// </summary>
     public enum DbScopeType
     {
+        /// <summary>
+        /// Scope info table.
+        /// </summary>
         ScopeInfo,
-        ScopeInfoClient
+
+        /// <summary>
+        /// Scope info client table.
+        /// </summary>
+        ScopeInfoClient,
     }
 }

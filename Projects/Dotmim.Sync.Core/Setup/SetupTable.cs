@@ -1,129 +1,115 @@
-﻿using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.DatabaseStringParsers;
 using Dotmim.Sync.Enumerations;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Represents a table to be synchronized.
+    /// </summary>
     [DataContract(Name = "st"), Serializable]
     public class SetupTable : SyncNamedItem<SetupTable>
     {
         /// <summary>
-        /// public ctor for serialization purpose
+        /// Initializes a new instance of the <see cref="SetupTable"/> class.
+        /// public ctor for serialization purpose.
         /// </summary>
         public SetupTable()
         {
-
         }
 
         /// <summary>
-        /// Gets or Sets the table name
+        /// Gets or Sets the table name.
         /// </summary>
         [DataMember(Name = "tn", IsRequired = true, Order = 1)]
         public string TableName { get; set; }
 
         /// <summary>
-        /// Gets or Sets the schema name
+        /// Gets or Sets the schema name.
         /// </summary>
         [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public string SchemaName { get; set; }
 
         /// <summary>
-        /// Gets or Sets the table columns collection
+        /// Gets or Sets the table columns collection.
         /// </summary>
         [DataMember(Name = "cols", IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public SetupColumns Columns { get; set; }
 
         /// <summary>
-        /// Gets or Sets the Sync direction (may be Bidirectional, DownloadOnly, UploadOnly) 
-        /// Default is Bidirectional
+        /// Gets or Sets the Sync direction (may be Bidirectional, DownloadOnly, UploadOnly)
+        /// Default is Bidirectional.
         /// </summary>
         [DataMember(Name = "sd", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public SyncDirection SyncDirection { get; set; }
 
         /// <summary>
-        /// Check if SetupTable has columns. If not columns specified, all the columns from server database are retrieved
+        /// Gets a value indicating whether check if SetupTable has columns. If not columns specified, all the columns from server database are retrieved.
         /// </summary>
         [IgnoreDataMember]
         public bool HasColumns => this.Columns?.Count > 0;
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="SetupTable"/> class.
         /// Specify a table to add to the sync process
-        /// If you don't specify any columns, all columns in the data source will be imported
+        /// If you don't specify any columns, all columns in the data source will be imported.
         /// </summary>
         public SetupTable(string tableName, string schemaName = null)
         {
-            this.TableName = tableName ?? throw new ArgumentNullException(nameof(tableName));
+            Guard.ThrowIfNull(tableName);
+
+            var fullName = string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}";
 
             // Potentially user can pass something like [SalesLT].[Product]
-            // or SalesLT.Product or Product. ParserName will handle it
-            var parserTableName = ParserName.Parse(this.TableName);
-            this.TableName = parserTableName.ObjectName;
+            // or SalesLT.Product or Product. TableParser will handle it
+            var tableParser = new TableParser(fullName);
 
-            // Check Schema
-            if (string.IsNullOrEmpty(schemaName))
-            {
-                schemaName = string.IsNullOrEmpty(parserTableName.SchemaName) ? null : parserTableName.SchemaName;
-            }
-            else
-            {
-                var parserSchemaName = ParserName.Parse(schemaName);
-                schemaName = parserSchemaName.ObjectName;
-
-            }
+            this.TableName = tableParser.TableName;
 
             // https://github.com/Mimetis/Dotmim.Sync/issues/621#issuecomment-968369322
-            this.SchemaName = string.IsNullOrEmpty(schemaName) ? string.Empty : schemaName;
-            this.Columns = new SetupColumns();
+            this.SchemaName = string.IsNullOrEmpty(tableParser.SchemaName) ? string.Empty : tableParser.SchemaName;
+
+            this.Columns = [];
         }
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="SetupTable"/> class.
         /// Specify a table and its columns, to add to the sync process
-        /// If you're specifying some columns, all others columns in the data source will be ignored
+        /// If you're specifying some columns, all others columns in the data source will be ignored.
         /// </summary>
         public SetupTable(string tableName, IEnumerable<string> columnsName, string schemaName = null)
             : this(tableName, schemaName) => this.Columns.AddRange(columnsName);
 
         /// <summary>
-        /// ToString override. Gets the full name + columns count
+        /// ToString override. Gets the full name + columns count.
         /// </summary>
-        public override string ToString() => GetFullName() + (HasColumns ? $" ({Columns.Count} columns)" : "");
+        public override string ToString() => this.GetFullName() + (this.HasColumns ? $" ({this.Columns.Count} columns)" : string.Empty);
 
         /// <summary>
-        /// Gets the full name of the table, based on schema name + "." + table name (if schema name exists)
+        /// Gets the full name of the table, based on schema name + "." + table name (if schema name exists).
         /// </summary>
-        /// <returns></returns>
         public string GetFullName()
             => string.IsNullOrEmpty(this.SchemaName) ? this.TableName : $"{this.SchemaName}.{this.TableName}";
 
-        /// <summary>
-        /// Compare 2 SetupTable instances. Assuming table name and schema name are equals, we have two conflicting setup tables
-        /// </summary>
-        public override bool EqualsByProperties(SetupTable other)
+        /// <inheritdoc cref="SyncNamedItem{T}.EqualsByProperties(T)"/>
+        public override bool EqualsByProperties(SetupTable otherInstance)
         {
-            if (other == null)
+            if (otherInstance == null)
                 return false;
 
             var sc = SyncGlobalization.DataSourceStringComparison;
 
-            if (!this.EqualsByName(other))
+            if (!this.EqualsByName(otherInstance))
                 return false;
 
             // checking properties
-            if (this.SyncDirection != other.SyncDirection)
-                return false;
-
-            if (!this.Columns.CompareWith(other.Columns, (c, oc) => string.Equals(c, oc, sc)))
-                return false;
-
-            return true;
+            return this.SyncDirection == otherInstance.SyncDirection
+                    && this.Columns.CompareWith(otherInstance.Columns, (c, oc) => string.Equals(c, oc, sc));
         }
-        /// <summary>
-        /// Get all comparable fields to determine if two instances are identifed as same by name
-        /// </summary>
+
+        /// <inheritdoc cref="SyncNamedItem{T}.GetAllNamesProperties"/>
         public override IEnumerable<string> GetAllNamesProperties()
         {
             yield return this.TableName;

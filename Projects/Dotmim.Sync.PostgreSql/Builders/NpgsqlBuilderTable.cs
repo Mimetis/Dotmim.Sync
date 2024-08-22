@@ -1,12 +1,10 @@
-﻿using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.DatabaseStringParsers;
 using Dotmim.Sync.Manager;
-using Dotmim.Sync.PostgreSql.Builders;
 using Npgsql;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -14,26 +12,37 @@ using System.Threading.Tasks;
 
 namespace Dotmim.Sync.PostgreSql.Builders
 {
+    /// <summary>
+    /// Represents a table builder for PostgreSQL and provides various methods to interact with the table.
+    /// </summary>
     public class NpgsqlBuilderTable
     {
-        private SyncSetup setup;
-        private SyncTable tableDescription;
-        private ParserName tableName;
-        private ParserName trackingTableName;
+        /// <summary>
+        /// Gets the table description.
+        /// </summary>
+        protected SyncTable TableDescription { get; }
 
-        private Dictionary<string, string> createdRelationNames = new Dictionary<string, string>();
+        /// <summary>
+        /// Gets the ,npgsql object names.
+        /// </summary>
+        protected NpgsqlObjectNames NpgsqlObjectNames { get; }
 
+        /// <summary>
+        /// Gets the npgsql database metadata.
+        /// </summary>
+        protected NpgsqlDbMetadata NpgsqlDbMetadata { get; }
 
-        public NpgsqlBuilderTable(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup)
+        /// <inheritdoc cref="NpgsqlBuilderTable" />
+        public NpgsqlBuilderTable(SyncTable tableDescription, NpgsqlObjectNames npgsqlObjectNames, NpgsqlDbMetadata npgsqlDbMetadata)
         {
-            this.tableDescription = tableDescription;
-            this.tableName = tableName;
-            this.trackingTableName = trackingTableName;
-            this.setup = setup;
-            this.NpgsqlDbMetadata = new NpgsqlDbMetadata();
+            this.TableDescription = tableDescription;
+            this.NpgsqlObjectNames = npgsqlObjectNames;
+            this.NpgsqlDbMetadata = npgsqlDbMetadata;
         }
 
-        public NpgsqlDbMetadata NpgsqlDbMetadata { get; set; }
+        /// <summary>
+        /// Returns a command to add a column to a table.
+        /// </summary>
         public Task<DbCommand> GetAddColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
@@ -41,10 +50,11 @@ namespace Dotmim.Sync.PostgreSql.Builders
             command.Connection = connection;
             command.Transaction = transaction;
 
-            var stringBuilder = new StringBuilder($"alter table if exists {tableName.Schema().Quoted().ToString()}");
+            var stringBuilder = new StringBuilder($"alter table if exists {this.NpgsqlObjectNames.TableQuotedFullName}");
 
-            var column = this.tableDescription.Columns[columnName];
-            var columnNameString = ParserName.Parse(column).Quoted().ToString();
+            var column = this.TableDescription.Columns[columnName];
+            var columnParser = new ObjectParser(column.ColumnName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+            var columnNameString = columnParser.QuotedShortName;
             var columnType = this.NpgsqlDbMetadata.GetNpgsqlDbType(column);
 
             var identity = string.Empty;
@@ -59,9 +69,11 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 nullString = "NULL";
 
             string defaultValue = string.Empty;
-            if (this.tableDescription.OriginalProvider == NpgsqlSyncProvider.ProviderType)
+            if (this.TableDescription.OriginalProvider == NpgsqlSyncProvider.ProviderType)
+            {
                 if (!string.IsNullOrEmpty(column.DefaultValue))
                     defaultValue = "DEFAULT " + column.DefaultValue;
+            }
 
             stringBuilder.AppendLine($"ADD {columnNameString} {columnType} {identity} {nullString} {defaultValue}");
 
@@ -70,12 +82,17 @@ namespace Dotmim.Sync.PostgreSql.Builders
             return Task.FromResult(command);
         }
 
+        /// <summary>
+        /// Returns a command to get columns.
+        /// </summary>
         public async Task<IEnumerable<SyncColumn>> GetColumnsAsync(DbConnection connection, DbTransaction transaction)
         {
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+            var schema = this.NpgsqlObjectNames.TableSchemaName;
             var columns = new List<SyncColumn>();
+
             // Get the columns definition
-            var syncTableColumnsList = await NpgsqlManagementUtils.GetColumnsForTableAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, this.tableName.ToString(), schema).ConfigureAwait(false);
+            var syncTableColumnsList = await NpgsqlManagementUtils.GetColumnsForTableAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction,
+                this.NpgsqlObjectNames.TableName, schema).ConfigureAwait(false);
 
             foreach (var c in syncTableColumnsList.Rows.OrderBy(r => (int)r["ordinal_position"]))
             {
@@ -93,12 +110,13 @@ namespace Dotmim.Sync.PostgreSql.Builders
                     MaxLength = maxLengthLong,
                     Precision = precision,
                     Scale = numeric_scale,
-                    AllowDBNull = c["is_nullable"].ToString() == "YES" ? true : false,
-                    IsAutoIncrement = c["is_identity"].ToString() == "YES" ? true : false,
+                    AllowDBNull = c["is_nullable"].ToString() == "YES",
+                    IsAutoIncrement = c["is_identity"].ToString() == "YES",
                     IsUnique = false,
-                    //IsUnique = c["is_identity"] != DBNull.Value ? (bool)c["is_identity"] : false, //Todo: need to join to get index info
-                    IsCompute = c["is_generated"].ToString() == "NEVER" ? false : true,
-                    DefaultValue = c["column_default"] != DBNull.Value ? c["column_default"].ToString() : null
+
+                    // IsUnique = c["is_identity"] != DBNull.Value ? (bool)c["is_identity"] : false, //Todo: need to join to get index info
+                    IsCompute = c["is_generated"].ToString() != "NEVER",
+                    DefaultValue = c["column_default"] != DBNull.Value ? c["column_default"].ToString() : null,
                 };
 
                 if (sColumn.IsAutoIncrement)
@@ -107,15 +125,11 @@ namespace Dotmim.Sync.PostgreSql.Builders
                     sColumn.AutoIncrementStep = Convert.ToInt32(c["identity_increment"]);
                 }
 
-                switch (sColumn.OriginalTypeName.ToLowerInvariant())
+                sColumn.IsUnicode = sColumn.OriginalTypeName.ToLowerInvariant() switch
                 {
-                    case "varchar":
-                        sColumn.IsUnicode = true;
-                        break;
-                    default:
-                        sColumn.IsUnicode = false;
-                        break;
-                }
+                    "varchar" => true,
+                    _ => false,
+                };
 
                 // No unsigned type in Postgres Server
                 sColumn.IsUnsigned = false;
@@ -126,52 +140,53 @@ namespace Dotmim.Sync.PostgreSql.Builders
             return columns;
         }
 
+        /// <summary>
+        /// Returns a command to create a schema if it does not exist.
+        /// </summary>
         public Task<DbCommand> GetCreateSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
-            //if (schema == "public")
-            //    return null;
-
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"CREATE SCHEMA IF NOT EXISTS \"{schema}\";";
+            command.CommandText = $"CREATE SCHEMA IF NOT EXISTS \"{this.NpgsqlObjectNames.TableSchemaName}\";";
             return Task.FromResult(command);
         }
-        public Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
-        {
-            var command = BuildCreateTableCommand(connection, transaction);
 
-            return Task.FromResult((DbCommand)command);
-        }
-
+        /// <summary>
+        /// Returns a command to drop a column from a table.
+        /// </summary>
         public Task<DbCommand> GetDropColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
+            var columnParser = new ObjectParser(columnName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"alter table if exists {tableName.Schema().Quoted().ToString()} drop column {columnName};";
+            command.CommandText = $"alter table if exists {this.NpgsqlObjectNames.TableQuotedFullName} drop column {columnParser.QuotedShortName};";
 
             return Task.FromResult(command);
         }
 
+        /// <summary>
+        /// Returns a command to drop a table.
+        /// </summary>
         public Task<DbCommand> GetDropTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var table = tableName.Quoted().ToString();
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
-
             var command = connection.CreateCommand();
             command.Connection = connection;
             command.Transaction = transaction;
-            command.CommandText = $"drop table \"{schema}\".{table};";
+            command.CommandText = $"drop table {this.NpgsqlObjectNames.TableQuotedFullName}";
 
             return Task.FromResult(command);
         }
 
+        /// <summary>
+        /// Returns a command to check if a column exists.
+        /// </summary>
         public Task<DbCommand> GetExistsColumnCommandAsync(string columnName, DbConnection connection, DbTransaction transaction)
         {
-            var tbl = tableName.ToString();
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
+
+            var columnParser = new ObjectParser(columnName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -183,25 +198,28 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = tbl;
+            parameter.Value = this.NpgsqlObjectNames.TableName;
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaname";
-            parameter.Value = schema;
+            parameter.Value = this.NpgsqlObjectNames.TableSchemaName;
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@columnname";
-            parameter.Value = columnName;
+            parameter.Value = columnParser.ObjectName;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);
         }
 
+        /// <summary>
+        /// Returns a command to check if a schema exists.
+        /// </summary>
         public Task<DbCommand> GetExistsSchemaCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            if (string.IsNullOrEmpty(tableName.SchemaName))
+            if (string.IsNullOrEmpty(this.NpgsqlObjectNames.TableSchemaName))
                 return null;
 
             var schemaCommand = $"select exists (select from information_schema.schemata where schema_name = @schemaname)";
@@ -213,19 +231,19 @@ namespace Dotmim.Sync.PostgreSql.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaname";
-            parameter.Value = tableName.SchemaName;
+            parameter.Value = this.NpgsqlObjectNames.TableSchemaName;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);
         }
 
+        /// <summary>
+        /// Returns a command to check if a table exists.
+        /// </summary>
         public Task<DbCommand> GetExistsTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var pTableName = tableName.ToString();
-            var pSchemaName = tableName.SchemaName;
-            pSchemaName = string.IsNullOrEmpty(pSchemaName) ? "public" : pSchemaName;
 
-            //Todo: update command text for postgresql
+            // Todo: update command text for postgresql
             var dbCommand = connection.CreateCommand();
             dbCommand.Connection = connection;
             dbCommand.Transaction = transaction;
@@ -233,27 +251,27 @@ namespace Dotmim.Sync.PostgreSql.Builders
                                           where schemaname=@schemaname 
                                             and tablename=@tablename)";
 
-
             var parameter = dbCommand.CreateParameter();
 
             parameter.ParameterName = "@tablename";
-            parameter.Value = pTableName;
+            parameter.Value = this.NpgsqlObjectNames.TableName;
             dbCommand.Parameters.Add(parameter);
 
             parameter = dbCommand.CreateParameter();
             parameter.ParameterName = "@schemaname";
-            parameter.Value = pSchemaName;
+            parameter.Value = this.NpgsqlObjectNames.TableSchemaName;
             dbCommand.Parameters.Add(parameter);
 
             return Task.FromResult(dbCommand);
         }
 
+        /// <summary>
+        /// Returns a list of primary keys columns.
+        /// </summary>
         public async Task<IEnumerable<SyncColumn>> GetPrimaryKeysAsync(DbConnection connection, DbTransaction transaction)
         {
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
-            if (string.IsNullOrEmpty(schema))
-                schema = "public";
-            var syncTableKeys = await NpgsqlManagementUtils.GetPrimaryKeysForTableAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, this.tableName.ToString(), schema).ConfigureAwait(false);
+            var syncTableKeys = await NpgsqlManagementUtils.GetPrimaryKeysForTableAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction,
+                this.NpgsqlObjectNames.TableName, this.NpgsqlObjectNames.TableSchemaName).ConfigureAwait(false);
 
             var lstKeys = new List<SyncColumn>();
 
@@ -268,11 +286,14 @@ namespace Dotmim.Sync.PostgreSql.Builders
             return lstKeys;
         }
 
+        /// <summary>
+        /// Returns a list of relations.
+        /// </summary>
         public async Task<IEnumerable<DbRelationDefinition>> GetRelationsAsync(DbConnection connection, DbTransaction transaction)
         {
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
             var relations = new List<DbRelationDefinition>();
-            var tableRelations = await NpgsqlManagementUtils.GetRelationsForTableAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction, this.tableName.ToString(), schema).ConfigureAwait(false);
+            var tableRelations = await NpgsqlManagementUtils.GetRelationsForTableAsync((NpgsqlConnection)connection, (NpgsqlTransaction)transaction,
+                this.NpgsqlObjectNames.TableName, this.NpgsqlObjectNames.TableSchemaName).ConfigureAwait(false);
 
             if (tableRelations != null && tableRelations.Rows.Count > 0)
             {
@@ -281,9 +302,9 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 {
                     Name = (string)row["ForeignKey"],
                     TableName = (string)row["TableName"],
-                    SchemaName = (string)row["SchemaName"] == "public" ? "" : (string)row["SchemaName"],
+                    SchemaName = (string)row["SchemaName"] == "public" ? string.Empty : (string)row["SchemaName"],
                     ReferenceTableName = (string)row["ReferenceTableName"],
-                    ReferenceSchemaName = (string)row["ReferenceSchemaName"] == "public" ? "" : (string)row["ReferenceSchemaName"],
+                    ReferenceSchemaName = (string)row["ReferenceSchemaName"] == "public" ? string.Empty : (string)row["ReferenceSchemaName"],
                 }))
                 {
                     var relationDefinition = new DbRelationDefinition()
@@ -300,31 +321,30 @@ namespace Dotmim.Sync.PostgreSql.Builders
                        {
                            KeyColumnName = (string)dmRow["ColumnName"],
                            ReferenceColumnName = (string)dmRow["ReferenceColumnName"],
-                           Order = (int)dmRow["ForeignKeyOrder"]
+                           Order = (int)dmRow["ForeignKeyOrder"],
                        }));
 
                     relations.Add(relationDefinition);
                 }
-
             }
-            return relations.OrderBy(t => t.ForeignKey).ToArray();
 
+            return [.. relations.OrderBy(t => t.ForeignKey)];
         }
 
-        private NpgsqlCommand BuildCreateTableCommand(DbConnection connection, DbTransaction transaction)
+        /// <summary>
+        /// Returns a command to create a table if it does not exist.
+        /// </summary>
+        public Task<DbCommand> GetCreateTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var table = this.tableName.Unquoted().ToString();
-            var schema = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableName);
 
-
-            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS \"{schema}\".\"{table}\" (");
+            var stringBuilder = new StringBuilder($"CREATE TABLE IF NOT EXISTS \"{this.NpgsqlObjectNames.TableSchemaName}\".\"{this.NpgsqlObjectNames.TableName}\" (");
             string empty = string.Empty;
             stringBuilder.AppendLine();
-            foreach (var column in this.tableDescription.Columns)
+            foreach (var column in this.TableDescription.Columns)
             {
-                var columnName = ParserName.Parse(column, "\"").Quoted().ToString();
+                var columnParser = new ObjectParser(column.ColumnName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
 
-                var columnType = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.tableDescription.OriginalProvider);
+                var columnType = this.NpgsqlDbMetadata.GetCompatibleColumnTypeDeclarationString(column, this.TableDescription.OriginalProvider);
 
                 if (column.IsAutoIncrement)
                     columnType = $"SERIAL";
@@ -335,103 +355,84 @@ namespace Dotmim.Sync.PostgreSql.Builders
                 if (column.IsReadOnly)
                     nullString = "NULL";
 
-                //&& !column.DefaultValue.StartsWith("nextval")
+                // && !column.DefaultValue.StartsWith("nextval")
                 string defaultValue = string.Empty;
-                if (this.tableDescription.OriginalProvider == NpgsqlSyncProvider.ProviderType && !string.IsNullOrEmpty(column.DefaultValue))
+                if (this.TableDescription.OriginalProvider == NpgsqlSyncProvider.ProviderType && !string.IsNullOrEmpty(column.DefaultValue))
                 {
-                    if (column.DefaultValue.StartsWith("nextval"))
+                    if (column.DefaultValue.StartsWith("nextval", SyncGlobalization.DataSourceStringComparison))
                         columnType = $"SERIAL";
                     else
                         defaultValue = "DEFAULT " + column.DefaultValue;
                 }
 
-                stringBuilder.AppendLine($"\t{empty}{columnName} {columnType} {nullString} {defaultValue}");
+                stringBuilder.AppendLine($"\t{empty}{columnParser.QuotedShortName} {columnType} {nullString} {defaultValue}");
                 empty = ",";
             }
+
             stringBuilder.Append(");");
 
             // Primary Keys
-            var primaryKeyNameString = tableName.Unquoted().Normalized().ToString();
+            var primaryKeyNameString = this.NpgsqlObjectNames.TableNormalizedFullName;
             stringBuilder.AppendLine();
             stringBuilder.AppendLine();
-            stringBuilder.AppendLine($"ALTER TABLE \"{schema}\".\"{table}\" ADD CONSTRAINT \"PK_{primaryKeyNameString}\" PRIMARY KEY(");
-            for (int i = 0; i < this.tableDescription.PrimaryKeys.Count; i++)
+            stringBuilder.AppendLine($"ALTER TABLE \"{this.NpgsqlObjectNames.TableSchemaName}\".\"{this.NpgsqlObjectNames.TableName}\" ADD CONSTRAINT \"PK_{primaryKeyNameString}\" PRIMARY KEY(");
+            for (int i = 0; i < this.TableDescription.PrimaryKeys.Count; i++)
             {
-                var pkColumn = this.tableDescription.PrimaryKeys[i];
-                var quotedColumnName = ParserName.Parse(pkColumn).Unquoted().ToString();
-                stringBuilder.Append($"\"{quotedColumnName}\"");
+                var pkColumn = this.TableDescription.PrimaryKeys[i];
+                var pkColumnParser = new ObjectParser(pkColumn, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+                stringBuilder.Append(pkColumnParser.QuotedShortName);
 
-                if (i < this.tableDescription.PrimaryKeys.Count - 1)
+                if (i < this.TableDescription.PrimaryKeys.Count - 1)
                     stringBuilder.Append(", ");
             }
+
             stringBuilder.AppendLine(");");
             stringBuilder.AppendLine();
 
             // Foreign Keys
-            foreach (var constraint in this.tableDescription.GetRelations())
+            foreach (var constraint in this.TableDescription.GetRelations())
             {
-                var parsedTableName = ParserName.Parse(constraint.GetTable());
-                var tableName = parsedTableName.Unquoted().ToString();
-                var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(parsedTableName);
 
-                var parsedParentTableName = ParserName.Parse(constraint.GetParentTable());
-                var parentTableName = parsedParentTableName.Unquoted().ToString();
-                var parentSchemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(parsedParentTableName);
-                //var relationName = NormalizeRelationName(constraint.RelationName);
+                var tableParser = new TableParser(constraint.GetTable().GetFullName(), NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+                var schemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(tableParser);
+
+                var parentTableParser = new TableParser(constraint.GetParentTable().GetFullName(), NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+                var parentSchemaName = NpgsqlManagementUtils.GetUnquotedSqlSchemaName(parentTableParser);
+
+                // var relationName = NormalizeRelationName(constraint.RelationName);
                 var relationName = constraint.RelationName;
                 stringBuilder.AppendLine();
-                stringBuilder.Append($"ALTER TABLE \"{schemaName}\".\"{tableName}\" ");
+                stringBuilder.Append($"ALTER TABLE \"{schemaName}\".\"{tableParser.TableName}\" ");
                 stringBuilder.Append("ADD CONSTRAINT ");
                 stringBuilder.AppendLine($"\"{relationName}\"");
                 stringBuilder.Append("FOREIGN KEY (");
                 empty = string.Empty;
                 foreach (var column in constraint.Keys)
                 {
-                    var childColumnName = ParserName.Parse(column.ColumnName, "\"").Quoted().ToString();
-                    stringBuilder.Append($"{empty} {childColumnName}");
+                    var childColumnParser = new ObjectParser(column.ColumnName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+                    stringBuilder.Append($"{empty} {childColumnParser.QuotedShortName}");
                     empty = ", ";
                 }
+
                 stringBuilder.AppendLine(" )");
                 stringBuilder.Append("REFERENCES ");
-                stringBuilder.Append($"\"{parentSchemaName}\".\"{parentTableName}\"").Append(" (");
+                stringBuilder.Append($"\"{parentSchemaName}\".\"{parentTableParser.TableName}\"").Append(" (");
                 empty = string.Empty;
                 foreach (var parentdColumn in constraint.ParentKeys)
                 {
-                    var parentColumnName = ParserName.Parse(parentdColumn.ColumnName, "\"").Quoted().ToString();
-                    stringBuilder.Append($"{empty} {parentColumnName}");
+                    var parentColumnParser = new ObjectParser(parentdColumn.ColumnName, NpgsqlObjectNames.LeftQuote, NpgsqlObjectNames.RightQuote);
+                    stringBuilder.Append($"{empty} {parentColumnParser.QuotedShortName}");
                     empty = ", ";
                 }
+
                 stringBuilder.Append(" ); ");
             }
+
             string createTableCommandString = stringBuilder.ToString();
 
             var command = new NpgsqlCommand(createTableCommandString, (NpgsqlConnection)connection, (NpgsqlTransaction)transaction);
 
-            return command;
+            return Task.FromResult(command as DbCommand);
         }
-
-        private static string GetRandomString() => Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
-
-        /// <summary>
-        /// Ensure the relation name is correct to be created in MySql
-        /// </summary>
-        public string NormalizeRelationName(string relation)
-        {
-            if (createdRelationNames.TryGetValue(relation, out var name))
-                return name;
-
-            name = relation;
-
-            if (relation.Length > 128)
-                name = $"{relation.Substring(0, 110)}_{GetRandomString()}";
-
-            // MySql could have a special character in its relation names
-            name = name.Replace("~", "").Replace("#", "");
-
-            createdRelationNames.Add(relation, name);
-
-            return name;
-        }
-
     }
 }

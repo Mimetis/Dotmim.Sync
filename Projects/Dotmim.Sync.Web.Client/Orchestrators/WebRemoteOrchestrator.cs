@@ -1,5 +1,8 @@
-﻿using System;
+﻿using Dotmim.Sync.Extensions;
+using Dotmim.Sync.Serialization;
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -8,69 +11,87 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Dotmim.Sync.Extensions;
-using Dotmim.Sync.Serialization;
-#if NET8_0 
+
+#if NET8_0
 using Microsoft.Net.Http.Headers;
 #endif
 
 namespace Dotmim.Sync.Web.Client
 {
+    /// <summary>
+    /// Represents a web remote orchestrator able to communicate with a web server orchestrator.
+    /// </summary>
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
-        public Dictionary<string, string> CustomHeaders = new Dictionary<string, string>();
-        public Dictionary<string, string> ScopeParameters = new Dictionary<string, string>();
+        private Dictionary<string, string> customHeaders = [];
+        private Dictionary<string, string> scopeParameters = [];
 
         /// <summary>
-        /// Gets or Sets a custom identifier, that can be used on server side to choose the correct web server agent
+        /// Gets or Sets a custom identifier, that can be used on server side to choose the correct web server agent.
         /// </summary>
         public string Identifier { get; set; }
 
         /// <summary>
-        /// Gets or Sets custom converter for all rows
+        /// Gets or Sets custom converter for all rows.
         /// </summary>
         public IConverter Converter { get; set; }
 
         /// <summary>
-        /// Max threads used to get parts from server
+        /// Gets max threads used to get parts from server.
         /// </summary>
         public int MaxDownladingDegreeOfParallelism { get; }
 
         /// <summary>
-        /// Gets or Sets serializer used to serialize and deserialize rows coming from server
+        /// Gets or Sets serializer used to serialize and deserialize rows coming from server.
         /// </summary>
         public ISerializerFactory SerializerFactory { get; set; }
+
         /// <summary>
-        /// Gets or Sets a custom sync policy
+        /// Gets or Sets a custom sync policy.
         /// </summary>
         public SyncPolicy SyncPolicy { get; set; }
 
         /// <summary>
         /// Gets or Sets the service uri used to reach the server api.
         /// </summary>
-        public string ServiceUri { get; set; }
+        public Uri ServiceUri { get; set; }
 
         /// <summary>
-        /// Gets or Sets the HttpClient instanced used for this web client orchestrator
+        /// Gets or Sets the HttpClient instanced used for this web client orchestrator.
         /// </summary>
         public HttpClient HttpClient { get; set; }
 
+        /// <summary>
+        /// Gets ts the cookie used for this web client orchestrator.
+        /// </summary>
         public CookieHeaderValue Cookie { get; private set; }
 
-        public string GetServiceHost()
+        /// <summary>
+        /// Gets service uri as a string. "undefined" if null.
+        /// </summary>
+        public string GetServiceHost() => this.ServiceUri == null ? "Undefined" : this.ServiceUri.Host;
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="WebRemoteOrchestrator"/> class.
+        /// Gets a new web proxy orchestrator.
+        /// </summary>
+        public WebRemoteOrchestrator(
+        string serviceUri,
+        IConverter customConverter = null,
+        HttpClient client = null,
+        SyncPolicy syncPolicy = null,
+        int maxDownladingDegreeOfParallelism = 4,
+        string identifier = null)
+           : this(serviceUri == null ? null : new Uri(serviceUri), customConverter, client, syncPolicy, maxDownladingDegreeOfParallelism, identifier)
         {
-            var uri = new Uri(this.ServiceUri);
-
-            if (uri == null)
-                return "Undefined";
-
-            return uri.Host;
         }
 
         /// <summary>
-        /// Gets a new web proxy orchestrator
+        /// Initializes a new instance of the <see cref="WebRemoteOrchestrator"/> class.
+        /// Gets a new web proxy orchestrator.
         /// </summary>
-        public WebRemoteOrchestrator(string serviceUri,
+        public WebRemoteOrchestrator(
+            Uri serviceUri,
             IConverter customConverter = null,
             HttpClient client = null,
             SyncPolicy syncPolicy = null,
@@ -81,7 +102,9 @@ namespace Dotmim.Sync.Web.Client
             // if no HttpClient provisionned, create a new one
             if (client == null)
             {
+#pragma warning disable CA2000 // Dispose objects before losing scope
                 var handler = new HttpClientHandler();
+#pragma warning restore CA2000 // Dispose objects before losing scope
 
                 // Activated by default
                 if (handler.SupportsAutomaticDecompression)
@@ -98,107 +121,54 @@ namespace Dotmim.Sync.Web.Client
             this.Converter = customConverter;
             this.MaxDownladingDegreeOfParallelism = maxDownladingDegreeOfParallelism <= 0 ? -1 : maxDownladingDegreeOfParallelism;
             this.ServiceUri = serviceUri;
-            this.SerializerFactory = SerializersCollection.JsonSerializerFactory;
+            this.SerializerFactory = SerializersFactory.JsonSerializerFactory;
             this.Identifier = identifier;
         }
 
         /// <summary>
-        /// Adds some scope parameters
+        /// Try to get a header value from the response headers.
         /// </summary>
-        public void AddScopeParameter(string key, string value)
+        public static bool TryGetHeaderValue(HttpResponseHeaders n, string key, out string header)
         {
-            this.ScopeParameters[key] = value;
-        }
-
-        /// <summary>
-        /// Adds some custom headers
-        /// </summary>
-        public void AddCustomHeader(string key, string value)
-        {
-            this.CustomHeaders[key] = value;
-        }
-
-        /// <summary>
-        /// Ensure we have policy. Create a new one, if not provided
-        /// </summary>
-        private SyncPolicy EnsurePolicy(SyncPolicy policy)
-        {
-            if (policy != default)
-                return policy;
-
-            // Defining my retry policy
-            policy = SyncPolicy.WaitAndRetry(2,
-            (retryNumber) =>
+            if (n.TryGetValues(key, out var vs))
             {
-                return TimeSpan.FromMilliseconds(500 * retryNumber);
-            },
-            (ex, arg) =>
-            {
-                var webEx = ex as SyncException;
-
-                // handle session lost
-                return webEx == null || webEx.TypeName != nameof(HttpSessionLostException);
-
-            }, async (ex, cpt, ts, arg) =>
-            {
-                await this.InterceptAsync(new HttpSyncPolicyArgs(10, cpt, ts, this.GetServiceHost()), default).ConfigureAwait(false);
-            });
-
-            return policy;
-        }
-
-        private async Task SerializeAsync(HttpResponseMessage response, string fileName, string directoryFullPath, BaseOrchestrator orchestrator = null)
-        {
-            if (!Directory.Exists(directoryFullPath))
-                Directory.CreateDirectory(directoryFullPath);
-
-            var fullPath = Path.Combine(directoryFullPath, fileName);
-            using var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-            using var fileStream = new FileStream(fullPath, FileMode.CreateNew, FileAccess.ReadWrite);
-            await streamResponse.CopyToAsync(fileStream).ConfigureAwait(false);
-        }
-
-        private static async Task<HttpMessageSendChangesResponse> DeserializeAsync(ISerializerFactory serializerFactory, string fileName, string directoryFullPath, BaseOrchestrator orchestrator = null)
-        {
-            var fullPath = Path.Combine(directoryFullPath, fileName);
-            using var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
-            var httpMessageContent = await serializerFactory.GetSerializer().DeserializeAsync<HttpMessageSendChangesResponse>(fileStream).ConfigureAwait(false);
-            return httpMessageContent;
-        }
-
-        private string BuildUri(string baseUri)
-        {
-            var requestUri = new StringBuilder();
-            requestUri.Append(baseUri);
-            requestUri.Append(baseUri.EndsWith("/", StringComparison.CurrentCultureIgnoreCase) ? string.Empty : "/");
-
-            // Add params if any
-            if (ScopeParameters != null && ScopeParameters.Count > 0)
-            {
-                string prefix = "?";
-                foreach (var kvp in ScopeParameters)
-                {
-                    requestUri.AppendFormat("{0}{1}={2}", prefix, Uri.EscapeDataString(kvp.Key),
-                                            Uri.EscapeDataString(kvp.Value));
-                    if (prefix.Equals("?"))
-                        prefix = "&";
-                }
+                header = vs.First();
+                return true;
             }
 
-            return requestUri.ToString();
+            header = null;
+            return false;
         }
 
         /// <summary>
-        /// This ProcessRequestAsync\<T\> Will deserialize the message and then send back it to caller
+        /// Read the content from a response message.
+        /// </summary>
+        public static Task<string> ReadContentFromResponseAsync(HttpResponseMessage response)
+        {
+            if (response.Content == null)
+                return null;
+            return response.Content.ReadAsStringAsync();
+        }
+
+        /// <summary>
+        /// Adds some scope parameters.
+        /// </summary>
+        public void AddScopeParameter(string key, string value) => this.scopeParameters[key] = value;
+
+        /// <summary>
+        /// Adds some custom headers.
+        /// </summary>
+        public void AddCustomHeader(string key, string value) => this.customHeaders[key] = value;
+
+        /// <summary>
+        /// Deserialize the message and then send back it to caller.
         /// </summary>
         public async Task<T> ProcessRequestAsync<T>(SyncContext context, IScopeMessage message, HttpStep step, int batchSize,
-            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null) where T : IScopeMessage
+            IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
+            where T : IScopeMessage
         {
-            if (this.HttpClient is null)
-                throw new ArgumentNullException(nameof(this.HttpClient));
-
-            if (this.ServiceUri == null)
-                throw new ArgumentException("ServiceUri is not defined");
+            Guard.ThrowIfNull(this.HttpClient);
+            Guard.ThrowIfNull(this.ServiceUri, "ServiceUri is not defined");
 
             HttpResponseMessage response = null;
             Stream streamResponse = null;
@@ -209,7 +179,7 @@ namespace Dotmim.Sync.Web.Client
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Execute my OpenAsync in my policy context
-                response = await this.SyncPolicy.ExecuteAsync(async ct => await this.SendAsync(step, message, batchSize, ct).ConfigureAwait(false), cancellationToken, progress).ConfigureAwait(false);
+                response = await this.SyncPolicy.ExecuteAsync(async ct => await this.SendAsync(step, message, batchSize, ct).ConfigureAwait(false), progress, cancellationToken).ConfigureAwait(false);
 
                 // Ensure we have a cookie
                 this.EnsureCookie(response?.Headers);
@@ -220,14 +190,19 @@ namespace Dotmim.Sync.Web.Client
                 T messageResponse = default;
                 var serializer = this.SerializerFactory.GetSerializer();
 
+#if NET6_0_OR_GREATER
+                streamResponse = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+#else
                 streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+#endif
 
                 if (streamResponse.CanRead)
                     messageResponse = await serializer.DeserializeAsync<T>(streamResponse).ConfigureAwait(false);
 
                 context = messageResponse?.SyncContext;
 
-                await this.InterceptAsync(new HttpGettingResponseMessageArgs(response, this.ServiceUri.ToString(),
+                await this.InterceptAsync(
+                    new HttpGettingResponseMessageArgs(response, this.ServiceUri,
                     HttpStep.SendChangesInProgress, context, messageResponse, this.GetServiceHost()), progress, cancellationToken).ConfigureAwait(false);
 
                 return messageResponse;
@@ -248,30 +223,30 @@ namespace Dotmim.Sync.Web.Client
                 var exrror = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
 
                 if (string.IsNullOrWhiteSpace(exrror))
-                {
                     throw new HttpSyncWebException(e.Message);
-                }
-
-                throw new HttpSyncWebException(exrror);
+                else
+                    throw new HttpSyncWebException(exrror);
             }
             finally
             {
+#if NET6_0_OR_GREATER
+                if (streamResponse != null)
+                    await streamResponse.DisposeAsync().ConfigureAwait(false);
+#else
                 streamResponse?.Dispose();
+#endif
                 response?.Dispose();
             }
         }
 
         /// <summary>
-        /// This ProcessRequestAsync will not deserialize the message and then send back directly the HttpResponseMessage
+        /// This ProcessRequestAsync will not deserialize the message and then send back directly the HttpResponseMessage.
         /// </summary>
         public async Task<HttpResponseMessage> ProcessRequestAsync(IScopeMessage message, HttpStep step, int batchSize,
-            CancellationToken cancellationToken = default, IProgress<ProgressArgs> progress = null)
+            IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
-            if (this.HttpClient is null)
-                throw new ArgumentNullException(nameof(this.HttpClient));
-
-            if (this.ServiceUri == null)
-                throw new ArgumentException("ServiceUri is not defined");
+            Guard.ThrowIfNull(this.HttpClient);
+            Guard.ThrowIfNull(this.ServiceUri, "ServiceUri is not defined");
 
             HttpResponseMessage response = null;
             try
@@ -280,15 +255,12 @@ namespace Dotmim.Sync.Web.Client
                     cancellationToken.ThrowIfCancellationRequested();
 
                 // Execute my OpenAsync in my policy context
-                response = await this.SyncPolicy.ExecuteAsync(async ct => await this.SendAsync(step, message, batchSize, ct).ConfigureAwait(false), cancellationToken, progress).ConfigureAwait(false);
+                response = await this.SyncPolicy.ExecuteAsync(async ct => await this.SendAsync(step, message, batchSize, ct).ConfigureAwait(false), progress, cancellationToken).ConfigureAwait(false);
 
                 // Ensure we have a cookie
                 this.EnsureCookie(response?.Headers);
 
-                if (response.Content == null)
-                    throw new HttpEmptyResponseContentException();
-
-                return response;
+                return response.Content == null ? throw new HttpEmptyResponseContentException() : response;
             }
             catch (HttpSyncWebException)
             {
@@ -306,32 +278,163 @@ namespace Dotmim.Sync.Web.Client
                 var exrror = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
 
                 if (string.IsNullOrWhiteSpace(exrror))
-                {
                     throw new HttpSyncWebException(e.Message);
-                }
-
-                throw new HttpSyncWebException(exrror);
+                else
+                    throw new HttpSyncWebException(exrror);
             }
         }
 
-        public static async Task<string> ReadContentFromResponseAsync(HttpResponseMessage response)
-        {
-            var contentStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+        /// <summary>
+        /// Gets the service URI.
+        /// </summary>
+        public override string ToString() => this.GetServiceHost();
 
-            if (contentStream.CanSeek)
+        private static async Task SerializeAsync(HttpResponseMessage response, string fileName, string directoryFullPath, BaseOrchestrator orchestrator = null)
+        {
+            if (!Directory.Exists(directoryFullPath))
+                Directory.CreateDirectory(directoryFullPath);
+
+            var fullPath = Path.Combine(directoryFullPath, fileName);
+            using var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+            using var fileStream = new FileStream(fullPath, FileMode.CreateNew, FileAccess.ReadWrite);
+            await streamResponse.CopyToAsync(fileStream).ConfigureAwait(false);
+        }
+
+        private static async Task<HttpMessageSendChangesResponse> DeserializeAsync(ISerializerFactory serializerFactory, string fileName, string directoryFullPath, BaseOrchestrator orchestrator = null)
+        {
+            var fullPath = Path.Combine(directoryFullPath, fileName);
+            using var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read);
+            var httpMessageContent = await serializerFactory.GetSerializer().DeserializeAsync<HttpMessageSendChangesResponse>(fileStream).ConfigureAwait(false);
+            return httpMessageContent;
+        }
+
+        /// <summary>
+        /// Handle a request error.
+        /// </summary>
+        private async Task HandleSyncErrorAsync(HttpResponseMessage response)
+        {
+            try
             {
-                // If the stream is seekable, just read it directly
-                contentStream.Position = 0;
-                return await new StreamReader(contentStream).ReadToEndAsync().ConfigureAwait(false);
+                // read the content as exception from the response
+                var exceptionString = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
+
+                if (string.IsNullOrEmpty(exceptionString))
+                    exceptionString = response.ReasonPhrase;
+
+                // Invoke response failure Interceptors to handle the failed response
+                await this.InvokeResponseFailureInterceptors(response, exceptionString).ConfigureAwait(false);
+
+                HttpSyncWebException syncException = null;
+
+                if (!TryGetHeaderValue(response.Headers, "dotmim-sync-error", out string syncErrorTypeName))
+                {
+                    syncException = new HttpSyncWebException(exceptionString);
+                }
+                else
+                {
+                    // Error are always json formatted
+                    var webSyncErrorSerializer = new JsonObjectSerializer();
+
+                    WebSyncException webError = null;
+                    try
+                    {
+                        webError = webSyncErrorSerializer.Deserialize<WebSyncException>(exceptionString);
+                    }
+                    catch (Exception)
+                    {
+                    }
+
+                    if (webError != null)
+                    {
+                        var exceptionMessageString = webError.Message;
+
+                        if (string.IsNullOrEmpty(exceptionMessageString))
+                            exceptionMessageString = response.ReasonPhrase;
+
+                        syncException = new HttpSyncWebException(exceptionMessageString)
+                        {
+                            DataSource = webError.DataSource,
+                            InitialCatalog = webError.InitialCatalog,
+                            Number = webError.Number,
+                            SyncStage = webError.SyncStage,
+                            TypeName = webError.TypeName,
+                        };
+                    }
+                    else
+                    {
+                        syncException = new HttpSyncWebException(response.ReasonPhrase);
+                    }
+                }
+
+                syncException.ReasonPhrase = response.ReasonPhrase;
+                syncException.StatusCode = response.StatusCode;
+
+                throw syncException;
+            }
+            catch (SyncException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new SyncException(ex);
+            }
+        }
+
+        /// <summary>
+        /// Ensure we have policy. Create a new one, if not provided.
+        /// </summary>
+        private SyncPolicy EnsurePolicy(SyncPolicy policy)
+        {
+            if (policy != default)
+                return policy;
+
+            // Defining my retry policy
+            policy = SyncPolicy.WaitAndRetry(
+                2,
+                (retryNumber) =>
+                {
+                    return TimeSpan.FromMilliseconds(500 * retryNumber);
+                },
+                (ex, arg) =>
+                {
+                    var webEx = ex as SyncException;
+
+                    // handle session lost
+                    return webEx == null || webEx.TypeName != nameof(HttpSessionLostException);
+                }, async (ex, cpt, ts, arg) =>
+                {
+                    await this.InterceptAsync(new HttpSyncPolicyArgs(10, cpt, ts, this.GetServiceHost()), default).ConfigureAwait(false);
+                });
+
+            return policy;
+        }
+
+        private Uri BuildUri(Uri baseUri)
+        {
+            var requestUri = new StringBuilder();
+            var baseUriString = baseUri.AbsoluteUri;
+            requestUri.Append(baseUri.AbsoluteUri);
+#if NET6_0_OR_GREATER
+            requestUri.Append(baseUriString.EndsWith('/') ? string.Empty : "/");
+#else
+            requestUri.Append(baseUriString.EndsWith("/", StringComparison.CurrentCultureIgnoreCase) ? string.Empty : "/");
+#endif
+
+            // Add params if any
+            if (this.scopeParameters != null && this.scopeParameters.Count > 0)
+            {
+                string prefix = "?";
+                foreach (var kvp in this.scopeParameters)
+                {
+                    requestUri.AppendFormat(CultureInfo.InvariantCulture, "{0}{1}={2}", prefix, Uri.EscapeDataString(kvp.Key),
+                                            Uri.EscapeDataString(kvp.Value));
+                    if (prefix.Equals("?", StringComparison.Ordinal))
+                        prefix = "&";
+                }
             }
 
-            // Clone the response content stream
-            using var clonedStream = new MemoryStream();
-            await contentStream.CopyToAsync(clonedStream).ConfigureAwait(false);
-            clonedStream.Position = 0;
-
-            // Read from the cloned stream
-            return await new StreamReader(clonedStream).ReadToEndAsync().ConfigureAwait(false);
+            return new Uri(requestUri.ToString());
         }
 
         private void EnsureCookie(HttpResponseHeaders headers)
@@ -346,7 +449,7 @@ namespace Dotmim.Sync.Web.Client
             // var cookieList = response.Headers.GetValues("Set-Cookie").ToList();
             if (cookieList != null && cookieList.Count > 0)
             {
-                //try to parse the very first cookie
+                // try to parse the very first cookie
                 if (CookieHeaderValue.TryParse(cookieList[0], out var cookie))
                     this.Cookie = cookie;
             }
@@ -356,14 +459,14 @@ namespace Dotmim.Sync.Web.Client
         {
             var serializer = this.SerializerFactory.GetSerializer();
 
-            var contentType = this.SerializerFactory.Key == SerializersCollection.JsonSerializerFactory.Key ? "application/json" : null;
+            var contentType = this.SerializerFactory.Key == SerializersFactory.JsonSerializerFactory.Key ? "application/json" : null;
             var serializerInfo = new SerializerInfo(this.SerializerFactory.Key, batchSize);
 
             // using json to serialize header
             var jsonSerializer = new JsonObjectSerializer();
             var serializerInfoJsonBytes = await jsonSerializer.SerializeAsync(serializerInfo).ConfigureAwait(false);
 
-            var requestUri = BuildUri(this.ServiceUri);
+            var requestUri = this.BuildUri(this.ServiceUri);
 
             // Create the request message
             var requestMessage = new HttpRequestMessage(HttpMethod.Post, requestUri);
@@ -372,7 +475,7 @@ namespace Dotmim.Sync.Web.Client
             requestMessage.Headers.Add("dotmim-sync-session-id", message.SyncContext.SessionId.ToString());
             requestMessage.Headers.Add("dotmim-sync-scope-id", message.SyncContext.ClientId.ToString());
             requestMessage.Headers.Add("dotmim-sync-scope-name", message.SyncContext.ScopeName);
-            requestMessage.Headers.Add("dotmim-sync-step", ((int)step).ToString());
+            requestMessage.Headers.Add("dotmim-sync-step", ((int)step).ToString(CultureInfo.InvariantCulture));
             requestMessage.Headers.Add("dotmim-sync-serialization-format", serializerInfoJsonBytes.ToUtf8String());
             requestMessage.Headers.Add("dotmim-sync-version", SyncVersion.Current.ToString());
 
@@ -384,19 +487,23 @@ namespace Dotmim.Sync.Web.Client
                 requestMessage.Headers.Add("dotmim-sync-converter", this.Converter.Key);
 
             // Adding others headers
-            if (this.CustomHeaders != null && this.CustomHeaders.Count > 0)
-                foreach (var kvp in this.CustomHeaders)
+            if (this.customHeaders != null && this.customHeaders.Count > 0)
+            {
+                foreach (var kvp in this.customHeaders)
+                {
                     if (!requestMessage.Headers.Contains(kvp.Key))
                         requestMessage.Headers.Add(kvp.Key, kvp.Value);
+                }
+            }
 
-            var args = new HttpSendingRequestMessageArgs(requestMessage, message.SyncContext, message, GetServiceHost());
+            var args = new HttpSendingRequestMessageArgs(requestMessage, message.SyncContext, message, this.GetServiceHost());
             await this.InterceptAsync(args, progress: default, cancellationToken).ConfigureAwait(false);
 
             var binaryData = await serializer.SerializeAsync(args.Data).ConfigureAwait(false);
             requestMessage = args.Request;
 
             // Check if data is null
-            binaryData ??= Array.Empty<byte>();
+            binaryData ??= [];
 
             // calculate hash
             var hash = HashAlgorithm.SHA256.Create(binaryData);
@@ -428,140 +535,42 @@ namespace Dotmim.Sync.Web.Client
             // get response from server
             if (!response.IsSuccessStatusCode)
             {
-                // Invoke response failure interceptors to handle the failed response
-                await InvokeResponseFailureInterceptors(response).ConfigureAwait(false);
-
-                // If response content is available, handle the synchronization error
-                if (response.Content != null)
-                    await HandleSyncError(response).ConfigureAwait(false);
+                // handle the synchronization error
+                await this.HandleSyncErrorAsync(response).ConfigureAwait(false);
             }
 
             return response;
         }
 
         /// <summary>
-        /// Invokes response failure interceptors to handle unsuccessful HTTP responses.
+        /// Invokes response failure Interceptors to handle unsuccessful HTTP responses.
         /// This method triggers interception logic to process and respond to failed HTTP responses,
         /// allowing for centralized error handling and customization.
         /// </summary>
-        /// <param name="response">The HttpResponseMessage representing the failed HTTP response.</param>
-        /// <returns>A task representing the asynchronous operation.</returns>
         /// <remarks>
-        /// Response failure interceptors provide a mechanism for executing custom logic
+        /// Response failure Interceptors provide a mechanism for executing custom logic
         /// when an HTTP response indicates failure (non-success status codes).
         /// Interceptors may include logging, error handling, retry logic, or other actions
         /// to be taken upon encountering failed responses from API calls.
         /// </remarks>
-        private async Task InvokeResponseFailureInterceptors(HttpResponseMessage response)
+        private async Task InvokeResponseFailureInterceptors(HttpResponseMessage response, string exceptionString)
         {
-            // Check if there are any interceptors registered for HttpResponseFailureArgs
-            if (!HasInterceptors<HttpResponseFailureArgs>())
-                return; // No interceptors registered, so return early
+            // Check if there are any Interceptors registered for HttpResponseFailureArgs
+            if (!this.HasInterceptors<HttpResponseFailureArgs>())
+                return; // No Interceptors registered, so return early
 
-            // Construct HttpResponseFailureArgs instance with details of the failed response
-            var failureArgs = await CreateFailureArgs(response).ConfigureAwait(false);
-
-            // Invoke interceptors asynchronously, allowing custom logic to be executed
-            await InterceptAsync(failureArgs).ConfigureAwait(false);
-        }
-
-        // Method to create HttpResponseFailureArgs instance based on the provided HttpResponseMessage
-        private async Task<HttpResponseFailureArgs> CreateFailureArgs(HttpResponseMessage response)
-        {
             // Extract necessary details from the HttpResponseMessage
             int statusCode = (int)response.StatusCode;
             string reasonPhrase = response.ReasonPhrase;
-            string content = await ReadContentFromResponseAsync(response).ConfigureAwait(false);
             var headers = response.Headers.ToDictionary(h => h.Key, h => string.Join(",", h.Value));
             Uri requestUri = response.RequestMessage.RequestUri;
 
             // Create and return a new instance of HttpResponseFailureArgs
-            return new HttpResponseFailureArgs(statusCode, reasonPhrase, content, headers, requestUri);
+            // Construct HttpResponseFailureArgs instance with details of the failed response
+            var failureArgs = new HttpResponseFailureArgs(statusCode, reasonPhrase, exceptionString, headers, requestUri);
+
+            // Invoke Interceptors asynchronously, allowing custom logic to be executed
+            await this.InterceptAsync(failureArgs).ConfigureAwait(false);
         }
-
-        /// <summary>
-        /// Handle a request error
-        /// </summary>
-        /// <returns></returns>
-        private async Task HandleSyncError(HttpResponseMessage response)
-        {
-            try
-            {
-                HttpSyncWebException syncException = null;
-
-                if (!TryGetHeaderValue(response.Headers, "dotmim-sync-error", out string syncErrorTypeName))
-                {
-                    var exceptionString = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
-
-                    if (string.IsNullOrEmpty(exceptionString))
-                        exceptionString = response.ReasonPhrase;
-
-                    syncException = new HttpSyncWebException(exceptionString);
-                }
-                else
-                {
-                    using var streamResponse = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
-
-                    if (streamResponse.CanRead)
-                    {
-                        // Error are always json formatted
-                        var webSyncErrorSerializer = new JsonObjectSerializer();
-                        var webError = await webSyncErrorSerializer.DeserializeAsync<WebSyncException>(streamResponse).ConfigureAwait(false);
-
-                        if (webError != null)
-                        {
-                            var exceptionString = webError.Message;
-
-                            if (string.IsNullOrEmpty(exceptionString))
-                                exceptionString = response.ReasonPhrase;
-
-                            syncException = new HttpSyncWebException(exceptionString)
-                            {
-                                DataSource = webError.DataSource,
-                                InitialCatalog = webError.InitialCatalog,
-                                Number = webError.Number,
-                                SyncStage = webError.SyncStage,
-                                TypeName = webError.TypeName
-                            };
-                        }
-                        else
-                        {
-                            syncException = new HttpSyncWebException(response.ReasonPhrase);
-                        }
-                    }
-                    else
-                    {
-                        syncException = new HttpSyncWebException(response.ReasonPhrase);
-                    }
-                }
-
-                syncException.ReasonPhrase = response.ReasonPhrase;
-                syncException.StatusCode = response.StatusCode;
-
-                throw syncException;
-            }
-            catch (SyncException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                throw new SyncException(ex);
-            }
-        }
-
-        public static bool TryGetHeaderValue(HttpResponseHeaders n, string key, out string header)
-        {
-            if (n.TryGetValues(key, out var vs))
-            {
-                header = vs.First();
-                return true;
-            }
-
-            header = null;
-            return false;
-        }
-
-        public override string ToString() => !String.IsNullOrEmpty(this.ServiceUri) ? this.ServiceUri : base.ToString();
     }
 }

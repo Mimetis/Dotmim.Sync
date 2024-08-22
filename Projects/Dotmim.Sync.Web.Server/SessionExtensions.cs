@@ -4,20 +4,26 @@ using Microsoft.AspNetCore.Http;
 
 namespace Dotmim.Sync.Web.Server
 {
+    /// <summary>
+    /// Session extensions.
+    /// </summary>
     public static class SessionExtensions
     {
-        private static ISerializer serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+        private static ISerializer serializer = SerializersFactory.JsonSerializerFactory.GetSerializer();
 
+        /// <summary>
+        /// Get a value from the session.
+        /// </summary>
         public static T Get<T>(this ISession session, string key)
         {
             var data = session.GetString(key);
-            
-            if (data == null)
-                return default;
-            
-            return serializer.Deserialize<T>(data);
+
+            return data == null ? default : serializer.Deserialize<T>(data);
         }
 
+        /// <summary>
+        /// Set a value in the session.
+        /// </summary>
         public static void Set<T>(this ISession session, string key, T value)
         {
             var jsonBytes = serializer.Serialize(value);

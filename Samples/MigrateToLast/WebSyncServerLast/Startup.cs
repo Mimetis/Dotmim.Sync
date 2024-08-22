@@ -1,28 +1,19 @@
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using Dotmim.Sync;
-using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using System;
+using System.Data;
+using System.IO;
 
 namespace WebSyncServerLast
 {
     public class Startup
     {
-        public Startup(IConfiguration configuration) => Configuration = configuration;
+        public Startup(IConfiguration configuration) => this.Configuration = configuration;
 
         public IConfiguration Configuration { get; }
 
@@ -33,26 +24,29 @@ namespace WebSyncServerLast
             services.AddDistributedMemoryCache();
             services.AddSession(options => options.IdleTimeout = TimeSpan.FromMinutes(30));
 
-            var connectionString = Configuration.GetSection("ConnectionStrings")["SqlConnection"];
+            var connectionString = this.Configuration.GetSection("ConnectionStrings")["SqlConnection"];
 
             var options = new SyncOptions
             {
-                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), "server")
+                BatchDirectory = Path.Combine(SyncOptions.GetDefaultUserBatchDirectory(), "server"),
             };
 
             // Create the setup used for your sync process
-            var tables = new string[] {"ProductCategory",
+            var tables = new string[]
+            {
+                "ProductCategory",
                 "ProductModel", "Product",
                 "Address", "Customer", "CustomerAddress",
-                "SalesOrderHeader", "SalesOrderDetail" };
+                "SalesOrderHeader", "SalesOrderDetail",
+            };
 
             var setup = new SyncSetup(tables)
             {
                 // optional :
                 StoredProceduresPrefix = "s",
-                StoredProceduresSuffix = "",
+                StoredProceduresSuffix = string.Empty,
                 TrackingTablesPrefix = "s",
-                TrackingTablesSuffix = ""
+                TrackingTablesSuffix = string.Empty,
             };
 
             // Create a filter on table Address on City Washington

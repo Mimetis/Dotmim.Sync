@@ -3,13 +3,10 @@ using Dotmim.Sync.Serialization;
 using Dotmim.Sync.Tests.UnitTests;
 using Dotmim.Sync.Web.Client;
 using MessagePack;
-using Microsoft.Extensions.Options;
 using System;
 using System.Data;
 using System.IO;
 using System.Linq;
-using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -24,7 +21,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             var bin = MessagePackSerializer.Typeless.Serialize(inSchema);
             var outSchema = MessagePackSerializer.Typeless.Deserialize(bin) as SyncSet;
 
-            Assertions(outSchema);
+            this.Assertions(outSchema);
         }
 
         [Fact]
@@ -51,7 +48,7 @@ namespace Dotmim.Sync.Tests.StandAlone
                 outSchema = schemaSerializer.ReadObject(ms) as SyncSet;
             }
 
-            Assertions(outSchema);
+            this.Assertions(outSchema);
         }
 
         [Fact]
@@ -75,7 +72,7 @@ namespace Dotmim.Sync.Tests.StandAlone
             await using var ms = new MemoryStream(bin);
             var outSchema = await serializer.DeserializeAsync<SyncSet>(ms);
 
-            Assertions(outSchema);
+            this.Assertions(outSchema);
         }
 
         [Fact]
@@ -126,8 +123,6 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.IsType<string>(outContainerSet.Tables[0].Rows[0][18]);
             Assert.IsType<string>(outContainerSet.Tables[0].Rows[0][19]);
         }
-
-
 
         [Fact]
         public async Task JsonConverter_ObjectToInferredTypesConverter()
@@ -204,14 +199,12 @@ namespace Dotmim.Sync.Tests.StandAlone
             }
         }
 
-
         [Fact]
         public async Task Test_HttpMessage_JsonSerializer()
         {
             var inSchema = CreateSchema();
             var inSetup = CreateSetup();
             var inContext = CreateContext();
-
 
             object messageResponse = null;
 
@@ -226,10 +219,8 @@ namespace Dotmim.Sync.Tests.StandAlone
                     Schema = inSchema,
                     Setup = inSetup,
                 },
-                SyncContext = inContext
-
+                SyncContext = inContext,
             };
-
 
             // Serialize
             var serializer = new JsonObjectSerializer();
@@ -251,8 +242,6 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.Equal(SyncStage.ScopeLoading, outSchema.SyncContext.SyncStage);
             Assert.Equal(SyncType.Normal, outSchema.SyncContext.SyncType);
             Assert.Equal(SyncWay.Upload, outSchema.SyncContext.SyncWay);
-
-
         }
 
         private void Assertions(SyncSet outSchema)
@@ -271,7 +260,8 @@ namespace Dotmim.Sync.Tests.StandAlone
             var tbl1 = outSchema.Tables[0];
             Assert.Equal("ServiceTickets", tbl1.TableName);
             Assert.Null(tbl1.SchemaName);
-            //Assert.Equal(SyncDirection.Bidirectional, tbl1.SyncDirection);
+
+            // Assert.Equal(SyncDirection.Bidirectional, tbl1.SyncDirection);
             Assert.NotNull(tbl1.Schema);
             Assert.Equal(outSchema, tbl1.Schema);
             Assert.Equal(8, tbl1.Columns.Count);
@@ -294,7 +284,8 @@ namespace Dotmim.Sync.Tests.StandAlone
             var tbl2 = outSchema.Tables[1];
             Assert.Equal("Product", tbl2.TableName);
             Assert.Equal("SalesLT", tbl2.SchemaName);
-            //Assert.Equal(SyncDirection.UploadOnly, tbl2.SyncDirection);
+
+            // Assert.Equal(SyncDirection.UploadOnly, tbl2.SyncDirection);
             Assert.NotNull(tbl2.Schema);
             Assert.Equal(outSchema, tbl2.Schema);
             Assert.Equal(2, tbl2.Columns.Count);
@@ -365,7 +356,6 @@ namespace Dotmim.Sync.Tests.StandAlone
             Assert.Equal("SalesLT", p.SchemaName);
         }
 
-
         private static SyncSetup CreateSetup()
         {
             var setup = new SyncSetup("ServiceTickets", "SalesLT.Product")
@@ -385,7 +375,7 @@ namespace Dotmim.Sync.Tests.StandAlone
         {
             var parameters = new SyncParameters
             {
-                { "ClientId", "xxxx-zzzz" }
+                { "ClientId", "xxxx-zzzz" },
             };
 
             return new SyncContext
@@ -406,8 +396,8 @@ namespace Dotmim.Sync.Tests.StandAlone
 
             var tbl = new SyncTable("ServiceTickets", null);
             tbl.OriginalProvider = "SqlServerProvider";
-            //tbl.SyncDirection = SyncDirection.Bidirectional;
 
+            // tbl.SyncDirection = SyncDirection.Bidirectional;
             set.Tables.Add(tbl);
 
             var c = SyncColumn.Create<int>("ServiceTicketID");
@@ -432,8 +422,8 @@ namespace Dotmim.Sync.Tests.StandAlone
 
             // Add Second tables
             var tbl2 = new SyncTable("Product", "SalesLT");
-            //tbl2.SyncDirection = SyncDirection.UploadOnly;
 
+            // tbl2.SyncDirection = SyncDirection.UploadOnly;
             tbl2.Columns.Add(SyncColumn.Create<int>("Id"));
             tbl2.Columns.Add(SyncColumn.Create<string>("Title"));
             tbl2.PrimaryKeys.Add("Id");

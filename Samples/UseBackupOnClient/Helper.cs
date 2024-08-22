@@ -1,22 +1,14 @@
 ﻿using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
-using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Data.Common;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace UseBackupOnClient
 {
-    public class Helper
+    public static class Helper
     {
 
-
         /// <summary>
-        /// Backup a SQL Server database
+        /// Backup a SQL Server database.
         /// </summary>
         public static void BackupDatabase(string dbName, string connectionString)
         {
@@ -40,11 +32,10 @@ namespace UseBackupOnClient
             }
 
             connection.Close();
-
         }
 
         /// <summary>
-        /// Restore a sql backup file
+        /// Restore a sql backup file.
         /// </summary>
         public static void RestoreSqlDatabase(string dbName, string masterConnectionString)
         {
@@ -60,7 +51,6 @@ namespace UseBackupOnClient
 
                 ALTER DATABASE [{dbName}] SET MULTI_USER";
 
-
             using var connection = new SqlConnection(masterConnectionString);
             connection.Open();
 
@@ -72,7 +62,7 @@ namespace UseBackupOnClient
         }
 
         /// <summary>
-        /// Restore a sql backup file from a server to client
+        /// Restore a sql backup file from a server to client.
         /// </summary>
         public static void RestoreSqlDatabase(string fromBackupName, string toDestinationDatabaseName, string masterConnectionString)
         {
@@ -80,7 +70,6 @@ namespace UseBackupOnClient
             var logName = Path.GetFileNameWithoutExtension(toDestinationDatabaseName) + ".ldf";
 
             var localDatabaseBackupPath = Path.Combine(Path.GetTempPath(), "Backup", $"{fromBackupName}.bak");
-
 
             var script = $@"
                 if (exists (select * from sys.databases where name = '{toDestinationDatabaseName}'))
@@ -109,7 +98,6 @@ namespace UseBackupOnClient
                     MOVE '{fromBackupName}_log' TO @logFile;
                 ALTER DATABASE [{toDestinationDatabaseName}] SET MULTI_USER";
 
-
             using var connection = new SqlConnection(masterConnectionString);
             connection.Open();
 
@@ -136,7 +124,6 @@ namespace UseBackupOnClient
                 cmdDb.ExecuteNonQuery();
 
                 masterConnection.Close();
-
             }
             catch (Exception ex)
             {
@@ -144,7 +131,6 @@ namespace UseBackupOnClient
                 throw;
             }
         }
-
 
         internal static async Task<Guid> AddProductCategoryRowAsync(string sqlConnectionString, string name = default)
         {
@@ -158,7 +144,6 @@ namespace UseBackupOnClient
             var connection = new SqlConnection(sqlConnectionString);
 
             connection.Open();
-
 
             var command = connection.CreateCommand();
             command.CommandText = commandText;
@@ -179,7 +164,7 @@ namespace UseBackupOnClient
             p = command.CreateParameter();
             p.DbType = DbType.String;
             p.ParameterName = "@Name";
-            p.Value = string.IsNullOrEmpty(name) ? Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ' ' + Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() : name;
+            p.Value = string.IsNullOrEmpty(name) ? Path.GetRandomFileName().Replace(".", string.Empty).ToLowerInvariant() + ' ' + Path.GetRandomFileName().Replace(".", string.Empty).ToLowerInvariant() : name;
             command.Parameters.Add(p);
 
             p = command.CreateParameter();
@@ -194,7 +179,7 @@ namespace UseBackupOnClient
             p.Value = DateTime.UtcNow;
             command.Parameters.Add(p);
 
-            await command.ExecuteNonQueryAsync();
+            await command.ExecuteNonQueryAsync().ConfigureAwait(false);
 
             connection.Close();
 
@@ -203,9 +188,8 @@ namespace UseBackupOnClient
 
         public static string GetRandomName(string pref = default)
         {
-            var str1 = Path.GetRandomFileName().Replace(".", "").ToLowerInvariant();
+            var str1 = Path.GetRandomFileName().Replace(".", string.Empty).ToLowerInvariant();
             return $"{pref}{str1}";
         }
-
     }
 }

@@ -18,8 +18,10 @@
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
 		<LangVersion>12.0</LangVersion>
-		<GenerateDocumentationFile>False</GenerateDocumentationFile>
-
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	</PropertyGroup>
+	<PropertyGroup>
+		<NoWarn>$(NoWarn)</NoWarn>
 	</PropertyGroup>
 	<PropertyGroup>
 		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
@@ -35,7 +37,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
-		<PackageReference Include="System.Text.Json" Version="8.0.3" />
+		<PackageReference Include="System.Text.Json" Version="8.0.4" />
 	</ItemGroup>
 
 

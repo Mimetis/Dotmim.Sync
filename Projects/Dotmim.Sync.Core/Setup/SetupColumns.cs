@@ -1,45 +1,44 @@
-﻿using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.DatabaseStringParsers;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
 
 namespace Dotmim.Sync
 {
     /// <summary>
-    /// List of columns within a table, to add to the sync process 
+    /// List of columns within a table, to add to the sync process.
     /// </summary>
     [CollectionDataContract(Name = "cols", ItemName = "col"), Serializable]
     public class SetupColumns : ICollection<string>, IList<string>
     {
         /// <summary>
-        /// Exposing the InnerCollection for serialization purpose
+        /// Gets or sets exposing the InnerCollection for serialization purpose.
         /// </summary>
         [DataMember(Name = "c", IsRequired = true, Order = 1)]
-        public Collection<string> InnerCollection { get; set; } = new Collection<string>();
+        public Collection<string> InnerCollection { get; set; } = [];
 
+        /// <inheritdoc cref="SetupColumns"/>
         public SetupColumns() { }
 
         /// <summary>
-        /// Add a new column to the list of columns to be added to the sync
+        /// Add a new column to the list of columns to be added to the sync.
         /// </summary>
-        public void Add(string columnName)
+        public void Add(string item)
         {
-            var parserColumnName = ParserName.Parse(columnName);
+            var parserColumnName = new ObjectParser(item);
             var columnNameNormalized = parserColumnName.ObjectName;
 
-            if (InnerCollection.Any(c => string.Equals(c, columnName, SyncGlobalization.DataSourceStringComparison)))
+            if (this.InnerCollection.Any(c => string.Equals(c, item, SyncGlobalization.DataSourceStringComparison)))
                 throw new Exception($"Column name {columnNameNormalized} already exists in the table");
 
-            InnerCollection.Add(columnNameNormalized);
+            this.InnerCollection.Add(columnNameNormalized);
         }
 
         /// <summary>
-        /// Add a range of columns to the sync process setup
+        /// Add a range of columns to the sync process setup.
         /// </summary>
         public void AddRange(IEnumerable<string> columnsName)
         {
@@ -48,7 +47,7 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Add a range of columns to the sync process setup
+        /// Add a range of columns to the sync process setup.
         /// </summary>
         public void AddRange(params string[] columnsName)
         {
@@ -56,35 +55,85 @@ namespace Dotmim.Sync
                 this.Add(columnName);
         }
 
-
         /// <summary>
-        /// Clear all columns
+        /// Clear all columns.
         /// </summary>
         public void Clear() => this.InnerCollection.Clear();
 
-
         /// <summary>
-        /// Get a Column by its name
+        /// Get a Column by its name.
         /// </summary>
         public string this[string columnName]
-            => InnerCollection.FirstOrDefault(c => string.Equals(c, columnName, SyncGlobalization.DataSourceStringComparison));
+            => this.InnerCollection.FirstOrDefault(c => string.Equals(c, columnName, SyncGlobalization.DataSourceStringComparison));
 
+        /// <summary>
+        /// Gets get the count of columns.
+        /// </summary>
+        public int Count => this.InnerCollection.Count;
 
-        public string this[int index] => InnerCollection[index];
-        public int Count => InnerCollection.Count;
+        /// <summary>
+        /// Gets a value indicating whether get if the collection is readonly.
+        /// </summary>
         public bool IsReadOnly => false;
+
+        /// <summary>
+        /// Get a Column by its index.
+        /// </summary>
         string IList<string>.this[int index] { get => this.InnerCollection[index]; set => this.InnerCollection[index] = value; }
-        public bool Remove(string item) => InnerCollection.Remove(item);
-        public bool Contains(string item) => InnerCollection.Any(c => string.Equals(c, item, SyncGlobalization.DataSourceStringComparison));
-        public void CopyTo(string[] array, int arrayIndex) => InnerCollection.CopyTo(array, arrayIndex);
-        public int IndexOf(string item) => InnerCollection.IndexOf(item);
-        public void RemoveAt(int index) => InnerCollection.RemoveAt(index);
+
+        /// <summary>
+        /// Get a Column by its index.
+        /// </summary>
+        protected string this[int index] { get => this.InnerCollection[index]; set => this.InnerCollection[index] = value; }
+
+        /// <summary>
+        /// Remove a column from the list of columns to be added to the sync.
+        /// </summary>
+        public bool Remove(string item) => this.InnerCollection.Remove(item);
+
+        /// <summary>
+        /// Check if the column exists in the list of columns to be added to the sync.
+        /// </summary>
+        public bool Contains(string item) => this.InnerCollection.Any(c => string.Equals(c, item, SyncGlobalization.DataSourceStringComparison));
+
+        /// <summary>
+        /// Copy the list of columns to an array.
+        /// </summary>
+        public void CopyTo(string[] array, int arrayIndex) => this.InnerCollection.CopyTo(array, arrayIndex);
+
+        /// <summary>
+        /// Get the index of a column in the list of columns to be added to the sync.
+        /// </summary>
+        public int IndexOf(string item) => this.InnerCollection.IndexOf(item);
+
+        /// <summary>
+        /// Remove a column from the list of columns to be added to the sync.
+        /// </summary>
+        public void RemoveAt(int index) => this.InnerCollection.RemoveAt(index);
+
+        /// <summary>
+        /// Returns a string representation of the number of columns in the list.
+        /// </summary>
         public override string ToString() => this.InnerCollection.Count.ToString();
+
+        /// <summary>
+        /// Insert a column at a specific index in the list of columns to be added to the sync.
+        /// </summary>
         public void Insert(int index, string item) => this.InnerCollection.Insert(index, item);
-        public IEnumerator<string> GetEnumerator() => InnerCollection.GetEnumerator();
+
+        /// <summary>
+        /// Returns an enumerator that iterates through the list of columns to be added to the sync.
+        /// </summary>
+        public IEnumerator<string> GetEnumerator() => this.InnerCollection.GetEnumerator();
+
+        /// <summary>
+        /// Returns an enumerator that iterates through the list of columns to be added to the sync.
+        /// </summary>
         IEnumerator<string> IEnumerable<string>.GetEnumerator() => this.InnerCollection.GetEnumerator();
+
+        /// <summary>
+        /// Returns an enumerator that iterates through the list of columns to be added to the sync.
+        /// </summary>
         IEnumerator IEnumerable.GetEnumerator() => this.InnerCollection.GetEnumerator();
-
     }
-
 }

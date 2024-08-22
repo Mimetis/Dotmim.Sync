@@ -1,51 +1,32 @@
 ﻿using Dotmim.Sync.Builders;
+using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.Manager;
 using Dotmim.Sync.SqlServer.Builders;
 using Dotmim.Sync.SqlServer.Manager;
 using Dotmim.Sync.SqlServer.Scope;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Data.Common;
-using Microsoft.Data.SqlClient;
-using System.Data;
-using Dotmim.Sync.Enumerations;
 
 namespace Dotmim.Sync.SqlServer
 {
+    /// <summary>
+    /// SqlSyncProvider provider for Sql Server.
+    /// </summary>
     public class SqlSyncProvider : CoreProvider
     {
+        private static string shortProviderType;
+        private static string providerType;
         private DbMetadata dbMetadata;
-        static string providerType;
         private SqlConnectionStringBuilder builder;
 
-        public SqlSyncProvider() : base()
-        { }
+        /// <inheritdoc cref="SqlSyncProvider" />
+        public SqlSyncProvider()
+            : base() { }
 
-        public override string ConnectionString
-        {
-            get => builder == null || string.IsNullOrEmpty(builder.ConnectionString) ? null : builder.ConnectionString;
-            set
-            {
-                this.builder = string.IsNullOrEmpty(value) ? null : new SqlConnectionStringBuilder(value);
-                this.SupportsMultipleActiveResultSets = this.builder != null && this.builder.MultipleActiveResultSets;
-            }
-        }
-
-        public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
-
-        public SqlSyncProvider(string connectionString) : base() => this.ConnectionString = connectionString;
-
-        public SqlSyncProvider(SqlConnectionStringBuilder builder) : base()
-        {
-            if (builder == null || string.IsNullOrEmpty(builder.ConnectionString))
-                throw new Exception("You have to provide parameters to the Sql builder to be able to construct a valid connection string.");
-
-            this.builder = builder;
-            this.SupportsMultipleActiveResultSets = builder.MultipleActiveResultSets;
-        }
-
-        public override string GetProviderTypeName() => ProviderType;
-        public override string DefaultSchemaName => "dbo";
-
+        /// <summary>
+        /// Gets the provider type.
+        /// </summary>
         public static string ProviderType
         {
             get
@@ -60,10 +41,9 @@ namespace Dotmim.Sync.SqlServer
             }
         }
 
-        public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnSessionLevel;
-
-        static string shortProviderType;
-        public override string GetShortProviderTypeName() => ShortProviderType;
+        /// <summary>
+        /// Gets the short provider type.
+        /// </summary>
         public static string ShortProviderType
         {
             get
@@ -77,28 +57,65 @@ namespace Dotmim.Sync.SqlServer
                 return shortProviderType;
             }
         }
-        public override string GetDatabaseName()
-        {
-            if (builder != null && !String.IsNullOrEmpty(builder.InitialCatalog))
-                return builder.InitialCatalog;
-
-            return string.Empty;
-
-        }
 
         /// <summary>
-        /// Gets or sets the Metadata object which parse Sql server types
+        /// Gets or sets the sql connection string.
+        /// </summary>
+        public override string ConnectionString
+        {
+            get => this.builder == null || string.IsNullOrEmpty(this.builder.ConnectionString) ? null : this.builder.ConnectionString;
+            set
+            {
+                this.builder = string.IsNullOrEmpty(value) ? null : new SqlConnectionStringBuilder(value);
+                this.SupportsMultipleActiveResultSets = this.builder != null && this.builder.MultipleActiveResultSets;
+            }
+        }
+
+        /// <inheritdoc cref="SqlSyncProvider"/>
+        public SqlSyncProvider(string connectionString)
+            : base() => this.ConnectionString = connectionString;
+
+        /// <inheritdoc cref="SqlSyncProvider"/>
+        public SqlSyncProvider(SqlConnectionStringBuilder builder)
+            : base()
+        {
+            if (builder == null || string.IsNullOrEmpty(builder.ConnectionString))
+                throw new Exception("You have to provide parameters to the Sql builder to be able to construct a valid connection string.");
+
+            this.builder = builder;
+            this.SupportsMultipleActiveResultSets = builder.MultipleActiveResultSets;
+        }
+
+        /// <inheritdoc/>
+        public override DbConnection CreateConnection() => new SqlConnection(this.ConnectionString);
+
+        /// <inheritdoc/>
+        public override string GetProviderTypeName() => ProviderType;
+
+        /// <inheritdoc/>
+        public override string DefaultSchemaName => "dbo";
+
+        /// <inheritdoc/>
+        public override ConstraintsLevelAction ConstraintsLevelAction => ConstraintsLevelAction.OnSessionLevel;
+
+        /// <inheritdoc/>
+        public override string GetShortProviderTypeName() => ShortProviderType;
+
+        /// <inheritdoc/>
+        public override string GetDatabaseName() => this.builder != null && !string.IsNullOrEmpty(this.builder.InitialCatalog) ? this.builder.InitialCatalog : string.Empty;
+
+        /// <summary>
+        /// Gets or sets the Metadata object which parse Sql server types.
         /// </summary>
         public override DbMetadata GetMetadata()
         {
-            if (dbMetadata == null)
-                dbMetadata = new SqlDbMetadata();
+            this.dbMetadata ??= new SqlDbMetadata();
 
-            return dbMetadata;
+            return this.dbMetadata;
         }
 
         /// <summary>
-        /// Gets a chance to make a retry connection
+        /// Gets a chance to make a retry connection.
         /// </summary>
         public override bool ShouldRetryOn(Exception exception)
         {
@@ -112,9 +129,9 @@ namespace Dotmim.Sync.SqlServer
             }
 
             return false;
-
         }
 
+        /// <inheritdoc/>
         public override void EnsureSyncException(SyncException syncException)
         {
             if (this.builder != null && !string.IsNullOrEmpty(this.builder.ConnectionString))
@@ -133,45 +150,18 @@ namespace Dotmim.Sync.SqlServer
         }
 
         /// <summary>
-        /// Sql Server supports to be a server side provider
+        /// Gets a value indicating whether sql Server supports to be a server side provider.
         /// </summary>
         public override bool CanBeServerProvider => true;
 
-
-        public override (ParserName tableName, ParserName trackingName) GetParsers(SyncTable tableDescription, SyncSetup setup)
-        {
-            var originalTableName = ParserName.Parse(tableDescription);
-
-            var pref = setup?.TrackingTablesPrefix;
-            var suf = setup?.TrackingTablesSuffix;
-
-            // be sure, at least, we have a suffix if we have empty values. 
-            // othewise, we have the same name for both table and tracking table
-            if (string.IsNullOrEmpty(pref) && string.IsNullOrEmpty(suf))
-                suf = "_tracking";
-
-            var trakingTableNameString = $"{pref}{originalTableName.ObjectName}{suf}";
-
-            if (!string.IsNullOrEmpty(originalTableName.SchemaName))
-                trakingTableNameString = $"{originalTableName.SchemaName}.{trakingTableNameString}";
-
-            var trackingTableName = ParserName.Parse(trakingTableNameString);
-
-            return (originalTableName, trackingTableName);
-        }
-
+        /// <inheritdoc/>
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqlScopeBuilder(scopeInfoTableName);
 
-        /// <summary>
-        /// Get the table builder. Table builder builds table, stored procedures and triggers
-        /// </summary>
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-        => new SqlTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
+        /// <inheritdoc/>
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo)
+            => new SqlSyncAdapter(tableDescription, scopeInfo, this.UseBulkOperations);
 
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-            => new SqlSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName, this.UseBulkOperations);
-
-        public override DbBuilder GetDatabaseBuilder() => new SqlBuilder();
-
+        /// <inheritdoc/>
+        public override DbDatabaseBuilder GetDatabaseBuilder() => new SqlDatabaseBuilder();
     }
 }

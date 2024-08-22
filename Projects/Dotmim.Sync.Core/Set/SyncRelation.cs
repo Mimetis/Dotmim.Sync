@@ -2,16 +2,18 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Represents a relation between two tables.
+    /// </summary>
     [DataContract(Name = "sr"), Serializable]
-    public class SyncRelation : SyncNamedItem<SyncRelation>, IDisposable
+    public class SyncRelation : SyncNamedItem<SyncRelation>
     {
 
         /// <summary>
-        /// Gets or Sets the relation name 
+        /// Gets or Sets the relation name.
         /// </summary>
         [DataMember(Name = "n", IsRequired = true, Order = 1)]
         public string RelationName { get; set; }
@@ -29,20 +31,23 @@ namespace Dotmim.Sync
         public IList<SyncColumnIdentifier> Keys { get; set; } = new List<SyncColumnIdentifier>();
 
         /// <summary>
-        /// Gets the ShemaFilter's SyncSchema
+        /// Gets or sets the ShemaFilter's SyncSchema.
         /// </summary>
         [IgnoreDataMember]
         public SyncSet Schema { get; set; }
 
+        /// <inheritdoc cref="SyncRelation"/>
         public SyncRelation() { }
 
-        public SyncRelation(string relationName, SyncSet schema=null)
+        /// <inheritdoc cref="SyncRelation"/>
+        public SyncRelation(string relationName, SyncSet schema = null)
         {
             this.RelationName = relationName;
             this.Schema = schema;
         }
 
-        public SyncRelation(string relationName, IList<SyncColumnIdentifier>  columns, IList<SyncColumnIdentifier> parentColumns, SyncSet schema=null)
+        /// <inheritdoc cref="SyncRelation"/>
+        public SyncRelation(string relationName, IList<SyncColumnIdentifier> columns, IList<SyncColumnIdentifier> parentColumns, SyncSet schema = null)
         {
             this.RelationName = relationName;
             this.ParentKeys = parentColumns;
@@ -50,7 +55,9 @@ namespace Dotmim.Sync
             this.Schema = schema;
         }
 
-
+        /// <summary>
+        /// Return a clone of this relation.
+        /// </summary>
         public SyncRelation Clone()
         {
             var clone = new SyncRelation();
@@ -66,42 +73,27 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Clear 
+        /// Clear.
         /// </summary>
-        public void Clear() => this.Dispose(true);
-
-        public void Dispose()
+        public void Clear()
         {
-            this.Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool cleanup)
-        {
-            // Dispose managed ressources
-            if (cleanup)
-            {
-                // clean rows
-                this.Keys.Clear() ;
-                this.ParentKeys.Clear();
-                this.Schema = null;
-            }
-
-            // Dispose unmanaged ressources
+            // clean rows
+            this.Keys.Clear();
+            this.ParentKeys.Clear();
+            this.Schema = null;
         }
 
         /// <summary>
-        /// Ensure this relation has correct Schema reference
+        /// Ensure this relation has correct Schema reference.
         /// </summary>
         public void EnsureRelation(SyncSet schema) => this.Schema = schema;
 
-
         /// <summary>
-        /// Get parent table
+        /// Get parent table.
         /// </summary>
         public SyncTable GetParentTable()
         {
-            if (this.Schema == null || this.ParentKeys.Count() <= 0)
+            if (this.Schema == null || this.ParentKeys.Count <= 0)
                 return null;
 
             var id = this.ParentKeys.First();
@@ -110,11 +102,11 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Get child table
+        /// Get child table.
         /// </summary>
         public SyncTable GetTable()
         {
-            if (this.Schema == null || this.Keys.Count() <= 0)
+            if (this.Schema == null || this.Keys.Count <= 0)
                 return null;
 
             var id = this.Keys.First();
@@ -122,31 +114,29 @@ namespace Dotmim.Sync
             return this.Schema.Tables[id.TableName, id.SchemaName];
         }
 
+        /// <inheritdoc cref="SyncNamedItem{T}.GetAllNamesProperties"/>
         public override IEnumerable<string> GetAllNamesProperties()
         {
             yield return this.RelationName;
         }
 
-
-        public override bool EqualsByProperties(SyncRelation other)
+        /// <inheritdoc cref="SyncNamedItem{T}.EqualsByProperties(T)"/>
+        public override bool EqualsByProperties(SyncRelation otherInstance)
         {
-            if (other == null)
+            if (otherInstance == null)
                 return false;
 
-            if (!this.EqualsByName(other))
+            if (!this.EqualsByName(otherInstance))
                 return false;
 
             // Check list
-            if (!this.Keys.CompareWith(other.Keys))
+            if (!this.Keys.CompareWith(otherInstance.Keys))
                 return false;
 
-            if (!this.ParentKeys.CompareWith(other.ParentKeys))
+            if (!this.ParentKeys.CompareWith(otherInstance.ParentKeys))
                 return false;
-
 
             return true;
-
         }
     }
 }
-

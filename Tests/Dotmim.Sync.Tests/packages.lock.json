@@ -117,6 +117,16 @@
           "StyleCop.Analyzers.Unstable": "1.2.0.556"
         }
       },
+      "System.Security.Permissions": {
+        "type": "Direct",
+        "requested": "[6.0.0, )",
+        "resolved": "6.0.0",
+        "contentHash": "T/uuc7AklkDoxmcJ7LGkyX1CcSviZuLCa4jg3PekfJ7SU0niF0IVTXwUiNVP9DSpzou2PpxJ+eNY2IfDM90ZCg==",
+        "dependencies": {
+          "System.Security.AccessControl": "6.0.0",
+          "System.Windows.Extensions": "6.0.0"
+        }
+      },
       "xunit": {
         "type": "Direct",
         "requested": "[2.8.1, )",
@@ -618,6 +628,11 @@
           "System.Security.Principal.Windows": "5.0.0"
         }
       },
+      "Microsoft.Win32.SystemEvents": {
+        "type": "Transitive",
+        "resolved": "6.0.0",
+        "contentHash": "hqTM5628jSsQiv+HGpiq3WKBl2c8v1KZfby2J6Pr7pEPlK9waPdgEO6b8A/+/xn/yZ9ulv8HuqK71ONy2tg67A=="
+      },
       "MySqlConnector": {
         "type": "Transitive",
         "resolved": "0.69.10",
@@ -741,6 +756,14 @@
         "dependencies": {
           "System.Memory": "4.5.5",
           "System.Runtime.CompilerServices.Unsafe": "6.0.0"
+        }
+      },
+      "System.Drawing.Common": {
+        "type": "Transitive",
+        "resolved": "6.0.0",
+        "contentHash": "NfuoKUiP2nUWwKZN6twGqXioIe1zVD0RIj2t976A+czLHr2nY454RwwXs6JU9Htc6mwqL6Dn/nEL3dpVf2jOhg==",
+        "dependencies": {
+          "Microsoft.Win32.SystemEvents": "6.0.0"
         }
       },
       "System.Formats.Asn1": {
@@ -966,8 +989,8 @@
       },
       "System.Text.Json": {
         "type": "Transitive",
-        "resolved": "8.0.3",
-        "contentHash": "hpagS9joOwv6efWfrMmV9MjQXpiXZH72PgN067Ysfr6AWMSD1/1hEcvh/U5mUpPLezEWsOJSuVrmqDIVD958iA==",
+        "resolved": "8.0.4",
+        "contentHash": "bAkhgDJ88XTsqczoxEMliSrpijKZHhbJQldhAmObj/RbrN3sU5dcokuXmWJWsdQAhiMJ9bTayWsL1C9fbbCRhw==",
         "dependencies": {
           "Microsoft.Bcl.AsyncInterfaces": "8.0.0",
           "System.Buffers": "4.5.1",
@@ -1001,6 +1024,14 @@
         "type": "Transitive",
         "resolved": "4.5.4",
         "contentHash": "zteT+G8xuGu6mS+mzDzYXbzS7rd3K6Fjb9RiZlYlJPam2/hU7JCBZBVEcywNuR+oZ1ncTvc/cq0faRr3P01OVg=="
+      },
+      "System.Windows.Extensions": {
+        "type": "Transitive",
+        "resolved": "6.0.0",
+        "contentHash": "IXoJOXIqc39AIe+CIR7koBtRGMiCt/LPM3lI+PELtDIy9XdyeSrwXFdWV9dzJ2Awl0paLWUaknLxFQ5HpHZUog==",
+        "dependencies": {
+          "System.Drawing.Common": "6.0.0"
+        }
       },
       "xunit.abstractions": {
         "type": "Transitive",
@@ -1044,7 +1075,7 @@
           "Microsoft.Build.Tasks.Core": "[17.9.5, )",
           "Microsoft.CSharp": "[4.7.0, )",
           "Microsoft.Extensions.Logging": "[2.2.0, )",
-          "System.Text.Json": "[8.0.3, )",
+          "System.Text.Json": "[8.0.4, )",
           "System.Threading.Tasks.Dataflow": "[8.0.0, )"
         }
       },
@@ -1109,7 +1140,7 @@
           "Microsoft.Extensions.DependencyInjection": "[3.1.32, )",
           "Microsoft.Extensions.Features": "[6.0.0, )",
           "Microsoft.Extensions.Http": "[3.1.32, )",
-          "System.Text.Json": "[8.0.3, )"
+          "System.Text.Json": "[8.0.4, )"
         }
       }
     },
@@ -1790,8 +1821,8 @@
       },
       "System.Text.Json": {
         "type": "Transitive",
-        "resolved": "8.0.3",
-        "contentHash": "hpagS9joOwv6efWfrMmV9MjQXpiXZH72PgN067Ysfr6AWMSD1/1hEcvh/U5mUpPLezEWsOJSuVrmqDIVD958iA==",
+        "resolved": "8.0.4",
+        "contentHash": "bAkhgDJ88XTsqczoxEMliSrpijKZHhbJQldhAmObj/RbrN3sU5dcokuXmWJWsdQAhiMJ9bTayWsL1C9fbbCRhw==",
         "dependencies": {
           "System.Runtime.CompilerServices.Unsafe": "6.0.0",
           "System.Text.Encodings.Web": "8.0.0"
@@ -1849,7 +1880,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Logging": "[6.0.0, )",
-          "System.Text.Json": "[8.0.3, )"
+          "System.Text.Json": "[8.0.4, )"
         }
       },
       "dotmim.sync.mariadb": {
@@ -1905,7 +1936,7 @@
         "type": "Project",
         "dependencies": {
           "Dotmim.Sync.Web.Client": "[1.1.0, )",
-          "System.Text.Json": "[8.0.3, )"
+          "System.Text.Json": "[8.0.4, )"
         }
       }
     },
@@ -2472,8 +2503,8 @@
       },
       "System.Text.Json": {
         "type": "Transitive",
-        "resolved": "8.0.3",
-        "contentHash": "hpagS9joOwv6efWfrMmV9MjQXpiXZH72PgN067Ysfr6AWMSD1/1hEcvh/U5mUpPLezEWsOJSuVrmqDIVD958iA==",
+        "resolved": "8.0.4",
+        "contentHash": "bAkhgDJ88XTsqczoxEMliSrpijKZHhbJQldhAmObj/RbrN3sU5dcokuXmWJWsdQAhiMJ9bTayWsL1C9fbbCRhw==",
         "dependencies": {
           "System.Text.Encodings.Web": "8.0.0"
         }
@@ -2522,7 +2553,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Extensions.Logging": "[8.0.0, )",
-          "System.Text.Json": "[8.0.3, )"
+          "System.Text.Json": "[8.0.4, )"
         }
       },
       "dotmim.sync.mariadb": {
@@ -2578,7 +2609,7 @@
         "type": "Project",
         "dependencies": {
           "Dotmim.Sync.Web.Client": "[1.1.0, )",
-          "System.Text.Json": "[8.0.3, )"
+          "System.Text.Json": "[8.0.4, )"
         }
       }
     }

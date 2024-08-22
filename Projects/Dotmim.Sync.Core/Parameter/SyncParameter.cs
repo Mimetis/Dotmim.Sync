@@ -1,12 +1,6 @@
-﻿using Dotmim.Sync.Serialization;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
@@ -29,14 +23,14 @@ namespace Dotmim.Sync
         public object Value { get; set; }
 
         /// <summary>
-        /// Initializes a new instance of the SyncParameter class by using default values.
+        /// Initializes a new instance of the <see cref="SyncParameter"/> class by using default values.
         /// </summary>
         public SyncParameter()
         {
         }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="T:Microsoft.Synchronization.Data.SyncParameter" /> class by 
+        /// Initializes a new instance of the <see cref="SyncParameter"/> class by
         /// using name and value parameters.
         /// </summary>
         public SyncParameter(string name, object value)
@@ -45,13 +39,15 @@ namespace Dotmim.Sync
             this.Value = value;
         }
 
-
+        /// <summary>
+        /// Gets the string representation of the SyncParameter.
+        /// </summary>
         public override string ToString() => $"{this.Name}: {this.Value}";
 
+        /// <inheritdoc cref="SyncNamedItem{T}.GetAllNamesProperties"/>
         public override IEnumerable<string> GetAllNamesProperties()
         {
             yield return this.Name;
         }
-
     }
 }

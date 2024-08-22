@@ -1,24 +1,18 @@
 ﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
 
-
-
     /// <summary>
-    /// Event args raised when all changes from a batch, for a particular table, have been applied on a datasource
+    /// Event args raised when all changes from a batch, for a particular table, have been applied on a datasource.
     /// </summary>
     public class BatchChangesAppliedArgs : ProgressArgs
     {
+        /// <inheritdoc cref="BatchChangesAppliedArgs" />
         public BatchChangesAppliedArgs(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable schemaTable, SyncRowState state, DbCommand command, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
@@ -28,34 +22,53 @@ namespace Dotmim.Sync
             this.State = state;
             this.Command = command;
         }
-        public override SyncProgressLevel ProgressLevel => BatchPartInfo != null && BatchPartInfo.RowsCount > 0 ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
 
+        /// <summary>
+        /// Gets the progress level info : SyncProgressLevel.Information if this.BatchPartInfo.RowsCount > 0 else SyncProgressLevel.Debug.
+        /// </summary>
+        public override SyncProgressLevel ProgressLevel => this.BatchPartInfo != null && this.BatchPartInfo.RowsCount > 0 ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
+
+        /// <summary>
+        /// Gets the row state.
+        /// </summary>
         public SyncRowState State { get; }
+
+        /// <summary>
+        /// Gets or sets the command used to apply the batch changes.
+        /// </summary>
         public DbCommand Command { get; set; }
+
+        /// <summary>
+        /// Gets or sets the batch info.
+        /// </summary>
         public BatchInfo BatchInfo { get; set; }
+
+        /// <summary>
+        /// Gets the batch part info.
+        /// </summary>
         public BatchPartInfo BatchPartInfo { get; }
 
         /// <summary>
-        /// Gets the table schema
+        /// Gets the table schema.
         /// </summary>
         public SyncTable SchemaTable { get; }
 
+        /// <inheritdoc cref="ProgressArgs.Message"/>
         public override string Message =>
-            BatchPartInfo == null 
+            this.BatchPartInfo == null
             ? $"[{this.SchemaTable.GetFullName()}] [{this.State}] BatchChangesAppliedArgs progress."
-            : $"[{this.SchemaTable.GetFullName()}] [{this.State}] Batch {BatchPartInfo.FileName} ({BatchPartInfo.Index + 1}/{BatchInfo.BatchPartsInfo.Count}) Applied.";
+            : $"[{this.SchemaTable.GetFullName()}] [{this.State}] Batch {this.BatchPartInfo.FileName} ({this.BatchPartInfo.Index + 1}/{this.BatchInfo.BatchPartsInfo.Count}) Applied.";
 
-        public override int EventId => SyncEventsId.BacthChangesApplied.Id;
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
+        public override int EventId => 13170;
     }
 
-
     /// <summary>
-    /// Event args before a table changes from a batch, for a particular table, is going to be applied on a datasource
+    /// Event args before a table changes from a batch, for a particular table, is going to be applied on a datasource.
     /// </summary>
     public class BatchChangesApplyingArgs : ProgressArgs
     {
-        public bool Cancel { get; set; } = false;
-
+        /// <inheritdoc cref="BatchChangesApplyingArgs" />
         public BatchChangesApplyingArgs(SyncContext context, BatchInfo batchInfo, BatchPartInfo batchPartInfo, SyncTable schemaTable, SyncRowState state, DbCommand command, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
@@ -65,31 +78,58 @@ namespace Dotmim.Sync
             this.State = state;
             this.Command = command;
         }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether gets or sets if the current batch changes applying should be canceled.
+        /// </summary>
+        public bool Cancel { get; set; }
+
+        /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
+
+        /// <summary>
+        /// Gets the row state.
+        /// </summary>
         public SyncRowState State { get; }
+
+        /// <summary>
+        /// Gets or sets the command used to apply the batch changes.
+        /// </summary>
         public DbCommand Command { get; set; }
+
+        /// <summary>
+        /// Gets or sets the batch info.
+        /// </summary>
         public BatchInfo BatchInfo { get; set; }
+
+        /// <summary>
+        /// Gets the batch part info.
+        /// </summary>
         public BatchPartInfo BatchPartInfo { get; }
 
         /// <summary>
-        /// Gets the table schema
+        /// Gets the table schema.
         /// </summary>
         public SyncTable SchemaTable { get; }
 
-       public override string Message =>
-                        BatchPartInfo == null
+        /// <inheritdoc cref="ProgressArgs.Message"/>
+        public override string Message =>
+                        this.BatchPartInfo == null
             ? $"[{this.SchemaTable.GetFullName()}] [{this.State}] BatchChangesApplyingArgs progress."
-            : $"[{this.SchemaTable.GetFullName()}] Applying Batch {BatchPartInfo.FileName} ({BatchPartInfo.Index + 1}/{BatchInfo.BatchPartsInfo.Count}).";
+            : $"[{this.SchemaTable.GetFullName()}] Applying Batch {this.BatchPartInfo.FileName} ({this.BatchPartInfo.Index + 1}/{this.BatchInfo.BatchPartsInfo.Count}).";
 
-        public override int EventId => SyncEventsId.BacthChangesApplying.Id;
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
+        public override int EventId => 13160;
     }
 
-
-    public static partial class InterceptorsExtensions
+    /// <summary>
+    /// Interceptors extensions.
+    /// </summary>
+    public partial class InterceptorsExtensions
     {
 
         /// <summary>
-        /// Occurs when a batch for a particular table is about to be applied on the local data source
+        /// Occurs when a batch for a particular table is about to be applied on the local data source.
         /// <example>
         /// <code>
         /// agent.LocalOrchestrator.OnBatchChangesApplying(async args =>
@@ -98,13 +138,13 @@ namespace Dotmim.Sync
         ///     {
         ///         Console.WriteLine($"FileName:{args.BatchPartInfo.FileName}. RowsCount:{args.BatchPartInfo.RowsCount} ");
         ///         Console.WriteLine($"Applying rows from this batch part info:");
-        /// 
+        ///
         ///         var table = await agent.LocalOrchestrator.LoadTableFromBatchPartInfo(args.BatchInfo,
         ///                           args.BatchPartInfo, args.State, args.Connection, args.Transaction);
-        /// 
+        ///
         ///         foreach (var row in table.Rows)
         ///             Console.WriteLine(row);
-        /// 
+        ///
         ///     }
         /// });
         /// </code>
@@ -118,7 +158,7 @@ namespace Dotmim.Sync
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
-        /// Occurs when a batch for a particular table has been applied on the local data source
+        /// Occurs when a batch for a particular table has been applied on the local data source.
         /// <example>
         /// <code>
         /// agent.LocalOrchestrator.OnBatchChangesApplied(async args =>
@@ -127,13 +167,13 @@ namespace Dotmim.Sync
         ///     {
         ///         Console.WriteLine($"FileName:{args.BatchPartInfo.FileName}. RowsCount:{args.BatchPartInfo.RowsCount} ");
         ///         Console.WriteLine($"Rows applied from this batch part info:");
-        /// 
+        ///
         ///         var table = await agent.LocalOrchestrator.LoadTableFromBatchPartInfo(args.BatchInfo,
         ///                           args.BatchPartInfo, args.State, args.Connection, args.Transaction);
-        /// 
+        ///
         ///         foreach (var row in table.Rows)
         ///             Console.WriteLine(row);
-        /// 
+        ///
         ///     }
         /// });
         /// </code>
@@ -145,13 +185,5 @@ namespace Dotmim.Sync
         /// <inheritdoc cref="OnBatchChangesApplied(BaseOrchestrator, Action{BatchChangesAppliedArgs})"/>
         public static Guid OnBatchChangesApplied(this BaseOrchestrator orchestrator, Func<BatchChangesAppliedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
-
-    }
-
-    public static partial class SyncEventsId
-    {
-        public static EventId BacthChangesApplying => CreateEventId(13160, nameof(BacthChangesApplying));
-        public static EventId BacthChangesApplied => CreateEventId(13170, nameof(BacthChangesApplied));
-
     }
 }

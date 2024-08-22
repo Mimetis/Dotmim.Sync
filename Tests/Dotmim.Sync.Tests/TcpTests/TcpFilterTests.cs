@@ -209,7 +209,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 await clientProvider.DeleteSalesOrderHeaderAsync(soh1.SalesOrderId);
                 await clientProvider.DeleteSalesOrderHeaderAsync(soh2.SalesOrderId);
 
-                s = await agent.SynchronizeAsync(parameters);
+                s = await agent.SynchronizeAsync(parameters); 
 
                 Assert.Equal(4, s.TotalChangesUploadedToServer);
                 Assert.Equal(4, s.TotalChangesAppliedOnServer);

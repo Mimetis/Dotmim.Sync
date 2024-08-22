@@ -1,42 +1,42 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Runtime.Serialization;
-using System.Text;
 
 namespace Dotmim.Sync.Web.Client.BackwardCompatibility
 {
 
+    /// <summary>
+    /// OldScopeInfo is used to serialize the scope info when we are using the old serialization format.
+    /// </summary>
     [DataContract(Name = "scope"), Serializable]
     public class OldScopeInfo
     {
-        /// <summary>
-        /// For serialization purpose
-        /// </summary>
+
+        /// <inheritdoc cref="OldScopeInfo"/>
         public OldScopeInfo()
         {
-
         }
+
         /// <summary>
-        /// Scope name. Shared by all clients and the server
+        /// Gets or sets scope name. Shared by all clients and the server.
         /// </summary>
         [DataMember(Name = "n", IsRequired = true, Order = 1)]
         public string Name { get; set; }
 
         /// <summary>
-        /// Id of the scope owner
+        /// Gets or sets id of the scope owner.
         /// </summary>
         [DataMember(Name = "id", IsRequired = true, Order = 2)]
         public Guid Id { get; set; }
 
         /// <summary>
-        /// Gets or Sets if the current provider is newly created one in database.
-        /// If new, we will override timestamp for first synchronisation to be sure to get all datas from server
+        /// Gets or sets a value indicating whether gets or Sets if the current provider is newly created one in database.
+        /// If new, we will override timestamp for first synchronisation to be sure to get all datas from server.
         /// </summary>
         [DataMember(Name = "in", IsRequired = true, Order = 3)]
         public bool IsNewScope { get; set; }
 
         /// <summary>
-        /// Gets or Sets the schema version
+        /// Gets or Sets the schema version.
         /// </summary>
         [DataMember(Name = "v", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public string Version { get; set; }
@@ -58,6 +58,5 @@ namespace Dotmim.Sync.Web.Client.BackwardCompatibility
         /// </summary>
         [DataMember(Name = "lsst", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public long? LastServerSyncTimestamp { get; set; }
-
     }
 }

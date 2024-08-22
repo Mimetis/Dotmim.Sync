@@ -1,11 +1,8 @@
-﻿#if NET6_0 || NET8_0 
+﻿#if NET6_0 || NET8_0
 using MySqlConnector;
-#elif NETSTANDARD 
+#elif NETSTANDARD
 using MySql.Data.MySqlClient;
 #endif
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 #if MARIADB
 namespace Dotmim.Sync.MariaDB
@@ -19,22 +16,22 @@ namespace Dotmim.Sync.MySql
     public static class MySqlTransientExceptionDetector
     {
         /// <summary>
-        ///     Detects the exceptions caused by SQL Server transient failures.
+        ///     Detects the exceptions caused by MySQL transient failures.
         /// </summary>
         public static bool ShouldRetryOn(MySqlException mysqlException)
         {
             switch (mysqlException.Number)
             {
-                case 1205:    // Lock wait timeout exceeded; try restarting transaction
-                case 1213:    // Deadlock found when trying to get lock; try restarting transaction
-                case 1614:    // Transaction branch was rolled back: deadlock was detected
-                case 2013:    // Lost connection to MySQL server during query
+                case 1205: // Lock wait timeout exceeded; try restarting transaction
+                case 1213: // Deadlock found when trying to get lock; try restarting transaction
+                case 1614: // Transaction branch was rolled back: deadlock was detected
+                case 2013: // Lost connection to MySQL server during query
                     return true;
                 default:
                     break;
             }
-            return false;
 
+            return false;
         }
     }
 }

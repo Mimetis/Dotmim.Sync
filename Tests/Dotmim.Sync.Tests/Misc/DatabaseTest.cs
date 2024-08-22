@@ -22,7 +22,7 @@ using Dotmim.Sync.Tests.Core;
 
 namespace Dotmim.Sync.Tests.Misc
 {
-    public abstract class DatabaseTest : IDisposable
+    public abstract class DatabaseTest : IDisposable, IAsyncLifetime
     {
         private Stopwatch preWorkStopwatch;
         private Stopwatch postWorkStopwatch;
@@ -137,7 +137,7 @@ namespace Dotmim.Sync.Tests.Misc
         public virtual DatabaseServerFixture Fixture { get; }
         public virtual ITestOutputHelper Output { get; }
         public virtual XunitTest Test { get; }
-        public virtual Stopwatch Stopwatch { get; }
+        public virtual Stopwatch Stopwatch { get; private set; }
 
         /// <summary>
         /// Gets or Sets the Kestrel server used to server http queries
@@ -160,47 +160,58 @@ namespace Dotmim.Sync.Tests.Misc
 
             // Create a kestrel server
             this.Kestrel = new KestrelTestServer(this.UseFiddler);
+        }
 
+        public async Task InitializeAsync()
+        {
             preWorkStopwatch = Stopwatch.StartNew();
 
             SqlConnection.ClearAllPools();
             MySqlConnection.ClearAllPools();
             NpgsqlConnection.ClearAllPools();
 
-            CreateDatabases();
+            await CreateDatabasesAsync();
 
             preWorkStopwatch.Stop();
 
             this.Stopwatch = Stopwatch.StartNew();
-        }
 
-        private void ResetClientsTables()
-        {
-            // Drop DMS metadatas and truncate clients tables
-            foreach (var clientProvider in GetClientProviders())
-            {
-                // drop all DMS tracking tables & metadatas
-                clientProvider.DropAllTablesAsync(false).GetAwaiter().GetResult();
-                // truncate all tables
-                clientProvider.EmptyAllTablesAsync().GetAwaiter().GetResult();
-            }
         }
+        public Task DisposeAsync() => Task.CompletedTask;
 
-        private void CreateDatabases()
+
+        //private void ResetClientsTables()
+        //{
+        //    // Drop DMS metadatas and truncate clients tables
+        //    foreach (var clientProvider in GetClientProviders())
+        //    {
+        //        // drop all DMS tracking tables & metadatas
+        //        clientProvider.DropAllTablesAsync(false).GetAwaiter().GetResult();
+        //        // truncate all tables
+        //        clientProvider.EmptyAllTablesAsync().GetAwaiter().GetResult();
+        //    }
+        //}
+
+        private async Task CreateDatabasesAsync()
         {
             var (serverProviderType, serverDatabaseName) = HelperDatabase.GetDatabaseType(GetServerProvider());
+            var serverProvider = GetServerProvider();
+            using (var ctx = new AdventureWorksContext(serverProvider, true))
+            {
+                await ctx.Database.EnsureCreatedAsync();
 
-            new AdventureWorksContext(GetServerProvider(), true).Database.EnsureCreated();
-
-            if (serverProviderType == ProviderType.Sql)
-                HelperDatabase.ActivateChangeTracking(serverDatabaseName).GetAwaiter().GetResult();
+                if (serverProviderType == ProviderType.Sql)
+                    await HelperDatabase.ActivateChangeTracking(serverDatabaseName);
+            }
 
             foreach (var clientProvider in GetClientProviders())
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
-                new AdventureWorksContext(clientProvider).Database.EnsureCreated();
+                using var cliCtx = new AdventureWorksContext(clientProvider);
+                await cliCtx.Database.EnsureCreatedAsync();
+
                 if (clientProviderType == ProviderType.Sql)
-                    HelperDatabase.ActivateChangeTracking(clientDatabaseName).GetAwaiter().GetResult();
+                    await HelperDatabase.ActivateChangeTracking(clientDatabaseName);
             }
         }
 

@@ -1,32 +1,36 @@
 ﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Manager;
 using Dotmim.Sync.SqlServer.Builders;
 using Dotmim.Sync.SqlServer.ChangeTracking.Builders;
-using Dotmim.Sync.SqlServer.Manager;
-using Dotmim.Sync.SqlServer.Scope;
-using System;
-using System.Data.Common;
 using Microsoft.Data.SqlClient;
-using System.Threading;
-using System.Threading.Tasks;
+using System;
 
 namespace Dotmim.Sync.SqlServer
 {
+    /// <inheritdoc />
     public class SqlSyncChangeTrackingProvider : SqlSyncProvider
     {
-        static string providerType;
+        private static string providerType;
+        private static string shortProviderType;
 
-        public SqlSyncChangeTrackingProvider() : base(){}
+        /// <inheritdoc />
+        public SqlSyncChangeTrackingProvider()
+            : base() { }
 
-        public SqlSyncChangeTrackingProvider(string connectionString) : base(connectionString)
+        /// <inheritdoc />
+        public SqlSyncChangeTrackingProvider(string connectionString)
+            : base(connectionString)
         {
-
         }
 
-        public SqlSyncChangeTrackingProvider(SqlConnectionStringBuilder builder) : base(builder)
+        /// <inheritdoc />
+        public SqlSyncChangeTrackingProvider(SqlConnectionStringBuilder builder)
+            : base(builder)
         {
         }
 
+        /// <summary>
+        /// Gets the provider type.
+        /// </summary>
         public static new string ProviderType
         {
             get
@@ -39,12 +43,14 @@ namespace Dotmim.Sync.SqlServer
 
                 return providerType;
             }
-
         }
 
+        /// <inheritdoc />
         public override string GetProviderTypeName() => ProviderType;
 
-        static string shortProviderType;
+        /// <summary>
+        /// Gets the short provider type.
+        /// </summary>
         public static new string ShortProviderType
         {
             get
@@ -58,15 +64,15 @@ namespace Dotmim.Sync.SqlServer
                 return shortProviderType;
             }
         }
+
+        /// <inheritdoc />
         public override DbScopeBuilder GetScopeBuilder(string scopeInfoTableName) => new SqlChangeTrackingScopeBuilder(scopeInfoTableName);
 
-        public override DbTableBuilder GetTableBuilder(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-            => new SqlChangeTrackingTableBuilder(tableDescription, tableName, trackingTableName, setup, scopeName);
+        /// <inheritdoc />
+        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ScopeInfo scopeInfo)
+            => new SqlChangeTrackingSyncAdapter(tableDescription, scopeInfo, this.UseBulkOperations);
 
-        public override DbSyncAdapter GetSyncAdapter(SyncTable tableDescription, ParserName tableName, ParserName trackingTableName, SyncSetup setup, string scopeName)
-            => new SqlChangeTrackingSyncAdapter(tableDescription, tableName, trackingTableName, setup, scopeName, this.UseBulkOperations);
-
-        public override DbBuilder GetDatabaseBuilder() => new SqlChangeTrackingBuilder();
-
+        /// <inheritdoc />
+        public override DbDatabaseBuilder GetDatabaseBuilder() => new SqlChangeTrackingDatabaseBuilder();
     }
 }

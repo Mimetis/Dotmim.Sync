@@ -1,17 +1,13 @@
-﻿using Dotmim.Sync.Builders;
-using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using Microsoft.Data.SqlClient;
 using System.Data.Common;
-using Microsoft.Data.SqlClient;
-using System.Diagnostics;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
-    public class SqlChangeTrackingBuilder : SqlBuilder
+    /// <inheritdoc />
+    public class SqlChangeTrackingDatabaseBuilder : SqlDatabaseBuilder
     {
+        /// <inheritdoc />
         public override async Task EnsureDatabaseAsync(DbConnection connection, DbTransaction transaction = null)
         {
             // Chek if db exists
@@ -22,7 +18,6 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             if (!isChangeTrackingEnabled)
                 throw new MissingChangeTrackingException(connection.Database);
-
         }
     }
 }

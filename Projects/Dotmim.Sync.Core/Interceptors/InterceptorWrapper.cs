@@ -1,9 +1,5 @@
-﻿using Dotmim.Sync.Enumerations;
-using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System;
 using System.Diagnostics;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,53 +7,52 @@ namespace Dotmim.Sync
 {
 
     /// <summary>
-    /// Encapsulate 1 func to intercept one event
+    /// Encapsulate 1 func to intercept one event.
     /// </summary>
-    public class InterceptorWrapper<T> : ISyncInterceptor<T> where T : class
+    public class InterceptorWrapper<T> : ISyncInterceptor<T>
+        where T : class
     {
+        private static Func<T, Task> empty = new(t => Task.CompletedTask);
+
         private Func<T, Task> wrapperAsync;
-        internal static Func<T, Task> Empty = new Func<T, Task>(t => Task.CompletedTask);
 
         /// <summary>
-        /// Create a new empty interceptor
+        /// Initializes a new instance of the <see cref="InterceptorWrapper{T}"/> class.
         /// </summary>
         public InterceptorWrapper()
         {
             this.Id = Guid.NewGuid();
-            this.wrapperAsync = Empty;
+            this.wrapperAsync = empty;
         }
 
         /// <summary>
-        /// Gets a boolean indicating if the interceptor is not used by user (ie : is Empty)
+        /// Gets a value indicating whether the interceptor is empty.
         /// </summary>
-        public bool IsEmpty => this.wrapperAsync == Empty;
+        public bool IsEmpty => this.wrapperAsync == empty;
 
         /// <summary>
-        /// Interceptor Id
+        /// Gets the Interceptor Id.
         /// </summary>
         public Guid Id { get; }
 
         /// <summary>
-        /// Set a Func as interceptor
+        /// Set a Func as interceptor.
         /// </summary>
-        public void Set(Func<T, Task> run) => this.wrapperAsync = run != null ? run : Empty;
+        public void Set(Func<T, Task> run) => this.wrapperAsync = run != null ? run : empty;
 
         /// <summary>
-        /// Set an Action as interceptor
+        /// Set an Action as interceptor.
         /// </summary>
         [DebuggerStepThrough]
         public void Set(Action<T> run)
-        {
-            this.wrapperAsync = run != null ? (t =>
-            {
-                run(t);
-                return Task.CompletedTask;
-            }) : Empty;
-
-        }
+            => this.wrapperAsync = run != null ? (t =>
+                {
+                    run(t);
+                    return Task.CompletedTask;
+                }) : empty;
 
         /// <summary>
-        /// Run the Action or Func as the Interceptor
+        /// Run the Action or Func as the Interceptor.
         /// </summary>
         [DebuggerStepThrough]
         public async Task RunAsync(T args, CancellationToken cancellationToken)
@@ -69,13 +64,18 @@ namespace Dotmim.Sync
                 cancellationToken.ThrowIfCancellationRequested();
         }
 
+        /// <summary>
+        /// Dispose the interceptor.
+        /// </summary>
         public void Dispose()
         {
             this.Dispose(true);
-            //GC.SuppressFinalize(this);
+            GC.SuppressFinalize(this);
         }
 
+        /// <summary>
+        /// Dispose the interceptor.
+        /// </summary>
         protected virtual void Dispose(bool cleanup) => this.wrapperAsync = null;
     }
 }
-

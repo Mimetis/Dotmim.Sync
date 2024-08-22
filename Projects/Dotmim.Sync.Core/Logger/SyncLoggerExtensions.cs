@@ -2,16 +2,15 @@
 using Dotmim.Sync.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System;
-using System.Linq;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Text;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Sync logger factory extensions.
+    /// </summary>
     public static class SyncLoggerFactoryExtensions
     {
         /// <summary>
@@ -19,7 +18,7 @@ namespace Dotmim.Sync
         /// </summary>
         public static ILoggingBuilder AddSyncLogger(this ILoggingBuilder builder, Action<SyncLoggerOptions> configure = null)
         {
-            if (builder == null) throw new ArgumentNullException(nameof(builder));
+            Guard.ThrowIfNull(builder);
 
             // Add a singleton for the sync log provider
             builder.Services.AddSingleton<ILoggerProvider, SyncLoggerProvider>();
@@ -36,17 +35,24 @@ namespace Dotmim.Sync
             return builder;
         }
 
+        /// <summary>
+        /// Returns a string that represents the current connection as a json payload.
+        /// </summary>
         public static string ToLogString(this DbConnection connection)
         {
             if (connection == null)
                 return "null";
 
-            var serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+            var serializer = SerializersFactory.JsonSerializerFactory.GetSerializer();
 
             var task = serializer.SerializeAsync(new { connection.DataSource, connection.Database, State = connection.State.ToString() });
 
             return System.Text.Encoding.UTF8.GetString(task.Result);
         }
+
+        /// <summary>
+        /// Returns a string that represents the current transaction as a json payload.
+        /// </summary>
         public static string ToLogString(this DbTransaction transaction)
         {
             if (transaction == null)
@@ -55,17 +61,23 @@ namespace Dotmim.Sync
             return transaction.Connection != null ? "In progress" : "Done";
         }
 
+        /// <summary>
+        /// Returns a string that represents the current command as a json payload.
+        /// </summary>
         public static string ToLogString(this DbCommand command)
         {
             if (command == null)
                 return "null";
 
-            var serializer = SerializersCollection.JsonSerializerFactory.GetSerializer();
+            var serializer = SerializersFactory.JsonSerializerFactory.GetSerializer();
 
             var parameters = new List<object>();
             if (command.Parameters != null && command.Parameters.Count > 0)
+            {
+
                 foreach (DbParameter p in command.Parameters)
-                    parameters.Add(new { Name=p.ParameterName, Value=p.Value });
+                    parameters.Add(new { Name = p.ParameterName, p.Value });
+            }
 
             var s = serializer.Serialize(new { command.CommandText, Parameters = parameters });
 

@@ -1418,7 +1418,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         }
 
         ///// <summary>
-        ///// Check web interceptors are working correctly
+        ///// Check web Interceptors are working correctly
         ///// </summary>
         ////[Theory]
         ////[ClassData(typeof(SyncOptionsData))]
@@ -1473,7 +1473,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         //}
 
         ///// <summary>
-        ///// Check web interceptors are working correctly
+        ///// Check web Interceptors are working correctly
         ///// </summary>
         ////[Theory]
         ////[ClassData(typeof(SyncOptionsData))]

@@ -1,9 +1,12 @@
 ﻿namespace Dotmim.Sync.Serialization
 {
-    public static class SerializersCollection
+    /// <summary>
+    /// Collection of serializers. By default, only the Json serializer is available.
+    /// </summary>
+    public static class SerializersFactory
     {
         /// <summary>
-        /// Get the default Json serializer
+        /// Gets get the default Json serializer.
         /// </summary>
         public static ISerializerFactory JsonSerializerFactory { get; } = new JsonObjectSerializerFactory();
     }

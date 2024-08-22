@@ -1,20 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Dotmim.Sync.Web.Client;
-using Dotmim.Sync.Web.Server;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Caching.Memory;
-using Dotmim.Sync;
+﻿using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Http;
-using System.Text;
-using Microsoft.Extensions.Configuration;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System.IO;
-using Dotmim.Sync.SqlServer;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace HelloWebSyncServer.Controllers
 {
@@ -33,22 +25,22 @@ namespace HelloWebSyncServer.Controllers
         }
 
         /// <summary>
-        /// This POST handler is mandatory to handle all the sync process
+        /// This POST handler is mandatory to handle all the sync process.
         /// </summary>
-        /// <returns></returns>
+        /// <returns><placeholder>A <see cref="Task"/> representing the asynchronous operation.</placeholder></returns>
         [HttpPost]
         public Task Post()
-            => webServerAgent.HandleRequestAsync(this.HttpContext);
+            => this.webServerAgent.HandleRequestAsync(this.HttpContext);
 
         /// <summary>
-        /// This GET handler is optional. It allows you to see the configuration hosted on the server
+        /// This GET handler is optional. It allows you to see the configuration hosted on the server.
         /// </summary>
         [HttpGet]
         public async Task Get()
         {
-            if (env.IsDevelopment())
+            if (this.env.IsDevelopment())
             {
-                await this.HttpContext.WriteHelloAsync(webServerAgent);
+                await this.HttpContext.WriteHelloAsync(this.webServerAgent);
             }
             else
             {
@@ -60,11 +52,8 @@ namespace HelloWebSyncServer.Controllers
                 stringBuilder.AppendLine("<body>");
                 stringBuilder.AppendLine(" PRODUCTION. Write Whatever You Want Here ");
                 stringBuilder.AppendLine("</body>");
-                await this.HttpContext.Response.WriteAsync(stringBuilder.ToString());
+                await this.HttpContext.Response.WriteAsync(stringBuilder.ToString()).ConfigureAwait(false);
             }
         }
-
     }
 }
-
-

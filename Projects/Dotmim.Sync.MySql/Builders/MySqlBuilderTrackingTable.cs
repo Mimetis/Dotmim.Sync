@@ -1,18 +1,13 @@
-﻿using Dotmim.Sync.Builders;
-using System;
+﻿using Dotmim.Sync.DatabaseStringParsers;
+using Microsoft.Extensions.Primitives;
+using System.Data.Common;
 using System.Text;
 
-using System.Data.Common;
-
-using System.Data;
-#if NET6_0 || NET8_0 
+#if NET6_0 || NET8_0
 using MySqlConnector;
-#elif NETSTANDARD 
+#elif NETSTANDARD
 using MySql.Data.MySqlClient;
 #endif
-using System.Linq;
-using System.Diagnostics;
-using System.Collections.Generic;
 using System.Threading.Tasks;
 
 #if MARIADB
@@ -21,35 +16,48 @@ namespace Dotmim.Sync.MariaDB.Builders
 namespace Dotmim.Sync.MySql.Builders
 #endif
 {
+    /// <summary>
+    /// Represents a MySql Tracking table builder.
+    /// </summary>
     public class MySqlBuilderTrackingTable
     {
-        private ParserName tableName;
-        private ParserName trackingName;
-        private readonly SyncSetup setup;
-        private readonly SyncTable tableDescription;
+        /// <summary>
+        /// Gets the table description.
+        /// </summary>
+        protected SyncTable TableDescription { get; }
 
+        /// <summary>
+        /// Gets the MySql object names.
+        /// </summary>
+        protected MySqlObjectNames MySqlObjectNames { get; }
 
-        private readonly MySqlDbMetadata dbMetadata;
-        public MySqlBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        /// <summary>
+        /// Gets the MySql database metadata.
+        /// </summary>
+        protected MySqlDbMetadata MySqlDbMetadata { get; }
+
+        /// <inheritdoc cref="MySqlBuilderTrackingTable"/>
+        public MySqlBuilderTrackingTable(SyncTable tableDescription, MySqlObjectNames mysqlObjectNames, MySqlDbMetadata mysqlDbMetadata)
         {
-            this.dbMetadata = new MySqlDbMetadata();
-            this.tableDescription = tableDescription;
-            this.tableName = tableName;
-            this.trackingName = trackingName;
-            this.setup = setup;
+            this.TableDescription = tableDescription;
+            this.MySqlObjectNames = mysqlObjectNames;
+            this.MySqlDbMetadata = mysqlDbMetadata;
         }
 
+        /// <summary>
+        /// Returns a command to create a tracking table.
+        /// </summary>
         public Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"CREATE TABLE {trackingName.Quoted().ToString()} (");
+            stringBuilder.AppendLine($"CREATE TABLE {this.MySqlObjectNames.TrackingTableQuotedShortName} (");
 
             // Adding the primary key
-            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
-                var columnType = this.dbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, this.tableDescription.OriginalProvider);
-                stringBuilder.AppendLine($"{columnName} {columnType} NOT NULL, ");
+                var columnParser = new ObjectParser(pkColumn.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+                var columnType = this.MySqlDbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, this.TableDescription.OriginalProvider);
+                stringBuilder.AppendLine($"{columnParser.QuotedShortName} {columnType} NOT NULL, ");
             }
 
             // adding the tracking columns
@@ -60,16 +68,17 @@ namespace Dotmim.Sync.MySql.Builders
 
             stringBuilder.Append(" PRIMARY KEY (");
 
-            var comma = "";
-            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            var comma = string.Empty;
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
-                var quotedColumnName = ParserName.Parse(pkColumn, "`").Quoted().ToString();
+                var columnParser = new ObjectParser(pkColumn.ColumnName, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
 
                 stringBuilder.Append(comma);
-                stringBuilder.Append(quotedColumnName);
+                stringBuilder.Append(columnParser.QuotedShortName);
 
                 comma = ", ";
             }
+
             stringBuilder.Append("));");
 
             var command = connection.CreateCommand();
@@ -80,10 +89,12 @@ namespace Dotmim.Sync.MySql.Builders
             return Task.FromResult(command);
         }
 
-
+        /// <summary>
+        /// Returns a command to drop a tracking table.
+        /// </summary>
         public Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var commandText = $"drop table {trackingName.Quoted().ToString()}";
+            var commandText = $"drop table {this.MySqlObjectNames.TrackingTableQuotedShortName}";
 
             var command = connection.CreateCommand();
             command.Connection = connection;
@@ -93,22 +104,9 @@ namespace Dotmim.Sync.MySql.Builders
             return Task.FromResult(command);
         }
 
-        public Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
-        {
-            var tableNameString = this.trackingName.Quoted().ToString();
-            var oldTableNameString = oldTableName.Quoted().ToString();
-
-            var commandText = $"RENAME TABLE {oldTableNameString} TO {tableNameString}; ";
-
-            var command = connection.CreateCommand();
-            command.Connection = connection;
-            command.Transaction = transaction;
-            command.CommandText = commandText;
-
-            return Task.FromResult(command);
-
-        }
-
+        /// <summary>
+        /// Returns a command to check if atracking table exists.
+        /// </summary>
         public Task<DbCommand> GetExistsTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var command = connection.CreateCommand();
@@ -119,13 +117,11 @@ namespace Dotmim.Sync.MySql.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = trackingName.Unquoted().ToString();
+            parameter.Value = this.MySqlObjectNames.TrackingTableName;
 
             command.Parameters.Add(parameter);
 
-
             return Task.FromResult(command);
         }
-   
     }
 }

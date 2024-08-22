@@ -5,10 +5,16 @@
 		<LangVersion>12.0</LangVersion>
 	</PropertyGroup>
 	<PropertyGroup>
-		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
-		<NoWarn>$(NoWarn);CA2007</NoWarn>
+		<!-- Static analysis settings -->
+		<EnableNETAnalyzers>false</EnableNETAnalyzers>
+		<AnalysisLevel>none</AnalysisLevel>
+		<RunAnalyzersDuringBuild>False</RunAnalyzersDuringBuild>
+		<RunAnalyzersDuringLiveAnalysis>False</RunAnalyzersDuringLiveAnalysis>
 	</PropertyGroup>
-
+	
+	<PropertyGroup>
+		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+	</PropertyGroup>
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 		<PackageReference Include="MessagePack" Version="2.4.59" />

@@ -11,7 +11,11 @@
 		<SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
 	</PropertyGroup>
 	<PropertyGroup>
-		<NoWarn>$(NoWarn);CA2007</NoWarn>
+		<!-- Static analysis settings -->
+		<EnableNETAnalyzers>false</EnableNETAnalyzers>
+		<AnalysisLevel>none</AnalysisLevel>
+		<RunAnalyzersDuringBuild>False</RunAnalyzersDuringBuild>
+		<RunAnalyzersDuringLiveAnalysis>False</RunAnalyzersDuringLiveAnalysis>
 	</PropertyGroup>
 	<ItemGroup>
 		<Compile Remove="UnitTests\Mock\**" />
@@ -54,6 +58,7 @@
 		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.1.32" />
 		<PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="3.2.7" />
 		<PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="3.1.18" />
+		<PackageReference Include="System.Security.Permissions" Version="6.0.0" />
 		<PackageReference Include="xunit.runner.visualstudio" Version="2.4.5">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>

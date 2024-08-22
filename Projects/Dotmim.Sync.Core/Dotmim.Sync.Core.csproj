@@ -18,7 +18,7 @@
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
 		<OutputType>Library</OutputType>
 		<AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
-		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 
 	</PropertyGroup>
 	<PropertyGroup>
@@ -31,23 +31,8 @@
 		<IncludeSymbols>True</IncludeSymbols>
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
 	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|netstandard2.0|AnyCPU'">
-	  <NoWarn>1701;1702;1591</NoWarn>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|netstandard2.0|AnyCPU'">
-	  <NoWarn>1701;1702;1591</NoWarn>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net8.0|AnyCPU'">
-		<NoWarn>1701;1702;1591</NoWarn>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net8.0|AnyCPU'">
-		<NoWarn>1701;1702;1591</NoWarn>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net6.0|AnyCPU'">
-		<NoWarn>1701;1702;1591</NoWarn>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net6.0|AnyCPU'">
-		<NoWarn>1701;1702;1591</NoWarn>
+	<PropertyGroup>
+	  <NoWarn>$(NoWarn)</NoWarn>
 	</PropertyGroup>
 	<ItemGroup>
 		<Compile Remove="Serialization\DmBinaryConverter\**" />
@@ -64,7 +49,7 @@
 
 
 	<ItemGroup>
-		<PackageReference Include="System.Text.Json" Version="8.0.3" />
+		<PackageReference Include="System.Text.Json" Version="8.0.4" />
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
 	</ItemGroup>
 
