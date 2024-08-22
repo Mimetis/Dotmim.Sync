@@ -34,12 +34,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
             var providers = this.GetClientProviders();
-            SqliteSyncProvider clientProvider = (SqliteSyncProvider)providers.FirstOrDefault();
+            providers.FirstOrDefault();
+            SqliteSyncProvider clientProvider = (SqliteSyncProvider)providers.FirstOrDefault(p => p.GetShortProviderTypeName() == "SqliteSyncProvider");
 
             if (clientProvider == null)
-            {
                 return;
-            }
 
             clientProvider.DisableSqlFiltersGeneration = true;
 
@@ -79,8 +78,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         {
             var options = new SyncOptions { DisableConstraintsOnApplyChanges = true };
             var providers = this.GetClientProviders();
-
-            SqliteSyncProvider clientProvider = (SqliteSyncProvider)providers.FirstOrDefault();
+            SqliteSyncProvider clientProvider = (SqliteSyncProvider)providers.FirstOrDefault(p => p.GetShortProviderTypeName() == "SqliteSyncProvider");
 
             if (clientProvider == null)
             {

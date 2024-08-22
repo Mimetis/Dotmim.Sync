@@ -14,7 +14,7 @@ namespace Dotmim.Sync
     /// </summary>
     public partial class SyncAgent
     {
-        private readonly SemaphoreSlim writerLock = new(1, 1);
+        private readonly object balanceLock = new();
         private bool syncInProgress;
         private bool checkUpgradeDone;
 
@@ -486,19 +486,12 @@ namespace Dotmim.Sync
         /// </summary>
         private void LockSync()
         {
-            try
+            lock (this.balanceLock)
             {
-                this.writerLock.Wait();
-
                 if (this.syncInProgress)
                     throw new AlreadyInProgressException();
 
                 this.syncInProgress = true;
-            }
-            finally
-            {
-
-                this.writerLock.Release();
             }
         }
 
@@ -508,9 +501,10 @@ namespace Dotmim.Sync
         private void UnlockSync()
         {
             // Enf sync from local provider
-            this.writerLock.Wait();
-            this.syncInProgress = false;
-            this.writerLock.Release();
+            lock (this.balanceLock)
+            {
+                this.syncInProgress = false;
+            }
         }
     }
 }
