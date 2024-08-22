@@ -506,6 +506,7 @@ namespace Dotmim.Sync.Tests
         public override ProviderType ServerProviderType => ProviderType.MariaDB;
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_maria_sqlite_");
+        private string mariaClientRandomDatabaseName = HelperDatabase.GetRandomName("tcp_maria_maria_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
@@ -523,6 +524,7 @@ namespace Dotmim.Sync.Tests
         public override ProviderType ServerProviderType => ProviderType.MariaDB;
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpf_maria_sqlite_");
+        private string mariaClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpf_maria_maria_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
@@ -540,6 +542,7 @@ namespace Dotmim.Sync.Tests
         public override ProviderType ServerProviderType => ProviderType.MariaDB;
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("http_maria_sqlite_");
+        private string mariaClientRandomDatabaseName = HelperDatabase.GetRandomName("http_maria_maria_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
