@@ -100,15 +100,17 @@ namespace Dotmim.Sync.DatabaseStringParsers
         internal static Span<char> Replace(ReadOnlySpan<char> chars, char oldValue, char newValue)
         {
             var pool = new Span<char>(new char[chars.Length]);
-
 #if NET8_0_OR_GREATER
             chars.Replace(pool, oldValue, newValue);
 #else
+            chars.CopyTo(pool);
             int pos;
+            int slice = 0;
             while ((pos = chars.IndexOf(oldValue)) >= 0)
             {
-                pool[pos] = newValue;
+                pool[pos + slice] = newValue;
                 chars = chars.Slice(pos + 1);
+                slice += pos + 1;
             }
 #endif
             return pool;
