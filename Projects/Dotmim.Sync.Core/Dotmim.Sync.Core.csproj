@@ -7,19 +7,11 @@
 		<Title>Dotmim.Sync.Core</Title>
 		<Summary>Manage a sync process beetween two relational databases provider. Core assembly .Net Standard 2.0</Summary>
 		<Description>Dotmim Sync core assembly. Manage a sync process beetween two relational databases provider. Can't be used alone. Choose a server and a client provider such as Dotmim.Sync.SqlServerProvider or Dotmim.Sync.SqliteProvider</Description>
-		<PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
-		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
-		<RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
-		<LangVersion>12.0</LangVersion>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
-		<PublishRepositoryUrl>true</PublishRepositoryUrl>
-		<EmbedUntrackedSources>true</EmbedUntrackedSources>
 		<OutputType>Library</OutputType>
 		<AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
-		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-
 	</PropertyGroup>
 	<PropertyGroup>
 		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>

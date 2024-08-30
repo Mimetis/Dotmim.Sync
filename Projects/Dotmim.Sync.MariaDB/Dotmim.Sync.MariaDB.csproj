@@ -8,16 +8,9 @@
 		<Title>Dotmim.Sync.MariaDB</Title>
 		<Summary>MariaDB Sync Provider. Client or Server provider .Net Standard 2.0</Summary>
 		<Description>MariaDB Sync Provider. Manage a sync process beetween two relational databases provider. This provider can be used as Client or Server provider .Net Standard 2.0</Description>
-		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, MariaDB, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
-		<PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
-		<LangVersion>12.0</LangVersion>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
-		<PublishRepositoryUrl>true</PublishRepositoryUrl>
-		<EmbedUntrackedSources>true</EmbedUntrackedSources>
-		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 	</PropertyGroup>
 	<PropertyGroup>
 		<NoWarn>$(NoWarn)SA0001;SA1202;CA1308;CA1305;CA1822;CA1834;SA1600;IDE0017;CA2100;CA1307;CA1310;</NoWarn>

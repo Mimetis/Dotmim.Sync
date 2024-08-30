@@ -7,16 +7,10 @@
 		<Title>Dotmim.Sync.Web.Client</Title>
 		<Summary>Web client proxy Sync Provider .Net Standard 2.0</Summary>
 		<Description>Proxy to be able to Sync through an ASP.NET CORE application. Choose a Dotmim.Sync provider and protects your database call through web api calls only. this assembly is meant to be used from within your client application and will execute all the http calls</Description>
-		<PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
-		<PublishRepositoryUrl>true</PublishRepositoryUrl>
-		<EmbedUntrackedSources>true</EmbedUntrackedSources>
-		<LangVersion>12.0</LangVersion>
-		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 
 	</PropertyGroup>
 	<PropertyGroup>

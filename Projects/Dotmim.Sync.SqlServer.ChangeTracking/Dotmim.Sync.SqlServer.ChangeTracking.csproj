@@ -7,17 +7,9 @@
 		<Title>Dotmim.Sync.SqlServer</Title>
 		<Summary>Sql Server Sync Provider using Sql Server Change Tracking feature. Client or Server provider .Net Standard 2.0</Summary>
 		<Description>Sql Server Sync Provider. Manage a sync process beetween two relational databases provider. This provider works with SQL Server and can be used as Client or Server provider. Based on SqlSyncProvider, but uses the SQL Server change tracking feature instead of tracking tables. .Net Standard 2.0</Description>
-		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
-		<PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
-		<PublishRepositoryUrl>true</PublishRepositoryUrl>
-		<EmbedUntrackedSources>true</EmbedUntrackedSources>
-		<LangVersion>12.0</LangVersion>
-		<GenerateDocumentationFile>true</GenerateDocumentationFile>
-
 	</PropertyGroup>
 	<PropertyGroup>
 		<NoWarn>$(NoWarn)SA0001;SA1202;CA1308;CA1305;CA1822;CA1834;SA1600;IDE0017;CA2249;CA1866;CA2100;CA1307;CA1310;</NoWarn>

@@ -6,7 +6,9 @@
 		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
 		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
-		
+
+		<LangVersion>12.0</LangVersion>
+
 		<!-- Generate the lock file -->
 		<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
 
@@ -16,6 +18,18 @@
 		<Version>1.2.0</Version>
 		<VersionSuffix>$(VersionSuffix)</VersionSuffix>
 		<Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
+
+		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, MariaDB, PostgreSql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
+		<PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
+
+		<!-- Publish the repository URL in the built .nupkg (in the NuSpec <Repository> element) -->
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<!-- Embed source files that are not tracked by the source control manager in the PDB -->
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		<!-- Recommended: Embed symbols containing Source Link in the main file (exe/dll) -->
+		<DebugType>embedded</DebugType>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 
 	</PropertyGroup>
 
