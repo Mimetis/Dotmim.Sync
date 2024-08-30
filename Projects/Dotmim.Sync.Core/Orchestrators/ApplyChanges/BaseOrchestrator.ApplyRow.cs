@@ -31,9 +31,15 @@ namespace Dotmim.Sync
 
             if (preCommand != null)
             {
-                await this.InterceptAsync(new ExecuteCommandArgs(context, preCommand, DbCommandType.PreDeleteRow, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-                await preCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                preCommand.Dispose();
+                try
+                {
+                    await this.InterceptAsync(new ExecuteCommandArgs(context, preCommand, DbCommandType.PreDeleteRow, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                    await preCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    preCommand.Dispose();
+                }
             }
 
             var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DeleteRow,
@@ -75,12 +81,14 @@ namespace Dotmim.Sync
 
                 if (syncErrorText != null && syncErrorText.Value != null && syncErrorText.Value != DBNull.Value)
                     throw new Exception(syncErrorText.Value.ToString());
-
-                command.Dispose();
             }
             catch (Exception ex)
             {
                 exception = ex;
+            }
+            finally
+            {
+                command.Dispose();
             }
 
             var rowAppliedArgs = new RowsChangesAppliedArgs(context, batchInfo, batchArgs.SyncRows, schemaTable, SyncRowState.Modified, rowDeletedCount, exception, connection, transaction);
@@ -105,9 +113,15 @@ namespace Dotmim.Sync
 
             if (preCommand != null)
             {
-                await this.InterceptAsync(new ExecuteCommandArgs(context, preCommand, DbCommandType.PreUpdateRow, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
-                await preCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                preCommand.Dispose();
+                try
+                {
+                    await this.InterceptAsync(new ExecuteCommandArgs(context, preCommand, DbCommandType.PreUpdateRow, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                    await preCommand.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                }
+                finally
+                {
+                    preCommand.Dispose();
+                }
             }
 
             var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.UpdateRow,
@@ -148,12 +162,14 @@ namespace Dotmim.Sync
 
                 if (syncErrorText != null && syncErrorText.Value != null && syncErrorText.Value != DBNull.Value)
                     throw new Exception(syncErrorText.Value.ToString());
-
-                command.Dispose();
             }
             catch (Exception ex)
             {
                 exception = ex;
+            }
+            finally
+            {
+                command.Dispose();
             }
 
             var rowAppliedArgs = new RowsChangesAppliedArgs(context, batchInfo, batchArgs.SyncRows, schemaTable, SyncRowState.Modified, rowUpdatedCount, exception, connection, transaction);

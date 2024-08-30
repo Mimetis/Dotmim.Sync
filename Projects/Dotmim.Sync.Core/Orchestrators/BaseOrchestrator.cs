@@ -258,29 +258,33 @@ namespace Dotmim.Sync
                 return;
 
             if (connection != null && connection.State == ConnectionState.Closed)
-                return;
-
-            var isClosedHere = false;
-
-            if (connection != null && connection.State == ConnectionState.Open)
             {
-#if NET6_0_OR_GREATER
-                await connection.CloseAsync().ConfigureAwait(false);
-#else
-                connection.Close();
-#endif
-
-                isClosedHere = true;
+                connection.Dispose();
+                return;
             }
 
-            if (!cancellationToken.IsCancellationRequested)
-                await this.InterceptAsync(new ConnectionClosedArgs(context, connection), progress, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                if (connection != null && connection.State == ConnectionState.Open)
+                {
+#if NET6_0_OR_GREATER
+                    await connection.CloseAsync().ConfigureAwait(false);
+#else
+                    connection.Close();
+#endif
+                }
 
-            // Let provider knows a connection is closed
-            this.Provider.OnConnectionClosed(connection);
+                if (!cancellationToken.IsCancellationRequested)
+                    await this.InterceptAsync(new ConnectionClosedArgs(context, connection), progress, cancellationToken).ConfigureAwait(false);
 
-            if (isClosedHere && connection != null)
-                connection.Dispose();
+                // Let provider knows a connection is closed
+                this.Provider.OnConnectionClosed(connection);
+            }
+            finally
+            {
+                if (connection != null && connection.State == ConnectionState.Closed)
+                    connection.Dispose();
+            }
         }
 
         /// <summary>
