@@ -224,12 +224,18 @@ namespace Dotmim.Sync
                     var (command, _) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, DbCommandType.DisableConstraints,
                         runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                    if (command == null)
-                        return context;
+                    try
+                    {
+                        if (command == null)
+                            return context;
 
-                    await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DisableConstraints, runner.Connection, runner.Transaction), cancellationToken: cancellationToken).ConfigureAwait(false);
-                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                    command.Dispose();
+                        await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.DisableConstraints, runner.Connection, runner.Transaction), cancellationToken: cancellationToken).ConfigureAwait(false);
+                        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        command.Dispose();
+                    }
 
                     return context;
                 }
@@ -306,15 +312,21 @@ namespace Dotmim.Sync
 
                     if (command != null)
                     {
-                        await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.Reset, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
+                        try
+                        {
+                            await this.InterceptAsync(new ExecuteCommandArgs(context, command, DbCommandType.Reset, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
-                        // Check if we have a return value instead
-                        var rowDeletedCount = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                        var syncRowCountParam = syncAdapter.GetParameter(context, command, "sync_row_count");
+                            // Check if we have a return value instead
+                            var rowDeletedCount = await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+                            var syncRowCountParam = syncAdapter.GetParameter(context, command, "sync_row_count");
 
-                        if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
-                            rowDeletedCount = (int)syncRowCountParam.Value;
-                        command.Dispose();
+                            if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
+                                rowDeletedCount = (int)syncRowCountParam.Value;
+                        }
+                        finally
+                        {
+                            command.Dispose();
+                        }
                     }
 
                     // Enable check constraints for provider supporting only at table level

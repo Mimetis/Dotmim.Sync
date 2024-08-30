@@ -287,9 +287,15 @@ namespace Dotmim.Sync
 
                         if (preCommand != null)
                         {
-                            await this.InterceptAsync(new ExecuteCommandArgs(context, preCommand, dbPreCommandType, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
-                            await preCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
-                            preCommand.Dispose();
+                            try
+                            {
+                                await this.InterceptAsync(new ExecuteCommandArgs(context, preCommand, dbPreCommandType, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                                await preCommand.ExecuteNonQueryAsync().ConfigureAwait(false);
+                            }
+                            finally
+                            {
+                                preCommand.Dispose();
+                            }
                         }
 
                         (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType,
@@ -454,10 +460,7 @@ namespace Dotmim.Sync
                     catch (Exception ex)
                     {
                         if (runner != null)
-                        {
                             await runner.RollbackAsync($"InternalApplyTableChangesAsync during apply changes. Error:{ex.Message}").ConfigureAwait(false);
-                            await runner.DisposeAsync().ConfigureAwait(false);
-                        }
 
                         throw this.GetSyncError(context, ex);
                     }
@@ -466,6 +469,9 @@ namespace Dotmim.Sync
                         // Close file
                         if (localSerializer.IsOpen)
                             await localSerializer.CloseFileAsync().ConfigureAwait(false);
+
+                        if (runner != null)
+                            await runner.DisposeAsync().ConfigureAwait(false);
                     }
                 }, cancellationToken).ConfigureAwait(false);
 

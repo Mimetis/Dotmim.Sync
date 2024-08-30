@@ -188,10 +188,7 @@ namespace Dotmim.Sync
                         catch (Exception ex)
                         {
                             if (runner != null)
-                            {
                                 await runner.RollbackAsync($"InternalApplyThenGetChangesAsync during apply changes Rollback. Error:{ex.Message}").ConfigureAwait(false);
-                                await runner.DisposeAsync().ConfigureAwait(false);
-                            }
 
                             throw this.GetSyncError(context, ex);
                         }
