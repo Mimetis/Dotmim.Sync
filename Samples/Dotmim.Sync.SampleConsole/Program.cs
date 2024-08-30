@@ -41,22 +41,20 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ServerDbName));
-
-        // var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(serverDbName));
+        // var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ServerDbName));
+        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(ServerDbName));
         // var serverProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString("data"));
         // var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         // var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
 
-        var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ClientDbName));
-
-        // var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(clientDbName));
+        // var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+        // var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ClientDbName));
+        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(ClientDbName));
         // var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
         // clientProvider.UseBulkOperations = false;
         // var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         // var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        var setup = new SyncSetup("Customer");
+        var setup = new SyncSetup(AllTables);
 
         var options = new SyncOptions();
 

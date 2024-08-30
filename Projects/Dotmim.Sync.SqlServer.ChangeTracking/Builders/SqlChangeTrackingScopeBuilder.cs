@@ -23,11 +23,126 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         }
 
         /// <inheritdoc />
+        public override DbCommand GetUpdateScopeInfoClientCommand(DbConnection connection, DbTransaction transaction)
+        {
+
+            var commandText = $@"
+                    
+                    -- Need to update the last clean up in scope info as it's done automatically by SQL Server
+                    -- Here is a good place as this update is called at the end of any sync to update the current client
+
+                    DECLARE @maxVersion int;
+                    SELECT @maxVersion = MAX(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) 
+                    FROM sys.tables T 
+                    WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
+
+                    UPDATE {this.ScopeInfoTableNames.QuotedFullName} SET sync_scope_last_clean_timestamp = @maxVersion;
+
+                    MERGE {this.ScopeInfoClientTableNames.QuotedFullName} AS [base] 
+                    USING (
+                               SELECT  @sync_scope_id AS sync_scope_id,  
+	                                   @sync_scope_name AS sync_scope_name,  
+	                                   @sync_scope_hash AS sync_scope_hash,  
+	                                   @sync_scope_parameters AS sync_scope_parameters,  
+                                       @scope_last_sync_timestamp AS scope_last_sync_timestamp,
+                                       @scope_last_server_sync_timestamp AS scope_last_server_sync_timestamp,
+                                       @scope_last_sync_duration AS scope_last_sync_duration,
+                                       @scope_last_sync AS scope_last_sync,
+                                       @sync_scope_errors AS sync_scope_errors,
+                                       @sync_scope_properties AS sync_scope_properties
+                           ) AS [changes] 
+                    ON [base].[sync_scope_id] = [changes].[sync_scope_id] and [base].[sync_scope_name] = [changes].[sync_scope_name] and [base].[sync_scope_hash] = [changes].[sync_scope_hash]
+                    WHEN NOT MATCHED THEN
+	                    INSERT ([sync_scope_name], [sync_scope_id], [sync_scope_hash], [sync_scope_parameters], [scope_last_sync_timestamp],  [scope_last_server_sync_timestamp], [scope_last_sync], [scope_last_sync_duration], [sync_scope_errors], [sync_scope_properties])
+	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_id], [changes].[sync_scope_hash], [changes].[sync_scope_parameters], [changes].[scope_last_sync_timestamp], [changes].[scope_last_server_sync_timestamp], [changes].[scope_last_sync], [changes].[scope_last_sync_duration], [changes].[sync_scope_errors], [changes].[sync_scope_properties])
+                    WHEN MATCHED THEN
+	                    UPDATE SET [scope_last_sync_timestamp] = [changes].[scope_last_sync_timestamp],
+                                   [scope_last_server_sync_timestamp] = [changes].[scope_last_server_sync_timestamp],
+                                   [scope_last_sync] = [changes].[scope_last_sync],
+                                   [scope_last_sync_duration] = [changes].[scope_last_sync_duration],
+                                   [sync_scope_errors] = [changes].[sync_scope_errors],
+                                   [sync_scope_properties] = [changes].[sync_scope_properties]
+                    OUTPUT  INSERTED.[sync_scope_name], 
+                            INSERTED.[sync_scope_id], 
+                            INSERTED.[sync_scope_hash], 
+                            INSERTED.[sync_scope_parameters], 
+                            INSERTED.[scope_last_sync_timestamp],
+                            INSERTED.[scope_last_server_sync_timestamp],
+                            INSERTED.[scope_last_sync],
+                            INSERTED.[scope_last_sync_duration],
+                            INSERTED.[sync_scope_errors],
+                            INSERTED.[sync_scope_properties]; ";
+
+            var command = connection.CreateCommand();
+            if (transaction != null)
+                command.Transaction = transaction;
+
+            command.CommandText = commandText;
+
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_id";
+            p.DbType = DbType.Guid;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_hash";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_parameters";
+            p.DbType = DbType.String;
+            p.Size = -1;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@scope_last_sync_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@scope_last_server_sync_timestamp";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@scope_last_sync";
+            p.DbType = DbType.DateTime;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@scope_last_sync_duration";
+            p.DbType = DbType.Int64;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_errors";
+            p.DbType = DbType.String;
+            p.Size = -1;
+            command.Parameters.Add(p);
+
+            p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_properties";
+            p.DbType = DbType.String;
+            p.Size = -1;
+            command.Parameters.Add(p);
+
+            return command;
+        }
+
+        /// <inheritdoc />
         public override DbCommand GetUpdateScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText = $@"
-                    DECLARE @minVersion int;
-                    SELECT @minVersion = MIN(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) 
+                    DECLARE @maxVersion int;
+                    SELECT @maxVersion = MAX(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) 
                     FROM sys.tables T 
                     WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
 
@@ -42,13 +157,13 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                     ON [base].[sync_scope_name] = [changes].[sync_scope_name]
                     WHEN NOT MATCHED THEN
 	                    INSERT ([sync_scope_name], [sync_scope_schema], [sync_scope_setup], [sync_scope_version], [sync_scope_last_clean_timestamp], [sync_scope_properties])
-	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_schema], [changes].[sync_scope_setup], [changes].[sync_scope_version], @minVersion, [changes].[sync_scope_properties])
+	                    VALUES ([changes].[sync_scope_name], [changes].[sync_scope_schema], [changes].[sync_scope_setup], [changes].[sync_scope_version], @maxVersion, [changes].[sync_scope_properties])
                     WHEN MATCHED THEN
 	                    UPDATE SET [sync_scope_name] = [changes].[sync_scope_name], 
                                    [sync_scope_schema] = [changes].[sync_scope_schema], 
                                    [sync_scope_setup] = [changes].[sync_scope_setup], 
                                    [sync_scope_version] = [changes].[sync_scope_version],
-                                   [sync_scope_last_clean_timestamp] = @minVersion,
+                                   [sync_scope_last_clean_timestamp] = @maxVersion,
                                    [sync_scope_properties] = [changes].[sync_scope_properties]
                     OUTPUT  INSERTED.[sync_scope_name], 
                             INSERTED.[sync_scope_schema], 

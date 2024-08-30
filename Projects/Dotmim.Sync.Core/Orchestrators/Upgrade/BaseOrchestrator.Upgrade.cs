@@ -24,7 +24,7 @@ namespace Dotmim.Sync
             await using (runner.ConfigureAwait(false))
             {
                 var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
-                var tableName = scopeBuilder.GetParsedScopeInfoTableNames().NormalizedFullName;
+                var tableName = scopeBuilder.GetParsedScopeInfoTableNames().Name;
                 var tableBuilder = this.GetSyncAdapter(new SyncTable(tableName), new ScopeInfo { Setup = new SyncSetup() }).GetTableBuilder();
 
                 // check columns
@@ -52,7 +52,7 @@ namespace Dotmim.Sync
             await using (runner.ConfigureAwait(false))
             {
                 var scopeBuilder = this.GetScopeBuilder(this.Options.ScopeInfoTableName);
-                var tableName = scopeBuilder.GetParsedScopeInfoClientTableNames().NormalizedFullName;
+                var tableName = scopeBuilder.GetParsedScopeInfoClientTableNames().Name;
 
                 var tableBuilder = this.GetSyncAdapter(new SyncTable(tableName), new ScopeInfo { Setup = new SyncSetup() }).GetTableBuilder();
 
