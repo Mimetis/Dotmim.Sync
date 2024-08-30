@@ -10,7 +10,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Gets the current version of the library.
         /// </summary>
-        public static Version Current { get; } = new Version(1, 1, 0);
+        public static Version Current { get; } = new Version(1, 2, 0);
 
         /// <summary>
         /// Ensure the version is correct.

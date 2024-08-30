@@ -13,7 +13,7 @@
 		<!-- Restore the exact packages as listed in the lock file -->
 		<RestoreLockedMode Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</RestoreLockedMode>
 
-		<Version>1.1.0</Version>
+		<Version>1.2.0</Version>
 		<VersionSuffix>$(VersionSuffix)</VersionSuffix>
 		<Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
 
