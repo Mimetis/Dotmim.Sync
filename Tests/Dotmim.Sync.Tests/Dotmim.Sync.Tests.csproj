@@ -2,6 +2,8 @@
 	<PropertyGroup>
 		<TargetFrameworks>$(TargetFrameworkNet6);$(TargetFrameworkNet8);$(TargetFrameworkNetCore)</TargetFrameworks>
 
+		<NoWarn>$(NoWarn);CS1587;CS1591</NoWarn>
+
 		<IsPackable>false</IsPackable>
 		<!--<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>-->
 		<LangVersion>12.0</LangVersion>
