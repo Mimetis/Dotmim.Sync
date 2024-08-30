@@ -30,13 +30,16 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                     
                     -- Need to update the last clean up in scope info as it's done automatically by SQL Server
                     -- Here is a good place as this update is called at the end of any sync to update the current client
-
-                    DECLARE @maxVersion int;
-                    SELECT @maxVersion = MAX(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) 
-                    FROM sys.tables T 
-                    WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
-
-                    UPDATE {this.ScopeInfoTableNames.QuotedFullName} SET sync_scope_last_clean_timestamp = @maxVersion;
+                    
+                    IF EXISTS (SELECT t.name FROM sys.tables t WHERE t.name = N'{this.ScopeInfoTableNames.Name}')
+                    BEGIN
+                        DECLARE @maxVersion int;
+                        SELECT @maxVersion = MAX(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) 
+                        FROM sys.tables T 
+                        WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
+                        
+                        UPDATE {this.ScopeInfoTableNames.QuotedFullName} SET sync_scope_last_clean_timestamp = @maxVersion;
+                    END 
 
                     MERGE {this.ScopeInfoClientTableNames.QuotedFullName} AS [base] 
                     USING (
