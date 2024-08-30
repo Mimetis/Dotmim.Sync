@@ -30,7 +30,7 @@ namespace Dotmim.Sync.SqlServer
         {
             DbCommandType.UpdateMetadata => (this.BuildUpdateMetadataCommand(), false),
             DbCommandType.SelectRow => (this.BuildSelectRowCommand(), false),
-            DbCommandType.DeleteMetadata => (null, false),
+            DbCommandType.DeleteMetadata => (this.BuildDeleteMetadataCommand(), false),
             DbCommandType.Reset => (this.CreateResetCommand(), false),
             DbCommandType.UpdateUntrackedRows => (this.BuildUpdateUntrackedRowsCommand(), false),
             _ => base.GetCommand(context, commandType, filter),
@@ -41,6 +41,13 @@ namespace Dotmim.Sync.SqlServer
             var c = new SqlCommand("Set @sync_row_count = 1;");
             c.Parameters.Add("@sync_row_count", SqlDbType.Int);
             return c;
+        }
+
+        private SqlCommand BuildDeleteMetadataCommand()
+        {
+            var sqlCommand = new SqlCommand();
+            sqlCommand.CommandText = $"EXEC sys.sp_flush_CT_internal_table_on_demand;";
+            return sqlCommand;
         }
 
         private SqlCommand BuildSelectRowCommand()
@@ -106,9 +113,7 @@ namespace Dotmim.Sync.SqlServer
         {
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.AppendLine($"SET @sync_row_count = 0;");
-            stringBuilder.AppendLine();
             stringBuilder.AppendLine($"DELETE FROM {this.SqlObjectNames.TableQuotedFullName};");
-            stringBuilder.AppendLine();
             stringBuilder.AppendLine(string.Concat("SET @sync_row_count = @@ROWCOUNT;"));
 
             return new SqlCommand(stringBuilder.ToString());
