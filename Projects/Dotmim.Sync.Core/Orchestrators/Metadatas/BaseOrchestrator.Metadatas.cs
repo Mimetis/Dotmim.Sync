@@ -151,12 +151,14 @@ namespace Dotmim.Sync
 
                     if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
                         metadataUpdatedRowsCount = (int)syncRowCountParam.Value;
-
-                    command.Dispose();
                 }
                 catch (Exception ex)
                 {
                     exception = ex;
+                }
+                finally
+                {
+                    command.Dispose();
                 }
 
                 return (context, metadataUpdatedRowsCount > 0, exception);

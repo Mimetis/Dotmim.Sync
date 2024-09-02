@@ -49,8 +49,8 @@ namespace Dotmim.Sync
                         $@"[InternalApplyChangesAsync]. directory {{DirectoryName}} BatchPartsInfo count: {{BatchPartsInfoCount}} RowsCount {{RowsCount}}",
                         message.Changes.DirectoryName, message.Changes.BatchPartsInfo.Count, message.Changes.RowsCount);
 
-                    var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable())).ToList();
-                    var reverseSchemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable())).Reverse().ToList();
+                    var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable())).ToArray();
+                    var reverseSchemaTables = schemaTables.Reverse();
 
                     // create local directory
                     if (!string.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
