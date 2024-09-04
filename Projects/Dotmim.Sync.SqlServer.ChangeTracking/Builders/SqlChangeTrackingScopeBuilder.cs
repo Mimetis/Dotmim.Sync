@@ -212,5 +212,67 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
 
             return command;
         }
+
+        /// <inheritdoc />
+        public override DbCommand GetAllScopeInfosCommand(DbConnection connection, DbTransaction transaction)
+        {
+
+            // The last clean timestamp is the max version of the change tracking.
+            // This value is maintained by SQL Server itself
+            var commandText =
+                $@" DECLARE @maxVersion int;
+                    SELECT @maxVersion = MAX(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) 
+                    FROM sys.tables T 
+                    WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
+
+                    SELECT [sync_scope_name], 
+                          [sync_scope_schema], 
+                          [sync_scope_setup], 
+                          [sync_scope_version],
+                          @maxVersion as [sync_scope_last_clean_timestamp],
+                          [sync_scope_properties]
+                    FROM  {this.ScopeInfoTableNames.QuotedFullName}";
+
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = commandText;
+
+            return command;
+        }
+
+        /// <inheritdoc />
+        public override DbCommand GetScopeInfoCommand(DbConnection connection, DbTransaction transaction)
+        {
+
+            // The last clean timestamp is the max version of the change tracking.
+            // This value is maintained by SQL Server itself
+            var commandText =
+                    $@"
+                    DECLARE @maxVersion int;
+                    SELECT @maxVersion = MAX(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) 
+                    FROM sys.tables T 
+                    WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
+
+                    SELECT [sync_scope_name], 
+                          [sync_scope_schema], 
+                          [sync_scope_setup], 
+                          [sync_scope_version],
+                          @maxVersion as [sync_scope_last_clean_timestamp],
+                          [sync_scope_properties]
+                    FROM  {this.ScopeInfoTableNames.QuotedFullName}
+                    WHERE [sync_scope_name] = @sync_scope_name";
+
+            var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = commandText;
+
+            var p = command.CreateParameter();
+            p.ParameterName = "@sync_scope_name";
+            p.DbType = DbType.String;
+            p.Size = 100;
+            command.Parameters.Add(p);
+
+            return command;
+        }
     }
 }
