@@ -33,7 +33,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                     
                     IF EXISTS (SELECT t.name FROM sys.tables t WHERE t.name = N'{this.ScopeInfoTableNames.Name}')
                     BEGIN
-                        DECLARE @maxVersion int;
+                        DECLARE @maxVersion bigint;
                         SELECT @maxVersion = MAX(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) 
                         FROM sys.tables T 
                         WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
@@ -144,7 +144,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
         public override DbCommand GetUpdateScopeInfoCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandText = $@"
-                    DECLARE @maxVersion int;
+                    DECLARE @maxVersion bigint;
                     SELECT @maxVersion = MAX(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) 
                     FROM sys.tables T 
                     WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
@@ -220,7 +220,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             // The last clean timestamp is the max version of the change tracking.
             // This value is maintained by SQL Server itself
             var commandText =
-                $@" DECLARE @maxVersion int;
+                $@" DECLARE @maxVersion bigint;
                     SELECT @maxVersion = MAX(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) 
                     FROM sys.tables T 
                     WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
@@ -248,7 +248,7 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
             // This value is maintained by SQL Server itself
             var commandText =
                     $@"
-                    DECLARE @maxVersion int;
+                    DECLARE @maxVersion bigint;
                     SELECT @maxVersion = MAX(CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id)) 
                     FROM sys.tables T 
                     WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
