@@ -17,7 +17,7 @@ namespace Dotmim.Sync.Serialization
     public class JsonReader : IDisposable
     {
         // buffer size
-        private const int MaxTokenGap = 1024 * 1024;
+        private const int MaxTokenGap = int.MaxValue;
 
         // encoding used to convert bytes to string
         private static readonly UTF8Encoding Utf8Encoding = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
@@ -340,14 +340,11 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public Guid? GetGuid()
         {
-            if (this.TokenType != JsonTokenType.String)
-                return null;
-
-            if (Utf8Parser.TryParse(this.Value.Span, out Guid tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed)
-                return tmp;
-            else
-
-                throw new FormatException("Can't parse double");
+            return this.TokenType != JsonTokenType.String
+                ? null
+                : Utf8Parser.TryParse(this.Value.Span, out Guid tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed
+                ? (Guid?)tmp
+                : throw new FormatException("Can't parse double");
         }
 
         /// <summary>
@@ -385,14 +382,11 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public TimeSpan? GetTimeSpan()
         {
-            if (this.TokenType != JsonTokenType.String)
-                return null;
-
-            if (Utf8Parser.TryParse(this.Value.Span, out TimeSpan tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed)
-                return tmp;
-            else
-
-                throw new FormatException("Can't parse TimeSpan");
+            return this.TokenType != JsonTokenType.String
+                ? null
+                : Utf8Parser.TryParse(this.Value.Span, out TimeSpan tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed
+                ? (TimeSpan?)tmp
+                : throw new FormatException("Can't parse TimeSpan");
         }
 
         /// <summary>
@@ -430,14 +424,11 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public DateTimeOffset? GetDateTimeOffset()
         {
-            if (this.TokenType != JsonTokenType.String)
-                return null;
-
-            if (Utf8Parser.TryParse(this.Value.Span, out DateTimeOffset tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed)
-                return tmp;
-            else
-
-                throw new FormatException("Can't parse DateTimeOffset");
+            return this.TokenType != JsonTokenType.String
+                ? null
+                : Utf8Parser.TryParse(this.Value.Span, out DateTimeOffset tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed
+                ? (DateTimeOffset?)tmp
+                : throw new FormatException("Can't parse DateTimeOffset");
         }
 
         /// <summary>
@@ -475,14 +466,11 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public DateTime? GetDateTime()
         {
-            if (this.TokenType != JsonTokenType.String)
-                return null;
-
-            if (Utf8Parser.TryParse(this.Value.Span, out DateTime tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed)
-                return tmp;
-            else
-
-                throw new FormatException("Can't parse GetDateTime");
+            return this.TokenType != JsonTokenType.String
+                ? null
+                : Utf8Parser.TryParse(this.Value.Span, out DateTime tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed
+                ? (DateTime?)tmp
+                : throw new FormatException("Can't parse GetDateTime");
         }
 
         /// <summary>
@@ -520,13 +508,11 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public double? GetDouble()
         {
-            if (this.TokenType != JsonTokenType.Number)
-                return null;
-
-            if (Utf8Parser.TryParse(this.Value.Span, out double tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed)
-                return tmp;
-            else
-                throw new FormatException("Can't parse double");
+            return this.TokenType != JsonTokenType.Number
+                ? null
+                : Utf8Parser.TryParse(this.Value.Span, out double tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed
+                ? tmp
+                : throw new FormatException("Can't parse double");
         }
 
         /// <summary>
@@ -564,13 +550,11 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public decimal? GetDecimal()
         {
-            if (this.TokenType != JsonTokenType.Number)
-                return null;
-
-            if (Utf8Parser.TryParse(this.Value.Span, out decimal tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed)
-                return tmp;
-            else
-                throw new FormatException("Can't parse decimal");
+            return this.TokenType != JsonTokenType.Number
+                ? null
+                : Utf8Parser.TryParse(this.Value.Span, out decimal tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed
+                ? tmp
+                : throw new FormatException("Can't parse decimal");
         }
 
         /// <summary>
@@ -608,14 +592,11 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public float? GetSingle()
         {
-            if (this.TokenType != JsonTokenType.Number)
-                return null;
-
-            if (Utf8Parser.TryParse(this.Value.Span, out float tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed)
-                return tmp;
-            else
-
-                throw new FormatException("Can't parse float");
+            return this.TokenType != JsonTokenType.Number
+                ? null
+                : Utf8Parser.TryParse(this.Value.Span, out float tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed
+                ? tmp
+                : throw new FormatException("Can't parse float");
         }
 
         /// <summary>
@@ -653,14 +634,11 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public long? GetInt64()
         {
-            if (this.TokenType != JsonTokenType.Number)
-                return null;
-
-            if (Utf8Parser.TryParse(this.Value.Span, out long tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed)
-                return tmp;
-            else
-
-                throw new FormatException("Can't parse long");
+            return this.TokenType != JsonTokenType.Number
+                ? null
+                : Utf8Parser.TryParse(this.Value.Span, out long tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed
+                ? tmp
+                : throw new FormatException("Can't parse long");
         }
 
         /// <summary>
@@ -698,14 +676,11 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public int? GetInt32()
         {
-            if (this.TokenType != JsonTokenType.Number)
-                return null;
-
-            if (Utf8Parser.TryParse(this.Value.Span, out int tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed)
-                return tmp;
-            else
-
-                throw new FormatException("Can't parse int");
+            return this.TokenType != JsonTokenType.Number
+                ? null
+                : Utf8Parser.TryParse(this.Value.Span, out int tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed
+                ? tmp
+                : throw new FormatException("Can't parse int");
         }
 
         /// <summary>
@@ -743,14 +718,11 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public short? GetInt16()
         {
-            if (this.TokenType != JsonTokenType.Number)
-                return null;
-
-            if (Utf8Parser.TryParse(this.Value.Span, out short tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed)
-                return tmp;
-            else
-
-                throw new FormatException("Can't parse short");
+            return this.TokenType != JsonTokenType.Number
+                ? null
+                : Utf8Parser.TryParse(this.Value.Span, out short tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed
+                ? tmp
+                : throw new FormatException("Can't parse short");
         }
 
         /// <summary>
@@ -788,13 +760,11 @@ namespace Dotmim.Sync.Serialization
         /// </summary>
         public byte? GetByte()
         {
-            if (this.TokenType != JsonTokenType.Number)
-                return null;
-
-            if (Utf8Parser.TryParse(this.Value.Span, out byte tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed)
-                return tmp;
-            else
-                throw new FormatException("Can't parse byte");
+            return this.TokenType != JsonTokenType.Number
+                ? null
+                : Utf8Parser.TryParse(this.Value.Span, out byte tmp, out var bytesConsumed) && this.Value.Span.Length == bytesConsumed
+                ? tmp
+                : throw new FormatException("Can't parse byte");
         }
 
         /// <summary>
@@ -835,12 +805,7 @@ namespace Dotmim.Sync.Serialization
         public bool? GetBoolean()
 #pragma warning restore CA1024 // Use properties where appropriate
         {
-            if (this.TokenType == JsonTokenType.True)
-                return true;
-            else if (this.TokenType == JsonTokenType.False)
-                return false;
-            else
-                return null;
+            return this.TokenType == JsonTokenType.True ? true : this.TokenType == JsonTokenType.False ? false : null;
         }
 
         /// <summary>
@@ -968,10 +933,7 @@ namespace Dotmim.Sync.Serialization
 
             var buffer = ArrayPool<byte>.Shared.Rent(bytesExpected);
 
-            if (Convert.TryFromBase64String(str, buffer, out var bytesWritten))
-                return buffer.AsSpan(0, bytesWritten);
-
-            return null;
+            return Convert.TryFromBase64String(str, buffer, out var bytesWritten) ? buffer.AsSpan(0, bytesWritten) : (Span<byte>)null;
         }
 #endif
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 
 namespace Dotmim.Sync
 {
@@ -7,10 +8,20 @@ namespace Dotmim.Sync
     /// </summary>
     public static class SyncVersion
     {
+
         /// <summary>
         /// Gets the current version of the library.
         /// </summary>
-        public static Version Current { get; } = new Version(1, 2, 0);
+        public static Version Current
+        {
+            get
+            {
+                var assemblyVersion = new Version(typeof(CoreProvider).GetTypeInfo()
+                    .Assembly.GetCustomAttribute<AssemblyFileVersionAttribute>().Version);
+
+                return assemblyVersion;
+            }
+        }
 
         /// <summary>
         /// Ensure the version is correct.
