@@ -249,9 +249,9 @@ namespace Dotmim.Sync
                     this.InterceptAsync(new TransientErrorOccuredArgs(context, connection, ex, cpt, ts), progress, cancellationToken).AsTask());
 
                 // Defining my retry policy
-                SyncPolicy retryPolicy = this.Options.TransactionMode != TransactionMode.AllOrNothing
-                 ? retryPolicy = SyncPolicy.WaitAndRetryForever(retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry)
-                 : retryPolicy = SyncPolicy.WaitAndRetry(0, TimeSpan.Zero);
+                var retryPolicy = this.Options.TransactionMode != TransactionMode.AllOrNothing
+                    ? SyncPolicy.WaitAndRetryForever(retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry)
+                    : SyncPolicy.WaitAndRetry(0, TimeSpan.Zero);
 
                 var applyChangesPolicyResult = await retryPolicy.ExecuteAsync(
                     async () =>
