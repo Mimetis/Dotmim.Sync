@@ -217,14 +217,12 @@ namespace Dotmim.Sync
             // Applied row for this particular BPI
             var appliedRows = 0;
 
-            IEnumerable<BatchPartInfo> bpiTables;
-
             // Get command
             DbCommand command = null;
             var isBatch = false;
             string cmdText;
 
-            bpiTables = message.Changes.GetBatchPartsInfos(schemaTable);
+            var bpiTables = message.Changes.GetBatchPartsInfos(schemaTable);
 
             // launch interceptor if any
             var args = new TableChangesApplyingArgs(context, message.Changes, bpiTables, schemaTable, applyType, command, connection, transaction);
