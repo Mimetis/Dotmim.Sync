@@ -319,11 +319,11 @@ namespace Dotmim.Sync
                                 // Adding rows to the batch rows
                                 if (batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
                                 {
-                                    if (applyType == SyncRowState.Modified && (syncRow.RowState == SyncRowState.RetryModifiedOnNextSync || syncRow.RowState == SyncRowState.Modified))
+                                    if (applyType == SyncRowState.Modified && syncRow.RowState is SyncRowState.RetryModifiedOnNextSync or SyncRowState.Modified)
                                         batchRows.Add(syncRow);
-                                    else if (applyType == SyncRowState.Deleted && (syncRow.RowState == SyncRowState.RetryDeletedOnNextSync || syncRow.RowState == SyncRowState.Deleted))
+                                    else if (applyType == SyncRowState.Deleted && syncRow.RowState is SyncRowState.RetryDeletedOnNextSync or SyncRowState.Deleted)
                                         batchRows.Add(syncRow);
-                                    else if (syncRow.RowState == SyncRowState.ApplyModifiedFailed || syncRow.RowState == SyncRowState.ApplyDeletedFailed)
+                                    else if (syncRow.RowState is SyncRowState.ApplyModifiedFailed or SyncRowState.ApplyDeletedFailed)
                                         errorsRows.Add((syncRow, new Exception("Row failed to be applied on last sync")));
 
                                     if (rowsFetched < batchPartInfo.RowsCount && batchRows.Count < this.Provider.BulkBatchMaxLinesCount)
@@ -378,16 +378,16 @@ namespace Dotmim.Sync
 
                                     foreach (var batchRow in batchRows)
                                     {
-                                        if (batchRow.RowState == SyncRowState.ApplyModifiedFailed || batchRow.RowState == SyncRowState.ApplyDeletedFailed)
+                                        if (batchRow.RowState is SyncRowState.ApplyModifiedFailed or SyncRowState.ApplyDeletedFailed)
                                         {
                                             errorsRows.Add((batchRow, new Exception("Row failed to be applied on last sync")));
                                             continue;
                                         }
 
-                                        if (applyType == SyncRowState.Modified && batchRow.RowState != SyncRowState.RetryModifiedOnNextSync && batchRow.RowState != SyncRowState.Modified)
+                                        if (applyType == SyncRowState.Modified && batchRow.RowState is not (SyncRowState.RetryModifiedOnNextSync or SyncRowState.Modified))
                                             continue;
 
-                                        if (applyType == SyncRowState.Deleted && batchRow.RowState != SyncRowState.RetryDeletedOnNextSync && batchRow.RowState != SyncRowState.Deleted)
+                                        if (applyType == SyncRowState.Deleted && batchRow.RowState is not (SyncRowState.RetryDeletedOnNextSync or SyncRowState.Deleted))
                                             continue;
 
 #pragma warning disable CA2100 // Review SQL queries for security vulnerabilities
@@ -423,16 +423,16 @@ namespace Dotmim.Sync
 
                             foreach (var syncRow in localSerializer.GetRowsFromFile(fullPath, schemaChangesTable))
                             {
-                                if (syncRow.RowState == SyncRowState.ApplyModifiedFailed || syncRow.RowState == SyncRowState.ApplyDeletedFailed)
+                                if (syncRow.RowState is SyncRowState.ApplyModifiedFailed or SyncRowState.ApplyDeletedFailed)
                                 {
                                     errorsRows.Add((syncRow, new Exception("Row failed to be applied on last sync")));
                                     continue;
                                 }
 
-                                if (applyType == SyncRowState.Modified && syncRow.RowState != SyncRowState.RetryModifiedOnNextSync && syncRow.RowState != SyncRowState.Modified)
+                                if (applyType == SyncRowState.Modified && syncRow.RowState is not (SyncRowState.RetryModifiedOnNextSync or SyncRowState.Modified))
                                     continue;
 
-                                if (applyType == SyncRowState.Deleted && syncRow.RowState != SyncRowState.RetryDeletedOnNextSync && syncRow.RowState != SyncRowState.Deleted)
+                                if (applyType == SyncRowState.Deleted && syncRow.RowState is not (SyncRowState.RetryDeletedOnNextSync or SyncRowState.Deleted))
                                     continue;
 
                                 var (rowAppliedCount, errorException) = await this.InternalApplySingleRowAsync(context, command, syncRow, schemaChangesTable, syncAdapter, applyType, message, dbCommandType,
@@ -713,11 +713,11 @@ namespace Dotmim.Sync
                     {
                         this.Logger.LogInformation($@"[InternalApplyTableChangesAsync]. Handle {{ErrorsRowsCount}} errors", errorsRows.Count);
 
-                        if ((errorRow.SyncRow.RowState == SyncRowState.ApplyModifiedFailed || errorRow.SyncRow.RowState == SyncRowState.Modified || errorRow.SyncRow.RowState == SyncRowState.RetryModifiedOnNextSync)
+                        if (errorRow.SyncRow.RowState is SyncRowState.ApplyModifiedFailed or SyncRowState.Modified or SyncRowState.RetryModifiedOnNextSync
                             && applyType == SyncRowState.Deleted)
                             continue;
 
-                        if ((errorRow.SyncRow.RowState == SyncRowState.ApplyDeletedFailed || errorRow.SyncRow.RowState == SyncRowState.Deleted || errorRow.SyncRow.RowState == SyncRowState.RetryDeletedOnNextSync)
+                        if (errorRow.SyncRow.RowState is SyncRowState.ApplyDeletedFailed or SyncRowState.Deleted or SyncRowState.RetryDeletedOnNextSync
                             && applyType == SyncRowState.Modified)
                             continue;
 
