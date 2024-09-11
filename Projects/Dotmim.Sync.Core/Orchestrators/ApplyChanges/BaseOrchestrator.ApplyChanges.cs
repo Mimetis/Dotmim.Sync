@@ -466,10 +466,6 @@ namespace Dotmim.Sync
                     }
                     finally
                     {
-                        // Close file
-                        if (localSerializer.IsOpen)
-                            await localSerializer.CloseFileAsync().ConfigureAwait(false);
-
                         if (runner != null)
                             await runner.DisposeAsync().ConfigureAwait(false);
                     }
@@ -883,13 +879,11 @@ namespace Dotmim.Sync
             {
                 if (localSerializerWriter != null)
                 {
-                    await localSerializerWriter.CloseFileAsync().ConfigureAwait(false);
                     await localSerializerWriter.DisposeAsync().ConfigureAwait(false);
                 }
 
                 if (localSerializerReader != null)
                 {
-                    await localSerializerReader.CloseFileAsync().ConfigureAwait(false);
                     await localSerializerReader.DisposeAsync().ConfigureAwait(false);
                 }
             }

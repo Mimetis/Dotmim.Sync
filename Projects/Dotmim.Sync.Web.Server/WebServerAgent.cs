@@ -899,8 +899,6 @@ namespace Dotmim.Sync.Web.Server
                     await localSerializer.WriteRowToFileAsync(syncRow, schemaTable).ConfigureAwait(false);
                 }
 
-                await localSerializer.CloseFileAsync().ConfigureAwait(false);
-
                 var bpi = new BatchPartInfo
                 {
                     FileName = fileName,

@@ -235,8 +235,6 @@ namespace Dotmim.Sync.Web.Client
 
                         await localSerializer.WriteRowToFileAsync(syncRow, schemaTable).ConfigureAwait(false);
                     }
-
-                    await localSerializer.CloseFileAsync().ConfigureAwait(false);
                 }
             }
             else
