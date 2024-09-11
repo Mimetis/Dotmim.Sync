@@ -120,8 +120,6 @@ namespace Dotmim.Sync.Tests.UnitTests
             foreach (var row in tCustomer.Rows)
                 await localSerializer.WriteRowToFileAsync(row, tCustomer);
 
-            await localSerializer.CloseFileAsync();
-
             return (batchInfo, tCustomer);
         }
 
