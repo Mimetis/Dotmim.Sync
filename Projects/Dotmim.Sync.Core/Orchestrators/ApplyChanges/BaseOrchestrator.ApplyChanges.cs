@@ -343,10 +343,9 @@ namespace Dotmim.Sync
                                     appliedRows += rowAppliedCount;
 
                                     // Check conflicts
-                                    if (conflictSyncRows != null && conflictSyncRows.Count > 0)
+                                    if (conflictSyncRows != null)
                                     {
-                                        foreach (var conflictRow in conflictSyncRows)
-                                            conflictRows.Add(conflictRow);
+                                        conflictRows.AddRange(conflictSyncRows);
                                     }
                                 }
                                 else
@@ -481,10 +480,11 @@ namespace Dotmim.Sync
                 appliedRows += applyChangesPolicyResult.appliedRows;
                 failedRows += applyChangesPolicyResult.failedRows;
 
-                if (applyChangesPolicyResult.conflictRows != null && applyChangesPolicyResult.conflictRows.Count > 0)
-                    applyChangesPolicyResult.conflictRows.ForEach(sr => conflictRows.Add(sr));
-                if (applyChangesPolicyResult.errorsRows != null && applyChangesPolicyResult.errorsRows.Count > 0)
-                    applyChangesPolicyResult.errorsRows.ForEach(sr => errorsRows.Add(sr));
+                if (applyChangesPolicyResult.conflictRows?.Count > 0)
+                    conflictRows.AddRange(applyChangesPolicyResult.conflictRows);
+
+                if (applyChangesPolicyResult.errorsRows?.Count > 0)
+                    errorsRows.AddRange(applyChangesPolicyResult.errorsRows);
             }
 
             try
