@@ -7,6 +7,90 @@ namespace Dotmim.Sync.Tests.UnitTests
     {
 
         [Fact]
+        public void TableParser_Parse_OnlyOneLetter_ShouldWork()
+        {
+            var tableParser = new TableParser("D", '[', ']');
+
+            Assert.Equal("D", tableParser.TableName);
+            Assert.Equal("[D]", tableParser.QuotedShortName);
+            Assert.Equal("[D]", tableParser.QuotedFullName);
+            Assert.Equal("D", tableParser.NormalizedShortName);
+            Assert.Equal("D", tableParser.NormalizedFullName);
+        }
+
+        [Fact]
+        public void TableParser_Parse_OnlyOneLetter_NoQuotes_ShouldWork()
+        {
+            var tableParser = new TableParser("D");
+
+            Assert.Equal("D", tableParser.TableName);
+            Assert.Equal("[D]", tableParser.QuotedShortName);
+            Assert.Equal("[D]", tableParser.QuotedFullName);
+            Assert.Equal("D", tableParser.NormalizedShortName);
+            Assert.Equal("D", tableParser.NormalizedFullName);
+        }
+
+        [Fact]
+        public void TableParser_Parse_NoLetter_NoQuotes_ShouldWork()
+        {
+            var tableParser = new TableParser("");
+
+            Assert.Equal("", tableParser.TableName);
+            Assert.Equal("[]", tableParser.QuotedShortName);
+            Assert.Equal("[]", tableParser.QuotedFullName);
+            Assert.Equal("", tableParser.NormalizedShortName);
+            Assert.Equal("", tableParser.NormalizedFullName);
+        }
+
+        [Fact]
+        public void TableParser_Parse_OneSpace_NoQuotes_ShouldWork()
+        {
+            var tableParser = new TableParser(" ");
+
+            Assert.Equal("", tableParser.TableName);
+            Assert.Equal("[]", tableParser.QuotedShortName);
+            Assert.Equal("[]", tableParser.QuotedFullName);
+            Assert.Equal("", tableParser.NormalizedShortName);
+            Assert.Equal("", tableParser.NormalizedFullName);
+        }
+
+        [Fact]
+        public void TableParser_Parse_OneDot_NoQuotes_ShouldWork()
+        {
+            var tableParser = new TableParser(".");
+
+            Assert.Equal("", tableParser.TableName);
+            Assert.Equal("[]", tableParser.QuotedShortName);
+            Assert.Equal("[]", tableParser.QuotedFullName);
+            Assert.Equal("", tableParser.NormalizedShortName);
+            Assert.Equal("", tableParser.NormalizedFullName);
+        }
+
+        [Fact]
+        public void TableParser_Parse_OneLetterAsQuote_ShouldWork()
+        {
+            var tableParser = new TableParser("[");
+
+            Assert.Equal("", tableParser.TableName);
+            Assert.Equal("[]", tableParser.QuotedShortName);
+            Assert.Equal("[]", tableParser.QuotedFullName);
+            Assert.Equal("", tableParser.NormalizedShortName);
+            Assert.Equal("", tableParser.NormalizedFullName);
+        }
+
+        [Fact]
+        public void TableParser_Parse_OneLetterAsQuote_WithQuote_ShouldWork()
+        {
+            var tableParser = new TableParser("|", '|', '|');
+
+            Assert.Equal("", tableParser.TableName);
+            Assert.Equal("||", tableParser.QuotedShortName);
+            Assert.Equal("||", tableParser.QuotedFullName);
+            Assert.Equal("", tableParser.NormalizedShortName);
+            Assert.Equal("", tableParser.NormalizedFullName);
+        }
+
+        [Fact]
         public void TableParser_Parse_ShouldWork()
         {
             var tableParser = new TableParser("dbo.Customer", '[', ']');

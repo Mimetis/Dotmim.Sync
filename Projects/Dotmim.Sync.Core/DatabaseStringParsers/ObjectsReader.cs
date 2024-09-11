@@ -57,6 +57,24 @@ namespace Dotmim.Sync.DatabaseStringParsers
             if (this.rightQuotes.Length == 1)
                 this.FirstRightQuote = this.rightQuotes[0];
 
+            if (this.input.Length == 0)
+                return false;
+
+            if (this.input.Length == 1 && this.dataPos == 0)
+            {
+                // check if character is a quote or a special character
+                if (this.rightQuotes.Contains(this.input[this.dataPos])
+                    || this.leftQuotes.Contains(this.input[this.dataPos])
+                    || this.input[this.dataPos] == '.'
+                    || this.input[this.dataPos] == ' ')
+
+                    return false;
+
+                this.Current = this.input;
+                this.dataPos++;
+                return true;
+            }
+
             // iterate through the input
             while (this.dataPos <= this.input.Length - 1)
             {

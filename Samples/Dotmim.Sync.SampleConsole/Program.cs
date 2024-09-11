@@ -43,6 +43,7 @@ internal class Program
     {
         // var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ServerDbName));
         var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(ServerDbName));
+
         // var serverProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString("data"));
         // var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
         // var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
@@ -56,8 +57,6 @@ internal class Program
         // var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
         var setup = new SyncSetup(AllTables);
 
-        var options = new SyncOptions();
-
         // options.Logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Information);
         // options.UseVerboseErrors = true;
 
@@ -69,7 +68,7 @@ internal class Program
         // var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("vaguegitclient"));
 
         // var setup = new SyncSetup(new string[] { "SubscriptionTransactions" });
-        // var options = new SyncOptions();
+        var options = new SyncOptions();
 
         // var loggerFactory = LoggerFactory.Create(builder => { builder.AddSeq().SetMinimumLevel(LogLevel.Debug); });
         // var logger = loggerFactory.CreateLogger("Dotmim.Sync");
@@ -341,6 +340,8 @@ internal class Program
 
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
+        setup = new SyncSetup("Opr");
+
         options.DisableConstraintsOnApplyChanges = true;
 
         var progress = new SynchronousProgress<ProgressArgs>(s =>
