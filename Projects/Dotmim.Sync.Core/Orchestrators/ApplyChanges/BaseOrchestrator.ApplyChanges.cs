@@ -50,7 +50,7 @@ namespace Dotmim.Sync
                         message.Changes.DirectoryName, message.Changes.BatchPartsInfo.Count, message.Changes.RowsCount);
 
                     var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable())).ToArray();
-                    var reverseSchemaTables = schemaTables.Reverse();
+                    var reverseSchemaTables = schemaTables.Reverse().ToArray();
 
                     // create local directory
                     if (!string.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
@@ -217,14 +217,11 @@ namespace Dotmim.Sync
             // Applied row for this particular BPI
             var appliedRows = 0;
 
-            IEnumerable<BatchPartInfo> bpiTables;
-
             // Get command
             DbCommand command = null;
             var isBatch = false;
-            string cmdText;
 
-            bpiTables = message.Changes.GetBatchPartsInfos(schemaTable);
+            var bpiTables = message.Changes.GetBatchPartsInfos(schemaTable);
 
             // launch interceptor if any
             var args = new TableChangesApplyingArgs(context, message.Changes, bpiTables, schemaTable, applyType, command, connection, transaction);
@@ -251,9 +248,9 @@ namespace Dotmim.Sync
                     this.InterceptAsync(new TransientErrorOccuredArgs(context, connection, ex, cpt, ts), progress, cancellationToken).AsTask());
 
                 // Defining my retry policy
-                SyncPolicy retryPolicy = this.Options.TransactionMode != TransactionMode.AllOrNothing
-                 ? retryPolicy = SyncPolicy.WaitAndRetryForever(retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry)
-                 : retryPolicy = SyncPolicy.WaitAndRetry(0, TimeSpan.Zero);
+                var retryPolicy = this.Options.TransactionMode != TransactionMode.AllOrNothing
+                    ? SyncPolicy.WaitAndRetryForever(retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry)
+                    : SyncPolicy.WaitAndRetry(0, TimeSpan.Zero);
 
                 var applyChangesPolicyResult = await retryPolicy.ExecuteAsync(
                     async () =>
@@ -345,10 +342,9 @@ namespace Dotmim.Sync
                                     appliedRows += rowAppliedCount;
 
                                     // Check conflicts
-                                    if (conflictSyncRows != null && conflictSyncRows.Count > 0)
+                                    if (conflictSyncRows != null)
                                     {
-                                        foreach (var conflictRow in conflictSyncRows)
-                                            conflictRows.Add(conflictRow);
+                                        conflictRows.AddRange(conflictSyncRows);
                                     }
                                 }
                                 else
@@ -374,7 +370,7 @@ namespace Dotmim.Sync
                                     (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType,
                                                     runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                                    cmdText = command.CommandText;
+                                    var cmdText = command.CommandText;
 
                                     foreach (var batchRow in batchRows)
                                     {
@@ -483,10 +479,11 @@ namespace Dotmim.Sync
                 appliedRows += applyChangesPolicyResult.appliedRows;
                 failedRows += applyChangesPolicyResult.failedRows;
 
-                if (applyChangesPolicyResult.conflictRows != null && applyChangesPolicyResult.conflictRows.Count > 0)
-                    applyChangesPolicyResult.conflictRows.ForEach(sr => conflictRows.Add(sr));
-                if (applyChangesPolicyResult.errorsRows != null && applyChangesPolicyResult.errorsRows.Count > 0)
-                    applyChangesPolicyResult.errorsRows.ForEach(sr => errorsRows.Add(sr));
+                if (applyChangesPolicyResult.conflictRows?.Count > 0)
+                    conflictRows.AddRange(applyChangesPolicyResult.conflictRows);
+
+                if (applyChangesPolicyResult.errorsRows?.Count > 0)
+                    errorsRows.AddRange(applyChangesPolicyResult.errorsRows);
             }
 
             try
