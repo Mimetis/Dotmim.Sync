@@ -94,10 +94,10 @@ namespace Dotmim.Sync
                 // Check if we have an handled error
                 var syncErrorText = syncAdapter.GetParameter(context, command, "sync_error_text");
 
-                if (syncRowCountParam != null && syncRowCountParam.Value != null && syncRowCountParam.Value != DBNull.Value)
+                if (syncRowCountParam is not null && syncRowCountParam.Value is not null and not DBNull)
                     rowCount = (int)syncRowCountParam.Value;
 
-                if (syncErrorText != null && syncErrorText.Value != null && syncErrorText.Value != DBNull.Value)
+                if (syncErrorText is not null && syncErrorText.Value is not null and not DBNull)
                     throw new Exception(syncErrorText.Value.ToString());
             }
             catch (Exception ex)
