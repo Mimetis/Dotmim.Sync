@@ -645,48 +645,48 @@
       "dotmim.sync.mariadb": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.1.0, )",
+          "Dotmim.Sync.Core": "[1.2.0, )",
           "MySqlConnector": "[2.3.7, )"
         }
       },
       "dotmim.sync.mysql": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.1.0, )",
+          "Dotmim.Sync.Core": "[1.2.0, )",
           "MySqlConnector": "[2.3.7, )"
         }
       },
       "dotmim.sync.postgresql": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.1.0, )",
+          "Dotmim.Sync.Core": "[1.2.0, )",
           "Npgsql": "[8.0.3, )"
         }
       },
       "dotmim.sync.sqlite": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.1.0, )",
+          "Dotmim.Sync.Core": "[1.2.0, )",
           "Microsoft.Data.Sqlite": "[8.0.6, )"
         }
       },
       "dotmim.sync.sqlserver": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.1.0, )",
+          "Dotmim.Sync.Core": "[1.2.0, )",
           "Microsoft.Data.SqlClient": "[5.2.1, )"
         }
       },
       "dotmim.sync.sqlserver.changetracking": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.SqlServer": "[1.1.0, )"
+          "Dotmim.Sync.SqlServer": "[1.2.0, )"
         }
       },
       "dotmim.sync.web.client": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Core": "[1.1.0, )",
+          "Dotmim.Sync.Core": "[1.2.0, )",
           "Microsoft.Extensions.Features": "[8.0.6, )",
           "Microsoft.Net.Http.Headers": "[8.0.6, )"
         }
@@ -694,7 +694,7 @@
       "dotmim.sync.web.server": {
         "type": "Project",
         "dependencies": {
-          "Dotmim.Sync.Web.Client": "[1.1.0, )",
+          "Dotmim.Sync.Web.Client": "[1.2.0, )",
           "System.Text.Json": "[8.0.4, )"
         }
       }
