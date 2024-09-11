@@ -50,7 +50,7 @@ namespace Dotmim.Sync
                         message.Changes.DirectoryName, message.Changes.BatchPartsInfo.Count, message.Changes.RowsCount);
 
                     var schemaTables = message.Schema.Tables.SortByDependencies(tab => tab.GetRelations().Select(r => r.GetParentTable())).ToArray();
-                    var reverseSchemaTables = schemaTables.Reverse();
+                    var reverseSchemaTables = schemaTables.Reverse().ToArray();
 
                     // create local directory
                     if (!string.IsNullOrEmpty(message.BatchDirectory) && !Directory.Exists(message.BatchDirectory))
