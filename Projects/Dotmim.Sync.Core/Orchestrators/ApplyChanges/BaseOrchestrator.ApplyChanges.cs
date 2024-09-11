@@ -220,7 +220,6 @@ namespace Dotmim.Sync
             // Get command
             DbCommand command = null;
             var isBatch = false;
-            string cmdText;
 
             var bpiTables = message.Changes.GetBatchPartsInfos(schemaTable);
 
@@ -371,7 +370,7 @@ namespace Dotmim.Sync
                                     (command, isBatch) = await this.InternalGetCommandAsync(scopeInfo, context, syncAdapter, dbCommandType,
                                                     runner.Connection, runner.Transaction, runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
-                                    cmdText = command.CommandText;
+                                    var cmdText = command.CommandText;
 
                                     foreach (var batchRow in batchRows)
                                     {
