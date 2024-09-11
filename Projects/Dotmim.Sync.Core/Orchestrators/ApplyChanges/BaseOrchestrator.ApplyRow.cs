@@ -1,4 +1,4 @@
-using Dotmim.Sync.Batch;
+﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using System;
@@ -56,7 +56,11 @@ namespace Dotmim.Sync
                 }
                 finally
                 {
+#if NET6_0_OR_GREATER
+                    await preCommand.DisposeAsync().ConfigureAwait(false);
+#else
                     preCommand.Dispose();
+#endif
                 }
             }
 
@@ -106,7 +110,11 @@ namespace Dotmim.Sync
             }
             finally
             {
+#if NET6_0_OR_GREATER
+                await command.DisposeAsync().ConfigureAwait(false);
+#else
                 command.Dispose();
+#endif
             }
 
             var rowAppliedArgs = new RowsChangesAppliedArgs(context, batchInfo, batchArgs.SyncRows, schemaTable, SyncRowState.Modified, rowCount, exception, connection, transaction);
