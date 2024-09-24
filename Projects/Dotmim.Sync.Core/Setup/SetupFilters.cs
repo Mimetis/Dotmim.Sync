@@ -18,7 +18,7 @@ namespace Dotmim.Sync
         /// Gets or sets exposing the InnerCollection for serialization purpose.
         /// </summary>
         [DataMember(Name = "c", IsRequired = true, Order = 1)]
-        public Collection<SetupFilter> InnerCollection { get; set; } = new Collection<SetupFilter>();
+        public Collection<SetupFilter> InnerCollection { get; set; } = [];
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SetupFilters"/> class.
@@ -35,7 +35,7 @@ namespace Dotmim.Sync
         {
             Guard.ThrowIfNullOrEmpty(item.TableName, "A SetupFilter needs a table name on which the filter is applied.");
 
-            if (this.InnerCollection.Any(st => item.EqualsByName(st)))
+            if (this.InnerCollection.Any(item.EqualsByName))
                 throw new FilterAlreadyExistsException(item.TableName);
 
             this.InnerCollection.Add(item);

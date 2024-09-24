@@ -119,10 +119,7 @@ namespace Dotmim.Sync
             // Check all items are identical
             return lstSource.All(sourceItem => other.Any(otherItem =>
             {
-                var cSourceItem = sourceItem as SyncNamedItem<T>;
-                var cOtherItem = otherItem as SyncNamedItem<T>;
-
-                return cSourceItem != null && cOtherItem != null ? cSourceItem.EqualsByProperties(otherItem) : sourceItem.Equals(otherItem);
+                return sourceItem is SyncNamedItem<T> cSourceItem && otherItem is SyncNamedItem<T> cOtherItem ? cSourceItem.EqualsByProperties(otherItem) : sourceItem.Equals(otherItem);
             }));
         }
 
@@ -141,7 +138,7 @@ namespace Dotmim.Sync
             var block = new ActionBlock<T>(body, options);
 
             foreach (var item in source)
-                block.Post(item);
+                _ = block.Post(item);
 
             block.Complete();
             return block.Completion;
@@ -183,7 +180,7 @@ namespace Dotmim.Sync
 #pragma warning disable CA1868 // Unnecessary call to 'Contains(item)'
             if (!visited.Contains(item))
             {
-                visited.Add(item);
+                _ = visited.Add(item);
 
                 foreach (var dep in dependencies(item))
                     Visit(dep, visited, sorted, dependencies, throwOnCycle);

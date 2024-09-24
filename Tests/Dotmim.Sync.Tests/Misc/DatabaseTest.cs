@@ -10,15 +10,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
-using System.Text;
 using Xunit;
 using Xunit.Abstractions;
 using Xunit.Sdk;
-using System.Linq;
 using System.Threading.Tasks;
 using Dotmim.Sync.Tests.Models;
-using System.Xml.Linq;
 using Dotmim.Sync.Tests.Core;
+using System.Data;
 
 namespace Dotmim.Sync.Tests.Misc
 {
@@ -74,10 +72,10 @@ namespace Dotmim.Sync.Tests.Misc
             setup.Filters.Add("SalesOrderHeader", "CustomerID", salesSchema);
 
 
-            // 2) Same, but decomposed in 3 Steps
+            // 2) create a custom parameter not based on a column
             var customerFilter = new SetupFilter("Customer");
-            customerFilter.AddParameter("CustomerID", "Customer", true);
-            customerFilter.AddWhere("CustomerID", "Customer", "CustomerID");
+            customerFilter.AddParameter("custID", DbType.Guid, true);
+            customerFilter.AddWhere("CustomerID", "Customer", "custID");
             setup.Filters.Add(customerFilter);
 
             // 3) Create your own filter
@@ -132,7 +130,11 @@ namespace Dotmim.Sync.Tests.Misc
         /// <summary>
         /// Get filters parameters
         /// </summary>
-        public virtual SyncParameters GetFilterParameters() => new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId1ForFilter));
+        public virtual SyncParameters GetFilterParameters() =>
+            new SyncParameters(
+                 ("CustomerID", AdventureWorksContext.CustomerId1ForFilter),
+                 ("custID", AdventureWorksContext.CustomerId1ForFilter)
+            );
 
         public virtual DatabaseServerFixture Fixture { get; }
         public virtual ITestOutputHelper Output { get; }

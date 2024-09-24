@@ -61,9 +61,9 @@ namespace Dotmim.Sync.MySql
         /// <inheritdoc />
         public override DbCommand EnsureCommandParameters(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction, SyncFilter filter = null)
         {
-            if (commandType == DbCommandType.UpdateRow || commandType == DbCommandType.UpdateRows ||
-                commandType == DbCommandType.InsertRow || commandType == DbCommandType.InsertRows ||
-                commandType == DbCommandType.DeleteRow || commandType == DbCommandType.DeleteRows)
+            if (commandType is DbCommandType.UpdateRow or DbCommandType.UpdateRows or
+                DbCommandType.InsertRow or DbCommandType.InsertRows or
+                DbCommandType.DeleteRow or DbCommandType.DeleteRows)
             {
                 foreach (DbParameter parameter in command.Parameters)
                 {
@@ -98,9 +98,9 @@ namespace Dotmim.Sync.MySql
 
             // for stored procedures, parameters are prefixed with "in_"
             // for command parameters are prefixed with "@" ....
-            if (commandType != DbCommandType.UpdateRow && commandType != DbCommandType.UpdateRows &&
-                commandType != DbCommandType.InsertRow && commandType != DbCommandType.InsertRows &&
-                commandType != DbCommandType.DeleteRow && commandType != DbCommandType.DeleteRows)
+            if (commandType is not DbCommandType.UpdateRow and not DbCommandType.UpdateRows and
+                not DbCommandType.InsertRow and not DbCommandType.InsertRows and
+                not DbCommandType.DeleteRow and not DbCommandType.DeleteRows)
             {
                 foreach (var parameter in command.Parameters)
                 {
@@ -203,6 +203,8 @@ namespace Dotmim.Sync.MySql
                 case DbCommandType.PreInsertRow:
                 case DbCommandType.PreDeleteRow:
                     return (default, false);
+                case DbCommandType.None:
+                    break;
                 default:
                     throw new NotImplementedException($"This command type {commandType} is not implemented");
             }
@@ -217,7 +219,11 @@ namespace Dotmim.Sync.MySql
             => throw new NotImplementedException();
 
         /// <inheritdoc />
-        public override DbColumnNames GetParsedColumnNames(string name) => throw new NotImplementedException();
+        public override DbColumnNames GetParsedColumnNames(string name)
+        {
+            var columnParser = new ObjectParser(name, MySqlObjectNames.LeftQuote, MySqlObjectNames.RightQuote);
+            return new DbColumnNames(columnParser.QuotedShortName, columnParser.NormalizedShortName);
+        }
 
         /// <inheritdoc />
         public override DbTableBuilder GetTableBuilder() => new MySqlTableBuilder(this.TableDescription, this.ScopeInfo);
