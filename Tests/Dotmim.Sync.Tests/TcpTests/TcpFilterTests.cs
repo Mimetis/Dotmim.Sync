@@ -1,20 +1,9 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.MariaDB;
-using Dotmim.Sync.MySql;
-using Dotmim.Sync.PostgreSql;
-using Dotmim.Sync.Sqlite;
-using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Fixtures;
 using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
-using Dotmim.Sync.Web.Client;
-using Dotmim.Sync.Web.Server;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 #if NET6_0 || NET8_0 
 using MySqlConnector;
 using Npgsql;
@@ -24,17 +13,10 @@ using MySql.Data.MySqlClient;
 
 using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace Dotmim.Sync.Tests.IntegrationTests
 {
@@ -209,7 +191,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 await clientProvider.DeleteSalesOrderHeaderAsync(soh1.SalesOrderId);
                 await clientProvider.DeleteSalesOrderHeaderAsync(soh2.SalesOrderId);
 
-                s = await agent.SynchronizeAsync(parameters); 
+                s = await agent.SynchronizeAsync(parameters);
 
                 Assert.Equal(4, s.TotalChangesUploadedToServer);
                 Assert.Equal(4, s.TotalChangesAppliedOnServer);
@@ -719,7 +701,9 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(rowsCount, clientProvider.GetDatabaseFilteredRowsCount());
 
                 // create agent with filtered tables and second parameter
-                var parameters2 = new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId2ForFilter));
+                var parameters2 = new SyncParameters(
+                    ("CustomerID", AdventureWorksContext.CustomerId2ForFilter),
+                    ("custID", AdventureWorksContext.CustomerId2ForFilter));
                 agent = new SyncAgent(clientProvider, serverProvider, options);
                 s = await agent.SynchronizeAsync(setup, parameters2);
 

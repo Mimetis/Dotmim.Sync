@@ -96,7 +96,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 if (s.CommandType == Builders.DbCommandType.SelectChangesWithFilters && s.Table.TableName == "Customer")
                 {
                     count++;
-                    Assert.Contains("@CustomerID", s.Command.CommandText);
+                    Assert.Contains("@custID", s.Command.CommandText);
                 }
             });
             var initializeSync = await agent.SynchronizeAsync(setup, parameters);
@@ -840,7 +840,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         /// Manipulate the client scope as it should be marked as not new (and set the correct timestamps)
         /// Then trying to sync.
         /// </summary>
-        
+
         [Fact]
         public virtual async Task StartingWithARestoredBackupOnClientWithData()
         {
