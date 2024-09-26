@@ -27,9 +27,10 @@
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<!-- Embed source files that are not tracked by the source control manager in the PDB -->
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
-		<!-- Recommended: Embed symbols containing Source Link in the main file (exe/dll) -->
-		<DebugType>embedded</DebugType>
+		<!-- Create a separate pdb file to allow nuget push -->
+		<DebugType>full</DebugType>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<EmbedAllSources>true</EmbedAllSources>
 
 	</PropertyGroup>
 

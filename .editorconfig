@@ -198,6 +198,8 @@ csharp_prefer_system_threading_lock = true:suggestion
 dotnet_diagnostic.IDE0058.severity = none
 dotnet_diagnostic.IDE0022.severity = none
 dotnet_diagnostic.IDE0011.severity = none
+dotnet_diagnostic.IDE0021.severity = none
+dotnet_diagnostic.IDE0007.severity = none
 
 
 [*.{cs,vb}]
