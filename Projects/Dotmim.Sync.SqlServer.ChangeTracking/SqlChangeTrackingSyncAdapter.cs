@@ -33,6 +33,30 @@ namespace Dotmim.Sync.SqlServer
             DbCommandType.DeleteMetadata => (this.BuildDeleteMetadataCommand(), false),
             DbCommandType.Reset => (this.CreateResetCommand(), false),
             DbCommandType.UpdateUntrackedRows => (this.BuildUpdateUntrackedRowsCommand(), false),
+            DbCommandType.None => throw new System.NotImplementedException(),
+            DbCommandType.SelectChanges => throw new System.NotImplementedException(),
+            DbCommandType.SelectInitializedChanges => throw new System.NotImplementedException(),
+            DbCommandType.SelectInitializedChangesWithFilters => throw new System.NotImplementedException(),
+            DbCommandType.SelectChangesWithFilters => throw new System.NotImplementedException(),
+            DbCommandType.UpdateRow => throw new System.NotImplementedException(),
+            DbCommandType.InsertRow => throw new System.NotImplementedException(),
+            DbCommandType.DeleteRow => throw new System.NotImplementedException(),
+            DbCommandType.DisableConstraints => throw new System.NotImplementedException(),
+            DbCommandType.EnableConstraints => throw new System.NotImplementedException(),
+            DbCommandType.SelectMetadata => throw new System.NotImplementedException(),
+            DbCommandType.InsertTrigger => throw new System.NotImplementedException(),
+            DbCommandType.UpdateTrigger => throw new System.NotImplementedException(),
+            DbCommandType.DeleteTrigger => throw new System.NotImplementedException(),
+            DbCommandType.UpdateRows => throw new System.NotImplementedException(),
+            DbCommandType.InsertRows => throw new System.NotImplementedException(),
+            DbCommandType.DeleteRows => throw new System.NotImplementedException(),
+            DbCommandType.BulkTableType => throw new System.NotImplementedException(),
+            DbCommandType.PreUpdateRows => throw new System.NotImplementedException(),
+            DbCommandType.PreInsertRows => throw new System.NotImplementedException(),
+            DbCommandType.PreDeleteRows => throw new System.NotImplementedException(),
+            DbCommandType.PreUpdateRow => throw new System.NotImplementedException(),
+            DbCommandType.PreInsertRow => throw new System.NotImplementedException(),
+            DbCommandType.PreDeleteRow => throw new System.NotImplementedException(),
             _ => base.GetCommand(context, commandType, filter),
         };
 
@@ -45,9 +69,14 @@ namespace Dotmim.Sync.SqlServer
 
         private SqlCommand BuildDeleteMetadataCommand()
         {
-            var sqlCommand = new SqlCommand();
-            sqlCommand.CommandText = $"EXEC sys.sp_flush_CT_internal_table_on_demand;";
-            return sqlCommand;
+            return null;
+
+            // a lot of users are experiencing issues with this command, with a downgrade of the performances.
+            // So, we are not using it anymore
+
+            // var sqlCommand = new SqlCommand();
+            // sqlCommand.CommandText = $"EXEC sys.sp_flush_CT_internal_table_on_demand;";
+            // return sqlCommand;
         }
 
         private SqlCommand BuildSelectRowCommand()
