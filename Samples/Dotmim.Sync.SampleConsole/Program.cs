@@ -37,7 +37,7 @@ internal class Program
     };
 
     public static string[] OneTable = new string[] { "ProductCategory" };
-    internal static readonly string[] Tables = new string[] { "Address", "Customer", "CustomerAddress", "SalesOrderHeader", "SalesOrderDetail" };
+    public static string[] TwoTableS = new string[] { "ProductCategory", "ProductDescription" };
 
     private static async Task Main(string[] args)
     {
@@ -55,7 +55,7 @@ internal class Program
         // clientProvider.UseBulkOperations = false;
         // var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         // var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        var setup = new SyncSetup(AllTables);
+        var setup = new SyncSetup(TwoTableS);
 
         // options.Logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Information);
         // options.UseVerboseErrors = true;
@@ -77,10 +77,10 @@ internal class Program
 
         // await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
 
-        // await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
+        await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
         //await CheckChanges(clientProvider, serverProvider, setup, options);
 
-        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
         //await ScenarioAsync();
         //await CheckProvisionTime();
@@ -340,8 +340,6 @@ internal class Program
 
     private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
     {
-        setup = new SyncSetup("Opr");
-
         options.DisableConstraintsOnApplyChanges = true;
 
         var progress = new SynchronousProgress<ProgressArgs>(s =>
@@ -365,7 +363,16 @@ internal class Program
             args.Resolution = ErrorResolution.ContinueOnError;
         });
 
-        ;
+        agent.LocalOrchestrator.OnMetadataCleaning(args =>
+        {
+            Console.WriteLine("Cleaning metadata");
+            Console.WriteLine(args.Message);
+        });
+        agent.LocalOrchestrator.OnMetadataCleaned(args =>
+        {
+            Console.WriteLine("Cleaned metadata");
+            Console.WriteLine(args.Message);
+        });
         do
         {
             try
@@ -408,7 +415,7 @@ internal class Program
 
                 var clientScopeId = context.GetClientScopeId();
 
-                var webServerAgent = webServerAgents.First(wsa => wsa.Identifier == identifier);
+                var webServerAgent = string.IsNullOrEmpty(identifier) ? webServerAgents.First() : webServerAgents.First(wsa => wsa.Identifier == identifier);
 
                 var errors = new Dictionary<string, string>();
 
@@ -442,6 +449,24 @@ internal class Program
                 Console.WriteLine("Web sync start");
                 try
                 {
+                    //HttpClient client = new HttpClient();
+                    //var sessionId = Guid.NewGuid();
+                    //var scopeName = SyncOptions.DefaultScopeName;
+
+                    //HttpMessageEnsureScopesRequest message = new HttpMessageEnsureScopesRequest
+                    //{
+                    //    SyncContext = new SyncContext(sessionId, scopeName)
+                    //};
+
+                    //client.DefaultRequestHeaders.Add("dotmim-sync-session-id", sessionId.ToString());
+                    //client.DefaultRequestHeaders.Add("dotmim-sync-scope-name", scopeName);
+                    //client.DefaultRequestHeaders.Add("dotmim-sync-step", "2");
+                    //client.DefaultRequestHeaders.Add("dotmim-sync-serialization-format", "{\"SerializerKey\":\"Json\",\"ClientBatchSize\":1000}");
+
+                    //var body = SerializersFactory.JsonSerializerFactory.GetSerializer().Serialize(message);
+
+                    //var response = await client.PostAsync(serviceUri, new ByteArrayContent(body));
+
                     var startTime = DateTime.Now;
 
                     // Using the Progress pattern to handle progession during the synchronization
@@ -507,7 +532,7 @@ internal class Program
         var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ClientDbName));
 
         // var clientProvider = new SqliteSyncProvider("clientX.db");
-        var setup = new SyncSetup(Tables);
+        var setup = new SyncSetup(TwoTableS);
 
         // var setup = new SyncSetup(new string[] { "Customer" });
         // var setup = new SyncSetup(new[] { "Customer" });

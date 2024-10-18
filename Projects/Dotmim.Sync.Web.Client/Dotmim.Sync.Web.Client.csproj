@@ -16,18 +16,6 @@
 	<PropertyGroup>
 		<NoWarn>$(NoWarn)</NoWarn>
 	</PropertyGroup>
-	<PropertyGroup>
-		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
-	</PropertyGroup>
-	<!--generate NUGET package including symbols ans source on each release build -->
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-		<IncludeSource>True</IncludeSource>
-		<IncludeSymbols>True</IncludeSymbols>
-		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
-	</PropertyGroup>
-
-
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet6)'  ">
 		<PackageReference Include="Microsoft.Extensions.Features" Version="6.0.0" />

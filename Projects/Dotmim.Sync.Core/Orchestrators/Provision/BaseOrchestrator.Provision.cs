@@ -210,7 +210,7 @@ namespace Dotmim.Sync
                     var builder = this.Provider.GetDatabaseBuilder();
 
                     // Sorting tables based on dependencies between them
-                    IEnumerable<SyncTable> schemaTables;
+                    List<SyncTable> schemaTables;
                     if (scopeInfo == null)
                     {
                         schemaTables = [];
@@ -225,14 +225,14 @@ namespace Dotmim.Sync
                         {
                             schemaTables = [];
                             foreach (var setupTable in scopeInfo.Setup.Tables)
-                                ((List<SyncTable>)schemaTables).Add(new SyncTable(setupTable.TableName, setupTable.SchemaName));
+                                schemaTables.Add(new SyncTable(setupTable.TableName, setupTable.SchemaName));
                         }
                     }
 
                     // Disable check constraints
                     if (this.Options.DisableConstraintsOnApplyChanges)
                     {
-                        foreach (var table in schemaTables.Reverse())
+                        foreach (var table in schemaTables.ToArray().Reverse())
                         {
                             var exists = false;
                             var tableBuilder = this.GetSyncAdapter(table, scopeInfo).GetTableBuilder();
@@ -309,7 +309,7 @@ namespace Dotmim.Sync
                     // Eventually if we have the "Table" flag, then drop the table
                     if (hasDeprovisionTableFlag)
                     {
-                        foreach (var schemaTable in schemaTables.Reverse())
+                        foreach (var schemaTable in schemaTables.ToArray().Reverse())
                         {
                             var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
                             bool exists;
@@ -359,7 +359,7 @@ namespace Dotmim.Sync
                     // Disable check constraints
                     if (this.Options.DisableConstraintsOnApplyChanges && !hasDeprovisionTableFlag)
                     {
-                        foreach (var table in schemaTables.Reverse())
+                        foreach (var table in schemaTables.ToArray().Reverse())
                         {
                             var exists = false;
                             var tableBuilder = this.GetSyncAdapter(table, scopeInfo).GetTableBuilder();

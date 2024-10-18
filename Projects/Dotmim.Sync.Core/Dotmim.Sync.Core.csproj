@@ -13,24 +13,10 @@
 		<OutputType>Library</OutputType>
 		<AutoGenerateBindingRedirects>false</AutoGenerateBindingRedirects>
 	</PropertyGroup>
-	<PropertyGroup>
-		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
-	</PropertyGroup>
-	<!--generate NUGET package including symbols ans source on each release build -->
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-		<IncludeSource>True</IncludeSource>
-		<IncludeSymbols>True</IncludeSymbols>
-		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
-	</PropertyGroup>
+
 	<PropertyGroup>
 	  <NoWarn>$(NoWarn)</NoWarn>
 	</PropertyGroup>
-	<ItemGroup>
-		<Compile Remove="Serialization\DmBinaryConverter\**" />
-		<EmbeddedResource Remove="Serialization\DmBinaryConverter\**" />
-		<None Remove="Serialization\DmBinaryConverter\**" />
-	</ItemGroup>
 
 	<ItemGroup>
 		<None Include="..\..\docs\assets\packageIcon.png">

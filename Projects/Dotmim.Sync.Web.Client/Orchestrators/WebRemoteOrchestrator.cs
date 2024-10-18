@@ -23,8 +23,8 @@ namespace Dotmim.Sync.Web.Client
     /// </summary>
     public partial class WebRemoteOrchestrator : RemoteOrchestrator
     {
-        private Dictionary<string, string> customHeaders = [];
-        private Dictionary<string, string> scopeParameters = [];
+        private readonly Dictionary<string, string> customHeaders = [];
+        private readonly Dictionary<string, string> scopeParameters = [];
 
         /// <summary>
         /// Gets or Sets a custom identifier, that can be used on server side to choose the correct web server agent.
@@ -145,9 +145,7 @@ namespace Dotmim.Sync.Web.Client
         /// </summary>
         public static Task<string> ReadContentFromResponseAsync(HttpResponseMessage response)
         {
-            if (response.Content == null)
-                return null;
-            return response.Content.ReadAsStringAsync();
+            return response.Content == null ? null : response.Content.ReadAsStringAsync();
         }
 
         /// <summary>
@@ -398,10 +396,8 @@ namespace Dotmim.Sync.Web.Client
                 },
                 (ex, arg) =>
                 {
-                    var webEx = ex as SyncException;
-
                     // handle session lost
-                    return webEx == null || webEx.TypeName != nameof(HttpSessionLostException);
+                    return ex is not SyncException webEx || webEx.TypeName != nameof(HttpSessionLostException);
                 }, async (ex, cpt, ts, arg) =>
                 {
                     await this.InterceptAsync(new HttpSyncPolicyArgs(10, cpt, ts, this.GetServiceHost()), default).ConfigureAwait(false);
