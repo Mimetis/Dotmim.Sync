@@ -163,7 +163,7 @@ namespace Dotmim.Sync
     /// <summary>
     /// HttpClient Sync Events Id.
     /// </summary>
-    public partial class HttpClientSyncEventsId
+    public static partial class HttpClientSyncEventsId
     {
         /// <summary>
         /// Gets the event id for HttpSendingChangesRequest.

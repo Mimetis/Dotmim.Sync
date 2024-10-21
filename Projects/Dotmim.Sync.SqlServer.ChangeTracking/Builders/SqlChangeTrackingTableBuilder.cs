@@ -8,9 +8,9 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
     /// <inheritdoc />
     public class SqlChangeTrackingTableBuilder : SqlTableBuilder
     {
-        private SqlChangeTrackingBuilderTrackingTable sqlChangeTrackingBuilderTrackingTable;
-        private SqlChangeTrackingBuilderProcedure sqlChangeTrackingBuilderProcedure;
-        private SqlChangeTrackingBuilderTrigger sqlChangeTrackingBuilderTrigger;
+        private readonly SqlChangeTrackingBuilderTrackingTable sqlChangeTrackingBuilderTrackingTable;
+        private readonly SqlChangeTrackingBuilderProcedure sqlChangeTrackingBuilderProcedure;
+        private readonly SqlChangeTrackingBuilderTrigger sqlChangeTrackingBuilderTrigger;
 
         /// <inheritdoc />
         public SqlChangeTrackingTableBuilder(SyncTable tableDescription, ScopeInfo scopeInfo)

@@ -145,7 +145,7 @@ namespace Dotmim.Sync.Web.Client
         /// </summary>
         public static Task<string> ReadContentFromResponseAsync(HttpResponseMessage response)
         {
-            return response.Content == null ? null : response.Content.ReadAsStringAsync();
+            return response.Content?.ReadAsStringAsync();
         }
 
         /// <summary>
