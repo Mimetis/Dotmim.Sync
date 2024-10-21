@@ -22,13 +22,13 @@ namespace Dotmim.Sync
         /// Gets or Sets a list of columns that represent the parent key.
         /// </summary>
         [DataMember(Name = "pks", IsRequired = true, Order = 2)]
-        public IList<SyncColumnIdentifier> ParentKeys { get; set; } = new List<SyncColumnIdentifier>();
+        public IList<SyncColumnIdentifier> ParentKeys { get; set; } = [];
 
         /// <summary>
         /// Gets or Sets a list of columns that represent the parent key.
         /// </summary>
         [DataMember(Name = "cks", IsRequired = true, Order = 3)]
-        public IList<SyncColumnIdentifier> Keys { get; set; } = new List<SyncColumnIdentifier>();
+        public IList<SyncColumnIdentifier> Keys { get; set; } = [];
 
         /// <summary>
         /// Gets or sets the ShemaFilter's SyncSchema.
@@ -60,8 +60,10 @@ namespace Dotmim.Sync
         /// </summary>
         public SyncRelation Clone()
         {
-            var clone = new SyncRelation();
-            clone.RelationName = this.RelationName;
+            var clone = new SyncRelation
+            {
+                RelationName = this.RelationName
+            };
 
             foreach (var pk in this.ParentKeys)
                 clone.ParentKeys.Add(pk.Clone());
@@ -130,13 +132,7 @@ namespace Dotmim.Sync
                 return false;
 
             // Check list
-            if (!this.Keys.CompareWith(otherInstance.Keys))
-                return false;
-
-            if (!this.ParentKeys.CompareWith(otherInstance.ParentKeys))
-                return false;
-
-            return true;
+            return this.Keys.CompareWith(otherInstance.Keys) && this.ParentKeys.CompareWith(otherInstance.ParentKeys);
         }
     }
 }

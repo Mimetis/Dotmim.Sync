@@ -200,7 +200,11 @@ dotnet_diagnostic.IDE0022.severity = none
 dotnet_diagnostic.IDE0011.severity = none
 dotnet_diagnostic.IDE0021.severity = none
 dotnet_diagnostic.IDE0007.severity = none
+csharp_style_prefer_switch_expression = true:suggestion
 
+
+# IDE0072: Add missing cases
+dotnet_diagnostic.IDE0072.severity = none
 
 [*.{cs,vb}]
 #### Naming styles ####
@@ -296,3 +300,9 @@ dotnet_diagnostic.CA5362.severity = none
 dotnet_diagnostic.CA1024.severity = silent
 dotnet_diagnostic.CA1721.severity = silent
 dotnet_diagnostic.CA1307.severity = none
+
+# Default severity for analyzer diagnostics with category 'Style'
+dotnet_analyzer_diagnostic.category-Style.severity = none
+
+# Default severity for all analyzer diagnostics
+dotnet_analyzer_diagnostic.severity = none

@@ -23,7 +23,7 @@ namespace Dotmim.Sync
         /// Gets or sets get the list of tables where we have changes applied.
         /// </summary>
         [DataMember(Name = "tca", IsRequired = false, EmitDefaultValue = false, Order = 1)]
-        public List<TableChangesApplied> TableChangesApplied { get; set; } = new List<TableChangesApplied>();
+        public List<TableChangesApplied> TableChangesApplied { get; set; } = [];
 
         /// <summary>
         /// Gets the total number of conflicts that have been applied resolved during the synchronization session.
@@ -36,7 +36,7 @@ namespace Dotmim.Sync
                 int conflicts = 0;
                 foreach (var tableProgress in this.TableChangesApplied)
                 {
-                    conflicts = conflicts + tableProgress.ResolvedConflicts;
+                    conflicts += tableProgress.ResolvedConflicts;
                 }
 
                 return conflicts;
