@@ -12,8 +12,17 @@ namespace Dotmim.Sync
     public class SchemaNameCreatedArgs : ProgressArgs
     {
         /// <inheritdoc cref="SchemaNameCreatedArgs" />
-        public SchemaNameCreatedArgs(SyncContext context, SyncTable table, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, connection, transaction) => this.Table = table;
+        public SchemaNameCreatedArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, DbConnection connection = null, DbTransaction transaction = null)
+            : base(context, connection, transaction)
+        {
+            this.ScopeInfo = scopeInfo;
+            this.Table = table;
+        }
+
+        /// <summary>
+        /// Gets the scope info on which the schema is created.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the table on which the schema is created.
@@ -37,9 +46,10 @@ namespace Dotmim.Sync
     {
 
         /// <inheritdoc cref="SchemaNameCreatingArgs" />
-        public SchemaNameCreatingArgs(SyncContext context, SyncTable table, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+        public SchemaNameCreatingArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
             this.Command = command;
         }
@@ -53,6 +63,11 @@ namespace Dotmim.Sync
         /// Gets or sets the command used to create the schema.
         /// </summary>
         public DbCommand Command { get; set; }
+
+        /// <summary>
+        /// Gets the scope info on which the schema is creating.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the table on which the schema is creating.
@@ -75,12 +90,18 @@ namespace Dotmim.Sync
     public class TableCreatedArgs : ProgressArgs
     {
         /// <inheritdoc cref="TableCreatedArgs" />
-        public TableCreatedArgs(SyncContext context, SyncTable table, string tableFullName, DbConnection connection = null, DbTransaction transaction = null)
+        public TableCreatedArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, string tableFullName, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.TableFullName = tableFullName;
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
         }
+
+        /// <summary>
+        /// Gets the scope info on which the table is created.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the table created.
@@ -108,9 +129,10 @@ namespace Dotmim.Sync
     public class TableCreatingArgs : ProgressArgs
     {
         /// <inheritdoc cref="TableCreatingArgs" />
-        public TableCreatingArgs(SyncContext context, SyncTable table, string tableFullName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+        public TableCreatingArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, string tableFullName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
             this.TableFullName = tableFullName;
             this.Command = command;
@@ -125,6 +147,11 @@ namespace Dotmim.Sync
         /// Gets or sets the command used to create the table.
         /// </summary>
         public DbCommand Command { get; set; }
+
+        /// <summary>
+        /// Gets the scope info on which the table is creating.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the table creating.
@@ -153,11 +180,17 @@ namespace Dotmim.Sync
     {
 
         /// <inheritdoc cref="TableDroppedArgs"/>
-        public TableDroppedArgs(SyncContext context, SyncTable table, DbConnection connection = null, DbTransaction transaction = null)
+        public TableDroppedArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
         }
+
+        /// <summary>
+        /// Gets the scope info on which the table is dropped.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the table dropped.
@@ -181,10 +214,11 @@ namespace Dotmim.Sync
     {
 
         /// <inheritdoc cref="TableDroppingArgs"/>
-        public TableDroppingArgs(SyncContext context, SyncTable table, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+        public TableDroppingArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.Command = command;
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
         }
 
@@ -197,6 +231,11 @@ namespace Dotmim.Sync
         /// Gets or sets the command used to drop the table.
         /// </summary>
         public DbCommand Command { get; set; }
+
+        /// <summary>
+        /// Gets the scope info on which the table is dropping.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the table dropping.

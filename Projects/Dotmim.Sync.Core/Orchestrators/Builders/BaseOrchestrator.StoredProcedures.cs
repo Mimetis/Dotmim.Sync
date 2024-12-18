@@ -339,7 +339,7 @@ namespace Dotmim.Sync
                 if (command == null)
                     return (context, false);
 
-                var action = new StoredProcedureCreatingArgs(context, tableBuilder.TableDescription, storedProcedureType, command, connection, transaction);
+                var action = new StoredProcedureCreatingArgs(context, scopeInfo, tableBuilder.TableDescription, storedProcedureType, command, connection, transaction);
                 await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
                 if (action.Cancel || action.Command == null)
@@ -348,7 +348,7 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                await this.InterceptAsync(new StoredProcedureCreatedArgs(context, tableBuilder.TableDescription, storedProcedureType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new StoredProcedureCreatedArgs(context, scopeInfo, tableBuilder.TableDescription, storedProcedureType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 return (context, true);
             }
@@ -380,7 +380,7 @@ namespace Dotmim.Sync
                 if (command == null)
                     return (context, false);
 
-                var action = await this.InterceptAsync(new StoredProcedureDroppingArgs(context, tableBuilder.TableDescription, storedProcedureType, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                var action = await this.InterceptAsync(new StoredProcedureDroppingArgs(context, scopeInfo,  tableBuilder.TableDescription, storedProcedureType, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 if (action.Cancel || action.Command == null)
                     return (context, false);
@@ -389,7 +389,7 @@ namespace Dotmim.Sync
 
                 await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-                await this.InterceptAsync(new StoredProcedureDroppedArgs(context, tableBuilder.TableDescription, storedProcedureType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new StoredProcedureDroppedArgs(context, scopeInfo, tableBuilder.TableDescription, storedProcedureType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 return (context, true);
             }

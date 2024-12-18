@@ -206,7 +206,7 @@ namespace Dotmim.Sync.SqlServer.Builders
                 else if (param.IsNullable)
                     stringBuilder3.Append(" = NULL");
 
-                if (param.Direction == ParameterDirection.Output || param.Direction == ParameterDirection.InputOutput)
+                if (param.Direction is ParameterDirection.Output or ParameterDirection.InputOutput)
                     stringBuilder3.Append(" OUTPUT");
             }
 
@@ -1289,7 +1289,11 @@ namespace Dotmim.Sync.SqlServer.Builders
         public DbCommand CreateSelectIncrementalChangesCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChanges);
-            SqlCommand CmdWithoutFilter() => this.BuildSelectIncrementalChangesCommand(null);
+            SqlCommand CmdWithoutFilter()
+            {
+                return this.BuildSelectIncrementalChangesCommand(null);
+            }
+
             return this.CreateProcedureCommand(CmdWithoutFilter, commandName, connection, transaction);
         }
 
@@ -1302,7 +1306,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                 return null;
 
             var commandName = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectChangesWithFilters, filter);
-            SqlCommand CmdWithFilter() => this.BuildSelectIncrementalChangesCommand(filter);
+            SqlCommand CmdWithFilter()
+            {
+                return this.BuildSelectIncrementalChangesCommand(filter);
+            }
+
             return this.CreateProcedureCommand(CmdWithFilter, commandName, connection, transaction);
         }
 
@@ -1435,7 +1443,11 @@ namespace Dotmim.Sync.SqlServer.Builders
         public DbCommand CreateSelectInitializedChangesCommand(DbConnection connection, DbTransaction transaction)
         {
             var commandName = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChanges);
-            SqlCommand CmdWithoutFilter() => this.BuildSelectInitializedChangesCommand(connection, transaction, null);
+            SqlCommand CmdWithoutFilter()
+            {
+                return this.BuildSelectInitializedChangesCommand(connection, transaction, null);
+            }
+
             return this.CreateProcedureCommand(CmdWithoutFilter, commandName, connection, transaction);
         }
 
@@ -1448,7 +1460,11 @@ namespace Dotmim.Sync.SqlServer.Builders
                 return null;
 
             var commandName = this.SqlObjectNames.GetStoredProcedureCommandName(DbStoredProcedureType.SelectInitializedChangesWithFilters, filter);
-            SqlCommand CmdWithFilter() => this.BuildSelectInitializedChangesCommand(connection, transaction, filter);
+            SqlCommand CmdWithFilter()
+            {
+                return this.BuildSelectInitializedChangesCommand(connection, transaction, filter);
+            }
+
             return this.CreateProcedureCommand(CmdWithFilter, commandName, connection, transaction);
         }
     }

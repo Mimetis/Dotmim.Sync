@@ -137,6 +137,8 @@ namespace Dotmim.Sync.Serialization
                         }
 
                         break;
+                    default:
+                        break;
                 }
             }
 
@@ -196,14 +198,7 @@ namespace Dotmim.Sync.Serialization
                     await this.writer.DisposeAsync().ConfigureAwait(false);
                 }
 
-                if (this.sw != null)
-                {
-#if NET6_0_OR_GREATER
-                    await this.sw.DisposeAsync().ConfigureAwait(false);
-#else
-                    this.sw.Dispose();
-#endif
-                }
+                this.sw?.Dispose();
 
                 this.IsOpen = false;
             }
@@ -370,7 +365,7 @@ namespace Dotmim.Sync.Serialization
 
                 var propertyValue = jsonReader.GetString();
 
-                switch (propertyValue as string)
+                switch (propertyValue)
                 {
                     case "n":
                         tableName = jsonReader.ReadAsString();
@@ -428,13 +423,13 @@ namespace Dotmim.Sync.Serialization
                                 }
                                 else
                                 {
-                                    if (jsonReader.TokenType == JsonTokenType.Null || jsonReader.TokenType == JsonTokenType.None)
+                                    if (jsonReader.TokenType is JsonTokenType.Null or JsonTokenType.None)
                                         value = null;
                                     else if (jsonReader.TokenType == JsonTokenType.String && jsonReader.TryGetDateTimeOffset(out var datetimeOffset))
                                         value = datetimeOffset;
                                     else if (jsonReader.TokenType == JsonTokenType.String)
                                         value = jsonReader.GetString();
-                                    else if (jsonReader.TokenType == JsonTokenType.False || jsonReader.TokenType == JsonTokenType.True)
+                                    else if (jsonReader.TokenType is JsonTokenType.False or JsonTokenType.True)
                                         value = jsonReader.GetBoolean();
                                     else if (jsonReader.TokenType == JsonTokenType.Number && jsonReader.TryGetInt64(out var l))
                                         value = l;
@@ -497,6 +492,8 @@ namespace Dotmim.Sync.Serialization
                         }
 
                         yield break;
+                    default:
+                        break;
                 }
             }
         }

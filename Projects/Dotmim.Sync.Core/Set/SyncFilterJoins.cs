@@ -16,7 +16,7 @@ namespace Dotmim.Sync
         /// Gets or sets exposing the InnerCollection for serialization purpose.
         /// </summary>
         [DataMember(Name = "c", IsRequired = true, Order = 1)]
-        public Collection<SyncFilterJoin> InnerCollection { get; set; } = new Collection<SyncFilterJoin>();
+        public Collection<SyncFilterJoin> InnerCollection { get; set; } = [];
 
         /// <summary>
         /// Gets filter's schema.

@@ -13,12 +13,18 @@ namespace Dotmim.Sync
     {
 
         /// <inheritdoc cref="StoredProcedureCreatedArgs" />
-        public StoredProcedureCreatedArgs(SyncContext context, SyncTable table, DbStoredProcedureType storedProcedureType, DbConnection connection = null, DbTransaction transaction = null)
+        public StoredProcedureCreatedArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, DbStoredProcedureType storedProcedureType, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
             this.StoredProcedureType = storedProcedureType;
         }
+
+        /// <summary>
+        /// Gets the scope info on which the stored procedure is created.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the table on which the stored procedure is created.
@@ -46,13 +52,19 @@ namespace Dotmim.Sync
     public class StoredProcedureCreatingArgs : ProgressArgs
     {
         /// <inheritdoc cref="StoredProcedureCreatingArgs" />
-        public StoredProcedureCreatingArgs(SyncContext context, SyncTable table, DbStoredProcedureType storedProcedureType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+        public StoredProcedureCreatingArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, DbStoredProcedureType storedProcedureType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.Command = command;
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
             this.StoredProcedureType = storedProcedureType;
         }
+
+        /// <summary>
+        /// Gets the scope info on which the stored procedure is creating.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the table on which the stored procedure is creating.
@@ -90,12 +102,18 @@ namespace Dotmim.Sync
     public class StoredProcedureDroppedArgs : ProgressArgs
     {
         /// <inheritdoc cref="StoredProcedureDroppedArgs" />
-        public StoredProcedureDroppedArgs(SyncContext context, SyncTable table, DbStoredProcedureType storedProcedureType, DbConnection connection = null, DbTransaction transaction = null)
+        public StoredProcedureDroppedArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, DbStoredProcedureType storedProcedureType, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
             this.StoredProcedureType = storedProcedureType;
         }
+
+        /// <summary>
+        /// Gets the scope info on which the stored procedure is dropped.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the table on which the stored procedure is dropped.
@@ -123,13 +141,19 @@ namespace Dotmim.Sync
     public class StoredProcedureDroppingArgs : ProgressArgs
     {
         /// <inheritdoc cref="StoredProcedureDroppingArgs" />
-        public StoredProcedureDroppingArgs(SyncContext context, SyncTable table, DbStoredProcedureType storedProcedureType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+        public StoredProcedureDroppingArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, DbStoredProcedureType storedProcedureType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
             this.Command = command;
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
             this.StoredProcedureType = storedProcedureType;
         }
+
+        /// <summary>
+        /// Gets the scope info on which the stored procedure is dropping.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the table on which the stored procedure is dropping.

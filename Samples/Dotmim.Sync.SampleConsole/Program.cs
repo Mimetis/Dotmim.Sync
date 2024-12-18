@@ -1,9 +1,12 @@
 ﻿using Dotmim.Sync;
+using Dotmim.Sync.Builders;
+using Dotmim.Sync.DatabaseStringParsers;
 using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.PostgreSql;
 using Dotmim.Sync.SampleConsole;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.SqlServer.Builders;
 using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
 using Microsoft.AspNetCore.Http;
@@ -16,6 +19,7 @@ using System.Data;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 #if NET6_0 || NET8_0
@@ -77,15 +81,306 @@ internal class Program
 
         // await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
 
-        await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
+        //await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
         //await CheckChanges(clientProvider, serverProvider, setup, options);
 
         //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
         //await ScenarioAsync();
         //await CheckProvisionTime();
+        //await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
+        await MMCAsync();
     }
 
+
+    /// <summary>
+    /// This method returns the full quoted name of the tracking table
+    /// </summary>
+    private static string GetTrackingTableFullQuotedName(SyncTable tableDescription, SyncSetup setup)
+    {
+        var trakingTableNameString = string.IsNullOrEmpty(setup.TrackingTablesPrefix) && string.IsNullOrEmpty(setup.TrackingTablesSuffix)
+            ? $"{tableDescription.TableName}_tracking"
+            : $"{setup.TrackingTablesPrefix}{tableDescription.TableName}{setup.TrackingTablesSuffix}";
+
+        if (!string.IsNullOrEmpty(tableDescription.SchemaName))
+            trakingTableNameString = $"{tableDescription.SchemaName}.{trakingTableNameString}";
+
+        var trackingTableParser = new TableParser(trakingTableNameString, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+        return trackingTableParser.QuotedFullName;
+
+    }
+
+    /// <summary>
+    /// This method returns the unquoted schema and table names
+    /// </summary>
+    private static (string SchemaName, string TableName) GetTableNameUnquotedName(SyncTable tableDescription)
+    {
+        //-------------------------------------------------
+        // define tracking table name with prefix and suffix.
+        // if no pref / suf, use default value
+        var tableNameString = tableDescription.TableName;
+
+        if (!string.IsNullOrEmpty(tableDescription.SchemaName))
+            tableNameString = $"{tableDescription.SchemaName}.{tableNameString}";
+        else
+            tableNameString = $"dbo.{tableNameString}";
+
+        var tableParser = new TableParser(tableNameString, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+        return (tableParser.SchemaName, tableParser.TableName);
+
+    }
+
+    /// <summary>
+    /// Get the update trigger command text as a replacement, to handle omitted columns
+    /// </summary>
+    private static string GetUpdateTrigger(SyncTable tableDescription, SyncSetup setup)
+    {
+        var trackingTableName = GetTrackingTableFullQuotedName(tableDescription, setup);
+        var tableName = GetTableNameUnquotedName(tableDescription);
+        var triggerNormalizedName = $"{setup.TriggersPrefix}{tableName.TableName}{setup.TriggersSuffix}_";
+        var triggerName = string.Format("[{0}].[{1}update_trigger]", tableName.SchemaName, triggerNormalizedName);
+
+        var stringBuilder = new StringBuilder();
+        stringBuilder.AppendLine($"CREATE TRIGGER {triggerName} ON [{tableName.SchemaName}].[{tableName.TableName}] FOR UPDATE AS");
+        stringBuilder.AppendLine();
+        stringBuilder.AppendLine("SET NOCOUNT ON;");
+        stringBuilder.AppendLine();
+        stringBuilder.AppendLine("UPDATE [side] ");
+        stringBuilder.AppendLine("SET \t[update_scope_id] = NULL -- since the update if from local, it's a NULL");
+        stringBuilder.AppendLine("\t,[last_change_datetime] = GetUtcDate()");
+        stringBuilder.AppendLine();
+
+        stringBuilder.AppendLine($"FROM {trackingTableName} [side]");
+        stringBuilder.Append($"JOIN INSERTED AS [i] ON ");
+        stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(tableDescription.PrimaryKeys, "[side]", "[i]"));
+
+        if (tableDescription.GetMutableColumns().Count() > 0)
+        {
+            stringBuilder.Append($"JOIN DELETED AS [d] ON ");
+            stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(tableDescription.PrimaryKeys, "[d]", "[i]"));
+
+            stringBuilder.AppendLine("WHERE (");
+            string or = "";
+            foreach (var column in tableDescription.GetMutableColumns())
+            {
+                var columnParser = new ObjectParser(column.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+
+                stringBuilder.Append("\t");
+                stringBuilder.Append(or);
+                stringBuilder.Append("ISNULL(");
+                stringBuilder.Append("NULLIF(");
+                stringBuilder.Append("[d].");
+                stringBuilder.Append(columnParser.QuotedShortName);
+                stringBuilder.Append(", ");
+                stringBuilder.Append("[i].");
+                stringBuilder.Append(columnParser.QuotedShortName);
+                stringBuilder.Append(")");
+                stringBuilder.Append(", ");
+                stringBuilder.Append("NULLIF(");
+                stringBuilder.Append("[i].");
+                stringBuilder.Append(columnParser.QuotedShortName);
+                stringBuilder.Append(", ");
+                stringBuilder.Append("[d].");
+                stringBuilder.Append(columnParser.QuotedShortName);
+                stringBuilder.Append(")");
+                stringBuilder.AppendLine(") IS NOT NULL");
+
+                or = " OR ";
+            }
+            stringBuilder.AppendLine(") ");
+        }
+
+        stringBuilder.AppendLine($"INSERT INTO {trackingTableName} (");
+
+        var stringBuilderArguments = new StringBuilder();
+        var stringBuilderArguments2 = new StringBuilder();
+        var stringPkAreNull = new StringBuilder();
+
+        string argComma = " ";
+        string argAnd = string.Empty;
+        var primaryKeys = tableDescription.GetPrimaryKeysColumns();
+
+        foreach (var mutableColumn in primaryKeys.Where(c => !c.IsReadOnly))
+        {
+            var columnParser = new ObjectParser(mutableColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+
+            stringBuilderArguments.AppendLine($"\t{argComma}[i].{columnParser.QuotedShortName}");
+            stringBuilderArguments2.AppendLine($"\t{argComma}{columnParser.QuotedShortName}");
+            stringPkAreNull.Append($"{argAnd}[side].{columnParser.QuotedShortName} IS NULL");
+            argComma = ",";
+            argAnd = " AND ";
+        }
+
+        stringBuilder.Append(stringBuilderArguments2.ToString());
+        stringBuilder.AppendLine("\t,[update_scope_id]");
+        stringBuilder.AppendLine("\t,[sync_row_is_tombstone]");
+        stringBuilder.AppendLine("\t,[last_change_datetime]");
+        stringBuilder.AppendLine(") ");
+        stringBuilder.AppendLine("SELECT");
+        stringBuilder.Append(stringBuilderArguments.ToString());
+        stringBuilder.AppendLine("\t,NULL");
+        stringBuilder.AppendLine("\t,0");
+        stringBuilder.AppendLine("\t,GetUtcDate()");
+        stringBuilder.AppendLine("FROM INSERTED [i]");
+        stringBuilder.Append($"JOIN DELETED AS [d] ON ");
+        stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(tableDescription.PrimaryKeys, "[d]", "[i]"));
+        stringBuilder.Append($"LEFT JOIN {trackingTableName} [side] ON ");
+        stringBuilder.AppendLine(SqlManagementUtils.JoinTwoTablesOnClause(tableDescription.PrimaryKeys, "[i]", "[side]"));
+        stringBuilder.Append("WHERE ");
+        stringBuilder.AppendLine(stringPkAreNull.ToString());
+
+        if (tableDescription.GetMutableColumns().Count() > 0)
+        {
+            stringBuilder.AppendLine("AND (");
+            string or = "";
+            foreach (var column in tableDescription.GetMutableColumns())
+            {
+                var columnParser = new ObjectParser(column.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+
+                stringBuilder.Append("\t");
+                stringBuilder.Append(or);
+                stringBuilder.Append("ISNULL(");
+                stringBuilder.Append("NULLIF(");
+                stringBuilder.Append("[d].");
+                stringBuilder.Append(columnParser.QuotedShortName);
+                stringBuilder.Append(", ");
+                stringBuilder.Append("[i].");
+                stringBuilder.Append(columnParser.QuotedShortName);
+                stringBuilder.Append(")");
+                stringBuilder.Append(", ");
+                stringBuilder.Append("NULLIF(");
+                stringBuilder.Append("[i].");
+                stringBuilder.Append(columnParser.QuotedShortName);
+                stringBuilder.Append(", ");
+                stringBuilder.Append("[d].");
+                stringBuilder.Append(columnParser.QuotedShortName);
+                stringBuilder.Append(")");
+                stringBuilder.AppendLine(") IS NOT NULL");
+
+                or = " OR ";
+            }
+            stringBuilder.AppendLine(") ");
+        }
+        return stringBuilder.ToString();
+    }
+
+    public static async Task MMCAsync()
+    {
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ServerDbName));
+        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ClientDbName));
+        var options = new SyncOptions();
+
+        var setup = new SyncSetup("MMCUserDbo");
+
+        setup.Tables["MMCUserDbo"].Columns.AddRange("Id", "UserName", "UserDisplayName", "UserType", "IsSystemUser", "OrganizationNodeId", "UserPrincipalName", "EmailId", "PhoneNumber");
+
+        var filter = new SetupFilter("MMCUserDbo");
+        filter.AddParameter("IsSystemUser", "MMCUserDbo");
+        filter.AddWhere("IsSystemUser", "MMCUserDbo", "IsSystemUser");
+        setup.Filters.Add(filter);
+
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  " +
+            $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        await agent.RemoteOrchestrator.DropAllAsync();
+        await agent.LocalOrchestrator.DropAllAsync();
+
+        // On both sides, we need to hook the trigger creation and
+        // replace the command text by our own
+        SyncSetup loadedSyncSetup = null;
+        agent.LocalOrchestrator.OnGettingOperation(args =>
+        {
+            loadedSyncSetup = args.ScopeInfoFromServer.Setup;
+        });
+
+        agent.LocalOrchestrator.OnTriggerCreating(args =>
+        {
+            if (args.TriggerType == DbTriggerType.Update && loadedSyncSetup != null)
+                args.Command.CommandText = GetUpdateTrigger(args.Table, loadedSyncSetup);
+        });
+
+
+        agent.RemoteOrchestrator.OnTriggerCreating(args =>
+        {
+            if (args.TriggerType == DbTriggerType.Update)
+                args.Command.CommandText = GetUpdateTrigger(args.Table, setup);
+        });
+
+
+        do
+        {
+            try
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                var parameters = new SyncParameters
+                {
+                    { "IsSystemUser", true   }
+                };
+
+                var r = await agent.SynchronizeAsync(setup: setup, parameters: parameters, progress: progress);
+
+                Console.WriteLine(r);
+
+            }
+            catch (SyncException e)
+            {
+                Console.ResetColor();
+                Console.WriteLine(e.Message);
+            }
+            catch (Exception e)
+            {
+                Console.ResetColor();
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+
+            Console.WriteLine("--------------------");
+        }
+        while (Console.ReadKey().Key != ConsoleKey.Escape);
+    }
+
+    public static async Task ProvisionAsync()
+    {
+        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("1001_SearchManager"));
+        var setup = new SyncSetup("AssignedKITS", "AssignedMEMBERS", "AssignedSUPPORT", "Basic_Info", "CircleGroups",
+        "Circles", "Columns", "Consensus", "Consensus_Areas", "Consensus_Areas_GUI", "Consensus_Areas_StatusX",
+        "Consensus_Areas_Terrain", "Consensus_Members", "Consensus_Members_History", "Consensus_Method",
+        "Consensus_Paths", "Consensus_Scoring_Letters", "Consensus_Scoring_Numbers", "ConsensusNO", "DateTimeColumns",
+        "DeviceData", "DeviceGroups", "Devices", "DispersionAngles", "EventsLOG", "ExtraCircles", "FlowPaths",
+        "FlowPoints", "Grid_Cells", "Grids", "GUI_COLORS", "IIMARCH", "Incident_REFERENCE_POINTS_Options",
+        "IncidentINFO", "Incidents", "Incidents_Reference_Points", "Incidents_Reference_Points_Extra", "InitDATABASE",
+        "Kopija sPARTY_STATUS", "Labels", "Labels_Content", "Masts", "Media", "MISPERBehaviour", "MISPERCategory",
+        "MISPERSet", "MortBsePlt_AssessmentMatrixData", "MortBsePlt_Target_Corners", "MortBsePlt_Targets",
+        "MortBsePlt_TargetContent", "MortBsePlt_Weapons", "MortBsePlt_WeaponContent", "MR_LOG_DATA",
+        "MR_LOG_OPTIONS", "MRequipment", "MRmembers", "MRsupport", "MRteamsIMPORT", "PARTIES_STATUS", "PARTIES_STATUS_COPY",
+        "Person_data_Template_CasEvac", "Person_data_Template_Search", "Persons", "RadioChannels", "Rankings", "SCENARIO",
+        "SCENARIO_ITEMS", "Search_Progress_Colors", "SearchGradedResponseMatrix", "SearchUrgency", "sPARTY_STATUS", "SPOT2FeedSettings",
+        "SpotData", "StandardCircles", "STRATEGY", "TASK_ITEMS", "TaskingData", "Terrain", "TerrainEDIT", "TextTASKS", "UserRoles",
+        "Users", "X_BAP_Points", "X_BAP_Points_Types", "X_MR_Settings", "X_MRAC_Areas", "X_MRAC_Areas_Colors", "X_MRAC_Points",
+        "X_MRGM_GpxFiles", "X_MRPC_Paths", "X_MRPC_Paths_Colors", "X_MRPC_Points", "X_MRPC_Reports", "X_MRPTC_Content",
+        "X_MRPTC_Points", "X_MRPTC_Points_Types", "X_MRPTC_Reports", "Y_TRACKER_Data", "Y_TRACKER_Data_Received", "y_TRACKER_DataS",
+        "y_TRACKER_FILE_PARSER", "y_TRACKER_PROPERTIES", "y_TRACKER_TRANSPARENCY", "YellowBrickData", "Z_DBversion");
+
+        var watch = Stopwatch.StartNew();
+        var options = new SyncOptions { DisableConstraintsOnApplyChanges = false, TransactionMode = TransactionMode.None };
+        serverProvider.IsolationLevel = IsolationLevel.ReadUncommitted;
+
+        var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+
+        var p = SyncProvision.TrackingTable | SyncProvision.StoredProcedures | SyncProvision.Triggers | SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient;
+        Console.WriteLine("Deprovisioning");
+        await remoteOrchestrator.DeprovisionAsync(p);
+
+        Console.WriteLine("Provisioning");
+        await remoteOrchestrator.ProvisionAsync(setup);
+
+        watch.Stop();
+        var ellapsedTime = $"{watch.Elapsed.Minutes}:{watch.Elapsed.Seconds}.{watch.Elapsed.Milliseconds}";
+
+        Console.WriteLine($"Ellapsed time:{ellapsedTime}");
+    }
     public static async Task ScenarioAsync()
     {
         var serverProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString("AdvData"));
@@ -449,24 +744,6 @@ internal class Program
                 Console.WriteLine("Web sync start");
                 try
                 {
-                    //HttpClient client = new HttpClient();
-                    //var sessionId = Guid.NewGuid();
-                    //var scopeName = SyncOptions.DefaultScopeName;
-
-                    //HttpMessageEnsureScopesRequest message = new HttpMessageEnsureScopesRequest
-                    //{
-                    //    SyncContext = new SyncContext(sessionId, scopeName)
-                    //};
-
-                    //client.DefaultRequestHeaders.Add("dotmim-sync-session-id", sessionId.ToString());
-                    //client.DefaultRequestHeaders.Add("dotmim-sync-scope-name", scopeName);
-                    //client.DefaultRequestHeaders.Add("dotmim-sync-step", "2");
-                    //client.DefaultRequestHeaders.Add("dotmim-sync-serialization-format", "{\"SerializerKey\":\"Json\",\"ClientBatchSize\":1000}");
-
-                    //var body = SerializersFactory.JsonSerializerFactory.GetSerializer().Serialize(message);
-
-                    //var response = await client.PostAsync(serviceUri, new ByteArrayContent(body));
-
                     var startTime = DateTime.Now;
 
                     // Using the Progress pattern to handle progession during the synchronization
@@ -490,6 +767,7 @@ internal class Program
 
                     // create the agent
                     var agent = new SyncAgent(clientProvider, remoteOrchestrator, options);
+
 
                     agent.LocalOrchestrator.OnSessionEnd(args =>
                     {

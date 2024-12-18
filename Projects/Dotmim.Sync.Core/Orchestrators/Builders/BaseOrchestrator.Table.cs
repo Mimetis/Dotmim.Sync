@@ -379,7 +379,7 @@ namespace Dotmim.Sync
                 if (command == null)
                     return (context, false);
 
-                var action = new TableCreatingArgs(context, tableBuilder.TableDescription, tableBuilder.TableDescription.GetFullName(), command, connection, transaction);
+                var action = new TableCreatingArgs(context, scopeInfo, tableBuilder.TableDescription, tableBuilder.TableDescription.GetFullName(), command, connection, transaction);
 
                 await this.InterceptAsync(action, progress, cancellationToken).ConfigureAwait(false);
 
@@ -390,7 +390,7 @@ namespace Dotmim.Sync
 
                 await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-                await this.InterceptAsync(new TableCreatedArgs(context, tableBuilder.TableDescription, tableBuilder.TableDescription.GetFullName(), connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new TableCreatedArgs(context, scopeInfo, tableBuilder.TableDescription, tableBuilder.TableDescription.GetFullName(), connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 action.Command.Dispose();
 
@@ -420,7 +420,7 @@ namespace Dotmim.Sync
                 if (command == null)
                     return (context, false);
 
-                var action = await this.InterceptAsync(new SchemaNameCreatingArgs(context, tableBuilder.TableDescription, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                var action = await this.InterceptAsync(new SchemaNameCreatingArgs(context, scopeInfo, tableBuilder.TableDescription, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 if (action.Cancel || action.Command == null)
                     return (context, false);
@@ -429,7 +429,7 @@ namespace Dotmim.Sync
 
                 await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-                await this.InterceptAsync(new SchemaNameCreatedArgs(context, tableBuilder.TableDescription, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new SchemaNameCreatedArgs(context, scopeInfo, tableBuilder.TableDescription, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 action.Command.Dispose();
 
@@ -459,7 +459,7 @@ namespace Dotmim.Sync
                 if (command == null)
                     return (context, false);
 
-                var action = await this.InterceptAsync(new TableDroppingArgs(context, tableBuilder.TableDescription, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                var action = await this.InterceptAsync(new TableDroppingArgs(context, scopeInfo, tableBuilder.TableDescription, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 if (action.Cancel || action.Command == null)
                     return (context, false);
@@ -468,7 +468,7 @@ namespace Dotmim.Sync
 
                 await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-                await this.InterceptAsync(new TableDroppedArgs(context, tableBuilder.TableDescription, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new TableDroppedArgs(context, scopeInfo, tableBuilder.TableDescription, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 action.Command.Dispose();
 

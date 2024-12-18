@@ -11,12 +11,18 @@ namespace Dotmim.Sync
     public class TrackingTableCreatedArgs : ProgressArgs
     {
         /// <inheritdoc cref="TrackingTableCreatedArgs" />
-        public TrackingTableCreatedArgs(SyncContext context, SyncTable table, string trackingTableFullName, DbConnection connection = null, DbTransaction transaction = null)
+        public TrackingTableCreatedArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, string trackingTableFullName, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
             this.TrackingTableFullName = trackingTableFullName;
         }
+
+        /// <summary>
+        /// Gets the scope information after the tracking table has been created.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the tracking table created.
@@ -44,13 +50,19 @@ namespace Dotmim.Sync
     public class TrackingTableCreatingArgs : ProgressArgs
     {
         /// <inheritdoc cref="TrackingTableCreatingArgs" />
-        public TrackingTableCreatingArgs(SyncContext context, SyncTable table, string trackingTableFullName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+        public TrackingTableCreatingArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, string trackingTableFullName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
             this.TrackingTableFullName = trackingTableFullName;
             this.Command = command;
         }
+
+        /// <summary>
+        /// Gets the scope information before the tracking table is created.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the tracking table to be created.
@@ -88,12 +100,18 @@ namespace Dotmim.Sync
     public class TrackingTableDroppedArgs : ProgressArgs
     {
         /// <inheritdoc cref="TrackingTableDroppedArgs" />
-        public TrackingTableDroppedArgs(SyncContext context, SyncTable table, string trackingTableFullName, DbConnection connection = null, DbTransaction transaction = null)
+        public TrackingTableDroppedArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, string trackingTableFullName, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
             this.TrackingTableFullName = trackingTableFullName;
         }
+
+        /// <summary>
+        /// Gets the scope information after the tracking table has been dropped.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the tracking table dropped.
@@ -122,9 +140,10 @@ namespace Dotmim.Sync
     {
 
         /// <inheritdoc cref="TrackingTableDroppingArgs" />
-        public TrackingTableDroppingArgs(SyncContext context, SyncTable table, string trackingTableFullName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+        public TrackingTableDroppingArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, string trackingTableFullName, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
             this.TrackingTableFullName = trackingTableFullName;
             this.Command = command;
@@ -139,6 +158,11 @@ namespace Dotmim.Sync
         /// Gets or sets the command to be executed.
         /// </summary>
         public DbCommand Command { get; set; }
+
+        /// <summary>
+        /// Gets the scope information before the tracking table is dropped.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the tracking table to be dropped.

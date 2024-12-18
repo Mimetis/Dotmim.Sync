@@ -350,7 +350,7 @@ namespace Dotmim.Sync
                 if (command == null)
                     return (context, false);
 
-                var action = await this.InterceptAsync(new TriggerCreatingArgs(context, tableBuilder.TableDescription, triggerType, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                var action = await this.InterceptAsync(new TriggerCreatingArgs(context, scopeInfo, tableBuilder.TableDescription, triggerType, command, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 if (action.Cancel || action.Command == null)
                     return (context, false);
@@ -358,7 +358,7 @@ namespace Dotmim.Sync
                 await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                await this.InterceptAsync(new TriggerCreatedArgs(context, tableBuilder.TableDescription, triggerType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new TriggerCreatedArgs(context, scopeInfo, tableBuilder.TableDescription, triggerType, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                 action.Command.Dispose();
 
                 return (context, true);

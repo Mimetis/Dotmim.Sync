@@ -176,10 +176,7 @@ namespace Dotmim.Sync
 
             // since it's string comparison, don't rely on internal comparison and provide our own comparison func, using StringComparison
             var sc = SyncGlobalization.DataSourceStringComparison;
-            if (!this.CustomWheres.CompareWith(otherInstance.CustomWheres, (c, oc) => string.Equals(c, oc, sc)))
-                return false;
-
-            return true;
+            return this.CustomWheres.CompareWith(otherInstance.CustomWheres, (c, oc) => string.Equals(c, oc, sc));
         }
 
         /// <summary>
@@ -187,13 +184,9 @@ namespace Dotmim.Sync
         /// </summary>
         public override string ToString()
         {
-            if (string.IsNullOrEmpty(this.TableName))
-                return base.ToString();
-
-            if (!string.IsNullOrEmpty(this.SchemaName))
-                return $"{this.SchemaName}.{this.TableName}";
-            else
-                return this.TableName;
+            return string.IsNullOrEmpty(this.TableName)
+                ? base.ToString()
+                : !string.IsNullOrEmpty(this.SchemaName) ? $"{this.SchemaName}.{this.TableName}" : this.TableName;
         }
 
         /// <summary>

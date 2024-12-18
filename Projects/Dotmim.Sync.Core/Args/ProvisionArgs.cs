@@ -14,11 +14,11 @@ namespace Dotmim.Sync
         private readonly bool atLeastSomethingHasBeenCreated;
 
         /// <inheritdoc cref="ProvisionedArgs"/>
-        public ProvisionedArgs(SyncContext context, SyncProvision provision, SyncSet schema, bool atLeastSomethingHasBeenCreated, DbConnection connection = null, DbTransaction transaction = null)
+        public ProvisionedArgs(SyncContext context, SyncProvision provision, ScopeInfo scopeInfo, bool atLeastSomethingHasBeenCreated, DbConnection connection = null, DbTransaction transaction = null)
         : base(context, connection, transaction)
         {
             this.Provision = provision;
-            this.Schema = schema;
+            this.ScopeInfo = scopeInfo;
             this.atLeastSomethingHasBeenCreated = atLeastSomethingHasBeenCreated;
         }
 
@@ -28,15 +28,15 @@ namespace Dotmim.Sync
         public SyncProvision Provision { get; }
 
         /// <summary>
-        /// Gets the schema that has been applied in the database.
+        /// Gets the scope info used to provision the database.
         /// </summary>
-        public SyncSet Schema { get; }
+        public ScopeInfo ScopeInfo { get; }
 
         /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
         public override SyncProgressLevel ProgressLevel => this.atLeastSomethingHasBeenCreated ? SyncProgressLevel.Information : SyncProgressLevel.Debug;
 
         /// <inheritdoc cref="ProgressArgs.Message"/>
-        public override string Message => $"Provisioned {this.Schema.Tables.Count} Tables. Provision:{this.Provision}.";
+        public override string Message => $"Provisioned {this.ScopeInfo.Schema.Tables.Count} Tables. Provision:{this.Provision}.";
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
         public override int EventId => 5050;
@@ -48,11 +48,11 @@ namespace Dotmim.Sync
     public class ProvisioningArgs : ProgressArgs
     {
         /// <inheritdoc cref="ProvisioningArgs"/>
-        public ProvisioningArgs(SyncContext context, SyncProvision provision, SyncSet schema, DbConnection connection, DbTransaction transaction)
+        public ProvisioningArgs(SyncContext context, SyncProvision provision, ScopeInfo scopeInfo, DbConnection connection, DbTransaction transaction)
         : base(context, connection, transaction)
         {
             this.Provision = provision;
-            this.Schema = schema;
+            this.ScopeInfo = scopeInfo;
         }
 
         /// <summary>
@@ -61,15 +61,15 @@ namespace Dotmim.Sync
         public SyncProvision Provision { get; }
 
         /// <summary>
-        /// Gets the schema to be applied in the database.
+        /// Gets the scope info used to provision the database.
         /// </summary>
-        public SyncSet Schema { get; }
+        public ScopeInfo ScopeInfo { get; }
 
         /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
         /// <inheritdoc cref="ProgressArgs.Message"/>
-        public override string Message => $"Provisioning {this.Schema.Tables.Count} Tables. Provision:{this.Provision}.";
+        public override string Message => $"Provisioning {this.ScopeInfo.Schema.Tables.Count} Tables. Provision:{this.Provision}.";
 
         /// <inheritdoc cref="ProgressArgs.EventId"/>
         public override int EventId => 5000;

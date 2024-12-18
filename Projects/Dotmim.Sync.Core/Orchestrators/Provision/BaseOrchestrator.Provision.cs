@@ -30,7 +30,7 @@ namespace Dotmim.Sync
             if (scopeInfo.Schema == null || scopeInfo.Schema.Tables == null || !scopeInfo.Schema.HasTables)
                 throw new MissingTablesException();
 
-            await this.InterceptAsync(new ProvisioningArgs(context, provision, scopeInfo.Schema, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+            await this.InterceptAsync(new ProvisioningArgs(context, provision, scopeInfo, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
             try
             {
@@ -100,7 +100,7 @@ namespace Dotmim.Sync
                 {
                     var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
-                    await this.InterceptAsync(new ProvisioningTableArgs(context, provision, scopeInfo.Schema, schemaTable, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new ProvisioningTableArgs(context, provision, scopeInfo, schemaTable, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                     // Check if we need to create a schema there
                     bool schemaExists;
@@ -167,14 +167,14 @@ namespace Dotmim.Sync
                     // Check if we have created something on the current table.
                     var atLeastSomethingHasBeenCreatedOnThisTable = stCreated || tCreated || trackingTableExist || tgCreated || spCreated;
 
-                    await this.InterceptAsync(new ProvisionedTableArgs(context, provision, scopeInfo.Schema, schemaTable, atLeastSomethingHasBeenCreatedOnThisTable, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new ProvisionedTableArgs(context, provision, scopeInfo, schemaTable, atLeastSomethingHasBeenCreatedOnThisTable, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                 }
 
                 // Check if we have created something.
                 var atLeastSomethingHasBeenCreated = atLeastOneSchemaTableBeenCreated || atLeastOneTableBeenCreated || atLeastOneTrackingTableBeenCreated || atLeastOneTriggerHasBeenCreated
                                                   || atLeastOneStoredProcedureHasBeenCreated || atLeastOneScopeInfoTableBeenCreated || atLeastOneScopeInfoClientTableBeenCreated;
 
-                await this.InterceptAsync(new ProvisionedArgs(context, provision, scopeInfo.Schema, atLeastSomethingHasBeenCreated, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                await this.InterceptAsync(new ProvisionedArgs(context, provision, scopeInfo, atLeastSomethingHasBeenCreated, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                 return (context, true);
             }
@@ -262,7 +262,7 @@ namespace Dotmim.Sync
                     {
                         var tableBuilder = this.GetSyncAdapter(schemaTable, scopeInfo).GetTableBuilder();
 
-                        await this.InterceptAsync(new DeprovisioningTableArgs(context, provision, schemaTable, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new DeprovisioningTableArgs(context, provision, scopeInfo, schemaTable, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
 
                         var spDropped = false;
                         var tgDropped = false;
@@ -303,7 +303,7 @@ namespace Dotmim.Sync
 
                         var atLeastSomethingHasBeenDeprovisioned = spDropped || tgDropped || ttDropped;
 
-                        await this.InterceptAsync(new DeprovisionedTableArgs(context, provision, schemaTable, atLeastSomethingHasBeenDeprovisioned, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
+                        await this.InterceptAsync(new DeprovisionedTableArgs(context, provision, scopeInfo, schemaTable, atLeastSomethingHasBeenDeprovisioned, connection, transaction), progress, cancellationToken).ConfigureAwait(false);
                     }
 
                     // Eventually if we have the "Table" flag, then drop the table

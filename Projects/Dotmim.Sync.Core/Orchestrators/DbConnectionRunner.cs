@@ -149,7 +149,9 @@ namespace Dotmim.Sync
                 await this.Orchestrator.InterceptAsync(
                     new TransactionCommitArgs(this.Context, this.Connection, this.Transaction), this.Progress, this.CancellationToken).ConfigureAwait(false);
 
-                this.Transaction.Commit();
+                // we can have a zombie connection here, due to timeout, check again connection exists and is open
+                if (this.Connection != null && this.Connection.State == ConnectionState.Open)
+                    this.Transaction.Commit();
             }
 
             if (autoClose)
@@ -178,7 +180,10 @@ namespace Dotmim.Sync
 
             try
             {
-                this.Transaction.Rollback();
+                // we can have a zombie connection here, due to timeout, check again connection exists and is open
+                if (this.Connection != null && this.Connection.State == ConnectionState.Open)
+                    this.Transaction.Rollback();
+
                 return;
             }
             catch (Exception)

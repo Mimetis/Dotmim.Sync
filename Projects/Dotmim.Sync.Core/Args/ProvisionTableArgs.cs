@@ -14,11 +14,11 @@ namespace Dotmim.Sync
         private readonly bool atLeastSomethingHasBeenCreated;
 
         /// <inheritdoc cref="ProvisionedTableArgs"/>
-        public ProvisionedTableArgs(SyncContext context, SyncProvision provision, SyncSet schema, SyncTable table, bool atLeastSomethingHasBeenCreated, DbConnection connection = null, DbTransaction transaction = null)
+        public ProvisionedTableArgs(SyncContext context, SyncProvision provision, ScopeInfo scopeInfo, SyncTable table, bool atLeastSomethingHasBeenCreated, DbConnection connection = null, DbTransaction transaction = null)
         : base(context, connection, transaction)
         {
             this.Provision = provision;
-            this.Schema = schema;
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
             this.atLeastSomethingHasBeenCreated = atLeastSomethingHasBeenCreated;
         }
@@ -29,9 +29,9 @@ namespace Dotmim.Sync
         public SyncProvision Provision { get; }
 
         /// <summary>
-        /// Gets the schema that has been applied in the database.
+        /// Gets the scope info that has been applied in the database.
         /// </summary>
-        public SyncSet Schema { get; }
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the table that has been provisioned.
@@ -55,11 +55,11 @@ namespace Dotmim.Sync
     {
 
         /// <inheritdoc cref="ProvisioningTableArgs"/>
-        public ProvisioningTableArgs(SyncContext context, SyncProvision provision, SyncSet schema, SyncTable table, DbConnection connection, DbTransaction transaction)
+        public ProvisioningTableArgs(SyncContext context, SyncProvision provision, ScopeInfo scopeInfo, SyncTable table, DbConnection connection, DbTransaction transaction)
         : base(context, connection, transaction)
         {
             this.Provision = provision;
-            this.Schema = schema;
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
         }
 
@@ -69,9 +69,9 @@ namespace Dotmim.Sync
         public SyncProvision Provision { get; }
 
         /// <summary>
-        /// Gets the schema to be applied in the database.
+        /// Gets the scope info to be applied in the database.
         /// </summary>
-        public SyncSet Schema { get; }
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the table to be provisioned.
@@ -96,10 +96,11 @@ namespace Dotmim.Sync
         private readonly bool atLeastSomethingHasBeenDropped;
 
         /// <inheritdoc cref="DeprovisionedTableArgs"/>
-        public DeprovisionedTableArgs(SyncContext context, SyncProvision provision, SyncTable table, bool atLeastSomethingHasBeenDropped, DbConnection connection = null, DbTransaction transaction = null)
+        public DeprovisionedTableArgs(SyncContext context, SyncProvision provision, ScopeInfo scopeInfo, SyncTable table, bool atLeastSomethingHasBeenDropped, DbConnection connection = null, DbTransaction transaction = null)
         : base(context, connection, transaction)
         {
             this.Provision = provision;
+            this.ScopeInfo = scopeInfo;
             this.atLeastSomethingHasBeenDropped = atLeastSomethingHasBeenDropped;
             this.Table = table;
         }
@@ -108,6 +109,11 @@ namespace Dotmim.Sync
         /// Gets the provision type (Flag enum).
         /// </summary>
         public SyncProvision Provision { get; }
+
+        /// <summary>
+        /// Gets the scope info that has been deprovisioned in the database.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the table that has been deprovisioned.
@@ -129,11 +135,13 @@ namespace Dotmim.Sync
     /// </summary>
     public class DeprovisioningTableArgs : ProgressArgs
     {
+
         /// <inheritdoc cref="DeprovisioningTableArgs"/>
-        public DeprovisioningTableArgs(SyncContext context, SyncProvision provision, SyncTable table, DbConnection connection, DbTransaction transaction)
+        public DeprovisioningTableArgs(SyncContext context, SyncProvision provision, ScopeInfo scopeInfo, SyncTable table, DbConnection connection, DbTransaction transaction)
         : base(context, connection, transaction)
         {
             this.Provision = provision;
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
         }
 
@@ -141,6 +149,11 @@ namespace Dotmim.Sync
         /// Gets get the provision type (Flag enum).
         /// </summary>
         public SyncProvision Provision { get; }
+
+        /// <summary>
+        /// Gets the scope info to be deprisioned in the database.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; private set; }
 
         /// <summary>
         /// Gets the table to be deprovisioned.

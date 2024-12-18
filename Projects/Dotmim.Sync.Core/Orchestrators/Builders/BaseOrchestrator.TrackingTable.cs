@@ -373,7 +373,7 @@ namespace Dotmim.Sync
                     var trackingTableNames = tableBuilder.GetParsedTrackingTableNames();
 
                     var action = await this.InterceptAsync(
-                        new TrackingTableCreatingArgs(context, tableBuilder.TableDescription, trackingTableNames.QuotedFullName, command, runner.Connection, runner.Transaction),
+                        new TrackingTableCreatingArgs(context, scopeInfo, tableBuilder.TableDescription, trackingTableNames.QuotedFullName, command, runner.Connection, runner.Transaction),
                         runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     if (action.Cancel || action.Command == null)
@@ -383,7 +383,7 @@ namespace Dotmim.Sync
 
                     await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-                    await this.InterceptAsync(new TrackingTableCreatedArgs(context, tableBuilder.TableDescription, trackingTableNames.QuotedFullName, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new TrackingTableCreatedArgs(context, scopeInfo, tableBuilder.TableDescription, trackingTableNames.QuotedFullName, runner.Connection, runner.Transaction), runner.Progress, runner.CancellationToken).ConfigureAwait(false);
 
                     action.Command.Dispose();
 
@@ -419,7 +419,7 @@ namespace Dotmim.Sync
 
                     var trackingTableName = tableBuilder.GetParsedTrackingTableNames().QuotedFullName;
 
-                    var action = await this.InterceptAsync(new TrackingTableDroppingArgs(context, tableBuilder.TableDescription, trackingTableName, command, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
+                    var action = await this.InterceptAsync(new TrackingTableDroppingArgs(context, scopeInfo, tableBuilder.TableDescription, trackingTableName, command, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
                     if (action.Cancel || action.Command == null)
                         return (context, false);
@@ -427,7 +427,7 @@ namespace Dotmim.Sync
                     await this.InterceptAsync(new ExecuteCommandArgs(context, action.Command, default, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
                     await action.Command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                    await this.InterceptAsync(new TrackingTableDroppedArgs(context, tableBuilder.TableDescription, trackingTableName, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
+                    await this.InterceptAsync(new TrackingTableDroppedArgs(context, scopeInfo, tableBuilder.TableDescription, trackingTableName, runner.Connection, runner.Transaction), progress, cancellationToken).ConfigureAwait(false);
 
                     action.Command.Dispose();
 

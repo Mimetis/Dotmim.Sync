@@ -12,12 +12,18 @@ namespace Dotmim.Sync
     public class TriggerCreatedArgs : ProgressArgs
     {
         /// <inheritdoc cref="TriggerCreatedArgs" />
-        public TriggerCreatedArgs(SyncContext context, SyncTable table, DbTriggerType triggerType, DbConnection connection = null, DbTransaction transaction = null)
+        public TriggerCreatedArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, DbTriggerType triggerType, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
             this.TriggerType = triggerType;
         }
+
+        /// <summary>
+        /// Gets the scope information after the trigger has been created.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the table on which the trigger is created.
@@ -46,9 +52,10 @@ namespace Dotmim.Sync
     {
 
         /// <inheritdoc cref="TriggerCreatingArgs" />
-        public TriggerCreatingArgs(SyncContext context, SyncTable table, DbTriggerType triggerType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+        public TriggerCreatingArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, DbTriggerType triggerType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
             this.TriggerType = triggerType;
             this.Command = command;
@@ -63,6 +70,11 @@ namespace Dotmim.Sync
         /// Gets or sets the command used to create the trigger.
         /// </summary>
         public DbCommand Command { get; set; }
+
+        /// <summary>
+        /// Gets the scope information before the trigger is creating.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
         /// Gets the table on which the trigger is creating.
