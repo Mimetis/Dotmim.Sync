@@ -208,7 +208,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="FormatTypeException"/>/>
         public FormatTypeException(Type type)
-            : base(string.Format(Message, type.Name)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, type.Name)) { }
 
         /// <inheritdoc cref="FormatTypeException"/>/>
         public FormatTypeException()
@@ -237,7 +237,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="FormatDbTypeException"/>
         public FormatDbTypeException(DbType type)
-            : base(string.Format(Message, type.ToString())) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, type.ToString())) { }
 
         /// <inheritdoc cref="FormatDbTypeException"/>
         public FormatDbTypeException()
@@ -476,7 +476,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="InvalidColumnAutoIncrementException"/>
         public InvalidColumnAutoIncrementException(string columnName, string sourceTableName)
-            : base(string.Format(Message, columnName, sourceTableName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, columnName, sourceTableName)) { }
 
         /// <inheritdoc cref="InvalidColumnAutoIncrementException"/>
         public InvalidColumnAutoIncrementException()
@@ -499,7 +499,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="MissingPrimaryKeyException"/>
         public MissingPrimaryKeyException(string tableName)
-            : base(string.Format(Message, tableName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, tableName)) { }
 
         /// <inheritdoc cref="MissingPrimaryKeyException"/>
         public MissingPrimaryKeyException()
@@ -522,7 +522,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="MissingTableException"/>
         public MissingTableException(string tableName, string schemaName, string databaseName)
-            : base(string.Format(Message, string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}", databaseName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, string.IsNullOrEmpty(schemaName) ? tableName : $"{schemaName}.{tableName}", databaseName)) { }
 
         /// <inheritdoc cref="MissingTableException"/>
         public MissingTableException()
@@ -590,7 +590,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="SetupConflictOnServerException"/>
         public SetupConflictOnServerException(SyncSetup inputSetup, SyncSetup clientScopeInfoSetup)
-            : base(string.Format(Message, serializer.Serialize(inputSetup).ToUtf8String(), serializer.Serialize(clientScopeInfoSetup).ToUtf8String())) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, serializer.Serialize(inputSetup).ToUtf8String(), serializer.Serialize(clientScopeInfoSetup).ToUtf8String())) { }
 
         /// <inheritdoc cref="SetupConflictOnServerException"/>
         public SetupConflictOnServerException()
@@ -613,7 +613,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="MissingColumnException"/>
         public MissingColumnException(string columnName, string sourceTableName)
-            : base(string.Format(Message, columnName, sourceTableName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, columnName, sourceTableName)) { }
 
         /// <inheritdoc cref="MissingColumnException"/>
         public MissingColumnException()
@@ -636,7 +636,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="MissingsColumnException"/>
         public MissingsColumnException(string sourceTableName)
-            : base(string.Format(Message, sourceTableName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, sourceTableName)) { }
 
         /// <inheritdoc cref="MissingsColumnException"/>
         public MissingsColumnException()
@@ -659,7 +659,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="MissingPrimaryKeyColumnException"/>
         public MissingPrimaryKeyColumnException(string columnName, string sourceTableName)
-            : base(string.Format(Message, columnName, sourceTableName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, columnName, sourceTableName)) { }
 
         /// <inheritdoc cref="MissingPrimaryKeyColumnException"/>
         public MissingPrimaryKeyColumnException()
@@ -682,7 +682,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="MissingProviderException"/>
         public MissingProviderException(string methodName)
-            : base(string.Format(Message, methodName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, methodName)) { }
 
         /// <inheritdoc cref="MissingProviderException"/>
         public MissingProviderException()
@@ -729,7 +729,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="MissingServerScopeTablesException"/>
         public MissingServerScopeTablesException(string scopeName)
-            : base(string.Format(Message, scopeName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, scopeName)) { }
 
         /// <inheritdoc cref="MissingServerScopeTablesException"/>
         public MissingServerScopeTablesException()
@@ -824,7 +824,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="MetadataException"/>
         public MetadataException(string tableName)
-            : base(string.Format(Message, tableName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, tableName)) { }
 
         /// <inheritdoc cref="MetadataException"/>
         public MetadataException()
@@ -847,7 +847,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="RowOverSizedException"/>
         public RowOverSizedException(string finalFieldSize)
-            : base(string.Format(Message, finalFieldSize)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, finalFieldSize)) { }
 
         /// <inheritdoc cref="RowOverSizedException"/>
         public RowOverSizedException()
@@ -870,7 +870,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="MissingCommandException"/>
         public MissingCommandException(string commandType)
-            : base(string.Format(Message, commandType)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, commandType)) { }
 
         /// <inheritdoc cref="MissingCommandException"/>
         public MissingCommandException()
@@ -893,7 +893,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="MissingChangeTrackingException"/>
         public MissingChangeTrackingException(string databaseName)
-            : base(string.Format(Message, databaseName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, databaseName)) { }
 
         /// <inheritdoc cref="MissingChangeTrackingException"/>
         public MissingChangeTrackingException()
@@ -916,7 +916,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="MissingTrackingTableException"/>
         public MissingTrackingTableException(string tableName)
-            : base(string.Format(Message, tableName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, tableName)) { }
 
         /// <inheritdoc cref="MissingTrackingTableException"/>
         public MissingTrackingTableException()
@@ -940,7 +940,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="MissingDatabaseException"/>
         public MissingDatabaseException(string databaseName)
-            : base(string.Format(Message, databaseName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, databaseName)) { }
 
         /// <inheritdoc cref="MissingDatabaseException"/>
         public MissingDatabaseException()
@@ -964,7 +964,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="InvalidDatabaseVersionException"/>
         public InvalidDatabaseVersionException(string version, string engine)
-            : base(string.Format(Message, version, engine)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, version, engine)) { }
 
         /// <inheritdoc cref="InvalidDatabaseVersionException"/>
         public InvalidDatabaseVersionException()
@@ -987,7 +987,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="UnsupportedColumnTypeException"/>
         public UnsupportedColumnTypeException(string tableName, string columnName, string columnType, string provider)
-            : base(string.Format(Message, tableName, columnName, columnType, provider)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, tableName, columnName, columnType, provider)) { }
 
         /// <inheritdoc cref="UnsupportedColumnTypeException"/>
         public UnsupportedColumnTypeException()
@@ -1010,7 +1010,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="UnsupportedColumnNameException"/>
         public UnsupportedColumnNameException(string tableName, string columnName, string columnType, string provider)
-            : base(string.Format(Message, tableName, columnName, columnType, provider))
+            : base(string.Format(CultureInfo.InvariantCulture, Message, tableName, columnName, columnType, provider))
         { }
 
         /// <inheritdoc cref="UnsupportedColumnNameException"/>
@@ -1034,7 +1034,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="UnsupportedPrimaryKeyColumnNameException"/>
         public UnsupportedPrimaryKeyColumnNameException(string tableName, string columnName, string columnType, string provider)
-            : base(string.Format(Message, tableName, columnName, columnType, provider)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, tableName, columnName, columnType, provider)) { }
 
         /// <inheritdoc cref="UnsupportedPrimaryKeyColumnNameException"/>
         public UnsupportedPrimaryKeyColumnNameException()
@@ -1057,7 +1057,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="UnsupportedServerProviderException"/>
         public UnsupportedServerProviderException(string provider)
-            : base(string.Format(Message, provider)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, provider)) { }
 
         /// <inheritdoc cref="UnsupportedServerProviderException"/>
         public UnsupportedServerProviderException()
@@ -1080,7 +1080,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="OutOfDateException"/>
         public OutOfDateException(long? timestampLimit, long? serverLastCleanTimestamp)
-            : base(string.Format(Message, timestampLimit, serverLastCleanTimestamp)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, timestampLimit, serverLastCleanTimestamp)) { }
 
         /// <inheritdoc cref="OutOfDateException"/>
         public OutOfDateException()
@@ -1127,7 +1127,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="HttpHeaderMissingException"/>
         public HttpHeaderMissingException(string header)
-            : base(string.Format(Message, header)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, header)) { }
 
         /// <inheritdoc cref="HttpHeaderMissingException"/>
         public HttpHeaderMissingException()
@@ -1177,7 +1177,7 @@ namespace Dotmim.Sync
         public HttpSerializerNotConfiguredException(IEnumerable<string> serializers)
             : base(
                 serializers.Any() ?
-                    string.Format(Message, string.Join(".", serializers))
+                    string.Format(CultureInfo.InvariantCulture, Message, string.Join(".", serializers))
                     : MessageEmpty)
         { }
 
@@ -1205,7 +1205,7 @@ namespace Dotmim.Sync
         public HttpConverterNotConfiguredException(IEnumerable<string> converters)
             : base(
                 converters.Any() ?
-                    string.Format(Message, string.Join(".", converters))
+                    string.Format(CultureInfo.InvariantCulture, Message, string.Join(".", converters))
                     : MessageEmpty)
         { }
 
@@ -1230,7 +1230,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="HttpScopeNameInvalidException"/>
         public HttpScopeNameInvalidException(string scopeName)
-            : base(string.Format(Message, scopeName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, scopeName)) { }
 
         /// <inheritdoc cref="HttpScopeNameInvalidException"/>
         public HttpScopeNameInvalidException()
@@ -1253,7 +1253,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="HttpScopeNameFromClientIsInvalidException"/>
         public HttpScopeNameFromClientIsInvalidException(string scopeNameClientReceived, string scopeNameServerDeclared)
-            : base(string.Format(Message, scopeNameClientReceived, scopeNameServerDeclared)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, scopeNameClientReceived, scopeNameServerDeclared)) { }
 
         /// <inheritdoc cref="HttpScopeNameFromClientIsInvalidException"/>
         public HttpScopeNameFromClientIsInvalidException()
@@ -1276,7 +1276,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="HttpSessionLostException"/>
         public HttpSessionLostException(string sessionId)
-            : base(string.Format(Message, sessionId)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, sessionId)) { }
 
         /// <inheritdoc cref="HttpSessionLostException"/>
         public HttpSessionLostException()
@@ -1299,7 +1299,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="FilterParameterAlreadyExistsException"/>
         public FilterParameterAlreadyExistsException(string parameterName, string tableName)
-            : base(string.Format(Message, parameterName, tableName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, parameterName, tableName)) { }
 
         /// <inheritdoc cref="FilterParameterAlreadyExistsException"/>
         public FilterParameterAlreadyExistsException()
@@ -1322,7 +1322,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="FilterAlreadyExistsException"/>
         public FilterAlreadyExistsException(string tableName)
-            : base(string.Format(Message, tableName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, tableName)) { }
 
         /// <inheritdoc cref="FilterAlreadyExistsException"/>
         public FilterAlreadyExistsException()
@@ -1345,7 +1345,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="FilterTrackingWhereException"/>
         public FilterTrackingWhereException(string columName)
-            : base(string.Format(Message, columName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, columName)) { }
 
         /// <inheritdoc cref="FilterTrackingWhereException"/>
         public FilterTrackingWhereException()
@@ -1368,7 +1368,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="FilterParamColumnNotExistsException"/>
         public FilterParamColumnNotExistsException(string columName, string tableName)
-            : base(string.Format(Message, columName, tableName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, columName, tableName)) { }
 
         /// <inheritdoc cref="FilterParamColumnNotExistsException"/>
         public FilterParamColumnNotExistsException()
@@ -1391,7 +1391,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="FilterParamTableNotExistsException"/>
         public FilterParamTableNotExistsException(string tableName)
-            : base(string.Format(Message, tableName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, tableName)) { }
 
         /// <inheritdoc cref="FilterParamTableNotExistsException"/>
         public FilterParamTableNotExistsException()
@@ -1414,7 +1414,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="SyncParameterAlreadyExistsException"/>
         public SyncParameterAlreadyExistsException(string parameterName)
-            : base(string.Format(Message, parameterName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, parameterName)) { }
 
         /// <inheritdoc cref="SyncParameterAlreadyExistsException"/>
         public SyncParameterAlreadyExistsException()
@@ -1437,7 +1437,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="SnapshotNotExistsException"/>
         public SnapshotNotExistsException(string directoryName)
-            : base(string.Format(Message, directoryName)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, directoryName)) { }
 
         /// <inheritdoc cref="SnapshotNotExistsException"/>
         public SnapshotNotExistsException()
@@ -1532,7 +1532,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="SyncHashException"/>
         public SyncHashException(string hash1, string hash2)
-            : base(string.Format(Message, hash1, hash2)) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, hash1, hash2)) { }
 
         /// <inheritdoc cref="SyncHashException"/>
         public SyncHashException()
@@ -1555,7 +1555,7 @@ namespace Dotmim.Sync
 
         /// <inheritdoc cref="ApplyChangesException"/>
         public ApplyChangesException(SyncRow errorRow, SyncTable schemaChangesTable, SyncRowState rowState, Exception innerException)
-            : base(string.Format(Message, schemaChangesTable.GetFullName(), innerException.Message, errorRow, rowState), innerException) { }
+            : base(string.Format(CultureInfo.InvariantCulture, Message, schemaChangesTable.GetFullName(), innerException.Message, errorRow, rowState), innerException) { }
 
         /// <inheritdoc cref="ApplyChangesException"/>
         public ApplyChangesException()

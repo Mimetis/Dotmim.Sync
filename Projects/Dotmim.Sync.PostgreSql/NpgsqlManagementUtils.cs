@@ -47,7 +47,7 @@ namespace Dotmim.Sync.PostgreSql
         {
             bool tableExist;
 
-            using (DbCommand dbCommand = connection.CreateCommand())
+            using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "SELECT count(*) FROM pg_database where pg_database.datname = @databaseName";
 
@@ -84,7 +84,7 @@ namespace Dotmim.Sync.PostgreSql
         {
             int v = 0;
 
-            using (DbCommand dbCommand = connection.CreateCommand())
+            using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "SHOW server_version_num;";
 
@@ -247,7 +247,7 @@ namespace Dotmim.Sync.PostgreSql
             string dbName = null;
             string dbVersion = null;
 
-            using (DbCommand dbCommand = connection.CreateCommand())
+            using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "SELECT version(), pg_database.datname FROM pg_database WHERE datname = @databaseName;";
 
@@ -494,7 +494,7 @@ namespace Dotmim.Sync.PostgreSql
         public static async Task<bool> SchemaExistsAsync(NpgsqlConnection connection, NpgsqlTransaction transaction, string schemaName)
         {
             bool schemaExist;
-            using (DbCommand dbCommand = connection.CreateCommand())
+            using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "SELECT count(*) FROM information_schema.schemata where schema_name = @schemaName";
 
@@ -532,7 +532,7 @@ namespace Dotmim.Sync.PostgreSql
             bool tableExist;
             var pSchemaName = string.IsNullOrEmpty(schemaName) ? "public" : schemaName;
 
-            using (DbCommand dbCommand = connection.CreateCommand())
+            using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "SELECT count(*) FROM information_schema.tables " +
                                         "WHERE table_type = 'BASE TABLE' AND table_schema != 'pg_catalog' AND table_schema != 'information_schema' " +

@@ -198,7 +198,11 @@ namespace Dotmim.Sync.Serialization
                     await this.writer.DisposeAsync().ConfigureAwait(false);
                 }
 
+#if NET6_0_OR_GREATER
+                await this.sw.DisposeAsync().ConfigureAwait(false);
+#else
                 this.sw?.Dispose();
+#endif
 
                 this.IsOpen = false;
             }

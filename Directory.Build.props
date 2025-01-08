@@ -31,17 +31,18 @@
 		<DebugType>full</DebugType>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
 		<EmbedAllSources>true</EmbedAllSources>
+		<IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net7.0'))">true</IsAotCompatible>
 
 	</PropertyGroup>
 
 	<!--generate NUGET package including symbols ans source on each release build -->
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+	<!--<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<IncludeSource>True</IncludeSource>
 		<IncludeSymbols>True</IncludeSymbols>
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
 		<DefineConstants>MARIADB</DefineConstants>
-	</PropertyGroup>
+	</PropertyGroup>-->
 
 	<PropertyGroup>
 

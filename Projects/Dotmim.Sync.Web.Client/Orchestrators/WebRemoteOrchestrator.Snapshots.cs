@@ -1,6 +1,7 @@
 ﻿using Dotmim.Sync.Batch;
 using System;
 using System.Data.Common;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,7 +25,7 @@ namespace Dotmim.Sync.Web.Client
             {
                 // Generate a batch directory
                 var batchDirectoryRoot = this.Options.BatchDirectory;
-                var batchDirectoryName = string.Concat("WEB_SNAPSHOT_GETCHANGES_", DateTime.UtcNow.ToString("yyyy_MM_dd_ss"), Path.GetRandomFileName().Replace(".", string.Empty));
+                var batchDirectoryName = string.Concat("WEB_SNAPSHOT_GETCHANGES_", DateTime.UtcNow.ToString("yyyy_MM_dd_ss", CultureInfo.InvariantCulture), Path.GetRandomFileName().Replace(".", string.Empty));
                 var batchDirectoryFullPath = Path.Combine(batchDirectoryRoot, batchDirectoryName);
 
                 // Firstly, get the snapshot summary

@@ -47,7 +47,7 @@ namespace Dotmim.Sync
                 var failedRows = cScopeInfo.Schema.Clone();
 
                 // if not null, rollback
-                Exception failureException = null;
+                ApplyChangesException failureException = null;
 
                 // Previous sync errors
                 BatchInfo lastSyncErrorsBatchInfo = null;

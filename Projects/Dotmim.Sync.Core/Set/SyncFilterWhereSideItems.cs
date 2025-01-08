@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Runtime.Serialization;
 
 namespace Dotmim.Sync
@@ -121,6 +122,6 @@ namespace Dotmim.Sync
         /// <summary>
         /// Returns a string that represents the current object.
         /// </summary>
-        public override string ToString() => this.InnerCollection.Count.ToString();
+        public override string ToString() => this.InnerCollection.Count.ToString(CultureInfo.InvariantCulture);
     }
 }

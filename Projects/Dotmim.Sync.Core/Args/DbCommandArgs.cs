@@ -29,9 +29,9 @@ namespace Dotmim.Sync
         public ScopeInfo ScopeInfo { get; }
 
         /// <summary>
-        /// Gets the command to be executed.
+        /// Gets or sets the command to be executed.
         /// </summary>
-        public DbCommand Command { get; }
+        public DbCommand Command { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether the command is a batch command.

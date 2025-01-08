@@ -35,7 +35,6 @@
 		<Compile Include="..\Dotmim.Sync.MySql\MySqlSyncAdapter.cs" Link="MySqlSyncAdapter.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\MySqlSyncAdapter.GetChanges.cs" Link="MySqlSyncAdapter.GetChanges.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\MySqlSyncAdapter.Metadata.cs" Link="MySqlSyncAdapter.Metadata.cs" />
-		<Compile Include="..\Dotmim.Sync.MySql\MySqlTokenizer.cs" Link="MySqlTokenizer.cs" />
 		<Compile Include="..\Dotmim.Sync.MySql\MySqlTransientExceptionDetector.cs" Link="MySqlTransientExceptionDetector.cs" />
 	</ItemGroup>
 

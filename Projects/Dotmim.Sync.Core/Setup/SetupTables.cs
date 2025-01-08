@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
 
@@ -190,7 +191,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Returns a string that represents the current object.
         /// </summary>
-        public override string ToString() => this.InnerCollection.Count.ToString();
+        public override string ToString() => this.InnerCollection.Count.ToString(CultureInfo.InvariantCulture);
 
         /// <summary>
         /// Insert a table at a specific index.

@@ -3,7 +3,6 @@ using Dotmim.Sync.SqlServer.Builders;
 using Microsoft.Data.SqlClient;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.Common;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -448,7 +447,7 @@ namespace Dotmim.Sync.SqlServer
             string dbName = null;
             string dbVersion = null;
 
-            using (DbCommand dbCommand = connection.CreateCommand())
+            using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "SELECT name, @@VERSION as version FROM sys.databases WHERE name = @databaseName;";
 
@@ -495,7 +494,7 @@ namespace Dotmim.Sync.SqlServer
         {
             bool tableExist;
 
-            using (DbCommand dbCommand = connection.CreateCommand())
+            using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "IF EXISTS (SELECT * FROM sys.databases WHERE name = @databaseName) SELECT 1 ELSE SELECT 0";
 
@@ -570,7 +569,7 @@ namespace Dotmim.Sync.SqlServer
         {
             var pSchemaName = string.IsNullOrEmpty(schemaName) ? "dbo" : schemaName;
 
-            using DbCommand dbCommand = connection.CreateCommand();
+            using var dbCommand = connection.CreateCommand();
 
             dbCommand.CommandText = "IF EXISTS (SELECT t.name FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE t.name = @tableName AND s.name = @schemaName) SELECT 1 ELSE SELECT 0";
 

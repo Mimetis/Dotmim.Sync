@@ -84,12 +84,12 @@ internal class Program
         //await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
         //await CheckChanges(clientProvider, serverProvider, setup, options);
 
-        //await SynchronizeAsync(clientProvider, serverProvider, setup, options);
+        await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
         //await ScenarioAsync();
         //await CheckProvisionTime();
         //await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
-        await MMCAsync();
+        //await MMCAsync();
     }
 
 
@@ -287,19 +287,21 @@ internal class Program
 
         await agent.RemoteOrchestrator.DropAllAsync();
         await agent.LocalOrchestrator.DropAllAsync();
-
-        // On both sides, we need to hook the trigger creation and
-        // replace the command text by our own
-        SyncSetup loadedSyncSetup = null;
-        agent.LocalOrchestrator.OnGettingOperation(args =>
+        agent.LocalOrchestrator.OnGetCommand(args =>
         {
-            loadedSyncSetup = args.ScopeInfoFromServer.Setup;
+            if (args.CommandType == DbCommandType.Reset)
+            {
+                var setupTable = args.ScopeInfo.Setup.Tables[args.Table.TableName, args.Table.SchemaName];
+
+                if (setupTable != null && setupTable.SyncDirection == SyncDirection.UploadOnly)
+                    args.Command.CommandText = "Select 1;";
+            }
         });
 
         agent.LocalOrchestrator.OnTriggerCreating(args =>
         {
-            if (args.TriggerType == DbTriggerType.Update && loadedSyncSetup != null)
-                args.Command.CommandText = GetUpdateTrigger(args.Table, loadedSyncSetup);
+            if (args.TriggerType == DbTriggerType.Update && args.Table != null && args.ScopeInfo?.Setup != null)
+                args.Command.CommandText = GetUpdateTrigger(args.Table, args.ScopeInfo.Setup);
         });
 
 
@@ -646,28 +648,7 @@ internal class Program
         // options.ErrorResolutionPolicy = ErrorResolution.ContinueOnError;
         var agent = new SyncAgent(clientProvider, serverProvider, options);
 
-        agent.LocalOrchestrator.OnApplyChangesErrorOccured(args =>
-        {
-            Console.WriteLine("error on client for row " + args.ErrorRow);
-            args.Resolution = ErrorResolution.ContinueOnError;
-        });
 
-        agent.RemoteOrchestrator.OnApplyChangesErrorOccured(args =>
-        {
-            Console.WriteLine("error on server for row " + args.ErrorRow);
-            args.Resolution = ErrorResolution.ContinueOnError;
-        });
-
-        agent.LocalOrchestrator.OnMetadataCleaning(args =>
-        {
-            Console.WriteLine("Cleaning metadata");
-            Console.WriteLine(args.Message);
-        });
-        agent.LocalOrchestrator.OnMetadataCleaned(args =>
-        {
-            Console.WriteLine("Cleaned metadata");
-            Console.WriteLine(args.Message);
-        });
         do
         {
             try

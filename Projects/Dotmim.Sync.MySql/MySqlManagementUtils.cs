@@ -40,7 +40,7 @@ namespace Dotmim.Sync.MySql
             string dbName = null;
             string dbVersion = null;
 
-            using (DbCommand dbCommand = connection.CreateCommand())
+            using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "select schema_name, version() as version from information_schema.schemata where schema_name=@databaseName;";
 
@@ -229,7 +229,7 @@ namespace Dotmim.Sync.MySql
         {
             bool tableExist;
 
-            using DbCommand dbCommand = connection.CreateCommand();
+            using var dbCommand = connection.CreateCommand();
 
             dbCommand.CommandText = "select COUNT(*) from information_schema.TABLES where TABLE_NAME = @tableName and TABLE_SCHEMA = schema() and TABLE_TYPE = 'BASE TABLE'";
 

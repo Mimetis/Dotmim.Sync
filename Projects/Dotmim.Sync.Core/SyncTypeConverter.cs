@@ -103,7 +103,7 @@ namespace Dotmim.Sync
             else if (typeOfT == typeof(bool))
             {
                 if (bool.TryParse(value.ToString(), out bool v))
-                    return (T)Convert.ChangeType(v, typeOfT);
+                    return (T)Convert.ChangeType(v, typeOfT, CultureInfo.InvariantCulture);
                 else if (value.ToString().Trim() == "0")
                     return (T)Convert.ChangeType(false, typeOfT, provider);
                 else if (value.ToString().Trim() == "1")

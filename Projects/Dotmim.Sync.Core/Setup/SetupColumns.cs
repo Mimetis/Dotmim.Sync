@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.Serialization;
 
@@ -114,7 +115,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Returns a string representation of the number of columns in the list.
         /// </summary>
-        public override string ToString() => this.InnerCollection.Count.ToString();
+        public override string ToString() => this.InnerCollection.Count.ToString(CultureInfo.InvariantCulture);
 
         /// <summary>
         /// Insert a column at a specific index in the list of columns to be added to the sync.

@@ -25,7 +25,7 @@ namespace Dotmim.Sync
         /// the fromScope is local client scope when this method is called from server
         /// the fromScope is server scope when this method is called from client.
         /// </summary>
-        internal virtual async Task<Exception>
+        internal virtual async Task<ApplyChangesException>
             InternalApplyChangesAsync(ScopeInfo scopeInfo, SyncContext context, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
                              IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
@@ -38,7 +38,7 @@ namespace Dotmim.Sync
             var hasChanges = message.Changes.HasData();
 
             // critical exception that causes rollback
-            Exception failureException = null;
+            ApplyChangesException failureException = null;
 
             try
             {
@@ -148,7 +148,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply changes internal method for one type of query: Insert, Update or Delete for every batch from a table.
         /// </summary>
-        internal virtual async Task<Exception> InternalApplyTableChangesAsync(ScopeInfo scopeInfo, SyncContext context, SyncTable schemaTable,
+        internal virtual async Task<ApplyChangesException> InternalApplyTableChangesAsync(ScopeInfo scopeInfo, SyncContext context, SyncTable schemaTable,
             MessageApplyChanges message, SyncTable errorsTable,
             DbConnection connection, DbTransaction transaction, SyncRowState applyType, DatabaseChangesApplied changesApplied,
             IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
@@ -203,7 +203,7 @@ namespace Dotmim.Sync
             var conflictsResolvedCount = 0;
 
             // Failure exception if any
-            Exception failureException = null;
+            ApplyChangesException failureException = null;
 
             // Conflicts occured when trying to apply rows
             var conflictRows = new List<SyncRow>();
@@ -658,7 +658,7 @@ namespace Dotmim.Sync
         /// <summary>
         /// Apply conflicts and errors.
         /// </summary>
-        internal virtual async Task<(int AppliedRows, int ConflictsResolvedCount, int FailedRows, Exception FailureException)> InternalApplyConflictsAndErrorsAsync(ScopeInfo scopeInfo, SyncContext context,
+        internal virtual async Task<(int AppliedRows, int ConflictsResolvedCount, int FailedRows, ApplyChangesException FailureException)> InternalApplyConflictsAndErrorsAsync(ScopeInfo scopeInfo, SyncContext context,
             SyncTable schemaChangesTable, SyncRowState applyType, SyncTable errorsTable,
             List<SyncRow> conflictRows, List<(SyncRow SyncRow, Exception Exception)> errorsRows, MessageApplyChanges message, DbConnection connection, DbTransaction transaction,
             IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
@@ -667,7 +667,7 @@ namespace Dotmim.Sync
             var conflictsResolvedCount = 0;
             var appliedRows = 0;
             var failedRows = 0;
-            Exception failureException = null;
+            ApplyChangesException failureException = null;
 
             if ((conflictRows != null && conflictRows.Count > 0) || (errorsRows != null && errorsRows.Count > 0))
             {

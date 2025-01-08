@@ -222,7 +222,7 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         public static async Task DropTableIfExistsAsync(string tableName, SqliteConnection connection, SqliteTransaction transaction)
         {
-            using DbCommand command = connection.CreateCommand();
+            using var command = connection.CreateCommand();
             command.CommandText = $"drop table if exist {tableName}";
             command.Transaction = transaction;
 
@@ -234,7 +234,7 @@ namespace Dotmim.Sync.Sqlite
         /// </summary>
         public static async Task DropTriggerIfExistsAsync(SqliteConnection connection, SqliteTransaction transaction, string quotedTriggerName)
         {
-            using DbCommand dbCommand = connection.CreateCommand();
+            using var dbCommand = connection.CreateCommand();
             dbCommand.CommandText = $"drop trigger if exist {quotedTriggerName}";
             dbCommand.Transaction = transaction;
 
@@ -248,7 +248,7 @@ namespace Dotmim.Sync.Sqlite
         {
             bool tableExist;
 
-            using (DbCommand dbCommand = connection.CreateCommand())
+            using (var dbCommand = connection.CreateCommand())
             {
                 dbCommand.CommandText = "select count(*) from sqlite_master where name = @tableName AND type='table'";
 

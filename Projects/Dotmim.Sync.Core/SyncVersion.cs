@@ -8,7 +8,7 @@ namespace Dotmim.Sync
     /// </summary>
     public static class SyncVersion
     {
-        private static readonly Lazy<Version> lazyVersion = new Lazy<Version>(() =>
+        private static readonly Lazy<Version> lazyVersion = new(() =>
         {
             return new Version(typeof(CoreProvider).GetTypeInfo()
                 .Assembly.GetCustomAttribute<AssemblyFileVersionAttribute>().Version);
