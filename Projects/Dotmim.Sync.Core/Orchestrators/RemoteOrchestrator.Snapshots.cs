@@ -47,19 +47,19 @@ namespace Dotmim.Sync
         /// <summary>
         /// Create a snapshot, based on the Setup object.
         /// </summary>
-        public virtual Task<BatchInfo> CreateSnapshotAsync(SyncSetup setup = null, SyncParameters syncParameters = null)
-            => this.CreateSnapshotAsync(SyncOptions.DefaultScopeName, setup, syncParameters);
+        public virtual Task<BatchInfo> CreateSnapshotAsync(SyncSetup setup = null, SyncParameters syncParameters = null, IProgress<ProgressArgs> progress = null)
+            => this.CreateSnapshotAsync(SyncOptions.DefaultScopeName, setup, syncParameters, progress);
 
         /// <summary>
         /// Create a snapshot, based on the Setup object.
         /// </summary>
-        public virtual async Task<BatchInfo> CreateSnapshotAsync(string scopeName, SyncSetup setup = null, SyncParameters syncParameters = null)
+        public virtual async Task<BatchInfo> CreateSnapshotAsync(string scopeName, SyncSetup setup = null, SyncParameters syncParameters = null, IProgress<ProgressArgs> progress = null)
         {
             var context = new SyncContext(Guid.NewGuid(), scopeName);
 
             try
             {
-                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.SnapshotCreating).ConfigureAwait(false);
+                using var runner = await this.GetConnectionAsync(context, SyncMode.WithTransaction, SyncStage.SnapshotCreating, progress: progress).ConfigureAwait(false);
                 await using (runner.ConfigureAwait(false))
                 {
                     if (string.IsNullOrEmpty(this.Options.SnapshotsDirectory) || this.Options.BatchSize <= 0)
