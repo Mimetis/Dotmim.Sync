@@ -1,6 +1,6 @@
 ﻿using Dotmim.Sync.Tests.Core;
 using Microsoft.Data.Sqlite;
-#if NET6_0 || NET8_0 
+#if NET6_0 || NET8_0_OR_GREATER 
 using MySqlConnector;
 #elif NETCOREAPP3_1
 using MySql.Data.MySqlClient;

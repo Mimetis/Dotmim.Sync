@@ -4,7 +4,7 @@ using Dotmim.Sync.MariaDB.Builders;
 #elif MYSQL
 using Dotmim.Sync.MySql.Builders;
 #endif
-#if NET6_0 || NET8_0
+#if NET6_0 || NET8_0_OR_GREATER
 using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;

@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace Dotmim.Sync.Tests.Models
 {
-#if NET8_0
+#if NET8_0_OR_GREATER
     public class AdventureWorksTriggerAddingConvention : IModelFinalizingConvention
     {
         public virtual void ProcessModelFinalizing(

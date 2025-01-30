@@ -1,13 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
-		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
-		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
-
-		<TargetFrameworks>$(TargetFrameworkNet8)</TargetFrameworks>
-		<LangVersion>11.0</LangVersion>
-		<TargetFramework>net8.0</TargetFramework>
-		<LangVersion>12.0</LangVersion>
+		<TargetFramework>net9.0</TargetFramework>
+		<LangVersion>latest</LangVersion>
 	</PropertyGroup>
 	<PropertyGroup>
 		<!-- Static analysis settings -->
@@ -19,21 +14,21 @@
 	
 	<PropertyGroup>
 		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
-		<Version>1.0.0.3</Version>
+		<Version>1.0.0.4</Version>
 		<PublishAot>True</PublishAot>
 	</PropertyGroup>
 	<ItemGroup>
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
-		<PackageReference Include="MessagePack" Version="2.5.140" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.4" />
+		<PackageReference Include="MessagePack" Version="3.1.2" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.1" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
-		<PackageReference Include="NLog.Web.AspNetCore" Version="5.3.8" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.1" />
+		<PackageReference Include="NLog.Web.AspNetCore" Version="5.3.15" />
 		<PackageReference Include="Seq.Extensions.Logging" Version="8.0.0" />
-		<PackageReference Include="Serilog" Version="3.1.1" />
-		<PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
-		<PackageReference Include="Serilog.Sinks.Console" Version="5.0.1" />
-		<PackageReference Include="Serilog.Sinks.Seq" Version="7.0.0" />
+		<PackageReference Include="Serilog" Version="4.2.0" />
+		<PackageReference Include="Serilog.Extensions.Logging" Version="9.0.0" />
+		<PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+		<PackageReference Include="Serilog.Sinks.Seq" Version="9.0.0" />
 	</ItemGroup>
 	<ItemGroup>
 		<ProjectReference Include="..\..\Projects\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
@@ -75,6 +70,13 @@
 
 	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
 		<PackageReference Include="Npgsql" Version="5.0.15" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <PackageReference Update="DotNet.ReproducibleBuilds" Version="1.2.25">
+	    <PrivateAssets>all</PrivateAssets>
+	    <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+	  </PackageReference>
 	</ItemGroup>
 
 </Project>

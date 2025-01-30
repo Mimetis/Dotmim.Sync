@@ -3,8 +3,8 @@
 		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
 		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
-
-		<TargetFrameworks>$(TargetFrameworkNet8)</TargetFrameworks>
+		<TargetFrameworkNet9>net9.0</TargetFrameworkNet9>
+		<TargetFrameworks>$(TargetFrameworkNet8);$(TargetFrameworkNet9)</TargetFrameworks>
 
 		<Authors>Sébastien Pertus, ABRI Development Team</Authors>
 		<Company>Microsoft, ABRI</Company>
@@ -17,9 +17,9 @@
 		<RepositoryType>git</RepositoryType>
 		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
 		
-		<Version>1.0.0.3</Version>
+		<Version>1.0.0.4</Version>
 		
-		<LangVersion>11.0</LangVersion>
+		<LangVersion>latest</LangVersion>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
 
@@ -47,7 +47,14 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
 		<ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
-		<PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.4" />
+		<PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <PackageReference Update="DotNet.ReproducibleBuilds" Version="1.2.25">
+	    <PrivateAssets>all</PrivateAssets>
+	    <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+	  </PackageReference>
 	</ItemGroup>
 
 </Project>

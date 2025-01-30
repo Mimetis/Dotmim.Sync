@@ -4,7 +4,7 @@ using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Fixtures;
 using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
-#if NET6_0 || NET8_0 
+#if NET6_0 || NET8_0_OR_GREATER 
 using MySqlConnector;
 using Npgsql;
 #elif NETCOREAPP3_1

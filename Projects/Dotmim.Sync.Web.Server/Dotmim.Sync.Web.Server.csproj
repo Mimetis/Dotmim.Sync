@@ -3,8 +3,8 @@
 		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
 		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
-
-		<TargetFrameworks>$(TargetFrameworkNet8)</TargetFrameworks>
+		<TargetFrameworkNet9>net9.0</TargetFrameworkNet9>
+		<TargetFrameworks>$(TargetFrameworkNet8);$(TargetFrameworkNet9)</TargetFrameworks>
 
 		<Authors>Sébastien Pertus, ABRI Development Team</Authors>
 		<Company>Microsoft, ABRI</Company>
@@ -16,7 +16,7 @@
 		<AssemblyName>Dotmim.Sync.Web.Server</AssemblyName>
 		<RootNamespace>Dotmim.Sync.Web.Server</RootNamespace>
 		
-		<Version>1.0.0.3</Version>
+		<Version>1.0.0.4</Version>
 		
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
@@ -36,7 +36,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
-		<PackageReference Include="System.Text.Json" Version="8.0.5" />
+		<PackageReference Include="System.Text.Json" Version="9.0.1" />
 	</ItemGroup>
 
 
@@ -50,7 +50,7 @@
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
 	</ItemGroup>
 
-	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet6)' OR '$(TargetFramework)' == '$(TargetFrameworkNet8)'">
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet6)' OR '$(TargetFramework)' == '$(TargetFrameworkNet8)' OR '$(TargetFramework)' == '$(TargetFrameworkNet9)'">
 		<FrameworkReference Include="Microsoft.AspNetCore.App" />
 	</ItemGroup>
 
@@ -59,5 +59,12 @@
 			<Pack>True</Pack>
 			<PackagePath></PackagePath>
 		</None>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <PackageReference Update="DotNet.ReproducibleBuilds" Version="1.2.25">
+	    <PrivateAssets>all</PrivateAssets>
+	    <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+	  </PackageReference>
 	</ItemGroup>
 </Project>

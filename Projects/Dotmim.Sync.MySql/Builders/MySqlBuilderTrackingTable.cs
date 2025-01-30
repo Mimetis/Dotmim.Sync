@@ -3,7 +3,7 @@ using Microsoft.Extensions.Primitives;
 using System.Data.Common;
 using System.Text;
 
-#if NET6_0 || NET8_0
+#if NET6_0 || NET8_0_OR_GREATER
 using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;

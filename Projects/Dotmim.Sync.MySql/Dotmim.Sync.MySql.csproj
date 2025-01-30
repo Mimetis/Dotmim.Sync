@@ -4,8 +4,8 @@
 		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
 		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
-
-		<TargetFrameworks>$(TargetFrameworkNet8)</TargetFrameworks>
+		<TargetFrameworkNet9>net9.0</TargetFrameworkNet9>
+		<TargetFrameworks>$(TargetFrameworkNet8);$(TargetFrameworkNet9)</TargetFrameworks>
 
 		<Authors>Sébastien Pertus, ABRI Development Team</Authors>
 		<Company>Microsoft, ABRI</Company>
@@ -13,8 +13,8 @@
 		<Summary>MySql Sync Provider. Client or Server provider .Net Standard 2.0</Summary>
 		<Description>MySql Sync Provider. Manage a sync process beetween two relational databases provider. This provider works with SQL Server and can be used as Client or Server provider .Net Standard 2.0</Description>
 		<RepositoryType>git</RepositoryType>
-		<Version>1.0.0.3</Version>
-		<LangVersion>11.0</LangVersion>
+		<Version>1.0.0.4</Version>
+		<LangVersion>latest</LangVersion>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
 
@@ -45,13 +45,21 @@
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
 	</ItemGroup>
 
-	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet8)' OR '$(TargetFramework)' == '$(TargetFrameworkNet6)' ">
-		<PackageReference Include="MySqlConnector" Version="2.3.7" />
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet8)' OR '$(TargetFramework)' == '$(TargetFrameworkNet6)' OR '$(TargetFramework)' == '$(TargetFrameworkNet9)'">
+		<PackageReference Include="MySqlConnector" Version="2.4.0" />
 	</ItemGroup>
 
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
 		<PackageReference Include="MySqlConnector" Version="2.3.7" />
+	</ItemGroup>
+
+
+	<ItemGroup>
+	  <PackageReference Update="DotNet.ReproducibleBuilds" Version="1.2.25">
+	    <PrivateAssets>all</PrivateAssets>
+	    <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+	  </PackageReference>
 	</ItemGroup>
 
 

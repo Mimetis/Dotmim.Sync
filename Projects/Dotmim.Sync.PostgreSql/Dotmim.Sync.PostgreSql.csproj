@@ -4,16 +4,16 @@
 		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
 		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
-
-		<TargetFrameworks>$(TargetFrameworkNet8)</TargetFrameworks>
+		<TargetFrameworkNet9>net9.0</TargetFrameworkNet9>
+		<TargetFrameworks>$(TargetFrameworkNet8);$(TargetFrameworkNet9)</TargetFrameworks>
 		<Authors>Sébastien Pertus, Waseem Ahmad Mughal</Authors>
 		<Company>Microsoft, ABRI</Company>
 		<Title>HerdMASTER.Dotmim.Sync.PostgreSql</Title>
 		<Summary>PostgreSql Sync Provider. Client or Server provider .Net Standard 2.0</Summary>
 		<Description>PostgreSql Sync Provider. Manage a sync process beetween two relational databases provider. This provider works with SQL Server and can be used as Client or Server provider .Net Standard 2.0</Description>
 		<RepositoryType>git</RepositoryType>
-		<Version>1.0.0.3</Version>
-		<LangVersion>11.0</LangVersion>
+		<Version>1.0.0.4</Version>
+		<LangVersion>latest</LangVersion>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
 
@@ -48,7 +48,11 @@
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNet8)'">
-		<PackageReference Include="Npgsql" Version="8.0.2" />
+		<PackageReference Include="Npgsql" Version="9.0.2" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNet9)'">
+		<PackageReference Include="Npgsql" Version="9.0.2" />
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
@@ -58,6 +62,14 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
+	</ItemGroup>
+
+
+	<ItemGroup>
+	  <PackageReference Update="DotNet.ReproducibleBuilds" Version="1.2.25">
+	    <PrivateAssets>all</PrivateAssets>
+	    <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+	  </PackageReference>
 	</ItemGroup>
 
 </Project>

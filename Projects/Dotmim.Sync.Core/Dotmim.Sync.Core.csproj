@@ -3,8 +3,8 @@
 		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
 		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
 		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
-
-		<TargetFrameworks>$(TargetFrameworkNet8)</TargetFrameworks>
+		<TargetFrameworkNet9>net9.0</TargetFrameworkNet9>
+		<TargetFrameworks>$(TargetFrameworkNet8);$(TargetFrameworkNet9)</TargetFrameworks>
 		<Authors>Sébastien Pertus, ABRI Development Team</Authors>
 		<Company>Microsoft, ABRI</Company>
 		<RootNamespace>Dotmim.Sync</RootNamespace>
@@ -15,8 +15,8 @@
 		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
 		<RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
-		<Version>1.0.0.3</Version>
-		<LangVersion>11.0</LangVersion>
+		<Version>1.0.0.4</Version>
+		<LangVersion>latest</LangVersion>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
 		<OutputType>Library</OutputType>
@@ -50,7 +50,7 @@
 
 
 	<ItemGroup>
-		<PackageReference Include="System.Text.Json" Version="8.0.5" />
+		<PackageReference Include="System.Text.Json" Version="9.0.1" />
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
 	</ItemGroup>
 
@@ -59,7 +59,11 @@
 	</ItemGroup>
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet8)'">
-		<PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.1" />
+	</ItemGroup>
+
+	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet9)'">
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.1" />
 	</ItemGroup>
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
@@ -67,6 +71,13 @@
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <PackageReference Update="DotNet.ReproducibleBuilds" Version="1.2.25">
+	    <PrivateAssets>all</PrivateAssets>
+	    <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+	  </PackageReference>
 	</ItemGroup>
 
 </Project>
