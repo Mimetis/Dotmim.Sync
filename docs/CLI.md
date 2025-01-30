@@ -34,9 +34,9 @@ $ dotnet restore
   Generating MSBuild file /mnt/c/Sync cli/obj/synccli.csproj.nuget.g.props.
   Generating MSBuild file /mnt/c/Sync cli/obj/synccli.csproj.nuget.g.targets.
   Restore completed in 825,56 ms for /mnt/c/Sync cli/synccli.csproj.
-  Installing Newtonsoft.Json.
   Installing System.Data.Common.
   Installing System.Reflection.TypeExtensions.
+  Installing System.Text.Json.
   Installing Dotmim.Sync.Core.
   Installing YamlDotNet.
   Installing Dotmim.Sync.Web.

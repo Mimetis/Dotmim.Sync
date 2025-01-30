@@ -1,30 +1,46 @@
 ﻿using Dotmim.Sync.Manager;
 using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Data;
-using System.Linq;
-using System.Data.Common;
-
 
 namespace Dotmim.Sync.SqlServer.Manager
 {
+    /// <summary>
+    /// SqlDbMetadata class is a helper to get information about tables and columns from a SqlConnection.
+    /// </summary>
     public class SqlDbMetadata : DbMetadata
     {
-        // Even if precision max can be 38 on SQL Server, prefer go for 28, to not having a truncation
-        // public const Byte PRECISION_MAX = 28;
-        // 2021/02/16 : Trying to resverse back to 38
-        public const byte PRECISION_MAX = 38;
-        public const byte PRECISION_DEFAULT = 22;
-        public const byte SCALE_DEFAULT = 8;
-        public const byte SCALE_MAX = 18;
+        internal const byte PRECISIONMAX = 38;
+        internal const byte PRECISIONDEFAULT = 22;
+        internal const byte SCALEDEFAULT = 8;
+        internal const byte SCALEMAX = 18;
 
+        /// <inheritdoc cref="SqlDbMetadata"/>
         public SqlDbMetadata() { }
 
         /// <summary>
-        /// Gets the DbType issue from the database
+        /// Check precision and scale.
         /// </summary>
-        public override DbType GetDbType(SyncColumn column) => column.OriginalTypeName.ToLowerInvariant() switch
+        public static (byte Precision, byte Scale) CoercePrecisionAndScale(int precision, int scale)
+        {
+            byte p = Convert.ToByte(precision);
+            byte s = Convert.ToByte(scale);
+            if (p > PRECISIONMAX)
+                p = PRECISIONMAX;
+
+            if (s > SCALEMAX)
+                s = SCALEMAX;
+
+            // scale should always be lesser than precision
+            if (s >= p && p > 1)
+                s = (byte)(p - 1);
+
+            return (p, s);
+        }
+
+        /// <summary>
+        /// Gets the DbType issue from the database.
+        /// </summary>
+        public override DbType GetDbType(SyncColumn columnDefinition) => columnDefinition.OriginalTypeName.ToLowerInvariant() switch
         {
             "bigint" => DbType.Int64,
             "binary" => DbType.Binary,
@@ -54,13 +70,13 @@ namespace Dotmim.Sync.SqlServer.Manager
             "varbinary" => DbType.Binary,
             "varchar" => DbType.AnsiString,
             "xml" => DbType.String,
-            _ => throw new Exception($"this type {column.OriginalTypeName} for column {column.ColumnName} is not supported")
+            _ => throw new Exception($"this type {columnDefinition.OriginalTypeName} for column {columnDefinition.ColumnName} is not supported"),
         };
 
         /// <summary>
-        /// Gets the SqlDbType issued from the database
+        /// Gets the SqlDbType issued from the database.
         /// </summary>
-        public override object GetOwnerDbType(SyncColumn column) => column.OriginalTypeName.ToLowerInvariant() switch
+        public override object GetOwnerDbType(SyncColumn columnDefinition) => columnDefinition.OriginalTypeName.ToLowerInvariant() switch
         {
             "bigint" => SqlDbType.BigInt,
             "binary" => SqlDbType.Binary,
@@ -90,16 +106,16 @@ namespace Dotmim.Sync.SqlServer.Manager
             "varbinary" => SqlDbType.VarBinary,
             "varchar" => SqlDbType.VarChar,
             "xml" => SqlDbType.Xml,
-            _ => throw new Exception($"Type '{column.OriginalTypeName.ToLowerInvariant()}' (column {column.ColumnName}) is not supported"),
+            _ => throw new Exception($"Type '{columnDefinition.OriginalTypeName.ToLowerInvariant()}' (column {columnDefinition.ColumnName}) is not supported"),
         };
 
         /// <summary>
-        /// Gets the SqlDbType issued from the database
+        /// Gets the SqlDbType issued from the database.
         /// </summary>
         public SqlDbType GetSqlDbType(SyncColumn column) => (SqlDbType)this.GetOwnerDbType(column);
 
         /// <summary>
-        /// Gets the SqlDbType issued from the downgraded DbType
+        /// Gets the SqlDbType issued from the downgraded DbType.
         /// </summary>
         public SqlDbType GetOwnerDbTypeFromDbType(SyncColumn column) => column.GetDbType() switch
         {
@@ -130,19 +146,23 @@ namespace Dotmim.Sync.SqlServer.Manager
             DbType.UInt64 => SqlDbType.BigInt,
             DbType.VarNumeric => SqlDbType.Decimal,
             DbType.Xml => SqlDbType.NVarChar,
-            _ => throw new Exception($"this db type {column.GetDbType()} for column {column.ColumnName} is not supported")
+            _ => throw new Exception($"this db type {column.GetDbType()} for column {column.ColumnName} is not supported"),
         };
 
         /// <summary>
-        /// Gets a managed type from a SqlDbType
+        /// Gets a managed type from a SqlDbType.
         /// </summary>
-        public override Type GetType(SyncColumn column) => GetSqlDbType(column) switch
+        public override Type GetType(SyncColumn columnDefinition) => this.GetSqlDbType(columnDefinition) switch
         {
             SqlDbType.BigInt => Type.GetType("System.Int64"),
             SqlDbType.Binary => Type.GetType("System.Byte[]"),
             SqlDbType.Bit => Type.GetType("System.Boolean"),
             SqlDbType.Char => Type.GetType("System.String"),
+#if NET6_0_OR_GREATER
+            SqlDbType.Date => Type.GetType("System.DateOnly"),
+#else
             SqlDbType.Date => Type.GetType("System.DateTime"),
+#endif
             SqlDbType.DateTime => Type.GetType("System.DateTime"),
             SqlDbType.DateTime2 => Type.GetType("System.DateTime"),
             SqlDbType.DateTimeOffset => Type.GetType("System.DateTimeOffset"),
@@ -166,17 +186,17 @@ namespace Dotmim.Sync.SqlServer.Manager
             SqlDbType.VarChar => Type.GetType("System.String"),
             SqlDbType.Variant => Type.GetType("System.Object"),
             SqlDbType.Xml => Type.GetType("System.String"),
-            _ => throw new Exception($"In Column {column.ColumnName}, the type {GetSqlDbType(column)} is not supported"),
+            _ => throw new Exception($"In Column {columnDefinition.ColumnName}, the type {this.GetSqlDbType(columnDefinition)} is not supported"),
         };
 
         /// <summary>
-        /// Gets the max length autorized
+        /// Gets the max length autorized.
         /// </summary>
-        public override int GetMaxLength(SyncColumn column)
+        public override int GetMaxLength(SyncColumn columnDefinition)
         {
-            var sqlDbType = GetSqlDbType(column);
+            var sqlDbType = this.GetSqlDbType(columnDefinition);
 
-            var iMaxLength = column.MaxLength > 8000 ? 8000 : Convert.ToInt32(column.MaxLength);
+            var iMaxLength = columnDefinition.MaxLength > 8000 ? 8000 : Convert.ToInt32(columnDefinition.MaxLength);
 
             // special length for nchar and nvarchar
             if ((sqlDbType == SqlDbType.NChar || sqlDbType == SqlDbType.NVarChar) && iMaxLength > 0)
@@ -190,15 +210,15 @@ namespace Dotmim.Sync.SqlServer.Manager
             return iMaxLength;
         }
 
-        public override (byte precision, byte scale) GetPrecisionAndScale(SyncColumn columnDefinition)
-        {
-            if ((columnDefinition.DbType == (int)DbType.Single || columnDefinition.DbType == (int)DbType.Decimal || columnDefinition.DbType == (int)DbType.VarNumeric) && columnDefinition.Precision == 0 && columnDefinition.Scale == 0)
-                return (PRECISION_DEFAULT, SCALE_DEFAULT);
+        /// <summary>
+        /// Returns a tuple containing precision and scale for a sync column.
+        /// </summary>
+        public override (byte Precision, byte Scale) GetPrecisionAndScale(SyncColumn columnDefinition)
+            => (columnDefinition.DbType == (int)DbType.Single || columnDefinition.DbType == (int)DbType.Decimal || columnDefinition.DbType == (int)DbType.VarNumeric) && columnDefinition.Precision == 0 && columnDefinition.Scale == 0
+                ? ((byte Precision, byte Scale))(PRECISIONDEFAULT, SCALEDEFAULT)
+                : CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
 
-            return CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
-
-        }
-
+        /// <inheritdoc/>
         public override byte GetPrecision(SyncColumn columnDefinition)
         {
             var (p, _) = CoercePrecisionAndScale(columnDefinition.Precision, columnDefinition.Scale);
@@ -206,16 +226,21 @@ namespace Dotmim.Sync.SqlServer.Manager
             return p;
         }
 
-        public override bool IsSupportingScale(SyncColumn column) => column.OriginalTypeName.ToLowerInvariant() switch
+        /// <inheritdoc/>
+        public override bool IsSupportingScale(SyncColumn columnDefinition) => columnDefinition.OriginalTypeName.ToLowerInvariant() switch
         {
             "decimal" or "real" or "float" or "numeric" or "money" or "smallmoney" => true,
             _ => false,
         };
-        public override bool IsNumericType(SyncColumn column) => column.OriginalTypeName.ToLowerInvariant() switch
+
+        /// <inheritdoc/>
+        public override bool IsNumericType(SyncColumn columnDefinition) => columnDefinition.OriginalTypeName.ToLowerInvariant() switch
         {
             "bigint" or "decimal" or "float" or "int" or "numeric" or "real" or "smallint" or "tinyint" or "money" or "smallmoney" => true,
             _ => false,
         };
+
+        /// <inheritdoc/>
         public override bool IsValid(SyncColumn columnDefinition) => columnDefinition.OriginalTypeName.ToLowerInvariant() switch
         {
             "bigint" or "binary" or "bit" or "char" or "date" or "datetime" or "datetime2" or "datetimeoffset" or "decimal"
@@ -223,13 +248,15 @@ namespace Dotmim.Sync.SqlServer.Manager
             or "sql_variant" or "variant" or "time" or "timestamp" or "tinyint" or "uniqueidentifier" or "varbinary" or "varchar" or "xml" => true,
             _ => false,
         };
+
+        /// <inheritdoc/>
         public override bool IsReadonly(SyncColumn columnDefinition)
             => string.Equals(columnDefinition.OriginalTypeName, "timestamp", SyncGlobalization.DataSourceStringComparison) || columnDefinition.IsCompute;
 
         //------------------------------------------------------------------------
 
         /// <summary>
-        /// Gets a compatible column definition, like nvarchar(50), int, decimal(8,2)
+        /// Gets a compatible column definition, like nvarchar(50), int, decimal(8,2).
         /// </summary>
         public string GetCompatibleColumnTypeDeclarationString(SyncColumn column, string fromProviderType)
         {
@@ -244,17 +271,11 @@ namespace Dotmim.Sync.SqlServer.Manager
             switch (sqlDbType)
             {
                 case SqlDbType.NVarChar:
-                    if (column.MaxLength > 0 && column.MaxLength <= 4000)
-                        argument = $"({column.MaxLength})";
-                    else
-                        argument = "(MAX)";
+                    argument = column.MaxLength > 0 && column.MaxLength <= 4000 ? $"({column.MaxLength})" : "(MAX)";
                     break;
                 case SqlDbType.VarBinary:
                 case SqlDbType.VarChar:
-                    if (column.MaxLength > 0 && column.MaxLength <= 8000)
-                        argument = $"({column.MaxLength})";
-                    else
-                        argument = "(MAX)";
+                    argument = column.MaxLength > 0 && column.MaxLength <= 8000 ? $"({column.MaxLength})" : "(MAX)";
                     break;
                 case SqlDbType.NChar:
                     argument = $"({Math.Min(4000, column.MaxLength)})";
@@ -275,6 +296,7 @@ namespace Dotmim.Sync.SqlServer.Manager
                     argument = string.Empty;
                     break;
             }
+
             // TODO : Find something better than string comparison for change tracking provider
             var isSameProvider = fromProviderType == SqlSyncProvider.ProviderType ||
                 fromProviderType == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider";
@@ -283,13 +305,12 @@ namespace Dotmim.Sync.SqlServer.Manager
             typeName = typeName == "variant" ? "sql_variant" : typeName;
 
             return string.IsNullOrEmpty(argument) ? typeName : $"{typeName} {argument}";
-
         }
 
         /// <summary>
-        /// Gets a compatible precision and scale
+        /// Gets a compatible precision and scale.
         /// </summary>
-        public (byte precision, byte scale) GetCompatibleColumnPrecisionAndScale(SyncColumn column, string fromProviderType)
+        public (byte Precision, byte Scale) GetCompatibleColumnPrecisionAndScale(SyncColumn column, string fromProviderType)
         {
             // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
 
@@ -307,6 +328,9 @@ namespace Dotmim.Sync.SqlServer.Manager
             };
         }
 
+        /// <summary>
+        /// Gets a compatible max length.
+        /// </summary>
         public int GetCompatibleMaxLength(SyncColumn column, string fromProviderType)
         {
             // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
@@ -314,9 +338,7 @@ namespace Dotmim.Sync.SqlServer.Manager
             var isSameProvider = fromProviderType == SqlSyncProvider.ProviderType ||
                 fromProviderType == "SqlSyncChangeTrackingProvider, Dotmim.Sync.SqlServer.SqlSyncChangeTrackingProvider";
 
-
-            var sqlDbType = fromProviderType == SqlSyncProvider.ProviderType ?
-                this.GetSqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
+            var sqlDbType = isSameProvider ? this.GetSqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
 
             return sqlDbType switch
             {
@@ -324,28 +346,5 @@ namespace Dotmim.Sync.SqlServer.Manager
                 _ => 0,
             };
         }
-
-        /// <summary>
-        /// Check precision and scale
-        /// </summary>
-        public static (byte p, byte s) CoercePrecisionAndScale(int precision, int scale)
-        {
-            byte p = Convert.ToByte(precision);
-            byte s = Convert.ToByte(scale);
-            if (p > PRECISION_MAX)
-                p = PRECISION_MAX;
-
-            if (s > SCALE_MAX)
-                s = SCALE_MAX;
-
-            // scale should always be lesser than precision
-            if (s >= p && p > 1)
-                s = (byte)(p - 1);
-
-            return (p, s);
-        }
-
     }
-
 }
-

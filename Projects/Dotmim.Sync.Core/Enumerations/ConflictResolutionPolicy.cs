@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Dotmim.Sync.Enumerations
+﻿namespace Dotmim.Sync.Enumerations
 {
     /// <summary>
     /// Represents the options for the conflict resolution policy to use for synchronization.
-    /// Used in the configuration class
+    /// Used in the configuration class.
     /// </summary>
     public enum ConflictResolutionPolicy
     {

@@ -326,10 +326,10 @@ namespace Dotmim.Sync.Tests.Misc
 
             await policy.ExecuteAsync(async () =>
             {
-                using var masterConnection = new SqlConnection(GetSqlDatabaseConnectionString("master"));
+                await using var masterConnection = new SqlConnection(GetSqlDatabaseConnectionString("master"));
                 masterConnection.Open();
 
-                using (var cmdDb = new SqlCommand(GetSqlCreationScript(dbName, recreateDb), masterConnection))
+                await using (var cmdDb = new SqlCommand(GetSqlCreationScript(dbName, recreateDb), masterConnection))
                     await cmdDb.ExecuteNonQueryAsync();
 
                 masterConnection.Close();
@@ -347,14 +347,14 @@ namespace Dotmim.Sync.Tests.Misc
             if (isChangeTrackingEnabled)
                 return;
 
-            using var masterConnection = new SqlConnection(GetSqlDatabaseConnectionString("master"));
+            await using var masterConnection = new SqlConnection(GetSqlDatabaseConnectionString("master"));
 
             var script = $"ALTER DATABASE {dbName} SET CHANGE_TRACKING = ON (CHANGE_RETENTION = 2 DAYS, AUTO_CLEANUP = ON)";
 
 
             masterConnection.Open();
 
-            using (var cmdCT = new SqlCommand(script, masterConnection))
+            await using (var cmdCT = new SqlCommand(script, masterConnection))
                 await cmdCT.ExecuteNonQueryAsync();
 
             masterConnection.Close();
@@ -374,16 +374,16 @@ namespace Dotmim.Sync.Tests.Misc
 
             await policy.ExecuteAsync(async () =>
             {
-                using var sysConnection = new MySqlConnection(GetMySqlDatabaseConnectionString("information_schema"));
+                await using var sysConnection = new MySqlConnection(GetMySqlDatabaseConnectionString("information_schema"));
                 sysConnection.Open();
 
                 if (recreateDb)
                 {
-                    using var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
+                    await using var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
                     await cmdDrop.ExecuteNonQueryAsync();
                 }
 
-                using (var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection))
+                await using (var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection))
                     cmdDb.ExecuteNonQuery();
 
                 sysConnection.Close();
@@ -405,16 +405,16 @@ namespace Dotmim.Sync.Tests.Misc
 
             await policy.ExecuteAsync(async () =>
             {
-                using var sysConnection = new MySqlConnection(GetMariaDBDatabaseConnectionString("information_schema"));
+                await using var sysConnection = new MySqlConnection(GetMariaDBDatabaseConnectionString("information_schema"));
                 sysConnection.Open();
 
                 if (recreateDb)
                 {
-                    using var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
+                    await using var cmdDrop = new MySqlCommand($"Drop schema if exists  {dbName};", sysConnection);
                     await cmdDrop.ExecuteNonQueryAsync();
                 }
 
-                using (var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection))
+                await using (var cmdDb = new MySqlCommand($"create schema {dbName};", sysConnection))
                     cmdDb.ExecuteNonQuery();
 
                 sysConnection.Close();
@@ -436,16 +436,16 @@ namespace Dotmim.Sync.Tests.Misc
 
             await policy.ExecuteAsync(async () =>
             {
-                using var sysConnection = new NpgsqlConnection(GetPostgresDatabaseConnectionString("postgres"));
+                await using var sysConnection = new NpgsqlConnection(GetPostgresDatabaseConnectionString("postgres"));
                 sysConnection.Open();
 
                 if (recreateDb)
                 {
-                    using var cmdDrop = new NpgsqlCommand($"Drop database if exists  {dbName};", sysConnection);
+                    await using var cmdDrop = new NpgsqlCommand($"Drop database if exists  {dbName};", sysConnection);
                     await cmdDrop.ExecuteNonQueryAsync();
                 }
 
-                using (var cmdDb = new NpgsqlCommand($"create database {dbName};", sysConnection))
+                await using (var cmdDb = new NpgsqlCommand($"create database {dbName};", sysConnection))
                     cmdDb.ExecuteNonQuery();
 
                 sysConnection.Close();
@@ -795,27 +795,27 @@ namespace Dotmim.Sync.Tests.Misc
 
         private static async Task ExecuteMariaDBScriptAsync(string dbName, string script)
         {
-            using var connection = new MySqlConnection(GetMariaDBDatabaseConnectionString(dbName));
+            await using var connection = new MySqlConnection(GetMariaDBDatabaseConnectionString(dbName));
             connection.Open();
 
-            using (var cmdDb = new MySqlCommand(script, connection))
+            await using (var cmdDb = new MySqlCommand(script, connection))
                 await cmdDb.ExecuteNonQueryAsync();
 
             connection.Close();
         }
         private static async Task ExecuteMySqlScriptAsync(string dbName, string script)
         {
-            using var connection = new MySqlConnection(GetMySqlDatabaseConnectionString(dbName));
+            await using var connection = new MySqlConnection(GetMySqlDatabaseConnectionString(dbName));
             connection.Open();
 
-            using (var cmdDb = new MySqlCommand(script, connection))
+            await using (var cmdDb = new MySqlCommand(script, connection))
                 await cmdDb.ExecuteNonQueryAsync();
 
             connection.Close();
         }
         private static async Task ExecuteSqlScriptAsync(string dbName, string script)
         {
-            using var connection = new SqlConnection(GetSqlDatabaseConnectionString(dbName));
+            await using var connection = new SqlConnection(GetSqlDatabaseConnectionString(dbName));
             connection.Open();
 
             //split the script on "GO" commands
@@ -824,24 +824,24 @@ namespace Dotmim.Sync.Tests.Misc
 
             foreach (var commandText in commandTexts)
             {
-                using var cmdDb = new SqlCommand(commandText, connection);
+                await using var cmdDb = new SqlCommand(commandText, connection);
                 await cmdDb.ExecuteNonQueryAsync();
             }
             connection.Close();
         }
         private static async Task ExecuteSqliteScriptAsync(string dbName, string script)
         {
-            using var connection = new SqliteConnection(GetSqliteDatabaseConnectionString(dbName));
+            await using var connection = new SqliteConnection(GetSqliteDatabaseConnectionString(dbName));
             connection.Open();
-            using (var cmdDb = new SqliteCommand(script, connection))
+            await using (var cmdDb = new SqliteCommand(script, connection))
                 await cmdDb.ExecuteNonQueryAsync();
             connection.Close();
         }
         private static async Task ExecutePostgreSqlScriptAsync(string dbName, string script)
         {
-            using var connection = new NpgsqlConnection(GetPostgresDatabaseConnectionString(dbName));
+            await using var connection = new NpgsqlConnection(GetPostgresDatabaseConnectionString(dbName));
             connection.Open();
-            using (var cmdDb = new NpgsqlCommand(script, connection))
+            await using (var cmdDb = new NpgsqlCommand(script, connection))
                 await cmdDb.ExecuteNonQueryAsync();
             connection.Close();
         }

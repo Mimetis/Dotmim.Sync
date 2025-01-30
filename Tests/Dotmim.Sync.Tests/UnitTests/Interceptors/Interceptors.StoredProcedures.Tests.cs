@@ -46,10 +46,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, onDropped);
 
             // Check 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
-                var check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "SalesLT.Product_changes");
+                var check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "Product_changes", "SalesLT");
                 Assert.True(check);
                 c.Close();
             }
@@ -98,20 +98,20 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, onDropped);
 
             // Check 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
-                var check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "SalesLT.Product_bulkdelete");
+                var check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "Product_bulkdelete", "SalesLT");
                 Assert.True(check);
-                check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "SalesLT.Product_bulkupdate");
+                check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "Product_bulkupdate", "SalesLT");
                 Assert.True(check);
-                check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "SalesLT.Product_changes");
+                check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "Product_changes", "SalesLT");
                 Assert.True(check);
-                check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "SalesLT.Product_delete");
+                check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "Product_delete", "SalesLT");
                 Assert.True(check);
-                check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "SalesLT.Product_initialize");
+                check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "Product_initialize", "SalesLT");
                 Assert.True(check);
-                check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "SalesLT.Product_update");
+                check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "Product_update", "SalesLT");
                 Assert.True(check);
                 c.Close();
             }
@@ -201,10 +201,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(1, onDropped);
 
             // Check 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
-                var check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "SalesLT.Product_changes");
+                var check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "Product_changes", "SalesLT");
                 Assert.False(check);
                 c.Close();
             }
@@ -252,10 +252,10 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, onDropped);
 
             // Check 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
-                var check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "SalesLT.Product_changes");
+                var check = await SqlManagementUtils.ProcedureExistsAsync(c, null, "Product_changes", "SalesLT");
                 Assert.True(check);
                 c.Close();
             }

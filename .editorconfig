@@ -68,13 +68,13 @@ csharp_style_var_for_built_in_types = true:silent
 csharp_style_var_when_type_is_apparent = true:silent
 
 # Expression-bodied members
-csharp_style_expression_bodied_accessors = true:suggestion
-csharp_style_expression_bodied_constructors = true:suggestion
-csharp_style_expression_bodied_indexers = true:suggestion
+csharp_style_expression_bodied_accessors = true:silent
+csharp_style_expression_bodied_constructors = false:silent
+csharp_style_expression_bodied_indexers = true:silent
 csharp_style_expression_bodied_lambdas = true:silent
-csharp_style_expression_bodied_methods = true:suggestion
-csharp_style_expression_bodied_operators = true:suggestion
-csharp_style_expression_bodied_properties = true:suggestion
+csharp_style_expression_bodied_methods = false:silent
+csharp_style_expression_bodied_operators = false:silent
+csharp_style_expression_bodied_properties = true:silent
 
 # Pattern matching preferences
 csharp_style_pattern_matching_over_as_with_null_check = true:silent
@@ -87,7 +87,7 @@ csharp_style_conditional_delegate_call = true:silent
 csharp_preferred_modifier_order = public,private,protected,internal,static,extern,new,virtual,abstract,sealed,override,readonly,unsafe,volatile,async
 
 # Code-block preferences
-csharp_prefer_braces = false:silent
+csharp_prefer_braces = true:silent
 
 # Expression-level preferences
 csharp_prefer_simple_default_expression = true:suggestion
@@ -146,7 +146,66 @@ csharp_style_prefer_method_group_conversion = true:silent
 csharp_style_prefer_top_level_statements = true:silent
 csharp_style_prefer_primary_constructors = true:suggestion
 csharp_style_expression_bodied_local_functions = false:silent
+dotnet_diagnostic.SX1101.severity = none
+csharp_style_allow_blank_lines_between_consecutive_braces_experimental = true:silent
+csharp_style_allow_blank_line_after_colon_in_constructor_initializer_experimental = true:silent
+csharp_style_allow_blank_line_after_token_in_conditional_expression_experimental = true:silent
+csharp_style_allow_blank_line_after_token_in_arrow_expression_clause_experimental = true:silent
+dotnet_diagnostic.SA1505.severity = silent
+dotnet_diagnostic.SA1506.severity = warning
+dotnet_diagnostic.SA1507.severity = warning
+dotnet_diagnostic.SA1508.severity = warning
+dotnet_diagnostic.SA1509.severity = warning
+dotnet_diagnostic.SA1510.severity = warning
+dotnet_diagnostic.SA1511.severity = warning
+dotnet_diagnostic.SA1512.severity = warning
+dotnet_diagnostic.SA1513.severity = warning
+dotnet_diagnostic.SA1514.severity = warning
+dotnet_diagnostic.SA1515.severity = warning
+dotnet_diagnostic.SA1516.severity = warning
+dotnet_diagnostic.SA1517.severity = warning
+dotnet_diagnostic.SA1618.severity = none
+csharp_style_prefer_null_check_over_type_check = true:suggestion
+csharp_style_prefer_local_over_anonymous_function = true:suggestion
+csharp_style_prefer_index_operator = true:suggestion
+csharp_style_prefer_range_operator = true:suggestion
+csharp_style_implicit_object_creation_when_type_is_apparent = true:suggestion
+csharp_style_prefer_tuple_swap = true:suggestion
+csharp_style_prefer_utf8_string_literals = true:suggestion
+csharp_style_unused_value_assignment_preference = discard_variable:suggestion
+csharp_style_unused_value_expression_statement_preference = discard_variable:silent
+dotnet_diagnostic.SA1402.severity = none
+csharp_prefer_static_local_function = true:suggestion
+dotnet_diagnostic.SA1133.severity = none
+dotnet_diagnostic.SA1633.severity = none
+dotnet_diagnostic.CA1032.severity = none
+dotnet_diagnostic.CA2016.severity = warning
+dotnet_diagnostic.SA1201.severity = none
+dotnet_diagnostic.IDE0047.severity = silent
+dotnet_diagnostic.IDE0048.severity = silent
+dotnet_diagnostic.IDE0290.severity = none
+dotnet_diagnostic.SA1611.severity = none
+dotnet_diagnostic.SA1615.severity = none
+dotnet_diagnostic.SA1117.severity = none
+dotnet_diagnostic.SA1503.severity = none
+dotnet_diagnostic.SA1649.severity = none
+dotnet_diagnostic.SA1502.severity = silent
+dotnet_diagnostic.IDE0042.severity = none
+dotnet_diagnostic.IDE0130.severity = none
+dotnet_diagnostic.IDE0060.severity = silent
+dotnet_diagnostic.SA1108.severity = none
+csharp_prefer_system_threading_lock = true:suggestion
+dotnet_diagnostic.IDE0058.severity = none
+dotnet_diagnostic.IDE0022.severity = none
+dotnet_diagnostic.IDE0011.severity = none
+dotnet_diagnostic.IDE0021.severity = none
+dotnet_diagnostic.IDE0007.severity = none
+csharp_style_prefer_switch_expression = true:suggestion
 
+
+# IDE0072: Add missing cases
+dotnet_diagnostic.IDE0072.severity = none
+dotnet_diagnostic.CA2263.severity = none
 
 [*.{cs,vb}]
 #### Naming styles ####
@@ -199,8 +258,8 @@ dotnet_style_operator_placement_when_wrapping = beginning_of_line
 tab_width = 4
 indent_size = 4
 end_of_line = crlf
-dotnet_style_coalesce_expression = true:silent
-dotnet_style_null_propagation = true:silent
+dotnet_style_coalesce_expression = true:suggestion
+dotnet_style_null_propagation = true:suggestion
 dotnet_style_prefer_is_null_check_over_reference_equality_method = true:silent
 dotnet_style_prefer_auto_properties = true:silent
 dotnet_style_object_initializer = true:suggestion
@@ -208,4 +267,46 @@ dotnet_style_collection_initializer = true:suggestion
 dotnet_style_prefer_simplified_boolean_expressions = true:suggestion
 dotnet_style_prefer_conditional_expression_over_assignment = true:silent
 dotnet_style_prefer_conditional_expression_over_return = true:silent
-dotnet_style_explicit_tuple_names = true:silent
+dotnet_style_explicit_tuple_names = true:suggestion
+dotnet_style_prefer_inferred_tuple_names = true:suggestion
+dotnet_style_prefer_inferred_anonymous_type_member_names = true:suggestion
+dotnet_style_prefer_compound_assignment = true:suggestion
+dotnet_style_prefer_simplified_interpolation = true:suggestion
+dotnet_style_prefer_collection_expression = when_types_loosely_match:suggestion
+dotnet_style_namespace_match_folder = true:suggestion
+dotnet_diagnostic.CA2007.severity = warning
+dotnet_style_qualification_for_field = true:warning
+dotnet_style_qualification_for_property = true:warning
+dotnet_style_qualification_for_method = true:warning
+dotnet_style_qualification_for_event = true:warning
+dotnet_style_allow_multiple_blank_lines_experimental = false:silent
+dotnet_style_parentheses_in_arithmetic_binary_operators = always_for_clarity:silent
+dotnet_style_parentheses_in_other_binary_operators = always_for_clarity:silent
+dotnet_style_parentheses_in_relational_binary_operators = always_for_clarity:silent
+dotnet_style_parentheses_in_other_operators = never_if_unnecessary:silent
+dotnet_diagnostic.CA1031.severity = none
+dotnet_style_predefined_type_for_locals_parameters_members = true:silent
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA2254.severity = none
+dotnet_diagnostic.CA1068.severity = warning
+dotnet_diagnostic.CA1710.severity = none
+dotnet_diagnostic.CA1308.severity = suggestion
+dotnet_diagnostic.CA2201.severity = silent
+dotnet_diagnostic.CA1305.severity = suggestion
+dotnet_diagnostic.CA1863.severity = none
+dotnet_code_quality_unused_parameters = all:suggestion
+dotnet_diagnostic.CA1002.severity = silent
+dotnet_diagnostic.CA1062.severity = silent
+dotnet_diagnostic.CA5362.severity = none
+dotnet_diagnostic.CA1024.severity = silent
+dotnet_diagnostic.CA1721.severity = silent
+dotnet_diagnostic.CA1307.severity = none
+
+# Default severity for analyzer diagnostics with category 'Style'
+dotnet_analyzer_diagnostic.category-Style.severity = none
+
+# Default severity for all analyzer diagnostics
+dotnet_analyzer_diagnostic.severity = none
+dotnet_diagnostic.CA5399.severity = none
+dotnet_diagnostic.CA1016.severity = none
+dotnet_diagnostic.CA1724.severity = none

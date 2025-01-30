@@ -1,9 +1,9 @@
 ﻿using Dotmim.Sync;
 using Dotmim.Sync.SqlServer;
-using Newtonsoft.Json;
 using System;
 using System.IO;
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace EncryptionClient
@@ -23,51 +23,48 @@ namespace EncryptionClient
         {
             // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
 
-            var myRijndael = new RijndaelManaged();
-            myRijndael.GenerateKey();
-            myRijndael.GenerateIV();
+            using var myAes = Aes.Create();
+
+            myAes.GenerateKey();
+            myAes.GenerateIV();
 
             // Create action for serializing and deserialzing for both remote and local orchestrators
-            var deserializing = new Func<DeserializingRowArgs, Task>((args) =>
+            var deserializing = new Func<DeserializingRowArgs, Task>(async (args) =>
             {
                 Console.ForegroundColor = ConsoleColor.DarkYellow;
                 Console.WriteLine($"Deserializing row {args.RowString}");
-                string value;
-                var byteArray = Convert.FromBase64String(args.RowString);
-                using var decryptor = myRijndael.CreateDecryptor(myRijndael.Key, myRijndael.IV);
-                using var msDecrypt = new MemoryStream(byteArray);
-                using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
-                using (var swDecrypt = new StreamReader(csDecrypt))
-                    value = swDecrypt.ReadToEnd();
 
-                var array = JsonConvert.DeserializeObject<object[]>(value);
-                args.Result = array;
+                var byteArray = Convert.FromBase64String(args.RowString);
+
+                using var decryptor = myAes.CreateDecryptor(myAes.Key, myAes.IV);
+                await using var msDecrypt = new MemoryStream(byteArray);
+                await using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
+
+                args.Result = await JsonSerializer.DeserializeAsync<object[]>(csDecrypt);
 
                 // output result to console
-                Console.WriteLine($"row deserialized {new SyncRow(args.SchemaTable, array)}");
+                Console.WriteLine($"row deserialized {new SyncRow(args.SchemaTable, args.Result)}");
                 Console.ResetColor();
-                return Task.CompletedTask;
             });
 
 
-            var serializing = new Func<SerializingRowArgs, Task>((sra) =>
+            var serializing = new Func<SerializingRowArgs, Task>(async (sra) =>
             {
                 Console.ForegroundColor = ConsoleColor.DarkGreen;
                 // output arg to console
                 Console.WriteLine($"Serializing row {new SyncRow(sra.SchemaTable, sra.RowArray).ToString()}");
 
 
-                var strSet = JsonConvert.SerializeObject(sra.RowArray);
-                using var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
-                using var msEncrypt = new MemoryStream();
-                using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
-                using (var swEncrypt = new StreamWriter(csEncrypt))
+                var strSet = JsonSerializer.Serialize(sra.RowArray);
+                using var encryptor = myAes.CreateEncryptor(myAes.Key, myAes.IV);
+                await using var msEncrypt = new MemoryStream();
+                await using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
+                await using (var swEncrypt = new StreamWriter(csEncrypt))
                     swEncrypt.Write(strSet);
 
                 sra.Result = Convert.ToBase64String(msEncrypt.ToArray());
                 Console.WriteLine($"row serialized: {0}", sra.Result);
                 Console.ResetColor();
-                return Task.CompletedTask;
             });
 
             SqlSyncProvider serverProvider = new SqlSyncProvider(GetDatabaseConnectionString("AdventureWorks"));
@@ -93,8 +90,6 @@ namespace EncryptionClient
             Console.WriteLine(await agent.SynchronizeAsync(tables));
 
             Console.WriteLine("End");
-
         }
-
     }
 }

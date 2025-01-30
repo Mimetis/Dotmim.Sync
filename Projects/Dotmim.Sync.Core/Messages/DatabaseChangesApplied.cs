@@ -1,31 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
-using System.Text;
 
 namespace Dotmim.Sync
 {
     /// <summary>
-    /// All table changes applied on a provider
+    /// All table changes applied on a provider.
     /// </summary>
     [DataContract(Name = "dca"), Serializable]
     public class DatabaseChangesApplied
     {
 
         /// <summary>
-        /// ctor for serialization purpose
+        /// Initializes a new instance of the <see cref="DatabaseChangesApplied"/> class.
+        /// ctor for serialization purpose.
         /// </summary>
         public DatabaseChangesApplied()
         {
-
         }
 
         /// <summary>
-        /// Get the view to be applied 
+        /// Gets or sets get the list of tables where we have changes applied.
         /// </summary>
         [DataMember(Name = "tca", IsRequired = false, EmitDefaultValue = false, Order = 1)]
-        public List<TableChangesApplied> TableChangesApplied { get; set; } = new List<TableChangesApplied>();
-
+        public List<TableChangesApplied> TableChangesApplied { get; set; } = [];
 
         /// <summary>
         /// Gets the total number of conflicts that have been applied resolved during the synchronization session.
@@ -38,12 +36,12 @@ namespace Dotmim.Sync
                 int conflicts = 0;
                 foreach (var tableProgress in this.TableChangesApplied)
                 {
-                    conflicts = conflicts + tableProgress.ResolvedConflicts;
+                    conflicts += tableProgress.ResolvedConflicts;
                 }
+
                 return conflicts;
             }
         }
-
 
         /// <summary>
         /// Gets the total number of changes that have been applied during the synchronization session.
@@ -58,6 +56,7 @@ namespace Dotmim.Sync
                 {
                     changesApplied += tableProgress.Applied;
                 }
+
                 return changesApplied;
             }
         }
@@ -78,8 +77,9 @@ namespace Dotmim.Sync
             }
         }
 
-
+        /// <summary>
+        /// Gets the total number of changes that have been applied during the synchronization session.
+        /// </summary>
         public override string ToString() => $"{this.TotalAppliedChanges} changes applied for {this.TableChangesApplied.Count} tables";
     }
-
 }

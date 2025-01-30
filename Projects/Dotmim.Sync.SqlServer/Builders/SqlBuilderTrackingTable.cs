@@ -1,50 +1,58 @@
-﻿using Dotmim.Sync.Builders;
-
-
-
+﻿using Dotmim.Sync.DatabaseStringParsers;
 using Dotmim.Sync.SqlServer.Manager;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.Common;
 using Microsoft.Data.SqlClient;
-using System.Diagnostics;
+using System.Data.Common;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.SqlServer.Builders
 {
+    /// <summary>
+    /// Sql tracking table builder for Sql Server.
+    /// </summary>
     public class SqlBuilderTrackingTable
     {
-        private ParserName trackingName;
-        private readonly SyncTable tableDescription;
-        private readonly SyncSetup setup;
-        private readonly SqlDbMetadata sqlDbMetadata;
+        /// <summary>
+        /// Gets the table description.
+        /// </summary>
+        protected SyncTable TableDescription { get; }
 
-        public SqlBuilderTrackingTable(SyncTable tableDescription, ParserName tableName, ParserName trackingName, SyncSetup setup)
+        /// <summary>
+        /// Gets the sql object names.
+        /// </summary>
+        protected SqlObjectNames SqlObjectNames { get; }
+
+        /// <summary>
+        /// Gets the sql database metadata.
+        /// </summary>
+        protected SqlDbMetadata SqlDbMetadata { get; }
+
+        /// <inheritdoc cref="SqlBuilderTrackingTable" />
+        public SqlBuilderTrackingTable(SyncTable tableDescription, SqlObjectNames sqlObjectNames, SqlDbMetadata sqlDbMetadata)
         {
-            this.tableDescription = tableDescription;
-            this.setup = setup;
-            this.trackingName = trackingName;
-            this.sqlDbMetadata = new SqlDbMetadata();
+            this.TableDescription = tableDescription;
+            this.SqlObjectNames = sqlObjectNames;
+            this.SqlDbMetadata = sqlDbMetadata;
         }
 
+        /// <summary>
+        /// Gets the command to create the tracking table.
+        /// </summary>
         public Task<DbCommand> GetCreateTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
             var stringBuilder = new StringBuilder();
-            var tbl = trackingName.ToString();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
-            stringBuilder.AppendLine($"CREATE TABLE {trackingName.Schema().Quoted().ToString()} (");
+
+            stringBuilder.AppendLine($"CREATE TABLE {this.SqlObjectNames.TrackingTableQuotedFullName} (");
 
             // Adding the primary key
-            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
-                var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                var columnType = this.sqlDbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, this.tableDescription.OriginalProvider);
+                var qColumnName = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                var columnType = this.SqlDbMetadata.GetCompatibleColumnTypeDeclarationString(pkColumn, this.TableDescription.OriginalProvider);
 
                 var nullableColumn = pkColumn.AllowDBNull ? "NULL" : "NOT NULL";
-                stringBuilder.AppendLine($"{quotedColumnName} {columnType} {nullableColumn}, ");
+                stringBuilder.AppendLine($"{qColumnName.QuotedShortName} {columnType} {nullableColumn}, ");
             }
 
             // adding the tracking columns
@@ -56,109 +64,57 @@ namespace Dotmim.Sync.SqlServer.Builders
             stringBuilder.AppendLine(");");
 
             // Primary Keys
-            stringBuilder.Append($"ALTER TABLE {trackingName.Schema().Quoted().ToString()} ADD CONSTRAINT [PK_{trackingName.Schema().Unquoted().Normalized().ToString()}] PRIMARY KEY (");
+            stringBuilder.Append($"ALTER TABLE {this.SqlObjectNames.TrackingTableQuotedFullName} ADD CONSTRAINT [PK_{this.SqlObjectNames.TrackingTableNormalizedFullName}] PRIMARY KEY (");
 
-            var primaryKeysColumns = this.tableDescription.GetPrimaryKeysColumns().ToList();
+            var primaryKeysColumns = this.TableDescription.GetPrimaryKeysColumns().ToList();
             for (int i = 0; i < primaryKeysColumns.Count; i++)
             {
-                var pkColumn = primaryKeysColumns[i];
-                var quotedColumnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.Append(quotedColumnName);
+                var qColumnName = new ObjectParser(primaryKeysColumns[i].ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+
+                stringBuilder.Append(qColumnName.QuotedShortName);
 
                 if (i < primaryKeysColumns.Count - 1)
                     stringBuilder.Append(", ");
             }
+
             stringBuilder.AppendLine(");");
 
-
-            // Index
-            var indexName = trackingName.Schema().Unquoted().Normalized().ToString();
-
-            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{indexName}_timestamp_index] ON {trackingName.Schema().Quoted().ToString()} (");
+            stringBuilder.AppendLine($"CREATE NONCLUSTERED INDEX [{this.SqlObjectNames.TrackingTableNormalizedFullName}_timestamp_index] ON {this.SqlObjectNames.TrackingTableQuotedFullName} (");
             stringBuilder.AppendLine($"\t  [timestamp_bigint] ASC");
             stringBuilder.AppendLine($"\t, [update_scope_id] ASC");
             stringBuilder.AppendLine($"\t, [sync_row_is_tombstone] ASC");
-            foreach (var pkColumn in this.tableDescription.GetPrimaryKeysColumns())
+            foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
-                var columnName = ParserName.Parse(pkColumn).Quoted().ToString();
-                stringBuilder.AppendLine($"\t,{columnName} ASC");
+                var qColumnName = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                stringBuilder.AppendLine($"\t,{qColumnName.QuotedShortName} ASC");
             }
+
             stringBuilder.Append(");");
 
             var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
-            SqlParameter sqlParameter = new SqlParameter()
-            {
-                ParameterName = "@tableName",
-                Value = tbl
-            };
-            command.Parameters.Add(sqlParameter);
-
-            sqlParameter = new SqlParameter()
-            {
-                ParameterName = "@schemaName",
-                Value = schema
-            };
-            command.Parameters.Add(sqlParameter);
 
             return Task.FromResult((DbCommand)command);
         }
 
+        /// <summary>
+        /// Get the command to drop the tracking table.
+        /// </summary>
         public Task<DbCommand> GetDropTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var tbl = trackingName.ToString();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
 
             var stringBuilder = new StringBuilder();
-            stringBuilder.AppendLine($"ALTER TABLE {trackingName.Schema().Quoted().ToString()} NOCHECK CONSTRAINT ALL; DROP TABLE {trackingName.Schema().Quoted().ToString()};");
+            stringBuilder.AppendLine($"ALTER TABLE {this.SqlObjectNames.TrackingTableQuotedFullName} NOCHECK CONSTRAINT ALL; DROP TABLE {this.SqlObjectNames.TrackingTableQuotedFullName};");
 
-            var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
-
-            SqlParameter sqlParameter = new SqlParameter()
-            {
-                ParameterName = "@tableName",
-                Value = tbl
-            };
-            command.Parameters.Add(sqlParameter);
-
-            sqlParameter = new SqlParameter()
-            {
-                ParameterName = "@schemaName",
-                Value = schema
-            };
-            command.Parameters.Add(sqlParameter);
-
-            return Task.FromResult((DbCommand)command);
-        }
-        public Task<DbCommand> GetRenameTrackingTableCommandAsync(ParserName oldTableName, DbConnection connection, DbTransaction transaction)
-        {
-            StringBuilder stringBuilder = new StringBuilder();
-
-            var schemaName = this.trackingName.SchemaName;
-            var tableName = this.trackingName.ObjectName;
-
-            schemaName = string.IsNullOrEmpty(schemaName) ? "dbo" : schemaName;
-            var oldSchemaNameString = string.IsNullOrEmpty(oldTableName.SchemaName) ? "dbo" : oldTableName.SchemaName;
-
-            var oldFullName = $"{oldSchemaNameString}.{oldTableName}";
-
-            // First of all, renaming the table   
-            stringBuilder.Append($"EXEC sp_rename '{oldFullName}', '{tableName}'; ");
-
-            // then if necessary, move to another schema
-            if (!string.Equals(oldSchemaNameString, schemaName, SyncGlobalization.DataSourceStringComparison))
-            {
-                var tmpName = $"[{oldSchemaNameString}].[{tableName}]";
-                stringBuilder.Append($"ALTER SCHEMA {schemaName} TRANSFER {tmpName};");
-            }
             var command = new SqlCommand(stringBuilder.ToString(), (SqlConnection)connection, (SqlTransaction)transaction);
 
             return Task.FromResult((DbCommand)command);
         }
+
+        /// <summary>
+        /// Get the command to check if the tracking table exists.
+        /// </summary>
         public Task<DbCommand> GetExistsTrackingTableCommandAsync(DbConnection connection, DbTransaction transaction)
         {
-            var tbl = trackingName.ToString();
-            var schema = SqlManagementUtils.GetUnquotedSqlSchemaName(trackingName);
-
             var command = connection.CreateCommand();
 
             command.Connection = connection;
@@ -167,16 +123,15 @@ namespace Dotmim.Sync.SqlServer.Builders
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@tableName";
-            parameter.Value = tbl;
+            parameter.Value = this.SqlObjectNames.TrackingTableName;
             command.Parameters.Add(parameter);
 
             parameter = command.CreateParameter();
             parameter.ParameterName = "@schemaName";
-            parameter.Value = schema;
+            parameter.Value = this.SqlObjectNames.TrackingTableSchemaName;
             command.Parameters.Add(parameter);
 
             return Task.FromResult(command);
         }
-
     }
 }

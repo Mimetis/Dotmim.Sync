@@ -1,36 +1,27 @@
-﻿
-using Dotmim.Sync.Batch;
-using Dotmim.Sync.Builders;
+﻿using Dotmim.Sync.Batch;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Contains the logic to handle errors during the sync process.
+    /// </summary>
     public abstract partial class BaseOrchestrator
     {
-
         /// <summary>
         /// Handle a conflict
-        /// The int returned is the conflict count I need 
+        /// The int returned is the conflict count I need.
         /// </summary>
-        private async Task<(ErrorAction errorAction, ApplyChangesException applyChangesException)> HandleErrorAsync(ScopeInfo scopeInfo, SyncContext context, 
+        private async Task<(ErrorAction ErrorAction, ApplyChangesException ApplyChangesException)> HandleErrorAsync(ScopeInfo scopeInfo, SyncContext context,
                                 BatchInfo batchInfo, SyncRow errorRow, SyncRowState applyType,
                                 SyncTable schemaChangesTable, Exception exception, Guid senderScopeId, long? lastTimestamp,
                                 DbConnection connection, DbTransaction transaction,
-                                CancellationToken cancellationToken, IProgress<ProgressArgs> progress)
+                                IProgress<ProgressArgs> progress, CancellationToken cancellationToken)
         {
-
             // We are handling a previous error already in the batch info
             if (errorRow.RowState == SyncRowState.ApplyModifiedFailed || errorRow.RowState == SyncRowState.ApplyDeletedFailed)
                 return (ErrorAction.Ignore, null);
@@ -41,7 +32,6 @@ namespace Dotmim.Sync
             var errorOccuredArgs = await this.InterceptAsync(errorRowArgs, progress, cancellationToken).ConfigureAwait(false);
             Exception operationException = null;
 
-            
             var errorAction = ErrorAction.Throw;
             switch (errorOccuredArgs.Resolution)
             {
@@ -59,12 +49,17 @@ namespace Dotmim.Sync
                     bool operationComplete;
 
                     if (applyType == SyncRowState.Deleted)
-                        (_, operationComplete, operationException) = await this.InternalApplyDeleteAsync(scopeInfo, context, batchInfo, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
-                            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
-                    else
-                        (_, operationComplete, operationException) = await this.InternalApplyUpdateAsync(scopeInfo, context, batchInfo, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
-                            connection, transaction, cancellationToken, progress).ConfigureAwait(false);
+                    {
 
+                        (_, operationComplete, operationException) = await this.InternalApplyDeleteAsync(scopeInfo, context, batchInfo, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
+                            connection, transaction, progress, cancellationToken).ConfigureAwait(false);
+                    }
+                    else
+                    {
+
+                        (_, operationComplete, operationException) = await this.InternalApplyUpdateAsync(scopeInfo, context, batchInfo, errorRow, schemaChangesTable, lastTimestamp, senderScopeId, true,
+                            connection, transaction, progress, cancellationToken).ConfigureAwait(false);
+                    }
 
                     if (operationComplete)
                     {
@@ -112,11 +107,8 @@ namespace Dotmim.Sync
             ApplyChangesException applyChangesException = null;
             if (operationException != null)
                 applyChangesException = new ApplyChangesException(errorRow, schemaChangesTable, applyType, operationException);
-            
 
             return (errorAction, applyChangesException);
         }
-
-
     }
 }

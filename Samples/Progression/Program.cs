@@ -3,30 +3,28 @@ using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
 using System;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Progression
 {
-    class Program
+    internal class Program
     {
         private static string serverConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=AdventureWorks;Integrated Security=true;";
         private static string clientConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=Client;Integrated Security=true;";
 
-        static async Task Main(string[] args)
+        private static async Task Main(string[] args)
         {
-            await SynchronizeAsync();
+            await SynchronizeAsync().ConfigureAwait(false);
         }
-
 
         private static async Task SynchronizeAsync()
         {
-            // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
+            // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql
 
             // Create 2 Sql Sync providers
             // First provider is using the Sql change tracking feature. Don't forget to enable it on your database until running this code !
-            // For instance, use this SQL statement on your server database : ALTER DATABASE AdventureWorks  SET CHANGE_TRACKING = ON  (CHANGE_RETENTION = 10 DAYS, AUTO_CLEANUP = ON)  
+            // For instance, use this SQL statement on your server database : ALTER DATABASE AdventureWorks  SET CHANGE_TRACKING = ON  (CHANGE_RETENTION = 10 DAYS, AUTO_CLEANUP = ON)
             // Otherwise, if you don't want to use Change Tracking feature, just change 'SqlSyncChangeTrackingProvider' to 'SqlSyncProvider'
             var serverProvider = new SqlSyncChangeTrackingProvider(serverConnectionString);
             var clientProvider = new SqlSyncProvider(clientConnectionString);
@@ -50,7 +48,6 @@ namespace Progression
 
             // CancellationTokenSource is used to cancel a sync process in the next example
             var cts = new CancellationTokenSource();
-
 
             // Intercept a table changes selecting
             // Because the changes are not yet selected, we can easily interrupt the process with the cancellation token
@@ -77,7 +74,6 @@ namespace Progression
                     $"Files generated count:{tcsa.BatchPartInfos.Count()}. " +
                     $"Rows Count:{tcsa.TableChangesSelected.TotalChanges}");
             });
-
 
             // This event is raised when a table is applying some rows, available on the disk
             agent.LocalOrchestrator.OnTableChangesApplying(args =>
@@ -106,11 +102,12 @@ namespace Progression
             do
             {
                 // Launch the sync process
-                var s1 = await agent.SynchronizeAsync(SyncOptions.DefaultScopeName, setup, SyncType.Normal, null, cts.Token, progress);
+                var s1 = await agent.SynchronizeAsync(SyncOptions.DefaultScopeName, setup, SyncType.Normal, null, progress, cts.Token).ConfigureAwait(false);
+
                 // Write results
                 Console.WriteLine(s1);
-
-            } while (Console.ReadKey().Key != ConsoleKey.Escape);
+            }
+            while (Console.ReadKey().Key != ConsoleKey.Escape);
 
             Console.WriteLine("End");
         }

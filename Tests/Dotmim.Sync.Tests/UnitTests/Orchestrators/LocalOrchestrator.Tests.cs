@@ -4,7 +4,6 @@ using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Fixtures;
 using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data;

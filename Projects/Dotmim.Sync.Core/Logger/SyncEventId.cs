@@ -1,16 +1,21 @@
-﻿using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Microsoft.Extensions.Logging;
 
 namespace Dotmim.Sync
 {
 
+    /// <summary>
+    /// Sync Events Ids.
+    /// </summary>
     public static class SyncEventsExtensions
     {
-        public static void LogTrace<T>(this ILogger logger, EventId id, T value) where T : class
+        /// <summary>
+        /// Log a message with the Trace level. If the logger is not enabled, do nothing.
+        /// </summary>
+        public static void LogTrace<T>(this ILogger logger, EventId id, T value)
+            where T : class
         {
+            Guard.ThrowIfNull(logger);
+
             if (!logger.IsEnabled(LogLevel.Trace))
                 return;
 
@@ -24,8 +29,13 @@ namespace Dotmim.Sync
             logger.LogTrace(id, log.Message, log.Args);
         }
 
-        public static void LogCritical<T>(this ILogger logger, EventId id, T value) where T : class
+        /// <summary>
+        /// Log a message with the Debug level. If the logger is not enabled, do nothing.
+        /// </summary>
+        public static void LogCritical<T>(this ILogger logger, EventId id, T value)
+            where T : class
         {
+            Guard.ThrowIfNull(logger);
             if (!logger.IsEnabled(LogLevel.Critical))
                 return;
 
@@ -39,8 +49,13 @@ namespace Dotmim.Sync
             logger.LogCritical(id, log.Message, log.Args);
         }
 
-        public static void LogDebug<T>(this ILogger logger, EventId id, T value) where T : class
+        /// <summary>
+        /// Log a message with the Debug level. If the logger is not enabled, do nothing.
+        /// </summary>
+        public static void LogDebug<T>(this ILogger logger, EventId id, T value)
+            where T : class
         {
+            Guard.ThrowIfNull(logger);
             if (!logger.IsEnabled(LogLevel.Debug))
                 return;
 
@@ -53,8 +68,15 @@ namespace Dotmim.Sync
             var log = SyncLogger.GetLogMessageFrom(value, id);
             logger.LogDebug(id, log.Message, log.Args);
         }
-        public static void LogInformation<T>(this ILogger logger, EventId id, T value) where T : class
+
+        /// <summary>
+        /// Log a message with the Error level. If the logger is not enabled, do nothing.
+        /// </summary>
+        public static void LogInformation<T>(this ILogger logger, EventId id, T value)
+            where T : class
         {
+            Guard.ThrowIfNull(logger);
+
             if (!logger.IsEnabled(LogLevel.Information))
                 return;
 
@@ -67,8 +89,15 @@ namespace Dotmim.Sync
             var log = SyncLogger.GetLogMessageFrom(value, id);
             logger.LogInformation(id, log.Message, log.Args);
         }
-        public static void LogError<T>(this ILogger logger, EventId id, T value) where T : class
+
+        /// <summary>
+        /// Log error message with the Error level. If the logger is not enabled, do nothing.
+        /// </summary>
+        public static void LogError<T>(this ILogger logger, EventId id, T value)
+            where T : class
         {
+            Guard.ThrowIfNull(logger);
+
             if (!logger.IsEnabled(LogLevel.Error))
                 return;
 
@@ -81,15 +110,48 @@ namespace Dotmim.Sync
             var log = SyncLogger.GetLogMessageFrom(value, id);
             logger.LogError(id, log.Message, log.Args);
         }
-
     }
 
-    public static partial class SyncEventsId
+    /// <summary>
+    /// Sync Events Ids.
+    /// </summary>
+    public static class SyncEventsId
     {
-        private static EventId CreateEventId(int id, string eventName) => new EventId(id, eventName);
 
+        /// <summary>
+        /// Gets the event id for the exception event.
+        /// </summary>
         public static EventId Exception => CreateEventId(0, nameof(Exception));
+
+        /// <summary>
+        /// Gets the event id for the report event.
+        /// </summary>
         public static EventId ReportProgress => CreateEventId(5, nameof(ReportProgress));
+
+        /// <summary>
+        /// Gets the event id for the interceptor event.
+        /// </summary>
         public static EventId Interceptor => CreateEventId(10, nameof(Interceptor));
+
+        /// <summary>
+        /// Creates a new EventId.
+        /// </summary>
+        internal static EventId CreateEventId(int id, string eventName) => new(id, eventName);
+
+        // private static int GetSyncEventId(string eventName)
+        // {
+
+        // string concatInt = string.Empty;
+        //    for (int i = 0; i < eventName.Length; i++)
+        //    {
+        //        var letter = Convert.ToInt32(eventName[i]).ToString();
+        //        letter = letter.Substring(letter.Length - 1);
+        //        if (string.IsNullOrEmpty(letter))
+        //            letter = "0";
+        //        concatInt += letter;
+        //    }
+
+        // return int.Parse(concatInt);
+        // }
     }
 }

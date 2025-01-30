@@ -1,45 +1,42 @@
 ﻿using Dotmim.Sync;
 using Dotmim.Sync.Builders;
-using Dotmim.Sync.Enumerations;
 using Dotmim.Sync.SqlServer;
-using Newtonsoft.Json;
 using Orchestrators;
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace HelloSync
 {
-    class Program
+    internal class Program
     {
         private static string serverConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=AdventureWorks;Integrated Security=true;";
         private static string clientConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=Client;Integrated Security=true;";
 
-        static async Task Main(string[] args)
+        private static async Task Main(string[] args)
         {
 
-            await GetTableSchemaAsync();
-            await CreateOneTrackingTable();
-            await CreateOneStoredProcedure();
-            await DropOneTrackingTableAndOneStoredProcedure();
+            await GetTableSchemaAsync().ConfigureAwait(false);
+            await CreateOneTrackingTable().ConfigureAwait(false);
+            await CreateOneStoredProcedure().ConfigureAwait(false);
+            await DropOneTrackingTableAndOneStoredProcedure().ConfigureAwait(false);
 
-            await CreateOneTrackingTable();
-            await CreateOneStoredProcedure();
+            await CreateOneTrackingTable().ConfigureAwait(false);
+            await CreateOneStoredProcedure().ConfigureAwait(false);
 
-            await DropSync();
+            await DropSync().ConfigureAwait(false);
 
             Console.WriteLine("Done. Please reset database for next operations");
 
-            await GetClientChangesToSendToServerAsync();
-            await GetServerChangesToSendToClientAsync();
+            await GetClientChangesToSendToServerAsync().ConfigureAwait(false);
+            await GetServerChangesToSendToClientAsync().ConfigureAwait(false);
 
             Console.ReadLine();
         }
 
         /// <summary>
-        /// Create an orchestrator on the server database (to have an existing schema) and getting a table schema
+        /// Create an orchestrator on the server database (to have an existing schema) and getting a table schema.
         /// </summary>
-        /// <returns></returns>
+        /// <returns><placeholder>A <see cref="Task"/> representing the asynchronous operation.</placeholder></returns>
         private static async Task GetTableSchemaAsync()
         {
             var provider = new SqlSyncProvider(serverConnectionString);
@@ -47,15 +44,14 @@ namespace HelloSync
             var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
             var orchestrator = new RemoteOrchestrator(provider, options);
 
-            var serverSchema = await orchestrator.GetSchemaAsync(setup);
+            var serverSchema = await orchestrator.GetSchemaAsync(setup).ConfigureAwait(false);
 
             foreach (var column in serverSchema.Tables["Product"].Columns)
                 Console.WriteLine(column);
         }
 
-
         /// <summary>
-        /// Create one stored procedure 
+        /// Create one stored procedure.
         /// </summary>
         private static async Task CreateOneStoredProcedure()
         {
@@ -64,16 +60,15 @@ namespace HelloSync
             var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
             var orchestrator = new RemoteOrchestrator(provider, options);
 
-            var serverScope = await orchestrator.GetScopeInfoAsync("v1", setup);
+            var serverScope = await orchestrator.GetScopeInfoAsync("v1", setup).ConfigureAwait(false);
 
-            var spExists = await orchestrator.ExistStoredProcedureAsync(serverScope, "Product", null, DbStoredProcedureType.SelectChanges);
+            var spExists = await orchestrator.ExistStoredProcedureAsync(serverScope, "Product", null, DbStoredProcedureType.SelectChanges).ConfigureAwait(false);
             if (!spExists)
-                await orchestrator.CreateStoredProcedureAsync(serverScope, "Product", null, DbStoredProcedureType.SelectChanges);
-
+                await orchestrator.CreateStoredProcedureAsync(serverScope, "Product", null, DbStoredProcedureType.SelectChanges).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Create one tracking table
+        /// Create one tracking table.
         /// </summary>
         private static async Task CreateOneTrackingTable()
         {
@@ -82,16 +77,15 @@ namespace HelloSync
             var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
             var orchestrator = new RemoteOrchestrator(provider, options);
 
-            var serverScope = await orchestrator.GetScopeInfoAsync(setup);
+            var serverScope = await orchestrator.GetScopeInfoAsync(setup).ConfigureAwait(false);
 
-            var spExists = await orchestrator.ExistTrackingTableAsync(serverScope, "Product"); ;
+            var spExists = await orchestrator.ExistTrackingTableAsync(serverScope, "Product").ConfigureAwait(false);
             if (!spExists)
-                await orchestrator.CreateTrackingTableAsync(serverScope, "Product");
-
+                await orchestrator.CreateTrackingTableAsync(serverScope, "Product").ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Drop one tracking table and one stored procedure
+        /// Drop one tracking table and one stored procedure.
         /// </summary>
         private static async Task DropOneTrackingTableAndOneStoredProcedure()
         {
@@ -100,16 +94,15 @@ namespace HelloSync
             var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
             var orchestrator = new RemoteOrchestrator(provider, options);
 
-            var serverScope = await orchestrator.GetScopeInfoAsync(setup);
+            var serverScope = await orchestrator.GetScopeInfoAsync(setup).ConfigureAwait(false);
 
-            var trExists = await orchestrator.ExistTrackingTableAsync(serverScope, "Product");
+            var trExists = await orchestrator.ExistTrackingTableAsync(serverScope, "Product").ConfigureAwait(false);
             if (trExists)
-                await orchestrator.DropTrackingTableAsync(serverScope, "Product");
+                await orchestrator.DropTrackingTableAsync(serverScope, "Product").ConfigureAwait(false);
 
-            var spExists = await orchestrator.ExistStoredProcedureAsync(serverScope, "Product", null, DbStoredProcedureType.SelectChanges);
+            var spExists = await orchestrator.ExistStoredProcedureAsync(serverScope, "Product", null, DbStoredProcedureType.SelectChanges).ConfigureAwait(false);
             if (spExists)
-                await orchestrator.DropStoredProcedureAsync(serverScope, "Product", null, DbStoredProcedureType.SelectChanges);
-
+                await orchestrator.DropStoredProcedureAsync(serverScope, "Product", null, DbStoredProcedureType.SelectChanges).ConfigureAwait(false);
         }
 
         private static async Task DropSync()
@@ -119,12 +112,11 @@ namespace HelloSync
             var setup = new SyncSetup("ProductCategory", "ProductModel", "Product");
             var orchestrator = new RemoteOrchestrator(provider, options);
 
-            await orchestrator.DropAllAsync();
-
+            await orchestrator.DropAllAsync().ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Create a localorchestrator, and get changes that should be sent to server
+        /// Create a localorchestrator, and get changes that should be sent to server.
         /// </summary>
         private static async Task GetClientChangesToSendToServerAsync()
         {
@@ -136,20 +128,20 @@ namespace HelloSync
             var agent = new SyncAgent(clientProvider, serverProvider, Config.GetClientOptions());
 
             // Making a first sync, will initialize everything we need
-            await agent.SynchronizeAsync(setup);
+            await agent.SynchronizeAsync(setup).ConfigureAwait(false);
 
             // Get the localorchestrator (you can create a new instance as well)
             var localOrchestrator = agent.LocalOrchestrator;
 
             // Create a productcategory item
-            await Helper.InsertOneProductCategoryAsync(clientProvider.CreateConnection(), "New Product Category 2");
-            await Helper.InsertOneProductCategoryAsync(clientProvider.CreateConnection(), "New Product Category 3");
-            await Helper.InsertOneCustomerAsync(clientProvider.CreateConnection(), "John", "Doe");
-            await Helper.InsertOneCustomerAsync(clientProvider.CreateConnection(), "Will", "Doe");
+            await Helper.InsertOneProductCategoryAsync(clientProvider.CreateConnection(), "New Product Category 2").ConfigureAwait(false);
+            await Helper.InsertOneProductCategoryAsync(clientProvider.CreateConnection(), "New Product Category 3").ConfigureAwait(false);
+            await Helper.InsertOneCustomerAsync(clientProvider.CreateConnection(), "John", "Doe").ConfigureAwait(false);
+            await Helper.InsertOneCustomerAsync(clientProvider.CreateConnection(), "Will", "Doe").ConfigureAwait(false);
 
             // Get changes to be populated to the server
-            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync();
-            var changes = await localOrchestrator.GetChangesAsync(cScopeInfoClient);
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync().ConfigureAwait(false);
+            var changes = await localOrchestrator.GetChangesAsync(cScopeInfoClient).ConfigureAwait(false);
 
             foreach (var tableChanges in changes.ClientChangesSelected.TableChangesSelected)
             {
@@ -166,7 +158,7 @@ namespace HelloSync
         }
 
         /// <summary>
-        /// Create a localorchestrator, and get changes that should be sent to server
+        /// Create a localorchestrator, and get changes that should be sent to server.
         /// </summary>
         private static async Task GetServerChangesToSendToClientAsync()
         {
@@ -178,23 +170,23 @@ namespace HelloSync
             var agent = new SyncAgent(clientProvider, serverProvider, Config.GetClientOptions());
 
             // Making a first sync, will initialize everything we need
-            await agent.SynchronizeAsync(setup);
+            await agent.SynchronizeAsync(setup).ConfigureAwait(false);
 
             // Get the orchestrators (you can create a new instance as well)
             var localOrchestrator = agent.LocalOrchestrator;
             var remoteOrchestrator = agent.RemoteOrchestrator;
 
             // Create a productcategory item
-            await Helper.InsertOneProductCategoryAsync(serverProvider.CreateConnection(), "New Product Category 4");
-            await Helper.InsertOneProductCategoryAsync(serverProvider.CreateConnection(), "New Product Category 5");
-            await Helper.InsertOneCustomerAsync(serverProvider.CreateConnection(), "Jane", "Doe");
-            await Helper.InsertOneCustomerAsync(serverProvider.CreateConnection(), "Lisa", "Doe");
+            await Helper.InsertOneProductCategoryAsync(serverProvider.CreateConnection(), "New Product Category 4").ConfigureAwait(false);
+            await Helper.InsertOneProductCategoryAsync(serverProvider.CreateConnection(), "New Product Category 5").ConfigureAwait(false);
+            await Helper.InsertOneCustomerAsync(serverProvider.CreateConnection(), "Jane", "Doe").ConfigureAwait(false);
+            await Helper.InsertOneCustomerAsync(serverProvider.CreateConnection(), "Lisa", "Doe").ConfigureAwait(false);
 
             // Get client scope
-            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync();
+            var cScopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync().ConfigureAwait(false);
 
             // Get changes to be populated to the server
-            var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient);
+            var changes = await remoteOrchestrator.GetChangesAsync(cScopeInfoClient).ConfigureAwait(false);
 
             // enumerate changes retrieved
             foreach (var tableChanges in changes.ServerChangesSelected.TableChangesSelected)
@@ -208,8 +200,6 @@ namespace HelloSync
                 {
                     Console.WriteLine(row);
                 }
-
-
             }
         }
     }

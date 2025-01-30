@@ -8,29 +8,26 @@ namespace WinFormsCore
     public partial class Form1 : Form
     {
         private static string serverConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=AdventureWorks;Integrated Security=true;";
-        private static string clientConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=Client;Integrated Security=true;";
-
         private string dbName = "adv2.db";
 
         public Form1()
         {
-            InitializeComponent();
+            this.InitializeComponent();
         }
-
 
         private async void button1_Click(object sender, EventArgs e)
         {
 
-            // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
+            // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql
 
             // Create 2 Sql Sync providers
             // First provider is using the Sql change tracking feature. Don't forget to enable it on your database until running this code !
-            // For instance, use this SQL statement on your server database : ALTER DATABASE AdventureWorks  SET CHANGE_TRACKING = ON  (CHANGE_RETENTION = 10 DAYS, AUTO_CLEANUP = ON)  
+            // For instance, use this SQL statement on your server database : ALTER DATABASE AdventureWorks  SET CHANGE_TRACKING = ON  (CHANGE_RETENTION = 10 DAYS, AUTO_CLEANUP = ON)
             // Otherwise, if you don't want to use Change Tracking feature, just change 'SqlSyncChangeTrackingProvider' to 'SqlSyncProvider'
             var serverProvider = new SqlSyncProvider(serverConnectionString);
 
             // Second provider is using plain old Sql Server provider, relying on triggers and tracking tables to create the sync environment
-            var clientProvider = new SqliteSyncProvider(dbName);
+            var clientProvider = new SqliteSyncProvider(this.dbName);
 
             // Tables involved in the sync process:
             var setup = new SyncSetup("ProductCategory", "ProductModel", "Product",
@@ -40,14 +37,13 @@ namespace WinFormsCore
             var agent = new SyncAgent(clientProvider, serverProvider);
 
             // Launch the sync process
-            var s1 = await agent.SynchronizeAsync(setup);
+            var s1 = await agent.SynchronizeAsync(setup).ConfigureAwait(false);
 
             // Write results
             MessageBox.Show(s1.ToString());
         }
 
-
-        private void Clear(string dbName)
+        private static void Clear(string dbName)
         {
             SqliteConnection.ClearAllPools();
             GC.Collect();
@@ -66,13 +62,11 @@ namespace WinFormsCore
                 dbName = $"{dbName}.db";
 
             return Path.Combine(Directory.GetCurrentDirectory(), dbName);
-
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
-            Clear(dbName);
-
+            Clear(this.dbName);
         }
     }
 }

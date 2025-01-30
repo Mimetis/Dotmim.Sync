@@ -1,20 +1,8 @@
-﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Tests.Core;
-using Dotmim.Sync.Tests.Models;
+﻿using Dotmim.Sync.SqlServer;
 using Microsoft.Data.SqlClient;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
@@ -26,7 +14,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 TrackingTablesPrefix = "t_",
                 TrackingTablesSuffix = "_t"
@@ -39,7 +27,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             remoteOrchestrator.OnTrackingTableCreating(ttca =>
             {
-                var addingID = $" ALTER TABLE {ttca.TrackingTableName.Schema().Quoted()} ADD internal_id int identity(1,1)";
+                var addingID = $" ALTER TABLE {ttca.TrackingTableFullName} ADD internal_id int identity(1,1)";
                 ttca.Command.CommandText += addingID;
                 onCreating = true;
             });
@@ -56,7 +44,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Check we have a new column in tracking table
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
                 var cols = await SqlManagementUtils.GetColumnsForTableAsync("t_Product_t", "SalesLT", c, null);
@@ -71,7 +59,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         {
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.Product", "SalesLT.ProductCategory" });
+            var setup = new SyncSetup("SalesLT.Product", "SalesLT.ProductCategory");
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
 
@@ -93,9 +81,8 @@ namespace Dotmim.Sync.Tests.UnitTests
         {
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
-            
-            var setup = new SyncSetup(new string[]
-            { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts" })
+
+            var setup = new SyncSetup("SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts")
             {
                 TrackingTablesPrefix = "t_",
                 TrackingTablesSuffix = "_t"
@@ -152,7 +139,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
 
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
 
@@ -179,7 +166,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Check we have a new column in tracking table
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
 
@@ -197,7 +184,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
 
@@ -224,7 +211,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.False(onDropped);
 
             // Check we have a new column in tracking table
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
 
@@ -242,7 +229,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts" });
+            var setup = new SyncSetup("SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts");
             setup.TrackingTablesPrefix = "t_";
             setup.TrackingTablesSuffix = "_t";
 

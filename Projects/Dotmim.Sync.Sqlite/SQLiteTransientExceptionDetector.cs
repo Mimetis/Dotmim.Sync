@@ -1,7 +1,4 @@
 ﻿using Microsoft.Data.Sqlite;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Dotmim.Sync.Sqlite
 {
@@ -34,8 +31,8 @@ namespace Dotmim.Sync.Sqlite
                 default:
                     break;
             }
-            return false;
 
+            return false;
         }
     }
 }

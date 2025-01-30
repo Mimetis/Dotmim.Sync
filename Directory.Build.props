@@ -1,14 +1,73 @@
 <Project>
-  <PropertyGroup>
-    <TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
-    <TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
-    <TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
-    <TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
+	<Sdk Name="DotNet.ReproducibleBuilds.Isolated" Version="1.2.4" />
 
-    <!-- Generate the lock file -->
-    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+	<PropertyGroup>
+		<TargetFrameworkNetStandard>netstandard2.0</TargetFrameworkNetStandard>
+		<TargetFrameworkNetCore>netcoreapp3.1</TargetFrameworkNetCore>
+		<TargetFrameworkNet6>net6.0</TargetFrameworkNet6>
+		<TargetFrameworkNet8>net8.0</TargetFrameworkNet8>
 
-    <!-- Restore the exact packages as listed in the lock file -->
-    <RestoreLockedMode Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</RestoreLockedMode>
-  </PropertyGroup>
+		<LangVersion>12.0</LangVersion>
+
+		<!-- Generate the lock file -->
+		<RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+
+		<!-- Restore the exact packages as listed in the lock file -->
+		<RestoreLockedMode Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</RestoreLockedMode>
+
+		<Version>1.3.0</Version>
+		<VersionSuffix>$(VersionSuffix)</VersionSuffix>
+		<Version Condition=" '$(VersionSuffix)' != '' ">$(Version)-$(VersionSuffix)</Version>
+
+		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, MariaDB, PostgreSql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
+		<PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
+
+		<!-- Publish the repository URL in the built .nupkg (in the NuSpec <Repository> element) -->
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<!-- Embed source files that are not tracked by the source control manager in the PDB -->
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		<!-- Create a separate pdb file to allow nuget push -->
+		<DebugType>full</DebugType>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<EmbedAllSources>true</EmbedAllSources>
+		<IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net7.0'))">true</IsAotCompatible>
+
+	</PropertyGroup>
+
+	<!--generate NUGET package including symbols ans source on each release build -->
+	<!--<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<IncludeSource>True</IncludeSource>
+		<IncludeSymbols>True</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+		<DefineConstants>MARIADB</DefineConstants>
+	</PropertyGroup>-->
+
+	<PropertyGroup>
+
+		<AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+
+		<!-- Static analysis settings -->
+		<Features>strict</Features>
+		<WarningLevel>9999</WarningLevel>
+		<AnalysisLevel>latest-all</AnalysisLevel>
+		<EnableNETAnalyzers>true</EnableNETAnalyzers>
+		<EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+		<CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+		
+		<NoWarn></NoWarn>
+	</PropertyGroup>
+
+
+	<ItemGroup>
+		<PackageReference Include="DotNet.ReproducibleBuilds" Version="1.2.4">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+	</ItemGroup>
 </Project>

@@ -1,13 +1,10 @@
-﻿using System;
+﻿using Dotmim.Sync.Web.Server;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Dotmim.Sync.Web.Client;
-using Dotmim.Sync.Web.Server;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Caching.Memory;
-using Dotmim.Sync;
 
 namespace MutliOrchestratorsWebSyncServer.Controllers
 {
@@ -22,21 +19,19 @@ namespace MutliOrchestratorsWebSyncServer.Controllers
             => this.webserverAgents = webServerAgents;
 
         /// <summary>
-        /// This POST handler is mandatory to handle all the sync process
+        /// This POST handler is mandatory to handle all the sync process.
         /// </summary>
-        /// <returns></returns>
-
         [HttpPost]
         public async Task Post()
         {
             // get the scope name send by the client and the identifier
-            var scopeName = HttpContext.GetScopeName();
-            var identifier = HttpContext.GetIdentifier();
+            var scopeName = this.HttpContext.GetScopeName();
+            var identifier = this.HttpContext.GetIdentifier();
 
             // first retrieve all the web server agents configured for the correct server connection string:
-            var agents = webserverAgents.Where(wsa => wsa.Identifier == identifier);
+            var agents = this.webserverAgents.Where(wsa => wsa.Identifier == identifier);
 
-            if (agents == null || agents.Count() <= 0)
+            if (agents == null || !agents.Any())
                 throw new Exception("No web server agent found for the current identifier");
 
             // then on this list of agents, get the correct agent for the current scope name
@@ -45,14 +40,14 @@ namespace MutliOrchestratorsWebSyncServer.Controllers
             if (webserverAgent == null)
                 throw new Exception("no web server agent configured with this scope name");
 
-            await webserverAgent.HandleRequestAsync(HttpContext).ConfigureAwait(false);
+            await webserverAgent.HandleRequestAsync(this.HttpContext).ConfigureAwait(false);
         }
+
         /// <summary>
         /// This GET handler is optional. It allows you to see the configuration hosted on the server
-        /// The configuration is shown only if Environmenent == Development
+        /// The configuration is shown only if Environmenent == Development.
         /// </summary>
         [HttpGet]
         public Task Get() => this.HttpContext.WriteHelloAsync(this.webserverAgents);
-
     }
 }

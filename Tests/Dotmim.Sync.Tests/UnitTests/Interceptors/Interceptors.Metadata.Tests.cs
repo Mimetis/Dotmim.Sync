@@ -1,52 +1,35 @@
-﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Tests.Core;
-using Dotmim.Sync.Tests.Models;
-using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Logging;
-using MySqlConnector;
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.Common;
-using System.Diagnostics;
+﻿using Dotmim.Sync.Tests.Models;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
     public partial class InterceptorsTests
     {
         [Fact]
-        public async Task LocalOrchestrator_MetadataCleaning()
+        public async Task LocalOrchestratorMetadataCleaning()
         {
             var scopeName = "scopesnap1";
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider, options);
+            var agent = new SyncAgent(this.clientProvider, this.serverProvider, this.options);
 
             // Making a first sync, will initialize everything we need
-            var s = await agent.SynchronizeAsync(scopeName, setup);
+            var s = await agent.SynchronizeAsync(scopeName, this.setup);
 
             // Get the orchestrators
             var localOrchestrator = agent.LocalOrchestrator;
             var remoteOrchestrator = agent.RemoteOrchestrator;
 
             // Server side : Create a product category and a product
-            await serverProvider.AddProductCategoryAsync();
-            await serverProvider.AddProductAsync();
+            await this.serverProvider.AddProductCategoryAsync();
+            await this.serverProvider.AddProductAsync();
 
             // get rows count
-            var allRowsCount = serverProvider.GetDatabaseRowsCount();
-            var allProductCategories = await serverProvider.GetProductCategoriesAsync();
-            var allProducts = await serverProvider.GetProductsAsync();
-
+            var allRowsCount = this.serverProvider.GetDatabaseRowsCount();
+            var allProductCategories = await this.serverProvider.GetProductCategoriesAsync();
+            var allProducts = await this.serverProvider.GetProductsAsync();
 
             var cleaning = 0;
             var cleaned = 0;
@@ -64,17 +47,17 @@ namespace Dotmim.Sync.Tests.UnitTests
                 Assert.Empty(args.DatabaseMetadatasCleaned.Tables);
             });
 
-            // Making a first sync, will call cleaning, but nothing is cleaned (still interceptors are called)
+            // Making a first sync, will call cleaning, but nothing is cleaned (still Interceptors are called)
             var s2 = await agent.SynchronizeAsync(scopeName);
 
             Assert.Equal(1, cleaning);
             Assert.Equal(1, cleaned);
 
-            // Reset interceptors
+            // Reset Interceptors
             localOrchestrator.ClearInterceptors();
 
-            // Server side : Create a product category 
-            await serverProvider.AddProductCategoryAsync();
+            // Server side : Create a product category
+            await this.serverProvider.AddProductCategoryAsync();
 
             cleaning = 0;
             cleaned = 0;
@@ -99,17 +82,17 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(1, cleaning);
             Assert.Equal(1, cleaned);
 
-            // Server side : Create a product category 
-            await serverProvider.AddProductCategoryAsync();
+            // Server side : Create a product category
+            await this.serverProvider.AddProductCategoryAsync();
 
-            // Reset interceptors
+            // Reset Interceptors
             localOrchestrator.ClearInterceptors();
 
             cleaning = 0;
             cleaned = 0;
 
             // in this clean up, the product category row and product row are cleaned
-            localOrchestrator.OnMetadataCleaning(args =>cleaning++);
+            localOrchestrator.OnMetadataCleaning(args => cleaning++);
             localOrchestrator.OnMetadataCleaned(args =>
             {
                 cleaned++;
@@ -126,16 +109,16 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(1, cleaned);
 
             // Server side : Create a product category and a product
-            await serverProvider.AddProductCategoryAsync();
-            await serverProvider.AddProductAsync();
+            await this.serverProvider.AddProductCategoryAsync();
+            await this.serverProvider.AddProductAsync();
 
-            // Reset interceptors
+            // Reset Interceptors
             localOrchestrator.ClearInterceptors();
             cleaning = 0;
             cleaned = 0;
 
             // in this clean up the product category row is cleaned
-            localOrchestrator.OnMetadataCleaning(args =>cleaning++);
+            localOrchestrator.OnMetadataCleaning(args => cleaning++);
             localOrchestrator.OnMetadataCleaned(args =>
             {
                 cleaned++;

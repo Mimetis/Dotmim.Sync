@@ -1,17 +1,18 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
 using System;
-using System.Collections.Generic;
 using System.Data.Common;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
 
-
+    /// <summary>
+    /// Event args generated after a command has been retrieved from a provider.
+    /// </summary>
     public class GetCommandArgs : ProgressArgs
     {
+        /// <inheritdoc cref="GetCommandArgs"/>
         public GetCommandArgs(ScopeInfo scopeInfo, SyncContext context, DbCommand command, bool isBatch, SyncTable table, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
@@ -22,39 +23,81 @@ namespace Dotmim.Sync
             this.CommandType = commandType;
         }
 
+        /// <summary>
+        /// Gets the scope info.
+        /// </summary>
         public ScopeInfo ScopeInfo { get; }
+
+        /// <summary>
+        /// Gets or sets the command to be executed.
+        /// </summary>
         public DbCommand Command { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the command is a batch command.
+        /// </summary>
         public bool IsBatch { get; set; }
+
+        /// <summary>
+        /// Gets the table.
+        /// </summary>
         public SyncTable Table { get; }
+
+        /// <summary>
+        /// Gets the command type to be executed.
+        /// </summary>
         public DbCommandType CommandType { get; }
 
+        /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Sql;
-        public override string Message => $"Sql Statement:{Command.CommandText}.";
 
+        /// <inheritdoc cref="ProgressArgs.Message"/>
+        public override string Message => $"Sql Statement:{this.Command.CommandText}.";
+
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
+        public override int EventId => 94000;
     }
 
+    /// <summary>
+    /// Event args generated before a command is executed.
+    /// </summary>
     public class ExecuteCommandArgs : ProgressArgs
     {
+        /// <inheritdoc cref="ExecuteCommandArgs"/>
         public ExecuteCommandArgs(SyncContext context, DbCommand command, DbCommandType commandType, DbConnection connection, DbTransaction transaction)
             : base(context, connection, transaction)
         {
             this.Command = command;
             this.CommandType = commandType;
         }
+
+        /// <summary>
+        /// Gets the command to be executed.
+        /// </summary>
+        public DbCommand Command { get; }
+
+        /// <summary>
+        /// Gets the command type to be executed.
+        /// </summary>
+        public DbCommandType CommandType { get; }
+
+        /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Sql;
 
-        public override string Message => $"Sql Statement:{Command.CommandText}.";
+        /// <inheritdoc cref="ProgressArgs.Message"/>
+        public override string Message => $"Sql Statement:{this.Command.CommandText}.";
 
-        public override int EventId => SyncEventsId.ConnectionOpen.Id;
-
-        public DbCommand Command { get; }
-        public DbCommandType CommandType { get; }
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
+        public override int EventId => 95000;
     }
 
-    public static partial class InterceptorsExtensions
+    /// <summary>
+    /// Interceptors extensions.
+    /// </summary>
+    public partial class InterceptorsExtensions
     {
         /// <summary>
-        /// Occurs when a command is about to be executed on the underline provider
+        /// Occurs when a command is about to be executed on the underline provider.
         /// <example>
         /// <code>
         /// agent.RemoteOrchestrator.OnExecuteCommand(args =>
@@ -72,9 +115,9 @@ namespace Dotmim.Sync
             => orchestrator.AddInterceptor(func);
 
         /// <summary>
-        /// Occurs every time we get a command from the underline provider
+        /// Occurs every time we get a command from the underline provider.
         /// <para>
-        /// You can change the command text and even the parameters values if needed
+        /// You can change the command text and even the parameters values if needed.
         /// </para>
         /// <example>
         /// <code>

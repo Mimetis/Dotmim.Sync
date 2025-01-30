@@ -1,27 +1,55 @@
-﻿using Dotmim.Sync.Builders;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Runtime.Serialization;
-using System.Text;
 
 namespace Dotmim.Sync
 {
 
+    /// <summary>
+    /// Enum used to define the join type for a filter.
+    /// </summary>
     public enum Join
     {
+        /// <summary>
+        /// Inner join.
+        /// </summary>
         Inner,
+
+        /// <summary>
+        /// Left join.
+        /// </summary>
         Left,
+
+        /// <summary>
+        /// Right join.
+        /// </summary>
         Right,
-        Outer
+
+        /// <summary>
+        /// Outer join.
+        /// </summary>
+        Outer,
     }
 
+    /// <summary>
+    /// Enum used to define the inner table for a filter.
+    /// </summary>
     public enum InnerTable
     {
+        /// <summary>
+        /// Base table.
+        /// </summary>
         Base,
-        Side
+
+        /// <summary>
+        /// Side table.
+        /// </summary>
+        Side,
     }
 
+    /// <summary>
+    /// Gets the table that is joined to the base table.
+    /// </summary>
     public class SetupFilterOn
     {
         private Join joinEnum;
@@ -29,11 +57,12 @@ namespace Dotmim.Sync
         private string schemaName;
         private SetupFilter filter;
 
+        /// <inheritdoc cref="SetupFilterOn"/>/>
         public SetupFilterOn()
         {
-
         }
 
+        /// <inheritdoc cref="SetupFilterOn"/>/>
         public SetupFilterOn(SetupFilter filter, Join joinEnum, string tableName, string schemaName = null)
         {
             this.filter = filter;
@@ -41,6 +70,10 @@ namespace Dotmim.Sync
             this.tableName = tableName;
             this.schemaName = schemaName;
         }
+
+        /// <summary>
+        /// Set the join with the right table.
+        /// </summary>
         public SetupFilterOn On(string leftTableName, string leftColumnName, string rightTableName, string rightColumnName, string leftTableSchemaName = null, string rightTableSchemaName = null)
         {
             var join = new SetupFilterJoin(this.joinEnum, this.tableName, leftTableName, leftColumnName, rightTableName, rightColumnName, this.schemaName, leftTableSchemaName, rightTableSchemaName);
@@ -49,46 +82,72 @@ namespace Dotmim.Sync
         }
     }
 
-
+    /// <summary>
+    /// Setup filter join.
+    /// </summary>
     [DataContract(Name = "sfj"), Serializable]
     public class SetupFilterJoin : SyncNamedItem<SetupFilterJoin>
     {
+        /// <summary>
+        /// Gets or sets the join type.
+        /// </summary>
         [DataMember(Name = "je", IsRequired = true, Order = 1)]
         public Join JoinEnum { get; set; }
 
+        /// <summary>
+        /// Gets or sets the table name.
+        /// </summary>
         [DataMember(Name = "tn", IsRequired = true, Order = 2)]
         public string TableName { get; set; }
 
+        /// <summary>
+        /// Gets or sets the left table name.
+        /// </summary>
         [DataMember(Name = "ltn", IsRequired = true, Order = 3)]
         public string LeftTableName { get; set; }
 
+        /// <summary>
+        /// Gets or sets the left column name.
+        /// </summary>
         [DataMember(Name = "lcn", IsRequired = true, Order = 4)]
         public string LeftColumnName { get; set; }
 
+        /// <summary>
+        /// Gets or sets the right table name.
+        /// </summary>
         [DataMember(Name = "rtn", IsRequired = true, Order = 5)]
         public string RightTableName { get; set; }
 
+        /// <summary>
+        /// Gets or sets the right column name.
+        /// </summary>
         [DataMember(Name = "rcn", IsRequired = true, Order = 6)]
         public string RightColumnName { get; set; }
 
+        /// <summary>
+        /// Gets or sets the schema name.
+        /// </summary>
         [DataMember(Name = "tsn", IsRequired = false, Order = 7, EmitDefaultValue = false)]
         public string TableSchemaName { get; set; }
 
+        /// <summary>
+        /// Gets or sets the left table schema name.
+        /// </summary>
         [DataMember(Name = "ltsn", IsRequired = false, Order = 8, EmitDefaultValue = false)]
         public string LeftTableSchemaName { get; set; }
 
+        /// <summary>
+        /// Gets or sets the right table schema name.
+        /// </summary>
         [DataMember(Name = "rtsn", IsRequired = false, Order = 9, EmitDefaultValue = false)]
         public string RightTableSchemaName { get; set; }
 
-
-        /// <summary>
-        /// ctor for serializer, don't use as it, prefer the second ctor
-        /// </summary>
+        /// <inheritdoc cref="SetupFilterJoin"/>
         public SetupFilterJoin()
         {
-
         }
 
+        /// <inheritdoc cref="SetupFilterJoin"/>
         public SetupFilterJoin(Join joinEnum, string tableName, string leftTableName, string leftColumnName, string rightTableName, string rightColumnName)
         {
             this.JoinEnum = joinEnum;
@@ -99,8 +158,9 @@ namespace Dotmim.Sync
             this.RightColumnName = rightColumnName;
         }
 
-        public SetupFilterJoin(Join joinEnum, string tableName, 
-            string leftTableName, string leftColumnName, 
+        /// <inheritdoc cref="SetupFilterJoin"/>
+        public SetupFilterJoin(Join joinEnum, string tableName,
+            string leftTableName, string leftColumnName,
             string rightTableName, string rightColumnName,
             string tableSchemaName, string leftTableSchemaName, string rightTableSchemaName)
         {
@@ -114,9 +174,8 @@ namespace Dotmim.Sync
             this.LeftTableSchemaName = leftTableSchemaName;
             this.RightTableSchemaName = rightTableSchemaName;
         }
-        /// <summary>
-        /// Get all comparable fields to determine if two instances are identifed are same by name
-        /// </summary>
+
+        /// <inheritdoc cref="SyncNamedItem{T}.GetAllNamesProperties"/>
         public override IEnumerable<string> GetAllNamesProperties()
         {
             yield return this.JoinEnum.ToString();

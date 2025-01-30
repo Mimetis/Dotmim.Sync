@@ -1,62 +1,37 @@
-﻿using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.Serialization;
-using Microsoft.Extensions.Caching.Memory;
-using System;
-using System.Collections.Generic;
+﻿using Dotmim.Sync.Serialization;
 using System.Collections.ObjectModel;
-using System.IO;
-using System.Text;
 
 namespace Dotmim.Sync.Web.Server
 {
+
+    /// <summary>
+    /// Specifies options for the Web Server.
+    /// </summary>
     public class WebServerOptions
     {
-        //public MemoryCacheEntryOptions GetServerCacheOptions()
-        //{
-        //    var sessionCacheEntryOptions = new MemoryCacheEntryOptions();
-        //    sessionCacheEntryOptions.SetSlidingExpiration(this.ServerCacheSlidingExpiration);
-        //    return sessionCacheEntryOptions;
-        //}
-
-        //public MemoryCacheEntryOptions GetClientCacheOptions()
-        //{
-        //    var sessionCacheEntryOptions = new MemoryCacheEntryOptions();
-        //    sessionCacheEntryOptions.SetSlidingExpiration(this.ClientCacheSlidingExpiration);
-        //    return sessionCacheEntryOptions;
-        //}
 
         /// <summary>
-        /// Gets or Sets Converters used by different clients
+        /// Gets converters used by different clients.
         /// </summary>
-        public Collection<IConverter> Converters { get; set; }
-
-        ///// <summary>
-        ///// Gets or Sets how long the server cache entry can be inactive(e.g.not accessed) before it will be removed. Default is 1h
-        ///// </summary>
-        //public TimeSpan ServerCacheSlidingExpiration { get; set; }
-
-        ///// <summary>
-        ///// Gets or Sets how long the client session cache entry can be inactive(e.g.not accessed) before it will be removed. Default is 10 min
-        ///// </summary>
-        //public TimeSpan ClientCacheSlidingExpiration { get; set; }
-
-        public Collection<ISerializerFactory> SerializerFactories { get; set; }
+        public Collection<IConverter> Converters { get; }
 
         /// <summary>
-        /// Create a new instance of options with default values
+        /// Gets the serializer factories.
         /// </summary>
-        public WebServerOptions() : base()
+        public Collection<ISerializerFactory> SerializerFactories { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="WebServerOptions"/> class.
+        /// Create a new instance of options with default values.
+        /// </summary>
+        public WebServerOptions()
+            : base()
         {
-            this.Converters = new Collection<IConverter>();
-            this.SerializerFactories = new Collection<ISerializerFactory>
-            {
-                SerializersCollection.JsonSerializerFactory
-            };
-
-            //this.ServerCacheSlidingExpiration = TimeSpan.FromHours(12);
-            //this.ClientCacheSlidingExpiration = TimeSpan.FromMinutes(10);
-
+            this.Converters = [];
+            this.SerializerFactories =
+            [
+                SerializersFactory.JsonSerializerFactory
+            ];
         }
-
     }
 }

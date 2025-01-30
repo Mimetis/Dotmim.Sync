@@ -11,8 +11,6 @@
 		<Title>HerdMASTER.Dotmim.Sync.Web.Client</Title>
 		<Summary>Web client proxy Sync Provider .Net Standard 2.0</Summary>
 		<Description>Proxy to be able to Sync through an ASP.NET CORE application. Choose a Dotmim.Sync provider and protects your database call through web api calls only. this assembly is meant to be used from within your client application and will execute all the http calls</Description>
-		<PackageProjectUrl>https://dotmimsync.readthedocs.io/</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
 		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
 		
@@ -20,10 +18,6 @@
 		
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
-		<PublishRepositoryUrl>true</PublishRepositoryUrl>
-		<EmbedUntrackedSources>true</EmbedUntrackedSources>
-		<LangVersion>11.0</LangVersion>
-		<GenerateDocumentationFile>False</GenerateDocumentationFile>
 
 	</PropertyGroup>
 	<PropertyGroup>
@@ -38,8 +32,6 @@
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
 	</PropertyGroup>
 
-
-
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet6)'  ">
 		<PackageReference Include="Microsoft.Extensions.Features" Version="6.0.0" />
 		<PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0" />
@@ -51,6 +43,7 @@
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
 		<PackageReference Include="Microsoft.Extensions.Features" Version="8.0.4" />
 		<PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0" />
+		<PackageReference Include="Microsoft.Net.Http.Headers" Version="2.2.8" />
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />

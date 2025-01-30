@@ -10,19 +10,17 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
-using System.Text;
 using Xunit;
 using Xunit.Abstractions;
 using Xunit.Sdk;
-using System.Linq;
 using System.Threading.Tasks;
 using Dotmim.Sync.Tests.Models;
-using System.Xml.Linq;
 using Dotmim.Sync.Tests.Core;
+using System.Data;
 
 namespace Dotmim.Sync.Tests.Misc
 {
-    public abstract class DatabaseTest : IDisposable
+    public abstract class DatabaseTest : IDisposable, IAsyncLifetime
     {
         private Stopwatch preWorkStopwatch;
         private Stopwatch postWorkStopwatch;
@@ -64,8 +62,8 @@ namespace Dotmim.Sync.Tests.Misc
             var salesSchemaWithDot = string.IsNullOrEmpty(salesSchema) ? string.Empty : $"{salesSchema}.";
 
             // Filter columns
-            setup.Tables["Customer"].Columns.AddRange(new string[] { "CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName" });
-            setup.Tables["Address"].Columns.AddRange(new string[] { "AddressID", "AddressLine1", "City", "PostalCode" });
+            setup.Tables["Customer"].Columns.AddRange("CustomerID", "EmployeeID", "NameStyle", "FirstName", "LastName");
+            setup.Tables["Address"].Columns.AddRange("AddressID", "AddressLine1", "City", "PostalCode");
 
             // Filters clause
 
@@ -74,10 +72,10 @@ namespace Dotmim.Sync.Tests.Misc
             setup.Filters.Add("SalesOrderHeader", "CustomerID", salesSchema);
 
 
-            // 2) Same, but decomposed in 3 Steps
+            // 2) create a custom parameter not based on a column
             var customerFilter = new SetupFilter("Customer");
-            customerFilter.AddParameter("CustomerID", "Customer", true);
-            customerFilter.AddWhere("CustomerID", "Customer", "CustomerID");
+            customerFilter.AddParameter("custID", DbType.Guid, true);
+            customerFilter.AddWhere("CustomerID", "Customer", "custID");
             setup.Filters.Add(customerFilter);
 
             // 3) Create your own filter
@@ -132,17 +130,21 @@ namespace Dotmim.Sync.Tests.Misc
         /// <summary>
         /// Get filters parameters
         /// </summary>
-        public virtual SyncParameters GetFilterParameters() => new SyncParameters(("CustomerID", AdventureWorksContext.CustomerId1ForFilter));
+        public virtual SyncParameters GetFilterParameters() =>
+            new SyncParameters(
+                 ("CustomerID", AdventureWorksContext.CustomerId1ForFilter),
+                 ("custID", AdventureWorksContext.CustomerId1ForFilter)
+            );
 
         public virtual DatabaseServerFixture Fixture { get; }
         public virtual ITestOutputHelper Output { get; }
         public virtual XunitTest Test { get; }
-        public virtual Stopwatch Stopwatch { get; }
+        public virtual Stopwatch Stopwatch { get; private set; }
 
         /// <summary>
-        /// Gets or Sets the Kestrell server used to server http queries
+        /// Gets or Sets the Kestrel server used to server http queries
         /// </summary>
-        public KestrellTestServer Kestrell { get; set; }
+        public KestrelTestServer Kestrel { get; set; }
 
         /// <summary>
         /// Gets if fiddler is in use
@@ -158,49 +160,60 @@ namespace Dotmim.Sync.Tests.Misc
             var testMember = type.GetField("test", BindingFlags.Instance | BindingFlags.NonPublic);
             this.Test = (XunitTest)testMember.GetValue(output);
 
-            // Create a kestrell server
-            this.Kestrell = new KestrellTestServer(this.UseFiddler);
+            // Create a kestrel server
+            this.Kestrel = new KestrelTestServer(this.UseFiddler);
+        }
 
+        public async Task InitializeAsync()
+        {
             preWorkStopwatch = Stopwatch.StartNew();
 
             SqlConnection.ClearAllPools();
             MySqlConnection.ClearAllPools();
             NpgsqlConnection.ClearAllPools();
 
-            CreateDatabases();
+            await CreateDatabasesAsync();
 
             preWorkStopwatch.Stop();
 
             this.Stopwatch = Stopwatch.StartNew();
-        }
 
-        private void ResetClientsTables()
-        {
-            // Drop DMS metadatas and truncate clients tables
-            foreach (var clientProvider in GetClientProviders())
-            {
-                // drop all DMS tracking tables & metadatas
-                clientProvider.DropAllTablesAsync(false).GetAwaiter().GetResult();
-                // truncate all tables
-                clientProvider.EmptyAllTablesAsync().GetAwaiter().GetResult();
-            }
         }
+        public Task DisposeAsync() => Task.CompletedTask;
 
-        private void CreateDatabases()
+
+        //private void ResetClientsTables()
+        //{
+        //    // Drop DMS metadatas and truncate clients tables
+        //    foreach (var clientProvider in GetClientProviders())
+        //    {
+        //        // drop all DMS tracking tables & metadatas
+        //        clientProvider.DropAllTablesAsync(false).GetAwaiter().GetResult();
+        //        // truncate all tables
+        //        clientProvider.EmptyAllTablesAsync().GetAwaiter().GetResult();
+        //    }
+        //}
+
+        private async Task CreateDatabasesAsync()
         {
             var (serverProviderType, serverDatabaseName) = HelperDatabase.GetDatabaseType(GetServerProvider());
+            var serverProvider = GetServerProvider();
+            using (var ctx = new AdventureWorksContext(serverProvider, true))
+            {
+                await ctx.Database.EnsureCreatedAsync();
 
-            new AdventureWorksContext(GetServerProvider(), true).Database.EnsureCreated();
-
-            if (serverProviderType == ProviderType.Sql)
-                HelperDatabase.ActivateChangeTracking(serverDatabaseName).GetAwaiter().GetResult();
+                if (serverProviderType == ProviderType.Sql)
+                    await HelperDatabase.ActivateChangeTracking(serverDatabaseName);
+            }
 
             foreach (var clientProvider in GetClientProviders())
             {
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
-                new AdventureWorksContext(clientProvider).Database.EnsureCreated();
+                using var cliCtx = new AdventureWorksContext(clientProvider);
+                await cliCtx.Database.EnsureCreatedAsync();
+
                 if (clientProviderType == ProviderType.Sql)
-                    HelperDatabase.ActivateChangeTracking(clientDatabaseName).GetAwaiter().GetResult();
+                    await HelperDatabase.ActivateChangeTracking(clientDatabaseName);
             }
         }
 

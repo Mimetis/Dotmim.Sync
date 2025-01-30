@@ -6,24 +6,23 @@ using System.Threading.Tasks;
 
 namespace ProvisionDeprovision
 {
-    class Program
+    internal class Program
     {
         private static string serverConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=AdventureWorks;Integrated Security=true;";
         private static string clientConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=Client;Integrated Security=true;";
 
-        static async Task Main(string[] args)
+        private static async Task Main(string[] args)
         {
-            await ProvisionServerManuallyAsync();
-            await ProvisionClientManuallyAsync();
+            await ProvisionServerManuallyAsync().ConfigureAwait(false);
+            await ProvisionClientManuallyAsync().ConfigureAwait(false);
 
-            await SynchronizeAsync();
+            await SynchronizeAsync().ConfigureAwait(false);
 
-            await DeprovisionServerManuallyAsync();
-            await DeprovisionClientManuallyAsync();
+            await DeprovisionServerManuallyAsync().ConfigureAwait(false);
+            await DeprovisionClientManuallyAsync().ConfigureAwait(false);
 
             Console.WriteLine("Hello World!");
         }
-
 
         private static async Task SynchronizeAsync()
         {
@@ -33,13 +32,12 @@ namespace ProvisionDeprovision
 
             var agent = new SyncAgent(clientProvider, serverProvider);
 
-            // no need to specify setup / tables, since we have already provisionned everything 
+            // no need to specify setup / tables, since we have already provisionned everything
             // on both side
-            var result = await agent.SynchronizeAsync();
+            var result = await agent.SynchronizeAsync().ConfigureAwait(false);
 
             Console.WriteLine(result);
         }
-
 
         private static async Task ProvisionServerManuallyAsync()
         {
@@ -62,10 +60,8 @@ namespace ProvisionDeprovision
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
             // Provision everything needed by the setup
-            await remoteOrchestrator.ProvisionAsync(setup);
-
+            await remoteOrchestrator.ProvisionAsync(setup).ConfigureAwait(false);
         }
-
 
         private static async Task DeprovisionServerManuallyAsync()
         {
@@ -76,13 +72,14 @@ namespace ProvisionDeprovision
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
             // Deprovision everything
-            var p = SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient | 
+            var p = SyncProvision.ScopeInfo | SyncProvision.ScopeInfoClient |
                     SyncProvision.StoredProcedures | SyncProvision.TrackingTable |
-                    SyncProvision.Triggers;   
+                    SyncProvision.Triggers;
 
             // Deprovision everything
-            await remoteOrchestrator.DeprovisionAsync(p);
+            await remoteOrchestrator.DeprovisionAsync(p).ConfigureAwait(false);
         }
+
         private static async Task DeprovisionClientManuallyAsync()
         {
             // Create client provider
@@ -96,17 +93,14 @@ namespace ProvisionDeprovision
                     SyncProvision.Triggers;
 
             // Deprovision everything
-            await localOrchestrator.DeprovisionAsync(p);
-
+            await localOrchestrator.DeprovisionAsync(p).ConfigureAwait(false);
         }
-
 
         private static async Task ProvisionClientManuallyAsync()
         {
             // Create 2 Sql Sync providers
             var serverProvider = new SqlSyncProvider(serverConnectionString);
             var clientProvider = new SqlSyncProvider(clientConnectionString);
-
 
             // -----------------------------------------------------------------
             // Client side
@@ -125,15 +119,14 @@ namespace ProvisionDeprovision
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider);
 
             // Getting the server scope from server side
-            var serverScope = await remoteOrchestrator.GetScopeInfoAsync();
+            var serverScope = await remoteOrchestrator.GetScopeInfoAsync().ConfigureAwait(false);
 
             // You can create a WebRemoteOrchestrator and get the ServerScope as well
             // var proxyClientProvider = new WebRemoteOrchestrator("https://localhost:44369/api/Sync");
             // var serverScope = proxyClientProvider.GetScopeInfoAsync();
 
             // Provision everything needed (sp, triggers, tracking tables, AND TABLES)
-            await localOrchestrator.ProvisionAsync(serverScope);
-
+            await localOrchestrator.ProvisionAsync(serverScope).ConfigureAwait(false);
         }
     }
 }

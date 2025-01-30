@@ -1,11 +1,8 @@
 using Dotmim.Sync.Enumerations;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 using System;
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Common;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync.Tests.Models
@@ -138,7 +135,7 @@ namespace Dotmim.Sync.Tests.Models
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<SyncLog>().HasKey(ba => new { ba.SessionId});
+            modelBuilder.Entity<SyncLog>().HasKey(ba => new { ba.SessionId });
             modelBuilder.Entity<SyncLogTable>().HasKey(ba => new { ba.SessionId, ba.TableName });
 
         }
@@ -171,7 +168,7 @@ namespace Dotmim.Sync.Tests.Models
         public SyncType SyncType { get; set; }
         public DateTime? StartTime { get; set; }
         public DateTime? EndTime { get; set; }
-        public bool IsNew{ get; set; }
+        public bool IsNew { get; set; }
         public long? FromTimestamp { get; set; }
         public long? ToTimestamp { get; set; }
         public string ChangesAppliedOnServer { get; set; }

@@ -1,20 +1,18 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Orchestrators
 {
-    public class Helper
+    public static class Helper
     {
         public static async Task InsertOneProductCategoryAsync(DbConnection c, string updatedName)
         {
             using (var command = c.CreateCommand())
             {
                 command.CommandText = "Insert Into ProductCategory (ProductCategoryID, Name) Values (@ProductCategoryID, @Name)";
-                
+
                 var p = command.CreateParameter();
                 p.DbType = DbType.Guid;
                 p.Value = Guid.NewGuid();
@@ -27,8 +25,8 @@ namespace Orchestrators
                 p.ParameterName = "@Name";
                 command.Parameters.Add(p);
 
-                await c.OpenAsync();
-                var id = await command.ExecuteNonQueryAsync();
+                await c.OpenAsync().ConfigureAwait(false);
+                var id = await command.ExecuteNonQueryAsync().ConfigureAwait(false);
                 c.Close();
             }
         }
@@ -50,8 +48,8 @@ namespace Orchestrators
                 p.ParameterName = "@lastName";
                 command.Parameters.Add(p);
 
-                await c.OpenAsync();
-                var id = await command.ExecuteScalarAsync();
+                await c.OpenAsync().ConfigureAwait(false);
+                var id = await command.ExecuteScalarAsync().ConfigureAwait(false);
                 c.Close();
 
                 return Convert.ToInt32(id);

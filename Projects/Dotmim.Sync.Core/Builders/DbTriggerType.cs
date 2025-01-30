@@ -1,13 +1,24 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace Dotmim.Sync.Builders
+﻿namespace Dotmim.Sync.Builders
 {
+
+    /// <summary>
+    /// Trigger type enumeration (Insert, Update, Delete).
+    /// </summary>
     public enum DbTriggerType
     {
+        /// <summary>
+        /// Insert trigger.
+        /// </summary>
         Insert,
+
+        /// <summary>
+        /// Update trigger.
+        /// </summary>
         Update,
-        Delete
+
+        /// <summary>
+        /// Delete trigger.
+        /// </summary>
+        Delete,
     }
 }

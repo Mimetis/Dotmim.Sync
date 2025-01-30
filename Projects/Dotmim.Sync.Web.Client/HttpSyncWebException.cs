@@ -1,10 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Text;
+﻿using System.Net;
 
 namespace Dotmim.Sync.Web.Client
 {
+    /// <summary>
+    /// HttpSyncWebException is thrown when an HTTP request fails with a specific status code.
+    /// </summary>
     public class HttpSyncWebException : SyncException
     {
         /// <summary>
@@ -17,10 +17,10 @@ namespace Dotmim.Sync.Web.Client
         /// </summary>
         public HttpStatusCode StatusCode { get; set; }
 
-        public HttpSyncWebException(string message) : base(message)
+        /// <inheritdoc cref="HttpSyncWebException" />
+        public HttpSyncWebException(string message)
+            : base(message)
         {
         }
-
-
     }
 }

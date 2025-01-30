@@ -1,20 +1,17 @@
-﻿using Dotmim.Sync.Tests.Core;
-using Dotmim.Sync.Tests.Misc;
-using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Data.Common;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-
-namespace Dotmim.Sync.Tests.Models
+﻿namespace Dotmim.Sync.Tests.Models
 {
+    using Dotmim.Sync.Tests.Core;
+    using Dotmim.Sync.Tests.Misc;
+    using Microsoft.EntityFrameworkCore;
+    using System;
+    using System.Collections.Generic;
+    using System.Data.Common;
+    using System.Diagnostics;
+    using System.Linq;
+    using System.Threading.Tasks;
+
     public static class AdventureWorksExtensions
     {
-
         public static bool UseFallbackSchema(this CoreProvider coreProvider, bool? defaultValue = null)
         {
             if (defaultValue.HasValue)
@@ -26,7 +23,9 @@ namespace Dotmim.Sync.Tests.Models
             if (coreProvider.AdditionalProperties.TryGetValue("UseFallbackSchema", out var useFallbackSchema))
             {
                 if (bool.TryParse(useFallbackSchema, out var isUsingFallbackSchema))
+                {
                     return isUsingFallbackSchema;
+                }
             }
 
             return false;
@@ -43,40 +42,49 @@ namespace Dotmim.Sync.Tests.Models
             if (coreProvider.AdditionalProperties.TryGetValue("UseShouldDropDatabase", out var useShouldDropDatabase))
             {
                 if (bool.TryParse(useShouldDropDatabase, out var isUseShouldDropDatabase))
+                {
                     return isUseShouldDropDatabase;
+                }
             }
 
             return false;
         }
 
-
-        public async static Task<List<ProductCategory>> GetProductCategoriesAsync(this CoreProvider provider, DbTransaction transaction = null)
+        public static async Task<List<ProductCategory>> GetProductCategoriesAsync(this CoreProvider provider, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             return await ctx.ProductCategory.ToListAsync();
         }
-        public static async Task<ProductCategory> GetProductCategoryAsync(this CoreProvider provider, string productCategoryId,  DbTransaction transaction = null)
+
+        public static async Task<ProductCategory> GetProductCategoryAsync(this CoreProvider provider, string productCategoryId, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             return await ctx.ProductCategory.FindAsync(productCategoryId);
         }
 
-        public static async Task<ProductCategory> AddProductCategoryAsync(this CoreProvider provider,
-                                string productCategoryId = default, string parentProductCategoryId = default, string name = default, Guid? rowguid = default,
-                                DateTime? modifiedDate = default, string attributeWithSpace = default,  DbTransaction transaction = null)
+        public static async Task<ProductCategory> AddProductCategoryAsync(
+            this CoreProvider provider,
+            string productCategoryId = default, string parentProductCategoryId = default, string name = default, Guid? rowguid = default,
+            DateTime? modifiedDate = default, string attributeWithSpace = default, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             name = string.IsNullOrEmpty(name) ? HelperDatabase.GetRandomName() : name;
             productCategoryId = string.IsNullOrEmpty(productCategoryId) ? name.ToUpperInvariant()[..11] : productCategoryId;
@@ -88,8 +96,7 @@ namespace Dotmim.Sync.Tests.Models
                 Name = name,
                 Rowguid = rowguid,
                 ModifiedDate = modifiedDate != null ? modifiedDate.Value : (DateTime?)null,
-                AttributeWithSpace = attributeWithSpace
-
+                AttributeWithSpace = attributeWithSpace,
             };
             ctx.Add(pc);
 
@@ -98,12 +105,14 @@ namespace Dotmim.Sync.Tests.Models
             return pc;
         }
 
-        public async static Task<ProductCategory> UpdateProductCategoryAsync(this CoreProvider provider, ProductCategory productCategory, DbTransaction transaction = null)
+        public static async Task<ProductCategory> UpdateProductCategoryAsync(this CoreProvider provider, ProductCategory productCategory, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             ctx.ProductCategory.Add(productCategory);
             ctx.Entry(productCategory).State = EntityState.Modified;
@@ -113,12 +122,14 @@ namespace Dotmim.Sync.Tests.Models
             return productCategory;
         }
 
-        public async static Task DeleteProductCategoryAsync(this CoreProvider provider, string productCategoryId,  DbTransaction transaction = null)
+        public static async Task DeleteProductCategoryAsync(this CoreProvider provider, string productCategoryId, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             var pc = await ctx.ProductCategory.FirstOrDefaultAsync(pc => pc.ProductCategoryId == productCategoryId);
             ctx.ProductCategory.Remove(pc);
@@ -126,16 +137,19 @@ namespace Dotmim.Sync.Tests.Models
             await ctx.SaveChangesAsync();
         }
 
-        public async static Task<Product> AddProductAsync(this CoreProvider provider,
+        public static async Task<Product> AddProductAsync(
+            this CoreProvider provider,
             Guid? productId = default,
             string productNumber = default, string name = default, string productCategoryId = default,
             string color = default, decimal? standardCost = default, decimal? listPrice = default, string size = default, decimal? weight = default, Guid? rowguid = default,
             DateTime? modifiedDate = default, byte[] thumbNailPhoto = default, string thumbnailPhotoFileName = default, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             productId ??= Guid.NewGuid();
             name = string.IsNullOrEmpty(name) ? HelperDatabase.GetRandomName() : name;
@@ -155,7 +169,7 @@ namespace Dotmim.Sync.Tests.Models
                 Rowguid = rowguid,
                 ModifiedDate = modifiedDate != null ? modifiedDate.Value : (DateTime?)null,
                 ThumbNailPhoto = thumbNailPhoto,
-                ThumbnailPhotoFileName = thumbnailPhotoFileName
+                ThumbnailPhotoFileName = thumbnailPhotoFileName,
             };
             ctx.Add(p);
 
@@ -164,32 +178,38 @@ namespace Dotmim.Sync.Tests.Models
             return p;
         }
 
-        public async static Task<List<Product>> GetProductsAsync(this CoreProvider provider, DbTransaction transaction = null)
+        public static async Task<List<Product>> GetProductsAsync(this CoreProvider provider, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             return await ctx.Product.ToListAsync();
         }
-      
-        public async static Task<Product> GetProductAsync(this CoreProvider provider, Guid productId, DbTransaction transaction = null)
+
+        public static async Task<Product> GetProductAsync(this CoreProvider provider, Guid productId, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             return await ctx.Product.FindAsync(productId);
         }
 
-        public async static Task<Product> UpdateProductAsync(this CoreProvider provider, Product product,  DbTransaction transaction = null)
+        public static async Task<Product> UpdateProductAsync(this CoreProvider provider, Product product, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             ctx.Product.Add(product);
             ctx.Entry(product).State = EntityState.Modified;
@@ -199,12 +219,14 @@ namespace Dotmim.Sync.Tests.Models
             return product;
         }
 
-        public async static Task DeleteProductAsync(this CoreProvider provider, Guid productId, DbTransaction transaction = null)
+        public static async Task DeleteProductAsync(this CoreProvider provider, Guid productId, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             var pc = await ctx.Product.FirstOrDefaultAsync(pc => pc.ProductId == productId);
             ctx.Product.Remove(pc);
@@ -212,13 +234,15 @@ namespace Dotmim.Sync.Tests.Models
             await ctx.SaveChangesAsync();
         }
 
-        public async static Task<PriceList> AddPriceListAsync(this CoreProvider provider, Guid? priceListId = default, string description = default, DateTime? from = default,
+        public static async Task<PriceList> AddPriceListAsync(this CoreProvider provider, Guid? priceListId = default, string description = default, DateTime? from = default,
            DateTime? to = default, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             priceListId = priceListId.HasValue ? priceListId : Guid.NewGuid();
             description = string.IsNullOrEmpty(description) ? HelperDatabase.GetRandomName() : description;
@@ -228,7 +252,7 @@ namespace Dotmim.Sync.Tests.Models
                 PriceListId = priceListId.Value,
                 Description = description,
                 From = from != null ? from.Value : (DateTime?)null,
-                To = to != null ? to.Value : (DateTime?)null
+                To = to != null ? to.Value : (DateTime?)null,
             };
             ctx.Add(pl);
 
@@ -237,23 +261,27 @@ namespace Dotmim.Sync.Tests.Models
             return pl;
         }
 
-        public async static Task<PriceList> GetPriceListAsync(this CoreProvider provider, Guid priceListId, DbTransaction transaction = null)
+        public static async Task<PriceList> GetPriceListAsync(this CoreProvider provider, Guid priceListId, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             return await ctx.PricesList.FindAsync(priceListId);
         }
 
-        public async static Task<Customer> AddCustomerAsync(this CoreProvider provider, Guid? customerId = default, string firstName = default,
+        public static async Task<Customer> AddCustomerAsync(this CoreProvider provider, Guid? customerId = default, string firstName = default,
             string lastName = default, string companyName = default, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             var customer = new Customer
             {
@@ -268,18 +296,19 @@ namespace Dotmim.Sync.Tests.Models
             await ctx.SaveChangesAsync();
 
             return customer;
-
         }
 
-        public async static Task<Address> AddAddressAsync(this CoreProvider provider, int? addressId = default, string addressLine1 = default, string addressLine2 = default,
+        public static async Task<Address> AddAddressAsync(this CoreProvider provider, int? addressId = default, string addressLine1 = default, string addressLine2 = default,
           string city = default, string postalCode = default, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             var (providerType, _) = HelperDatabase.GetDatabaseType(provider);
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             ctx.Database.OpenConnection();
 
@@ -295,25 +324,30 @@ namespace Dotmim.Sync.Tests.Models
             ctx.Add(address);
 
             if (providerType == ProviderType.Sql && addressId.HasValue)
+            {
                 ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT Address ON;");
+            }
 
             await ctx.SaveChangesAsync();
 
             if (providerType == ProviderType.Sql && addressId.HasValue)
+            {
                 ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT Address OFF;");
+            }
 
             ctx.Database.CloseConnection();
 
             return address;
-
         }
 
-        public async static Task<Address> UpdateAddressAsync(this CoreProvider provider, Address address, DbTransaction transaction = null)
+        public static async Task<Address> UpdateAddressAsync(this CoreProvider provider, Address address, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             ctx.Address.Add(address);
             ctx.Entry(address).State = EntityState.Modified;
@@ -323,12 +357,14 @@ namespace Dotmim.Sync.Tests.Models
             return address;
         }
 
-        public async static Task DeleteAddressAsync(this CoreProvider provider, int addressId,  DbTransaction transaction = null)
+        public static async Task DeleteAddressAsync(this CoreProvider provider, int addressId, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             var pc = await ctx.Address.FirstOrDefaultAsync(pc => pc.AddressId == addressId);
             ctx.Address.Remove(pc);
@@ -336,29 +372,33 @@ namespace Dotmim.Sync.Tests.Models
             await ctx.SaveChangesAsync();
         }
 
-        public async static Task<Address> GetAddressAsync(this CoreProvider provider, int addressId, DbTransaction transaction = null)
+        public static async Task<Address> GetAddressAsync(this CoreProvider provider, int addressId, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             return await ctx.Address.FindAsync(addressId);
         }
 
-        public async static Task<CustomerAddress> AddCustomerAddressAsync(this CoreProvider provider, int addressId, Guid customerId, string addressType = default,
+        public static async Task<CustomerAddress> AddCustomerAddressAsync(this CoreProvider provider, int addressId, Guid customerId, string addressType = default,
             DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             var customerAddress = new CustomerAddress
             {
                 AddressId = addressId,
                 CustomerId = customerId,
-                AddressType = addressType == default ? "Home" : addressType
+                AddressType = addressType == default ? "Home" : addressType,
             };
 
             ctx.Add(customerAddress);
@@ -366,15 +406,16 @@ namespace Dotmim.Sync.Tests.Models
             await ctx.SaveChangesAsync();
 
             return customerAddress;
-
         }
 
-        public async static Task<CustomerAddress> UpdateCustomerAddressAsync(this CoreProvider provider, CustomerAddress customerAddress, DbTransaction transaction = null)
+        public static async Task<CustomerAddress> UpdateCustomerAddressAsync(this CoreProvider provider, CustomerAddress customerAddress, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             ctx.CustomerAddress.Add(customerAddress);
             ctx.Entry(customerAddress).State = EntityState.Modified;
@@ -384,12 +425,14 @@ namespace Dotmim.Sync.Tests.Models
             return customerAddress;
         }
 
-        public async static Task DeleteCustomerAddressAsync(this CoreProvider provider, int addressId, Guid customerId, DbTransaction transaction = null)
+        public static async Task DeleteCustomerAddressAsync(this CoreProvider provider, int addressId, Guid customerId, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             var pc = await ctx.CustomerAddress.FirstOrDefaultAsync(pc => pc.AddressId == addressId && pc.CustomerId == customerId);
             ctx.CustomerAddress.Remove(pc);
@@ -397,25 +440,29 @@ namespace Dotmim.Sync.Tests.Models
             await ctx.SaveChangesAsync();
         }
 
-        public async static Task<CustomerAddress> GetCustomerAddressAsync(this CoreProvider provider, int addressId, Guid customerId, DbTransaction transaction = null)
+        public static async Task<CustomerAddress> GetCustomerAddressAsync(this CoreProvider provider, int addressId, Guid customerId, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             return await ctx.CustomerAddress.FirstOrDefaultAsync(pc => pc.AddressId == addressId && pc.CustomerId == customerId);
         }
 
-        public async static Task<SalesOrderHeader> AddSalesOrderHeaderAsync(this CoreProvider provider, Guid? customerId, int? salesOrderId = default,
+        public static async Task<SalesOrderHeader> AddSalesOrderHeaderAsync(this CoreProvider provider, Guid? customerId, int? salesOrderId = default,
           DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             var (providerType, _) = HelperDatabase.GetDatabaseType(provider);
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             ctx.Database.OpenConnection();
 
@@ -432,38 +479,38 @@ namespace Dotmim.Sync.Tests.Models
                 SubTotal = 6530.35M,
                 TaxAmt = 70.4279M,
                 Freight = 22.0087M,
-                TotalDue = 6530.35M + 70.4279M + 22.0087M
+                TotalDue = 6530.35M + 70.4279M + 22.0087M,
             };
-
 
             ctx.Add(soh);
 
             var sohTableName = provider.UseFallbackSchema() ? "SalesLT.SalesOrderHeader" : "SalesOrderHeader";
 
             if (providerType == ProviderType.Sql && salesOrderId.HasValue)
-#pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
+            {
                 ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT {sohTableName} ON;");
-#pragma warning restore EF1002 // Risk of vulnerability to SQL injection.
+            }
 
             await ctx.SaveChangesAsync();
 
             if (providerType == ProviderType.Sql && salesOrderId.HasValue)
-#pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
+            {
                 ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT {sohTableName} OFF;");
-#pragma warning restore EF1002 // Risk of vulnerability to SQL injection.
+            }
 
             ctx.Database.CloseConnection();
 
             return soh;
-
         }
 
-        public async static Task<SalesOrderHeader> UpdateSalesOrderHeaderAsync(this CoreProvider provider, SalesOrderHeader salesOrderHeader, DbTransaction transaction = null)
+        public static async Task<SalesOrderHeader> UpdateSalesOrderHeaderAsync(this CoreProvider provider, SalesOrderHeader salesOrderHeader, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             ctx.SalesOrderHeader.Add(salesOrderHeader);
             ctx.Entry(salesOrderHeader).State = EntityState.Modified;
@@ -473,12 +520,14 @@ namespace Dotmim.Sync.Tests.Models
             return salesOrderHeader;
         }
 
-        public async static Task DeleteSalesOrderHeaderAsync(this CoreProvider provider, int salesOrderId, DbTransaction transaction = null)
+        public static async Task DeleteSalesOrderHeaderAsync(this CoreProvider provider, int salesOrderId, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             var pc = await ctx.SalesOrderHeader.FirstOrDefaultAsync(pc => pc.SalesOrderId == salesOrderId);
             ctx.SalesOrderHeader.Remove(pc);
@@ -486,26 +535,30 @@ namespace Dotmim.Sync.Tests.Models
             await ctx.SaveChangesAsync();
         }
 
-        public async static Task<SalesOrderHeader> GetSalesOrderHeaderAsync(this CoreProvider provider, int salesOrderId,  DbTransaction transaction = null)
+        public static async Task<SalesOrderHeader> GetSalesOrderHeaderAsync(this CoreProvider provider, int salesOrderId, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             return await ctx.SalesOrderHeader.FindAsync(salesOrderId);
         }
 
-        public async static Task<SalesOrderDetail> AddSalesOrderDetailAsync(this CoreProvider provider, int salesOrderId, Guid productId,
+        public static async Task<SalesOrderDetail> AddSalesOrderDetailAsync(this CoreProvider provider, int salesOrderId, Guid productId,
            int? salesOrderDetailId = default, short? orderQty = default, decimal? unitPrice = default,
            DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             var (providerType, _) = HelperDatabase.GetDatabaseType(provider);
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             ctx.Database.OpenConnection();
 
@@ -519,35 +572,39 @@ namespace Dotmim.Sync.Tests.Models
                 UnitPriceDiscount = 0M,
             };
 
-
             ctx.Add(sod);
 
             var sodTableName = provider.UseFallbackSchema() ? "SalesLT.SalesOrderDetail" : "SalesOrderDetail";
 
             if (providerType == ProviderType.Sql && salesOrderDetailId.HasValue)
+            {
 #pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
                 ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT {sodTableName} ON;");
+            }
 #pragma warning restore EF1002 // Risk of vulnerability to SQL injection.
 
             await ctx.SaveChangesAsync();
 
             if (providerType == ProviderType.Sql && salesOrderDetailId.HasValue)
+            {
 #pragma warning disable EF1002 // Risk of vulnerability to SQL injection.
                 ctx.Database.ExecuteSqlRaw($"SET IDENTITY_INSERT {sodTableName} OFF;");
+            }
 #pragma warning restore EF1002 // Risk of vulnerability to SQL injection.
 
             ctx.Database.CloseConnection();
 
             return sod;
-
         }
 
-        public async static Task<SalesOrderDetail> UpdateSalesOrderDetailAsync(this CoreProvider provider, SalesOrderDetail salesOrderDetail, DbTransaction transaction = null)
+        public static async Task<SalesOrderDetail> UpdateSalesOrderDetailAsync(this CoreProvider provider, SalesOrderDetail salesOrderDetail, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             ctx.SalesOrderDetail.Add(salesOrderDetail);
             ctx.Entry(salesOrderDetail).State = EntityState.Modified;
@@ -557,12 +614,14 @@ namespace Dotmim.Sync.Tests.Models
             return salesOrderDetail;
         }
 
-        public async static Task DeleteSalesOrderDetailAsync(this CoreProvider provider, int salesOrderDetailId, DbTransaction transaction = null)
+        public static async Task DeleteSalesOrderDetailAsync(this CoreProvider provider, int salesOrderDetailId, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             var pc = await ctx.SalesOrderDetail.FirstOrDefaultAsync(pc => pc.SalesOrderDetailId == salesOrderDetailId);
             ctx.SalesOrderDetail.Remove(pc);
@@ -570,28 +629,30 @@ namespace Dotmim.Sync.Tests.Models
             await ctx.SaveChangesAsync();
         }
 
-        public async static Task<SalesOrderDetail> GetSalesOrderDetailAsync(this CoreProvider provider, int salesOrderDetailId, DbTransaction transaction = null)
+        public static async Task<SalesOrderDetail> GetSalesOrderDetailAsync(this CoreProvider provider, int salesOrderDetailId, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             return await ctx.SalesOrderDetail.FindAsync(salesOrderDetailId);
         }
 
-        public async static Task ExecuteSqlRawAsync(this CoreProvider provider, string sql, DbTransaction transaction = null)
+        public static async Task ExecuteSqlRawAsync(this CoreProvider provider, string sql, DbTransaction transaction = null)
         {
-            using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(provider, provider.UseFallbackSchema());
 
             var (providerType, _) = HelperDatabase.GetDatabaseType(provider);
 
- 
             if (transaction != null)
+            {
                 ctx.Database.UseTransaction(transaction);
+            }
 
             await ctx.Database.ExecuteSqlRawAsync(sql);
-
         }
 
         public static async Task EnsureTablesAreCreatedAsync(this CoreProvider coreProvider, bool seeding)
@@ -599,12 +660,14 @@ namespace Dotmim.Sync.Tests.Models
             var (t, d) = HelperDatabase.GetDatabaseType(coreProvider);
 
             if (t == ProviderType.Sqlite)
+            {
                 HelperDatabase.DropDatabase(t, d);
+            }
 
             new AdventureWorksContext(coreProvider, seeding).Database.EnsureCreated();
 
             var localOrchestrator = new LocalOrchestrator(coreProvider);
-            using var c = coreProvider.CreateConnection();
+            await using var c = coreProvider.CreateConnection();
             c.Open();
 
             var setup = await localOrchestrator.GetAllTablesAsync(c);
@@ -613,8 +676,8 @@ namespace Dotmim.Sync.Tests.Models
             {
                 Console.WriteLine($"Tables not created for provider {t} in database {d}");
                 Debug.WriteLine($"Tables not created for provider {t} in database {d}");
-
             }
+
             c.Close();
         }
 
@@ -636,9 +699,10 @@ namespace Dotmim.Sync.Tests.Models
 
             var (providerType, dbName) = HelperDatabase.GetDatabaseType(provider);
             foreach (var schemaTable in schemaTables.Reverse())
+            {
                 HelperDatabase.TruncateTable(providerType, dbName, schemaTable.TableName, schemaTable.SchemaName);
+            }
         }
-
 
         public static int GetDatabaseRowsCount(this CoreProvider provider)
         {
@@ -667,13 +731,14 @@ namespace Dotmim.Sync.Tests.Models
             return totalCountRows;
         }
 
-
         public static int GetDatabaseFilteredRowsCount(this CoreProvider coreProvider, Guid? customerId = default)
         {
             int totalCountRows = 0;
 
             if (!customerId.HasValue)
+            {
                 customerId = AdventureWorksContext.CustomerId1ForFilter;
+            }
 
             using var ctx = new AdventureWorksContext(coreProvider);
 
@@ -682,7 +747,7 @@ namespace Dotmim.Sync.Tests.Models
             totalCountRows += ctx.CustomerAddress.Where(c => c.CustomerId == customerId).Count();
             totalCountRows += ctx.SalesOrderDetail.Where(sod => sod.SalesOrder.CustomerId == customerId).Count();
             totalCountRows += ctx.SalesOrderHeader.Where(c => c.CustomerId == customerId).Count();
-            totalCountRows += ctx.Product.Where(p => !String.IsNullOrEmpty(p.ProductCategoryId)).Count();
+            totalCountRows += ctx.Product.Where(p => !string.IsNullOrEmpty(p.ProductCategoryId)).Count();
 
             totalCountRows += ctx.Employee.Count();
             totalCountRows += ctx.EmployeeAddress.Count();
@@ -698,7 +763,5 @@ namespace Dotmim.Sync.Tests.Models
 
             return totalCountRows;
         }
-
-
     }
 }

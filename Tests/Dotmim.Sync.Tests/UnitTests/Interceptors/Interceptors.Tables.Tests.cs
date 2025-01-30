@@ -1,21 +1,11 @@
-﻿using Dotmim.Sync.Builders;
-using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Tests.Core;
+﻿using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
 using Microsoft.Data.SqlClient;
 using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Diagnostics;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
@@ -31,7 +21,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             clientProvider = HelperDatabase.GetSyncProvider(clientProviderType, dbName, clientProvider.UseFallbackSchema());
 
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
 
             var table = new SyncTable("Product", "SalesLT");
             var colID = new SyncColumn("ID", typeof(Guid));
@@ -55,7 +45,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             localOrchestrator.OnTableCreating(ttca =>
             {
-                var addingID = Environment.NewLine + $"ALTER TABLE {ttca.TableName.Schema().Quoted()} ADD internal_id int identity(1,1)";
+                var addingID = Environment.NewLine + $"ALTER TABLE {ttca.TableFullName} ADD internal_id int identity(1,1)";
                 ttca.Command.CommandText += addingID;
                 onCreating = true;
             });
@@ -74,7 +64,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
 
             // Check we have a new column in tracking table
-            using (var c = new SqlConnection(clientProvider.ConnectionString))
+            await using (var c = new SqlConnection(clientProvider.ConnectionString))
             {
                 await c.OpenAsync();
                 var cols = await SqlManagementUtils.GetColumnsForTableAsync("Product", "SalesLT", c, null);
@@ -88,7 +78,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         public async Task Table_Exists()
         {
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
-            var setup = new SyncSetup(new string[] { "SalesLT.Product", "SalesLT.ProductCategory" });
+            var setup = new SyncSetup("SalesLT.Product", "SalesLT.ProductCategory");
 
             var table = new SyncTable("Product", "SalesLT");
             var colID = new SyncColumn("ID", typeof(Guid));
@@ -100,7 +90,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             table.PrimaryKeys.Add("ID");
 
             var schema = new SyncSet();
-            schema.Tables.Add(table);   
+            schema.Tables.Add(table);
 
             var scopeInfo = await localOrchestrator.GetScopeInfoAsync();
             scopeInfo.Setup = setup;
@@ -126,7 +116,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             clientProvider = HelperDatabase.GetSyncProvider(clientProviderType, dbName, clientProvider.UseFallbackSchema());
 
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
 
             // Overwrite existing table with this new one
             var table = new SyncTable("Product", "SalesLT");
@@ -193,7 +183,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts" });
+            var setup = new SyncSetup("SalesLT.ProductCategory", "SalesLT.ProductModel", "SalesLT.Product", "Posts");
 
             var serverScope = await remoteOrchestrator.GetScopeInfoAsync(setup);
 

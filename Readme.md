@@ -82,6 +82,10 @@ Synchronization done.
 
 Yes it's blazing fast !
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Mimetis/Dotmim.Sync&type=Date)](https://star-history.com/#Mimetis/Dotmim.Sync&Date)
+
 ## Need Help
 
 * Check the full documentation, available here : [https://dotmimsync.readthedocs.io/](https://dotmimsync.readthedocs.io/)

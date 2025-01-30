@@ -1,24 +1,25 @@
-﻿using Dotmim.Sync.Builders;
-
-using System;
-using System.Collections.Generic;
-using System.Data;
+﻿using Dotmim.Sync.DatabaseStringParsers;
+using Dotmim.Sync.SqlServer.Builders;
 using Microsoft.Data.SqlClient;
-using System.Linq;
-using System.Threading.Tasks;
+using System;
+using System.Data;
 
 namespace Dotmim.Sync.SqlServer
 {
+    /// <summary>
+    /// Sql Extensions Methods.
+    /// </summary>
     public static class SqlExtensionsMethods
     {
 
-        internal static SqlParameter[] DeriveParameters(this SqlConnection connection, SqlCommand cmd, bool includeReturnValueParameter = false, SqlTransaction transaction = null)
+        internal static SqlParameter[] DeriveParameters(this SqlConnection connection, SqlCommand cmd,
+            bool includeReturnValueParameter, SqlTransaction transaction)
         {
-            if (cmd == null) throw new ArgumentNullException("SqlCommand");
+            Guard.ThrowIfNull(cmd);
 
-            var textParser = ParserName.Parse(cmd.CommandText);
+            var textParser = new ObjectParser(cmd.CommandText, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
 
-            string schemaName = textParser.SchemaName;
+            string schemaName = textParser.OwnerName;
             string spName = textParser.ObjectName;
 
             var alreadyOpened = connection.State == ConnectionState.Open;
@@ -28,82 +29,78 @@ namespace Dotmim.Sync.SqlServer
 
             try
             {
-                var getParamsCommand = new SqlCommand("sp_procedure_params_rowset", connection);
+                using var getParamsCommand = new SqlCommand("sp_procedure_params_rowset", connection);
                 getParamsCommand.CommandType = CommandType.StoredProcedure;
-                    getParamsCommand.Transaction = transaction;
+                getParamsCommand.Transaction = transaction;
 
-                var p = new SqlParameter("@procedure_name", SqlDbType.NVarChar);
-                p.Value = spName;
+                var p = new SqlParameter("@procedure_name", SqlDbType.NVarChar) { Value = spName };
                 getParamsCommand.Parameters.Add(p);
-                p = new SqlParameter("@procedure_schema", SqlDbType.NVarChar);
-                p.Value = schemaName;
+                p = new SqlParameter("@procedure_schema", SqlDbType.NVarChar) { Value = schemaName };
                 getParamsCommand.Parameters.Add(p);
 
-                using (var sdr = getParamsCommand.ExecuteReader())
+                using var sdr = getParamsCommand.ExecuteReader();
+
+                // Do we have any rows?
+                if (sdr.HasRows)
                 {
-                    // Do we have any rows?
-                    if (sdr.HasRows)
+                    // Read the parameter information
+                    int paramNameCol = sdr.GetOrdinal("PARAMETER_NAME");
+                    int paramSizeCol = sdr.GetOrdinal("CHARACTER_MAXIMUM_LENGTH");
+                    int paramTypeCol = sdr.GetOrdinal("TYPE_NAME");
+                    int paramNullCol = sdr.GetOrdinal("IS_NULLABLE");
+                    int paramPrecCol = sdr.GetOrdinal("NUMERIC_PRECISION");
+                    int paramDirCol = sdr.GetOrdinal("PARAMETER_TYPE");
+                    int paramScaleCol = sdr.GetOrdinal("NUMERIC_SCALE");
+
+                    // Loop through and read the rows
+                    while (sdr.Read())
                     {
-                        // Read the parameter information
-                        int ParamNameCol = sdr.GetOrdinal("PARAMETER_NAME");
-                        int ParamSizeCol = sdr.GetOrdinal("CHARACTER_MAXIMUM_LENGTH");
-                        int ParamTypeCol = sdr.GetOrdinal("TYPE_NAME");
-                        int ParamNullCol = sdr.GetOrdinal("IS_NULLABLE");
-                        int ParamPrecCol = sdr.GetOrdinal("NUMERIC_PRECISION");
-                        int ParamDirCol = sdr.GetOrdinal("PARAMETER_TYPE");
-                        int ParamScaleCol = sdr.GetOrdinal("NUMERIC_SCALE");
+                        string name = sdr.GetString(paramNameCol);
+                        string datatype = sdr.GetString(paramTypeCol);
 
-                        // Loop through and read the rows
-                        while (sdr.Read())
+                        // Is this xml?
+                        // ADO.NET 1.1 does not support XML, replace with text
+                        // if (0 == String.Compare("xml", datatype, true))
+                        //    datatype = "Text";
+                        if (string.Equals("table", datatype, StringComparison.OrdinalIgnoreCase))
+                            datatype = "Structured";
+
+                        // TODO : Should we raise an error here ??
+                        if (!Enum.TryParse(datatype, true, out SqlDbType type))
+                            type = SqlDbType.Variant;
+
+                        bool nullable = sdr.GetBoolean(paramNullCol);
+                        var param = new SqlParameter(name, type);
+
+                        // Determine parameter direction
+                        int dir = sdr.GetInt16(paramDirCol);
+                        switch (dir)
                         {
-                            string name = sdr.GetString(ParamNameCol);
-                            string datatype = sdr.GetString(ParamTypeCol);
-
-                            // Is this xml?
-                            // ADO.NET 1.1 does not support XML, replace with text
-                            //if (0 == String.Compare("xml", datatype, true))
-                            //    datatype = "Text";
-
-                            if (0 == string.Compare("table", datatype, true))
-                                datatype = "Structured";
-
-                            // TODO : Should we raise an error here ??
-                            if (!Enum.TryParse(datatype, true, out SqlDbType type))
-                                type = SqlDbType.Variant;
-
-                            bool Nullable = sdr.GetBoolean(ParamNullCol);
-                            var param = new SqlParameter(name, type);
-
-                            // Determine parameter direction
-                            int dir = sdr.GetInt16(ParamDirCol);
-                            switch (dir)
-                            {
-                                case 1:
-                                    param.Direction = ParameterDirection.Input;
-                                    break;
-                                case 2:
-                                    param.Direction = ParameterDirection.Output;
-                                    break;
-                                case 3:
-                                    param.Direction = ParameterDirection.InputOutput;
-                                    break;
-                                case 4:
-                                    param.Direction = ParameterDirection.ReturnValue;
-                                    break;
-                            }
-                            param.IsNullable = Nullable;
-                            if (!sdr.IsDBNull(ParamPrecCol))
-                                param.Precision = (Byte)sdr.GetInt16(ParamPrecCol);
-                            if (!sdr.IsDBNull(ParamSizeCol))
-                                param.Size = sdr.GetInt32(ParamSizeCol);
-                            if (!sdr.IsDBNull(ParamScaleCol))
-                                param.Scale = (Byte)sdr.GetInt16(ParamScaleCol);
-
-                            cmd.Parameters.Add(param);
+                            case 1:
+                                param.Direction = ParameterDirection.Input;
+                                break;
+                            case 2:
+                                param.Direction = ParameterDirection.Output;
+                                break;
+                            case 3:
+                                param.Direction = ParameterDirection.InputOutput;
+                                break;
+                            case 4:
+                                param.Direction = ParameterDirection.ReturnValue;
+                                break;
                         }
+
+                        param.IsNullable = nullable;
+                        if (!sdr.IsDBNull(paramPrecCol))
+                            param.Precision = (byte)sdr.GetInt16(paramPrecCol);
+                        if (!sdr.IsDBNull(paramSizeCol))
+                            param.Size = sdr.GetInt32(paramSizeCol);
+                        if (!sdr.IsDBNull(paramScaleCol))
+                            param.Scale = (byte)sdr.GetInt16(paramScaleCol);
+
+                        cmd.Parameters.Add(param);
                     }
                 }
-
             }
             finally
             {
@@ -125,8 +122,6 @@ namespace Dotmim.Sync.SqlServer
             return discoveredParameters;
         }
 
-
-
         internal static SqlParameter Clone(this SqlParameter param)
         {
             var p = new SqlParameter
@@ -142,11 +137,10 @@ namespace Dotmim.Sync.SqlServer
                 SqlDbType = param.SqlDbType,
                 SqlValue = param.SqlValue,
                 TypeName = param.TypeName,
-                Value = param.Value
+                Value = param.Value,
             };
 
             return p;
         }
-
     }
 }

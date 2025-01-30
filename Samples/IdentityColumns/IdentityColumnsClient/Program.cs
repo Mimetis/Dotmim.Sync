@@ -2,11 +2,11 @@
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Web.Client;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace IdentityColumnsClient
@@ -55,7 +55,7 @@ namespace IdentityColumnsClient
 
                     var seedingsResponseString = await seedingsResponse.Content.ReadAsStringAsync();
 
-                    var seedings = JsonConvert.DeserializeObject<List<Seeding>>(seedingsResponseString);
+                    var seedings = JsonSerializer.Deserialize<List<Seeding>>(seedingsResponseString);
 
                     agent.LocalOrchestrator.OnTableCreating(async tca =>
                     {

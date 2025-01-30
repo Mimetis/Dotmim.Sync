@@ -1,54 +1,55 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Sync Logger Provider.
+    /// </summary>
     public class SyncLoggerProvider : ILoggerProvider
     {
-        SyncLoggerOptions syncOptions = new SyncLoggerOptions();
+        private SyncLoggerOptions syncOptions = new();
 
         /// <summary>
-        /// Get default logger options
+        /// Gets get default logger options.
         /// </summary>
         public IConfigureOptions<LoggerFilterOptions> ConfigureOptions { get; }
 
         /// <summary>
-        /// Get Sync logger options
+        /// Gets get Sync logger options.
         /// </summary>
         public IConfigureOptions<SyncLoggerOptions> ConfigureSyncOptions { get; }
 
-
         /// <summary>
-        /// Get a sync logger provider. Options can come from both LoggerFilterOptions or from typed SyncLoggerOptions
+        /// Initializes a new instance of the <see cref="SyncLoggerProvider"/> class.
         /// </summary>
-        /// <param name="options"></param>
-        /// <param name="syncOptions"></param>
         public SyncLoggerProvider(IConfigureOptions<LoggerFilterOptions> options = null, IConfigureOptions<SyncLoggerOptions> syncOptions = null)
         {
             this.ConfigureOptions = options;
             this.ConfigureSyncOptions = syncOptions;
         }
 
+        /// <summary>
+        /// Create a new logger.
+        /// </summary>
         public ILogger CreateLogger(string categoryName)
         {
             var syncLogger = new SyncLogger();
 
             if (this.ConfigureOptions != null)
-                this.ConfigureOptions.Configure(syncOptions);
+                this.ConfigureOptions.Configure(this.syncOptions);
 
             // Override MinLevel, if coming from typed Sync Options
             if (this.ConfigureSyncOptions != null)
-                this.ConfigureSyncOptions.Configure(syncOptions);
+                this.ConfigureSyncOptions.Configure(this.syncOptions);
 
-            if (syncOptions != null)
+            if (this.syncOptions != null)
             {
-                syncLogger.MinimumLevel = syncOptions.MinLevel;
+                syncLogger.MinimumLevel = this.syncOptions.MinLevel;
 
-                if (syncOptions.outputWriters != null && syncOptions.outputWriters.Count > 0)
-                    syncLogger.outputWriters = syncOptions.outputWriters;
+                if (this.syncOptions.OutputWriters != null && this.syncOptions.OutputWriters.Count > 0)
+                    syncLogger.OutputWriters.AddRange(this.syncOptions.OutputWriters);
                 else
                     syncLogger.AddDebug();
             }
@@ -56,6 +57,24 @@ namespace Dotmim.Sync
             return syncLogger;
         }
 
-        public void Dispose() { }
+        /// <summary>
+        /// Dispose the logger.
+        /// </summary>
+        public void Dispose()
+        {
+            this.Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Dispose the logger.
+        /// </summary>
+        protected virtual void Dispose(bool cleanup)
+        {
+            if (cleanup)
+            {
+                this.syncOptions = null;
+            }
+        }
     }
 }

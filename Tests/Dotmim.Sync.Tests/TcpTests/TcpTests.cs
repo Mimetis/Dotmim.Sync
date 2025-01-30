@@ -1,34 +1,24 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.SqlServer;
+using Dotmim.Sync.Extensions;
 using Dotmim.Sync.SqlServer.Manager;
 using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Fixtures;
 using Dotmim.Sync.Tests.Misc;
 using Dotmim.Sync.Tests.Models;
-using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
-using System.Security.Cryptography.X509Certificates;
-using System.Text;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using Xunit;
 using Xunit.Abstractions;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Dotmim.Sync.Tests.IntegrationTests
 {
-
-
     public abstract partial class TcpTests : DatabaseTest, IClassFixture<DatabaseServerFixture>, IDisposable
     {
         private CoreProvider serverProvider;
@@ -86,8 +76,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(0, s.TotalChangesUploadedToServer);
                 Assert.Equal(rowsCount, clientRowsCount);
 
-                using var ctxServer = new AdventureWorksContext(serverProvider);
-                using var ctxClient = new AdventureWorksContext(clientProvider);
+                await using var ctxServer = new AdventureWorksContext(serverProvider);
+                await using var ctxClient = new AdventureWorksContext(clientProvider);
 
                 var serverSaleHeaders = ctxServer.SalesOrderHeader.AsNoTracking().ToList();
                 var clientSaleHeaders = ctxClient.SalesOrderHeader.AsNoTracking().ToList();
@@ -168,7 +158,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in newClientsProvider)
             {
                 // Check we have the correct columns replicated
-                using var clientConnection = clientProvider.CreateConnection();
+                await using var clientConnection = clientProvider.CreateConnection();
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 await clientConnection.OpenAsync();
@@ -213,8 +203,8 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                             Assert.Equal(serverColumn.IsUnicode, clientColumn.IsUnicode);
                             Assert.Equal(serverColumn.IsUnsigned, clientColumn.IsUnsigned);
 
-                            var maxPrecision = Math.Min(SqlDbMetadata.PRECISION_MAX, serverColumn.Precision);
-                            var maxScale = Math.Min(SqlDbMetadata.SCALE_MAX, serverColumn.Scale);
+                            var maxPrecision = Math.Min(SqlDbMetadata.PRECISIONMAX, serverColumn.Precision);
+                            var maxScale = Math.Min(SqlDbMetadata.SCALEMAX, serverColumn.Scale);
 
                             // dont assert max length since numeric reset this value
                             //Assert.Equal(serverColumn.MaxLength, clientColumn.MaxLength);
@@ -276,7 +266,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
         {
             // get the number of rows that have only primary keys (which do not accept any Update)
             int notUpdatedOnClientsCount;
-            using (var serverDbCtx = new AdventureWorksContext(serverProvider))
+            await using (var serverDbCtx = new AdventureWorksContext(serverProvider))
             {
                 var pricesListCategoriesCount = serverDbCtx.PricesListCategory.Count();
                 var postTagsCount = serverDbCtx.PostTag.Count();
@@ -397,7 +387,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var badSetup = new SyncSetup("Employee");
 
             // Add a malformatted column name
-            badSetup.Tables["Employee"].Columns.AddRange(new string[] { "EmployeeID", "FirstName", "LastNam" });
+            badSetup.Tables["Employee"].Columns.AddRange("EmployeeID", "FirstName", "LastNam");
 
             // Execute a sync on all clients and check results
             foreach (var clientProvider in clientsProvider)
@@ -797,7 +787,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
 
             // check rows count on server and on each client
-            using var ctx = new AdventureWorksContext(serverProvider, serverProvider.UseFallbackSchema());
+            await using var ctx = new AdventureWorksContext(serverProvider, serverProvider.UseFallbackSchema());
 
             var productRowCount = await ctx.Product.AsNoTracking().CountAsync();
             var productCategoryCount = await ctx.ProductCategory.AsNoTracking().CountAsync();
@@ -809,7 +799,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             {
                 Assert.Equal(rowsCount, clientProvider.GetDatabaseRowsCount());
 
-                using var cliCtx = new AdventureWorksContext(clientProvider, clientProvider.UseFallbackSchema());
+                await using var cliCtx = new AdventureWorksContext(clientProvider, clientProvider.UseFallbackSchema());
                 var pCount = await cliCtx.Product.AsNoTracking().CountAsync();
                 Assert.Equal(productRowCount, pCount);
 
@@ -875,7 +865,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             int addressId = 0;
             foreach (var clientProvider in clientsProvider)
             {
-                using (var ctx = new AdventureWorksContext(clientProvider, clientProvider.UseFallbackSchema()))
+                await using (var ctx = new AdventureWorksContext(clientProvider, clientProvider.UseFallbackSchema()))
                 {
                     var addresses = ctx.Address.OrderBy(a => a.AddressId).Where(a => !string.IsNullOrEmpty(a.AddressLine2)).Take(clientsProvider.ToList().Count).ToList();
                     var address = addresses[addressId];
@@ -913,7 +903,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             // check rows count on server and on each client
-            using (var ctx = new AdventureWorksContext(serverProvider, serverProvider.UseFallbackSchema()))
+            await using (var ctx = new AdventureWorksContext(serverProvider, serverProvider.UseFallbackSchema()))
             {
                 // get all addresses
                 var serverAddresses = await ctx.Address.AsNoTracking().ToListAsync();
@@ -922,7 +912,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 {
                     Assert.Equal(rowsCount, clientProvider.GetDatabaseRowsCount());
 
-                    using var cliCtx = new AdventureWorksContext(clientProvider, clientProvider.UseFallbackSchema());
+                    await using var cliCtx = new AdventureWorksContext(clientProvider, clientProvider.UseFallbackSchema());
                     // get all addresses
                     var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
 
@@ -956,7 +946,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             int addressId = 0;
             foreach (var clientProvider in clientsProvider)
             {
-                using (var ctx = new AdventureWorksContext(clientProvider, clientProvider.UseFallbackSchema()))
+                await using (var ctx = new AdventureWorksContext(clientProvider, clientProvider.UseFallbackSchema()))
                 {
                     var addresses = ctx.Address.OrderBy(a => a.AddressId).Where(a => !string.IsNullOrEmpty(a.AddressLine2)).Take(clientsProvider.ToList().Count).ToList();
                     var address = addresses[addressId];
@@ -993,7 +983,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             var rowsCount = serverProvider.GetDatabaseRowsCount();
 
             // check rows count on server and on each client
-            using (var ctx = new AdventureWorksContext(serverProvider, serverProvider.UseFallbackSchema()))
+            await using (var ctx = new AdventureWorksContext(serverProvider, serverProvider.UseFallbackSchema()))
             {
                 // get all addresses
                 var serverAddresses = await ctx.Address.AsNoTracking().ToListAsync();
@@ -1002,7 +992,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 {
                     Assert.Equal(rowsCount, clientProvider.GetDatabaseRowsCount());
 
-                    using var cliCtx = new AdventureWorksContext(clientProvider);
+                    await using var cliCtx = new AdventureWorksContext(clientProvider);
                     // get all addresses
                     var clientAddresses = await cliCtx.Address.AsNoTracking().ToListAsync();
 
@@ -1030,7 +1020,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
             Address address;
             // Update one address to null on server side
-            using (var ctx = new AdventureWorksContext(serverProvider))
+            await using (var ctx = new AdventureWorksContext(serverProvider))
             {
                 address = ctx.Address.OrderBy(a => a.AddressId).Where(a => !string.IsNullOrEmpty(a.AddressLine2)).First();
                 address.AddressLine2 = null;
@@ -1052,13 +1042,13 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // Check value
-                using var ctx = new AdventureWorksContext(clientProvider);
+                await using var ctx = new AdventureWorksContext(clientProvider);
                 var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == address.AddressId);
                 Assert.Null(cliAddress.AddressLine2);
             }
 
             // Update one address previously null to not null on server side
-            using (var ctx = new AdventureWorksContext(serverProvider))
+            await using (var ctx = new AdventureWorksContext(serverProvider))
             {
                 address = await ctx.Address.SingleAsync(a => a.AddressId == address.AddressId);
                 address.AddressLine2 = "NoT a null value !";
@@ -1080,7 +1070,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 Assert.Equal(0, s.TotalResolvedConflicts);
 
                 // Check value
-                using var ctx = new AdventureWorksContext(clientProvider);
+                await using var ctx = new AdventureWorksContext(clientProvider);
                 var cliAddress = await ctx.Address.AsNoTracking().SingleAsync(a => a.AddressId == address.AddressId);
                 Assert.Equal("NoT a null value !", cliAddress.AddressLine2);
             }
@@ -1145,7 +1135,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientsProvider in clientsProvider)
             {
                 // Then delete all product category items
-                using var ctx = new AdventureWorksContext(clientsProvider);
+                await using var ctx = new AdventureWorksContext(clientsProvider);
                 foreach (var pc in ctx.ProductCategory.Where(pc => pc.Name.StartsWith("CLI_")))
                     ctx.ProductCategory.Remove(pc);
                 await ctx.SaveChangesAsync();
@@ -1169,12 +1159,12 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             }
 
             // check rows count on server and on each client
-            using (var ctx = new AdventureWorksContext(serverProvider))
+            await using (var ctx = new AdventureWorksContext(serverProvider))
             {
                 var serverPC = await ctx.ProductCategory.AsNoTracking().CountAsync();
                 foreach (var clientProvider in clientsProvider)
                 {
-                    using var cliCtx = new AdventureWorksContext(clientProvider);
+                    await using var cliCtx = new AdventureWorksContext(clientProvider);
                     var clientPC = await cliCtx.ProductCategory.AsNoTracking().CountAsync();
                     Assert.Equal(serverPC, clientPC);
                 }
@@ -1354,11 +1344,11 @@ namespace Dotmim.Sync.Tests.IntegrationTests
                 var (clientProviderType, clientDatabaseName) = HelperDatabase.GetDatabaseType(clientProvider);
 
                 // Open connection as we are using internal methods requiring a connection argument
-                using var connection = clientProvider.CreateConnection();
+                await using var connection = clientProvider.CreateConnection();
                 await connection.OpenAsync();
-                using var transaction = connection.BeginTransaction();
+                await using var transaction = connection.BeginTransaction();
 
-                var tablePricesListCategory = localOrchestrator.GetTableBuilder(clientScope.Schema.Tables["PricesListCategory"], clientScope);
+                var tablePricesListCategory = localOrchestrator.GetSyncAdapter(clientScope.Schema.Tables["PricesListCategory"], clientScope).GetTableBuilder();
                 Assert.NotNull(tablePricesListCategory);
 
                 var relations = (await tablePricesListCategory.GetRelationsAsync(connection, transaction)).ToList();
@@ -1369,7 +1359,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 Assert.Single(relations[0].Columns);
 
-                var tablePricesListDetail = localOrchestrator.GetTableBuilder(clientScope.Schema.Tables["PricesListDetail"], clientScope);
+                var tablePricesListDetail = localOrchestrator.GetSyncAdapter(clientScope.Schema.Tables["PricesListDetail"], clientScope).GetTableBuilder();
 
                 Assert.NotNull(tablePricesListDetail);
 
@@ -1381,7 +1371,7 @@ namespace Dotmim.Sync.Tests.IntegrationTests
 
                 Assert.Equal(2, relations2[0].Columns.Count);
 
-                var tableEmployeeAddress = localOrchestrator.GetTableBuilder(clientScope.Schema.Tables["EmployeeAddress"], clientScope);
+                var tableEmployeeAddress = localOrchestrator.GetSyncAdapter(clientScope.Schema.Tables["EmployeeAddress"], clientScope).GetTableBuilder();
                 Assert.NotNull(tableEmployeeAddress);
 
                 var relations3 = (await tableEmployeeAddress.GetRelationsAsync(connection, transaction)).ToArray();
@@ -1788,50 +1778,44 @@ namespace Dotmim.Sync.Tests.IntegrationTests
             foreach (var clientProvider in clientsProvider)
                 await new SyncAgent(clientProvider, serverProvider, options).SynchronizeAsync(setup);
 
-#pragma warning disable SYSLIB0022 // Type or member is obsolete
-            var myRijndael = new RijndaelManaged();
-#pragma warning restore SYSLIB0022 // Type or member is obsolete
-            myRijndael.GenerateKey();
-            myRijndael.GenerateIV();
+            using var myAes = Aes.Create();
+
+            myAes.GenerateKey();
+            myAes.GenerateIV();
 
             var writringRowsTables = new ConcurrentDictionary<string, int>();
             var readingRowsTables = new ConcurrentDictionary<string, int>();
 
-            var serializingRowsAction = new Func<SerializingRowArgs, Task>((args) =>
+            var jsonSerializer = Serialization.SerializersFactory.JsonSerializerFactory.GetSerializer();
+
+            var serializingRowsAction = new Func<SerializingRowArgs, Task>(async (args) =>
             {
                 // Assertion
                 writringRowsTables.AddOrUpdate(args.SchemaTable.GetFullName(), 1, (key, oldValue) => oldValue + 1);
 
-                var strSet = JsonConvert.SerializeObject(args.RowArray);
-                using var encryptor = myRijndael.CreateEncryptor(myRijndael.Key, myRijndael.IV);
-                using var msEncrypt = new MemoryStream();
-                using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
-                using (var swEncrypt = new StreamWriter(csEncrypt))
-                    swEncrypt.Write(strSet);
+                var strSet = await jsonSerializer.SerializeAsync(args.RowArray);
+                using var encryptor = myAes.CreateEncryptor(myAes.Key, myAes.IV);
+                await using var msEncrypt = new MemoryStream();
+                await using var csEncrypt = new CryptoStream(msEncrypt, encryptor, CryptoStreamMode.Write);
+                await using (var swEncrypt = new StreamWriter(csEncrypt))
+                    swEncrypt.Write(strSet.ToUtf8String());
 
                 args.Result = Convert.ToBase64String(msEncrypt.ToArray());
 
-                return Task.CompletedTask;
+                return;
             });
 
-            var deserializingRowsAction = new Func<DeserializingRowArgs, Task>((args) =>
+            var deserializingRowsAction = new Func<DeserializingRowArgs, Task>(async (args) =>
             {
                 // Assertion
                 readingRowsTables.AddOrUpdate(args.SchemaTable.GetFullName(), 1, (key, oldValue) => oldValue + 1);
 
-                string value;
                 var byteArray = Convert.FromBase64String(args.RowString);
-                using var decryptor = myRijndael.CreateDecryptor(myRijndael.Key, myRijndael.IV);
-                using var msDecrypt = new MemoryStream(byteArray);
-                using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
-                using (var swDecrypt = new StreamReader(csDecrypt))
-                    value = swDecrypt.ReadToEnd();
+                using var decryptor = myAes.CreateDecryptor(myAes.Key, myAes.IV);
+                await using var msDecrypt = new MemoryStream(byteArray);
+                await using var csDecrypt = new CryptoStream(msDecrypt, decryptor, CryptoStreamMode.Read);
 
-                var array = JsonConvert.DeserializeObject<object[]>(value);
-
-                args.Result = array;
-                return Task.CompletedTask;
-
+                args.Result = await jsonSerializer.DeserializeAsync<object[]>(csDecrypt);
             });
 
             var rowsCount = serverProvider.GetDatabaseRowsCount();

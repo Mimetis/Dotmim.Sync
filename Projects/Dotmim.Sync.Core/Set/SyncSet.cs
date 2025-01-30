@@ -1,40 +1,37 @@
-﻿using Dotmim.Sync.Builders;
-
-
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Globalization;
+﻿using System;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
 
 namespace Dotmim.Sync
 {
 
+    /// <summary>
+    /// Represents a Sync Set.
+    /// </summary>
     [DataContract(Name = "s"), Serializable]
-    public class SyncSet : IDisposable
+    public class SyncSet
     {
         /// <summary>
-        /// Gets or Sets the sync set tables
+        /// Gets or Sets the sync set tables.
         /// </summary>
         [DataMember(Name = "t", IsRequired = false, EmitDefaultValue = false, Order = 1)]
         public SyncTables Tables { get; set; }
 
         /// <summary>
-        /// Gets or Sets an array of every SchemaRelation belong to this Schema
+        /// Gets or Sets an array of every SchemaRelation belong to this Schema.
         /// </summary>
         [DataMember(Name = "r", IsRequired = false, EmitDefaultValue = false, Order = 2)]
         public SyncRelations Relations { get; set; }
 
         /// <summary>
-        /// Filters applied on tables
+        /// Gets or sets filters applied on tables.
         /// </summary>
         [DataMember(Name = "f", IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public SyncFilters Filters { get; set; }
 
         /// <summary>
-        /// Create a new SyncSet, empty
+        /// Initializes a new instance of the <see cref="SyncSet"/> class.
+        /// Create a new SyncSet, empty.
         /// </summary>
         public SyncSet()
         {
@@ -43,12 +40,12 @@ namespace Dotmim.Sync
             this.Filters = new SyncFilters(this);
         }
 
-
         /// <summary>
-        /// Creates a new SyncSet based on a Sync setup (containing tables)
+        /// Initializes a new instance of the <see cref="SyncSet"/> class.
+        /// Creates a new SyncSet based on a Sync setup (containing tables).
         /// </summary>
-        /// <param name="setup"></param>
-        public SyncSet(SyncSetup setup) : this()
+        public SyncSet(SyncSetup setup)
+            : this()
         {
             foreach (var filter in setup.Filters)
                 this.Filters.Add(filter);
@@ -60,7 +57,7 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Ensure all tables, filters and relations has the correct reference to this schema
+        /// Ensure all tables, filters and relations has the correct reference to this schema.
         /// </summary>
         public void EnsureSchema()
         {
@@ -75,7 +72,7 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Clone the SyncSet schema (without data)
+        /// Clone the SyncSet schema (without data).
         /// </summary>
         public SyncSet Clone(bool includeTables = true)
         {
@@ -100,55 +97,33 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Clear the SyncSet
+        /// Clear the SyncSet.
         /// </summary>
-        public void Clear() => this.Dispose(true);
-
-
-        /// <summary>
-        /// Dispose the whole SyncSet
-        /// </summary>
-        public void Dispose()
+        public void Clear()
         {
-            this.Dispose(true);
             if (this.Tables != null)
-                this.Tables.Schema = null;
-            if (this.Relations != null)
-                this.Relations.Schema = null;
-            if (this.Filters != null)
-                this.Filters.Schema = null;
-
-            //GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool cleanup)
-        {
-            // Dispose managed ressources
-            if (cleanup)
             {
-                if (this.Tables != null)
-                {
-                    this.Tables.Clear();
-                    this.Tables = null;
-                }
-
-                if (this.Relations != null)
-                {
-                    this.Relations.Clear();
-                    this.Relations = null;
-                }
-
-                if (this.Filters != null)
-                {
-                    this.Filters.Clear();
-                    this.Filters = null;
-                }
+                this.Tables.Clear();
+                this.Tables.Schema = null;
+                this.Tables = null;
             }
 
-            // Dispose unmanaged ressources
+            if (this.Relations != null)
+            {
+                this.Relations.Clear();
+                this.Relations.Schema = null;
+                this.Relations = null;
+            }
+
+            if (this.Filters != null)
+            {
+                this.Filters.Clear();
+                this.Filters.Schema = null;
+                this.Filters = null;
+            }
         }
 
-      
+        /// <inheritdoc cref="SyncNamedItem{T}.EqualsByProperties(T)"/>
         public bool EqualsByProperties(SyncSet otherSet)
         {
             if (otherSet == null)
@@ -166,27 +141,30 @@ namespace Dotmim.Sync
 
             return true;
         }
+
+        /// <summary>
+        /// Returns a string that represents the current SyncSet.
+        /// </summary>
         public override string ToString() => $"{this.Tables.Count} tables";
 
         /// <summary>
-        /// Check if Schema has tables
+        /// Gets a value indicating whether check if Schema has tables.
         /// </summary>
         public bool HasTables => this.Tables?.Count > 0;
 
         /// <summary>
-        /// Check if Schema has at least one table with columns
+        /// Gets a value indicating whether check if Schema has at least one table with columns.
         /// </summary>
         public bool HasColumns => this.Tables?.SelectMany(t => t.Columns).Count() > 0;  // using SelectMany to get columns and not Collection<Column>
 
-
         /// <summary>
-        /// Gets if at least one table as at least one row
+        /// Gets a value indicating whether gets if at least one table as at least one row.
         /// </summary>
         public bool HasRows
         {
             get
             {
-                if (!HasTables)
+                if (!this.HasTables)
                     return false;
 
                 // Check if any of the tables has rows inside
@@ -195,16 +173,18 @@ namespace Dotmim.Sync
         }
 
         /// <summary>
-        /// Gets a true boolean if other instance is defined as same based on all properties
+        /// Gets a true boolean if other instance is defined as same based on all properties.
         /// </summary>
         public bool Equals(SyncSet other) => this.EqualsByProperties(other);
 
         /// <summary>
-        /// Gets a true boolean if other instance is defined as same based on all properties
+        /// Gets a true boolean if other instance is defined as same based on all properties.
         /// </summary>
         public override bool Equals(object obj) => this.EqualsByProperties(obj as SyncSet);
 
+        /// <summary>
+        /// Returns the hash code for this instance.
+        /// </summary>
         public override int GetHashCode() => base.GetHashCode();
-
     }
 }

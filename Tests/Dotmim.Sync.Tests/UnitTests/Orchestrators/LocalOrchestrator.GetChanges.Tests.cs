@@ -1,21 +1,9 @@
-﻿using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.SqlServer;
-using Dotmim.Sync.Tests.Core;
-using Dotmim.Sync.Tests.Models;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+﻿using Dotmim.Sync.Tests.Models;
 using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests.UnitTests
 {
@@ -23,32 +11,32 @@ namespace Dotmim.Sync.Tests.UnitTests
     {
 
         /// <summary>
-        /// RemoteOrchestrator.GetChanges() should return rows inserted on server, depending on the client scope sent
+        /// RemoteOrchestrator.GetChanges() should return rows inserted on server, depending on the client scope sent.
         /// </summary>
         [Fact]
-        public async Task LocalOrchestrator_GetChanges_WithFilters_ShouldReturnNewRowsInserted()
+        public async Task LocalOrchestratorGetChangesWithFiltersShouldReturnNewRowsInserted()
         {
-            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
-            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+            var localOrchestrator = new LocalOrchestrator(this.clientProvider, this.options);
+            var remoteOrchestrator = new RemoteOrchestrator(this.serverProvider, this.options);
 
             var scopeName = "scopesnap1";
-            var setup = GetFilteredSetup();
-            var rowsCount = serverProvider.GetDatabaseFilteredRowsCount();
-            var parameters = GetFilterParameters();
+            var setup = this.GetFilteredSetup();
+            var rowsCount = this.serverProvider.GetDatabaseFilteredRowsCount();
+            var parameters = this.GetFilterParameters();
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider, options);
+            var agent = new SyncAgent(this.clientProvider, this.serverProvider, this.options);
 
             // Making a first sync, will initialize everything we need
             var r = await agent.SynchronizeAsync(scopeName, setup, parameters);
             Assert.Equal(rowsCount, r.TotalChangesDownloadedFromServer);
 
             // Client side : Create a sales order header + 3 sales order details linked to the filter
-            var products = await clientProvider.GetProductsAsync();
-            var soh = await clientProvider.AddSalesOrderHeaderAsync(AdventureWorksContext.CustomerId1ForFilter);
-            await clientProvider.AddSalesOrderDetailAsync(soh.SalesOrderId, products[0].ProductId);
-            await clientProvider.AddSalesOrderDetailAsync(soh.SalesOrderId, products[0].ProductId);
-            await clientProvider.AddSalesOrderDetailAsync(soh.SalesOrderId, products[0].ProductId);
+            var products = await this.clientProvider.GetProductsAsync();
+            var soh = await this.clientProvider.AddSalesOrderHeaderAsync(AdventureWorksContext.CustomerId1ForFilter);
+            await this.clientProvider.AddSalesOrderDetailAsync(soh.SalesOrderId, products[0].ProductId);
+            await this.clientProvider.AddSalesOrderDetailAsync(soh.SalesOrderId, products[0].ProductId);
+            await this.clientProvider.AddSalesOrderDetailAsync(soh.SalesOrderId, products[0].ProductId);
 
             // Get changes to be populated to the server
             var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName, parameters);
@@ -65,29 +53,28 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             var sohTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "SalesOrderHeader", "SalesLT");
             Assert.Single(sohTable.Rows);
-
         }
 
         /// <summary>
-        /// RemoteOrchestrator.GetChanges() should return rows inserted on server, depending on the client scope sent
+        /// RemoteOrchestrator.GetChanges() should return rows inserted on server, depending on the client scope sent.
         /// </summary>
         [Fact]
-        public async Task LocalOrchestrator_GetChanges_ShouldReturnNewRowsInserted()
+        public async Task LocalOrchestratorGetChangesShouldReturnNewRowsInserted()
         {
-            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
-            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+            var localOrchestrator = new LocalOrchestrator(this.clientProvider, this.options);
+            var remoteOrchestrator = new RemoteOrchestrator(this.serverProvider, this.options);
             var scopeName = "scopesnap1";
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider);
+            var agent = new SyncAgent(this.clientProvider, this.serverProvider);
 
             // Making a first sync, will initialize everything we need
-            await agent.SynchronizeAsync(scopeName, setup);
+            await agent.SynchronizeAsync(scopeName, this.setup);
 
             // Create a productcategory item
             // Create a new product on server
-            var productCategory = await clientProvider.AddProductCategoryAsync();
-            var product = await clientProvider.AddProductAsync();
+            var productCategory = await this.clientProvider.AddProductCategoryAsync();
+            var product = await this.clientProvider.AddProductAsync();
 
             // Get changes to be populated to the server
             var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
@@ -106,28 +93,26 @@ namespace Dotmim.Sync.Tests.UnitTests
             var productCategoryTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "ProductCategory", "SalesLT");
             var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
             Assert.Equal(productCategory.Name, productCategoryRowName);
-
         }
 
-
         /// <summary>
-        /// RemoteOrchestrator.GetChanges() should return rows inserted on server, depending on the client scope sent
+        /// RemoteOrchestrator.GetChanges() should return rows inserted on server, depending on the client scope sent.
         /// </summary>
         [Fact]
-        public async Task LocalOrchestrator_GetChanges_WithSerialize_Deserialize_ShouldReturnNewRowsInserted()
+        public async Task LocalOrchestratorGetChangesWithSerializeDeserializeShouldReturnNewRowsInserted()
         {
-            var localOrchestrator = new LocalOrchestrator(clientProvider, options);
-            var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
+            var localOrchestrator = new LocalOrchestrator(this.clientProvider, this.options);
+            var remoteOrchestrator = new RemoteOrchestrator(this.serverProvider, this.options);
             var scopeName = "scopesnap1";
 
             // Make a first sync to be sure everything is in place
-            var agent = new SyncAgent(clientProvider, serverProvider);
+            var agent = new SyncAgent(this.clientProvider, this.serverProvider);
 
             // Making a first sync, will initialize everything we need
-            await agent.SynchronizeAsync(scopeName, setup);
+            await agent.SynchronizeAsync(scopeName, this.setup);
 
-            var productCategory = await clientProvider.AddProductCategoryAsync();
-            var product = await clientProvider.AddProductAsync();
+            var productCategory = await this.clientProvider.AddProductCategoryAsync();
+            var product = await this.clientProvider.AddProductAsync();
 
             // Get changes to be populated to the server
             var scopeInfoClient = await localOrchestrator.GetScopeInfoClientAsync(scopeName);
@@ -139,15 +124,13 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Contains("Product", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
             Assert.Contains("ProductCategory", changes.ClientChangesSelected.TableChangesSelected.Select(tcs => tcs.TableName).ToList());
 
-            var productTable =  localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "Product", "SalesLT");
+            var productTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "Product", "SalesLT");
             var productRowName = productTable.Rows[0]["Name"];
             Assert.Equal(product.Name, productRowName);
 
-            var productCategoryTable =  localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "ProductCategory", "SalesLT");
+            var productCategoryTable = localOrchestrator.LoadTableFromBatchInfo(scopeName, changes.ClientBatchInfo, "ProductCategory", "SalesLT");
             var productCategoryRowName = productCategoryTable.Rows[0]["Name"];
             Assert.Equal(productCategory.Name, productCategoryRowName);
-
         }
-
     }
 }

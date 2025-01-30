@@ -1,7 +1,5 @@
 ﻿using Microsoft.Data.SqlClient;
 using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace Dotmim.Sync.SqlServer
 {
@@ -122,6 +120,7 @@ namespace Dotmim.Sync.SqlServer
                         // The instance of SQL Server you attempted to connect to does not support encryption.
                         case 20:
                             return true;
+
                             // This exception can be thrown even if the operation completed successfully, so it's safer to let the application fail.
                     }
                 }

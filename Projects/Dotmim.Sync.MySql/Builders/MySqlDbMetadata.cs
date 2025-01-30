@@ -1,15 +1,11 @@
 ﻿using Dotmim.Sync.Manager;
 using System;
-using System.Collections.Generic;
-using System.Text;
 using System.Data;
-using System.Data.Common;
-#if NET6_0 || NET8_0 
+#if NET6_0 || NET8_0
 using MySqlConnector;
 #elif NETSTANDARD
 using MySql.Data.MySqlClient;
 #endif
-
 
 #if MARIADB
 namespace Dotmim.Sync.MariaDB.Builders
@@ -17,13 +13,38 @@ namespace Dotmim.Sync.MariaDB.Builders
 namespace Dotmim.Sync.MySql.Builders
 #endif
 {
+
+    /// <summary>
+    /// Represents a MySql Metadata checker.
+    /// </summary>
     public class MySqlDbMetadata : DbMetadata
     {
-        public const byte PRECISION_MAX = 65;
-        public const byte PRECISION_DEFAULT = 22;
-        public const byte SCALE_DEFAULT = 8;
-        public const byte SCALE_MAX = 30;
+        internal const byte PRECISIONMAX = 65;
+        internal const byte PRECISIONDEFAULT = 22;
+        internal const byte SCALEDEFAULT = 8;
+        internal const byte SCALEMAX = 30;
 
+        /// <summary>
+        /// Check precision and scale.
+        /// </summary>
+        public static (byte Precision, byte Scale) CoercePrecisionAndScale(int precision, int scale)
+        {
+            byte p = Convert.ToByte(precision);
+            byte s = Convert.ToByte(scale);
+            if (p > PRECISIONMAX)
+                p = PRECISIONMAX;
+
+            if (s > SCALEMAX)
+                s = SCALEMAX;
+
+            // scale should always be lesser than precision
+            if (s >= p && p > 1)
+                s = (byte)(p - 1);
+
+            return (p, s);
+        }
+
+        /// <inheritdoc/>
         public override DbType GetDbType(SyncColumn columnDefinition)
         {
             DbType stringDbType = columnDefinition.IsUnicode ? DbType.String : DbType.AnsiString;
@@ -58,6 +79,7 @@ namespace Dotmim.Sync.MySql.Builders
             };
         }
 
+        /// <inheritdoc/>
         public override object GetOwnerDbType(SyncColumn columnDefinition) => columnDefinition.OriginalTypeName.ToLowerInvariant() switch
         {
             "char" => columnDefinition.MaxLength == 36 ? MySqlDbType.Guid : MySqlDbType.String,
@@ -107,8 +129,14 @@ namespace Dotmim.Sync.MySql.Builders
             _ => throw new Exception($"Type '{columnDefinition.OriginalTypeName.ToLowerInvariant()}' (column {columnDefinition.ColumnName}) is not supported"),
         };
 
+        /// <summary>
+        /// Get a MySql DbType.
+        /// </summary>
         public MySqlDbType GetMySqlDbType(SyncColumn column) => (MySqlDbType)this.GetOwnerDbType(column);
 
+        /// <summary>
+        /// Get a MySql DbTYpe.
+        /// </summary>
         public MySqlDbType GetOwnerDbTypeFromDbType(SyncColumn columnDefinition) => columnDefinition.GetDbType() switch
         {
             DbType.AnsiString or DbType.Xml or DbType.String => MySqlDbType.LongText,
@@ -133,10 +161,11 @@ namespace Dotmim.Sync.MySql.Builders
             DbType.UInt32 => MySqlDbType.UInt32,
             DbType.UInt64 => MySqlDbType.UInt64,
             DbType.VarNumeric => MySqlDbType.Decimal,
-            _ => throw new Exception($"this db type {columnDefinition.GetDbType()} for column {columnDefinition.ColumnName} is not supported")
+            _ => throw new Exception($"this db type {columnDefinition.GetDbType()} for column {columnDefinition.ColumnName} is not supported"),
         };
 
-        public override Type GetType(SyncColumn column) => GetMySqlDbType(column) switch
+        /// <inheritdoc/>
+        public override Type GetType(SyncColumn columnDefinition) => this.GetMySqlDbType(columnDefinition) switch
         {
             MySqlDbType.Decimal or MySqlDbType.NewDecimal => typeof(decimal),
             MySqlDbType.Byte => typeof(byte),
@@ -157,9 +186,10 @@ namespace Dotmim.Sync.MySql.Builders
             MySqlDbType.Guid => typeof(Guid),
             MySqlDbType.TinyBlob or MySqlDbType.MediumBlob or MySqlDbType.LongBlob or MySqlDbType.Blob
             or MySqlDbType.Geometry or MySqlDbType.VarBinary or MySqlDbType.Binary => typeof(byte[]),
-            _ => throw new Exception($"In Column {column.ColumnName}, the type {GetMySqlDbType(column)} is not supported"),
+            _ => throw new Exception($"In Column {columnDefinition.ColumnName}, the type {this.GetMySqlDbType(columnDefinition)} is not supported"),
         };
 
+        /// <inheritdoc/>
         public override int GetMaxLength(SyncColumn columnDefinition)
         {
             // blob
@@ -183,41 +213,48 @@ namespace Dotmim.Sync.MySql.Builders
             return iMaxLength;
         }
 
-        public override (byte precision, byte scale) GetPrecisionAndScale(SyncColumn columnDefinition)
+        /// <inheritdoc/>
+        public override (byte Precision, byte Scale) GetPrecisionAndScale(SyncColumn columnDefinition)
         {
             var precision = columnDefinition.Precision;
             var scale = columnDefinition.Scale;
 
             if ((columnDefinition.DbType == (int)DbType.Single || columnDefinition.DbType == (int)DbType.Decimal || columnDefinition.DbType == (int)DbType.VarNumeric) && columnDefinition.Precision == 0 && columnDefinition.Scale == 0)
-                return (PRECISION_DEFAULT, SCALE_DEFAULT);
+                return (PRECISIONDEFAULT, SCALEDEFAULT);
 
-            if (IsNumericType(columnDefinition) && precision == 0)
-                return (PRECISION_DEFAULT, 0);
+            if (this.IsNumericType(columnDefinition) && precision == 0)
+                return (PRECISIONDEFAULT, 0);
 
-            if (!IsSupportingScale(columnDefinition) || scale == 0)
+            if (!this.IsSupportingScale(columnDefinition) || scale == 0)
                 return (0, 0);
 
             return CoercePrecisionAndScale(precision, scale);
         }
 
+        /// <inheritdoc/>
         public override byte GetPrecision(SyncColumn columnDefinition)
         {
-            var (p, _) = GetPrecisionAndScale(columnDefinition);
+            var (p, _) = this.GetPrecisionAndScale(columnDefinition);
             return p;
         }
 
+        /// <inheritdoc/>
         public override bool IsSupportingScale(SyncColumn columnDefinition) => columnDefinition.OriginalTypeName.ToLowerInvariant() switch
         {
             "numeric" or "decimal" or "dec" or "real" => true,
             _ => false,
         };
-        public override bool IsNumericType(SyncColumn column) => column.OriginalTypeName.ToLowerInvariant() switch
+
+        /// <inheritdoc/>
+        public override bool IsNumericType(SyncColumn columnDefinition) => columnDefinition.OriginalTypeName.ToLowerInvariant() switch
         {
             "int" or "int16" or "int24" or "int32" or "int64" or "uint16" or "uint24" or "uint32" or "uint64" or "integer" or
             "numeric" or "decimal" or "dec" or "fixed" or "tinyint" or "mediumint" or "bigint" or "real" or "double" or
             "float" or "serial" or "smallint" => true,
             _ => false,
         };
+
+        /// <inheritdoc/>
         public override bool IsValid(SyncColumn columnDefinition) => columnDefinition.OriginalTypeName.ToLowerInvariant() switch
         {
             "int" or "int16" or "int24" or "int32" or "int64" or "uint16" or "uint24" or "uint32" or "uint64" or
@@ -228,10 +265,13 @@ namespace Dotmim.Sync.MySql.Builders
             "year" or "time" or "timestamp" or "json" => true,
             _ => false,
         };
+
+        /// <inheritdoc/>
         public override bool IsReadonly(SyncColumn columnDefinition) => columnDefinition.IsCompute;
 
-        // ----------------------------------------------------------------------------------
-
+        /// <summary>
+        /// Check compatibility.
+        /// </summary>
         public bool IsCompatibleTextType(SyncColumn column, string fromProviderType)
         {
 #if MARIADB
@@ -261,11 +301,8 @@ namespace Dotmim.Sync.MySql.Builders
             }
         }
 
-
-
-
         /// <summary>
-        /// Gets a compatible column definition, like nvarchar(50), int, decimal(8,2)
+        /// Gets a compatible column definition, like nvarchar(50), int, decimal(8,2).
         /// </summary>
         public string GetCompatibleColumnTypeDeclarationString(SyncColumn column, string fromProviderType)
         {
@@ -281,12 +318,14 @@ namespace Dotmim.Sync.MySql.Builders
             // Fallback on my sql db type extract from simple db type
             var typeName = this.GetCompatibleStringFromDbType((DbType)column.DbType, column.MaxLength).ToString();
 
-            var argument = GetCompatiblePrecisionStringFromDbType(column, fromProviderType);
+            var argument = this.GetCompatiblePrecisionStringFromDbType(column, fromProviderType);
 
             return string.IsNullOrEmpty(argument) ? typeName : $"{typeName} {argument}";
-
         }
 
+        /// <summary>
+        /// Get string from owner db type.
+        /// </summary>
         public string GetStringFromOwnerDbType(MySqlDbType ownerType) => ownerType switch
         {
             MySqlDbType.Decimal or MySqlDbType.NewDecimal => "decimal",
@@ -323,6 +362,9 @@ namespace Dotmim.Sync.MySql.Builders
             _ => throw new Exception("Unhandled type encountered"),
         };
 
+        /// <summary>
+        /// Get compatible string from db type.
+        /// </summary>
         public string GetCompatibleStringFromDbType(DbType dbType, int maxLength) => dbType switch
         {
             DbType.Binary => maxLength <= 0 || maxLength > 8000 ? "longblob" : "varbinary",
@@ -342,21 +384,26 @@ namespace Dotmim.Sync.MySql.Builders
             _ => throw new Exception($"sqltype not valid"),
         };
 
-        public (byte precision, byte scale) GetCompatibleColumnPrecisionAndScale(SyncColumn column, string fromProviderType)
+        /// <summary>
+        /// Get compatible column precision and scale.
+        /// </summary>
+        public (byte Precision, byte Scale) GetCompatibleColumnPrecisionAndScale(SyncColumn column, string fromProviderType)
         {
 #if MARIADB
             var originalProvider = MariaDBSyncProvider.ProviderType;
 #elif MYSQL
             var originalProvider = MySqlSyncProvider.ProviderType;
-#endif      
+#endif
+
             // We get the sql db type from the original provider otherwise fallback on sql db type extract from simple db type
-            //var mySqlDbType = fromProviderType == originalProvider ?
+            // var mySqlDbType = fromProviderType == originalProvider ?
             //    this.GetMySqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
-
-            return GetPrecisionAndScale(column);
-
+            return this.GetPrecisionAndScale(column);
         }
 
+        /// <summary>
+        /// Get Compatible max length.
+        /// </summary>
         public int GetCompatibleMaxLength(SyncColumn column, string fromProviderType)
         {
 #if MARIADB
@@ -373,11 +420,13 @@ namespace Dotmim.Sync.MySql.Builders
                 MySqlDbType.VarBinary => column.MaxLength > 0 ? Math.Min(column.MaxLength, 8000) : 8000,
                 MySqlDbType.Binary => column.MaxLength > 0 ? Math.Min(column.MaxLength, 255) : 255,
                 MySqlDbType.VarChar or MySqlDbType.String or MySqlDbType.Text or MySqlDbType.Enum or MySqlDbType.Set => Math.Max(0, column.MaxLength),
-                _ => 0
+                _ => 0,
             };
-
         }
 
+        /// <summary>
+        /// Get compatible precision from db type.
+        /// </summary>
         public string GetCompatiblePrecisionStringFromDbType(SyncColumn column, string fromProviderType)
         {
 #if MARIADB
@@ -391,8 +440,7 @@ namespace Dotmim.Sync.MySql.Builders
             var mySqlDbType = fromProviderType == originalProvider ?
                 this.GetMySqlDbType(column) : this.GetOwnerDbTypeFromDbType(column);
 
-            var (precision, scale) = GetPrecisionAndScale(column);
-
+            var (precision, scale) = this.GetPrecisionAndScale(column);
 
             return mySqlDbType switch
             {
@@ -402,29 +450,8 @@ namespace Dotmim.Sync.MySql.Builders
                 MySqlDbType.VarChar or MySqlDbType.Text or MySqlDbType.Enum or MySqlDbType.Set => column.MaxLength > 0 ? $"({column.MaxLength})" : string.Empty,
                 MySqlDbType.Binary => column.MaxLength > 0 ? $"({Math.Min(column.MaxLength, 255)})" : "(255)",
                 MySqlDbType.VarBinary => column.MaxLength > 0 ? $"({Math.Min(column.MaxLength, 8000)})" : "(8000)",
-                _ => string.Empty
+                _ => string.Empty,
             };
-
-        }
-
-        /// <summary>
-        /// Check precision and scale
-        /// </summary>
-        public static (byte p, byte s) CoercePrecisionAndScale(int precision, int scale)
-        {
-            byte p = Convert.ToByte(precision);
-            byte s = Convert.ToByte(scale);
-            if (p > PRECISION_MAX)
-                p = PRECISION_MAX;
-
-            if (s > SCALE_MAX)
-                s = SCALE_MAX;
-
-            // scale should always be lesser than precision
-            if (s >= p && p > 1)
-                s = (byte)(p - 1);
-
-            return (p, s);
         }
     }
 }

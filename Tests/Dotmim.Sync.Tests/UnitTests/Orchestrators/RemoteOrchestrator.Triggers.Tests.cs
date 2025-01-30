@@ -24,7 +24,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         public async Task RemoteOrchestrator_Provision_ShouldCreate_Triggers()
         {
             var scopeName = "scope";
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 TrackingTablesSuffix = "sync",
                 TrackingTablesPrefix = "trck",
@@ -45,7 +45,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             await remoteOrchestrator.ProvisionAsync(scopeInfo, provision);
 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
 
@@ -66,7 +66,7 @@ namespace Dotmim.Sync.Tests.UnitTests
         public async Task RemoteOrchestrator_Trigger_ShouldCreate()
         {
             var scopeName = "scope";
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 TriggersPrefix = "trg_",
                 TriggersSuffix = "_trg"
@@ -78,7 +78,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var triggerInsert = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_insert_trigger";
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Insert, false);
 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
 
@@ -91,7 +91,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var triggerUpdate = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_update_trigger";
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Update, false);
 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
 
@@ -104,7 +104,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var triggerDelete = $"{setup.TriggersPrefix}Product{setup.TriggersSuffix}_delete_trigger";
             await remoteOrchestrator.CreateTriggerAsync(scopeInfo, "Product", "SalesLT", DbTriggerType.Delete, false);
 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
 
@@ -122,7 +122,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeName = "scope";
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 TriggersPrefix = "trg_",
                 TriggersSuffix = "_trg"
@@ -151,7 +151,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeName = "scope";
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 TriggersPrefix = "trg_",
                 TriggersSuffix = "_trg"
@@ -182,7 +182,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeName = "scope";
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" })
+            var setup = new SyncSetup("SalesLT.Product")
             {
                 TriggersPrefix = "trg_",
                 TriggersSuffix = "_trg"
@@ -206,7 +206,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var scopeName = "scope";
 
             var options = new SyncOptions();
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
 
             setup.TriggersPrefix = "trg_";
             setup.TriggersSuffix = "_trg";
@@ -220,7 +220,7 @@ namespace Dotmim.Sync.Tests.UnitTests
 
             await remoteOrchestrator.CreateTriggersAsync(scopeInfo, "Product", "SalesLT");
 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
 
@@ -230,7 +230,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 c.Close();
             }
 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
 
@@ -240,7 +240,7 @@ namespace Dotmim.Sync.Tests.UnitTests
                 c.Close();
             }
 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
 

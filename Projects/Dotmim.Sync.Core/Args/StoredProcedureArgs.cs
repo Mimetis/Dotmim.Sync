@@ -1,141 +1,241 @@
 ﻿using Dotmim.Sync.Builders;
 using Dotmim.Sync.Enumerations;
-using Microsoft.Extensions.Logging;
 using System;
-using System.Collections.Generic;
 using System.Data.Common;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
+    /// <summary>
+    /// Event args generated after a stored procedure is created.
+    /// </summary>
     public class StoredProcedureCreatedArgs : ProgressArgs
     {
-        public SyncTable Table { get; }
-        public DbStoredProcedureType StoredProcedureType { get; }
 
-        public StoredProcedureCreatedArgs(SyncContext context, SyncTable table, DbStoredProcedureType StoredProcedureType, DbConnection connection = null, DbTransaction transaction = null)
+        /// <inheritdoc cref="StoredProcedureCreatedArgs" />
+        public StoredProcedureCreatedArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, DbStoredProcedureType storedProcedureType, DbConnection connection = null, DbTransaction transaction = null)
             : base(context, connection, transaction)
         {
+            this.ScopeInfo = scopeInfo;
             this.Table = table;
-            this.StoredProcedureType = StoredProcedureType;
+            this.StoredProcedureType = storedProcedureType;
         }
+
+        /// <summary>
+        /// Gets the scope info on which the stored procedure is created.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
+
+        /// <summary>
+        /// Gets the table on which the stored procedure is created.
+        /// </summary>
+        public SyncTable Table { get; }
+
+        /// <summary>
+        /// Gets the type of the stored procedure created.
+        /// </summary>
+        public DbStoredProcedureType StoredProcedureType { get; }
+
+        /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
+
+        /// <inheritdoc cref="ProgressArgs.Message"/>
         public override string Message => $"[{this.Table.GetFullName()}] Stored Procedure [{this.StoredProcedureType}] Created.";
 
-        public override int EventId => SyncEventsId.StoredProcedureCreated.Id;
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
+        public override int EventId => 11050;
     }
-
-    public class StoredProcedureCreatingArgs : ProgressArgs
-    {
-        public SyncTable Table { get; }
-        public DbStoredProcedureType StoredProcedureType { get; }
-        public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; set; }
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
-        public StoredProcedureCreatingArgs(SyncContext context, SyncTable table, DbStoredProcedureType StoredProcedureType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, connection, transaction)
-        {
-            this.Command = command;
-            this.Table = table;
-            this.StoredProcedureType = StoredProcedureType;
-        }
-        public override string Message => $"[{this.Table.GetFullName()}] Stored Procedure [{this.StoredProcedureType}] Creating.";
-        public override int EventId => SyncEventsId.StoredProcedureCreating.Id;
-    }
-
-    public class StoredProcedureDroppedArgs : ProgressArgs
-    {
-        public SyncTable Table { get; }
-        public DbStoredProcedureType StoredProcedureType { get; }
-
-        public StoredProcedureDroppedArgs(SyncContext context, SyncTable table, DbStoredProcedureType StoredProcedureType, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, connection, transaction)
-        {
-            Table = table;
-            this.StoredProcedureType = StoredProcedureType;
-        }
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
-        public override string Message => $"[{Table.GetFullName()}] Stored Procedure [{this.StoredProcedureType}] Dropped.";
-        public override int EventId => SyncEventsId.StoredProcedureDropped.Id;
-    }
-
-    public class StoredProcedureDroppingArgs : ProgressArgs
-    {
-        public SyncTable Table { get; }
-        public DbStoredProcedureType StoredProcedureType { get; }
-        public bool Cancel { get; set; } = false;
-        public DbCommand Command { get; set; }
-
-        public StoredProcedureDroppingArgs(SyncContext context, SyncTable table, DbStoredProcedureType StoredProcedureType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
-            : base(context, connection, transaction)
-        {
-            this.Command = command;
-            this.Table = table;
-            this.StoredProcedureType = StoredProcedureType;
-        }
-        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
-        public override string Message => $"[{Table.GetFullName()}] Stored Procedure [{this.StoredProcedureType}] Dropping.";
-        public override int EventId => SyncEventsId.StoredProcedureDropping.Id;
-
-    }
-
 
     /// <summary>
-    /// Partial interceptors extensions 
+    /// Event args generated before a stored procedure is creating.
     /// </summary>
-    public static partial class InterceptorsExtensions
+    public class StoredProcedureCreatingArgs : ProgressArgs
+    {
+        /// <inheritdoc cref="StoredProcedureCreatingArgs" />
+        public StoredProcedureCreatingArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, DbStoredProcedureType storedProcedureType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+            : base(context, connection, transaction)
+        {
+            this.Command = command;
+            this.ScopeInfo = scopeInfo;
+            this.Table = table;
+            this.StoredProcedureType = storedProcedureType;
+        }
+
+        /// <summary>
+        /// Gets the scope info on which the stored procedure is creating.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
+
+        /// <summary>
+        /// Gets the table on which the stored procedure is creating.
+        /// </summary>
+        public SyncTable Table { get; }
+
+        /// <summary>
+        /// Gets the type of the stored procedure creating.
+        /// </summary>
+        public DbStoredProcedureType StoredProcedureType { get; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether gets or sets the cancel flag. If true, the stored procedure creation will be canceled.
+        /// </summary>
+        public bool Cancel { get; set; }
+
+        /// <summary>
+        /// Gets or sets the command used to create the stored procedure.
+        /// </summary>
+        public DbCommand Command { get; set; }
+
+        /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
+
+        /// <inheritdoc cref="ProgressArgs.Message"/>
+        public override string Message => $"[{this.Table.GetFullName()}] Stored Procedure [{this.StoredProcedureType}] Creating.";
+
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
+        public override int EventId => 11000;
+    }
+
+    /// <summary>
+    /// Event args generated after a stored procedure is dropped.
+    /// </summary>
+    public class StoredProcedureDroppedArgs : ProgressArgs
+    {
+        /// <inheritdoc cref="StoredProcedureDroppedArgs" />
+        public StoredProcedureDroppedArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, DbStoredProcedureType storedProcedureType, DbConnection connection = null, DbTransaction transaction = null)
+            : base(context, connection, transaction)
+        {
+            this.ScopeInfo = scopeInfo;
+            this.Table = table;
+            this.StoredProcedureType = storedProcedureType;
+        }
+
+        /// <summary>
+        /// Gets the scope info on which the stored procedure is dropped.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
+
+        /// <summary>
+        /// Gets the table on which the stored procedure is dropped.
+        /// </summary>
+        public SyncTable Table { get; }
+
+        /// <summary>
+        /// Gets the type of the stored procedure dropped.
+        /// </summary>
+        public DbStoredProcedureType StoredProcedureType { get; }
+
+        /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
+
+        /// <inheritdoc cref="ProgressArgs.Message"/>
+        public override string Message => $"[{this.Table.GetFullName()}] Stored Procedure [{this.StoredProcedureType}] Dropped.";
+
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
+        public override int EventId => 11150;
+    }
+
+    /// <summary>
+    /// Event args generated before a stored procedure is dropping.
+    /// </summary>
+    public class StoredProcedureDroppingArgs : ProgressArgs
+    {
+        /// <inheritdoc cref="StoredProcedureDroppingArgs" />
+        public StoredProcedureDroppingArgs(SyncContext context, ScopeInfo scopeInfo, SyncTable table, DbStoredProcedureType storedProcedureType, DbCommand command, DbConnection connection = null, DbTransaction transaction = null)
+            : base(context, connection, transaction)
+        {
+            this.Command = command;
+            this.ScopeInfo = scopeInfo;
+            this.Table = table;
+            this.StoredProcedureType = storedProcedureType;
+        }
+
+        /// <summary>
+        /// Gets the scope info on which the stored procedure is dropping.
+        /// </summary>
+        public ScopeInfo ScopeInfo { get; }
+
+        /// <summary>
+        /// Gets the table on which the stored procedure is dropping.
+        /// </summary>
+        public SyncTable Table { get; }
+
+        /// <summary>
+        /// Gets the type of the stored procedure dropping.
+        /// </summary>
+        public DbStoredProcedureType StoredProcedureType { get; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether gets or sets the cancel flag. If true, the stored procedure dropping will be canceled.
+        /// </summary>
+        public bool Cancel { get; set; }
+
+        /// <summary>
+        /// Gets or sets the command used to drop the stored procedure.
+        /// </summary>
+        public DbCommand Command { get; set; }
+
+        /// <inheritdoc cref="ProgressArgs.ProgressLevel"/>
+        public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Trace;
+
+        /// <inheritdoc cref="ProgressArgs.Message"/>
+        public override string Message => $"[{this.Table.GetFullName()}] Stored Procedure [{this.StoredProcedureType}] Dropping.";
+
+        /// <inheritdoc cref="ProgressArgs.EventId"/>
+        public override int EventId => 11100;
+    }
+
+    /// <summary>
+    /// Partial Interceptors extensions.
+    /// </summary>
+    public partial class InterceptorsExtensions
     {
         /// <summary>
-        /// Intercept the provider when a Stored Procedure is creating
+        /// Intercept the provider when a Stored Procedure is creating.
         /// </summary>
         public static Guid OnStoredProcedureCreating(this BaseOrchestrator orchestrator, Action<StoredProcedureCreatingArgs> action)
             => orchestrator.AddInterceptor(action);
+
         /// <summary>
-        /// Intercept the provider when a Stored Procedure is creating
+        /// Intercept the provider when a Stored Procedure is creating.
         /// </summary>
         public static Guid OnStoredProcedureCreating(this BaseOrchestrator orchestrator, Func<StoredProcedureCreatingArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider when a Stored Procedure is created
+        /// Intercept the provider when a Stored Procedure is created.
         /// </summary>
         public static Guid OnStoredProcedureCreated(this BaseOrchestrator orchestrator, Action<StoredProcedureCreatedArgs> action)
             => orchestrator.AddInterceptor(action);
+
         /// <summary>
-        /// Intercept the provider when a Stored Procedure is created
+        /// Intercept the provider when a Stored Procedure is created.
         /// </summary>
         public static Guid OnStoredProcedureCreated(this BaseOrchestrator orchestrator, Func<StoredProcedureCreatedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider when a Stored Procedure is dropping
+        /// Intercept the provider when a Stored Procedure is dropping.
         /// </summary>
         public static Guid OnStoredProcedureDropping(this BaseOrchestrator orchestrator, Action<StoredProcedureDroppingArgs> action)
             => orchestrator.AddInterceptor(action);
+
         /// <summary>
-        /// Intercept the provider when a Stored Procedure is dropping
+        /// Intercept the provider when a Stored Procedure is dropping.
         /// </summary>
         public static Guid OnStoredProcedureDropping(this BaseOrchestrator orchestrator, Func<StoredProcedureDroppingArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider when a Stored Procedure is dropped
+        /// Intercept the provider when a Stored Procedure is dropped.
         /// </summary>
         public static Guid OnStoredProcedureDropped(this BaseOrchestrator orchestrator, Action<StoredProcedureDroppedArgs> action)
             => orchestrator.AddInterceptor(action);
+
         /// <summary>
-        /// Intercept the provider when a Stored Procedure is dropped
+        /// Intercept the provider when a Stored Procedure is dropped.
         /// </summary>
         public static Guid OnStoredProcedureDropped(this BaseOrchestrator orchestrator, Func<StoredProcedureDroppedArgs, Task> action)
             => orchestrator.AddInterceptor(action);
-
-    }
-    public static partial class SyncEventsId
-    {
-        public static EventId StoredProcedureCreating => CreateEventId(11000, nameof(StoredProcedureCreating));
-        public static EventId StoredProcedureCreated => CreateEventId(11050, nameof(StoredProcedureCreated));
-        public static EventId StoredProcedureDropping => CreateEventId(11100, nameof(StoredProcedureDropping));
-        public static EventId StoredProcedureDropped => CreateEventId(11150, nameof(StoredProcedureDropped));
     }
 }

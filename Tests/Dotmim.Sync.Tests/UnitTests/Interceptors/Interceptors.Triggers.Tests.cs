@@ -27,7 +27,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
 
             // 1) create a console logger
             //var loggerFactory = LoggerFactory.Create(builder => { builder.AddDebug().SetMinimumLevel(LogLevel.Debug); });
@@ -57,7 +57,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, onDropped);
 
             // Check 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
                 var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null);
@@ -73,7 +73,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -93,7 +93,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -116,7 +116,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, onDropped);
 
             // Check 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
                 var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null);
@@ -135,7 +135,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -164,7 +164,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(1, onDropped);
 
             // Check 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
                 var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null);
@@ -184,7 +184,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -218,7 +218,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal(0, onDropped);
 
             // Check 
-            using (var c = new SqlConnection(serverProvider.ConnectionString))
+            await using (var c = new SqlConnection(serverProvider.ConnectionString))
             {
                 await c.OpenAsync();
                 var check = await SqlManagementUtils.GetTriggerAsync("Product_insert_trigger", "SalesLT", c, null);
@@ -233,7 +233,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 
@@ -283,7 +283,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             var localOrchestrator = new LocalOrchestrator(clientProvider, options);
             var remoteOrchestrator = new RemoteOrchestrator(serverProvider, options);
 
-            var setup = new SyncSetup(new string[] { "SalesLT.Product" });
+            var setup = new SyncSetup("SalesLT.Product");
 
             var scopeInfo = await remoteOrchestrator.GetScopeInfoAsync(setup);
 

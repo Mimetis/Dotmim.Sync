@@ -4,18 +4,17 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Dotmim.Sync
 {
-
     /// <summary>
-    /// When Getting response from remote orchestrator
+    /// When Getting response from remote orchestrator.
     /// </summary>
     public class HttpGettingResponseMessageArgs : ProgressArgs
     {
-        public HttpGettingResponseMessageArgs(HttpResponseMessage response, string uri, HttpStep step, SyncContext context, object data, string host)
+        /// <inheritdoc cref="HttpGettingResponseMessageArgs" />
+        public HttpGettingResponseMessageArgs(HttpResponseMessage response, Uri uri, HttpStep step, SyncContext context, object data, string host)
             : base(context, null, null)
         {
             this.Response = response;
@@ -24,26 +23,52 @@ namespace Dotmim.Sync
             this.Data = data;
             this.Host = host;
         }
+
+        /// <inheritdoc />
         public override string Source => this.Host;
 
+        /// <inheritdoc />
         public override int EventId => HttpClientSyncEventsId.HttpGettingResponseMessage.Id;
+
+        /// <inheritdoc />
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
 
+        /// <inheritdoc />
         public override string Message
-            => $"Received a message from {this.Uri}, Step:{this.Step}, StatusCode: {(int)Response.StatusCode}, ReasonPhrase: {Response.ReasonPhrase ?? "<null>"}, Version: {Response.Version}";
+            => $"Received a message from {this.Uri}, Step:{this.Step}, StatusCode: {(int)this.Response.StatusCode}, ReasonPhrase: {this.Response.ReasonPhrase ?? "<null>"}, Version: {this.Response.Version}";
 
+        /// <summary>
+        /// Gets the response message.
+        /// </summary>
         public HttpResponseMessage Response { get; }
-        public string Uri { get; }
+
+        /// <summary>
+        /// Gets the uri.
+        /// </summary>
+        public Uri Uri { get; }
+
+        /// <summary>
+        /// Gets the step.
+        /// </summary>
         public HttpStep Step { get; }
+
+        /// <summary>
+        /// Gets the data.
+        /// </summary>
         public object Data { get; }
+
+        /// <summary>
+        /// Gets the host. (same as this.Source).
+        /// </summary>
         public string Host { get; }
     }
 
     /// <summary>
-    /// When sending request 
+    /// When sending request.
     /// </summary>
     public class HttpSendingRequestMessageArgs : ProgressArgs
     {
+        /// <inheritdoc  cref="HttpSendingRequestMessageArgs"/>
         public HttpSendingRequestMessageArgs(HttpRequestMessage request, SyncContext context, object data, string host)
             : base(context, null, null)
         {
@@ -51,12 +76,29 @@ namespace Dotmim.Sync
             this.Data = data;
             this.Host = host;
         }
+
+        /// <inheritdoc />
         public override int EventId => HttpClientSyncEventsId.HttpSendingRequestMessage.Id;
+
+        /// <inheritdoc />
         public override SyncProgressLevel ProgressLevel => SyncProgressLevel.Debug;
+
+        /// <inheritdoc />
         public override string Source => this.Host;
 
+        /// <summary>
+        /// Gets the request.
+        /// </summary>
         public HttpRequestMessage Request { get; }
+
+        /// <summary>
+        /// Gets the data.
+        /// </summary>
         public object Data { get; }
+
+        /// <summary>
+        /// Gets the host. (Similar to this.Source).
+        /// </summary>
         public string Host { get; }
     }
 
@@ -113,40 +155,56 @@ namespace Dotmim.Sync
         public Uri RequestUri { get; }
     }
 
-    public static partial class HttpClientSyncEventsId
+    /// <summary>
+    /// HttpClient Sync Events Id.
+    /// </summary>
+    public partial class HttpClientSyncEventsId
     {
-        public static EventId HttpSendingRequestMessage => new EventId(20100, nameof(HttpSendingRequestMessage));
-        public static EventId HttpGettingResponseMessage => new EventId(20150, nameof(HttpGettingResponseMessage));
+        /// <summary>
+        /// Gets the event id when sending a request message.
+        /// </summary>
+        public static EventId HttpSendingRequestMessage => new(20100, nameof(HttpSendingRequestMessage));
+
+        /// <summary>
+        /// Gets the event id when getting a response message.
+        /// </summary>
+        public static EventId HttpGettingResponseMessage => new(20150, nameof(HttpGettingResponseMessage));
     }
 
     /// <summary>
-    /// Partial interceptors extensions 
+    /// Partial Interceptors extensions.
     /// </summary>
-    public static partial class HttpInterceptorsExtensions
+    public partial class HttpInterceptorsExtensions
     {
         /// <summary>
-        /// Intercept the provider when an http request message is sent
+        /// Intercept the provider when an http request message is sent.
         /// </summary>
-        public static Guid OnHttpSendingRequest(this WebRemoteOrchestrator orchestrator,
+        public static Guid OnHttpSendingRequest(
+            this WebRemoteOrchestrator orchestrator,
             Action<HttpSendingRequestMessageArgs> action)
             => orchestrator.AddInterceptor(action);
+
         /// <summary>
-        /// Intercept the provider when an http request message is sent
+        /// Intercept the provider when an http request message is sent.
         /// </summary>
-        public static Guid OnHttpSendingRequest(this WebRemoteOrchestrator orchestrator,
+        public static Guid OnHttpSendingRequest(
+            this WebRemoteOrchestrator orchestrator,
             Func<HttpSendingRequestMessageArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
         /// <summary>
-        /// Intercept the provider when an http message response is downloaded from remote side
+        /// Intercept the provider when an http message response is downloaded from remote side.
         /// </summary>
-        public static Guid OnHttpGettingResponse(this WebRemoteOrchestrator orchestrator,
+        public static Guid OnHttpGettingResponse(
+            this WebRemoteOrchestrator orchestrator,
             Action<HttpGettingResponseMessageArgs> action)
             => orchestrator.AddInterceptor(action);
+
         /// <summary>
-        /// Intercept the provider when an http message response is downloaded from remote side
+        /// Intercept the provider when an http message response is downloaded from remote side.
         /// </summary>
-        public static Guid OnHttpGettingResponse(this WebRemoteOrchestrator orchestrator,
+        public static Guid OnHttpGettingResponse(
+            this WebRemoteOrchestrator orchestrator,
             Func<HttpGettingResponseMessageArgs, Task> action)
             => orchestrator.AddInterceptor(action);
 
@@ -161,14 +219,15 @@ namespace Dotmim.Sync
         /// during remote orchestration. Upon failure, the specified action is invoked with details about the HTTP
         /// response. This can be useful for implementing custom error handling, logging, or retry logic.
         /// </remarks>
-        public static Guid OnHttpResponseFailure(this WebRemoteOrchestrator orchestrator,
+        public static Guid OnHttpResponseFailure(
+            this WebRemoteOrchestrator orchestrator,
             Action<HttpResponseFailureArgs> action)
             => orchestrator.AddInterceptor(action);
 
         /// <inheritdoc cref="OnHttpResponseFailure(WebRemoteOrchestrator, Action{HttpResponseFailureArgs})"/>
-        public static Guid OnHttpResponseFailure(this WebRemoteOrchestrator orchestrator,
-           Func<HttpGettingResponseMessageArgs, Task> action)
+        public static Guid OnHttpResponseFailure(
+            this WebRemoteOrchestrator orchestrator,
+            Func<HttpResponseFailureArgs, Task> action)
             => orchestrator.AddInterceptor(action);
-
     }
 }

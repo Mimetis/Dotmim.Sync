@@ -13,34 +13,68 @@ namespace Dotmim.Sync
     public class SyncContext
     {
         /// <summary>
-        /// Current Session, in progress
+        /// Initializes a new instance of the <see cref="SyncContext"/> class.
+        /// </summary>
+        public SyncContext(Guid sessionId, string scopeName, SyncParameters parameters = default)
+        {
+            this.SessionId = sessionId;
+            this.ScopeName = scopeName;
+            this.Parameters = parameters;
+            this.StartTime = DateTime.UtcNow;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SyncContext"/> class using scope name, parameters and client id from the scope info client.
+        /// </summary>
+        public SyncContext(Guid sessionId, ScopeInfoClient scopeInfoClient)
+        {
+            Guard.ThrowIfNull(scopeInfoClient);
+
+            this.SessionId = sessionId;
+            this.ScopeName = scopeInfoClient.Name;
+            this.Parameters = scopeInfoClient.Parameters;
+            this.ClientId = scopeInfoClient.Id;
+            this.StartTime = DateTime.UtcNow;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SyncContext"/> class.
+        /// Used for serialization purpose.
+        /// </summary>
+        public SyncContext() => this.StartTime = DateTime.UtcNow;
+
+        /// <summary>
+        /// Gets or sets get or sets the current Session id, in progress.
         /// </summary>
         [DataMember(Name = "id", IsRequired = true, Order = 1)]
         public Guid SessionId { get; set; }
 
         /// <summary>
-        /// Current Scope Info Id, in progress
+        /// Gets or sets current Scope Info Id, in progress.
         /// </summary>
         [DataMember(Name = "csid", IsRequired = true, Order = 2)]
         public Guid? ClientId { get; set; }
 
         /// <summary>
-        /// Gets or Sets the ScopeName for this sync session
+        /// Gets or Sets the ScopeName for this sync session.
         /// </summary>
         [DataMember(Name = "sn", IsRequired = false, EmitDefaultValue = false, Order = 3)]
         public string ScopeName { get; set; }
 
+        /// <summary>
+        /// Gets the time when a sync session started.
+        /// </summary>
         [IgnoreDataMember]
         public DateTime StartTime { get; }
 
         /// <summary>
-        /// Gets or sets the sync type used during this session. Can be : Normal, Reinitialize, ReinitializeWithUpload
+        /// Gets or sets the sync type used during this session. Can be : Normal, Reinitialize, ReinitializeWithUpload.
         /// </summary>
         [DataMember(Name = "typ", IsRequired = false, EmitDefaultValue = false, Order = 4)]
         public SyncType SyncType { get; set; }
 
         /// <summary>
-        /// Gets or Sets the current Sync direction. 
+        /// Gets or Sets the current Sync direction.
         /// When locally GetChanges and remote ApplyChanges, we are in Upload direction
         /// When remote GetChanges and locally ApplyChanges, we are in Download direction
         /// this Property is used to check SyncDirection on each table.
@@ -49,78 +83,51 @@ namespace Dotmim.Sync
         public SyncWay SyncWay { get; set; }
 
         /// <summary>
-        /// Actual sync stage
+        /// Gets or sets actual sync stage.
         /// </summary>
         [DataMember(Name = "stage", IsRequired = false, EmitDefaultValue = false, Order = 6)]
         public SyncStage SyncStage { get; set; }
 
         /// <summary>
-        /// Get or Sets the Sync parameter to pass to Remote provider for filtering rows
+        /// Gets or sets get or Sets the Sync parameter to pass to Remote provider for filtering rows.
         /// </summary>
         [DataMember(Name = "ps", IsRequired = false, EmitDefaultValue = false, Order = 7)]
         public SyncParameters Parameters { get; set; }
 
         /// <summary>
-        /// Get or Sets the Sync parameter to pass to Remote provider for filtering rows
+        /// Gets get or Sets the Sync parameter to pass to Remote provider for filtering rows.
         /// </summary>
         [IgnoreDataMember]
         public string Hash
         {
             get
             {
-                if (Parameters == null || Parameters.Count <= 0)
+                if (this.Parameters == null || this.Parameters.Count <= 0)
                     return SyncParameters.DefaultScopeHash;
                 else
-                    return Parameters.GetHash();
+                    return this.Parameters.GetHash();
             }
         }
 
-
         /// <summary>
-        /// Get or Sets additional properties you want to use
+        /// Gets or sets get or Sets additional properties you want to use.
         /// </summary>
         [DataMember(Name = "ap", IsRequired = false, EmitDefaultValue = false, Order = 8)]
         public Dictionary<string, string> AdditionalProperties { get; set; }
 
         /// <summary>
-        /// Gets or Sets the current percentage progress overall
+        /// Gets or Sets the current percentage progress overall.
         /// </summary>
-        [DataMember(Name = "pp", IsRequired = false, EmitDefaultValue = false, Order = 9)]
+        [DataMember(Name = "pp", IsRequired = false, Order = 9)]
         public double ProgressPercentage { get; set; }
 
         /// <summary>
-        /// Ctor. New sync context with a new Guid
+        /// Copy local properties to another syncContext instance.
         /// </summary>
-        public SyncContext(Guid sessionId, string scopeName, SyncParameters parameters = default)
-        {
-            this.SessionId = sessionId;
-            this.ScopeName = scopeName;
-            this.Parameters = parameters;
-            this.StartTime = DateTime.UtcNow;
-
-        }
-        public SyncContext(Guid sessionId, ScopeInfoClient scopeInfoClient)
-        {
-            this.SessionId = sessionId;
-            this.ScopeName = scopeInfoClient.Name;
-            this.Parameters = scopeInfoClient.Parameters;
-            this.ClientId = scopeInfoClient.Id;
-        }
-
-        /// <summary>
-        /// Used for serialization purpose
-        /// </summary>
-        public SyncContext()
-        {
-
-        }
-
-        /// <summary>
-        /// Copy local properties to another syncContext instance
-        /// </summary>
-        /// <param name="otherSyncContext"></param>
         public void CopyTo(SyncContext otherSyncContext)
         {
+            Guard.ThrowIfNull(otherSyncContext);
+
             otherSyncContext.Parameters = this.Parameters;
             otherSyncContext.ScopeName = this.ScopeName;
             otherSyncContext.ClientId = this.ClientId;
@@ -136,11 +143,10 @@ namespace Dotmim.Sync
                 foreach (var p in this.AdditionalProperties)
                     otherSyncContext.AdditionalProperties.Add(p.Key, p.Value);
             }
-
         }
 
         /// <summary>
-        /// Get the result if sync session is ended
+        /// Get the result if sync session is ended.
         /// </summary>
         public override string ToString() => this.ScopeName;
     }

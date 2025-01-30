@@ -4,8 +4,6 @@ using Dotmim.Sync.Tests.Core;
 using Dotmim.Sync.Tests.Models;
 using Dotmim.Sync.Web.Client;
 using Dotmim.Sync.Web.Server;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -141,12 +139,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             var rowsCount = serverProvider.GetDatabaseFilteredRowsCount();
             var parameters = GetFilterParameters();
 
-            // Create a kestrell server
-            var kestrell = new KestrellTestServer(false);
+            // Create a kestrel server
+            var kestrel = new KestrelTestServer(false);
 
             // configure server orchestrator
-            kestrell.AddSyncServer(serverProvider, setup, options, null, scopeName);
-            var serviceUri = kestrell.Run();
+            kestrel.AddSyncServer(serverProvider, setup, options, null, scopeName);
+            var serviceUri = kestrel.Run();
 
 
             var remoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
@@ -189,12 +187,12 @@ namespace Dotmim.Sync.Tests.UnitTests
             var rowsCount = serverProvider.GetDatabaseFilteredRowsCount();
             var parameters = GetFilterParameters();
 
-            // Create a kestrell server
-            var kestrell = new KestrellTestServer(false);
+            // Create a kestrel server
+            var kestrel = new KestrelTestServer(false);
 
             // configure server orchestrator
-            kestrell.AddSyncServer(serverProvider, setup, options, null, scopeName);
-            var serviceUri = kestrell.Run();
+            kestrel.AddSyncServer(serverProvider, setup, options, null, scopeName);
+            var serviceUri = kestrel.Run();
 
             var remoteOrchestrator = new WebRemoteOrchestrator(serviceUri);
 

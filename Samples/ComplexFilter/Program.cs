@@ -1,5 +1,4 @@
 ﻿using Dotmim.Sync;
-using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
 using System;
 using System.Data;
@@ -7,23 +6,22 @@ using System.Threading.Tasks;
 
 namespace Filter
 {
-    class Program
+    internal class Program
     {
         private static string serverConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=AdventureWorks;Integrated Security=true;";
         private static string clientConnectionString = $"Data Source=(localdb)\\mssqllocaldb; Initial Catalog=Client;Integrated Security=true;";
 
-        static async Task Main() => await SynchronizeAsync();
-
+        private static async Task Main() => await SynchronizeAsync().ConfigureAwait(false);
 
         private static async Task SynchronizeAsync()
         {
-            // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql 
-
+            // Database script used for this sample : https://github.com/Mimetis/Dotmim.Sync/blob/master/CreateAdventureWorks.sql
             var serverProvider = new SqlSyncProvider(serverConnectionString);
             var clientProvider = new SqlSyncProvider(clientConnectionString);
-            //var clientProvider = new SqliteSyncProvider("advfiltered.db");
 
-            var setup = new SyncSetup("ProductCategory",
+            // var clientProvider = new SqliteSyncProvider("advfiltered.db");
+            var setup = new SyncSetup(
+                "ProductCategory",
                 "ProductModel", "Product",
                 "Address", "Customer", "CustomerAddress",
                 "SalesOrderHeader", "SalesOrderDetail");
@@ -42,16 +40,16 @@ namespace Filter
             var addressFilter = new SetupFilter("Address");
 
             // For each filter, you have to provider all the input parameters
-            // A parameter could be a parameter mapped to an existing colum : 
+            // A parameter could be a parameter mapped to an existing colum :
             // That way you don't have to specify any type, length and so on ...
-            // We can specify if a null value can be passed as parameter value : 
+            // We can specify if a null value can be passed as parameter value :
             // That way ALL addresses will be fetched
             // A default value can be passed as well, but works only on SQL Server (MySql is a damn ... thing)
             addressFilter.AddParameter("City", "Address", true);
 
-            // Or a parameter could be a random parameter bound to anything. 
+            // Or a parameter could be a random parameter bound to anything.
             // In that case, you have to specify everything
-            // (This parameter COULD BE bound to a column, like City, 
+            // (This parameter COULD BE bound to a column, like City,
             //  but for the example, we go for a custom parameter)
             addressFilter.AddParameter("postal", DbType.String, true, null, 20);
 
@@ -114,19 +112,21 @@ namespace Filter
             var parameters = new SyncParameters
             {
                 { "City", "Toronto" },
-                // Because I've specified that "postal" could be null, 
+
+                // Because I've specified that "postal" could be null,
                 // I can set the value to DBNull.Value (and the get all postal code in Toronto city)
-                { "postal", "M4B 1V5" }
+                { "postal", "M4B 1V5" },
             };
 
             do
             {
                 // Launch the sync process
-                var s1 = await agent.SynchronizeAsync(setup, parameters);
+                var s1 = await agent.SynchronizeAsync(setup, parameters).ConfigureAwait(false);
+
                 // Write results
                 Console.WriteLine(s1);
-
-            } while (Console.ReadKey().Key != ConsoleKey.Escape);
+            }
+            while (Console.ReadKey().Key != ConsoleKey.Escape);
 
             Console.WriteLine("End");
         }

@@ -1,14 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text;
-
-namespace MauiAppClient.Services
+﻿namespace MauiAppClient.Services
 {
     public class SettingServices : ISettingServices
     {
 
-        private string GetLibraryPath()
+        private static string GetLibraryPath()
         {
             //#if __IOS__
             //            // we need to put in /Library/ on iOS5.1 to meet Apple's iCloud terms
@@ -24,12 +19,12 @@ namespace MauiAppClient.Services
             return libraryPath;
         }
 
-        public string DataSource => $"Data Source={DataSourcePath}";
+        public string DataSource => $"Data Source={this.DataSourcePath}";
 
         public string DataSourceName => "adv0026.db";
         public string BatchDirectoryName => "dms";
-        public string DataSourcePath => Path.Combine(GetLibraryPath(), DataSourceName);
-        public string BatchDirectoryPath => Path.Combine(GetLibraryPath(), BatchDirectoryName);
+        public string DataSourcePath => Path.Combine(GetLibraryPath(), this.DataSourceName);
+        public string BatchDirectoryPath => Path.Combine(GetLibraryPath(), this.BatchDirectoryName);
 
         // Testing from emulator
         public string SyncApiUrl => DeviceInfo.Platform == DevicePlatform.Android ? "http://10.0.2.2:5213/api/sync" : "http://localhost:5213/api/sync";

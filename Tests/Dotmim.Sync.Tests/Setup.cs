@@ -1,36 +1,30 @@
 ﻿using Dotmim.Sync.Tests.Core;
-#if NET6_0 || NET8_0 
+#if NET6_0 || NET8_0
 using MySqlConnector;
 #elif NETCOREAPP3_1
 using MySql.Data.MySqlClient;
 #endif
 
-using System;
-using Microsoft.Data.SqlClient;
-using System.Runtime.InteropServices;
-using Microsoft.Extensions.Configuration;
-using Npgsql;
+using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Fixtures;
 using Dotmim.Sync.Tests.IntegrationTests;
 using Dotmim.Sync.Tests.Misc;
-using System.Collections.Generic;
-using Xunit.Abstractions;
-using System.Xml.Linq;
-using Dotmim.Sync.SqlServer;
 using Dotmim.Sync.Tests.Models;
 using Dotmim.Sync.Tests.UnitTests;
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
+using Xunit.Abstractions;
 
 namespace Dotmim.Sync.Tests
 {
     /// <summary>
-    /// Setup class is all you need to setup connection string, tables and client enabled for your provider tests
+    /// Setup class is all you need to setup connection string, tables and client enabled for your provider tests.
     /// </summary>
-    public class Setup
+    public static class Setup
     {
-
         /// <summary>
-        /// Gets if the tests are running on Azure Dev
+        /// Gets a value indicating whether gets if the tests are running on Azure Dev.
         /// </summary>
         public static bool IsOnAzureDev
         {
@@ -41,44 +35,49 @@ namespace Dotmim.Sync.Tests
                 return !string.IsNullOrEmpty(isOnAzureDev) && string.Equals(isOnAzureDev, "true", SyncGlobalization.DataSourceStringComparison);
             }
         }
-
     }
-
 
     public class SqlServerUnitTests : InterceptorsTests
     {
-        public SqlServerUnitTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public SqlServerUnitTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
 
         public override ProviderType ServerProviderType => ProviderType.Sql;
 
         private string sqlRandomDatabaseName = HelperDatabase.GetRandomName("ut1_sql_");
+
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlRandomDatabaseName, true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, this.sqlRandomDatabaseName, true);
         }
-
     }
-  
+
     public class SqlServerUnitLocalOrchestratorTests : LocalOrchestratorTests
     {
-        public SqlServerUnitLocalOrchestratorTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public SqlServerUnitLocalOrchestratorTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
+
         public override ProviderType ServerProviderType => ProviderType.Sql;
 
         private string sqlRandomDatabaseName = HelperDatabase.GetRandomName("ut2_sql_");
+
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlRandomDatabaseName, true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, this.sqlRandomDatabaseName, true);
         }
     }
+
     public class SqlServerChangeTrackingUnitLocalOrchestratorTests : LocalOrchestratorTests
     {
-        public SqlServerChangeTrackingUnitLocalOrchestratorTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public SqlServerChangeTrackingUnitLocalOrchestratorTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
+
         private string sqlRandomClientDatabaseName = HelperDatabase.GetRandomName("ut2_sql_server_ct_");
         private string sqlRandomServerDatabaseName = HelperDatabase.GetRandomName("ut2_sql_client_ct_");
 
@@ -86,8 +85,7 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-
-            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(sqlRandomClientDatabaseName);
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(this.sqlRandomClientDatabaseName);
             var provider = new SqlSyncChangeTrackingProvider(cstring);
             provider.UseFallbackSchema(true);
 
@@ -96,32 +94,36 @@ namespace Dotmim.Sync.Tests
 
         public override CoreProvider GetServerProvider()
         {
-            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(sqlRandomServerDatabaseName);
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(this.sqlRandomServerDatabaseName);
             var provider = new SqlSyncChangeTrackingProvider(cstring);
             provider.UseFallbackSchema(true);
             return provider;
         }
     }
-
     public class SqlServerUnitRemoteOrchestratorTests : RemoteOrchestratorTests
     {
-        public SqlServerUnitRemoteOrchestratorTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public SqlServerUnitRemoteOrchestratorTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
-        }
-        public override ProviderType ServerProviderType => ProviderType.Sql;
-        
-        private string sqlRandomDatabaseName = HelperDatabase.GetRandomName("ut3_sql_");
-        public override IEnumerable<CoreProvider> GetClientProviders()
-        {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlRandomDatabaseName, true);
         }
 
+        public override ProviderType ServerProviderType => ProviderType.Sql;
+
+        private string sqlRandomDatabaseName = HelperDatabase.GetRandomName("ut3_sql_");
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, this.sqlRandomDatabaseName, true);
+        }
     }
+
     public class SqlServerChangeTrackingUnitRemoteOrchestratorTests : RemoteOrchestratorTests
     {
-        public SqlServerChangeTrackingUnitRemoteOrchestratorTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public SqlServerChangeTrackingUnitRemoteOrchestratorTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
+
         private string sqlRandomClientDatabaseName = HelperDatabase.GetRandomName("ut3_sql_server_ct_");
         private string sqlRandomServerDatabaseName = HelperDatabase.GetRandomName("ut3_sql_client_ct_");
 
@@ -129,8 +131,7 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-
-            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(sqlRandomClientDatabaseName);
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(this.sqlRandomClientDatabaseName);
             var provider = new SqlSyncChangeTrackingProvider(cstring);
             provider.UseFallbackSchema(true);
 
@@ -139,18 +140,19 @@ namespace Dotmim.Sync.Tests
 
         public override CoreProvider GetServerProvider()
         {
-            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(sqlRandomServerDatabaseName);
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(this.sqlRandomServerDatabaseName);
             var provider = new SqlSyncChangeTrackingProvider(cstring);
             provider.UseFallbackSchema(true);
             return provider;
         }
     }
-
     public class SqlServerTcpTests : TcpTests
     {
-        public SqlServerTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public SqlServerTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
+
         public override ProviderType ServerProviderType => ProviderType.Sql;
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_sqlite_");
@@ -158,16 +160,18 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlClientRandomDatabaseName, true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, this.sqliteRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, this.sqlClientRandomDatabaseName, true);
         }
-
     }
+
     public class SqlServerChangeTrackingTcpTests : TcpTests
     {
-        public SqlServerChangeTrackingTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public SqlServerChangeTrackingTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
+
         public override ProviderType ServerProviderType => ProviderType.Sql;
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpct_sqlite_");
@@ -176,24 +180,30 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlClientRandomDatabaseName, true);
+            //yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
+
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(sqlClientRandomDatabaseName);
+            var provider = new SqlSyncChangeTrackingProvider(cstring);
+            provider.UseFallbackSchema(true);
+            yield return provider;
+
         }
 
         public override CoreProvider GetServerProvider()
         {
-            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(sqlServerRandomDatabaseName);
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(this.sqlServerRandomDatabaseName);
             var provider = new SqlSyncChangeTrackingProvider(cstring);
             provider.UseFallbackSchema(true);
             return provider;
         }
     }
-
     public class SqlServerTcpFilterTests : TcpFilterTests
     {
-        public SqlServerTcpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public SqlServerTcpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
+
         public override ProviderType ServerProviderType => ProviderType.Sql;
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpf_sqlite_");
@@ -201,14 +211,15 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlClientRandomDatabaseName, true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, this.sqliteRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, this.sqlClientRandomDatabaseName, true);
         }
-
     }
+
     public class SqlServerChangeTrackingTcpFilterTests : TcpFilterTests
     {
-        public SqlServerChangeTrackingTcpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public SqlServerChangeTrackingTcpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
 
@@ -220,9 +231,9 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, this.sqliteRandomDatabaseName, false);
 
-            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(sqlClientRandomDatabaseName);
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(this.sqlClientRandomDatabaseName);
             var provider = new SqlSyncChangeTrackingProvider(cstring);
             provider.UseFallbackSchema(true);
 
@@ -231,19 +242,19 @@ namespace Dotmim.Sync.Tests
 
         public override CoreProvider GetServerProvider()
         {
-            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(sqlServerRandomDatabaseName);
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(this.sqlServerRandomDatabaseName);
             var provider = new SqlSyncChangeTrackingProvider(cstring);
             provider.UseFallbackSchema(true);
             return provider;
         }
-
     }
-
     public class SqlServerHttpTests : HttpTests
     {
-        public SqlServerHttpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public SqlServerHttpTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
+
         public override ProviderType ServerProviderType => ProviderType.Sql;
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("http_sqlite_");
@@ -251,13 +262,15 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlClientRandomDatabaseName, true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, this.sqliteRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, this.sqlClientRandomDatabaseName, true);
         }
     }
+
     public class SqlServerChangeTrackingHttpFilterTests : HttpTests
     {
-        public SqlServerChangeTrackingHttpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public SqlServerChangeTrackingHttpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
 
@@ -270,50 +283,6 @@ namespace Dotmim.Sync.Tests
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlClientRandomDatabaseName, true);
-        }
-
-        public override CoreProvider GetServerProvider()
-        {
-            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(sqlServerRandomDatabaseName);
-            var provider = new SqlSyncChangeTrackingProvider(cstring);
-            provider.UseFallbackSchema(true);
-            return provider;
-        }
-
-    }
-
-    public class SqlServerConflictTests : TcpConflictsTests
-    {
-        public SqlServerConflictTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
-        {
-        }
-        public override ProviderType ServerProviderType => ProviderType.Sql;
-
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpc_sqlite_");
-        private string sqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpc_sql_");
-
-        public override IEnumerable<CoreProvider> GetClientProviders()
-        {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, sqlClientRandomDatabaseName, true);
-        }
-    }
-    public class SqlServerChangeTrackingConflictTests : TcpConflictsTests
-    {
-        public SqlServerChangeTrackingConflictTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
-        {
-        }
-        public override ProviderType ServerProviderType => ProviderType.Sql;
-
-        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpctc_sqlite_");
-        private string sqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpctc_sql_");
-        private string sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("httpctf_sql_");
-
-        public override IEnumerable<CoreProvider> GetClientProviders()
-        {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-
             var cstring = HelperDatabase.GetSqlDatabaseConnectionString(sqlClientRandomDatabaseName);
             var provider = new SqlSyncChangeTrackingProvider(cstring);
             provider.UseFallbackSchema(true);
@@ -322,39 +291,91 @@ namespace Dotmim.Sync.Tests
 
         public override CoreProvider GetServerProvider()
         {
-            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(sqlServerRandomDatabaseName);
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(this.sqlServerRandomDatabaseName);
+            var provider = new SqlSyncChangeTrackingProvider(cstring);
+            provider.UseFallbackSchema(true);
+            return provider;
+        }
+    }
+    public class SqlServerConflictTests : TcpConflictsTests
+    {
+        public SqlServerConflictTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
+        {
+        }
+
+        public override ProviderType ServerProviderType => ProviderType.Sql;
+
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpc_sqlite_");
+        private string sqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpc_sql_");
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, this.sqliteRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sql, this.sqlClientRandomDatabaseName, true);
+        }
+    }
+
+    public class SqlServerChangeTrackingConflictTests : TcpConflictsTests
+    {
+        public SqlServerChangeTrackingConflictTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
+        {
+        }
+
+        public override ProviderType ServerProviderType => ProviderType.Sql;
+
+        private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpctc_sqlite_");
+        private string sqlClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpctc_sql_");
+        private string sqlServerRandomDatabaseName = HelperDatabase.GetRandomName("httpctf_sql_");
+
+        public override IEnumerable<CoreProvider> GetClientProviders()
+        {
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, this.sqliteRandomDatabaseName, false);
+
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(this.sqlClientRandomDatabaseName);
+            var provider = new SqlSyncChangeTrackingProvider(cstring);
+            provider.UseFallbackSchema(true);
+            yield return provider;
+        }
+
+        public override CoreProvider GetServerProvider()
+        {
+            var cstring = HelperDatabase.GetSqlDatabaseConnectionString(this.sqlServerRandomDatabaseName);
             var provider = new SqlSyncChangeTrackingProvider(cstring);
             provider.UseFallbackSchema(true);
             return provider;
         }
 
         public override Task Conflict_UC_OUTDATED_ServerShouldWins() => Task.CompletedTask;
+
         public override Task Conflict_UC_OUTDATED_ServerShouldWins_EvenIf_ResolutionIsClientWins() => Task.CompletedTask;
-
     }
-
     public class PostgresConflictTests : TcpConflictsTests
     {
-        public PostgresConflictTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public PostgresConflictTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
+
         public override ProviderType ServerProviderType => ProviderType.Postgres;
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpc_npg_sqlite_");
         private string postgreClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpc_npg_");
-        
+
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, postgreClientRandomDatabaseName, true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, this.sqliteRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, this.postgreClientRandomDatabaseName, true);
         }
     }
-
     public class PostgresTcpTests : TcpTests
     {
-        public PostgresTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public PostgresTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
+
         public override ProviderType ServerProviderType => ProviderType.Postgres;
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_npg_sqlite_");
@@ -362,16 +383,17 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, postgreClientRandomDatabaseName, true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, this.sqliteRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, this.postgreClientRandomDatabaseName, true);
         }
     }
-
     public class PostgresTcpFilterTests : TcpFilterTests
     {
-        public PostgresTcpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public PostgresTcpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
+
         public override ProviderType ServerProviderType => ProviderType.Postgres;
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcfp_npg_sqlite_");
@@ -379,16 +401,17 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, postgreClientRandomDatabaseName, true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, this.sqliteRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, this.postgreClientRandomDatabaseName, true);
         }
     }
-
     public class PostgresHttpTests : HttpTests
     {
-        public PostgresHttpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public PostgresHttpTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
+
         public override ProviderType ServerProviderType => ProviderType.Postgres;
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("http_npg_sqlite_");
@@ -396,17 +419,18 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, postgreClientRandomDatabaseName, true);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, this.sqliteRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Postgres, this.postgreClientRandomDatabaseName, true);
         }
     }
 
-
     public class MySqlTcpTests : TcpTests
     {
-        public MySqlTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public MySqlTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
+
         public override ProviderType ServerProviderType => ProviderType.MySql;
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_mysql_sqlite_");
@@ -414,14 +438,14 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, mysqlClientRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, this.sqliteRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, this.mysqlClientRandomDatabaseName, false);
         }
     }
-
     public class MySqlTcpFilterTests : TcpFilterTests
     {
-        public MySqlTcpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public MySqlTcpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
 
@@ -432,14 +456,14 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, mysqlClientRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, this.sqliteRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, this.mysqlClientRandomDatabaseName, false);
         }
     }
-
     public class MySqlHttpTests : HttpTests
     {
-        public MySqlHttpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public MySqlHttpTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
 
@@ -450,16 +474,17 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, mysqlClientRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, this.sqliteRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, this.mysqlClientRandomDatabaseName, false);
         }
     }
-
     public class MySqlConflictTests : TcpConflictsTests
     {
-        public MySqlConflictTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public MySqlConflictTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
+
         public override ProviderType ServerProviderType => ProviderType.MySql;
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpc_mysql_sqlite_");
@@ -467,61 +492,62 @@ namespace Dotmim.Sync.Tests
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
-            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, mysqlClientRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, this.sqliteRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MySql, this.mysqlClientRandomDatabaseName, false);
         }
     }
-
     public class MariaDBTcpTests : TcpTests
     {
-        public MariaDBTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public MariaDBTcpTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
+
         public override ProviderType ServerProviderType => ProviderType.MariaDB;
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcp_maria_sqlite_");
-        private string mariaClientRandomDatabaseName = HelperDatabase.GetRandomName("tcp_maria_");
+        private string mariaClientRandomDatabaseName = HelperDatabase.GetRandomName("tcp_maria_maria_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            //yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, mariaClientRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, mariaClientRandomDatabaseName, false);
         }
     }
-
     public class MariaDBTcpFilterTests : TcpFilterTests
     {
-        public MariaDBTcpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public MariaDBTcpFilterTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
 
         public override ProviderType ServerProviderType => ProviderType.MariaDB;
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("tcpf_maria_sqlite_");
-        private string mariaClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpf_maria_");
+        private string mariaClientRandomDatabaseName = HelperDatabase.GetRandomName("tcpf_maria_maria_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            //yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, mariaClientRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, mariaClientRandomDatabaseName, false);
         }
     }
-
     public class MariaDBHttpTests : TcpTests
     {
-        public MariaDBHttpTests(ITestOutputHelper output, DatabaseServerFixture fixture) : base(output, fixture)
+        public MariaDBHttpTests(ITestOutputHelper output, DatabaseServerFixture fixture)
+            : base(output, fixture)
         {
         }
 
         public override ProviderType ServerProviderType => ProviderType.MariaDB;
 
         private string sqliteRandomDatabaseName = HelperDatabase.GetRandomName("http_maria_sqlite_");
-        private string mariaClientRandomDatabaseName = HelperDatabase.GetRandomName("http_maria_");
+        private string mariaClientRandomDatabaseName = HelperDatabase.GetRandomName("http_maria_maria_");
 
         public override IEnumerable<CoreProvider> GetClientProviders()
         {
             yield return HelperDatabase.GetSyncProvider(ProviderType.Sqlite, sqliteRandomDatabaseName, false);
-            //yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, mariaClientRandomDatabaseName, false);
+            yield return HelperDatabase.GetSyncProvider(ProviderType.MariaDB, mariaClientRandomDatabaseName, false);
         }
     }
 }
