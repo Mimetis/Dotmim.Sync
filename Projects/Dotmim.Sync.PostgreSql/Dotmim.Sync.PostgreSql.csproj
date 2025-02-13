@@ -12,7 +12,7 @@
 		<Summary>PostgreSql Sync Provider. Client or Server provider .Net Standard 2.0</Summary>
 		<Description>PostgreSql Sync Provider. Manage a sync process beetween two relational databases provider. This provider works with SQL Server and can be used as Client or Server provider .Net Standard 2.0</Description>
 		<RepositoryType>git</RepositoryType>
-		<Version>1.0.0.4</Version>
+		<Version>1.0.0.5</Version>
 		<LangVersion>latest</LangVersion>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
