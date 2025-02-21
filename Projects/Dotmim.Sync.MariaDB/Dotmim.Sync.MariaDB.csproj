@@ -14,7 +14,7 @@
 		<Summary>MariaDB Sync Provider. Client or Server provider .Net Standard 2.0</Summary>
 		<Description>MariaDB Sync Provider. Manage a sync process beetween two relational databases provider. This provider can be used as Client or Server provider .Net Standard 2.0</Description>
 		<RepositoryType>git</RepositoryType>
-		<Version>1.0.0.5</Version>
+		<Version>1.0.0.11</Version>
 		<LangVersion>latest</LangVersion>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>

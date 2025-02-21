@@ -14,7 +14,7 @@
 		<RepositoryType>git</RepositoryType>
 		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
 		
-		<Version>1.0.0.5</Version>
+		<Version>1.0.0.11</Version>
 		
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
@@ -37,7 +37,7 @@
 		<PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0" />
 	</ItemGroup>
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet8)' ">
-		<PackageReference Include="Microsoft.Extensions.Features" Version="9.0.1" />
+		<PackageReference Include="Microsoft.Extensions.Features" Version="9.0.2" />
 		<PackageReference Include="Microsoft.Net.Http.Headers" Version="8.0.12" />
 	</ItemGroup>
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNetStandard)' ">
@@ -47,7 +47,7 @@
 	</ItemGroup>
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet9)' ">
 		<PackageReference Include="Microsoft.Extensions.Features" Version="9.0.1" />
-		<PackageReference Include="Microsoft.Net.Http.Headers" Version="9.0.1" />
+		<PackageReference Include="Microsoft.Net.Http.Headers" Version="9.0.2" />
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />

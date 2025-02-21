@@ -16,7 +16,7 @@
 		<AssemblyName>Dotmim.Sync.Web.Server</AssemblyName>
 		<RootNamespace>Dotmim.Sync.Web.Server</RootNamespace>
 		
-		<Version>1.0.0.5</Version>
+		<Version>1.0.0.11</Version>
 		
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
@@ -36,7 +36,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
-		<PackageReference Include="System.Text.Json" Version="9.0.1" />
+		<PackageReference Include="System.Text.Json" Version="9.0.2" />
 	</ItemGroup>
 
 

@@ -17,7 +17,7 @@
 		<RepositoryType>git</RepositoryType>
 		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
 		
-		<Version>1.0.0.5</Version>
+		<Version>1.0.0.11</Version>
 		
 		<LangVersion>latest</LangVersion>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
@@ -47,7 +47,7 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
 		<ProjectReference Include="..\Dotmim.Sync.Core\Dotmim.Sync.Core.csproj" />
-		<PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.1" />
+		<PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.2" />
 	</ItemGroup>
 
 	<ItemGroup>

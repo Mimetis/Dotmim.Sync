@@ -15,7 +15,7 @@
 		<PackageTags>Data, Database, Sync, Synchronization, Framework, Sql, MySql, Sqlite, Dotmim.Sync, NetStandard, SyncFramework</PackageTags>
 		<RepositoryUrl>https://github.com/Mimetis/Dotmim.Sync</RepositoryUrl>
 		<RepositoryType>git</RepositoryType>
-		<Version>1.0.0.5</Version>
+		<Version>1.0.0.11</Version>
 		<LangVersion>latest</LangVersion>
 		<ApplicationIcon>favicon.ico</ApplicationIcon>
 		<PackageIcon>packageIcon.png</PackageIcon>
@@ -50,7 +50,7 @@
 
 
 	<ItemGroup>
-		<PackageReference Include="System.Text.Json" Version="9.0.1" />
+		<PackageReference Include="System.Text.Json" Version="9.0.2" />
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
 	</ItemGroup>
 
@@ -59,7 +59,7 @@
 	</ItemGroup>
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet8)'">
-		<PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.1" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.2" />
 	</ItemGroup>
 
 	<ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFrameworkNet9)'">
