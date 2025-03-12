@@ -17,9 +17,10 @@
 		<PublishAot>True</PublishAot>
 	</PropertyGroup>
 	<ItemGroup>
-		<FrameworkReference Include="Microsoft.AspNetCore.App" />
-		<PackageReference Include="MessagePack" Version="2.4.59" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.6" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
 		<PackageReference Include="NLog.Web.AspNetCore" Version="5.3.11" />
 		<PackageReference Include="Seq.Extensions.Logging" Version="8.0.0" />
@@ -41,6 +42,7 @@
 		<ProjectReference Include="..\..\Projects\Dotmim.Sync.Web.Client\Dotmim.Sync.Web.Client.csproj" />
 		<ProjectReference Include="..\..\Projects\Dotmim.Sync.Web.Server\Dotmim.Sync.Web.Server.csproj" />
 	</ItemGroup>
+
 	<ItemGroup>
 		<None Update="appsettings.local.json">
 		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

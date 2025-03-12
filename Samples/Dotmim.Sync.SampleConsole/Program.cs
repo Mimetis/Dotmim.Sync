@@ -1,8 +1,7 @@
 ﻿using Dotmim.Sync;
-using Dotmim.Sync.Builders;
 using Dotmim.Sync.DatabaseStringParsers;
 using Dotmim.Sync.Enumerations;
-using Dotmim.Sync.PostgreSql;
+using Dotmim.Sync.MySql;
 using Dotmim.Sync.SampleConsole;
 using Dotmim.Sync.Sqlite;
 using Dotmim.Sync.SqlServer;
@@ -22,8 +21,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-#if NET6_0 || NET8_0
-#elif NETCOREAPP3_1
+#if NETCOREAPP3_1
 using MySql.Data.MySqlClient;
 #endif
 
@@ -45,21 +43,22 @@ internal class Program
 
     private static async Task Main(string[] args)
     {
-        // var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ServerDbName));
-        var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(ServerDbName));
+        //var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ServerDbName));
+
+        //var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(ServerDbName));
 
         // var serverProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString("data"));
-        // var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(serverDbName));
-        // var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(serverDbName));
+        // var serverProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(ServerDbName));
+        var serverProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(ServerDbName));
 
-        // var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-        // var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ClientDbName));
-        var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(ClientDbName));
+        var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
+        //var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ClientDbName));
+        // var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(ClientDbName));
         // var clientProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString(clientDbName));
         // clientProvider.UseBulkOperations = false;
         // var clientProvider = new MariaDBSyncProvider(DBHelper.GetMariadbDatabaseConnectionString(clientDbName));
         // var clientProvider = new MySqlSyncProvider(DBHelper.GetMySqlDatabaseConnectionString(clientDbName));
-        var setup = new SyncSetup(TwoTableS);
+        var setup = new SyncSetup(OneTable);
 
         // options.Logger = new SyncLogger().AddDebug().SetMinimumLevel(LogLevel.Information);
         // options.UseVerboseErrors = true;
@@ -82,8 +81,6 @@ internal class Program
         // await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
 
         //await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
-        //await CheckChanges(clientProvider, serverProvider, setup, options);
-
         await SynchronizeAsync(clientProvider, serverProvider, setup, options);
 
         //await ScenarioAsync();
@@ -91,6 +88,44 @@ internal class Program
         //await SyncHttpThroughKestrelAsync(clientProvider, serverProvider, setup, options);
         //await MMCAsync();
     }
+
+    private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
+    {
+        options.DisableConstraintsOnApplyChanges = true;
+        options.TransactionMode = TransactionMode.None;
+
+        var progress = new SynchronousProgress<ProgressArgs>(s =>
+            Console.WriteLine($"{s.ProgressPercentage:p}:  " +
+            $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
+
+        // options.Logger = new SyncLogger().AddConsole().SetMinimumLevel(LogLevel.Debug);
+        // options.ErrorResolutionPolicy = ErrorResolution.ContinueOnError;
+        var agent = new SyncAgent(clientProvider, serverProvider, options);
+
+        do
+        {
+            try
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                var s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
+                Console.WriteLine(s);
+            }
+            catch (SyncException e)
+            {
+                Console.ResetColor();
+                Console.WriteLine(e.Message);
+            }
+            catch (Exception e)
+            {
+                Console.ResetColor();
+                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
+            }
+
+            Console.WriteLine("--------------------");
+        }
+        while (Console.ReadKey().Key != ConsoleKey.Escape);
+    }
+
 
 
     /// <summary>
@@ -264,85 +299,6 @@ internal class Program
         return stringBuilder.ToString();
     }
 
-    public static async Task MMCAsync()
-    {
-        var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ServerDbName));
-        var clientProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString(ClientDbName));
-        var options = new SyncOptions();
-
-        var setup = new SyncSetup("MMCUserDbo");
-
-        setup.Tables["MMCUserDbo"].Columns.AddRange("Id", "UserName", "UserDisplayName", "UserType", "IsSystemUser", "OrganizationNodeId", "UserPrincipalName", "EmailId", "PhoneNumber");
-
-        var filter = new SetupFilter("MMCUserDbo");
-        filter.AddParameter("IsSystemUser", "MMCUserDbo");
-        filter.AddWhere("IsSystemUser", "MMCUserDbo", "IsSystemUser");
-        setup.Filters.Add(filter);
-
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-            Console.WriteLine($"{s.ProgressPercentage:p}:  " +
-            $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
-
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        await agent.RemoteOrchestrator.DropAllAsync();
-        await agent.LocalOrchestrator.DropAllAsync();
-        agent.LocalOrchestrator.OnGetCommand(args =>
-        {
-            if (args.CommandType == DbCommandType.Reset)
-            {
-                var setupTable = args.ScopeInfo.Setup.Tables[args.Table.TableName, args.Table.SchemaName];
-
-                if (setupTable != null && setupTable.SyncDirection == SyncDirection.UploadOnly)
-                    args.Command.CommandText = "Select 1;";
-            }
-        });
-
-        agent.LocalOrchestrator.OnTriggerCreating(args =>
-        {
-            if (args.TriggerType == DbTriggerType.Update && args.Table != null && args.ScopeInfo?.Setup != null)
-                args.Command.CommandText = GetUpdateTrigger(args.Table, args.ScopeInfo.Setup);
-        });
-
-
-        agent.RemoteOrchestrator.OnTriggerCreating(args =>
-        {
-            if (args.TriggerType == DbTriggerType.Update)
-                args.Command.CommandText = GetUpdateTrigger(args.Table, setup);
-        });
-
-
-        do
-        {
-            try
-            {
-                Console.ForegroundColor = ConsoleColor.Green;
-                var parameters = new SyncParameters
-                {
-                    { "IsSystemUser", true   }
-                };
-
-                var r = await agent.SynchronizeAsync(setup: setup, parameters: parameters, progress: progress);
-
-                Console.WriteLine(r);
-
-            }
-            catch (SyncException e)
-            {
-                Console.ResetColor();
-                Console.WriteLine(e.Message);
-            }
-            catch (Exception e)
-            {
-                Console.ResetColor();
-                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-            }
-
-            Console.WriteLine("--------------------");
-        }
-        while (Console.ReadKey().Key != ConsoleKey.Escape);
-    }
-
     public static async Task ProvisionAsync()
     {
         var serverProvider = new SqlSyncProvider(DBHelper.GetDatabaseConnectionString("1001_SearchManager"));
@@ -383,41 +339,6 @@ internal class Program
 
         Console.WriteLine($"Ellapsed time:{ellapsedTime}");
     }
-    public static async Task ScenarioAsync()
-    {
-        var serverProvider = new NpgsqlSyncProvider(DBHelper.GetNpgsqlDatabaseConnectionString("AdvData"));
-        var clientProvider = new SqliteSyncProvider(Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ".db");
-
-        //AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", false);
-
-        // reset
-        await DropAllAsync(serverProvider);
-
-        var setup = new SyncSetup("dataengine.trackplot_cog");
-        var options = new SyncOptions();
-
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-            Console.WriteLine($"{s.ProgressPercentage:p}:  " +
-            $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
-
-
-        // Initial rows on server side
-        await AddTrackPlotAsync(serverProvider, 12, "server 01");
-        await AddTrackPlotAsync(serverProvider, 23, "server 01");
-        await AddTrackPlotAsync(serverProvider, 34, "server 01");
-
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-        var syncResult = await agent.SynchronizeAsync(setup, progress);
-        Console.WriteLine(syncResult);
-
-        await AddTrackPlotAsync(clientProvider, 12, "client 10");
-
-        syncResult = await agent.SynchronizeAsync(setup, progress);
-        Console.WriteLine(syncResult);
-
-
-    }
 
     internal static async Task DropAllAsync(CoreProvider provider)
     {
@@ -436,59 +357,6 @@ internal class Program
 
         connection.Close();
 
-    }
-
-    internal static async Task AddTrackPlotAsync(CoreProvider provider, int id, string name = default)
-    {
-        string commandText;
-        if (provider.GetShortProviderTypeName().ToLower() == "sqlitesyncprovider")
-            commandText = $"Insert into trackplot_cog (id, timestamp, name, lat, long) " +
-                                 $"Values (@id, @timestamp, @name, @lat, @long)";
-        else
-            commandText = $"Insert into dataengine.trackplot_cog (id, timestamp, name, lat, long) " +
-                                 $"Values (@id, @timestamp, @name, @lat, @long)";
-
-        var connection = provider.CreateConnection();
-
-        connection.Open();
-
-        var command = connection.CreateCommand();
-        command.CommandText = commandText;
-        command.Connection = connection;
-
-        var p = command.CreateParameter();
-        p.DbType = DbType.Int32;
-        p.ParameterName = "@id";
-        p.Value = id;
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.DbType = DbType.DateTime;
-        p.ParameterName = "@timestamp";
-        p.Value = DateTime.UtcNow;
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.DbType = DbType.String;
-        p.ParameterName = "@name";
-        p.Value = string.IsNullOrEmpty(name) ? Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() + ' ' + Path.GetRandomFileName().Replace(".", "").ToLowerInvariant() : name;
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.DbType = DbType.Double;
-        p.ParameterName = "@lat";
-        p.Value = 1.0;
-        command.Parameters.Add(p);
-
-        p = command.CreateParameter();
-        p.DbType = DbType.Double;
-        p.ParameterName = "@long";
-        p.Value = 1.0;
-        command.Parameters.Add(p);
-
-        await command.ExecuteNonQueryAsync();
-
-        connection.Close();
     }
 
     public static async Task CheckChanges(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
@@ -533,32 +401,6 @@ internal class Program
         //await remoteOrchestrator.DeprovisionAsync(setup).ConfigureAwait(false);
 
     }
-
-    //private static async Task SyncWithReinitialiazeWithChangeTrackingAsync()
-    //{
-    //    var serverProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(ServerDbName));
-    //    var clientProvider = new SqlSyncChangeTrackingProvider(DBHelper.GetDatabaseConnectionString(ClientDbName));
-
-    //    var setup = new SyncSetup("ProductCategory");
-
-    //    var options = new SyncOptions
-    //    {
-    //        DisableConstraintsOnApplyChanges = true,
-    //    };
-
-    //    var progress = new SynchronousProgress<ProgressArgs>(s =>
-    //        Console.WriteLine($"{s.ProgressPercentage:p}:  " +
-    //        $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
-
-    //    var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-    //    // var s = await agent.SynchronizeAsync(setup, progress: progress);
-    //    // Console.WriteLine(s);
-
-    //    // await DBHelper.AddProductCategoryRowAsync(clientProvider);
-    //    var s2 = await agent.SynchronizeAsync(setup, SyncType.Reinitialize, progress: progress);
-    //    Console.WriteLine(s2);
-    //}
 
     private static async Task CreateSnapshotAsync()
     {
@@ -631,44 +473,6 @@ internal class Program
 
             Console.WriteLine($"DONE.");
             Console.WriteLine($"----------------------------------------");
-        }
-        while (Console.ReadKey().Key != ConsoleKey.Escape);
-    }
-
-    private static async Task SynchronizeAsync(CoreProvider clientProvider, CoreProvider serverProvider, SyncSetup setup, SyncOptions options, string scopeName = SyncOptions.DefaultScopeName)
-    {
-        options.DisableConstraintsOnApplyChanges = true;
-
-        var progress = new SynchronousProgress<ProgressArgs>(s =>
-            Console.WriteLine($"{s.ProgressPercentage:p}:  " +
-            $"\t[{s?.Source?[..Math.Min(4, s.Source.Length)]}] {s.TypeName}: {s.Message}"));
-
-        //options.Logger = new SyncLogger().AddConsole().SetMinimumLevel(LogLevel.Debug);
-
-        // options.ErrorResolutionPolicy = ErrorResolution.ContinueOnError;
-        var agent = new SyncAgent(clientProvider, serverProvider, options);
-
-
-        do
-        {
-            try
-            {
-                Console.ForegroundColor = ConsoleColor.Green;
-                var s = await agent.SynchronizeAsync(scopeName, setup, progress: progress);
-                Console.WriteLine(s);
-            }
-            catch (SyncException e)
-            {
-                Console.ResetColor();
-                Console.WriteLine(e.Message);
-            }
-            catch (Exception e)
-            {
-                Console.ResetColor();
-                Console.WriteLine("UNKNOW EXCEPTION : " + e.Message);
-            }
-
-            Console.WriteLine("--------------------");
         }
         while (Console.ReadKey().Key != ConsoleKey.Escape);
     }

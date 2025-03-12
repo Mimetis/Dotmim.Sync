@@ -532,9 +532,11 @@ namespace Dotmim.Sync
                 return typeof(TimeSpan);
             else if (valueType == "20")
                 return typeof(char[]);
-#if NET6_0_OR_GREATER
             else if (valueType == "21")
+#if NET6_0_OR_GREATER
                 return typeof(DateOnly);
+#else
+                return typeof(DateTime);
 #endif
             else if (valueType == "-1")
                 return typeof(object);
