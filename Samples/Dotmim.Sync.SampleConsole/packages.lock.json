@@ -21,9 +21,9 @@
       },
       "Microsoft.DotNet.ILCompiler": {
         "type": "Direct",
-        "requested": "[9.0.2, )",
-        "resolved": "9.0.2",
-        "contentHash": "eyIUUqqPy7brzmoV04zabOUm0puEAAjZd3O3vuzan9iTTh0oIPwts8fLxZFoEZCFi63ACFtHbNBs5Y7myB3ZDQ=="
+        "requested": "[9.0.4, )",
+        "resolved": "9.0.4",
+        "contentHash": "G85txKEuQ8s64BG9Pk3TbmE+cDgKReepnIPNfC1lNks4u2v5SkQhjCuuSAep+H2xtgFpYU7w9LFOF+vVtJZguA=="
       },
       "Microsoft.EntityFrameworkCore.SqlServer": {
         "type": "Direct",
@@ -55,9 +55,9 @@
       },
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Direct",
-        "requested": "[9.0.2, )",
-        "resolved": "9.0.2",
-        "contentHash": "+KFnCLVPicEq99ko0tq+ycTvNLXHw0tImmTZjPloB/DOFLPT56KLfk5aS7wbgXRPzYhXTTBYLGaABea5mke77w=="
+        "requested": "[9.0.4, )",
+        "resolved": "9.0.4",
+        "contentHash": "xUdlUxiFwXhTYhB4VxKg/IA0+jlZXJPo70LYuMryWbJHdonIpZjw+7DO2B0pWwpXIOs6MlH5WVXPEtfrGEcVZA=="
       },
       "Newtonsoft.Json": {
         "type": "Direct",
@@ -632,48 +632,48 @@
       "HerdMASTER.Dotmim.Sync.MariaDB": {
         "type": "Project",
         "dependencies": {
-          "HerdMASTER.Dotmim.Sync.Core": "[1.0.0.5, )",
+          "HerdMASTER.Dotmim.Sync.Core": "[1.0.0.11, )",
           "MySqlConnector": "[2.4.0, )"
         }
       },
       "HerdMASTER.Dotmim.Sync.MySql": {
         "type": "Project",
         "dependencies": {
-          "HerdMASTER.Dotmim.Sync.Core": "[1.0.0.5, )",
+          "HerdMASTER.Dotmim.Sync.Core": "[1.0.0.11, )",
           "MySqlConnector": "[2.4.0, )"
         }
       },
       "HerdMASTER.Dotmim.Sync.PostgreSql": {
         "type": "Project",
         "dependencies": {
-          "HerdMASTER.Dotmim.Sync.Core": "[1.0.0.5, )",
+          "HerdMASTER.Dotmim.Sync.Core": "[1.0.0.11, )",
           "Npgsql": "[9.0.2, )"
         }
       },
       "HerdMASTER.Dotmim.Sync.Sqlite": {
         "type": "Project",
         "dependencies": {
-          "HerdMASTER.Dotmim.Sync.Core": "[1.0.0.5, )",
+          "HerdMASTER.Dotmim.Sync.Core": "[1.0.0.11, )",
           "Microsoft.Data.Sqlite": "[9.0.2, )"
         }
       },
       "HerdMASTER.Dotmim.Sync.SqlServer": {
         "type": "Project",
         "dependencies": {
-          "HerdMASTER.Dotmim.Sync.Core": "[1.0.0.5, )",
+          "HerdMASTER.Dotmim.Sync.Core": "[1.0.0.11, )",
           "Microsoft.Data.SqlClient": "[6.0.1, )"
         }
       },
       "HerdMASTER.Dotmim.Sync.SqlServer.ChangeTracking": {
         "type": "Project",
         "dependencies": {
-          "HerdMASTER.Dotmim.Sync.SqlServer": "[1.0.0.5, )"
+          "HerdMASTER.Dotmim.Sync.SqlServer": "[1.0.0.11, )"
         }
       },
       "HerdMASTER.Dotmim.Sync.Web.Client": {
         "type": "Project",
         "dependencies": {
-          "HerdMASTER.Dotmim.Sync.Core": "[1.0.0.5, )",
+          "HerdMASTER.Dotmim.Sync.Core": "[1.0.0.11, )",
           "Microsoft.Extensions.Features": "[9.0.1, )",
           "Microsoft.Net.Http.Headers": "[9.0.2, )"
         }
@@ -681,7 +681,7 @@
       "HerdMASTER.Dotmim.Sync.Web.Server": {
         "type": "Project",
         "dependencies": {
-          "HerdMASTER.Dotmim.Sync.Web.Client": "[1.0.0.5, )",
+          "HerdMASTER.Dotmim.Sync.Web.Client": "[1.0.0.11, )",
           "System.Text.Json": "[9.0.2, )"
         }
       }
