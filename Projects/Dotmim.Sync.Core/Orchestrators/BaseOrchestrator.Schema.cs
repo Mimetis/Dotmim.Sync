@@ -247,13 +247,11 @@ namespace Dotmim.Sync
                 if (schemaTable.Columns.Count > 0)
                     schemaTable.Columns.Clear();
 
-                List<SyncColumn> lstColumns;
+                List<SyncColumn> lstColumns = new List<SyncColumn>();
 
                 // Validate columns list from setup table if any
                 if (setupTable.Columns != null && setupTable.Columns.Count > 1)
                 {
-                    lstColumns = new List<SyncColumn>();
-
                     foreach (var setupColumn in setupTable.Columns)
                     {
                         // Check if the columns list contains the column name we specified in the setup
@@ -267,7 +265,8 @@ namespace Dotmim.Sync
                 }
                 else
                 {
-                    lstColumns = columnsList;
+                    // Add all columns except the excluded ones
+                    lstColumns.AddRange(columnsList.Where(column => !setupTable.Columns.ExcludedCollection.Any(e => e.Equals(column.ColumnName, SyncGlobalization.DataSourceStringComparison))));
                 }
 
                 foreach (var column in lstColumns.OrderBy(c => c.Ordinal))
