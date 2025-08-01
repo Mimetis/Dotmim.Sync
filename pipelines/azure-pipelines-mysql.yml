@@ -22,13 +22,6 @@ jobs:
 
   - template: azure-pipelines-template.yml
     parameters:
-      displayName: "MySQL Tcp .net core 3.1"
-      dotnetfx: "netcoreapp3.1"
-      filter: "Dotmim.Sync.Tests.MySqlTcp"
-      docker: "mysql"
-
-  - template: azure-pipelines-template.yml
-    parameters:
       displayName: "MySQL Tcp .net 8.0"
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.MySqlTcp"
@@ -47,13 +40,6 @@ jobs:
       dotnetfx: "net8.0"
       filter: "Dotmim.Sync.Tests.MySqlTcpFilterTests"
       docker: "mysql"
-
-  - template: azure-pipelines-template.yml
-    parameters:
-      displayName: "MariaDB Tcp .net core 3.1"
-      dotnetfx: "netcoreapp3.1"
-      filter: "Dotmim.Sync.Tests.MariaDBTcp"
-      docker: "mariadb"
 
   - template: azure-pipelines-template.yml
     parameters:
