@@ -21,6 +21,11 @@ namespace Dotmim.Sync
         [DataMember(Name = "c", IsRequired = true, Order = 1)]
         public Collection<string> InnerCollection { get; set; } = [];
 
+        /// <summary>
+        /// Gets or sets the columns that are to be excluded from the synchronization process.
+        /// </summary>
+        public Collection<string> ExcludedCollection { get; } = [];
+
         /// <inheritdoc cref="SetupColumns"/>
         public SetupColumns() { }
 
@@ -34,6 +39,9 @@ namespace Dotmim.Sync
 
             if (this.InnerCollection.Any(c => string.Equals(c, item, SyncGlobalization.DataSourceStringComparison)))
                 throw new Exception($"Column name {columnNameNormalized} already exists in the table");
+
+            if (this.ExcludedCollection.Any(c => string.Equals(c, item, SyncGlobalization.DataSourceStringComparison)))
+                throw new Exception($"Column name {columnNameNormalized} is in the exclusion collection");
 
             this.InnerCollection.Add(columnNameNormalized);
         }
@@ -54,6 +62,15 @@ namespace Dotmim.Sync
         {
             foreach (var columnName in columnsName)
                 this.Add(columnName);
+        }
+
+        /// <summary>
+        /// Exclude a range of columns from the sync process setup.
+        /// </summary>
+        public void ExcludeRange(params string[] columnsName)
+        {
+            foreach (var columnName in columnsName)
+                this.ExcludedCollection.Add(columnName);
         }
 
         /// <summary>
