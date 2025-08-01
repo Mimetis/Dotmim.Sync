@@ -1,164 +1,126 @@
 ﻿using System;
-using System.Linq;
 
 namespace Dotmim.Sync.DatabaseStringParsers
 {
     /// <summary>
-    /// Read database objects from a string.
+    /// A low-level tokenizer that walks a span of characters and
+    /// extracts quoted or unquoted “objects” (identifiers), optionally
+    /// skipping dots (.) as separators.
     /// </summary>
     public ref struct ObjectsReader
     {
         private readonly ReadOnlySpan<char> input;
         private readonly char[] leftQuotes;
         private readonly char[] rightQuotes;
-        private int dataPos = 0;
+        private int position;
 
         /// <summary>
-        /// Gets get current object.
+        /// After a successful <see cref="Read"/>, the span of characters
+        /// that was just extracted (without its surrounding quotes).
         /// </summary>
         public ReadOnlySpan<char> Current { get; private set; }
 
         /// <summary>
-        /// Gets the first left quote found.
+        /// The very first left-quote character actually encountered
+        /// when tokenizing. If no real quotes were found, this will
+        /// default to the first element of <c>leftQuotes</c>.
         /// </summary>
         public char FirstLeftQuote { get; private set; }
 
         /// <summary>
-        /// Gets the first right quote found.
+        /// The very first right-quote character actually encountered
+        /// when tokenizing. If no real quotes were found, this will
+        /// default to the first element of <c>rightQuotes</c>.
         /// </summary>
         public char FirstRightQuote { get; private set; }
 
-        /// <inheritdoc cref="ObjectsReader"/>
+        /// <summary>
+        /// Constructs a new reader over <paramref name="input"/>,
+        /// recognizing any character in <paramref name="leftQuotes"/>
+        /// as an opening quote and any in <paramref name="rightQuotes"/>
+        /// as a closing quote.
+        /// </summary>
         public ObjectsReader(ReadOnlySpan<char> input, char[] leftQuotes, char[] rightQuotes)
         {
+            this.input = input;
             this.leftQuotes = leftQuotes;
             this.rightQuotes = rightQuotes;
-            this.input = input;
+            this.position = 0;
+            this.Current = default;
+            this.FirstLeftQuote = '\0';
+            this.FirstRightQuote = '\0';
         }
 
         /// <summary>
-        /// Read nex token.
+        /// Advances to the next token. Returns <c>true</c> if a token
+        /// was found; <c>false</c> when the end of the input is reached.
         /// </summary>
         public bool Read()
         {
-            // length of the current object read
-            var dataLen = 0;
-
-            var reachEndOfOneObject = false;
-            var reachStartOfOneObject = false;
-
-            var startPos = 0;
-
-            // if we have only one left quote, we can set it
-            if (this.leftQuotes.Length == 1)
-                this.FirstLeftQuote = this.leftQuotes[0];
-
-            // if we have only one right quote, we can set it
-            if (this.rightQuotes.Length == 1)
-                this.FirstRightQuote = this.rightQuotes[0];
-
-            if (this.input.Length == 0)
-                return false;
-
-            if (this.input.Length == 1 && this.dataPos == 0)
+            while (position < input.Length)
             {
-                // check if character is a quote or a special character
-                if (this.rightQuotes.Contains(this.input[this.dataPos])
-                    || this.leftQuotes.Contains(this.input[this.dataPos])
-                    || this.input[this.dataPos] == '.'
-                    || this.input[this.dataPos] == ' ')
+                // Skip dots and whitespace
+                while (position < input.Length && (input[position] == '.' || char.IsWhiteSpace(input[position])))
+                    position++;
 
-                    return false;
+                if (position >= input.Length)
+                    break;
 
-                this.Current = this.input;
-                this.dataPos++;
-                return true;
-            }
+                var c = input[position];
 
-            // iterate through the input
-            while (this.dataPos <= this.input.Length - 1)
-            {
-                // if we reach the end of the input or the end of the current object
-                if (this.dataPos == this.input.Length - 1 || (this.rightQuotes.Contains(this.input[this.dataPos]) && reachStartOfOneObject))
+                // Quoted token?
+                if (Array.IndexOf(leftQuotes, c) >= 0)
                 {
-                    // if we found a right quote and we did not determine the first quote, we can set it
-                    if (this.FirstRightQuote == char.MinValue && this.rightQuotes.Contains(this.input[this.dataPos]))
-                        this.FirstRightQuote = this.input[this.dataPos];
+                    char left = c;
 
-                    reachEndOfOneObject = true;
-
-                    // if we are at the end of the input and the current character is not a right quote, we can add it to the current object
-                    if (!this.rightQuotes.Contains(this.input[this.dataPos]) && this.input[this.dataPos] != '.' && this.input[this.dataPos] != ' ')
-                        dataLen++;
-
-                    // we have reached the end of the current object. We can move 1 forward to get the next object
-                    if (this.rightQuotes.Contains(this.input[this.dataPos]) && this.dataPos < this.input.Length - 1)
-                        this.dataPos++;
-                }
-
-                // if we found a special character like ".", we can skip it
-                else if (this.input[this.dataPos] == '.')
-                {
-
-                    // if we are in progress of reading an object, we can skip this character and continue
-                    // Progress of reading an object means we have already found a left quote
-                    // if so, we can skip this character
-                    // otherwise, we are at the end of the current object
-                    if (reachStartOfOneObject && dataLen > 0 && this.FirstLeftQuote == char.MinValue)
+                    // Find the next *any* right-quote
+                    int start = position + 1;
+                    int len = 0;
+                    for (; start + len < input.Length; len++)
                     {
-                        reachEndOfOneObject = true;
+                        if (Array.IndexOf(rightQuotes, input[start + len]) >= 0)
+                            break;
                     }
-                    if (reachStartOfOneObject && dataLen > 0 && this.FirstLeftQuote != char.MinValue)
+
+                    // If we never found a real closing quote, skip this '[' or '`'
+                    if (start + len >= input.Length)
                     {
-                        dataLen++;
-                        this.dataPos++;
-                    }
-                    else
-                    {
-                        // skip this character and start on the next one
-                        this.dataPos++;
+                        position++;
                         continue;
                     }
-                }
 
-                // if we found a left quote, we can start reading the current object
-                else if (this.leftQuotes.Contains(this.input[this.dataPos]))
-                {
-                    if (this.FirstLeftQuote == char.MinValue && this.leftQuotes.Contains(this.input[this.dataPos]))
-                        this.FirstLeftQuote = this.input[this.dataPos];
+                    char right = input[start + len];
+                    Current = input.Slice(start, len);
+                    position = start + len + 1;
 
-                    reachStartOfOneObject = true;
+                    if (FirstLeftQuote == '\0') FirstLeftQuote = left;
+                    if (FirstRightQuote == '\0') FirstRightQuote = right;
 
-                    // omits this character
-                    this.dataPos++;
-                    startPos = this.dataPos;
-                    dataLen = 0;
-                }
-
-                // we are hitting a classic character but never starts a new object. So we do it here
-                if (!reachStartOfOneObject)
-                {
-                    reachStartOfOneObject = true;
-
-                    // do not omit this character and start counting
-                    startPos = this.dataPos;
-                    dataLen = 1;
-                }
-
-                // we reach the end of the current object and we have read some data
-                else if (reachEndOfOneObject && dataLen > 0)
-                {
-                    // we have reached the end of the current object
-                    // we need to slice the input to get the object
-                    this.Current = this.input.Slice(startPos, dataLen);
                     return true;
                 }
                 else
                 {
-                    dataLen++;
-                }
+                    // Unquoted token: read until next dot or end
+                    int start = position;
+                    int end = start;
+                    while (end < input.Length && input[end] != '.')
+                        end++;
 
-                this.dataPos++;
+                    var raw = input.Slice(start, end - start);
+
+                    // Trim any trailing right-quote (e.g. stray backtick)
+                    raw = raw.TrimEnd(rightQuotes);
+
+                    Current = raw;
+                    position = end;
+
+                    // On the very first unquoted token, if we never saw a real quote,
+                    // fall back to the *first* quote character of each array:
+                    if (FirstLeftQuote == '\0') FirstLeftQuote = leftQuotes[0];
+                    if (FirstRightQuote == '\0') FirstRightQuote = rightQuotes[0];
+
+                    return true;
+                }
             }
 
             return false;

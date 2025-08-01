@@ -338,7 +338,7 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal("Date Empl. Après L'Entête", columnParser.ObjectName);
             Assert.Equal("", columnParser.OwnerName);
             Assert.Equal("[Date Empl. Après L'Entête]", columnParser.QuotedShortName);
-            Assert.Equal("Date_Empl__Après_L'Entête", columnParser.NormalizedShortName);
+            Assert.Equal("Date_Empl__Apres_L_Entete", columnParser.NormalizedShortName);
         }
 
 
