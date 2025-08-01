@@ -1,4 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Dotmim.Sync.DatabaseStringParsers
 {
@@ -75,32 +79,51 @@ namespace Dotmim.Sync.DatabaseStringParsers
         public string QuotedShortName => $"{this.FirstLeftQuote}{this.objectName.ToString()}{this.FirstRightQuote}";
 
         /// <summary>
+        /// Replaces special characters in a string
+        /// </summary>
+        public static string ReplaceSpecialCharacters(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return input;
+
+            char[] buffer = new char[input.Length];
+            int outputIndex = 0;
+
+            string normalized = input.Normalize(NormalizationForm.FormD);
+
+            foreach (char c in normalized)
+            {
+                UnicodeCategory uc = CharUnicodeInfo.GetUnicodeCategory(c);
+                if (uc == UnicodeCategory.NonSpacingMark)
+                    continue;
+
+                // Replace specific characters with underscore
+                if (c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\u00A0' ||
+                    c == '-' || c == '.' || c == '/' || c == '\\' || c == ':' || c == ';' ||
+                    c == ',' || c == '|' || c == '*' || c == '?' || c == '!' || c == '"' ||
+                    c == '\'' || c == '(' || c == ')' || c == '[' || c == ']' || c == '{' ||
+                    c == '}' || c == '&' || c == '%' || c == '$' || c == '#' || c == '@' ||
+                    c == '=' || c == '+' || c == '<' || c == '>')
+                {
+                    buffer[outputIndex++] = '_';
+                }
+                else
+                {
+                    buffer[outputIndex++] = c;
+                }
+            }
+
+            return new string(buffer, 0, outputIndex);
+        }
+
+        /// <summary>
         /// Gets the normalized short name of the table, without schema name or database name.
         /// </summary>
         public string NormalizedShortName
         {
             get
             {
-                string tableNameString;
-#if NET6_0_OR_GREATER
-                if (this.objectName.Contains(' '))
-#else
-                if (this.objectName.Contains(" ".AsSpan(), SyncGlobalization.DataSourceStringComparison))
-#endif
-                {
-#if NET8_0_OR_GREATER
-                    var tableNameReplaced = TableParser.Replace(this.objectName, ' ', '_');
-                    tableNameString = tableNameReplaced.ToString();
-#else
-                    tableNameString = this.objectName.ToString().Replace(' ', '_');
-#endif
-                }
-                else
-                {
-                    tableNameString = this.objectName.ToString();
-                }
-
-                return tableNameString;
+                return ReplaceSpecialCharacters(this.objectName.ToString());
             }
         }
     }

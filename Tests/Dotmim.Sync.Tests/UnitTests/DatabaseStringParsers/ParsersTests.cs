@@ -329,5 +329,19 @@ namespace Dotmim.Sync.Tests.UnitTests
             Assert.Equal("Customer", tableParser.NormalizedShortName);
             Assert.Equal("Customer", tableParser.NormalizedFullName);
         }
+
+        [Fact]
+        public void ColumnParser_Parse_WhiteSpecials_Characters_ShouldWork()
+        {
+            var columnParser = new ObjectParser("[Date Empl. Après L'Entête]", '[', ']');
+
+            Assert.Equal("Date Empl. Après L'Entête", columnParser.ObjectName);
+            Assert.Equal("", columnParser.OwnerName);
+            Assert.Equal("[Date Empl. Après L'Entête]", columnParser.QuotedShortName);
+            Assert.Equal("Date_Empl__Après_L'Entête", columnParser.NormalizedShortName);
+        }
+
+
+
     }
 }

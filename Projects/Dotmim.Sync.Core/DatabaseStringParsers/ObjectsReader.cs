@@ -101,9 +101,17 @@ namespace Dotmim.Sync.DatabaseStringParsers
                 {
 
                     // if we are in progress of reading an object, we can skip this character and continue
-                    if (reachStartOfOneObject && dataLen > 0)
+                    // Progress of reading an object means we have already found a left quote
+                    // if so, we can skip this character
+                    // otherwise, we are at the end of the current object
+                    if (reachStartOfOneObject && dataLen > 0 && this.FirstLeftQuote == char.MinValue)
                     {
                         reachEndOfOneObject = true;
+                    }
+                    if (reachStartOfOneObject && dataLen > 0 && this.FirstLeftQuote != char.MinValue)
+                    {
+                        dataLen++;
+                        this.dataPos++;
                     }
                     else
                     {
