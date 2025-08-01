@@ -1,5 +1,4 @@
 jobs:
-      
   - template: azure-pipelines-template.yml
     parameters:
       displayName: "PostgreSQL Tcp .net 8.0"

@@ -1,182 +1,144 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace Dotmim.Sync.DatabaseStringParsers
 {
+
     /// <summary>
-    /// Parse a table and get the database, schema and table name and can be recomposed with quotes.
+    /// Parses a table name with optional schema, handling the same quoting rules.
     /// </summary>
     public readonly ref struct TableParser
     {
-        private readonly ReadOnlySpan<char> databaseName;
+
         private readonly ReadOnlySpan<char> schemaName;
         private readonly ReadOnlySpan<char> tableName;
 
         /// <summary>
-        /// Gets the first left quote found.
+        /// First left-quote encountered (or default fallback).
         /// </summary>
         public readonly char FirstLeftQuote { get; }
 
         /// <summary>
-        /// Gets the first right quote found.
+        /// First right-quote encountered (or default fallback).
         /// </summary>
         public readonly char FirstRightQuote { get; }
 
-        /// <inheritdoc cref="TableParser"/>
+        /// <summary>
+        /// Constructs a table parser over a raw span and quote arrays.
+        /// </summary>
         public TableParser(ReadOnlySpan<char> input, char[] leftQuotes, char[] rightQuotes)
         {
             var reader = new ObjectsReader(input, leftQuotes, rightQuotes);
 
-            var tokensFoundCount = 0;
+            // With an array to store the tokens, since List<T> cannot be used with ref structs like ReadOnlySpan<char>
+            ReadOnlySpan<char> token1 = default, token2 = default;
+            int tokenCount = 0;
 
             while (reader.Read())
             {
-                var current = reader.Current;
+                if (tokenCount == 0)
+                    token1 = reader.Current;
+                else if (tokenCount == 1)
+                    token2 = reader.Current;
+                tokenCount++;
+            }
 
-                tokensFoundCount++;
+            ReadOnlySpan<char> schema = default, table = default;
 
-                // add the object to the list
-                if (tokensFoundCount == 1)
+            if (tokenCount >= 2)
+            {
+                schema = token1;
+                table = token2;
+            }
+            else if (tokenCount == 1)
+            {
+                // single token—maybe “schema.table” inside one quoted block?
+                var tok = token1.ToString();
+                var dot = tok.IndexOf('.');
+                if (dot > 0 && dot < tok.Length - 1)
                 {
-                    this.tableName = current.ToArray();
+                    schema = tok.AsSpan(0, dot);
+                    table = tok.AsSpan(dot + 1);
                 }
-                else if (tokensFoundCount == 2)
+                else
                 {
-                    this.schemaName = this.tableName;
-                    this.tableName = current.ToArray();
-                }
-                else if (tokensFoundCount == 3)
-                {
-                    this.databaseName = this.schemaName;
-                    this.schemaName = this.tableName;
-                    this.tableName = current.ToArray();
+                    table = token1;
                 }
             }
+
+            schemaName = schema.Trim();   // drop stray whitespace
+            tableName = table.Trim();
 
             this.FirstLeftQuote = reader.FirstLeftQuote == char.MinValue ? leftQuotes[0] : reader.FirstLeftQuote;
             this.FirstRightQuote = reader.FirstRightQuote == char.MinValue ? rightQuotes[0] : reader.FirstRightQuote;
         }
 
-        /// <inheritdoc cref="TableParser"/>
+        /// <summary>
+        /// Shortcut ctor for a single quote style (e.g. '[',']').
+        /// </summary>
         public TableParser(string input, char leftQuote, char rightQuote)
-            : this(input.AsSpan(), [leftQuote], [rightQuote]) { }
+            : this(input.AsSpan(), new[] { leftQuote }, new[] { rightQuote }) { }
 
-        /// <inheritdoc cref="TableParser"/>
+        /// <summary>
+        /// Default ctor: recognizes [ ] , ` ` and " " as quote styles.
+        /// </summary>
         public TableParser(string input)
-            : this(input.AsSpan(), ['[', '`', '"'], [']', '`', '"']) { }
+            : this(input.AsSpan(),
+                   ObjectParser.openingQuotes,
+                   ObjectParser.closingQuotes)
+        { }
 
         /// <summary>
-        /// Gets the name of the table.
+        /// The unquoted table name (e.g. “Customer”).
         /// </summary>
-        public string TableName => this.tableName.ToString();
+        public string TableName => tableName.ToString();
 
         /// <summary>
-        /// Gets the name of the schema.
+        /// The unquoted schema name (or empty).
         /// </summary>
-        public string SchemaName => this.schemaName.ToString();
+        public string SchemaName => schemaName.ToString();
 
         /// <summary>
-        /// Gets the name of the database.
+        /// Short name re-quoted with the first quote style (e.g. “[Customer]”).
         /// </summary>
-        public string DatabaseName => this.databaseName.ToString();
+        public string QuotedShortName =>
+            $"{FirstLeftQuote}{tableName.ToString()}{FirstRightQuote}";
 
         /// <summary>
-        /// Gets the quoted short name of the table, without schema name or database name.
+        /// Full name (schema + dot + table), re-quoted in that same style.
         /// </summary>
-        public string QuotedShortName => $"{this.FirstLeftQuote}{this.tableName.ToString()}{this.FirstRightQuote}";
-
-        /// <summary>
-        /// Gets the quoted full name of the table, including schema name and database name if any.
-        /// </summary>
-        public string QuotedFullName =>
-            this.databaseName.Length == 0 && this.schemaName.Length == 0
-                    ? $"{this.FirstLeftQuote}{this.tableName.ToString()}{this.FirstRightQuote}"
-                    : this.databaseName.Length == 0
-                    ? $"{this.FirstLeftQuote}{this.schemaName.ToString()}{this.FirstRightQuote}.{this.FirstLeftQuote}{this.tableName.ToString()}{this.FirstRightQuote}"
-                    : $"{this.FirstLeftQuote}{this.databaseName.ToString()}{this.FirstRightQuote}.{this.FirstLeftQuote}{this.schemaName.ToString()}{this.FirstRightQuote}.{this.FirstLeftQuote}{this.tableName.ToString()}{this.FirstRightQuote}";
-
-        /// <summary>
-        /// Replace all occurrences of a character by another character from a ReadOnlySpan and returns a new Span.
-        /// </summary>
-        internal static Span<char> Replace(ReadOnlySpan<char> chars, char oldValue, char newValue)
-        {
-            var pool = new Span<char>(new char[chars.Length]);
-#if NET8_0_OR_GREATER
-            chars.Replace(pool, oldValue, newValue);
-#else
-            chars.CopyTo(pool);
-            int pos;
-            int slice = 0;
-            while ((pos = chars.IndexOf(oldValue)) >= 0)
-            {
-                pool[pos + slice] = newValue;
-                chars = chars.Slice(pos + 1);
-                slice += pos + 1;
-            }
-#endif
-            return pool;
-        }
-
-        /// <summary>
-        /// Gets the normalized short name of the table, without schema name or database name.
-        /// </summary>
-        public string NormalizedShortName
+        public string QuotedFullName
         {
             get
             {
-                string tableNameString;
-#if NET6_0_OR_GREATER
-                if (this.tableName.Contains(' '))
-#else
-                if (this.tableName.Contains(" ".AsSpan(), SyncGlobalization.DataSourceStringComparison))
-#endif
-                {
-#if NET8_0_OR_GREATER
-                    var tableNameReplaced = TableParser.Replace(this.tableName, ' ', '_');
-                    tableNameString = tableNameReplaced.ToString();
-#else
-                    tableNameString = this.tableName.ToString().Replace(' ', '_');
-#endif
-                }
-                else
-                {
-                    tableNameString = this.tableName.ToString();
-                }
+                if (string.IsNullOrEmpty(SchemaName))
+                    return QuotedShortName;
 
-                return tableNameString;
+                return $"{FirstLeftQuote}{schemaName.ToString()}{FirstRightQuote}"
+                     + "."
+                     + $"{FirstLeftQuote}{tableName.ToString()}{FirstRightQuote}";
             }
         }
 
         /// <summary>
-        /// Gets the normalized full name of the table, including schema name and database name if any.
+        /// Normalized short name (underscores, no special chars).
+        /// </summary>
+        public string NormalizedShortName =>
+            ObjectParser.ReplaceSpecialCharacters(tableName.ToString());
+
+        /// <summary>
+        /// Normalized full name (schema and table joined with “_”).
         /// </summary>
         public string NormalizedFullName
         {
             get
             {
-                string tableNameString;
-#if NET6_0_OR_GREATER
-                if (this.tableName.Contains(' '))
-#else
-                if (this.tableName.Contains(" ".AsSpan(), SyncGlobalization.DataSourceStringComparison))
-#endif
-                {
-#if NET8_0_OR_GREATER
-                    var tableNameReplaced = TableParser.Replace(this.tableName, ' ', '_');
-                    tableNameString = tableNameReplaced.ToString();
-#else
-                    tableNameString = this.tableName.ToString().Replace(' ', '_');
-#endif
-                }
-                else
-                {
-                    tableNameString = this.tableName.ToString();
-                }
+                if (string.IsNullOrEmpty(SchemaName))
+                    return NormalizedShortName;
 
-                return this.databaseName.Length == 0 && this.schemaName.Length == 0
-                    ? tableNameString
-                    : this.databaseName.Length == 0
-                    ? $"{this.schemaName.ToString()}_{tableNameString}"
-                    : $"{this.databaseName.ToString()}_{this.schemaName.ToString()}_{tableNameString}";
+                return ObjectParser.ReplaceSpecialCharacters(schemaName.ToString())
+                     + "_"
+                     + NormalizedShortName;
             }
         }
     }

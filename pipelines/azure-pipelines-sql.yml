@@ -101,17 +101,6 @@ jobs:
         displayName: Get env variables
 
       - task: UseDotNet@2
-        displayName: "Use .Net Core 3.1"
-        inputs:
-          version: 3.x
-
-      - task: UseDotNet@2
-        displayName: "Use .Net Sdk 6.x"
-        inputs:
-          packageType: "sdk"
-          version: 6.0.x
-
-      - task: UseDotNet@2
         displayName: "Use .Net Sdk 8.x"
         inputs:
           packageType: "sdk"
@@ -120,16 +109,13 @@ jobs:
       - script: docker run --name sqlserver -e ACCEPT_EULA=Y -e SA_PASSWORD=Password12! -p 1433:1433 -d mcr.microsoft.com/mssql/server
         displayName: "Run SQL Server latest on Linux container"
 
-      - script: dotnet build Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj
-        displayName: 'Build test project'
-
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.StandAlone --logger trx --no-build
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.StandAlone -f net8.0 --logger trx --no-build
         name: standalonetests
         displayName: "Standalone Tests"
         env:
           "AZUREDEV": "true"
 
-      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.UnitTests --logger trx --no-build
+      - script: dotnet test Tests/Dotmim.Sync.Tests/Dotmim.Sync.Tests.csproj --filter Dotmim.Sync.Tests.UnitTests -f net8.0 --logger trx --no-build
         name: unittests
         displayName: "Unit Tests"
         env:

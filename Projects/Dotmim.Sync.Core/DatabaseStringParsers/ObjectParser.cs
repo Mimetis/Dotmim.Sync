@@ -1,107 +1,132 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Dotmim.Sync.DatabaseStringParsers
 {
+
     /// <summary>
-    /// Parse any object related to a schema. Can be a column, atable, a stored proc, a trigger etc ...
+    /// Parses a “schema‐qualified” object identifier (column, proc, etc.).
     /// </summary>
     public readonly ref struct ObjectParser
     {
+        internal static readonly char[] openingQuotes = new[] { '[', '`', '"' };
+        internal static readonly char[] closingQuotes = new[] { ']', '`', '"' };
 
         private readonly ReadOnlySpan<char> ownerName;
         private readonly ReadOnlySpan<char> objectName;
 
         /// <summary>
-        /// Gets the first left quote found.
+        /// The first left-quote character found in the input (or default).
         /// </summary>
         public readonly char FirstLeftQuote { get; }
 
         /// <summary>
-        /// Gets the first right quote found.
+        /// The first right-quote character found in the input (or default).
         /// </summary>
         public readonly char FirstRightQuote { get; }
 
-        /// <inheritdoc cref="ObjectParser"/>
+        /// <summary>
+        /// Constructs a parser over a raw span, using the given quote arrays.
+        /// </summary>
         public ObjectParser(ReadOnlySpan<char> input, char[] leftQuotes, char[] rightQuotes)
         {
-
             var reader = new ObjectsReader(input, leftQuotes, rightQuotes);
-
             var tokensFoundCount = 0;
+            ReadOnlySpan<char> owner = default;
+            ReadOnlySpan<char> obj = default;
 
             while (reader.Read())
             {
-                var current = reader.Current;
-
                 tokensFoundCount++;
-
-                // add the object to the list
                 if (tokensFoundCount == 1)
-                {
-                    this.objectName = current.ToArray();
-                }
+                    obj = reader.Current;
                 else if (tokensFoundCount == 2)
                 {
-                    this.ownerName = this.objectName;
-                    this.objectName = current.ToArray();
+                    owner = obj;
+                    obj = reader.Current;
                 }
             }
+
+            this.ownerName = owner;
+            this.objectName = obj;
 
             this.FirstLeftQuote = reader.FirstLeftQuote;
             this.FirstRightQuote = reader.FirstRightQuote;
         }
 
-        /// <inheritdoc cref="ObjectParser"/>
+        /// <summary>
+        /// Shortcut for parsing from a single‐quote‐pair (e.g. '[',']').
+        /// </summary>
         public ObjectParser(string input, char leftQuote, char rightQuote)
-            : this(input.AsSpan(), [leftQuote], [rightQuote]) { }
+            : this(input.AsSpan(), new[] { leftQuote }, new[] { rightQuote }) { }
 
-        /// <inheritdoc cref="ObjectParser"/>
+        /// <summary>
+        /// Default parser: recognizes [ ] , ` ` and " " as quote pairs.
+        /// </summary>
         public ObjectParser(string input)
-            : this(input.AsSpan(), ['[', '`', '"'], [']', '`', '"']) { }
+            : this(input.AsSpan(),
+                   ObjectParser.openingQuotes,
+                   ObjectParser.closingQuotes)
+        { }
 
         /// <summary>
-        /// Gets the name of the object (Column, Table, Stored proc, Trigger, etc ...)
+        /// The unquoted object name (e.g. “ID”).
         /// </summary>
-        public string ObjectName => this.objectName.ToString();
+        public string ObjectName => objectName.ToString();
 
         /// <summary>
-        /// Gets the name of the owner (schema name if object is a stored proc, a trigger, a table. table name if object is a column).
+        /// The owner/schema part (e.g. “Customer” in “Customer.ID”), or empty.
         /// </summary>
-        public string OwnerName => this.ownerName.ToString();
+        public string OwnerName => ownerName.ToString();
 
         /// <summary>
-        /// Gets the quoted short name of the column, without table name.
+        /// The short name re-quoted with the first quote style (e.g. "[ID]").
         /// </summary>
-        public string QuotedShortName => $"{this.FirstLeftQuote}{this.objectName.ToString()}{this.FirstRightQuote}";
+        public string QuotedShortName =>
+            $"{FirstLeftQuote}{objectName.ToString()}{FirstRightQuote}";
 
         /// <summary>
-        /// Gets the normalized short name of the table, without schema name or database name.
+        /// A safe, underscore-only version of the object name.
         /// </summary>
-        public string NormalizedShortName
+        public string NormalizedShortName =>
+            ReplaceSpecialCharacters(objectName.ToString());
+
+        /// <summary>
+        /// Replaces spaces, punctuation, diacritics, etc. with underscores.
+        /// </summary>
+        public static string ReplaceSpecialCharacters(string input)
         {
-            get
+            if (string.IsNullOrEmpty(input))
+                return input;
+
+            var buffer = new char[input.Length];
+            int idx = 0;
+            var normalized = input.Normalize(NormalizationForm.FormD);
+
+            const string specialChars = "-./\\:;,|*?!\"'()[]{}&%#$@=+<>";
+            foreach (var ch in normalized)
             {
-                string tableNameString;
-#if NET6_0_OR_GREATER
-                if (this.objectName.Contains(' '))
-#else
-                if (this.objectName.Contains(" ".AsSpan(), SyncGlobalization.DataSourceStringComparison))
+                var cat = CharUnicodeInfo.GetUnicodeCategory(ch);
+                if (cat == UnicodeCategory.NonSpacingMark)
+                    continue;
+#if NETSTANDARD2_0
+                if (char.IsWhiteSpace(ch) || specialChars.IndexOf(ch) >= 0)
+#elif NET6_0_OR_GREATER
+                if (char.IsWhiteSpace(ch) || specialChars.Contains(ch))
 #endif
                 {
-#if NET8_0_OR_GREATER
-                    var tableNameReplaced = TableParser.Replace(this.objectName, ' ', '_');
-                    tableNameString = tableNameReplaced.ToString();
-#else
-                    tableNameString = this.objectName.ToString().Replace(' ', '_');
-#endif
+                    buffer[idx++] = '_';
                 }
                 else
                 {
-                    tableNameString = this.objectName.ToString();
+                    buffer[idx++] = ch;
                 }
-
-                return tableNameString;
             }
+
+            return new string(buffer, 0, idx);
         }
     }
 }
