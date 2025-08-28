@@ -40,8 +40,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Root Files", "Root Files", 
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "PIpelines", "PIpelines", "{95D9538D-99B9-4341-AFBD-32A01647E65F}"
 	ProjectSection(SolutionItems) = preProject
-		azure-pipelines-mysql.yml = azure-pipelines-mysql.yml
-		azure-pipelines-nuget.yml = azure-pipelines-nuget.yml
+		pipelines\azure-pipelines-mysql.yml = pipelines\azure-pipelines-mysql.yml
+		pipelines\azure-pipelines-nuget.yml = pipelines\azure-pipelines-nuget.yml
 		pipelines\azure-pipelines-sql.yml = pipelines\azure-pipelines-sql.yml
 		pipelines\azure-pipelines-template.yml = pipelines\azure-pipelines-template.yml
 	EndProjectSection
@@ -263,8 +263,8 @@ Global
 		{6BF3A0FA-2DD7-4BD2-9AD3-80A2078D489E} = {16AD50B6-D2E0-472B-8900-83BDEC0D96A3}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		BuildVersion_StartDate = 2000/1/1
 		SolutionGuid = {348020ED-748B-4CC8-AA1D-9F7D36E2AC12}
+		BuildVersion_StartDate = 2000/1/1
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true
