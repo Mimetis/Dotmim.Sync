@@ -262,7 +262,7 @@ namespace Dotmim.Sync.SqlServer.Scope
         {
 
             var commandText = $@"
-                    MERGE {this.ScopeInfoTableNames.QuotedFullName} AS [base] 
+                    MERGE {this.ScopeInfoTableNames.QuotedFullName} WITH (READCOMMITTED) AS [base] 
                     USING (
                                SELECT  @sync_scope_name AS sync_scope_name,  
 	                                   @sync_scope_schema AS sync_scope_schema,  
@@ -337,7 +337,7 @@ namespace Dotmim.Sync.SqlServer.Scope
         {
 
             var commandText = $@"
-                    MERGE {this.ScopeInfoClientTableNames.QuotedFullName} AS [base] 
+                    MERGE {this.ScopeInfoClientTableNames.QuotedFullName} WITH (READCOMMITTED) AS [base] 
                     USING (
                                SELECT  @sync_scope_id AS sync_scope_id,  
 	                                   @sync_scope_name AS sync_scope_name,  
