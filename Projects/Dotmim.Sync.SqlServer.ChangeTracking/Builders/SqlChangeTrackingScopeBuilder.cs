@@ -38,10 +38,10 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                         FROM sys.tables T 
                         WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
                         
-                        UPDATE {this.ScopeInfoTableNames.QuotedFullName} SET sync_scope_last_clean_timestamp = @maxVersion;
+                        UPDATE {this.ScopeInfoTableNames.QuotedFullName} WITH (READCOMMITTED) SET sync_scope_last_clean_timestamp = @maxVersion;
                     END 
 
-                    MERGE {this.ScopeInfoClientTableNames.QuotedFullName} AS [base] 
+                    MERGE {this.ScopeInfoClientTableNames.QuotedFullName} WITH (READCOMMITTED) AS [base] 
                     USING (
                                SELECT  @sync_scope_id AS sync_scope_id,  
 	                                   @sync_scope_name AS sync_scope_name,  
@@ -149,14 +149,14 @@ namespace Dotmim.Sync.SqlServer.ChangeTracking.Builders
                     FROM sys.tables T 
                     WHERE CHANGE_TRACKING_MIN_VALID_VERSION(T.object_id) is not null;
 
-                    MERGE {this.ScopeInfoTableNames.QuotedFullName} AS [base] 
+                    MERGE {this.ScopeInfoTableNames.QuotedFullName} WITH (READCOMMITTED) AS [base] 
                     USING (
                                SELECT  @sync_scope_name AS sync_scope_name,  
 	                                   @sync_scope_schema AS sync_scope_schema,  
 	                                   @sync_scope_setup AS sync_scope_setup,  
 	                                   @sync_scope_version AS sync_scope_version,
                                        @sync_scope_properties as sync_scope_properties
-                           ) AS [changes] 
+                           ) AS [changes]
                     ON [base].[sync_scope_name] = [changes].[sync_scope_name]
                     WHEN NOT MATCHED THEN
 	                    INSERT ([sync_scope_name], [sync_scope_schema], [sync_scope_setup], [sync_scope_version], [sync_scope_last_clean_timestamp], [sync_scope_properties])
