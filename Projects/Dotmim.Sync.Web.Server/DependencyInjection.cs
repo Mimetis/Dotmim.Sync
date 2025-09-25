@@ -86,8 +86,10 @@ namespace Microsoft.Extensions.DependencyInjection
             setup = setup ?? throw new ArgumentNullException(nameof(setup));
             scopeName ??= SyncOptions.DefaultScopeName;
 
+            serviceCollection.AddSingleton<IBatchCleanupService, BatchCleanupService>();
+
             // Create orchestrator
-            serviceCollection.AddScoped(sp => new WebServerAgent(provider, setup, options, webServerOptions, scopeName, identifier));
+            serviceCollection.AddScoped(sp => new WebServerAgent(provider, setup, options, webServerOptions, scopeName, identifier, sp.GetRequiredService<IBatchCleanupService>()));
 
             return serviceCollection;
         }

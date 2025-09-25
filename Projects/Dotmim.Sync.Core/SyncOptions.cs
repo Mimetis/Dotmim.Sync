@@ -105,6 +105,18 @@ namespace Dotmim.Sync
         public TransactionMode TransactionMode { get; set; }
 
         /// <summary>
+        /// Gets or sets the batch retention period before automatic cleanup.
+        /// Default: 1 hour. Set to TimeSpan.Zero to disable time-based cleanup.
+        /// </summary>
+        public TimeSpan BatchRetentionPeriod { get; set; }
+
+        /// <summary>
+        /// Gets or sets whether to perform immediate cleanup on session end.
+        /// If false, relies on time-based cleanup. Default: false (deferred cleanup).
+        /// </summary>
+        public bool BatchCleanupWhenSessionEnds { get; set; }
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="SyncOptions"/> class.
         /// Create a new instance of options with default values.
         /// </summary>
@@ -121,6 +133,7 @@ namespace Dotmim.Sync
             this.Logger = new SyncLogger().AddDebug();
             this.ProgressLevel = SyncProgressLevel.Information;
             this.TransactionMode = TransactionMode.AllOrNothing;
+            this.BatchRetentionPeriod = TimeSpan.FromHours(1);
         }
 
         /// <summary>

@@ -27,25 +27,34 @@ namespace Dotmim.Sync.Web.Server
 
         /// <inheritdoc cref="WebServerAgent"/>
         public WebServerAgent(CoreProvider provider, SyncSetup setup, SyncOptions options = null, WebServerOptions webServerOptions = null,
-            string scopeName = null, string identifier = null)
+            string scopeName = null, 
+            string identifier = null, 
+            IBatchCleanupService cleanupService = null)
         {
             this.Setup = setup;
             this.WebServerOptions = webServerOptions ?? new WebServerOptions();
             this.Provider = provider;
             this.ScopeName = string.IsNullOrEmpty(scopeName) ? SyncOptions.DefaultScopeName : scopeName;
-            this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, options ?? new SyncOptions());
+            this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, options ?? new SyncOptions())
+            {
+                BatchCleanupService = cleanupService??new BatchCleanupService()
+            };
             this.Identifier = identifier;
         }
 
         /// <inheritdoc cref="WebServerAgent"/>
         public WebServerAgent(CoreProvider provider, string[] tables, SyncOptions options = null, WebServerOptions webServerOptions = null,
             string scopeName = null,
-            string identifier = null)
+            string identifier = null,
+            IBatchCleanupService cleanupService = null)
         {
             this.Setup = new SyncSetup(tables);
             this.WebServerOptions = webServerOptions ?? new WebServerOptions();
             this.Provider = provider;
-            this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, options ?? new SyncOptions());
+            this.RemoteOrchestrator = new RemoteOrchestrator(this.Provider, options ?? new SyncOptions())
+            {
+                BatchCleanupService = cleanupService??new BatchCleanupService()
+            };
             this.ScopeName = string.IsNullOrEmpty(scopeName) ? SyncOptions.DefaultScopeName : scopeName;
             this.Identifier = identifier;
         }

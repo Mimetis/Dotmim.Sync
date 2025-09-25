@@ -21,7 +21,9 @@ namespace Dotmim.Sync.Batch
         {
             this.BatchPartsInfo = [];
             this.DirectoryRoot = SyncOptions.GetDefaultUserBatchDirectory();
-            this.DirectoryName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss", CultureInfo.InvariantCulture), Path.GetRandomFileName().Replace(".", string.Empty, SyncGlobalization.DataSourceStringComparison));
+            
+            // Note: It is important for the folder to start with the date information yyyyMMddHHmm so the batch cleanup service can easily find expired batch data and clean it up!
+            this.DirectoryName = string.Concat(DateTime.UtcNow.ToString("yyyyMMddHHmm", CultureInfo.InvariantCulture), Path.GetRandomFileName().Replace(".", string.Empty, SyncGlobalization.DataSourceStringComparison));
         }
 
         /// <inheritdoc cref="BatchInfo"/>
@@ -30,8 +32,9 @@ namespace Dotmim.Sync.Batch
         {
             this.DirectoryRoot = rootDirectory;
 
-            var randomName = string.Concat(DateTime.UtcNow.ToString("yyyy_MM_dd_ss", CultureInfo.InvariantCulture), Path.GetRandomFileName().Replace(".", string.Empty, SyncGlobalization.DataSourceStringComparison));
-            randomName = string.IsNullOrEmpty(info) ? randomName : $"{info}_{randomName}";
+            // Note: It is important for the folder to start with the date information yyyyMMddHHmm so the batch cleanup service can easily find expired batch data and clean it up!
+            var randomName = string.Concat(DateTime.UtcNow.ToString("yyyyMMddHHmm", CultureInfo.InvariantCulture), Path.GetRandomFileName().Replace(".", string.Empty, SyncGlobalization.DataSourceStringComparison));
+            randomName = string.IsNullOrEmpty(info) ? randomName : $"{randomName}_{info}";
             this.DirectoryName = string.IsNullOrEmpty(directoryName) ? randomName : directoryName;
         }
 

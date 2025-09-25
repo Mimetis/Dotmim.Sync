@@ -48,6 +48,11 @@ namespace Dotmim.Sync
             if (provider == null)
                 throw this.GetSyncError(null, new MissingProviderException(nameof(LocalOrchestrator)));
         }
+        
+        /// <summary>
+        /// Gets or sets the service that is used to cleanup expired batch files when the session is started
+        /// </summary>
+        public IBatchCleanupService BatchCleanupService { get; set; } = new BatchCleanupService();
 
         /// <summary>
         /// Called when a new synchronization session has started. Initialize the SyncContext instance, used for this session.
@@ -82,6 +87,10 @@ namespace Dotmim.Sync
 
             // Progress & interceptor
             await this.InterceptAsync(new SessionBeginArgs(context, connection), progress, cancellationToken).ConfigureAwait(false);
+            
+            // cleanup batches
+            if (this.BatchCleanupService is { } svc)
+                await svc.CleanupExpiredBatchesAsync(this.Options, cancellationToken).ConfigureAwait(false);
 
             return context;
         }
