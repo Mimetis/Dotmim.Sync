@@ -445,5 +445,31 @@ namespace Dotmim.Sync
                 throw this.GetSyncError(context, ex);
             }
         }
+
+        /// <summary>
+        /// Builds a synchronization policy based on the TransactionMode of this orchestrator.
+        /// </summary>
+        /// <param name="context">The synchronization context.</param>
+        /// <param name="connection">The database connection.</param>
+        /// <param name="progress">The progress reporter.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <param name="retryIntervalMilliseconds">The interval in milliseconds between retry attempts. Default is 500 milliseconds.</param>
+        /// <returns>A <see cref="SyncPolicy"/> configured according to the transaction mode.</returns>
+        /// <exception cref="NotImplementedException">Thrown when an unsupported transaction mode is encountered.</exception>
+        protected SyncPolicy BuildSyncPolicy(SyncContext context, DbConnection connection, IProgress<ProgressArgs> progress, CancellationToken cancellationToken, int retryIntervalMilliseconds = 500)
+        {
+            // If we have a transient error happening, and we are rerunning the transaction,
+            // raising an interceptor
+            var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
+                this.InterceptAsync(new TransientErrorOccuredArgs(context, connection, ex, cpt, ts), progress, cancellationToken).AsTask());
+
+            return this.Options.TransactionMode switch
+            {
+                TransactionMode.AllOrNothing => SyncPolicy.WaitAndRetry(0, TimeSpan.Zero),
+                TransactionMode.PerBatch => SyncPolicy.WaitAndRetryForever(retryAttempt => TimeSpan.FromMilliseconds(retryIntervalMilliseconds * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry),
+                TransactionMode.None => SyncPolicy.WaitAndRetryForever(retryAttempt => TimeSpan.FromMilliseconds(retryIntervalMilliseconds * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry),
+                _ => throw new NotImplementedException(),
+            };
+        }
     }
 }

@@ -25,15 +25,8 @@ namespace Dotmim.Sync
                               DbConnection connection = default, DbTransaction transaction = default,
                               IProgress<ProgressArgs> progress = null, CancellationToken cancellationToken = default)
         {
-            // If we have a transient error happening, and we are rerunning the tranaction,
-            // raising an interceptor
-            var onRetry = new Func<Exception, int, TimeSpan, object, Task>((ex, cpt, ts, arg) =>
-                this.InterceptAsync(new TransientErrorOccuredArgs(context, connection, ex, cpt, ts), progress, cancellationToken).AsTask());
-
             // Defining my retry policy
-            SyncPolicy retryPolicy = this.Options.TransactionMode == TransactionMode.AllOrNothing
-             ? retryPolicy = SyncPolicy.WaitAndRetryForever(retryAttempt => TimeSpan.FromMilliseconds(500 * retryAttempt), (ex, arg) => this.Provider.ShouldRetryOn(ex), onRetry)
-             : retryPolicy = SyncPolicy.WaitAndRetry(0, TimeSpan.Zero);
+            var retryPolicy = this.BuildSyncPolicy(context, connection, progress, cancellationToken);
 
             // Execute my OpenAsync in my policy context
             var applyChangesResult = await retryPolicy.ExecuteAsync<(SyncContext Context, ClientSyncChanges ClientSyncChange, ScopeInfoClient CScopeInfoClient)>(
