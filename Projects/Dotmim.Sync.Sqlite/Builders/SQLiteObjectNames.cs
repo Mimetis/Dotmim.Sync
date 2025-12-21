@@ -355,9 +355,9 @@ namespace Dotmim.Sync.Sqlite
             stringBuilder.AppendLine($"FROM (SELECT {stringBuilderParametersValues}) as [c]");
             stringBuilder.AppendLine($"LEFT JOIN {this.TrackingTableQuotedShortName} AS [side] ON {str1}");
             stringBuilder.AppendLine($"LEFT JOIN {this.TableQuotedShortName} AS [base] ON {str2}");
-            stringBuilder.AppendLine($"WHERE ([side].[timestamp] < @sync_min_timestamp OR [side].[update_scope_id] = @sync_scope_id) ");
-            stringBuilder.Append($"OR ({SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[base]")} ");
-            stringBuilder.AppendLine($"AND ([side].[timestamp] < @sync_min_timestamp OR [side].[timestamp] IS NULL)) ");
+            stringBuilder.Append($"WHERE (NOT ({SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[base]")}) ");
+            stringBuilder.AppendLine($"AND ([side].[timestamp] <= @sync_min_timestamp OR [side].[update_scope_id] = @sync_scope_id)) ");
+            stringBuilder.AppendLine($"OR ({SqliteManagementUtils.WhereColumnIsNull(this.TableDescription.PrimaryKeys, "[side]")}) ");
             stringBuilder.Append($"OR @sync_force_write = 1");
             stringBuilder.AppendLine($")");
 
