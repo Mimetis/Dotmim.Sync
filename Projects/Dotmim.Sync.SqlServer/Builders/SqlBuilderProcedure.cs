@@ -5,6 +5,7 @@ using Microsoft.Data.SqlClient;
 using System;
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -1008,7 +1009,12 @@ namespace Dotmim.Sync.SqlServer.Builders
                 {
                     var tableFilter = this.TableDescription.Schema.Tables[param.TableName, param.SchemaName];
                     if (tableFilter == null)
-                        throw new FilterParamTableNotExistsException(param.TableName);
+                    {
+                        tableFilter = this.TableDescription.Schema.Tables[param.TableName];
+
+                        if (tableFilter == null)
+                            throw new FilterParamTableNotExistsException(param.TableName);
+                    }
 
                     var columnFilter = tableFilter.Columns[param.Name];
                     if (columnFilter == null)
@@ -1119,17 +1125,32 @@ namespace Dotmim.Sync.SqlServer.Builders
             {
                 var tableFilter = this.TableDescription.Schema.Tables[whereFilter.TableName, whereFilter.SchemaName];
                 if (tableFilter == null)
-                    throw new FilterParamTableNotExistsException(whereFilter.TableName);
+                {
+                    tableFilter = this.TableDescription.Schema.Tables[whereFilter.TableName];
+
+                    if (tableFilter == null)
+                        throw new FilterParamTableNotExistsException(whereFilter.TableName);
+                }
 
                 var columnFilter = tableFilter.Columns[whereFilter.ColumnName];
                 if (columnFilter == null)
                     throw new FilterParamColumnNotExistsException(whereFilter.ColumnName, whereFilter.TableName);
 
                 var tableFilterParser = new TableParser(tableFilter.GetFullName(), SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
+                string tableName = string.Empty;
 
-                var tableName = string.Equals(tableFilterParser.TableName, filter.TableName, SyncGlobalization.DataSourceStringComparison)
-                    ? "[base]"
-                    : tableFilterParser.QuotedFullName;
+                if (tableFilter.Schema != null && filter.TableName.IndexOfAny(new char[] { '[', ']' }) == -1)
+                {
+                    tableName = string.Equals(tableFilterParser.SchemaName + "." + tableFilterParser.TableName, filter.TableName, SyncGlobalization.DataSourceStringComparison)
+                       ? "[base]"
+                       : tableFilterParser.QuotedFullName;
+                }
+                else
+                {
+                    tableName = string.Equals(tableFilterParser.TableName, filter.TableName, SyncGlobalization.DataSourceStringComparison)
+                        ? "[base]"
+                        : tableFilterParser.QuotedFullName;
+                }
 
                 var columnName = new ObjectParser(columnFilter.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).QuotedShortName;
                 var parameterName = new ObjectParser(whereFilter.ParameterName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote).NormalizedShortName;
@@ -1425,7 +1446,7 @@ namespace Dotmim.Sync.SqlServer.Builders
             foreach (var pkColumn in this.TableDescription.GetPrimaryKeysColumns())
             {
                 var columnParser = new ObjectParser(pkColumn.ColumnName, SqlObjectNames.LeftQuote, SqlObjectNames.RightQuote);
-                stringBuilder.Append($"{empty}[base].{columnParser.QuotedShortName}  = [side]. {columnParser.QuotedShortName}");
+                stringBuilder.Append($"{empty}[base].{columnParser.QuotedShortName}  = [side].{columnParser.QuotedShortName}");
                 empty = " AND ";
             }
 
