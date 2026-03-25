@@ -582,7 +582,6 @@ namespace Dotmim.Sync.Sqlite
                 }
 
                 if (tableFilter == null)
-                    if (tableFilter == null)
                     throw new FilterParamTableNotExistsException(whereFilter.TableName);
 
                 var columnFilter = tableFilter.Columns[whereFilter.ColumnName];
