@@ -310,6 +310,13 @@ namespace Dotmim.Sync
                 else
                 {
                     var tableFilter = syncAdapter.TableDescription.Schema.Tables[param.TableName, param.SchemaName];
+
+                    //If null, look in schema by tablename since filter can be created with a schema name.
+                    if (tableFilter == null)
+                    {
+                        tableFilter = syncAdapter.TableDescription.Schema.Tables[param.TableName];
+                    }
+
                     if (tableFilter == null)
                         throw new FilterParamTableNotExistsException(param.TableName);
 
@@ -375,6 +382,13 @@ namespace Dotmim.Sync
                 else
                 {
                     var tableFilter = syncAdapter.TableDescription.Schema.Tables[param.TableName, param.SchemaName];
+
+                    //If null, look in schema by tablename since filter can be created with a schema name.
+                    if (tableFilter == null)
+                    {
+                        tableFilter = syncAdapter.TableDescription.Schema.Tables[param.TableName];
+                    }
+
                     if (tableFilter == null)
                         throw new FilterParamTableNotExistsException(param.TableName);
 

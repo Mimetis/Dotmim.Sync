@@ -574,6 +574,13 @@ namespace Dotmim.Sync.Sqlite
             foreach (var whereFilter in sideWhereFilters)
             {
                 var tableFilter = this.TableDescription.Schema.Tables[whereFilter.TableName, whereFilter.SchemaName];
+
+                //If null, look in schema by tablename since filter can be created with a schema name.
+                if (tableFilter == null)
+                {
+                    tableFilter = this.TableDescription.Schema.Tables[whereFilter.TableName];
+                }
+
                 if (tableFilter == null)
                     throw new FilterParamTableNotExistsException(whereFilter.TableName);
 

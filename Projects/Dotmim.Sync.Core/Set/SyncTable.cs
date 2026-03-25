@@ -220,7 +220,17 @@ namespace Dotmim.Sync
                 var sn = sf.SchemaName == null ? string.Empty : sf.SchemaName;
                 var otherSn = this.SchemaName == null ? string.Empty : this.SchemaName;
 
-                return this.TableName.Equals(sf.TableName, sc) && sn.Equals(otherSn, sc);
+                //If the following check returns false, validate once more to compare against the schema.tablename to take into account the schema
+                var bCheck1 = this.TableName.Equals(sf.TableName, sc) && sn.Equals(otherSn, sc);
+
+                if (!bCheck1)
+                {
+                    return $"{SchemaName}.{TableName}".Equals(sf.TableName, sc);
+                }
+                else
+                {
+                    return bCheck1;
+                }
             });
         }
 
